@@ -11,7 +11,7 @@
       =event-parents  ::
   ==
 +$  event-parent  [seen=? reply-floor=time]
-+$  event-parents  ((mop one-id event-parent) lte)
++$  event-parents  ((mop timid event-parent) lte)
 +$  index
   $%  [%channel channel-concern]
       [%dm dm-concern]
@@ -20,11 +20,13 @@
 +$  flavor
   $?  %dm-invite
       %dm-post
+      %dm-post-mention
       %kick
       %join
       %post
       %post-mention
       %reply
+      %reply-mention
       %flag
   ==
 +$  level  ?(%notify %default %trivial)
@@ -47,8 +49,8 @@
   $%  [%ship p=ship]
       [%club p=@uvH]
   ==
-+$  one-id  time  ::TODO  better name or the Lord so help me
-+$  message-id   (pair ship one-id)
++$  timid  time
++$  message-id   (pair ship timid)
 +$  message-key  [id=message-id =time]
 +$  action
   $%  [%add =event]
@@ -61,8 +63,8 @@
       threads=(list [oldest-unread=time count=@ud])
   ==
 +$  read-action
-  $%  [%thread id=one-id]  ::  mark a whole thread as read
-      [%post id=one-id]    ::  mark an individual post as read
-      [%all ~]             ::  mark _everything_ as read
+  $%  [%thread id=timid]  ::  mark a whole thread as read
+      [%post id=timid]    ::  mark an individual post as read
+      [%all ~]            ::  mark _everything_ as read
   ==
 --

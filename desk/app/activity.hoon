@@ -17,11 +17,11 @@
 =|  state-0
 =*  state  -
 ::
+%-  agent:dbug
+%+  verb  |
 ^-  agent:gall
 ::
 =<
-  %+  verb  |
-  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
@@ -50,16 +50,13 @@
   ::
   ++  on-watch
     |=  =path
-    ^-  (qup card _this)
+    ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
     [cards this]
   ::
-  ++  on-arvo
-    |=  [=wire =sign-arvo]
-    ^-  (quip card _this)
-    `this
-  ::
+  ++  on-arvo    on-arvo:def
+  ++  on-agent   on-agent:def
   ++  on-peek    peek:cor
   ++  on-leave   on-leave:def
   ++  on-fail    on-fail:def
@@ -76,6 +73,7 @@
   ^+  cor
   =.  volume
     %-  malt
+    ^-  (list [flavor:a level:a])
     :~  [%dm-invite %notify]
         [%dm-post %notify]
         [%dm-post-mention %notify]
@@ -118,8 +116,8 @@
   ^+  cor
   ?+  pole  ~|(bat-watch-path+pole !!)
     ~  ?>(from-self cor)
-    %notifications  ?>(from-self cor)
-    %unreads  ?>(from-self cor)
+    [%notifications ~]  ?>(from-self cor)
+    [%unreads ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
@@ -131,11 +129,11 @@
       [%x %all ~]
     ``activity-stream+!>((tap:eon:a stream))
       [%x %all start=@ count=@ ~]
-    ``activity-stream+!>((scag count (top:emp:a stream start)))
+    ``activity-stream+!>((scag count.pole (top:emp:a stream start.pole)))
       [%u %event id=@]
-    ``loob+!>((has:eon:a (slav %da id.pole)))
+    ``loob+!>((has:eon:a stream (slav %da id.pole)))
       [%x %event id=@]
-    ``activity-event+!>((got:eon:a (slav %da id.pole)))
+    ``activity-event+!>((got:eon:a stream (slav %da id.pole)))
       [%x %unreads ~]
     ``activity-unreads+!>((~(run by indices) summarize-unreads))
   ==
@@ -149,52 +147,52 @@
   cor
 ::
 ++  find-floor
-  |=  [=index:a mode=$%([%all ~] [%reply parent=one-id:a])]
-  ^-  new-floor=(unit time)
+  |=  [=index:a mode=$%([%all ~] [%reply parent=timid:a])]
+  ^-  (unit time)
   ?.  (~(has by indices) index)  ~
   ::  starting at the last-known first-unread location (floor), walk towards
   ::  the present, to find the new first-unread location (new floor)
   ::
-  =/  [=orig=stream =reads]
+  =/  [orig=stream:a =reads:a]
     (~(got by indices) index)
-  ?>  |(?=(%all -.mode) (has:eon:a event-parents.reads parent.mode))
+  ?>  |(?=(%all -.mode) (has:mep:a event-parents.reads parent.mode))
   ::  slice off the earlier part of the stream, for efficiency
   ::
-  =/  =stream
+  =/  =stream:a
     =;  beginning=time
-      (lot:eon orig-stream `beginning ~)
+      (lot:eon:a orig `beginning ~)
     ?-  -.mode
         %all    floor.reads
-        %reply  reply-floor:(got:eon:a event-parents.reads parent.mode)
+        %reply  reply-floor:(got:mep:a event-parents.reads parent.mode)
     ==
   =|  new-floor=(unit time)
   |-
   ?~  stream  new-floor
   ::
-  =^  [=time =event]  stream  (pop:eon:a stream)
+  =/  [[=time =event:a] rest=stream:a]  (pop:eon:a stream)
   ?:  ?&  ?=(%reply -.mode)
       ?|  !?=(%reply -.event)
-          =(message-key.event parent.mode)
+          ?&(?=(?(%dm-post %post) -.event) =(message-key.event parent.mode))
       ==  ==
     ::  we're in reply mode, and it's not a reply event, or a reply to
     ::  something else, so, skip
     ::
-    $
+    $(stream rest)
   =;  is-read=?
     ::  if we found something that's unread, we need look no further
     ::
     ?.  is-read  $(stream ~)
     ::  otherwise, continue our walk towards the present
     ::
-    $(new-floor `time)
+    $(new-floor `time, stream rest)
   ?+  -.event  !!
       ?(%dm-post %post)
-    =*  id=one-id  message-key.event
+    =*  id=timid:a  q.id.message-key.event
     =/  par=(unit event-parent:a)  (get:mep:a event-parents.reads id)
     ?~(par | seen.u.par)
   ::
       %reply
-    =*  id=one-id  message-key.event
+    =*  id=timid:a  q.id.message-key.event
     =/  par=(unit event-parent:a)  (get:mep:a event-parents.reads id)
     ?~(par | (gte time reply-floor.u.par))
   ==
@@ -202,10 +200,10 @@
 ++  update-floor
   |=  =index:a
   ^+  cor
-  =/  new-floor  (find-floor index %all ~)
+  =/  new-floor=(unit time)  (find-floor index %all ~)
   =?  indices  ?=(^ new-floor)
     %+  ~(jab by indices)  index
-    |=  [=stream =reads]
+    |=  [=stream:a =reads:a]
     [stream reads(floor u.new-floor)]
   cor
 ::
@@ -278,24 +276,25 @@
   ::  then call stream-to-unreads
   |-
   ?~  event-parents  (stream-to-unreads stream)
-  =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:mep:a reads)
+  =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:mep:a event-parents)
   %=  $
       event-parents
     rest
   ::
       stream
-    %^  (dip:eon @)  stream
+    =-  +.-
+    %^  (dip:eon:a @)  stream
       ~
-    |=  [* =event:a]
+    |=  [@ key=@da =event:a]
     ^-  [(unit event:a) ? @]
     ?>  ?=(?(%post %reply %dm-post) -.event)
     ?:  &(seen.event-parent =(time time.message-key.event))
-      [~ ~ ~]
+      [~ | ~]
     ?.  =(-.event %reply)
-      [`event ~ ~]
-    ?:  (lth time.message-key.event reply-floor)
-      [~ ~ ~]
-    [`event ~ ~]
+      [`event | ~]
+    ?:  (lth time.message-key.event reply-floor.event-parent)
+      [~ | ~]
+    [`event | ~]
   ==
 ++  stream-to-unreads
   |=  stream:a
