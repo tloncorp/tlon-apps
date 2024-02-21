@@ -588,6 +588,33 @@ type PageParam = null | {
   direction: string;
 };
 
+export const infinitePostQueryFn =
+  (nest: Nest, initialTime?: string) =>
+  async ({ pageParam }: { pageParam?: PageParam }) => {
+    let path = '';
+
+    if (pageParam) {
+      const { time, direction } = pageParam;
+      const ud = decToUd(time);
+      path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
+    } else if (initialTime) {
+      path = `/${nest}/posts/around/${decToUd(initialTime)}/${
+        POST_PAGE_SIZE / 2
+      }/outline`;
+    } else {
+      path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
+    }
+
+    const response = await api.scry<PagedPosts>({
+      app: 'channels',
+      path,
+    });
+
+    return {
+      ...response,
+    };
+  };
+
 export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
@@ -622,30 +649,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
 
   const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
-    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
-      let path = '';
-
-      if (pageParam) {
-        const { time, direction } = pageParam;
-        const ud = decToUd(time);
-        path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
-      } else if (initialTime) {
-        path = `/${nest}/posts/around/${decToUd(initialTime)}/${
-          POST_PAGE_SIZE / 2
-        }/outline`;
-      } else {
-        path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
-      }
-
-      const response = await api.scry<PagedPosts>({
-        app: 'channels',
-        path,
-      });
-
-      return {
-        ...response,
-      };
-    },
+    queryFn: infinitePostQueryFn(nest, initialTime),
     getNextPageParam: (lastPage): PageParam | undefined => {
       const { older } = lastPage;
 
