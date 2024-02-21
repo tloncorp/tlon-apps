@@ -66,7 +66,8 @@ export default function ChatThread() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
   const { replies } = note.seal;
-  if (replies !== null) {
+  const idTimeIsNumber = !Number.isNaN(Number(idTime));
+  if (replies !== null && idTimeIsNumber) {
     replies.unshift([
       bigInt(idTime!),
       {
@@ -119,6 +120,14 @@ export default function ChatThread() {
     [chName, chShip, name, ship, idTime, activeTab]
   );
 
+  const returnURLWithoutMsg = useCallback(
+    () =>
+      `${
+        activeTab === 'messages' ? '/dm' : ''
+      }/groups/${ship}/${name}/channels/chat/${chShip}/${chName}`,
+    [chName, chShip, name, ship, activeTab]
+  );
+
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
@@ -154,6 +163,12 @@ export default function ChatThread() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (replies == null || !idTimeIsNumber) {
+      navigate(returnURLWithoutMsg());
+    }
+  }, [replies, idTimeIsNumber, navigate, returnURLWithoutMsg]);
 
   const BackButton = isMobile ? Link : 'div';
 
