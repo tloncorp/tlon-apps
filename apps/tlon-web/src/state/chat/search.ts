@@ -6,7 +6,7 @@ import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import api from '@/api';
-import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { createStorageKey, whomIsDm, whomIsMultiDm, stringToTa } from '@/logic/utils';
 import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
 import {
   ChatScan,
@@ -115,6 +115,7 @@ export function updateSearchHistory(
 }
 
 export function useInfiniteChatSearch(whom: string, query: string) {
+  const encodedQuery = stringToTa(query);
   const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
   const { data, ...rest } = useInfiniteQuery({
     enabled: query !== '',
@@ -124,7 +125,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
         app: 'chat',
         path: `/${type}/${whom}/search/text/${
           decToUd(pageParam.toString()) || '0'
-        }/20/${query}`,
+        }/20/${encodedQuery}`,
       });
       return res;
     },

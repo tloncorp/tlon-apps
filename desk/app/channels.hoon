@@ -1295,7 +1295,7 @@
       %^    text:ca-search
           (slav %ud skip.pole)
         (slav %ud count.pole)
-      nedl.pole
+      (fall (slaw %t nedl.pole) nedl.pole)
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
