@@ -3,13 +3,14 @@ import _ from 'lodash';
 
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
-import { asyncWithDefault } from '@/logic/utils';
+import { asyncWithDefault, whomIsDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { GroupsInit } from '@/types/ui';
 
 import { infinitePostQueryFn } from './channel/channel';
 import { ChannnelKeys } from './channel/keys';
-import { initializeChat } from './chat';
+import { infiniteDMsQueryFn, initializeChat } from './chat';
+import ChatQueryKeys from './chat/keys';
 import useContactState from './contact';
 import useDocketState from './docket';
 import useKilnState from './kiln';
@@ -52,6 +53,7 @@ async function startGroups() {
   queryClient.setQueryData(['unreads'], unreads);
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
+  const { unreads: chatUnreads } = chat;
 
   // if we have unreads fetch them in advance
   Object.keys(unreads || {}).forEach(async (nest) => {
@@ -66,6 +68,27 @@ async function startGroups() {
         await queryClient.fetchInfiniteQuery(
           queryKey,
           infinitePostQueryFn(nest)
+        );
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
+    }
+  });
+
+  Object.keys(chatUnreads).forEach(async (whom) => {
+    const unread = chatUnreads[whom];
+    const isDM = whomIsDm(whom);
+    const type = isDM ? 'dm' : 'club';
+    const queryKey = ChatQueryKeys.infiniteDmsKey(whom);
+
+    if (unread.count) {
+      try {
+        // we don't care about the result, just that it's fetched
+        // we do this because we may not have cached data for the chat
+        await queryClient.fetchInfiniteQuery(
+          queryKey,
+          infiniteDMsQueryFn(whom, type)
         );
       } catch (e) {
         // eslint-disable-next-line no-console

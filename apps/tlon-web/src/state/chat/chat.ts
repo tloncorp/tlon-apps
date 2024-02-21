@@ -1239,6 +1239,37 @@ export function checkWritsForDeliveries(writs: Writs) {
   });
 }
 
+export const infiniteDMsQueryFn =
+  (whom: string, type: 'dm' | 'club', initialTime?: string) =>
+  async ({ pageParam }: { pageParam?: PageParam }) => {
+    let path = '';
+
+    if (pageParam) {
+      const { time, direction } = pageParam;
+      const ud = decToUd(time.toString());
+      path = `/${type}/${whom}/writs/${direction}/${ud}/${CHAT_PAGE_SIZE}/light`;
+    } else if (initialTime) {
+      path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
+        CHAT_PAGE_SIZE / 2
+      }/light`;
+    } else {
+      path = `/${type}/${whom}/writs/newest/${CHAT_PAGE_SIZE}/light`;
+    }
+
+    const response = await api.scry<PagedWrits>({
+      app: 'chat',
+      path,
+    });
+
+    if (response.writs && useWritsStore.getState().hasSomeUndelivered()) {
+      checkWritsForDeliveries(response.writs);
+    }
+
+    return {
+      ...response,
+    };
+  };
+
 export function useInfiniteDMs(whom: string, initialTime?: string) {
   const unread = useDmUnread(whom);
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
@@ -1279,34 +1310,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
 
   const { data, ...rest } = useInfiniteQuery<PagedWrits>({
     queryKey,
-    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
-      let path = '';
-
-      if (pageParam) {
-        const { time, direction } = pageParam;
-        const ud = decToUd(time.toString());
-        path = `/${type}/${whom}/writs/${direction}/${ud}/${CHAT_PAGE_SIZE}/light`;
-      } else if (initialTime) {
-        path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
-          CHAT_PAGE_SIZE / 2
-        }/light`;
-      } else {
-        path = `/${type}/${whom}/writs/newest/${CHAT_PAGE_SIZE}/light`;
-      }
-
-      const response = await api.scry<PagedWrits>({
-        app: 'chat',
-        path,
-      });
-
-      if (response.writs && useWritsStore.getState().hasSomeUndelivered()) {
-        checkWritsForDeliveries(response.writs);
-      }
-
-      return {
-        ...response,
-      };
-    },
+    queryFn: infiniteDMsQueryFn(whom, type, initialTime),
     getNextPageParam: (lastPage): PageParam | undefined => {
       const { older } = lastPage;
 
