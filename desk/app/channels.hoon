@@ -5,6 +5,9 @@
 ::  XX  chat thread entries can no longer be edited.  maybe fix before
 ::      release?
 ::
+::    note: all subscriptions are handled by the subscriber library so
+::    we can have resubscribe loop protection.
+::
 /-  c=channels, g=groups, ha=hark
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate

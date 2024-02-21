@@ -1,3 +1,8 @@
+::  groups: agent for managing group membership, metadata and permissions
+::
+::    note: all subscriptions are handled by the subscriber library so
+::    we can have resubscribe loop protection.
+::
 /-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts
 /-  meta
 /-  e=epic
