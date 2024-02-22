@@ -1,0 +1,29 @@
+name: PR merge to "Next Release" label
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  if_merged:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Get Linear issue ID from PR comments
+        id: get_issue_id
+        run: |
+          echo "::set-output name=ISSUE_ID::$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments | jq -r '.[] | select(.user.login == "linear[bot]") | .body' | grep -oP 'LAND-\d+')"
+
+      - name: Set Linear issue label
+        run: |
+          label_uuid="5f815077-796f-43e2-9572-73d488ae2e73"
+          curl -X POST \
+            -H "Authorization: ${{ secrets.LINEAR_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { issueAddLabel(id: \\\"${{ steps.get_issue_id.outputs.ISSUE_ID }}\\\", labelId: \\\"$label_uuid\\\") { success issue { id title state { id name } } } }\"}" \
+            https://api.linear.app/graphql
