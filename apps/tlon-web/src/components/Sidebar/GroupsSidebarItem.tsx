@@ -63,6 +63,7 @@ const GroupsSidebarItem = React.memo(
             />
           )
         }
+        className={isNew ? 'pr-10' : undefined}
         to={`/groups/${flag}`}
         {...handlers}
       >
