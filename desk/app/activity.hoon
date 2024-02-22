@@ -152,12 +152,13 @@
   ?+  -.event  cor
       %dm-post
     =/  index  [%dm whom.event]
-    =/  indy  (~(get by indices) index)
-    ?~  indy  cor
+    =?  indices  !(~(has by indices) index)
+      (~(put by indices) index [*stream:a *reads:a])
+    =/  indy  (~(got by indices) index)
     =/  new
-      :*  (put:eon:a stream.u.indy now.bowl event)
-          floor.reads.u.indy
-          %^  put:mep:a  event-parents.reads.u.indy
+      :*  (put:eon:a stream.indy now.bowl event)
+          floor.reads.indy
+          %^  put:mep:a  event-parents.reads.indy
             now.bowl
           [| now.bowl]
       ==
@@ -166,22 +167,24 @@
     cor
       %dm-reply
     =/  index  [%dm whom.event]
-    =/  indy  (~(get by indices) index)
-    ?~  indy  cor
+    =?  indices  !(~(has by indices) index)
+      (~(put by indices) index *[stream:a reads:a])
+    =/  indy  (~(got by indices) index)
     =/  new
-      :-  (put:eon:a stream.u.indy now.bowl event)
-      reads.u.indy
+      :-  (put:eon:a stream.indy now.bowl event)
+      reads.indy
     =.  indices
       (~(put by indices) index new)
     cor
       %post
     =/  index  [%channel channel.event group.event]
-    =/  indy  (~(get by indices) index)
-    ?~  indy  cor
+    =?  indices  !(~(has by indices) index)
+      (~(put by indices) index *[stream:a reads:a])
+    =/  indy  (~(got by indices) index)
     =/  new
-      :*  (put:eon:a stream.u.indy now.bowl event)
-          floor.reads.u.indy
-          %^  put:mep:a  event-parents.reads.u.indy
+      :*  (put:eon:a stream.indy now.bowl event)
+          floor.reads.indy
+          %^  put:mep:a  event-parents.reads.indy
             now.bowl
           [| now.bowl]
       ==
@@ -190,11 +193,12 @@
     cor
       %reply
     =/  index  [%channel channel.event group.event]
-    =/  indy  (~(get by indices) index)
-    ?~  indy  cor
+    =?  indices  !(~(has by indices) index)
+      (~(put by indices) index *[stream:a reads:a])
+    =/  indy  (~(got by indices) index)
     =/  new
-      :-  (put:eon:a stream.u.indy now.bowl event)
-      reads.u.indy
+      :-  (put:eon:a stream.indy now.bowl event)
+      reads.indy
     =.  indices
       (~(put by indices) index new)
     cor
@@ -207,18 +211,18 @@
   |=  =event:a
   ^-  flavor:a
   ?-  -.event
-      %dm-invite  %dm-invite
-      %kick       %kick
-      %join       %join
-      %flag       %flag
+      %dm-invite       %dm-invite
+      %kick            %kick
+      %join            %join
+      %flag            %flag
       %post
-    ?.  mention.event  %post  %post-mention
+    ?:  mention.event  %post-mention  %post
       %reply
-    ?.  mention.event  %reply  %reply-mention
+    ?:  mention.event  %reply-mention  %reply
       %dm-post
-    ?.  mention.event  %dm-post  %dm-post-mention
+    ?:  mention.event  %dm-post-mention  %dm-post
       %dm-reply
-    ?.  mention.event  %dm-reply  %dm-reply-mention
+    ?:  mention.event  %dm-reply-mention  %dm-reply
   ==
 ::
 ++  find-floor
