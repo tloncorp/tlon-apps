@@ -251,6 +251,7 @@ export default function ChatThread() {
             hasLoadedNewest={false}
             hasLoadedOldest={false}
             onAtBottom={onAtBottom}
+            inThread
           />
         )}
       </div>
