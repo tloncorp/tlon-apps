@@ -1,4 +1,4 @@
-import type { Club } from '@/types/dms';
+import type { Club } from '@tloncorp/shared/dist/urbit/dms';
 
 import ShipName from './ShipName';
 

@@ -5,7 +5,8 @@ import {
   Group,
   GroupDiff,
   GroupUpdate,
-} from '../../types/groups';
+} from '@tloncorp/shared/dist/urbit/groups';
+
 import { GroupState } from './type';
 
 function reduceCordon(draft: Group, diff: CordonDiff) {

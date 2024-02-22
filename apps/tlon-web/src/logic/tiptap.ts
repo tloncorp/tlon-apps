@@ -5,10 +5,13 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { JSONContent } from '@tiptap/react';
-import { deSig } from '@urbit/api';
-import { isEqual, reduce } from 'lodash';
-
-import { Block, Cite, HeaderLevel, Listing, Story } from '@/types/channel';
+import {
+  Block,
+  Cite,
+  HeaderLevel,
+  Listing,
+  Story,
+} from '@tloncorp/shared/dist/urbit/channel';
 import {
   Inline,
   InlineKey,
@@ -21,7 +24,9 @@ import {
   isLink,
   isShip,
   isStrikethrough,
-} from '@/types/content';
+} from '@tloncorp/shared/dist/urbit/content';
+import { deSig } from '@urbit/api';
+import { isEqual, reduce } from 'lodash';
 
 import { citeToPath, getFirstInline, pathToCite, preSig } from './utils';
 

@@ -1,4 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
+import { PostSeal, ReplySeal } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 
@@ -14,7 +15,6 @@ import {
 import { useAddDmReactMutation, useDelDmReactMutation } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import { useRouteGroup } from '@/state/groups';
-import { PostSeal, ReplySeal } from '@/types/channel';
 
 interface ChatReactionProps {
   whom: string;

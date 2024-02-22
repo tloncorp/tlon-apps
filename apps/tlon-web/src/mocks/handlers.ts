@@ -9,6 +9,16 @@ import UrbitMock, {
   SubscriptionRequestInterface,
   createResponse,
 } from '@tloncorp/mock-http-api';
+import {
+  Club,
+  ClubAction,
+  ClubCreate,
+  DMUnreads,
+  DMWhom,
+  DmRsvp,
+  WritDiff,
+} from '@tloncorp/shared/dist/urbit/dms';
+import { GroupAction } from '@tloncorp/shared/dist/urbit/groups';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import _ from 'lodash';
@@ -27,16 +37,6 @@ import mockGroups, {
   pinnedGroups,
 } from '@/mocks/groups';
 import heapHandlers from '@/mocks/heaps';
-import {
-  Club,
-  ClubAction,
-  ClubCreate,
-  DMUnreads,
-  DMWhom,
-  DmRsvp,
-  WritDiff,
-} from '@/types/dms';
-import { GroupAction } from '@/types/groups';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 

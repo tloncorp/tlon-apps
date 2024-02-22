@@ -1,5 +1,14 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Editor } from '@tiptap/react';
+import {
+  Cite,
+  Memo,
+  Nest,
+  PageTuple,
+  PostEssay,
+  ReplyTuple,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import React, {
@@ -55,15 +64,6 @@ import {
 } from '@/state/chat';
 import { useGroupFlag } from '@/state/groups';
 import { useFileStore, useUploader } from '@/state/storage';
-import {
-  Cite,
-  Memo,
-  Nest,
-  PageTuple,
-  PostEssay,
-  ReplyTuple,
-} from '@/types/channel';
-import { WritTuple } from '@/types/dms';
 
 interface ChatInputProps {
   whom: string;

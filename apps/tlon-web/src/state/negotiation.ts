@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import {
+  MatchingEvent,
+  MatchingResponse,
+} from '@tloncorp/shared/dist/urbit/negotiation';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/api';
 import queryClient from '@/queryClient';
-import { MatchingEvent, MatchingResponse } from '@/types/negotiation';
 
 function negotiationUpdater(
   event: MatchingEvent | null,

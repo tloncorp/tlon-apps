@@ -1,9 +1,8 @@
+import { Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
+import { Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useMemo, useRef } from 'react';
-
-import { Post, Reply } from '@/types/channel';
-import { Writ } from '@/types/dms';
 
 import getKindDataFromEssay from './getKindData';
 

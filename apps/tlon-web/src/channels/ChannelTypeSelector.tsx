@@ -1,3 +1,7 @@
+import {
+  ChannelType,
+  NewChannelFormSchema,
+} from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -5,7 +9,6 @@ import { useFormContext } from 'react-hook-form';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import NotebookIcon from '@/components/icons/NotebookIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
-import { ChannelType, NewChannelFormSchema } from '@/types/groups';
 
 interface ChannelTypeMetadata {
   title: string;

@@ -1,6 +1,9 @@
 // eslint-disable-next-line import/no-cycle
-import ContentReference from '@/components/References/ContentReference';
-import { Story, VerseBlock, VerseInline } from '@/types/channel';
+import {
+  Story,
+  VerseBlock,
+  VerseInline,
+} from '@tloncorp/shared/dist/urbit/channel';
 import {
   Inline,
   isBlockCode,
@@ -11,7 +14,9 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
-} from '@/types/content';
+} from '@tloncorp/shared/dist/urbit/content';
+
+import ContentReference from '@/components/References/ContentReference';
 
 interface HeapContentProps {
   content: Story;

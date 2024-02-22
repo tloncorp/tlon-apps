@@ -1,3 +1,5 @@
+import { Post, newReplyMap } from '@tloncorp/shared/dist/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import { Helmet } from 'react-helmet';
@@ -20,8 +22,6 @@ import {
   usePost,
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups';
-import { Post, newReplyMap } from '@/types/channel';
-import { ViewProps } from '@/types/groups';
 
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';

@@ -1,4 +1,6 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
+import { PageTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
 import React, {
   PropsWithChildren,
@@ -33,8 +35,6 @@ import {
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { useShowDevTools } from '@/state/local';
-import { PageTuple, ReplyTuple } from '@/types/channel';
-import { WritTuple } from '@/types/dms';
 
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
