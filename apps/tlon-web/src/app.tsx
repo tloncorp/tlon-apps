@@ -106,6 +106,7 @@ import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import { useChannelsFirehose } from './state/channel/channel';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -575,6 +576,7 @@ function App() {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
 
+  useChannelsFirehose();
   useEffect(() => {
     if (isNativeApp()) {
       postActionToNativeApp('appLoaded');

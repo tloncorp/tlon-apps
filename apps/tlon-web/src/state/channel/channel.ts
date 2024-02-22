@@ -3,7 +3,8 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
 import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { e } from 'vite-node/index-6fb787b2';
 import create from 'zustand';
 
 import api from '@/api';
@@ -42,6 +43,7 @@ import {
   PostEssay,
   Posts,
   Reply,
+  ReplyMeta,
   ReplyTuple,
   Said,
   SortMode,
@@ -52,7 +54,7 @@ import {
 } from '@/types/channel';
 import { Flag } from '@/types/hark';
 
-import { channelKey } from './keys';
+import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 
 const POST_PAGE_SIZE = isNativeApp()
@@ -224,11 +226,22 @@ export function usePostsOnHost(
   return data as Posts;
 }
 
-const infinitePostUpdater = (queryKey: QueryKey, data: ChannelsResponse) => {
+const infinitePostUpdater = (
+  prev: PostsInCachePrev | undefined,
+  data: ChannelsResponse
+): PostsInCachePrev | undefined => {
   const { nest, response } = data;
 
   if (!('post' in response)) {
-    return;
+    return prev;
+  }
+
+  const infinitePostQueryKey = infinitePostsKey(nest);
+  const existingQueryData = queryClient.getQueryData<
+    PostsInCachePrev | undefined
+  >(infinitePostQueryKey);
+  if (!shouldAddPostToCache(existingQueryData)) {
+    return prev;
   }
 
   const postResponse = response.post['r-post'];
@@ -239,347 +252,325 @@ const infinitePostUpdater = (queryKey: QueryKey, data: ChannelsResponse) => {
     const post = postResponse.set;
 
     if (post === null) {
-      queryClient.setQueryData<{
-        pages: PagedPosts[];
-        pageParams: PageParam[];
-      }>(queryKey, (d: PostsInCachePrev | undefined) => {
-        if (d === undefined) {
-          return undefined;
+      if (prev === undefined) {
+        return prev;
+      }
+
+      const newPages = prev.pages.map((page) => {
+        const newPage = {
+          ...page,
+        };
+
+        const inPage =
+          Object.keys(newPage.posts).some((k) => k === time) ?? false;
+
+        if (inPage) {
+          const pagePosts = { ...newPage.posts };
+
+          pagePosts[time] = null;
+
+          newPage.posts = pagePosts;
         }
 
-        const newPages = d.pages.map((page) => {
-          const newPage = {
-            ...page,
-          };
-
-          const inPage =
-            Object.keys(newPage.posts).some((k) => k === time) ?? false;
-
-          if (inPage) {
-            const pagePosts = { ...newPage.posts };
-
-            pagePosts[time] = null;
-
-            newPage.posts = pagePosts;
-          }
-
-          return newPage;
-        });
-
-        return {
-          pages: newPages,
-          pageParams: d.pageParams,
-        };
+        return newPage;
       });
-    } else {
-      queryClient.setQueryData<{
-        pages: PagedPosts[];
-        pageParams: PageParam[];
-      }>(queryKey, (d: PostsInCachePrev | undefined) => {
-        if (d === undefined) {
-          return {
-            pages: [
-              {
-                posts: {
-                  [time]: post,
-                },
-                newer: null,
-                older: null,
-                total: 1,
-              },
-            ],
-            pageParams: [],
-          };
-        }
 
-        const firstPage = _.first(d.pages);
-
-        if (firstPage === undefined) {
-          return undefined;
-        }
-
-        const newPosts = {
-          ...firstPage.posts,
-          [time]: post,
-        };
-
-        const newFirstpage: PagedPosts = {
-          ...firstPage,
-          posts: newPosts,
-          total: firstPage.total + 1,
-        };
-
-        const cachedPost =
-          firstPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
-
-        if (
-          cachedPost &&
-          id !== udToDec(unixToDa(post.essay.sent).toString())
-        ) {
-          // remove cached post if it exists
-          delete newFirstpage.posts[
-            decToUd(unixToDa(post.essay.sent).toString())
-          ];
-
-          // set delivered now that we have the real post
-          usePostsStore
-            .getState()
-            .updateStatus(
-              { author: post.essay.author, sent: post.essay.sent },
-              'delivered'
-            );
-        }
-
-        return {
-          pages: [newFirstpage, ...d.pages.slice(1, d.pages.length)],
-          pageParams: d.pageParams,
-        };
-      });
+      return {
+        pages: newPages,
+        pageParams: prev.pageParams,
+      };
     }
-  } else if ('reacts' in postResponse) {
-    queryClient.setQueryData<{
-      pages: PagedPosts[];
-      pageParams: PageParam[];
-    }>(
-      queryKey,
-      (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
-
-        const { reacts } = postResponse;
-
-        const newPages = d.pages.map((page) => {
-          const newPage = {
-            ...page,
-          };
-
-          const inPage =
-            Object.keys(newPage.posts).some((k) => k === time) ?? false;
-
-          if (inPage) {
-            const post = newPage.posts[time];
-            if (!post) {
-              return newPage;
-            }
-            newPage.posts[time] = {
-              ...post,
-              seal: {
-                ...post.seal,
-                reacts,
-              },
-            };
-
-            return newPage;
-          }
-
-          return newPage;
-        });
-
-        return {
-          pages: newPages,
-          pageParams: d.pageParams,
-        };
-      }
-    );
-  } else if ('essay' in postResponse) {
-    queryClient.setQueryData<{
-      pages: PagedPosts[];
-      pageParams: PageParam[];
-    }>(
-      queryKey,
-      (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
-
-        const { essay } = postResponse;
-
-        const newPages = d.pages.map((page) => {
-          const newPage = {
-            ...page,
-          };
-
-          const inPage =
-            Object.keys(newPage.posts).some((k) => k === time) ?? false;
-
-          if (inPage) {
-            const post = newPage.posts[time];
-            if (!post) {
-              return page;
-            }
-            newPage.posts[time] = {
-              ...post,
-              essay,
-            };
-
-            return newPage;
-          }
-
-          return newPage;
-        });
-
-        return {
-          pages: newPages,
-          pageParams: d.pageParams,
-        };
-      }
-    );
-  } else if ('reply' in postResponse) {
-    const {
-      reply: {
-        meta: { replyCount, lastReply, lastRepliers },
-        'r-reply': reply,
-      },
-    } = postResponse;
-
-    const [han, flag] = nestToFlag(nest);
-
-    const replyQueryKey = [han, 'posts', flag, udToDec(time.toString())];
-
-    if (reply && 'set' in reply) {
-      if (reply.set === null) {
-        queryClient.setQueryData<PostDataResponse | undefined>(
-          replyQueryKey,
-          (post: PostDataResponse | undefined) => {
-            if (post === undefined) {
-              return undefined;
-            }
-
-            const existingReplies = post.seal.replies ?? {};
-
-            const newReplies = Object.keys(existingReplies)
-              .filter((k) => k !== reply.set?.seal.id)
-              .reduce(
-                (acc, k) => {
-                  // eslint-disable-next-line no-param-reassign
-                  acc[k] = existingReplies[k];
-                  return acc;
-                },
-                {} as { [key: string]: Reply }
-              );
-
-            const newPost = {
-              ...post,
-              seal: {
-                ...post.seal,
-                replies: newReplies,
-                meta: {
-                  ...post.seal.meta,
-                  replyCount,
-                  lastReply,
-                  lastRepliers,
-                },
-              },
-            };
-
-            return newPost;
-          }
-        );
-      } else if ('memo' in reply.set) {
-        const newReply = reply.set;
-
-        queryClient.setQueryData<PostDataResponse | undefined>(
-          replyQueryKey,
-          (post: PostDataResponse | undefined) => {
-            if (post === undefined) {
-              return undefined;
-            }
-
-            const existingReplies = post.seal.replies ?? {};
-
-            const existingCachedReply =
-              existingReplies[decToUd(unixToDa(newReply.memo.sent).toString())];
-
-            if (existingCachedReply) {
-              // remove cached reply if it exists
-              delete existingReplies[
-                decToUd(unixToDa(newReply.memo.sent).toString())
-              ];
-            }
-
-            const newReplies = {
-              ...existingReplies,
-              [decToUd(newReply.seal.id)]: newReply,
-            };
-
-            const newPost = {
-              ...post,
-              seal: {
-                ...post.seal,
-                replies: newReplies,
-                meta: {
-                  ...post.seal.meta,
-                  replyCount,
-                  lastReply,
-                  lastRepliers,
-                },
-              },
-            };
-
-            return newPost;
-          }
-        );
-
-        usePostsStore.getState().updateStatus(
+    if (prev === undefined) {
+      return {
+        pages: [
           {
-            author: newReply.memo.author,
-            sent: newReply.memo.sent,
+            posts: {
+              [time]: post,
+            },
+            newer: null,
+            older: null,
+            total: 1,
           },
+        ],
+        pageParams: [],
+      };
+    }
+
+    const firstPage = _.first(prev.pages);
+
+    if (firstPage === undefined) {
+      return undefined;
+    }
+
+    const newPosts = {
+      ...firstPage.posts,
+      [time]: post,
+    };
+
+    const newFirstpage: PagedPosts = {
+      ...firstPage,
+      posts: newPosts,
+      total: firstPage.total + 1,
+    };
+
+    const cachedPost =
+      firstPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+
+    if (cachedPost && id !== udToDec(unixToDa(post.essay.sent).toString())) {
+      // remove cached post if it exists
+      delete newFirstpage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+
+      // set delivered now that we have the real post
+      usePostsStore
+        .getState()
+        .updateStatus(
+          { author: post.essay.author, sent: post.essay.sent },
           'delivered'
         );
-      }
     }
 
-    queryClient.setQueryData<{
-      pages: PagedPosts[];
-      pageParams: PageParam[];
-    }>(
-      queryKey,
-      (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
+    return {
+      pages: [newFirstpage, ...prev.pages.slice(1, prev.pages.length)],
+      pageParams: prev.pageParams,
+    };
+  }
 
-        const newPages = d.pages.map((page) => {
-          const newPage = {
-            ...page,
-          };
+  if ('reacts' in postResponse) {
+    if (prev === undefined) {
+      return undefined;
+    }
 
-          const inPage =
-            Object.keys(newPage.posts).some((k) => k === time.toString()) ??
-            false;
+    const { reacts } = postResponse;
 
-          if (inPage) {
-            const post = newPage.posts[time.toString()];
-            if (!post) {
-              return newPage;
-            }
-            newPage.posts[time.toString()] = {
-              ...post,
-              seal: {
-                ...post.seal,
-                meta: {
-                  ...post.seal.meta,
-                  replyCount,
-                  lastReply,
-                  lastRepliers,
-                },
-              },
-            };
+    const newPages = prev.pages.map((page) => {
+      const newPage = {
+        ...page,
+      };
 
-            return newPage;
-          }
+      const inPage =
+        Object.keys(newPage.posts).some((k) => k === time) ?? false;
 
+      if (inPage) {
+        const post = newPage.posts[time];
+        if (!post) {
           return newPage;
-        });
-
-        return {
-          pages: newPages,
-          pageParams: d.pageParams,
+        }
+        newPage.posts[time] = {
+          ...post,
+          seal: {
+            ...post.seal,
+            reacts,
+          },
         };
+
+        return newPage;
       }
+
+      return newPage;
+    });
+
+    return {
+      pages: newPages,
+      pageParams: prev.pageParams,
+    };
+  }
+
+  if ('essay' in postResponse) {
+    if (prev === undefined) {
+      return undefined;
+    }
+
+    const { essay } = postResponse;
+
+    const newPages = prev.pages.map((page) => {
+      const newPage = {
+        ...page,
+      };
+
+      const inPage =
+        Object.keys(newPage.posts).some((k) => k === time) ?? false;
+
+      if (inPage) {
+        const post = newPage.posts[time];
+        if (!post) {
+          return page;
+        }
+        newPage.posts[time] = {
+          ...post,
+          essay,
+        };
+
+        return newPage;
+      }
+
+      return newPage;
+    });
+
+    return {
+      pages: newPages,
+      pageParams: prev.pageParams,
+    };
+  }
+
+  return prev;
+};
+
+function updateReplyMetaData(
+  cache: PostsInCachePrev | undefined,
+  cacheId: string,
+  meta: ReplyMeta
+): PostsInCachePrev | undefined {
+  if (!cache) {
+    return undefined;
+  }
+
+  const newPages = cache.pages.map((page) => {
+    const newPage = {
+      ...page,
+    };
+
+    const inPage =
+      Object.keys(newPage.posts).some((k) => k === cacheId) ?? false;
+
+    if (inPage) {
+      const post = newPage.posts[cacheId];
+      if (!post) {
+        return newPage;
+      }
+      newPage.posts[cacheId] = {
+        ...post,
+        seal: {
+          ...post.seal,
+          meta: {
+            ...post.seal.meta,
+            ...meta,
+          },
+        },
+      };
+
+      return newPage;
+    }
+
+    return newPage;
+  });
+
+  return {
+    pages: newPages,
+    pageParams: cache.pageParams,
+  };
+}
+
+const replyUpdater = (
+  prev: PostDataResponse | undefined,
+  data: ChannelsResponse
+): PostDataResponse | undefined => {
+  const { nest, response } = data;
+
+  if (!('post' in response)) {
+    return prev;
+  }
+
+  const postResponse = response.post['r-post'];
+  const { id } = response.post;
+  const time = decToUd(id);
+
+  if (!('reply' in postResponse)) {
+    return prev;
+  }
+
+  const {
+    reply: {
+      meta: { replyCount, lastReply, lastRepliers },
+      'r-reply': reply,
+    },
+  } = postResponse;
+
+  // const [han, flag] = nestToFlag(nest);
+
+  // const replyQueryKey = [han, 'posts', flag, udToDec(time.toString())];
+  if (reply && !('set' in reply)) {
+    return prev;
+  }
+
+  if (reply.set === null) {
+    if (prev === undefined) {
+      return undefined;
+    }
+
+    const existingReplies = prev.seal.replies ?? {};
+
+    const newReplies = Object.keys(existingReplies)
+      .filter((k) => k !== reply.set?.seal.id)
+      .reduce(
+        (acc, k) => {
+          // eslint-disable-next-line no-param-reassign
+          acc[k] = existingReplies[k];
+          return acc;
+        },
+        {} as { [key: string]: Reply }
+      );
+
+    const newPost = {
+      ...prev,
+      seal: {
+        ...prev.seal,
+        replies: newReplies,
+        meta: {
+          ...prev.seal.meta,
+          replyCount,
+          lastReply,
+          lastRepliers,
+        },
+      },
+    };
+
+    return newPost;
+  }
+
+  if ('memo' in reply.set) {
+    const newReply = reply.set;
+    if (prev === undefined) {
+      return undefined;
+    }
+
+    const existingReplies = prev.seal.replies ?? {};
+
+    const existingCachedReply =
+      existingReplies[decToUd(unixToDa(newReply.memo.sent).toString())];
+
+    if (existingCachedReply) {
+      // remove cached reply if it exists
+      delete existingReplies[decToUd(unixToDa(newReply.memo.sent).toString())];
+    }
+
+    const newReplies = {
+      ...existingReplies,
+      [decToUd(newReply.seal.id)]: newReply,
+    };
+
+    const newPost = {
+      ...prev,
+      seal: {
+        ...prev.seal,
+        replies: newReplies,
+        meta: {
+          ...prev.seal.meta,
+          replyCount,
+          lastReply,
+          lastRepliers,
+        },
+      },
+    };
+
+    usePostsStore.getState().updateStatus(
+      {
+        author: newReply.memo.author,
+        sent: newReply.memo.sent,
+      },
+      'delivered'
     );
+
+    return newPost;
   }
 };
 
@@ -618,34 +609,6 @@ export const infinitePostQueryFn =
 export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
-
-  const invalidate = useRef(
-    _.debounce(
-      (event: ChannelsResponse) => {
-        queryClient.invalidateQueries({
-          queryKey,
-          refetchType:
-            event.response && 'posts' in event.response ? 'active' : 'none',
-        });
-      },
-      300,
-      {
-        leading: true,
-        trailing: true,
-      }
-    )
-  );
-
-  useEffect(() => {
-    api.subscribe({
-      app: 'channels',
-      path: `/${nest}`,
-      event: (data: ChannelsResponse) => {
-        infinitePostUpdater(queryKey, data);
-        invalidate.current(data);
-      },
-    });
-  }, [nest, invalidate, queryKey, initialTime]);
 
   const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
@@ -802,87 +765,143 @@ export function useOrderedPosts(
   };
 }
 
-const emptyChannels: Channels = {};
-export function useChannels(): Channels {
-  const invalidate = useRef(
+export function useChannelsFirehose() {
+  const [eventQueue, setEventQueue] = useState<ChannelsSubscribeResponse[]>([]);
+  const eventProcessor = useCallback((events: ChannelsSubscribeResponse[]) => {
+    const hideEvents = events.filter((e) => 'hide' in e).map((e) => e.hide);
+    if (hideEvents.length > 0) {
+      queryClient.setQueryData<HiddenPosts>(
+        ['channels', 'hidden'],
+        (d: HiddenPosts = []) => [...d, ...hideEvents]
+      );
+    }
+
+    const showEvents = events.filter((e) => 'show' in e).map((e) => e.show);
+    if (showEvents.length > 0) {
+      queryClient.setQueryData<HiddenPosts>(
+        ['channels', 'hidden'],
+        (d: HiddenPosts = []) => [...d, ...showEvents]
+      );
+    }
+
+    const postEvents = events.filter(
+      (e) =>
+        'response' in e &&
+        'post' in e.response &&
+        !('reply' in e.response.post['r-post'])
+    );
+    if (postEvents.length > 0) {
+      const channelPostEvents = Object.entries(
+        _.groupBy(postEvents, (event: ChannelsSubscribeResponse) => event.nest)
+      );
+      channelPostEvents.forEach(([nest, postEvents]) => {
+        const key = infinitePostsKey(nest);
+        const existingQueryData = queryClient.getQueryData<
+          PostsInCachePrev | undefined
+        >(key);
+        const newData = postEvents.reduce(
+          (prev, event) => infinitePostUpdater(prev, event),
+          existingQueryData
+        );
+        queryClient.setQueryData(key, newData);
+      });
+    }
+
+    const replyEvents = events.filter(
+      (e) =>
+        'response' in e &&
+        'post' in e.response &&
+        'reply' in e.response.post['r-post']
+    );
+    if (replyEvents.length > 0) {
+      const channelReplyEvents = Object.entries(
+        _.groupBy(replyEvents, (event: ChannelsSubscribeResponse) => {
+          if (!('post' in event.response)) {
+            return undefined;
+          }
+
+          const { nest } = event;
+          const { id } = event.response.post;
+          const time = decToUd(id);
+          return postKey(nest, time).join();
+        })
+      );
+
+      channelReplyEvents.forEach(([, replyEvents]) => {
+        const event = replyEvents[0];
+        if (!event || !('response' in event) || !('post' in event.response)) {
+          return;
+        }
+
+        const postResponse = event.response.post['r-post'];
+        const { id } = event.response.post;
+        const { nest } = event;
+        const time = decToUd(id);
+        const key = postKey(nest, time);
+        const existingQueryData = queryClient.getQueryData<
+          PostDataResponse | undefined
+        >(key);
+        const newData = replyEvents.reduce(
+          (prev, event) => replyUpdater(prev, event),
+          existingQueryData
+        );
+        queryClient.setQueryData(key, newData);
+
+        if (!('reply' in postResponse)) {
+          return;
+        }
+
+        const {
+          reply: { meta },
+        } = postResponse;
+        queryClient.setQueryData<PostsInCachePrev | undefined>(
+          infinitePostsKey(nest),
+          (d) => updateReplyMetaData(d, time, meta)
+        );
+      });
+    }
+  }, []);
+
+  const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
+    setEventQueue((prev) => [...prev, event]);
+  }, []);
+
+  useEffect(() => {
+    api.subscribe({
+      app: 'channels',
+      path: '/',
+      event: eventHandler,
+    });
+  }, [eventHandler]);
+
+  const processQueue = useRef(
     _.debounce(
-      (event: ChannelsResponse) => {
-        const postEvent =
-          event.response &&
-          ('post' in event.response || 'posts' in event.response);
-        queryClient.invalidateQueries({
-          queryKey: channelKey(),
-          refetchType: postEvent ? 'none' : 'active',
-        });
+      (events: ChannelsSubscribeResponse[]) => {
+        eventProcessor(events);
       },
       300,
       { leading: true, trailing: true }
     )
   );
 
-  const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
-    if ('hide' in event) {
-      queryClient.setQueryData<HiddenPosts>(
-        ['channels', 'hidden'],
-        (d: HiddenPosts | undefined) => {
-          if (d === undefined) {
-            return [event.hide];
-          }
-
-          const newHidden = [...d, event.hide];
-
-          return newHidden;
-        }
-      );
+  useEffect(() => {
+    if (eventQueue.length === 0) {
+      return;
     }
 
-    if ('show' in event) {
-      queryClient.setQueryData<HiddenPosts>(
-        ['channels', 'hidden'],
-        (d: HiddenPosts | undefined) => {
-          if (d === undefined) {
-            return undefined;
-          }
+    processQueue.current(eventQueue);
+  }, [eventQueue]);
+}
 
-          const newHidden = d.filter((h) => h !== event.show);
-
-          return newHidden;
-        }
-      );
-    }
-
-    if ('response' in event && 'post' in event.response) {
-      // We call infinitePostUpdater here because there are situations where we
-      // are only listening to useChannels and not useInfinitePosts. This is
-      // the case in threads on mobile in particular.
-      const { nest } = event;
-      const [han, flag] = nestToFlag(nest);
-      const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
-      const existingQueryData = queryClient.getQueryData(infinitePostQueryKey);
-      if (
-        shouldAddPostToCache(
-          existingQueryData as { pages: PagedPosts[] } | undefined
-        )
-      ) {
-        infinitePostUpdater(infinitePostQueryKey, event);
-      }
-    }
-
-    invalidate.current(event);
-  }, []);
-
-  const { data, ...rest } = useReactQuerySubscription<
-    Channels,
-    ChannelsSubscribeResponse
-  >({
+const emptyChannels: Channels = {};
+export function useChannels(): Channels {
+  const { data, ...rest } = useReactQueryScry<Channels>({
     queryKey: channelKey(),
     app: 'channels',
-    path: '/',
-    scry: '/channels',
+    path: '/channels',
     options: {
       refetchOnMount: false,
     },
-    onEvent: eventHandler,
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -1434,7 +1453,10 @@ export function useAddPostMutation(nest: string) {
         post
       );
 
-      infinitePostUpdater(queryKey('infinite'), {
+      const existingQueryData = queryClient.getQueryData<
+        PostsInCachePrev | undefined
+      >(queryKey('infinite'));
+      const newData = infinitePostUpdater(existingQueryData, {
         nest,
         response: {
           post: {
@@ -1451,6 +1473,7 @@ export function useAddPostMutation(nest: string) {
           },
         },
       });
+      queryClient.setQueryData(queryKey('infinite'), newData);
     },
     onSuccess: async (_data, variables) => {
       const status = usePostsStore.getState().getStatus(variables.cacheId);

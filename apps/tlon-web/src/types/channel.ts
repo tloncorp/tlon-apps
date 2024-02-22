@@ -409,14 +409,16 @@ export type PostResponse =
 
 export type ReplyResponse = { set: Reply } | { reacts: Record<string, string> };
 
+export interface ChannelPostResponse {
+  post: {
+    id: string;
+    'r-post': PostResponse;
+  };
+}
+
 export type Response =
   | { posts: Posts }
-  | {
-      post: {
-        id: string;
-        'r-post': PostResponse;
-      };
-    }
+  | ChannelPostResponse
   | { order: string[] }
   | { view: DisplayMode }
   | { sort: SortMode }
