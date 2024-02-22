@@ -21,6 +21,8 @@
   $?  %dm-invite
       %dm-post
       %dm-post-mention
+      %dm-reply
+      %dm-reply-mention
       %kick
       %join
       %post
@@ -33,18 +35,20 @@
 +$  event
   $%  [%dm-invite dm-concern]
       [%dm-post dm-post-concern content=story:c mention=?]
+      [%dm-reply dm-reply-concern content=story:c mention=?]
       [%kick group-concern =ship]
       [%join group-concern =ship]
       [%post post-concern content=story:c mention=?]
       [%reply reply-concern content=story:c mention=?]
       [%flag post-concern]
   ==
-+$  group-concern    group=flag:c
-+$  channel-concern  [channel=nest:c group=flag:c]
-+$  dm-concern       =whom
-+$  dm-post-concern  [=message-key =whom]
-+$  post-concern     [=message-key channel=nest:c group=flag:c]
-+$  reply-concern    [=message-key target=message-key channel=nest:c group=flag:c]
++$  group-concern     group=flag:c
++$  channel-concern   [channel=nest:c group=flag:c]
++$  dm-concern        =whom
++$  dm-post-concern   [=message-key =whom]
++$  dm-reply-concern  [=message-key target=message-key =whom]
++$  post-concern      [=message-key channel=nest:c group=flag:c]
++$  reply-concern     [=message-key target=message-key channel=nest:c group=flag:c]
 +$  whom
   $%  [%ship p=ship]
       [%club p=@uvH]

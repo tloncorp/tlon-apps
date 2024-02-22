@@ -77,6 +77,8 @@
     :~  [%dm-invite %notify]
         [%dm-post %notify]
         [%dm-post-mention %notify]
+        [%dm-reply %notify]
+        [%dm-reply-mention %notify]
         [%kick %default]
         [%join %trivial]
         [%post %trivial]
@@ -139,12 +141,85 @@
   ==
 ::
 ++  add
-  ::  TODO add to stream & indices, update unreads, and send facts
   |=  =event:a
   ^+  cor
-  ::TODO  make sure to set the reply-floor to be the parent time, for new threads,
-  ::      +find-floor assumes on this
-  cor
+  =.  cor
+    (give %fact ~[/] activity-event+!>(event))
+  =?  cor  (notifiable event)
+    (give %fact ~[/notifications] activity-event+!>(event))
+  =.  stream
+    (put:eon:a stream now.bowl event)
+  ?+  -.event  cor
+      %dm-post
+    =/  index  [%dm whom.event]
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    =/  new
+      :*  (put:eon:a stream.u.indy now.bowl event)
+          floor.reads.u.indy
+          %^  put:mep:a  event-parents.reads.u.indy
+            now.bowl
+          [| now.bowl]
+      ==
+    =.  indices
+      (~(put by indices) index new)
+    cor
+      %dm-reply
+    =/  index  [%dm whom.event]
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    =/  new
+      :-  (put:eon:a stream.u.indy now.bowl event)
+      reads.u.indy
+    =.  indices
+      (~(put by indices) index new)
+    cor
+      %post
+    =/  index  [%channel channel.event group.event]
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    =/  new
+      :*  (put:eon:a stream.u.indy now.bowl event)
+          floor.reads.u.indy
+          %^  put:mep:a  event-parents.reads.u.indy
+            now.bowl
+          [| now.bowl]
+      ==
+    =.  indices
+      (~(put by indices) index new)
+    cor
+      %reply
+    =/  index  [%channel channel.event group.event]
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    =/  new
+      :-  (put:eon:a stream.u.indy now.bowl event)
+      reads.u.indy
+    =.  indices
+      (~(put by indices) index new)
+    cor
+  ==
+++  notifiable
+  |=  =event:a
+  .=  %notify
+  (~(gut by volume) (determine-flavor event) %default)
+++  determine-flavor
+  |=  =event:a
+  ^-  flavor:a
+  ?-  -.event
+      %dm-invite  %dm-invite
+      %kick       %kick
+      %join       %join
+      %flag       %flag
+      %post
+    ?.  mention.event  %post  %post-mention
+      %reply
+    ?.  mention.event  %reply  %reply-mention
+      %dm-post
+    ?.  mention.event  %dm-post  %dm-post-mention
+      %dm-reply
+    ?.  mention.event  %dm-reply  %dm-reply-mention
+  ==
 ::
 ++  find-floor
   |=  [=index:a mode=$%([%all ~] [%reply parent=timid:a])]
