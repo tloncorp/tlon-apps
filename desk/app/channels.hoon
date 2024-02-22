@@ -923,6 +923,8 @@
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
+          (ca-heed ~[author.u.post.u-post])
+        =?  ca-core  ?=(^ post.u-post)
           ::TODO  what about the "mention was added during edit" case?
           (on-post:ca-hark id-post u.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
@@ -932,6 +934,7 @@
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post ~)
         (ca-response %post id-post %set ~)
       ::
+      =.  ca-core  (ca-heed ~[author.u.post.u-post])
       =*  old  u.u.post
       =*  new  u.post.u-post
       =/  merged  (ca-apply-post id-post old new)
@@ -1083,7 +1086,7 @@
       =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          ca-core        
+          ca-core
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
         (emit (pass-hark (ca-spin rope cs ~)))
@@ -1369,11 +1372,11 @@
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (ca-peek-replies replies.u.u.post rest.pole)
+      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
   ++  ca-peek-replies
-    |=  [replies=v-replies:c =(pole knot)]
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
@@ -1397,7 +1400,7 @@
       =/  reply  (get:on-v-replies:c replies `@da`time)
       ?~  reply  ~
       ?~  u.reply  `~
-      ``channel-reply+!>(u.u.reply)
+      ``channel-reply+!>(`reply:c`(uv-reply:utils parent-id u.u.reply))
     ==
   ::
   ++  ca-search
