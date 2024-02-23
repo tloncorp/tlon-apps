@@ -17,6 +17,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { ShipProvider, useShip } from './contexts/ship';
+import * as db from './db';
 import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
@@ -223,17 +224,19 @@ const App = ({ wer: initialWer }: Props) => {
   );
 };
 
-export default function AnalyticsApp(props: Props) {
+export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <TamaguiProvider>
-      <ShipProvider>
-        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-          <PostHogProvider client={posthogAsync} autocapture>
-            <App {...props} />
-          </PostHogProvider>
-        </NavigationContainer>
-      </ShipProvider>
-    </TamaguiProvider>
+    <db.RealmProvider>
+      <TamaguiProvider>
+        <ShipProvider>
+          <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+            <PostHogProvider client={posthogAsync} autocapture>
+              <App {...props} />
+            </PostHogProvider>
+          </NavigationContainer>
+        </ShipProvider>
+      </TamaguiProvider>
+    </db.RealmProvider>
   );
 }
