@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-cycle
 import {
   Story,
   VerseBlock,
@@ -16,6 +15,7 @@ import {
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 
+// eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 
 interface HeapContentProps {
