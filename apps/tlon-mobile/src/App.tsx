@@ -22,6 +22,7 @@ import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
+import { syncContacts } from './lib/sync';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -55,6 +56,12 @@ const App = ({ wer: initialWer }: Props) => {
   const navigation = useNavigation();
   const screenOptions = useScreenOptions();
   const gotoPath = wer ?? initialWer;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      syncContacts();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
