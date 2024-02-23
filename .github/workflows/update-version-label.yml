@@ -23,7 +23,7 @@ jobs:
         run: |
           label_uuid="5f815077-796f-43e2-9572-73d488ae2e73"
           curl -X POST \
-            -H "Authorization: ${{ secrets.LINEAR_ACCESS_TOKEN }}" \
+            -H "Authorization: ${{ secrets.LINEAR_APIKEY }}" \
             -H "Content-Type: application/json" \
             -d "{\"query\": \"mutation { issueAddLabel(id: \\\"${{ steps.get_issue_id.outputs.ISSUE_ID }}\\\", labelId: \\\"$label_uuid\\\") { success issue { id title state { id name } } } }\"}" \
             https://api.linear.app/graphql
