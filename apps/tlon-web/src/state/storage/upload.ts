@@ -255,7 +255,21 @@ export const useFileStore = create<FileStore>((set, get) => ({
       });
 
       const { isSecureContext } = window;
-      const s3Url = new URL(config.publicUrlBase);
+
+      let s3Url: URL;
+
+      if (config.publicUrlBase) {
+        s3Url = new URL(config.publicUrlBase);
+      } else {
+        s3Url = new URL(
+          await getSignedUrl(client, command)
+            .then((res) => res.split('?')[0])
+            .catch((e) => {
+              console.log('failed to get signed url', { e });
+              return '';
+            })
+        );
+      }
 
       const url = config.publicUrlBase
         ? s3Url.toString()
