@@ -40,6 +40,7 @@
     "@react-navigation/native-stack": "^6.9.13",
     "@tloncorp/shared": "*",
     "@urbit/aura": "^1.0.0",
+    "@urbit/sigil-js": "^2.2.0",
     "classnames": "^2.3.2",
     "expo": "^50.0.6",
     "expo-application": "~5.8.3",
