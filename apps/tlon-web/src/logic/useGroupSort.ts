@@ -1,8 +1,8 @@
+import { Group, Groups } from '@tloncorp/shared/dist/urbit/groups';
 import { get } from 'lodash';
 import { useCallback, useMemo } from 'react';
 
 import { ALPHABETICAL_SORT, RECENT_SORT } from '@/constants';
-import { Group, Groups } from '@/types/groups';
 
 import { useChannelSort } from './channel';
 import useSidebarSort, {

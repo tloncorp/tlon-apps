@@ -1,3 +1,4 @@
+import { DisplayMode } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -17,7 +18,6 @@ import {
   useDiarySettings,
   usePutEntryMutation,
 } from '@/state/settings';
-import { DisplayMode } from '@/types/channel';
 
 interface DiaryHeaderProps {
   groupFlag: string;

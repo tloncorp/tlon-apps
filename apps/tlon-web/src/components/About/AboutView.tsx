@@ -1,7 +1,7 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import { Helmet } from 'react-helmet';
 
 import { useIsMobile } from '@/logic/useMedia';
-import { ViewProps } from '@/types/groups';
 
 import Layout from '../Layout/Layout';
 import MobileHeader from '../MobileHeader';

@@ -1,3 +1,10 @@
+import {
+  Contact,
+  ContactAddGroup,
+  ContactDelGroup,
+  ContactEditField,
+} from '@tloncorp/shared/dist/urbit/contact';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -13,13 +20,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { useProfileIsPublic } from '@/state/profile/profile';
-import {
-  Contact,
-  ContactAddGroup,
-  ContactDelGroup,
-  ContactEditField,
-} from '@/types/contact';
-import { ViewProps } from '@/types/groups';
 
 import ProfileCoverImage from '../ProfileCoverImage';
 import PublicProfileSelector from '../PublicProfileSelector';

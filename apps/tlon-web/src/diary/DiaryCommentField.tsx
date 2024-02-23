@@ -1,4 +1,6 @@
 import { Editor } from '@tiptap/react';
+import { Cite, Kind, Story } from '@tloncorp/shared/dist/urbit/channel';
+import { Inline } from '@tloncorp/shared/dist/urbit/content';
 import cn from 'classnames';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -24,8 +26,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import useRequestState from '@/logic/useRequestState';
 import { pathToCite } from '@/logic/utils';
 import { useAddReplyMutation, useReply } from '@/state/channel/channel';
-import { Cite, Kind, Story } from '@/types/channel';
-import { Inline } from '@/types/content';
 
 interface DiaryCommentFieldProps {
   flag: string;

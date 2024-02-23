@@ -1,3 +1,4 @@
+import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -13,7 +14,6 @@ import { Status } from '@/logic/status';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useDeleteChannelMutation, useRouteGroup } from '@/state/groups';
-import { GroupChannel } from '@/types/groups';
 
 import ChannelHostConnection from './ChannelHostConnection';
 

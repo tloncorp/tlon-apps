@@ -1,3 +1,4 @@
+import { Gang, Group, PrivacyType } from '@tloncorp/shared/dist/urbit/groups';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -13,7 +14,6 @@ import {
 } from '@/state/groups';
 import { useSawRopeMutation } from '@/state/hark';
 import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
-import { Gang, Group, PrivacyType } from '@/types/groups';
 
 function getButtonText(
   privacy: PrivacyType,

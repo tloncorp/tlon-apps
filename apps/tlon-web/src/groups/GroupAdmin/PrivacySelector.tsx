@@ -1,3 +1,8 @@
+import {
+  GroupFormSchema,
+  GroupMeta,
+  PrivacyType,
+} from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { useCallback } from 'react';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
@@ -17,7 +22,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { useLure } from '@/state/lure/lure';
-import { GroupFormSchema, GroupMeta, PrivacyType } from '@/types/groups';
 
 interface PrivacySetting {
   title: string;

@@ -1,3 +1,5 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { Skein } from '@tloncorp/shared/dist/urbit/hark';
 import cn from 'classnames';
 import { ComponentType, PropsWithChildren, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -13,8 +15,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
-import { ViewProps } from '@/types/groups';
-import { Skein } from '@/types/hark';
 
 import { NotificationFilterType, useNotifications } from './useNotifications';
 

@@ -1,8 +1,8 @@
+import { Cite } from '@tloncorp/shared/dist/urbit/channel';
 import { udToDec } from '@urbit/api';
 import React from 'react';
 
 import { nestToFlag } from '@/logic/utils';
-import { Cite } from '@/types/channel';
 
 // eslint-disable-next-line import/no-cycle
 import AppReference from './AppReference';

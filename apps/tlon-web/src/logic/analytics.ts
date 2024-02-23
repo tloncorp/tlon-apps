@@ -1,6 +1,5 @@
+import { PrivacyType } from '@tloncorp/shared/dist/urbit/groups';
 import posthog, { Properties } from 'posthog-js';
-
-import { PrivacyType } from '@/types/groups';
 
 import { isNativeApp } from './native';
 import { log } from './utils';

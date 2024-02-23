@@ -1,3 +1,4 @@
+import { Gang } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 
 import Avatar from '@/components/Avatar';
@@ -6,7 +7,6 @@ import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useGang, useGroup } from '@/state/groups';
-import { Gang } from '@/types/groups';
 
 import GroupAvatar from '../GroupAvatar';
 

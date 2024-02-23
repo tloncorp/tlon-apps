@@ -1,4 +1,6 @@
 import { Editor, JSONContent } from '@tiptap/react';
+import { PostEssay, constructStory } from '@tloncorp/shared/dist/urbit/channel';
+import { Inline, InlineKey } from '@tloncorp/shared/dist/urbit/content';
 import cn from 'classnames';
 import { reduce } from 'lodash';
 import React, { useCallback, useEffect } from 'react';
@@ -24,8 +26,6 @@ import {
   useAddPostMutation,
   useAddReplyMutation,
 } from '@/state/channel/channel';
-import { PostEssay, constructStory } from '@/types/channel';
-import { Inline, InlineKey } from '@/types/content';
 
 interface HeapTextInputProps {
   flag: string;

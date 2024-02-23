@@ -1,6 +1,6 @@
+import { GroupPreview } from '@tloncorp/shared/dist/urbit/groups';
 import React from 'react';
 
-import { GroupPreview } from '../../types/groups';
 import GroupAvatar from '../GroupAvatar';
 
 export default function GangPreview(props: { preview: GroupPreview }) {

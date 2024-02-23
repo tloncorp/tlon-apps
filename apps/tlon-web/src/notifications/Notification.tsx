@@ -1,3 +1,4 @@
+import { Skein, YarnContent } from '@tloncorp/shared/dist/urbit/hark';
 import cn from 'classnames';
 import _ from 'lodash';
 import { ReactNode, useCallback } from 'react';
@@ -14,7 +15,6 @@ import { PUNCTUATION_REGEX, makePrettyTime } from '@/logic/utils';
 import { usePost } from '@/state/channel/channel';
 import { useGang, useGroup } from '@/state/groups';
 import { useSawRopeMutation } from '@/state/hark';
-import { Skein, YarnContent } from '@/types/hark';
 
 import {
   isBlock,

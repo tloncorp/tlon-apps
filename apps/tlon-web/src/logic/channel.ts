@@ -1,3 +1,12 @@
+import { Perm, Story, Unreads } from '@tloncorp/shared/dist/urbit/channel';
+import { isLink } from '@tloncorp/shared/dist/urbit/content';
+import {
+  Channels,
+  Group,
+  GroupChannel,
+  Vessel,
+  Zone,
+} from '@tloncorp/shared/dist/urbit/groups';
 import _, { get, groupBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -18,9 +27,6 @@ import {
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
 import { useNegotiate } from '@/state/negotiation';
-import { Perm, Story, Unreads } from '@/types/channel';
-import { isLink } from '@/types/content';
-import { Channels, Group, GroupChannel, Vessel, Zone } from '@/types/groups';
 
 import useRecentChannel from './useRecentChannel';
 import useSidebarSort, {

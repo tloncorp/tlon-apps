@@ -1,3 +1,4 @@
+import { PostSeal } from '@tloncorp/shared/dist/urbit/channel';
 import _ from 'lodash';
 import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -11,7 +12,6 @@ import { useIsDmOrMultiDm } from '@/logic/utils';
 import { useAddPostReactMutation } from '@/state/channel/channel';
 import { useAddDmReactMutation } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
-import { PostSeal } from '@/types/channel';
 
 import ChatReaction from './ChatReaction';
 

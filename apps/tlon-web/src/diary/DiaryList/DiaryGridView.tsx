@@ -1,3 +1,4 @@
+import { PageTuple, Post } from '@tloncorp/shared/dist/urbit/channel';
 import {
   RenderComponentProps,
   useInfiniteLoader,
@@ -9,7 +10,6 @@ import React, { useRef } from 'react';
 
 import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
 import { useIsMobile } from '@/logic/useMedia';
-import { PageTuple, Post } from '@/types/channel';
 
 interface DiaryGridProps {
   outlines: PageTuple[];

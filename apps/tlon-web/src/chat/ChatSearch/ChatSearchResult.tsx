@@ -1,3 +1,5 @@
+import { Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
+import { Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
@@ -5,8 +7,6 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 import ReplyReactions from '@/replies/ReplyReactions/ReplyReactions';
-import { Post, Reply } from '@/types/channel';
-import { Writ } from '@/types/dms';
 
 import ChatContent from '../ChatContent/ChatContent';
 import Author from '../ChatMessage/Author';

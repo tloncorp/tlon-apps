@@ -1,4 +1,5 @@
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import { DisplayMode, SortMode } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 
@@ -19,7 +20,6 @@ import {
   useHeapSettings,
   usePutEntryMutation,
 } from '@/state/settings';
-import { DisplayMode, SortMode } from '@/types/channel';
 
 import AddCurioModal from './AddCurioModal';
 
