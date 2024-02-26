@@ -1,10 +1,10 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import React from 'react';
 import { Helmet } from 'react-helmet';
 
 import MobileHeader from '@/components/MobileHeader';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useRouteGroup } from '@/state/groups/groups';
-import { ViewProps } from '@/types/groups';
 
 import GroupMemberManager from './GroupMemberManager';
 import GroupPendingManager from './GroupPendingManager';

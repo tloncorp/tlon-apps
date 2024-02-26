@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { Nest } from '@tloncorp/shared/dist/urbit/channel';
 import _ from 'lodash';
 import { useMemo } from 'react';
 
@@ -6,7 +7,6 @@ import api from '@/api';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { whomIsDm, whomIsFlag, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import queryClient from '@/queryClient';
-import { Nest } from '@/types/channel';
 
 export const pinsKey = () => ['groups-ui', 'pins'];
 

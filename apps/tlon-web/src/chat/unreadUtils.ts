@@ -1,7 +1,6 @@
+import { Unread } from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import bigInt from 'big-integer';
-
-import { Unread } from '@/types/channel';
-import { DMUnread } from '@/types/dms';
 
 export function threadIsOlderThanLastRead(
   unread: DMUnread | Unread,

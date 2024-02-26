@@ -1,3 +1,4 @@
+import { Skein, YarnContent } from '@tloncorp/shared/dist/urbit/hark';
 import cn from 'classnames';
 import _ from 'lodash';
 import { ReactNode, useCallback } from 'react';
@@ -14,7 +15,6 @@ import { PUNCTUATION_REGEX, makePrettyTime } from '@/logic/utils';
 import { usePost } from '@/state/channel/channel';
 import { useGang, useGroup } from '@/state/groups';
 import { useSawRopeMutation } from '@/state/hark';
-import { Skein, YarnContent } from '@/types/hark';
 
 import {
   isBlock,
@@ -62,7 +62,10 @@ function NotificationContent({
                 key={`${s}-${index}`}
                 className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply dark:mix-blend-normal"
               >
-                <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
+                <ShipName
+                  name={s.replaceAll(PUNCTUATION_REGEX, '')}
+                  showAlias
+                />
               </span>
             ) : (
               <span key={`${s}-${index}`}>{s} </span>

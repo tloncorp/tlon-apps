@@ -1,16 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import { udToDec } from '@urbit/api';
-import { formatUd, unixToDa } from '@urbit/aura';
-import bigInt from 'big-integer';
-import _ from 'lodash';
-
 import {
   PostEssay,
   Replies,
   Reply,
   ReplyMeta,
   ReplyTuple,
-} from '@/types/channel';
+} from '@tloncorp/shared/dist/urbit/channel';
 import {
   Club,
   DMUnreads,
@@ -21,7 +16,11 @@ import {
   WritInCache,
   WritMemo,
   WritSeal,
-} from '@/types/dms';
+} from '@tloncorp/shared/dist/urbit/dms';
+import { udToDec } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
+import bigInt from 'big-integer';
+import _ from 'lodash';
 
 export default function emptyMultiDm(): Club {
   return {

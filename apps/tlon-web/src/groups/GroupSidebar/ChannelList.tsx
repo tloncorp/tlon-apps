@@ -1,3 +1,4 @@
+import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, {
   useCallback,
@@ -34,7 +35,6 @@ import {
   useGroupFlag,
   useVessel,
 } from '@/state/groups';
-import { GroupChannel } from '@/types/groups';
 
 const UNZONED = 'default';
 

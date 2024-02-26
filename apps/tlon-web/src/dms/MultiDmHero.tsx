@@ -1,10 +1,10 @@
+import { Club } from '@tloncorp/shared/dist/urbit/dms';
 import cn from 'classnames';
 import React from 'react';
 
 import ClubName from '@/components/ClubName';
 
 import { pluralize } from '../logic/utils';
-import { Club } from '../types/dms';
 import PendingIndicator from './MultiDMPendingIndicator';
 import MultiDmAvatar from './MultiDmAvatar';
 

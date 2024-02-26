@@ -1,4 +1,4 @@
-import { PostEssay } from '@/types/channel';
+import { PostEssay } from '@tloncorp/shared/dist/urbit/channel';
 
 export default function getKindDataFromEssay(essay: PostEssay | undefined): {
   title: string;

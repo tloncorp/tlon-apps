@@ -1,6 +1,7 @@
+import { Unread } from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
+
 import { RECENT_SORT } from '@/constants';
-import { Unread } from '@/types/channel';
-import { DMUnread } from '@/types/dms';
 
 import useSidebarSort, { Sorter, useRecentSort } from './useSidebarSort';
 

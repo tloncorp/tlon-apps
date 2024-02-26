@@ -87,7 +87,7 @@ export default function Sidebar() {
     Object.keys(invitedGroups).forEach((flag) => {
       accum.set(flag, 'invited');
     });
-    Object.keys(newGroups).forEach((flag) => {
+    newGroups.forEach(([flag]) => {
       accum.set(flag, 'new');
     });
     return accum;

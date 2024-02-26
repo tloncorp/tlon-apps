@@ -1,3 +1,4 @@
+import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import React, {
@@ -36,7 +37,6 @@ import {
   useSendReplyMutation,
   useWrit,
 } from '@/state/chat';
-import { ReplyTuple } from '@/types/channel';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{

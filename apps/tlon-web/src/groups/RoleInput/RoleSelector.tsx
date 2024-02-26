@@ -1,3 +1,4 @@
+import { Vessel } from '@tloncorp/shared/dist/urbit/groups';
 import { MouseEvent, useCallback, useState } from 'react';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -10,7 +11,6 @@ import {
   useGroupSectMutation,
   useVessel,
 } from '@/state/groups';
-import { Vessel } from '@/types/groups';
 
 export default function RoleSelect({
   role,

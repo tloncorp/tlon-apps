@@ -1,4 +1,9 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { SortMode } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  ChannelFormSchema,
+  GroupChannel,
+} from '@tloncorp/shared/dist/urbit/groups';
 import _ from 'lodash';
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -21,8 +26,6 @@ import {
   useGroup,
   useRouteGroup,
 } from '@/state/groups';
-import { SortMode } from '@/types/channel';
-import { ChannelFormSchema, GroupChannel } from '@/types/groups';
 
 import ChannelSortSelector from './ChannelSortSelector';
 import ChannelViewSelector from './ChannelViewSelector';

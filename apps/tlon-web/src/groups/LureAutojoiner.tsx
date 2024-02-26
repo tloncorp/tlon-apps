@@ -1,3 +1,4 @@
+import { Gangs } from '@tloncorp/shared/dist/urbit/groups';
 import cookies from 'browser-cookies';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
@@ -7,7 +8,6 @@ import {
   useGroupJoinMutation,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
-import { Gangs } from '@/types/groups';
 
 export default function LureAutojoiner(): React.ReactElement {
   const { mutateAsync: joinMutation } = useGroupJoinMutation();

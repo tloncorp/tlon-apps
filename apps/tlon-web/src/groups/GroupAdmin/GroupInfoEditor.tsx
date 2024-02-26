@@ -1,3 +1,9 @@
+import {
+  GroupFormSchema,
+  GroupMeta,
+  PrivacyType,
+  ViewProps,
+} from '@tloncorp/shared/dist/urbit/groups';
 import React, { useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -16,12 +22,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { useLure } from '@/state/lure/lure';
-import {
-  GroupFormSchema,
-  GroupMeta,
-  PrivacyType,
-  ViewProps,
-} from '@/types/groups';
 
 import GroupInfoFields from './GroupInfoFields';
 

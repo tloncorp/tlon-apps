@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { DisplayMode, SortMode } from '@tloncorp/shared/dist/urbit/channel';
 import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
 import cookies from 'browser-cookies';
 import produce from 'immer';
@@ -17,7 +18,6 @@ import {
 import { isNativeApp } from '@/logic/native';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { isHosted } from '@/logic/utils';
-import { DisplayMode, SortMode } from '@/types/channel';
 
 interface ChannelSetting {
   flag: string;

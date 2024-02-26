@@ -1,24 +1,4 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
-import { Poke } from '@urbit/http-api';
-import bigInt from 'big-integer';
-import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import create from 'zustand';
-
-import api from '@/api';
-import { useChatStore } from '@/chat/useChatStore';
-import {
-  LARGE_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import { isNativeApp } from '@/logic/native';
-import useReactQueryScry from '@/logic/useReactQueryScry';
-import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { checkNest, log, nestToFlag, whomIsFlag, stringToTa } from '@/logic/utils';
-import queryClient from '@/queryClient';
 import {
   Action,
   Channel,
@@ -49,8 +29,34 @@ import {
   UnreadUpdate,
   Unreads,
   newChatMap,
-} from '@/types/channel';
-import { Flag } from '@/types/hark';
+} from '@tloncorp/shared/dist/urbit/channel';
+import { Flag } from '@tloncorp/shared/dist/urbit/hark';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { Poke } from '@urbit/http-api';
+import bigInt from 'big-integer';
+import _ from 'lodash';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import create from 'zustand';
+
+import api from '@/api';
+import { useChatStore } from '@/chat/useChatStore';
+import {
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
+import { isNativeApp } from '@/logic/native';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import {
+  checkNest,
+  log,
+  nestToFlag,
+  stringToTa,
+  whomIsFlag,
+} from '@/logic/utils';
+import queryClient from '@/queryClient';
 
 import { channelKey } from './keys';
 import shouldAddPostToCache from './util';
@@ -588,6 +594,33 @@ type PageParam = null | {
   direction: string;
 };
 
+export const infinitePostQueryFn =
+  (nest: Nest, initialTime?: string) =>
+  async ({ pageParam }: { pageParam?: PageParam }) => {
+    let path = '';
+
+    if (pageParam) {
+      const { time, direction } = pageParam;
+      const ud = decToUd(time);
+      path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
+    } else if (initialTime) {
+      path = `/${nest}/posts/around/${decToUd(initialTime)}/${
+        POST_PAGE_SIZE / 2
+      }/outline`;
+    } else {
+      path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
+    }
+
+    const response = await api.scry<PagedPosts>({
+      app: 'channels',
+      path,
+    });
+
+    return {
+      ...response,
+    };
+  };
+
 export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
@@ -622,30 +655,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
 
   const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
-    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
-      let path = '';
-
-      if (pageParam) {
-        const { time, direction } = pageParam;
-        const ud = decToUd(time);
-        path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
-      } else if (initialTime) {
-        path = `/${nest}/posts/around/${decToUd(initialTime)}/${
-          POST_PAGE_SIZE / 2
-        }/outline`;
-      } else {
-        path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
-      }
-
-      const response = await api.scry<PagedPosts>({
-        app: 'channels',
-        path,
-      });
-
-      return {
-        ...response,
-      };
-    },
+    queryFn: infinitePostQueryFn(nest, initialTime),
     getNextPageParam: (lastPage): PageParam | undefined => {
       const { older } = lastPage;
 

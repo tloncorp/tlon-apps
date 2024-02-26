@@ -23,9 +23,10 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: .nvmrc
+      - name: Install Dependencies
+        run: npm ci
       - working-directory: ./apps/tlon-web
-        run: |
-          npm ci
+        run:
           npm run build
       - uses: actions/upload-artifact@v3
         with:

@@ -1,9 +1,9 @@
+import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 import React from 'react';
 
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { Status } from '@/logic/status';
-import { GroupChannel } from '@/types/groups';
 
 interface DeleteChannelModalProps {
   deleteChannelIsOpen: boolean;

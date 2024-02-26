@@ -1,3 +1,4 @@
+import { Post, emptyPost } from '@tloncorp/shared/dist/urbit/channel';
 import { decToUd } from '@urbit/api';
 import cn from 'classnames';
 import React, {
@@ -50,7 +51,6 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups';
-import { Post, emptyPost } from '@/types/channel';
 
 function ChatMessageOptions(props: {
   open: boolean;

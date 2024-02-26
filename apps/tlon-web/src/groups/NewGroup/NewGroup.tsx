@@ -1,3 +1,4 @@
+import { Cordon, GroupFormSchema } from '@tloncorp/shared/dist/urbit/groups';
 import { ReactElement, useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -8,7 +9,6 @@ import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import { strToSym } from '@/logic/utils';
 import { useCreateGroupMutation } from '@/state/groups';
-import { Cordon, GroupFormSchema } from '@/types/groups';
 
 export type Role = 'Member' | 'Admin';
 

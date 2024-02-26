@@ -1,7 +1,7 @@
+import { Post } from '@tloncorp/shared/dist/urbit/channel';
 import React from 'react';
 
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
-import { Post } from '@/types/channel';
 
 import ChatContent from './ChatContent/ChatContent';
 import DateDivider from './ChatMessage/DateDivider';

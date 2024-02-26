@@ -1,8 +1,13 @@
+::  groups: agent for managing group membership, metadata and permissions
+::
+::    note: all subscriptions are handled by the subscriber library so
+::    we can have resubscribe loop protection.
+::
 /-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  v=volume
+/+  v=volume, s=subscriber
 /+  of
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -14,7 +19,7 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %2
+    $:  %3
         groups=net-groups:g
       ::
         $=  volume
@@ -26,6 +31,7 @@
         xeno=gangs:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
+        =^subs:s
     ==
   ::
   --
@@ -288,12 +294,13 @@
   ?-  -.old
       %0  $(old (state-0-to-1 old))
       %1  $(old (state-1-to-2 old))
-  ::
-      %2
+      %2  $(old (state-2-to-3 old))
+    ::
+      %3
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
-    =.  cor  watch-contact
+    =.  cor  (watch-contact |)
     ?:  =(okay:g cool)  cor
     =.  cor  (emil (drop load:epos))
     =/  groups  ~(tap in ~(key by groups))
@@ -304,7 +311,7 @@
       go-abet:go-upgrade:(go-abed:group-core i.groups)
     $(groups t.groups)
   ==
-  +$  versioned-state  $%(current-state state-1 state-0)
+  +$  versioned-state  $%(current-state state-2 state-1 state-0)
   +$  state-0
     $:  %0
         groups=net-groups:zero
@@ -327,6 +334,20 @@
         shoal=(map flag:zero dude:gall)
     ==
   ::
+  +$  state-2
+    $:  %2
+        groups=net-groups:g
+      ::
+        $=  volume
+        $:  base=level:v
+            area=(map flag:g level:v)  ::  override per group
+            chan=(map nest:g level:v)  ::  override per channel
+        ==
+      ::
+        xeno=gangs:g
+        ::  graph -> agent
+        shoal=(map flag:g dude:gall)
+    ==
   ++  state-0-to-1
     |=  state-0
     ^-  state-1
@@ -334,8 +355,13 @@
   ::
   ++  state-1-to-2
     |=  state-1
-    ^-  current-state
+    ^-  state-2
     [%2 (groups-1-to-2 groups) volume xeno shoal]
+  ::
+  ++  state-2-to-3
+    |=  state-2
+    ^-  current-state
+    [%3 groups volume xeno shoal *^subs:s]
   ::
   ++  groups-1-to-2
     |=  groups=net-groups:zero
@@ -584,9 +610,23 @@
   ==
 ::
 ++  arvo
-  |=  [=wire sign=sign-arvo]
+  |=  [=(pole knot) sign=sign-arvo]
   ^+  cor
-  !!
+  ?+  pole  ~|(bad-arvo-take/pole !!)
+      [%~.~ %cancel-retry rest=*]  cor
+  ::
+      [%~.~ %retry rest=*]
+    =^  caz=(list card)  subs
+      (~(handle-wakeup s [subs bowl]) pole)
+    (emil caz)
+  ==
+::
+++  subscribe
+  |=  [=wire =dock =path]
+  |=  delay=?
+  =^  caz=(list card)  subs
+    (~(subscribe s [subs bowl]) wire dock path delay)
+  (emil caz)
 ::
 ++  cast
   |=  [grp=flag:g gra=flag:g]
@@ -632,13 +672,13 @@
   ==
 ::
 ++  watch-contact
-  (emit %pass /contact %agent [our.bowl %contacts] %watch /contact)
+  (subscribe /contact [our.bowl %contacts] /contact)
 ::
 ++  take-contact
   |=  =sign:agent:gall
   ?+  -.sign  cor
       %kick
-    watch-contact
+    (watch-contact &)
   ::
       %watch-ack
     cor
@@ -653,20 +693,20 @@
   ==
 ::
 ++  watch-epic
-  |=  her=ship
+  |=  [her=ship delay=?]
   ^+  cor
   =/  =wire  /epic
   =/  =dock  [her dap.bowl]
   ?:  (~(has by wex.bowl) [wire dock])
     cor
-  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+  ((subscribe wire dock wire) delay)
 ::
 ++  take-epic
   |=  =sign:agent:gall
   ^+  cor
   ?+    -.sign  cor
       %kick
-    (watch-epic src.bowl)
+    (watch-epic src.bowl &)
   ::
       %fact
     ?.  =(%epic p.cage.sign)
@@ -781,7 +821,7 @@
         (~(del by groups) flag)
       (~(put by groups) flag net group)
     ?.  gone  cor
-    =?  cor  !=(p.flag our.bowl)  (emit leave:go-pass)
+    =?  cor  !=(p.flag our.bowl)  (emil leave:go-pass)
     =/  =action:g  [flag now.bowl %del ~]
     (give %fact ~[/groups/ui] act:mar:g !>(action))
   ++  go-abed
@@ -831,10 +871,12 @@
   ++  go-pass
     |%
     ++  leave
-      ^-  card
+      ^-  (list card)
       =/  =wire  (snoc go-area %updates)
       =/  =dock  [p.flag dap.bowl]
-      [%pass wire %agent dock %leave ~]
+      =^  caz=(list card)  subs
+        (~(unsubscribe s [subs bowl]) wire dock)
+      caz
     ::
     ++  remove-self
       ^-  card
@@ -928,18 +970,16 @@
     ^+  go-core
     ?:  |(go-has-sub =(our.bowl p.flag))
       go-core
-    (go-sub init)
+    (go-sub init |)
   ::
   ++  go-sub
-    |=  init=_|
+    |=  [init=_| delay=?]
     ^+  go-core
     =/  =time
       ?.(?=(%sub -.net) *time p.net)
     =/  base=wire  (snoc go-area %updates)
     =/  =path      (snoc base ?:(init %init (scot %da time)))
-    =/  =card
-      [%pass base %agent [p.flag dap.bowl] %watch path]
-    =.  cor  (emit card)
+    =.  cor  ((subscribe base [p.flag dap.bowl] path) delay)
     go-core
   ::
   ++  go-watch
@@ -1082,11 +1122,11 @@
   ++  go-take-update
     |=  =sign:agent:gall
     ^+  go-core
-    ?+    -.sign  (go-sub |)
+    ?+    -.sign  (go-sub | &)
         %kick
       ?>  ?=(%sub -.net)
       ?.  ?=(%chi -.saga.net)  go-core
-      (go-sub !load.net)
+      (go-sub !load.net &)
     ::
         %watch-ack
       =?  cor  (~(has by xeno) flag)
@@ -1119,7 +1159,7 @@
        go-core
     ~&  "took lev epic: {<flag>}"
     =.  saga.net  lev/~
-    =.  cor  (watch-epic p.flag)
+    =.  cor  (watch-epic p.flag |)
     go-core
   ::
   ++  go-make-chi
@@ -1791,8 +1831,9 @@
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
       (poke-host /rescind act:mar:g !>(action))
     ++  get-preview
-      =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
-      (pass-host /preview task)
+      %^  subscribe  (welp ga-area /preview)
+        [p.flag dap.bowl]
+      /groups/(scot %p p.flag)/[q.flag]/preview
     --
   ++  ga-start-join
     ^+  ga-core
@@ -1816,7 +1857,7 @@
   ++  ga-watch
     |=  =(pole knot)
     ^+  ga-core
-    =.  cor  (emit get-preview:ga-pass)
+    =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
@@ -1869,7 +1910,7 @@
             %kick
           ?.  (~(has by xeno) flag)  ga-core
           ?^  pev.gang  ga-core
-          ga-core(cor (emit get-preview:ga-pass))
+          ga-core(cor (get-preview:ga-pass &))
         ==
       ::
           [%join %add ~]
@@ -1885,7 +1926,7 @@
         =.  groups  (~(put by groups) flag net group)
         ::
         =.  cor
-          go-abet:(go-sub:(go-abed:group-core flag) &)
+          go-abet:(go-sub:(go-abed:group-core flag) & |)
         ga-core
           [%knock ~]
         ?>  ?=(%poke-ack -.sign)
@@ -1920,7 +1961,7 @@
   ++  ga-invite
     |=  =invite:g
     =.  vit.gang  `invite
-    =.  cor  (emit get-preview:ga-pass)
+    =.  cor  (get-preview:ga-pass |)
     =.  cor  ga-give-update
     ga-core
   ::

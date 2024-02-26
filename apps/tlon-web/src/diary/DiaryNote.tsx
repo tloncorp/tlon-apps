@@ -1,3 +1,5 @@
+import { Post, Posts } from '@tloncorp/shared/dist/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -35,8 +37,6 @@ import {
 } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Post, Posts } from '@/types/channel';
-import { ViewProps } from '@/types/groups';
 
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';

@@ -1,4 +1,4 @@
-import { GroupChannel } from '@/types/groups';
+import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 
 export interface SectionMap {
   [key: string]: SectionListItem;

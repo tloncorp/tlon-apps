@@ -1,9 +1,5 @@
 /* eslint-disable import/no-cycle */
 import faker from '@faker-js/faker';
-
-import { AUTHORS } from '@/constants';
-import { randomElement } from '@/logic/utils';
-
 import {
   Cordon,
   Gang,
@@ -13,7 +9,10 @@ import {
   GroupPreview,
   PrivacyType,
   Vessel,
-} from '../types/groups';
+} from '@tloncorp/shared/dist/urbit/groups';
+
+import { AUTHORS } from '@/constants';
+import { randomElement } from '@/logic/utils';
 
 const emptyVessel = (): Vessel => ({
   sects: [],

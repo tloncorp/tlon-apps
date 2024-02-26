@@ -45,14 +45,6 @@ export default function MobileRoot() {
     [pinnedGroups]
   );
 
-  const newGroupsOptions = useMemo(
-    () =>
-      Object.keys(newGroups).map(([flag]) => (
-        <GroupsSidebarItem key={flag} flag={flag} isNew />
-      )),
-    [newGroups]
-  );
-
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
   const hasLoadingGroups = !!loadingGroups.length;
   const hasGangsWithClaims = !!gangsWithClaims.length;
@@ -132,7 +124,10 @@ export default function MobileRoot() {
                         <GangItem key={flag} flag={flag} />
                       ))}
 
-                    {hasNewGroups && newGroupsOptions}
+                    {hasNewGroups &&
+                      newGroups.map(([flag]) => (
+                        <GroupsSidebarItem key={flag} flag={flag} isNew />
+                      ))}
                   </div>
 
                   {hasPendingGangs && (

@@ -1,3 +1,4 @@
+import { Post } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
 
@@ -7,7 +8,6 @@ import {
   useIsPostUndelivered,
   usePostToggler,
 } from '@/state/channel/channel';
-import { Post } from '@/types/channel';
 
 interface DiaryListItemProps {
   note: Post;

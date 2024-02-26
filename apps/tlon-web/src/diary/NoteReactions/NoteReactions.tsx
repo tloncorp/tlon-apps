@@ -1,10 +1,10 @@
+import { PostSeal } from '@tloncorp/shared/dist/urbit/channel';
 import _ from 'lodash';
 import { useCallback, useState } from 'react';
 
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useAddPostReactMutation } from '@/state/channel/channel';
-import { PostSeal } from '@/types/channel';
 
 import NoteReaction from './NoteReaction';
 

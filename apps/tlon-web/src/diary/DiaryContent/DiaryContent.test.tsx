@@ -1,6 +1,5 @@
+import { Inline } from '@tloncorp/shared/dist/urbit/content';
 import { describe, expect, it } from 'vitest';
-
-import { Inline } from '@/types/content';
 
 import { groupByParagraph } from './DiaryContent';
 

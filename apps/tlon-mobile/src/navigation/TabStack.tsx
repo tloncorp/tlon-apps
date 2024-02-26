@@ -1,22 +1,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Icon } from '@tloncorp/ui';
+import type { IconType } from '@tloncorp/ui';
 
-import {
-  ActivityFilled,
-  ActivityOutlined,
-  HomeFilled,
-  HomeOutlined,
-  MessagesFilled,
-  MessagesOutlined,
-} from '../../assets/icons';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
-
-const ICON_SIZE = {
-  width: 20,
-  height: 20,
-};
 
 export const TabStack = () => (
   <Tab.Navigator
@@ -29,12 +18,9 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/' }}
       options={{
-        tabBarIcon: ({ focused }) =>
-          focused ? (
-            <HomeFilled {...ICON_SIZE} />
-          ) : (
-            <HomeOutlined {...ICON_SIZE} />
-          ),
+        tabBarIcon: ({ focused }) => (
+          <TabIcon type={'Home'} activeType={'HomeFilled'} isActive={focused} />
+        ),
         tabBarShowLabel: false,
       }}
     />
@@ -43,12 +29,13 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/messages' }}
       options={{
-        tabBarIcon: ({ focused }) =>
-          focused ? (
-            <MessagesFilled {...ICON_SIZE} />
-          ) : (
-            <MessagesOutlined {...ICON_SIZE} />
-          ),
+        tabBarIcon: ({ focused }) => (
+          <TabIcon
+            type={'Messages'}
+            activeType={'MessagesFilled'}
+            isActive={focused}
+          />
+        ),
         tabBarShowLabel: false,
       }}
     />
@@ -57,12 +44,24 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/notifications' }}
       options={{
-        tabBarIcon: ({ focused }) =>
-          focused ? (
-            <ActivityFilled {...ICON_SIZE} />
-          ) : (
-            <ActivityOutlined {...ICON_SIZE} />
-          ),
+        tabBarIcon: ({ focused }) => (
+          <TabIcon
+            type={'Notifications'}
+            activeType={'NotificationsFilled'}
+            isActive={focused}
+          />
+        ),
+        tabBarShowLabel: false,
+      }}
+    />
+    <Tab.Screen
+      name="Discover"
+      component={WebViewStack}
+      initialParams={{ initialPath: '/find' }}
+      options={{
+        tabBarIcon: ({ focused }) => (
+          <TabIcon type="Discover" isActive={focused} />
+        ),
         tabBarShowLabel: false,
       }}
     />
@@ -71,8 +70,29 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/profile' }}
       options={{
+        tabBarIcon: ({ focused }) => (
+          <TabIcon type="Profile" isActive={focused} />
+        ),
         tabBarShowLabel: false,
       }}
     />
   </Tab.Navigator>
 );
+
+function TabIcon({
+  type,
+  activeType,
+  isActive,
+}: {
+  type: IconType;
+  activeType?: IconType;
+  isActive: boolean;
+}) {
+  const resolvedType = isActive && activeType ? activeType : type;
+  return (
+    <Icon
+      type={resolvedType}
+      color={isActive ? '$primaryText' : '$activeBorder'}
+    />
+  );
+}

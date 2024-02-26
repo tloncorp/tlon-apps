@@ -1,3 +1,8 @@
+import {
+  PostEssay,
+  chatStoryFromStory,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { isLink } from '@tloncorp/shared/dist/urbit/content';
 import cn from 'classnames';
 import { Link } from 'react-router-dom';
 
@@ -12,8 +17,6 @@ import getHeapContentType from '@/logic/useHeapContentType';
 import { useIsMobile } from '@/logic/useMedia';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { useAmAdmin } from '@/state/groups';
-import { PostEssay, chatStoryFromStory } from '@/types/channel';
-import { isLink } from '@/types/content';
 
 import useCurioActions from '../useCurioActions';
 

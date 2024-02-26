@@ -1,16 +1,16 @@
 # Development
 
-These instructions are for working on Groups as a developer at Tlon.
+These instructions are for working on the Tlon app as a developer at Tlon.
 
 ## Project Structure
 
-- `/desk`: The folder containing the desk for Groups. This currently contains the agents for all other apps.
+- `/desk`: The folder containing the desk for %groups. This currently contains the agents necessary for the Tlon app.
 
-- `/apps/tlon-web`: Groups is built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
+- `/apps/tlon-web`: Tlon is built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
 
 ## Getting Started
 
-To get started using Groups, run `npm install` in the root directory.
+To get started working on Tlon, run `npm install` in the root directory.
 
 To develop, you'll need a running ship to point to. To do so you first need to add a `.env.local` file to the `apps/tlon-web` directory. This file will not be committed. Adding `VITE_SHIP_URL={URL}` (where **{URL}** is the URL of the ship you would like to point to) will allow you to run `npm run dev`. This will proxy all requests to the ship except for those powering the interface, which lets you work with live data.
 
@@ -59,13 +59,13 @@ Since %groups has already been released and is now in the pill. It is very unlik
 7. Commit and install landscape on local `~zod`:
    1. `|commit %landscape`
    2. `|install our %landscape`
-8. Similarly commit and install Groups:
+8. Similarly commit and install Tlon:
    1. `|commit %groups`
    2. `|install our %groups`
 
 ## Deploying
 
-Groups is distributed via the Urbit network by way of a [glob](https://developers.urbit.org/reference/additional/dist/glob#-make-glob), or a Landscape application bundle. Instructions are as follows:
+Tlon is distributed via the Urbit network by way of a [glob](https://developers.urbit.org/reference/additional/dist/glob#-make-glob), or a Landscape application bundle. Instructions are as follows:
 
 1. Run `npm run build` in the `apps/tlon-web` directory, which outputs to `/dist`.
 2. Create or launch an urbit using the -F flag.
