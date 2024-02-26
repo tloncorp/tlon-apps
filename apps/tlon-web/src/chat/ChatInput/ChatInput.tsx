@@ -4,8 +4,8 @@ import {
   Cite,
   Memo,
   Nest,
-  PageTuple,
   PostEssay,
+  PostTuple,
   ReplyTuple,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
@@ -52,9 +52,10 @@ import {
   VIDEO_REGEX,
   createStorageKey,
   pathToCite,
+  useIsDmOrMultiDm,
   useThreadParentId,
 } from '@/logic/utils';
-import { CacheId } from '@/state/channel/channel';
+import { CacheId, useMyLastMessage } from '@/state/channel/channel';
 import {
   SendMessageVariables,
   SendReplyVariables,
@@ -93,7 +94,7 @@ interface ChatInputProps {
     cacheId: CacheId;
   }) => void;
   dropZoneId: string;
-  replyingWrit?: PageTuple | WritTuple | ReplyTuple;
+  replyingWrit?: PostTuple | WritTuple | ReplyTuple;
   isScrolling: boolean;
 }
 
@@ -158,6 +159,7 @@ export default function ChatInput({
   const threadParentId = useThreadParentId(whom);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const isEditing = searchParams.get('edit');
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -178,6 +180,15 @@ export default function ChatInput({
   const shipIsBlocked = useIsShipBlocked(whom);
   const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
+  const isDmOrMultiDM = useIsDmOrMultiDm(whom);
+  const myLastMessage = useMyLastMessage(
+    `${!isDmOrMultiDM ? 'chat/' : ''}${whom}`
+  );
+  const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
+  console.log({
+    myLastMessage,
+    lastMessageId,
+  });
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -396,6 +407,25 @@ export default function ChatInput({
       [onSubmit]
     ),
     onUpdate: onUpdate.current,
+    onUpArrow: useCallback(
+      ({ editor }: HandlerParams) => {
+        if (lastMessageId && !isEditing) {
+          setSearchParams(
+            {
+              edit: lastMessageId,
+            },
+            { replace: true }
+          );
+          console.log('should blur', {
+            editor,
+          });
+          editor.commands.blur();
+          return true;
+        }
+        return false;
+      },
+      [lastMessageId, setSearchParams, isEditing]
+    ),
   });
 
   useEffect(() => {
@@ -403,15 +433,16 @@ export default function ChatInput({
       (autoFocus || replyCite) &&
       !isMobile &&
       messageEditor &&
-      !messageEditor.isDestroyed
+      !messageEditor.isDestroyed &&
+      !isEditing
     ) {
       // end brings the cursor to the end of the content
       messageEditor?.commands.focus('end');
     }
-  }, [autoFocus, replyCite, isMobile, messageEditor]);
+  }, [autoFocus, replyCite, isMobile, messageEditor, isEditing]);
 
   useEffect(() => {
-    if (messageEditor && !messageEditor.isDestroyed) {
+    if (messageEditor && !messageEditor.isDestroyed && !isEditing) {
       messageEditor?.commands.setContent(draft);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

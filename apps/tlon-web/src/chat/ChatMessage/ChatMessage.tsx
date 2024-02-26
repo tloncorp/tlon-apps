@@ -1,6 +1,13 @@
 /* eslint-disable react/no-unused-prop-types */
 // eslint-disable-next-line import/no-cycle
-import { Post, Story, Unread } from '@tloncorp/shared/dist/urbit/channel';
+import { EditorView } from '@tiptap/pm/view';
+import { Editor } from '@tiptap/react';
+import {
+  Post,
+  Story,
+  Unread,
+  constructStory,
+} from '@tloncorp/shared/dist/urbit/channel';
 import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
@@ -15,7 +22,8 @@ import React, {
   useState,
 } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { NavLink, useParams } from 'react-router-dom';
+import { NavLink, useParams, useSearchParams } from 'react-router-dom';
+import { useEventListener } from 'usehooks-ts';
 
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import Author from '@/chat/ChatMessage/Author';
@@ -23,12 +31,15 @@ import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import Avatar from '@/components/Avatar';
+import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import {
+  useEditPostMutation,
   useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
@@ -48,6 +59,11 @@ import {
   useChatInfo,
   useChatStore,
 } from '../useChatStore';
+
+EditorView.prototype.updateState = function updateState(state) {
+  if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
+  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
+};
 
 export interface ChatMessageProps {
   whom: string;
@@ -136,6 +152,8 @@ const ChatMessage = React.memo<
       }: ChatMessageProps,
       ref
     ) => {
+      const [searchParms, setSearchParams] = useSearchParams();
+      const isEditing = searchParms.get('edit') === writ.seal.id;
       const { seal, essay } = writ;
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
@@ -158,6 +176,7 @@ const ChatMessage = React.memo<
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
       const { mutate: markDmRead } = useMarkDmReadMutation();
+      const { mutate: editPost } = useEditPostMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
       const isHidden = useMemo(
@@ -310,6 +329,58 @@ const ChatMessage = React.memo<
         isThreadOp,
       ]);
 
+      const onSubmit = useCallback(
+        async (editor: Editor) => {
+          // const now = Date.now();
+          const editorJson = editor.getJSON();
+          const inlineContent = JSONToInlines(editorJson);
+          const content = constructStory(inlineContent);
+
+          if (content.length === 0) {
+            return;
+          }
+
+          editPost({
+            nest: `chat/${whom}`,
+            time: seal.id,
+            essay: {
+              ...essay,
+              author: window.our,
+              content,
+            },
+          });
+
+          setSearchParams({}, { replace: true });
+        },
+        [editPost, whom, seal.id, essay, setSearchParams]
+      );
+
+      const messageEditor = useMessageEditor({
+        whom: writ.seal.id,
+        content: diaryMixedToJSON(essay.content),
+        uploadKey: 'chat-editor-should-not-be-used-for-uploads',
+        allowMentions: true,
+        onEnter: useCallback(
+          ({ editor }) => {
+            onSubmit(editor);
+            return true;
+          },
+          [onSubmit]
+        ),
+      });
+
+      useEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isEditing) {
+          setSearchParams({}, { replace: true });
+        }
+      });
+
+      useEffect(() => {
+        if (messageEditor && !messageEditor.isDestroyed && isEditing) {
+          messageEditor.commands.focus('end');
+        }
+      }, [isEditing, messageEditor]);
+
       if (!writ) {
         return null;
       }
@@ -320,6 +391,7 @@ const ChatMessage = React.memo<
           className={cn('flex flex-col break-words', {
             'pt-3': newAuthor,
             'pb-2': isLast,
+            'bg-gray-50 px-3 rounded': isEditing,
           })}
           onMouseEnter={onOver}
           onMouseLeave={onOut.current}
@@ -341,7 +413,7 @@ const ChatMessage = React.memo<
             <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
-            {isDelivered && (
+            {isDelivered && !isEditing && (
               <ChatMessageOptions
                 open={optionsOpen || (hasDialogsOpen && !isMobile)}
                 onOpenChange={setOptionsOpen}
@@ -356,99 +428,111 @@ const ChatMessage = React.memo<
               {format(unix, 'HH:mm')}
             </div>
             <div className="wrap-anywhere flex w-full">
-              <div
-                className={cn(
-                  'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-2 pr-2 sm:group-one-hover:bg-gray-50',
-                  isReplyOp && 'bg-gray-50',
-                  isPending && 'text-gray-400',
-                  isLinked && 'bg-blue-softer'
-                )}
-              >
-                {isHidden ? (
-                  <ChatContent
-                    story={hiddenMessage}
-                    isScrolling={isScrolling}
-                    writId={seal.id}
-                  />
-                ) : essay.content ? (
-                  <ChatContent
-                    story={essay.content}
-                    isScrolling={isScrolling}
-                    writId={seal.id}
-                  />
-                ) : null}
-                {Object.keys(seal.reacts).length > 0 && (
-                  <>
-                    <ChatReactions
-                      id="reactions-target"
-                      seal={seal}
-                      whom={whom}
+              {isEditing && messageEditor && !messageEditor.isDestroyed ? (
+                <div className="flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 px-2 sm:group-one-hover:bg-gray-50">
+                  <MessageEditor editor={messageEditor} />
+                  <div className="font-semibold text-sm text-gray-400">
+                    <span className="text-blue">ESC</span> to cancel edit &nbsp;
+                    &nbsp;
+                    <span className="text-blue">ENTER</span> to save edit
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-2 pr-2 sm:group-one-hover:bg-gray-50',
+                    isReplyOp && 'bg-gray-50',
+                    isPending && 'text-gray-400',
+                    isLinked && 'bg-blue-softer'
+                  )}
+                >
+                  {isHidden ? (
+                    <ChatContent
+                      story={hiddenMessage}
+                      isScrolling={isScrolling}
+                      writId={seal.id}
                     />
-                    <ReactionDetails
-                      open={reactionDetailsOpen}
-                      onOpenChange={setReactionDetailsOpen}
-                      reactions={seal.reacts}
+                  ) : essay.content ? (
+                    <ChatContent
+                      story={essay.content}
+                      isScrolling={isScrolling}
+                      writId={seal.id}
                     />
-                  </>
-                )}
-                {replyCount > 0 && !hideReplies ? (
-                  <NavLink
-                    to={`message/${seal.id}`}
-                    className={({ isActive }) =>
-                      cn(
-                        'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
-                        isActive
-                          ? 'is-active bg-gray-50 [&>div>div>.reply-avatar]:outline-gray-50'
-                          : '',
-                        isLinked
-                          ? '[&>div>div>.reply-avatar]:outline-blue-100 dark:[&>div>div>.reply-avatar]:outline-blue-900'
-                          : ''
-                      )
-                    }
-                  >
-                    <div className="flex items-center">
-                      <div className="mr-2 flex flex-row-reverse">
-                        {replyAuthors.map((ship, i) => (
-                          <div
-                            key={ship + i}
-                            className={cn(
-                              'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white sm:group-one-focus-within:outline-gray-50 sm:group-one-hover:outline-gray-50',
-                              i !== 0 && '-mr-3'
-                            )}
-                          >
-                            <Avatar key={ship} ship={ship} size="xs" />
-                          </div>
-                        ))}
-                      </div>
+                  ) : null}
+                  {Object.keys(seal.reacts).length > 0 && (
+                    <>
+                      <ChatReactions
+                        id="reactions-target"
+                        seal={seal}
+                        whom={whom}
+                      />
+                      <ReactionDetails
+                        open={reactionDetailsOpen}
+                        onOpenChange={setReactionDetailsOpen}
+                        reactions={seal.reacts}
+                      />
+                    </>
+                  )}
+                  {replyCount > 0 && !hideReplies ? (
+                    <NavLink
+                      to={`message/${seal.id}`}
+                      className={({ isActive }) =>
+                        cn(
+                          'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
+                          isActive
+                            ? 'is-active bg-gray-50 [&>div>div>.reply-avatar]:outline-gray-50'
+                            : '',
+                          isLinked
+                            ? '[&>div>div>.reply-avatar]:outline-blue-100 dark:[&>div>div>.reply-avatar]:outline-blue-900'
+                            : ''
+                        )
+                      }
+                    >
+                      <div className="flex items-center">
+                        <div className="mr-2 flex flex-row-reverse">
+                          {replyAuthors.map((ship, i) => (
+                            <div
+                              key={ship + i}
+                              className={cn(
+                                'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white sm:group-one-focus-within:outline-gray-50 sm:group-one-hover:outline-gray-50',
+                                i !== 0 && '-mr-3'
+                              )}
+                            >
+                              <Avatar key={ship} ship={ship} size="xs" />
+                            </div>
+                          ))}
+                        </div>
 
-                      <span
-                        className={cn(
-                          unreadDisplay === 'thread' ? 'text-blue' : 'mr-2'
-                        )}
-                      >
-                        {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
-                      </span>
-                      {unreadDisplay === 'thread' ? (
-                        <UnreadIndicator
-                          className="h-6 w-6 text-blue transition-opacity"
-                          aria-label="Unread replies in this thread"
-                        />
-                      ) : null}
-                      <span className="text-gray-400">
-                        <span className="hidden sm:inline-block">
-                          Last reply&nbsp;
+                        <span
+                          className={cn(
+                            unreadDisplay === 'thread' ? 'text-blue' : 'mr-2'
+                          )}
+                        >
+                          {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                         </span>
-                        <span className="inline-block first-letter:capitalize sm:first-letter:normal-case">
-                          {lastReplyTime &&
-                            (isToday(lastReplyTime)
-                              ? `${formatDistanceToNow(lastReplyTime)} ago`
-                              : formatRelative(lastReplyTime, new Date()))}
+                        {unreadDisplay === 'thread' ? (
+                          <UnreadIndicator
+                            className="h-6 w-6 text-blue transition-opacity"
+                            aria-label="Unread replies in this thread"
+                          />
+                        ) : null}
+                        <span className="text-gray-400">
+                          <span className="hidden sm:inline-block">
+                            Last reply&nbsp;
+                          </span>
+                          <span className="inline-block first-letter:capitalize sm:first-letter:normal-case">
+                            {lastReplyTime &&
+                              (isToday(lastReplyTime)
+                                ? `${formatDistanceToNow(lastReplyTime)} ago`
+                                : formatRelative(lastReplyTime, new Date()))}
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  </NavLink>
-                ) : null}
-              </div>
+                      </div>
+                    </NavLink>
+                  ) : null}
+                </div>
+              )}
+
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
                 {!isDelivered && (
                   <DoubleCaretRightIcon

@@ -1,4 +1,5 @@
-import { BigInteger } from 'big-integer';
+import { udToDec } from '@urbit/api';
+import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -195,7 +196,7 @@ export interface Posts {
   [time: string]: Post | null;
 }
 
-export type PageTuple = [BigInteger, Post | null];
+export type PostTuple = [BigInteger, Post | null];
 
 export type ReplyTuple = [BigInteger, Reply | null];
 
@@ -602,7 +603,32 @@ export function newReplyMap(
   );
 }
 
-export function newPostMap(entries?: PageTuple[], reverse = false): PageMap {
+export function newPostTupleArray(
+  data:
+    | {
+        pages: PagedPosts[];
+      }
+    | undefined
+): PostTuple[] {
+  if (data === undefined || data.pages.length === 0) {
+    return [];
+  }
+
+  return _.uniqBy(
+    data.pages
+      .map((page) => {
+        const pagePosts = Object.entries(page.posts).map(
+          ([k, v]) => [bigInt(udToDec(k)), v] as PostTuple
+        );
+
+        return pagePosts;
+      })
+      .flat(),
+    ([k]) => k.toString()
+  ).sort(([a], [b]) => a.compare(b));
+}
+
+export function newPostMap(entries?: PostTuple[], reverse = false): PageMap {
   return new BTree<BigInteger, Post | null>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );

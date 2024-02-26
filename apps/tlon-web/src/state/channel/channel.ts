@@ -13,13 +13,13 @@ import {
   HiddenPosts,
   Memo,
   Nest,
-  PageTuple,
   PagedPosts,
   Perm,
   Post,
   PostAction,
   PostDataResponse,
   PostEssay,
+  PostTuple,
   Posts,
   Reply,
   ReplyTuple,
@@ -29,12 +29,18 @@ import {
   UnreadUpdate,
   Unreads,
   newChatMap,
+  newPostTupleArray,
 } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  PagedWrits,
+  Writ,
+  newWritTupleArray,
+} from '@tloncorp/shared/dist/urbit/dms';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
-import _ from 'lodash';
+import _, { last } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
@@ -49,10 +55,18 @@ import { isNativeApp } from '@/logic/native';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { checkNest, log, nestToFlag, whomIsFlag } from '@/logic/utils';
+import {
+  checkNest,
+  log,
+  nestToFlag,
+  useIsDmOrMultiDm,
+  whomIsFlag,
+} from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { channelKey } from './keys';
+// eslint-disable-next-line import/no-cycle
+import ChatQueryKeys from '../chat/keys';
+import { channelKey, infinitePostsKey } from './keys';
 import shouldAddPostToCache from './util';
 
 const POST_PAGE_SIZE = isNativeApp()
@@ -679,32 +693,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     retry: false,
   });
 
-  // we stringify the data here so that we can use it in useMemo's dependency array.
-  // this is because the data object is a reference and react will not
-  // do a deep comparison on it.
-  const stringifiedData = data ? JSON.stringify(data) : JSON.stringify({});
-
-  const posts: PageTuple[] = useMemo(() => {
-    if (data === undefined || data.pages.length === 0) {
-      return [];
-    }
-
-    return _.uniqBy(
-      data.pages
-        .map((page) => {
-          const pagePosts = Object.entries(page.posts).map(
-            ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
-          );
-
-          return pagePosts;
-        })
-        .flat(),
-      ([k]) => k.toString()
-    ).sort(([a], [b]) => a.compare(b));
-    // we disable exhaustive deps here because we add stringifiedData
-    // to the dependency array to force a re-render when the data changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stringifiedData, data]);
+  const posts = newPostTupleArray(data);
 
   return {
     data,
@@ -2445,7 +2434,7 @@ export function useChannelSearch(nest: string, query: string) {
           .flat()
           .map((scItem: ChannelScanItem) =>
             'post' in scItem
-              ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
+              ? ([bigInt(scItem.post.seal.id), scItem.post] as PostTuple)
               : ([
                   bigInt(scItem.reply.reply.seal.id),
                   scItem.reply.reply,
@@ -2524,4 +2513,67 @@ export function usePostToggler(postId: string) {
     hide,
     isHidden,
   };
+}
+
+export function useMyLastMessage(whom: string): Post | Writ | null {
+  const isDmOrMultiDm = useIsDmOrMultiDm(whom);
+
+  const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
+    if (!pages || pages.length === 0) {
+      return null;
+    }
+
+    if ('writs' in pages[0]) {
+      // @ts-expect-error we already have a type guard
+      const writs = newWritTupleArray({ pages });
+      const myWrits = writs.filter(
+        ([_id, msg]) => msg?.essay.author === window.our
+      );
+      const lastWrit = last(myWrits);
+      if (!lastWrit) {
+        return null;
+      }
+
+      return lastWrit[1];
+    }
+
+    if ('posts' in pages[0]) {
+      // @ts-expect-error we already have a type guard
+      const posts = newPostTupleArray({ pages });
+      const myPosts = posts.filter(
+        ([_id, msg]) => msg?.essay.author === window.our
+      );
+      const lastPost = last(myPosts);
+      if (!lastPost) {
+        return null;
+      }
+
+      return lastPost[1];
+    }
+    return null;
+  };
+
+  if (!isDmOrMultiDm) {
+    const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
+      infinitePostsKey(whom)
+    );
+    if (data) {
+      const { pages } = data;
+      return lastMessage(pages);
+    }
+
+    return null;
+  }
+
+  const data = queryClient.getQueryData<{ pages: PagedWrits[] }>(
+    ChatQueryKeys.infiniteDmsKey(whom)
+  );
+
+  if (data) {
+    const { pages } = data;
+
+    return lastMessage(pages);
+  }
+
+  return null;
 }

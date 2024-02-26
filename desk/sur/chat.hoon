@@ -91,6 +91,7 @@
     ::  time and meta are units because we won't have it when we send,
     ::  but we need it upon receipt
     $%  [%add =memo:d =kind time=(unit time)]
+        [%edit =memo:d]
         [%del ~]
         [%reply =id meta=(unit reply-meta) =delta:replies]
         [%add-react =ship =react]

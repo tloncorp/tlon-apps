@@ -24,6 +24,7 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
 import HashIcon from '@/components/icons/HashIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
+import PencilIcon from '@/components/icons/PencilSettingsIcon';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import XIcon from '@/components/icons/XIcon';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -87,7 +88,7 @@ function ChatMessageOptions(props: {
     'delete'
   );
   const { chShip, chName } = useParams();
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
   const chFlag = `${chShip}/${chName}`;
@@ -168,6 +169,10 @@ function ChatMessageOptions(props: {
     setSearchParams({ replyTo: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
+  const edit = useCallback(() => {
+    setSearchParams({ edit: seal.id }, { replace: true });
+  }, [seal, setSearchParams]);
+
   const startThread = () => {
     navigate(`message/${seal.id}`);
   };
@@ -244,6 +249,7 @@ function ChatMessageOptions(props: {
   const showReplyAction = !hideReply;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === essay.author;
+  const showEditAction = window.our === essay.author;
   const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];
@@ -386,6 +392,19 @@ function ChatMessageOptions(props: {
     });
   }
 
+  if (showEditAction) {
+    actions.push({
+      key: 'edit',
+      content: (
+        <div className="flex items-center">
+          <PencilIcon className="mr-2 h-6 w-6" />
+          Edit
+        </div>
+      ),
+      onClick: edit,
+    });
+  }
+
   // Ensure options menu is visible even if the top of the message has scrolled
   // off the page.
   useLayoutEffect(() => {
@@ -510,6 +529,14 @@ function ChatMessageOptions(props: {
                 label="Delete"
                 showTooltip
                 action={() => setDeleteOpen(true)}
+              />
+            )}
+            {showEditAction && (
+              <IconButton
+                icon={<PencilIcon className="h-6 w-6 text-gray-400" />}
+                label="Edit"
+                showTooltip
+                action={edit}
               />
             )}
           </div>
