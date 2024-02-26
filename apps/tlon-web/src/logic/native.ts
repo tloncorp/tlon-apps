@@ -43,11 +43,12 @@ export function useNativeBridge() {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<MobileNavTab>(
-    parseActiveTab(location.pathname)
+    parseActiveTab(location.pathname) ?? 'Groups'
   );
 
   // Handle any events passed in from the native app
   const messageHandler = window.addEventListener('message', (event) => {
+    if (!isNativeApp()) return;
     const message = JSON.parse(event.data) as NativeCommand;
     if (message.action === 'goto') {
       navigate(message.path);
@@ -56,9 +57,16 @@ export function useNativeBridge() {
 
   // Signal any changes in the active tab to the native app
   useEffect(() => {
-    const parsedTab = parseActiveTab(location.pathname);
+    // if (!isNativeApp()) return;
+    console.log(
+      `bl: location change: ${location.state?.backgroundLocation ? location.state.backgroundLocation.pathname : location.pathname}`
+    );
+    const parsedTab = location.state?.backgroundLocation
+      ? parseActiveTab(location.state.backgroundLocation.pathname)
+      : parseActiveTab(location.pathname);
     if (parsedTab !== activeTab) {
-      setActiveTab(parsedTab);
+      console.log(`bl: active tab switch`, parsedTab);
+      setActiveTab(parsedTab ?? 'Groups');
       postActionToNativeApp('activeTabChange', parsedTab);
     }
   }, [activeTab, location]);
