@@ -1339,7 +1339,7 @@
       %^    text:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
-      nedl.pole
+      (fall (slaw %t nedl.pole) nedl.pole)
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       %-  some
@@ -1712,7 +1712,7 @@
       %^    text:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
-      nedl.pole
+      (fall (slaw %t nedl.pole) nedl.pole)
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       %-  some
