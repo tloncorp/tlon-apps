@@ -1,19 +1,14 @@
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import cn from 'classnames';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import AddIcon16 from '../icons/Add16Icon';
-import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import SidebarItem from './SidebarItem';
-import useActiveTab, { useNavToTab } from './util';
 
 export default function GroupSidebarItem() {
   const navigate = useNavigate();
   const location = useLocation();
-  const activeTab = useActiveTab();
   const [open, setOpen] = useState(false);
-  const navToTab = useNavToTab();
 
   const onOpenChange = (openChange: boolean) => {
     setOpen(openChange);
@@ -24,35 +19,21 @@ export default function GroupSidebarItem() {
   };
 
   const onClick = () => {
-    if (activeTab !== 'groups') {
-      navToTab('groups');
-    }
+    setOpen(true);
   };
 
   return (
     <Dropdown.Root open={open} onOpenChange={onOpenChange}>
       <SidebarItem
-        className="group"
-        icon={
-          <HomeIconMobileNav
-            className={cn(
-              'm-1 h-4 w-4',
-              activeTab === 'groups' && 'text-black'
-            )}
-            asIcon
-            isInactive={activeTab !== 'groups'}
-          />
-        }
+        className="group relative mx-2 mt-2 bg-blue-500 text-white"
         onClick={onClick}
-        color={activeTab === 'groups' ? 'text-black' : 'text-gray-600'}
-        highlightPath="/groups"
-        actions={
-          <Dropdown.Trigger data-testid="add-group-sidebar-button-icon">
-            <AddIcon16 className="relative top-[2px] hidden h-4 w-4 group-hover:block" />
-          </Dropdown.Trigger>
-        }
+        data-testid="add-group-sidebar-button-icon"
+        actions={<Dropdown.Trigger />}
+        icon={<AddIcon16 className="m-1 h-4 w-4 group-hover:block" />}
       >
-        <span data-testid="add-group-sidebar-button">Groups</span>
+        <span className="text-white" data-testid="add-group-sidebar-button">
+          New Group
+        </span>
       </SidebarItem>
 
       <Dropdown.Content

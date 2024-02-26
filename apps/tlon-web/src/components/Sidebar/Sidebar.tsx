@@ -21,11 +21,14 @@ import {
   usePinnedGroups,
 } from '@/state/groups';
 
+import AddIcon16 from '../icons/Add16Icon';
 import X16Icon from '../icons/X16Icon';
+import AddGroupSidebarItem from './AddGroupSidebarItem';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import GroupsSidebarItem from './GroupsSidebarItem';
 import MessagesSidebar from './MessagesSidebar';
+import SidebarItem from './SidebarItem';
 import SidebarSorter from './SidebarSorter';
 import SidebarTopMenu from './SidebarTopMenu';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
@@ -147,6 +150,19 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-full flex-none flex-col bg-white">
+      {activeTab !== 'messages' ? (
+        <AddGroupSidebarItem />
+      ) : (
+        <SidebarItem
+          className="group relative mx-2 mt-2 bg-blue-500 text-white"
+          icon={<AddIcon16 className="m-1 h-4 w-4" />}
+          to={'/dm/new'}
+          highlight="transparent"
+        >
+          <span className="text-white">New Message</span>
+        </SidebarItem>
+      )}
+
       <div className="relative mb-1 flex">
         <input
           ref={searchRef}
