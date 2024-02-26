@@ -12,6 +12,7 @@ import ToggleGroup from '@/components/ToggleGroup';
 import WelcomeCard from '@/components/WelcomeCard';
 import GroupSummary from '@/groups/GroupSummary';
 import { useIsMobile } from '@/logic/useMedia';
+import useShowTabBar from '@/logic/useShowTabBar';
 import { randomElement, randomIntInRange } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
@@ -146,6 +147,9 @@ export default function Notifications({
     </button>
   );
 
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar;
+
   return (
     <>
       {isMobile && (
@@ -159,7 +163,12 @@ export default function Notifications({
           }
         />
       )}
-      <section className="relative flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6">
+      <section
+        className="relative flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 24,
+        }}
+      >
         <Helmet>
           <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
         </Helmet>

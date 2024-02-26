@@ -17,6 +17,7 @@ import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
+import useShowTabBar from '@/logic/useShowTabBar';
 import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { useProfileIsPublic } from '@/state/profile/profile';
@@ -142,8 +143,16 @@ function EditProfileContent() {
 
   const watchCover = form.watch('cover');
 
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar;
+
   return (
-    <div className="w-full p-6">
+    <div
+      className="w-full p-6"
+      style={{
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+      }}
+    >
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage

@@ -29,6 +29,7 @@ import {
   postActionToNativeApp,
 } from '@/logic/native';
 import { useIsMobile } from '@/logic/useMedia';
+import useShowTabBar from '@/logic/useShowTabBar';
 import { isHosted, useCopy, useIsHttps } from '@/logic/utils';
 import { useOurContact } from '@/state/contact';
 
@@ -86,6 +87,8 @@ export default function Profile({ title }: ViewProps) {
   const contact = useOurContact();
   const isHttps = useIsHttps();
   const [qrOpen, setQrOpen] = useState(false);
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar;
 
   useEffect(() => {
     async function populateLink() {
@@ -101,7 +104,12 @@ export default function Profile({ title }: ViewProps) {
         <title>{title}</title>
       </Helmet>
       {isMobile ? <MobileHeader title="Profile" /> : null}
-      <div className="flex grow flex-col overflow-y-auto bg-white">
+      <div
+        className="flex grow flex-col overflow-y-auto bg-white"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        }}
+      >
         <div className="px-4">
           <ProfileCoverImage
             className="m-auto h-[345px] w-full shadow-2xl"
