@@ -32,7 +32,7 @@ import { LeapProvider } from '@/components/Leap/useLeap';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
 import SettingsView from '@/components/Settings/SettingsView';
-import MobileSidebar from '@/components/Sidebar/MobileSidebar';
+import AppNav from '@/components/Sidebar/AppNav';
 import DiaryChannel from '@/diary/DiaryChannel';
 import DiaryNote from '@/diary/DiaryNote';
 import DMHome from '@/dms/DMHome';
@@ -175,38 +175,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
     <>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
-        <Route element={<GroupsNav />}>
-          <Route element={isMobile ? <MobileSidebar /> : undefined}>
+        <Route element={<AppNav />}>
+          <Route element={<GroupsNav />}>
             <Route path="/groups" element={<GroupsNav />} />
-            <Route
-              index
-              element={
-                isMobile ? (
-                  <MobileGroupsNavHome />
-                ) : (
-                  <Notifications
-                    child={GroupNotification}
-                    title={`Activity • ${groupsTitle}`}
-                  />
-                )
-              }
-            />
-            <Route
-              path="/notifications"
-              element={
-                <Notifications
-                  child={GroupNotification}
-                  title={`Activity • ${groupsTitle}`}
-                />
-              }
-            />
+            <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
             <Route
               path="/messages"
               element={isMobile ? <MobileMessagesSidebar /> : null}
             />
             <Route path="/dm/" element={<Dms />}>
               <Route index element={<DMHome />} />
-
               <Route path="new">
                 <Route index element={<NewDM />} />
                 <Route path=":ship" element={<Message />} />
@@ -257,49 +235,27 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               )}
             </Route>
-            <Route
-              path="/profile/edit"
-              element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/profile"
-              element={<Profile title={`Profile • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/profile/settings"
-              element={<SettingsView title={`Settings • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/profile/settings/blocked"
-              element={<BlockedUsersView />}
-            />
-            <Route
-              path="/profile/about"
-              element={<AboutView title={`About • ${groupsTitle}`} />}
-            />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
             <Route path="/groups/:ship/:name" element={<Groups />}>
-              <Route element={isMobile ? <MobileSidebar /> : undefined}>
-                <Route
-                  index
-                  element={isMobile ? <MobileGroupChannelList /> : null}
-                />
-                <Route
-                  path="activity"
-                  element={
-                    <Notifications
-                      child={GroupNotification}
-                      title={`• ${groupsTitle}`}
-                    />
-                  }
-                />
-                <Route
-                  path="channels"
-                  element={<GroupChannelManager title={` • ${groupsTitle}`} />}
-                />
-                <Route path="members" element={<Members />} />
-              </Route>
+              <Route
+                index
+                element={isMobile ? <MobileGroupChannelList /> : null}
+              />
+              <Route
+                path="activity"
+                element={
+                  <Notifications
+                    child={GroupNotification}
+                    title={`• ${groupsTitle}`}
+                  />
+                }
+              />
+              <Route
+                path="channels"
+                element={<GroupChannelManager title={` • ${groupsTitle}`} />}
+              />
+              <Route path="members" element={<Members />} />
               <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
                 {!isMobile && (
                   <>
@@ -411,6 +367,35 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </Route>
             </Route>
           </Route>
+          <Route
+            path="/notifications"
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`Activity • ${groupsTitle}`}
+              />
+            }
+          />
+          <Route
+            path="/profile/edit"
+            element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
+          />
+          <Route
+            path="/profile"
+            element={<Profile title={`Profile • ${groupsTitle}`} />}
+          />
+          <Route
+            path="/profile/settings"
+            element={<SettingsView title={`Settings • ${groupsTitle}`} />}
+          />
+          <Route
+            path="/profile/settings/blocked"
+            element={<BlockedUsersView />}
+          />
+          <Route
+            path="/profile/about"
+            element={<AboutView title={`About • ${groupsTitle}`} />}
+          />
         </Route>
       </Routes>
       {state?.backgroundLocation ? (

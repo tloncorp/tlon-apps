@@ -145,14 +145,8 @@ export default function Sidebar() {
     [newGroups]
   );
 
-  if (isMobile) {
-    return <MobileSidebar />;
-  }
-
   return (
     <nav className="flex h-full w-full flex-none flex-col bg-white">
-      <SidebarTopMenu />
-
       <div className="relative mb-1 flex">
         <input
           ref={searchRef}

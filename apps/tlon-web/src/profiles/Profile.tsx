@@ -96,7 +96,7 @@ export default function Profile({ title }: ViewProps) {
   }, []);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       <Helmet>
         <title>{title}</title>
       </Helmet>
