@@ -29,7 +29,7 @@ export default function GroupSidebarItem() {
         onClick={onClick}
         data-testid="add-group-sidebar-button-icon"
         actions={<Dropdown.Trigger />}
-        icon={<AddIcon16 className="m-1 h-4 w-4 group-hover:block" />}
+        icon={<AddIcon16 className="m-1 h-4 w-4" />}
       >
         <span className="text-white" data-testid="add-group-sidebar-button">
           New Group

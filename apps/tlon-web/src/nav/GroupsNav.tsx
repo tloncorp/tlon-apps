@@ -79,7 +79,7 @@ export function DesktopNav() {
 export default function GroupsNav() {
   const isMobile = useIsMobile();
   return (
-    <div className={cn('flex h-full w-full')}>
+    <div className={cn('flex h-full w-full', isMobile && 'fixed')}>
       {isMobile ? null : <DesktopNav />}
       <Outlet />
     </div>
