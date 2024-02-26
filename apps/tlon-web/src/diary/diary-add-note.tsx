@@ -1,3 +1,5 @@
+import { constructStory } from '@tloncorp/shared/dist/urbit/channel';
+import { JSONContent } from '@tloncorp/shared/dist/urbit/content';
 import cn from 'classnames';
 import { isFirstDayOfMonth } from 'date-fns';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -29,8 +31,6 @@ import {
 } from '@/state/channel/channel';
 import { useGroup, useGroupChannel, useRouteGroup } from '@/state/groups';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
-import { constructStory } from '@/types/channel';
-import { JSONContent } from '@/types/content';
 
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';

@@ -1,3 +1,4 @@
+import { Club } from '@tloncorp/shared/dist/urbit/dms';
 import cn from 'classnames';
 import React, { useCallback, useRef } from 'react';
 import {
@@ -27,7 +28,6 @@ import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath, pluralize } from '@/logic/utils';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useNegotiateMulti } from '@/state/negotiation';
-import { Club } from '@/types/dms';
 
 import DmOptions from './DMOptions';
 import DmSearch from './DmSearch';

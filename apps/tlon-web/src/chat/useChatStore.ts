@@ -1,10 +1,10 @@
+import { Block, Unread, Unreads } from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnread, DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
-import { Block, Unread, Unreads } from '@/types/channel';
-import { DMUnread, DMUnreads } from '@/types/dms';
 
 export interface ChatInfo {
   replying: string | null;

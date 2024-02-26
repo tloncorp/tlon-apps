@@ -1,10 +1,10 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import { Helmet } from 'react-helmet';
 
 import Dialog from '@/components/Dialog';
 import VolumeSetting from '@/components/VolumeSetting';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroup, useRouteGroup } from '@/state/groups';
-import { ViewProps } from '@/types/groups';
 
 import GroupSummary from './GroupSummary';
 

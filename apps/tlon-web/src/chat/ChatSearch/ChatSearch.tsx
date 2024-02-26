@@ -1,4 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
+import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback } from 'react';
 import { useNavigate } from 'react-router';
@@ -9,7 +10,6 @@ import useActiveTab from '@/components/Sidebar/util';
 import { useSafeAreaInsets } from '@/logic/native';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { disableDefault } from '@/logic/utils';
-import { ChatMap } from '@/types/channel';
 
 import ChatSearchResults from './ChatSearchResults';
 import SearchBar from './SearchBar';

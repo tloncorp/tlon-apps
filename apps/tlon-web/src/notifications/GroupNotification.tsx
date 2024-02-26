@@ -1,3 +1,5 @@
+import { Rope, Skein, isYarnShip } from '@tloncorp/shared/dist/urbit/hark';
+
 import Avatar from '@/components/Avatar';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
@@ -9,7 +11,6 @@ import X16Icon from '@/components/icons/X16Icon';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGang, useGroup, useGroupFlag } from '@/state/groups';
-import { Rope, Skein, isYarnShip } from '@/types/hark';
 
 import Notification from './Notification';
 import { isDm } from './useNotifications';

@@ -1,6 +1,5 @@
+import { ChannelFormSchema } from '@tloncorp/shared/dist/urbit/groups';
 import { useFormContext } from 'react-hook-form';
-
-import { ChannelFormSchema } from '@/types/groups';
 
 interface ViewSettingRowProps {
   type: 'grid' | 'list';

@@ -1,24 +1,10 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { decToUd, udToDec } from '@urbit/api';
-import { formatUd, unixToDa } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
-import bigInt, { BigInteger } from 'big-integer';
-import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import create from 'zustand';
-
-import api from '@/api';
-import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
 import {
-  LARGE_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
-import { isNativeApp } from '@/logic/native';
-import useReactQueryScry from '@/logic/useReactQueryScry';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { whomIsDm } from '@/logic/utils';
-import queryClient from '@/queryClient';
-import { ChannelsAction, Replies, Reply, ReplyTuple } from '@/types/channel';
+  ChannelsAction,
+  Replies,
+  Reply,
+  ReplyTuple,
+} from '@tloncorp/shared/dist/urbit/channel';
 import {
   BlockedByShips,
   BlockedShips,
@@ -45,8 +31,27 @@ import {
   WritSeal,
   WritTuple,
   Writs,
-} from '@/types/dms';
-import { GroupMeta } from '@/types/groups';
+} from '@tloncorp/shared/dist/urbit/dms';
+import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
+import { decToUd, udToDec } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
+import { Poke } from '@urbit/http-api';
+import bigInt, { BigInteger } from 'big-integer';
+import _ from 'lodash';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import create from 'zustand';
+
+import api from '@/api';
+import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
+import {
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
+import { isNativeApp } from '@/logic/native';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { whomIsDm } from '@/logic/utils';
+import queryClient from '@/queryClient';
 
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';

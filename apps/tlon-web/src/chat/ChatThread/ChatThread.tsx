@@ -1,3 +1,4 @@
+import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
@@ -32,7 +33,6 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { ReplyTuple } from '@/types/channel';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
@@ -251,6 +251,7 @@ export default function ChatThread() {
             hasLoadedNewest={false}
             hasLoadedOldest={false}
             onAtBottom={onAtBottom}
+            inThread
           />
         )}
       </div>

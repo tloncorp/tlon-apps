@@ -1,3 +1,4 @@
+import { PostEssay } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +15,6 @@ import getKindDataFromEssay from '@/logic/getKindData';
 import { usePostToggler } from '@/state/channel/channel';
 import { useAmAdmin, useRouteGroup } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import { PostEssay } from '@/types/channel';
 
 import useDiaryActions from './useDiaryActions';
 

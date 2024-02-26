@@ -3,9 +3,8 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
+import { Channels, Perm, Posts } from '@tloncorp/shared/dist/urbit/channel';
 import { subMinutes } from 'date-fns';
-
-import { Channels, Perm, Posts } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 

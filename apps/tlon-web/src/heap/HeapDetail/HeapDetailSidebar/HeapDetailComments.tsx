@@ -1,3 +1,4 @@
+import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -10,7 +11,6 @@ import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
 import { usePerms, useUnread } from '@/state/channel/channel';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { ReplyTuple } from '@/types/channel';
 
 import HeapDetailCommentField from './HeapDetailCommentField';
 

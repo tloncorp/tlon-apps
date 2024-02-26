@@ -1,3 +1,4 @@
+import { Contact } from '@tloncorp/shared/dist/urbit/contact';
 import cn from 'classnames';
 import React, { useCallback, useMemo, useRef } from 'react';
 import {
@@ -35,7 +36,6 @@ import { useDmIsPending, useDmUnread, useSendMessage } from '@/state/chat';
 import { useContact } from '@/state/contact';
 import { useNegotiate } from '@/state/negotiation';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Contact } from '@/types/contact';
 
 import DmSearch from './DmSearch';
 import MessageSelector from './MessageSelector';

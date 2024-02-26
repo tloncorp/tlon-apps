@@ -1,3 +1,4 @@
+import { ReferenceResponse } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import React, { useMemo } from 'react';
@@ -10,7 +11,6 @@ import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useChannelFlag } from '@/logic/channel';
 import { isImageUrl, nestToFlag } from '@/logic/utils';
 import { useChannelPreview, useGang } from '@/state/groups';
-import { ReferenceResponse } from '@/types/channel';
 
 import ShipName from '../ShipName';
 import ReferenceBar from './ReferenceBar';

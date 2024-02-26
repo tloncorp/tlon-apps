@@ -1,8 +1,4 @@
 import { JSONContent } from '@tiptap/core';
-
-import { CacheId } from '@/state/channel/channel';
-import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
-import { buildAddDelta, createMessage } from '@/state/chat/utils';
 import {
   Block,
   Cite,
@@ -10,8 +6,12 @@ import {
   Nest,
   PostEssay,
   constructStory,
-} from '@/types/channel';
-import { WritDelta } from '@/types/dms';
+} from '@tloncorp/shared/dist/urbit/channel';
+import { WritDelta } from '@tloncorp/shared/dist/urbit/dms';
+
+import { CacheId } from '@/state/channel/channel';
+import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
+import { buildAddDelta, createMessage } from '@/state/chat/utils';
 
 import { JSONToInlines } from './tiptap';
 import { isImageUrl } from './utils';

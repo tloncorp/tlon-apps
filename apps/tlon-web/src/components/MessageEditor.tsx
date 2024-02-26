@@ -15,6 +15,7 @@ import Text from '@tiptap/extension-text';
 import { Slice } from '@tiptap/pm/model';
 import { EditorView } from '@tiptap/pm/view';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
+import { Cite } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import React, { useCallback, useMemo } from 'react';
 
@@ -29,7 +30,6 @@ import { Shortcuts, refPasteRule } from '@/logic/tiptap';
 import { useIsMobile } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
 import { useFileStore } from '@/state/storage';
-import { Cite } from '@/types/channel';
 
 import getMentionPopup from './Mention/MentionPopup';
 

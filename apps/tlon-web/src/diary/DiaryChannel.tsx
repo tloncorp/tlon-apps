@@ -1,4 +1,6 @@
 import * as Toast from '@radix-ui/react-toast';
+import { PageTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
@@ -21,8 +23,6 @@ import {
   useUserDiaryDisplayMode,
   useUserDiarySortMode,
 } from '@/state/settings';
-import { PageTuple } from '@/types/channel';
-import { ViewProps } from '@/types/groups';
 
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';

@@ -4,25 +4,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { decToUd } from '@urbit/api';
-import { Poke } from '@urbit/http-api';
-import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useParams } from 'react-router';
-import create from 'zustand';
-
-import api from '@/api';
-import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import useReactQueryScry from '@/logic/useReactQueryScry';
-import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import {
-  getCompatibilityText,
-  getFlagParts,
-  preSig,
-  sagaCompatible,
-} from '@/logic/utils';
-import { BaitCite, Post, Reply } from '@/types/channel';
+import { BaitCite, Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
 import {
   ChannelPreview,
   Cordon,
@@ -41,8 +23,26 @@ import {
   PrivacyType,
   Vessel,
   isGroup,
-} from '@/types/groups';
-import { Scope, VolumeValue } from '@/types/volume';
+} from '@tloncorp/shared/dist/urbit/groups';
+import { Scope, VolumeValue } from '@tloncorp/shared/dist/urbit/volume';
+import { decToUd } from '@urbit/api';
+import { Poke } from '@urbit/http-api';
+import _ from 'lodash';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useParams } from 'react-router';
+import create from 'zustand';
+
+import api from '@/api';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import {
+  getCompatibilityText,
+  getFlagParts,
+  preSig,
+  sagaCompatible,
+} from '@/logic/utils';
 
 import { useGroupPins } from '../pins';
 import { useNewGroupFlags } from '../settings';

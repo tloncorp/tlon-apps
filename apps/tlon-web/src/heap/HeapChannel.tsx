@@ -1,4 +1,6 @@
 import * as Toast from '@radix-ui/react-toast';
+import { PageTuple, Post } from '@tloncorp/shared/dist/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import bigInt from 'big-integer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -20,8 +22,6 @@ import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
 import { useHeapDisplayMode, useHeapSortMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
-import { PageTuple, Post } from '@/types/channel';
-import { ViewProps } from '@/types/groups';
 
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';

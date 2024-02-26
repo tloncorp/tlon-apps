@@ -1,4 +1,31 @@
 import {
+  ChatStory,
+  Cite,
+  Listing,
+  Story,
+  Verse,
+  VerseBlock,
+  VerseInline,
+} from '@tloncorp/shared/dist/urbit/channel';
+import {
+  Bold,
+  Inline,
+  Italics,
+  Strikethrough,
+} from '@tloncorp/shared/dist/urbit/content';
+import {
+  Cabals,
+  ChannelPrivacyType,
+  Cordon,
+  Gang,
+  Group,
+  GroupChannel,
+  GroupPreview,
+  PrivacyType,
+  Rank,
+  Saga,
+} from '@tloncorp/shared/dist/urbit/groups';
+import {
   BigIntOrderedMap,
   Docket,
   DocketHref,
@@ -18,29 +45,6 @@ import { useParams } from 'react-router';
 import ob from 'urbit-ob';
 import { useCopyToClipboard } from 'usehooks-ts';
 import isURL from 'validator/es/lib/isURL';
-
-import {
-  ChatStory,
-  Cite,
-  Listing,
-  Story,
-  Verse,
-  VerseBlock,
-  VerseInline,
-} from '@/types/channel';
-import { Bold, Inline, Italics, Strikethrough } from '@/types/content';
-import {
-  Cabals,
-  ChannelPrivacyType,
-  Cordon,
-  Gang,
-  Group,
-  GroupChannel,
-  GroupPreview,
-  PrivacyType,
-  Rank,
-  Saga,
-} from '@/types/groups';
 
 import type {
   ConnectionCompleteStatus,

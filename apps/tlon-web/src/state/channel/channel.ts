@@ -1,25 +1,4 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
-import { Poke } from '@urbit/http-api';
-import bigInt from 'big-integer';
-import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { e } from 'vite-node/index-6fb787b2';
-import create from 'zustand';
-
-import api from '@/api';
-import { useChatStore } from '@/chat/useChatStore';
-import {
-  LARGE_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import { isNativeApp } from '@/logic/native';
-import useReactQueryScry from '@/logic/useReactQueryScry';
-import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { checkNest, log, nestToFlag, whomIsFlag } from '@/logic/utils';
-import queryClient from '@/queryClient';
 import {
   Action,
   Channel,
@@ -51,8 +30,28 @@ import {
   UnreadUpdate,
   Unreads,
   newChatMap,
-} from '@/types/channel';
-import { Flag } from '@/types/hark';
+} from '@tloncorp/shared/dist/urbit/channel';
+import { Flag } from '@tloncorp/shared/dist/urbit/hark';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { Poke } from '@urbit/http-api';
+import bigInt from 'big-integer';
+import _ from 'lodash';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import create from 'zustand';
+
+import api from '@/api';
+import { useChatStore } from '@/chat/useChatStore';
+import {
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
+import { isNativeApp } from '@/logic/native';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { checkNest, log, nestToFlag, whomIsFlag } from '@/logic/utils';
+import queryClient from '@/queryClient';
 
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
