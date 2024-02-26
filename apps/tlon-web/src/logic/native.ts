@@ -1,13 +1,21 @@
-import { useSafeAreaContext } from './SafeAreaContext';
+import {
+  MobileNavTab,
+  NativeCommand,
+  WebAppAction,
+  parseActiveTab,
+} from '@tloncorp/shared';
+import _ from 'lodash';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
-type Action = 'copy' | 'logout' | 'manageAccount' | 'appLoaded';
+import { useSafeAreaContext } from './SafeAreaContext';
 
 export const isNativeApp = () => !!window.ReactNativeWebView;
 
 const postJSONToNativeApp = (obj: Record<string, unknown>) =>
   window.ReactNativeWebView?.postMessage(JSON.stringify(obj));
 
-export const postActionToNativeApp = (action: Action, value?: unknown) =>
+export const postActionToNativeApp = (action: WebAppAction, value?: unknown) =>
   postJSONToNativeApp({ action, value });
 
 export const isIOSWebView = () => {
@@ -30,3 +38,30 @@ export const isAndroidWebView = () => {
 };
 
 export const useSafeAreaInsets = () => useSafeAreaContext().safeAreaInsets;
+
+export function useNativeBridge() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<MobileNavTab>(
+    parseActiveTab(location.pathname)
+  );
+
+  // Handle any events passed in from the native app
+  const messageHandler = window.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data) as NativeCommand;
+    if (message.action === 'goto') {
+      navigate(message.path);
+    }
+  });
+
+  // Signal any changes in the active tab to the native app
+  useEffect(() => {
+    const parsedTab = parseActiveTab(location.pathname);
+    if (parsedTab !== activeTab) {
+      setActiveTab(parsedTab);
+      postActionToNativeApp('activeTabChange', parsedTab);
+    }
+  }, [activeTab, location]);
+
+  return messageHandler;
+}
