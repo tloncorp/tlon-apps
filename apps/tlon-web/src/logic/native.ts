@@ -57,15 +57,12 @@ export function useNativeBridge() {
 
   // Signal any changes in the active tab to the native app
   useEffect(() => {
-    // if (!isNativeApp()) return;
-    console.log(
-      `bl: location change: ${location.state?.backgroundLocation ? location.state.backgroundLocation.pathname : location.pathname}`
-    );
+    if (!isNativeApp()) return;
+
     const parsedTab = location.state?.backgroundLocation
       ? parseActiveTab(location.state.backgroundLocation.pathname)
       : parseActiveTab(location.pathname);
     if (parsedTab !== activeTab) {
-      console.log(`bl: active tab switch`, parsedTab);
       setActiveTab(parsedTab ?? 'Groups');
       postActionToNativeApp('activeTabChange', parsedTab);
     }
