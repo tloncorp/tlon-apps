@@ -571,6 +571,8 @@ const replyUpdater = (
 
     return newPost;
   }
+
+  return prev;
 };
 
 type PageParam = null | {
@@ -793,12 +795,12 @@ export function useChannelsFirehose() {
       const channelPostEvents = Object.entries(
         _.groupBy(postEvents, (event: ChannelsSubscribeResponse) => event.nest)
       );
-      channelPostEvents.forEach(([nest, postEvents]) => {
+      channelPostEvents.forEach(([nest, es]) => {
         const key = infinitePostsKey(nest);
         const existingQueryData = queryClient.getQueryData<
           PostsInCachePrev | undefined
         >(key);
-        const newData = postEvents.reduce(
+        const newData = es.reduce(
           (prev, event) => infinitePostUpdater(prev, event),
           existingQueryData
         );
@@ -826,8 +828,8 @@ export function useChannelsFirehose() {
         })
       );
 
-      channelReplyEvents.forEach(([, replyEvents]) => {
-        const event = replyEvents[0];
+      channelReplyEvents.forEach(([, es]) => {
+        const event = es[0];
         if (!event || !('response' in event) || !('post' in event.response)) {
           return;
         }
@@ -840,8 +842,8 @@ export function useChannelsFirehose() {
         const existingQueryData = queryClient.getQueryData<
           PostDataResponse | undefined
         >(key);
-        const newData = replyEvents.reduce(
-          (prev, event) => replyUpdater(prev, event),
+        const newData = es.reduce(
+          (prev, e) => replyUpdater(prev, e),
           existingQueryData
         );
         queryClient.setQueryData(key, newData);
@@ -859,6 +861,8 @@ export function useChannelsFirehose() {
         );
       });
     }
+
+    setEventQueue([]);
   }, []);
 
   const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
