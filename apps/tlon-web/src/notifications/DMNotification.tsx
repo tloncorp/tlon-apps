@@ -1,8 +1,8 @@
+import { Skein, isYarnShip } from '@tloncorp/shared/dist/urbit/hark';
 import React from 'react';
 
 import Avatar from '@/components/Avatar';
 import { useMultiDm } from '@/state/chat';
-import { Skein, isYarnShip } from '@/types/hark';
 
 import Notification from './Notification';
 

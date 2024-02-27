@@ -1,3 +1,6 @@
+import { Contact } from '@tloncorp/shared/dist/urbit/contact';
+import { Club } from '@tloncorp/shared/dist/urbit/dms';
+import { Group, GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { uniqBy } from 'lodash';
@@ -18,9 +21,6 @@ import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { useGroupFlag, useGroups, usePinnedGroups } from '@/state/groups';
 import { useMutuals } from '@/state/pals';
 import { usePinnedChannels, usePinnedClubs } from '@/state/pins';
-import { Contact } from '@/types/contact';
-import { Club } from '@/types/dms';
-import { Group, GroupChannel } from '@/types/groups';
 
 import useActiveTab from '../Sidebar/util';
 import BubbleIcon from '../icons/BubbleIcon';

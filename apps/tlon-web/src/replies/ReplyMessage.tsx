@@ -1,5 +1,12 @@
 /* eslint-disable react/no-unused-prop-types */
 // eslint-disable-next-line import/no-cycle
+import {
+  Reply,
+  Story,
+  Unread,
+  emptyReply,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
@@ -38,8 +45,6 @@ import {
   useMessageToggler,
   useTrackedMessageStatus,
 } from '@/state/chat';
-import { Reply, Story, Unread, emptyReply } from '@/types/channel';
-import { DMUnread } from '@/types/dms';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';

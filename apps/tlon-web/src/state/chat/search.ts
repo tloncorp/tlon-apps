@@ -1,4 +1,16 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import {
+  ChatMap,
+  ReplyTuple,
+  newChatMap,
+} from '@tloncorp/shared/dist/urbit/channel';
+import {
+  ChatScan,
+  ChatScanItem,
+  Writ,
+  WritTuple,
+  newWritMap,
+} from '@tloncorp/shared/dist/urbit/dms';
 import { decToUd } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
@@ -6,15 +18,12 @@ import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import api from '@/api';
-import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
 import {
-  ChatScan,
-  ChatScanItem,
-  Writ,
-  WritTuple,
-  newWritMap,
-} from '@/types/dms';
+  createStorageKey,
+  stringToTa,
+  whomIsDm,
+  whomIsMultiDm,
+} from '@/logic/utils';
 
 type Whom = string;
 type SearchResult = ChatMap;
@@ -115,6 +124,7 @@ export function updateSearchHistory(
 }
 
 export function useInfiniteChatSearch(whom: string, query: string) {
+  const encodedQuery = stringToTa(query);
   const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
   const { data, ...rest } = useInfiniteQuery({
     enabled: query !== '',
@@ -124,7 +134,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
         app: 'chat',
         path: `/${type}/${whom}/search/text/${
           decToUd(pageParam.toString()) || '0'
-        }/20/${query}`,
+        }/20/${encodedQuery}`,
       });
       return res;
     },

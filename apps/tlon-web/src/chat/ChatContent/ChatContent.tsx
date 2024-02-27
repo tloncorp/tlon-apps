@@ -1,3 +1,22 @@
+import {
+  Block,
+  Story,
+  VerseBlock,
+  VerseInline,
+  isImage,
+} from '@tloncorp/shared/dist/urbit/channel';
+import {
+  Inline,
+  isBlockCode,
+  isBlockquote,
+  isBold,
+  isBreak,
+  isInlineCode,
+  isItalics,
+  isLink,
+  isShip,
+  isStrikethrough,
+} from '@tloncorp/shared/dist/urbit/content';
 import cn from 'classnames';
 import { findLastIndex } from 'lodash';
 import React, { useEffect } from 'react';
@@ -12,25 +31,6 @@ import ShipName from '@/components/ShipName';
 import { isSingleEmoji } from '@/logic/utils';
 // eslint-disable-next-line import/no-cycle
 import { VIDEO_REGEX } from '@/logic/utils';
-import {
-  Block,
-  Story,
-  VerseBlock,
-  VerseInline,
-  isImage,
-} from '@/types/channel';
-import {
-  Inline,
-  isBlockCode,
-  isBlockquote,
-  isBold,
-  isBreak,
-  isInlineCode,
-  isItalics,
-  isLink,
-  isShip,
-  isStrikethrough,
-} from '@/types/content';
 
 interface ChatContentProps {
   story: Story;

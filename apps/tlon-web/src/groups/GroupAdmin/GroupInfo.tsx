@@ -1,9 +1,9 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import React from 'react';
 import { Helmet } from 'react-helmet';
 
 import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { ViewProps } from '@/types/groups';
 
 import { useGroup, useRouteGroup } from '../../state/groups/groups';
 import GroupSummary from '../GroupSummary';

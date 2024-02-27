@@ -1,8 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { decToUd } from '@urbit/api';
-
-import api from '@/api';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import {
   Blanket,
   Carpet,
@@ -14,7 +10,11 @@ import {
   Seam,
   Skein,
   Yarn,
-} from '@/types/hark';
+} from '@tloncorp/shared/dist/urbit/hark';
+import { decToUd } from '@urbit/api';
+
+import api from '@/api';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 
 function harkAction(action: HarkAction) {
   return {

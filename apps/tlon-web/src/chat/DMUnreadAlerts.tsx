@@ -1,3 +1,4 @@
+import { DMUnread, UnreadThread } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -7,7 +8,6 @@ import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
 import { useMarkDmReadMutation } from '@/state/chat';
-import { DMUnread, UnreadThread } from '@/types/dms';
 
 import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 import { useChatInfo, useChatStore } from './useChatStore';

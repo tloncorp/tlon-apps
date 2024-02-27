@@ -1,3 +1,4 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { useMemo, useRef } from 'react';
 import { Helmet } from 'react-helmet';
@@ -25,7 +26,6 @@ import {
   useReplyPost,
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
-import { ViewProps } from '@/types/groups';
 
 import ChatThread from './ChatThread/ChatThread';
 

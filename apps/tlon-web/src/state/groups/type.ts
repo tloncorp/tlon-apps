@@ -1,8 +1,4 @@
-import { GroupMeta } from '@tloncorp/shared';
-
-import { BaitCite } from '@/types/channel';
-import { GroupsInit } from '@/types/ui';
-
+import { BaitCite } from '@tloncorp/shared/dist/urbit/channel';
 import {
   ChannelPreview,
   Cordon,
@@ -10,8 +6,10 @@ import {
   Group,
   GroupChannel,
   GroupIndex,
+  GroupMeta,
   Rank,
-} from '../../types/groups';
+} from '@tloncorp/shared/dist/urbit/groups';
+import { GroupsInit } from '@tloncorp/shared/dist/urbit/ui';
 
 export interface GroupState {
   set: (fn: (sta: GroupState) => void) => void;

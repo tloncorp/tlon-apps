@@ -1,3 +1,4 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -30,7 +31,6 @@ import {
 import { useIsMobile } from '@/logic/useMedia';
 import { isHosted, useCopy, useIsHttps } from '@/logic/utils';
 import { useOurContact } from '@/state/contact';
-import { ViewProps } from '@/types/groups';
 
 import ProfileCoverImage from './ProfileCoverImage';
 import PublicProfileSelector from './PublicProfileSelector';

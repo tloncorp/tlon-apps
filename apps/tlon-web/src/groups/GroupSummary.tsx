@@ -1,3 +1,5 @@
+import { GroupPreview } from '@tloncorp/shared/dist/urbit/groups';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipConnection from '@/components/ShipConnection';
 import ShipName from '@/components/ShipName';
@@ -9,7 +11,6 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { getFlagParts } from '@/logic/utils';
 import { useGroup } from '@/state/groups';
 import { useConnectivityCheck } from '@/state/vitals';
-import { GroupPreview } from '@/types/groups';
 
 import GroupHostConnection from './GroupHostConnection';
 

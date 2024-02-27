@@ -1,5 +1,6 @@
+import { Verse } from '@tloncorp/shared/dist/urbit/channel';
+
 import { InlineContent } from '@/chat/ChatContent/ChatContent';
-import { Verse } from '@/types/channel';
 
 export interface DiaryVerseProps {
   verse: Verse;

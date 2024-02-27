@@ -1,6 +1,7 @@
 // currently importing from tiptap, but this could be imported directly from
 // prosemirror when/if we ditch tiptap
 import { Node, DOMParser as PMDomParser, Schema } from '@tiptap/pm/model';
+import { JSONContent } from '@tloncorp/shared/dist/urbit/content';
 import { deSig, preSig } from '@urbit/api';
 import { marked } from 'marked';
 import {
@@ -12,7 +13,6 @@ import { useEffect, useState } from 'react';
 import ob from 'urbit-ob';
 
 import { PATP_REGEX, REF_REGEX } from '@/logic/utils';
-import { JSONContent } from '@/types/content';
 
 import parserRules from './parserRules';
 import schema from './schema';

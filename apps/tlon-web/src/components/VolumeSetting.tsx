@@ -1,3 +1,8 @@
+import {
+  LevelNames,
+  Scope,
+  VolumeValue,
+} from '@tloncorp/shared/dist/urbit/volume';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -7,7 +12,6 @@ import {
   useRouteGroup,
   useVolume,
 } from '@/state/groups';
-import { LevelNames, Scope, VolumeValue } from '@/types/volume';
 
 import RadioGroup, { RadioGroupOption } from './RadioGroup';
 

@@ -1,3 +1,4 @@
+import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -9,7 +10,6 @@ import GroupInfoPreview from '@/groups/NewGroup/GroupInfoPreview';
 import { useIsMobile } from '@/logic/useMedia';
 import { isValidUrl } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
-import { GroupMeta } from '@/types/groups';
 
 export default function GroupInfoFields() {
   const {

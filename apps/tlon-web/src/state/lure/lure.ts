@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
 import produce from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
@@ -15,7 +16,6 @@ import {
   getFlagParts,
   storageVersion,
 } from '@/logic/utils';
-import { GroupMeta } from '@/types/groups';
 
 import { useLocalState } from '../local';
 
