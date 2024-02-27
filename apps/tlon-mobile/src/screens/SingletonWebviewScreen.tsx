@@ -1,9 +1,9 @@
-import { useFocusEffect } from '@react-navigation/native';
+// import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { NativeWebViewOptions } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView } from 'react-native';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,12 +14,12 @@ import { DEV_LOCAL, IS_IOS } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebView } from '../hooks/useWebView';
 import { markChatRead } from '../lib/chatApi';
-import { getHostingUser } from '../lib/hostingApi';
+// import { getHostingUser } from '../lib/hostingApi';
 // import { connectNotifications } from '../lib/notifications';
 import type { WebViewStackParamList } from '../types';
 import {
-  getHostingToken,
-  getHostingUserId,
+  // getHostingToken,
+  // getHostingUserId,
   removeHostingToken,
   removeHostingUserId,
 } from '../utils/hosting';
@@ -29,7 +29,10 @@ type WebViewMessage = {
   value?: string;
 };
 
-export type Props = NativeStackScreenProps<WebViewStackParamList, 'WebView'>;
+export type WebviewProps = NativeStackScreenProps<
+  WebViewStackParamList,
+  'WebView'
+>;
 
 const createUri = (shipUrl: string, path?: string) =>
   `${shipUrl}/apps/groups${
@@ -37,17 +40,20 @@ const createUri = (shipUrl: string, path?: string) =>
   }`;
 
 const InnerWebViewScreen = ({
-  navigation,
-  route: {
-    params: { initialPath, gotoPath },
-  },
-}: Props) => {
+  // navigation,
+  // route: {
+  //   params: { initialPath, gotoPath },
+  // },
+  initialPath,
+}: {
+  initialPath: string;
+}) => {
   const tailwind = useTailwind();
   const { shipUrl = '', ship, clearShip } = useShip();
   const webViewProps = useWebView();
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
-  const didManageAccount = useRef(false);
+  // const didManageAccount = useRef(false);
   const [{ uri, key }, setUri] = useState<{
     uri: string;
     key: number;
@@ -91,20 +97,20 @@ const InnerWebViewScreen = ({
         );
         break;
       case 'manageAccount':
-        {
-          const [hostingSession, hostingUserId] = await Promise.all([
-            getHostingToken(),
-            getHostingUserId(),
-          ]);
-          didManageAccount.current = true;
-          navigation.push('ExternalWebView', {
-            uri: 'https://tlon.network/account',
-            headers: {
-              Cookie: hostingSession,
-            },
-            injectedJavaScript: `localStorage.setItem("X-SESSION-ID", "${hostingUserId}")`,
-          });
-        }
+        // {
+        //   const [hostingSession, hostingUserId] = await Promise.all([
+        //     getHostingToken(),
+        //     getHostingUserId(),
+        //   ]);
+        //   didManageAccount.current = true;
+        //   navigation.push('ExternalWebView', {
+        //     uri: 'https://tlon.network/account',
+        //     headers: {
+        //       Cookie: hostingSession,
+        //     },
+        //     injectedJavaScript: `localStorage.setItem("X-SESSION-ID", "${hostingUserId}")`,
+        //   });
+        // }
         break;
       case 'appLoaded':
         // Slight delay otherwise white background flashes
@@ -152,56 +158,56 @@ const InnerWebViewScreen = ({
     };
   }, [shipUrl]);
 
-  // If the tab for this screen gets tapped while focused, navigate back to the initial path
-  useEffect(
-    () =>
-      // @ts-expect-error: react-navigation ID and event name mismatch
-      navigation.getParent('TabBar')?.addListener('tabPress', () => {
-        if (navigation.isFocused()) {
-          navigation.setParams({ gotoPath: initialPath });
-        }
-      }),
-    [navigation, initialPath]
-  );
+  // // If the tab for this screen gets tapped while focused, navigate back to the initial path
+  // useEffect(
+  //   () =>
+  //     // @ts-expect-error: react-navigation ID and event name mismatch
+  //     navigation.getParent('TabBar')?.addListener('tabPress', () => {
+  //       if (navigation.isFocused()) {
+  //         navigation.setParams({ gotoPath: initialPath });
+  //       }
+  //     }),
+  //   [navigation, initialPath]
+  // );
 
-  // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
-  useFocusEffect(
-    useCallback(() => {
-      if (!didManageAccount.current) {
-        return;
-      }
+  // // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (!didManageAccount.current) {
+  //       return;
+  //     }
 
-      (async () => {
-        const hostingUserId = await getHostingUserId();
-        if (hostingUserId) {
-          try {
-            const user = await getHostingUser(hostingUserId);
-            if (user.verified) {
-              didManageAccount.current = false;
-            } else {
-              handleLogout();
-            }
-          } catch (err) {
-            handleLogout();
-          }
-        }
-      })();
-    }, [handleLogout])
-  );
+  //     (async () => {
+  //       const hostingUserId = await getHostingUserId();
+  //       if (hostingUserId) {
+  //         try {
+  //           const user = await getHostingUser(hostingUserId);
+  //           if (user.verified) {
+  //             didManageAccount.current = false;
+  //           } else {
+  //             handleLogout();
+  //           }
+  //         } catch (err) {
+  //           handleLogout();
+  //         }
+  //       }
+  //     })();
+  //   }, [handleLogout])
+  // );
 
-  useEffect(() => {
-    // Path was changed by the parent view
-    if (gotoPath) {
-      setUri((curr) => ({
-        ...curr,
-        uri: createUri(shipUrl, gotoPath),
-        key: curr.key + 1,
-      }));
+  // useEffect(() => {
+  //   // Path was changed by the parent view
+  //   if (gotoPath) {
+  //     setUri((curr) => ({
+  //       ...curr,
+  //       uri: createUri(shipUrl, gotoPath),
+  //       key: curr.key + 1,
+  //     }));
 
-      // Clear the path to mark it as handled
-      navigation.setParams({ gotoPath: undefined });
-    }
-  }, [shipUrl, gotoPath, navigation]);
+  //     // Clear the path to mark it as handled
+  //     navigation.setParams({ gotoPath: undefined });
+  //   }
+  // }, [shipUrl, gotoPath, navigation]);
 
   // Injected web settings
   const nativeOptions: NativeWebViewOptions = {
@@ -263,14 +269,14 @@ const InnerWebViewScreen = ({
   );
 };
 
-export const WebViewScreen = (props: Props) => {
+export const WebViewScreen = ({ initialPath }: { initialPath: string }) => {
   const tailwind = useTailwind();
   if (IS_IOS) {
     return (
       <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
-        <InnerWebViewScreen {...props} />
+        <InnerWebViewScreen initialPath={initialPath} />
       </KeyboardAvoidingView>
     );
   }
-  return <InnerWebViewScreen {...props} />;
+  return <InnerWebViewScreen initialPath={initialPath} />;
 };

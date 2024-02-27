@@ -99,7 +99,7 @@ const App = ({ wer: initialWer }: Props) => {
   }, [ship, lure, clearDeepLink]);
 
   useEffect(() => {
-    const DEV_SHIP_URL = 'http://localhost';
+    const DEV_SHIP_URL = 'http://localhost:3000';
     async function setupDevAuth() {
       const auth = await getDevCookie(DEV_SHIP_URL, DEV_SHIP_CODE);
       if (auth) {
