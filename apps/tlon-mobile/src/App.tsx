@@ -226,7 +226,7 @@ const App = ({ wer: initialWer }: Props) => {
 export default function AnalyticsApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <TamaguiProvider>
+    <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
       <ShipProvider>
         <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
           <PostHogProvider client={posthogAsync} autocapture>
