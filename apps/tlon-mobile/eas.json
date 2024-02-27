@@ -1,0 +1,55 @@
+{
+  "cli": {
+    "version": ">= 3.8.1",
+    "promptToConfigurePushNotifications": false
+  },
+  "build": {
+    "preview": {
+      "channel": "preview",
+      "env": {
+        "APP_VARIANT": "preview"
+      },
+      "android": {
+        "gradleCommand": ":app:bundlePreviewRelease"
+      },
+      "ios": {
+        "scheme": "Landscape-preview"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "android": {
+        "gradleCommand": ":app:bundleProductionRelease"
+      },
+      "ios": {
+        "scheme": "Landscape"
+      }
+    }
+  },
+  "submit": {
+    "preview": {
+      "android": {
+        "applicationId": "io.tlon.groups.preview",
+        "releaseStatus": "draft",
+        "track": "internal",
+        "changesNotSentForReview": true
+      },
+      "ios": {
+        "ascAppId": "6477973000",
+        "appleTeamId": "XU9PR2N722"
+      }
+    },
+    "production": {
+      "android": {
+        "applicationId": "io.tlon.groups",
+        "releaseStatus": "draft",
+        "track": "internal",
+        "changesNotSentForReview": true
+      },
+      "ios": {
+        "ascAppId": "6451392109",
+        "appleTeamId": "XU9PR2N722"
+      }
+    }
+  }
+}

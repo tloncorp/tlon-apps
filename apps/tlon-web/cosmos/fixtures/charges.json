@@ -1,0 +1,142 @@
+{
+    "initial": {
+        "talk": {
+            "image": "https://bootstrap.urbit.org/icon-talk.svg?v=1",
+            "title": "Talk",
+            "license": "MIT",
+            "version": "4.2.1",
+            "website": "https://tlon.io",
+            "href": {
+                "glob": {
+                    "glob-reference": {
+                        "location": {
+                            "http": "https://bootstrap.urbit.org/glob-0v7.gngh4.cl0v3.729u2.r0m8m.t6hhs.glob"
+                        },
+                        "hash": "0v7.gngh4.cl0v3.729u2.r0m8m.t6hhs"
+                    },
+                    "base": "talk"
+                }
+            },
+            "chad": {
+                "glob": null
+            },
+            "color": "0x10.5ec7",
+            "info": "Send encrypted direct messages to one or many friends. Talk is a simple chat tool for catching up, getting work done, and everything in between."
+        },
+        "surface": {
+            "image": null,
+            "title": "Surface",
+            "license": "MIT",
+            "version": "0.0.1",
+            "website": "https://tlon.io",
+            "href": {
+                "glob": {
+                    "glob-reference": {
+                        "location": {
+                            "http": "https://s3.amazonaws.com/ocean.slow.so/glob-0v2.gmjb2.uofr5.t3hec.bhlat.bbjpu.glob"
+                        },
+                        "hash": "0v2.gmjb2.uofr5.t3hec.bhlat.bbjpu"
+                    },
+                    "base": "surface"
+                }
+            },
+            "chad": {
+                "glob": null
+            },
+            "color": "0xf7.f0a3",
+            "info": "A juicy little tidepool"
+        },
+        "garden": {
+            "image": null,
+            "title": "Landscape",
+            "license": "MIT",
+            "version": "1.14.0",
+            "website": "https://tlon.io",
+            "href": {
+                "glob": {
+                    "glob-reference": {
+                        "location": {
+                            "http": "https://bootstrap.urbit.org/glob-0v1.5fp4l.bm5f1.51bl4.i4m3o.6jrh1.glob"
+                        },
+                        "hash": "0v1.5fp4l.bm5f1.51bl4.i4m3o.6jrh1"
+                    },
+                    "base": "grid"
+                }
+            },
+            "chad": {
+                "glob": null
+            },
+            "color": "0xee.5432",
+            "info": "An app launcher for Urbit."
+        },
+        "webterm": {
+            "image": null,
+            "title": "Terminal",
+            "license": "MIT",
+            "version": "1.1.1",
+            "website": "https://tlon.io",
+            "href": {
+                "glob": {
+                    "glob-reference": {
+                        "location": {
+                            "http": "https://bootstrap.urbit.org/glob-0vep1vb.e09fv.h88mg.endg6.3mip6.glob"
+                        },
+                        "hash": "0vep1vb.e09fv.h88mg.endg6.3mip6"
+                    },
+                    "base": "webterm"
+                }
+            },
+            "chad": {
+                "glob": null
+            },
+            "color": "0x2e.4347",
+            "info": "A web interface to your Urbit's command line."
+        },
+        "landscape": {
+            "image": null,
+            "title": "Groups",
+            "license": "MIT",
+            "version": "1.1.0",
+            "website": "https://tlon.io",
+            "href": {
+                "glob": {
+                    "glob-reference": {
+                        "location": {
+                            "http": "https://bootstrap.urbit.org/glob-0v7.2rpmd.966js.dt2sj.ggv4a.n15nq.glob"
+                        },
+                        "hash": "0v7.2rpmd.966js.dt2sj.ggv4a.n15nq"
+                    },
+                    "base": "landscape"
+                }
+            },
+            "chad": {
+                "glob": null
+            },
+            "color": "0xee.5432",
+            "info": "A suite of applications to communicate on Urbit"
+        },
+        "groups": {
+            "image": "https://bootstrap.urbit.org/tlon.png",
+            "title": "Tlon",
+            "license": "MIT",
+            "version": "4.2.8",
+            "website": "https://tlon.io",
+            "href": {
+                "glob": {
+                    "glob-reference": {
+                        "location": {
+                            "http": "https://bootstrap.urbit.org/glob-0v2.sjuv3.sb1hv.lg83o.joq6j.edh6l.glob"
+                        },
+                        "hash": "0v2.sjuv3.sb1hv.lg83o.joq6j.edh6l"
+                    },
+                    "base": "groups"
+                }
+            },
+            "chad": {
+                "glob": null
+            },
+            "color": "0xef.f0f4",
+            "info": "Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Groups is a decentralized platform that integrates with Talk, Notebook, and Gallery for a full, communal suite of tools."
+        }
+    }
+}
