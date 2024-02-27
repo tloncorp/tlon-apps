@@ -170,7 +170,7 @@ export function useGroup(flag: string, updating = false): Group | undefined {
     path: `/groups/${flag}/v1`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
-      initialData: group,
+      placeholderData: group,
       refetchOnMount: updating,
       retry: true,
       // prevents skeleton from flashing on unmount when we have cached data
