@@ -16,8 +16,10 @@ import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
 
 import Avatar from '../Avatar';
+import useLeap from '../Leap/useLeap';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
+import CmdSmallIcon from '../icons/CmdSmallIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import MessagesIcon from '../icons/MessagesIcon';
 
@@ -43,6 +45,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         onSingleClick={onSingleClick}
         onDoubleClick={() => navigate('/')}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+        aria-label="Groups"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -71,6 +74,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         !props.isInactive && '!bg-gray-100'
       )}
       to="/"
+      aria-label="Groups"
     >
       <HomeIconMobileNav
         isInactive={props.isInactive}
@@ -109,6 +113,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         onSingleClick={onSingleClick}
         onDoubleClick={() => navigate('/messages')}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+        aria-label="Messages"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -137,6 +142,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         !props.isInactive && '!bg-gray-100'
       )}
       to="/messages"
+      aria-label="Messages"
     >
       <MessagesIcon
         isInactive={props.isInactive}
@@ -164,6 +170,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         onSingleClick={() => navigate('/notifications')}
         onDoubleClick={() => navigate('/notifications')}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+        aria-label="Notifications"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -192,6 +199,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         !props.isInactive && '!bg-gray-100'
       )}
       to="/notifications"
+      aria-label="Notifications"
     >
       <BellIcon
         isInactive={props.isInactive}
@@ -218,6 +226,7 @@ function UpdateTab() {
         to="/update-needed"
         state={{ backgroundLocation: location }}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+        aria-label="Update Needed"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -235,6 +244,7 @@ function UpdateTab() {
       className="relative m-auto flex h-10 w-10 items-center justify-center rounded-lg"
       to="/update-needed"
       state={{ backgroundLocation: location }}
+      aria-label="Update Needed"
     >
       <div className="flex h-[40px] w-[40px] items-center justify-center rounded-md bg-yellow">
         <Asterisk16Icon className="h-6 w-6 text-black dark:text-white" />
@@ -251,6 +261,7 @@ function ProfileTab(props: { isInactive: boolean }) {
       <NavTab
         to="/profile"
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+        aria-label="Profile & Settings"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -272,6 +283,7 @@ function ProfileTab(props: { isInactive: boolean }) {
         !props.isInactive && '!bg-gray-100'
       )}
       to="/profile"
+      aria-label="Profile & Settings"
     >
       <Avatar
         className="h-[24px] w-[24px] rounded-md"
@@ -279,6 +291,23 @@ function ProfileTab(props: { isInactive: boolean }) {
         size="sidebar"
       />
     </Link>
+  );
+}
+
+function LeapTab() {
+  const { setIsOpen: setLeapOpen, isOpen } = useLeap();
+
+  return (
+    <div
+      className={cn(
+        'relative mx-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50 cursor-pointer text-gray-400',
+        isOpen && '!bg-gray-100 text-gray-800'
+      )}
+      onClick={() => setLeapOpen(true)}
+      aria-label="Open Leap"
+    >
+      <CmdSmallIcon className="h-4 w-4" />
+    </div>
   );
 }
 
@@ -312,26 +341,29 @@ export default function AppNav() {
   if (!isMobile) {
     return (
       <div className="flex h-full w-full">
-        <nav className="w-14 border-r-2 border-r-gray-50">
-          <ul className="flex-col space-y-4 pt-[10px]">
-            <GroupsTab
-              isInactive={isInactive('/groups') && location.pathname !== '/'}
-              isDarkMode={isDarkMode}
-            />
-            <MessagesTab
-              isInactive={isInactive('/messages') && isInactive('/dm')}
-              isDarkMode={isDarkMode}
-            />
-            <ActivityTab
-              isInactive={isInactive('/notifications')}
-              isDarkMode={isDarkMode}
-            />
+        <nav className="h-full w-14 border-r-2 border-r-gray-50">
+          <ul className="flex h-full flex-col justify-between pb-3 pt-[10px]">
+            <div className="space-y-4">
+              <GroupsTab
+                isInactive={isInactive('/groups') && location.pathname !== '/'}
+                isDarkMode={isDarkMode}
+              />
+              <MessagesTab
+                isInactive={isInactive('/messages') && isInactive('/dm')}
+                isDarkMode={isDarkMode}
+              />
+              <ActivityTab
+                isInactive={isInactive('/notifications')}
+                isDarkMode={isDarkMode}
+              />
 
-            {needsUpdate ? (
-              <UpdateTab />
-            ) : (
-              <ProfileTab isInactive={isInactive('/profile')} />
-            )}
+              {needsUpdate ? (
+                <UpdateTab />
+              ) : (
+                <ProfileTab isInactive={isInactive('/profile')} />
+              )}
+            </div>
+            <LeapTab />
           </ul>
         </nav>
         <section className="relative h-full flex-1 bg-white">
