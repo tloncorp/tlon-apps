@@ -16,7 +16,6 @@
   $%  [%channel channel-concern]
       [%dm dm-concern]
   ==
-+$  volume  (map flavor level)
 +$  flavor
   $?  %dm-invite
       %dm-post
@@ -31,7 +30,14 @@
       %reply-mention
       %flag
   ==
-+$  level  ?(%notify %default %trivial)
++$  flavor-level  ?(%notify %default)
++$  volume  (map index index-level)
++$  index-level
+  $~  %soft
+  $?  %loud  ::  always notify
+      %soft  ::  sometimes notify
+      %hush  ::  never notify
+  ==
 +$  event
   $%  [%dm-invite dm-concern]
       [%dm-post dm-post-concern content=story:c mention=?]
@@ -59,7 +65,7 @@
 +$  action
   $%  [%add =event]
       [%read =index =read-action]
-      [%adjust =flavor =level]
+      [%adjust =index =index-level]
   ==
 +$  unread-summary
   $:  newest=time

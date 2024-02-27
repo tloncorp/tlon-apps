@@ -71,22 +71,6 @@
 ::
 ++  init
   ^+  cor
-  =.  volume
-    %-  malt
-    ^-  (list [flavor:a level:a])
-    :~  [%dm-invite %notify]
-        [%dm-post %notify]
-        [%dm-post-mention %notify]
-        [%dm-reply %notify]
-        [%dm-reply-mention %notify]
-        [%kick %default]
-        [%join %trivial]
-        [%post %trivial]
-        [%post-mention %notify]
-        [%reply %notify]
-        [%reply-mention %notify]
-        [%flag %default]
-    ==
   cor
 ::
 ++  load
@@ -203,10 +187,46 @@
       (~(put by indices) index new)
     cor
   ==
+++  loudness
+  ^-  (map flavor:a flavor-level:a)
+  %-  malt
+  ^-  (list [flavor:a flavor-level:a])
+  :~  [%dm-invite %notify]
+      [%dm-post %notify]
+      [%dm-post-mention %notify]
+      [%dm-reply %notify]
+      [%dm-reply-mention %notify]
+      [%kick %default]
+      [%join %default]
+      [%post %default]
+      [%post-mention %notify]
+      [%reply %notify]
+      [%reply-mention %notify]
+      [%flag %default]
+  ==
 ++  notifiable
   |=  =event:a
-  .=  %notify
-  (~(gut by volume) (determine-flavor event) %default)
+  ^-  ?
+  =/  index  (determine-index event)
+  =/  =index-level:a
+    ?~  index  %soft
+    (~(gut by volume) u.index %soft)
+  ?-  index-level
+      %loud  &
+      %hush  |
+      %soft
+    .=  %notify
+    (~(gut by loudness) (determine-flavor event) %default)
+  ==
+++  determine-index
+  |=  =event:a
+  ^-  (unit index:a)
+  ?+  -.event  ~
+    %post      `[%channel channel.event group.event]
+    %reply     `[%channel channel.event group.event]
+    %dm-post   `[%dm whom.event]
+    %dm-reply  `[%dm whom.event]
+  ==
 ++  determine-flavor
   |=  =event:a
   ^-  flavor:a
@@ -338,10 +358,10 @@
   (give %fact ~[/unreads] activity-index-unreads+!>((summarize-unreads [stream reads])))
 ::
 ++  adjust
-  |=  [=flavor:a =level:a]
+  |=  [=index:a =index-level:a]
   ^+  cor
   =.  volume
-    (~(put by volume) flavor level)
+    (~(put by volume) index index-level)
   cor
 ::
 ++  summarize-unreads
