@@ -249,7 +249,10 @@ function ChatMessageOptions(props: {
   const showReplyAction = !hideReply;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === essay.author;
-  const showEditAction = window.our === essay.author;
+  // don't allow editing of DM/Group DM messages until we support it
+  // on the backend.
+  // TODO: remove this check when backend supports it
+  const showEditAction = window.our === essay.author && !isDMorMultiDM;
   const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];

@@ -1,6 +1,4 @@
 /* eslint-disable react/no-unused-prop-types */
-// eslint-disable-next-line import/no-cycle
-import { EditorView } from '@tiptap/pm/view';
 import { Editor } from '@tiptap/react';
 import {
   Post,
@@ -33,6 +31,7 @@ import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import Avatar from '@/components/Avatar';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
@@ -59,11 +58,6 @@ import {
   useChatInfo,
   useChatStore,
 } from '../useChatStore';
-
-EditorView.prototype.updateState = function updateState(state) {
-  if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
-  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
-};
 
 export interface ChatMessageProps {
   whom: string;
@@ -391,7 +385,6 @@ const ChatMessage = React.memo<
           className={cn('flex flex-col break-words', {
             'pt-3': newAuthor,
             'pb-2': isLast,
-            'bg-gray-50 px-3 rounded': isEditing,
           })}
           onMouseEnter={onOver}
           onMouseLeave={onOut.current}
@@ -412,7 +405,11 @@ const ChatMessage = React.memo<
           {newAuthor ? (
             <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}
-          <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
+          <div
+            className={cn(
+              'group-one relative z-0 flex w-full select-none sm:select-auto'
+            )}
+          >
             {isDelivered && !isEditing && (
               <ChatMessageOptions
                 open={optionsOpen || (hasDialogsOpen && !isMobile)}
@@ -427,14 +424,29 @@ const ChatMessage = React.memo<
             <div className="-ml-1 mr-1 w-[31px] whitespace-nowrap py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>
-            <div className="wrap-anywhere flex w-full">
+            <div
+              className={cn(
+                'wrap-anywhere flex w-full',
+                isEditing && 'bg-gray-50 rounded-2xl py-3 pl-12 pr-3'
+              )}
+            >
               {isEditing && messageEditor && !messageEditor.isDestroyed ? (
                 <div className="flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 px-2 sm:group-one-hover:bg-gray-50">
-                  <MessageEditor editor={messageEditor} />
-                  <div className="font-semibold text-sm text-gray-400">
-                    <span className="text-blue">ESC</span> to cancel edit &nbsp;
-                    &nbsp;
-                    <span className="text-blue">ENTER</span> to save edit
+                  {messageEditor && !messageEditor.isDestroyed && (
+                    <MessageEditor
+                      editor={messageEditor}
+                      className="bg-gray-900/10"
+                      inputClassName="bg-gray-900/10"
+                    />
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Editing message</span>
+                    <button
+                      className="text-gray-600"
+                      onClick={() => setSearchParams({}, { replace: true })}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -534,7 +546,7 @@ const ChatMessage = React.memo<
               )}
 
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {!isDelivered && (
+                {!isDelivered && !isEditing && (
                   <DoubleCaretRightIcon
                     className="absolute bottom-2 left-0 h-5 w-5"
                     primary={isSent ? 'text-black' : 'text-gray-200'}
@@ -543,6 +555,16 @@ const ChatMessage = React.memo<
                 )}
               </div>
             </div>
+            {isEditing && messageEditor && messageEditor.getText() !== '' && (
+              <div className="flex flex-col justify-end ml-2.5">
+                <button
+                  onClick={() => onSubmit(messageEditor)}
+                  className="h-8 w-8 bg-blue rounded-full flex items-center justify-center text-white"
+                >
+                  <CheckIcon className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );

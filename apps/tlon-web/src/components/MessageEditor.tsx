@@ -33,11 +33,6 @@ import { useFileStore } from '@/state/storage';
 
 import getMentionPopup from './Mention/MentionPopup';
 
-EditorView.prototype.updateState = function updateState(state) {
-  if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
-  (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
-};
-
 export interface HandlerParams {
   editor: Editor;
 }

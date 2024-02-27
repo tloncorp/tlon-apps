@@ -44,6 +44,7 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import messageSender from '@/logic/messageSender';
 import { inlinesToJSON, makeMention } from '@/logic/tiptap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   IMAGE_REGEX,
@@ -158,8 +159,8 @@ export default function ChatInput({
   );
   const threadParentId = useThreadParentId(whom);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const isEditing = searchParams.get('edit');
+  const [, setSearchParams] = useSearchParams();
+  const isEditing = useIsEditingMessage();
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -185,10 +186,6 @@ export default function ChatInput({
     `${!isDmOrMultiDM ? 'chat/' : ''}${whom}`
   );
   const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
-  console.log({
-    myLastMessage,
-    lastMessageId,
-  });
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -409,22 +406,27 @@ export default function ChatInput({
     onUpdate: onUpdate.current,
     onUpArrow: useCallback(
       ({ editor }: HandlerParams) => {
-        if (lastMessageId && !isEditing) {
+        if (
+          lastMessageId &&
+          !isEditing &&
+          !editor.isDestroyed &&
+          // don't allow editing of DM/Group DM messages until we support it
+          // on the backend.
+          // TODO: remove this check when backend supports it
+          !isDmOrMultiDM
+        ) {
           setSearchParams(
             {
               edit: lastMessageId,
             },
             { replace: true }
           );
-          console.log('should blur', {
-            editor,
-          });
           editor.commands.blur();
           return true;
         }
         return false;
       },
-      [lastMessageId, setSearchParams, isEditing]
+      [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
     ),
   });
 
@@ -578,6 +580,10 @@ export default function ChatInput({
     },
     [id, uploader]
   );
+
+  if (isEditing && isMobile) {
+    return null;
+  }
 
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);

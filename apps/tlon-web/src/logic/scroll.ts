@@ -53,11 +53,12 @@ export function useIsScrolling(
  */
 export function useInvertedScrollInteraction(
   scrollElementRef: RefObject<HTMLDivElement>,
-  isInverted: boolean
+  isInverted: boolean,
+  isEditing: boolean
 ) {
   useEffect(() => {
     const el = scrollElementRef.current;
-    if (!isInverted || !el) return undefined;
+    if (!isInverted || !el || isEditing) return undefined;
     const invertScrollWheel = (e: WheelEvent) => {
       el.scrollTop -= e.deltaY;
       e.preventDefault();
@@ -78,13 +79,11 @@ export function useInvertedScrollInteraction(
         });
       }
     };
-    el.addEventListener('wheel', invertScrollWheel, false);
-    el.addEventListener('keydown', invertSpaceAndArrows, true);
     return () => {
       el.removeEventListener('wheel', invertScrollWheel);
       el.removeEventListener('keydown', invertSpaceAndArrows);
     };
-  }, [isInverted, scrollElementRef]);
+  }, [isInverted, scrollElementRef, isEditing]);
 }
 
 /**
