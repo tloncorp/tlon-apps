@@ -1,4 +1,5 @@
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { Outlet } from 'react-router-dom';
 
@@ -42,34 +43,39 @@ export default function Profile({ title }: ViewProps) {
       >
         <nav className="flex grow flex-col gap-1 p-4 md:w-64 md:shrink-0 md:border-r-2 md:border-r-gray-50 md:px-1 md:py-2">
           <ProfileCoverImage
-            className="h-[345px] md:h-56"
             cover={contact.cover || ''}
+            className={cn(
+              'min-h-20',
+              contact.cover ? 'aspect-1' : 'bg-gray-50 dark:bg-black'
+            )}
           >
-            <div className="absolute inset-0 flex h-[345px] w-full flex-col justify-end rounded-[36px] bg-black/30 p-6 font-normal dark:bg-white/30 md:h-56 md:rounded-lg">
-              <div className="flex space-x-2">
+            {contact.cover && (
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-b from-transparent to-black/50 mix-blend-multiply" />
+            )}
+            <div className="absolute bottom-0 flex items-end space-y-4 p-4">
+              <div className="mr-2">
                 <Avatar size="default" icon={false} ship={window.our} />
-                <div className="flex flex-col items-start justify-center space-y-1">
-                  <ShipName
-                    className="text-[17px] font-normal text-white dark:text-black"
-                    name={window.our}
-                    showAlias
-                  />
-                  <ShipName
-                    className="text-[17px] font-normal leading-snug text-white opacity-60 dark:text-black"
-                    name={window.our}
-                  />
-                </div>
               </div>
-              {contact.bio && (
-                <div className="flex flex-col space-y-3">
-                  <span className="text-[17px] font-normal text-white opacity-60 dark:text-black">
-                    Info
-                  </span>
-                  <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent dark:from-black">
-                    {contact.bio}
-                  </span>
-                </div>
-              )}
+              <div className="flex flex-col space-y-1">
+                <ShipName
+                  className={cn(
+                    'font-semibold text-lg',
+                    contact.cover
+                      ? 'text-white dark:text-black'
+                      : 'text-black dark:text-white'
+                  )}
+                  name={window.our}
+                  showAlias
+                />
+                <ShipName
+                  className={cn(
+                    contact.cover
+                      ? 'text-white opacity-60 dark:text-black'
+                      : 'text-gray-500 dark:text-white'
+                  )}
+                  name={window.our}
+                />
+              </div>
             </div>
           </ProfileCoverImage>
           <SidebarItem

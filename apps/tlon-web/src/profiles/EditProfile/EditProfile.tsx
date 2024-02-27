@@ -5,6 +5,7 @@ import {
   ContactEditField,
 } from '@tloncorp/shared/dist/urbit/contact';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -148,7 +149,7 @@ function EditProfileContent() {
 
   return (
     <div
-      className="w-full p-6"
+      className="w-full p-4"
       style={{
         paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
       }}
@@ -156,7 +157,10 @@ function EditProfileContent() {
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage
-            className="flex items-end rounded-b-lg"
+            className={cn(
+              'flex items-end rounded-b-lg',
+              watchCover ? 'h-36' : 'h-12'
+            )}
             cover={watchCover || ''}
           >
             <Avatar
