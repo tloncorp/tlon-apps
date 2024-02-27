@@ -4,8 +4,6 @@ import {
   type MobileNavTab,
   type NativeWebViewOptions,
   type WebAppAction,
-  parseActiveTab,
-  trimFullPath,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
@@ -17,7 +15,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { DEV_LOCAL } from '../constants';
 import { useShip } from '../contexts/ship';
-import { useWebViewContext } from '../contexts/webview';
+import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
 import { markChatRead } from '../lib/chatApi';
@@ -32,10 +30,8 @@ import {
 // TODO: add typing for data beyond generic value string
 type WebAppCommand = {
   action: WebAppAction;
-  value?: string;
+  value?: string | { tab: string; path: string };
 };
-
-// export type Props = NativeStackScreenProps<WebViewStackParamList, 'WebView'>;
 
 const createUri = (shipUrl: string, path?: string) =>
   `${shipUrl}/apps/groups${
@@ -50,13 +46,6 @@ export const SingletonWebview = () => {
   const safeAreaInsets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
   const didManageAccount = useRef(false);
-  // const [{ uri, key }, setUri] = useState<{
-  //   uri: string;
-  //   key: number;
-  // }>({
-  //   uri: createUri(shipUrl, '/'),
-  //   key: 1,
-  // });
   const [appLoaded, setAppLoaded] = useState(false);
   const webviewContext = useWebViewContext();
 
@@ -70,7 +59,7 @@ export const SingletonWebview = () => {
     switch (action) {
       case 'copy':
         if (value) {
-          await Clipboard.setStringAsync(value);
+          await Clipboard.setStringAsync(value as string);
         }
         break;
       case 'logout':
@@ -96,22 +85,22 @@ export const SingletonWebview = () => {
       case 'activeTabChange':
         webviewContext.setGotoTab(value as MobileNavTab);
         break;
+      case 'saveLastPath': {
+        if (!value || typeof value !== 'object' || !value.tab || !value.path) {
+          return;
+        }
+
+        if (value.tab === 'Messages') {
+          webviewContext.setLastMessagesPath(value.path);
+        }
+        if (value.tab === 'Groups') {
+          webviewContext.setLastGroupsPath(value.path);
+        }
+        break;
+      }
       // TODO: handle manage account
       case 'manageAccount':
-        {
-          // const [hostingSession, hostingUserId] = await Promise.all([
-          //   getHostingToken(),
-          //   getHostingUserId(),
-          // ]);
-          // didManageAccount.current = true;
-          // navigation.push('ExternalWebView', {
-          //   uri: 'https://tlon.network/account',
-          //   headers: {
-          //     Cookie: hostingSession,
-          //   },
-          //   injectedJavaScript: `localStorage.setItem("X-SESSION-ID", "${hostingUserId}")`,
-          // });
-        }
+        webviewContext.setDidManageAccount(true);
         break;
       case 'appLoaded':
         // Slight delay otherwise white background flashes
@@ -141,6 +130,7 @@ export const SingletonWebview = () => {
         } else if (actionIdentifier === 'reply' && userText) {
           // Send reply
         } else if (data.wer) {
+          // TODO: handle wer
           // setUri((curr) => ({
           //   ...curr,
           //   uri: createUri(shipUrl, data.wer),
@@ -249,19 +239,6 @@ export const SingletonWebview = () => {
       onMessage={async ({ nativeEvent: { data } }) =>
         handleMessage(JSON.parse(data) as WebAppCommand)
       }
-      onNavigationStateChange={({ url }) => {
-        const pathname = trimFullPath(new URL(url).pathname);
-        const tab = parseActiveTab(pathname);
-        if (tab === 'Messages') {
-          console.log('setting last messages path', pathname);
-          webviewContext.setLastMessagesPath(pathname);
-        }
-
-        if (tab === 'Groups') {
-          console.log('setting last groups path', pathname);
-          webviewContext.setLastGroupsPath(pathname);
-        }
-      }}
     />
   );
 };

@@ -1,44 +1,37 @@
-import type { MobileNavTab } from '@tloncorp/shared';
+import type { MobileNavTab, NativeCommand } from '@tloncorp/shared';
 import { createContext, useContext, useState } from 'react';
 
-export interface WebviewPosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
 export interface WebviewContext {
-  visible: boolean;
-  position: WebviewPosition;
   gotoPath: string;
   gotoTab: MobileNavTab | null;
   reactingToWebappNav: boolean;
   lastMessagesPath: string;
   lastGroupsPath: string;
+  pendingCommand: NativeCommand | null;
+  didManageAccount: boolean;
+  setDidManageAccount: (didManageAccount: boolean) => void;
+  sendCommand: (command: NativeCommand) => void;
   setLastMessagesPath: (path: string) => void;
   setLastGroupsPath: (path: string) => void;
   setReactingToWebappNav: (reacting: boolean) => void;
-  setVisibility: (visible: boolean) => void;
-  setPosition: (position: WebviewPosition) => void;
   setGotoPath: (gotoPath: string) => void;
   setGotoTab: (gotoTab: MobileNavTab | null) => void;
   clearGotoPath: () => void;
 }
 
 const AppWebviewContext = createContext<WebviewContext>({
-  visible: false,
-  position: { x: 0, y: 0, width: 0, height: 0 },
   gotoPath: '',
   gotoTab: null,
   reactingToWebappNav: false,
   lastMessagesPath: '',
   lastGroupsPath: '',
+  pendingCommand: null,
+  didManageAccount: false,
+  setDidManageAccount: () => {},
+  sendCommand: () => {},
   setLastGroupsPath: () => {},
   setLastMessagesPath: () => {},
   setReactingToWebappNav: () => {},
-  setVisibility: () => {},
-  setPosition: () => {},
   setGotoPath: () => {},
   setGotoTab: () => {},
   clearGotoPath: () => {},
@@ -49,34 +42,29 @@ interface AppWebviewProviderProps {
 }
 
 export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
+  const [pendingCommand, sendCommand] = useState<NativeCommand | null>(null);
   const [lastMessagesPath, setLastMessagesPath] = useState('');
   const [lastGroupsPath, setLastGroupsPath] = useState('');
   const [reactingToWebappNav, setReactingToWebappNav] = useState(false);
   const [gotoPath, setGotoPath] = useState('');
   const [gotoTab, setGotoTab] = useState<MobileNavTab | null>(null);
-  const [visible, setVisibility] = useState(true);
-  const [position, setPosition] = useState<WebviewPosition>({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-  });
+  const [didManageAccount, setDidManageAccount] = useState(false);
 
   return (
     <AppWebviewContext.Provider
       value={{
-        position,
-        visible,
         gotoPath,
         gotoTab,
         reactingToWebappNav,
         lastMessagesPath,
         lastGroupsPath,
+        pendingCommand,
+        didManageAccount,
+        setDidManageAccount,
+        sendCommand,
         setLastMessagesPath,
         setLastGroupsPath,
         setReactingToWebappNav,
-        setPosition,
-        setVisibility,
         setGotoPath,
         setGotoTab,
         clearGotoPath: () => setGotoPath(''),

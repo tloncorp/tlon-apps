@@ -4,15 +4,19 @@ import type { IconType } from '@tloncorp/ui';
 import { View, ZStack } from 'tamagui';
 
 import { SingletonWebview } from '../components/SingletonWebview';
-import { WebviewProvider, useWebViewContext } from '../contexts/webview';
+import {
+  WebviewPositionProvider,
+  useWebviewPositionContext,
+} from '../contexts/webview/position';
+import { WebviewProvider } from '../contexts/webview/webview';
 import { getInitialPath } from '../lib/WebAppHelpers';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-export const TabStack = () => {
-  return (
+export const TabStack = () => (
+  <WebviewPositionProvider>
     <WebviewProvider>
       <ZStack flex={1}>
         <Tab.Navigator
@@ -81,8 +85,8 @@ export const TabStack = () => {
         <WebviewOverlay />
       </ZStack>
     </WebviewProvider>
-  );
-};
+  </WebviewPositionProvider>
+);
 
 function TabIcon({
   type,
@@ -103,7 +107,7 @@ function TabIcon({
 }
 
 function WebviewOverlay() {
-  const { position, visible } = useWebViewContext();
+  const { position, visible } = useWebviewPositionContext();
   return (
     <View
       style={{

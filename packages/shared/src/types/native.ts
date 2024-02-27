@@ -15,16 +15,30 @@ export interface GotoMessage {
   action: "goto";
   path: string;
 }
-export type NativeCommand = GotoMessage;
+
+export interface NativeTabChange {
+  action: "nativeTabChange";
+  tab: MobileNavTab;
+}
+
+export type NativeCommand = GotoMessage | NativeTabChange;
 
 export type WebAppAction =
   | "copy"
   | "logout"
   | "manageAccount"
   | "appLoaded"
-  | "activeTabChange";
+  | "activeTabChange"
+  | "saveLastPath";
 export interface ActiveTabChange {
   action: "activeTabChange";
   value: MobileNavTab;
 }
-export type WebAppCommand = ActiveTabChange;
+export interface SaveLastPath {
+  action: "saveLastPath";
+  value: {
+    tab: "Groups" | "Messages";
+    path: string;
+  };
+}
+export type WebAppCommand = ActiveTabChange | SaveLastPath;

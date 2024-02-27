@@ -2,21 +2,27 @@ import {
   MobileNavTab,
   NativeCommand,
   WebAppAction,
+  WebAppCommand,
   parseActiveTab,
 } from '@tloncorp/shared';
-import _ from 'lodash';
-import { useEffect, useState } from 'react';
+import _, { debounce } from 'lodash';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import { useSafeAreaContext } from './SafeAreaContext';
 
 export const isNativeApp = () => !!window.ReactNativeWebView;
 
-const postJSONToNativeApp = (obj: Record<string, unknown>) =>
+const postJSONToNativeApp = (obj: Record<string, unknown>) => {
   window.ReactNativeWebView?.postMessage(JSON.stringify(obj));
+};
 
 export const postActionToNativeApp = (action: WebAppAction, value?: unknown) =>
   postJSONToNativeApp({ action, value });
+
+export const postCommandToNativeApp = (command: WebAppCommand) => {
+  postJSONToNativeApp({ action: command.action, value: command.value });
+};
 
 export const isIOSWebView = () => {
   const userAgent = window.navigator.userAgent.toLowerCase();
@@ -42,8 +48,20 @@ export const useSafeAreaInsets = () => useSafeAreaContext().safeAreaInsets;
 export function useNativeBridge() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<MobileNavTab>(
+  const [lastPath, setLastPath] = useState(location.pathname);
+  const [activeNativeTab, setActiveNativeTab] = useState<MobileNavTab>(
     parseActiveTab(location.pathname) ?? 'Groups'
+  );
+
+  const debouncedSaveLastPath = useMemo(
+    () =>
+      debounce((parsedTab, path) => {
+        postCommandToNativeApp({
+          action: 'saveLastPath',
+          value: { tab: parsedTab, path },
+        });
+      }, 400),
+    []
   );
 
   // Handle any events passed in from the native app
@@ -51,22 +69,39 @@ export function useNativeBridge() {
     if (!isNativeApp()) return;
     const message = JSON.parse(event.data) as NativeCommand;
     if (message.action === 'goto') {
+      const activeTab = parseActiveTab(message.path);
+      setActiveNativeTab(activeTab ?? 'Groups');
       navigate(message.path);
+    }
+
+    if (message.action === 'nativeTabChange') {
+      setActiveNativeTab(message.tab);
     }
   });
 
-  // Signal any changes in the active tab to the native app
+  // Send any relevant location changes to the native app
   useEffect(() => {
     if (!isNativeApp()) return;
 
-    const parsedTab = location.state?.backgroundLocation
+    // Signal if the active tab was changed within the webview itself
+    const hasBackgroundLocation = location.state?.backgroundLocation;
+    const parsedTab = hasBackgroundLocation
       ? parseActiveTab(location.state.backgroundLocation.pathname)
       : parseActiveTab(location.pathname);
-    if (parsedTab !== activeTab) {
-      setActiveTab(parsedTab ?? 'Groups');
+    if (parsedTab !== activeNativeTab) {
       postActionToNativeApp('activeTabChange', parsedTab);
     }
-  }, [activeTab, location]);
+
+    // Signal if the last Groups or Messages path changed for use when navigating back to a tab
+    if (
+      location.pathname !== lastPath &&
+      !hasBackgroundLocation &&
+      (parsedTab === 'Groups' || parsedTab === 'Messages')
+    ) {
+      debouncedSaveLastPath(parsedTab, location.pathname);
+      setLastPath(location.pathname);
+    }
+  }, [activeNativeTab, debouncedSaveLastPath, lastPath, location]);
 
   return messageHandler;
 }
