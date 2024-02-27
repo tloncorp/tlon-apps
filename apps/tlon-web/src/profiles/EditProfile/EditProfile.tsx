@@ -177,7 +177,7 @@ function EditProfileContent() {
           </div>
         </div>
 
-        {!isMobile && profileIsPublic && (
+        {profileIsPublic && (
           <div className="card mb-4">
             <div className="max-w-lg">
               <PublicProfileSelector isMobile={false} />
