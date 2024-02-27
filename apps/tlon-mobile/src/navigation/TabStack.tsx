@@ -1,83 +1,102 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from '@tloncorp/ui';
+import { Icon, Text, useStyle } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
+import type { ViewStyle } from 'react-native';
 
 import type { TabParamList } from '../types';
+import { HomeStack } from './HomeStack';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-export const TabStack = () => (
-  <Tab.Navigator
-    id="TabBar"
-    initialRouteName="Groups"
-    screenOptions={{ headerShown: false }}
-  >
-    <Tab.Screen
-      name="Groups"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon type={'Home'} activeType={'HomeFilled'} isActive={focused} />
-        ),
+export const TabStack = () => {
+  const headerStyle = useStyle({
+    paddingHorizontal: '$xl',
+  }) as ViewStyle;
+  return (
+    <Tab.Navigator
+      id="TabBar"
+      initialRouteName="Groups"
+      screenOptions={{
+        headerShown: false,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        headerTitle({ style, ...props }) {
+          return (
+            <Text fontSize="$m" fontWeight="$s" lineHeight="$s" {...props} />
+          );
+        },
+        headerLeftContainerStyle: headerStyle,
+        headerRightContainerStyle: headerStyle,
         tabBarShowLabel: false,
       }}
-    />
-    <Tab.Screen
-      name="Messages"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/messages' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon
-            type={'Messages'}
-            activeType={'MessagesFilled'}
-            isActive={focused}
-          />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Activity"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/notifications' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon
-            type={'Notifications'}
-            activeType={'NotificationsFilled'}
-            isActive={focused}
-          />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Discover"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/find' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon type="Discover" isActive={focused} />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/profile' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon type="Profile" isActive={focused} />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-  </Tab.Navigator>
-);
+    >
+      <Tab.Screen
+        name="Groups"
+        component={HomeStack}
+        initialParams={{ initialPath: '/' }}
+        options={{
+          headerShown: true,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Home'}
+              activeType={'HomeFilled'}
+              isActive={focused}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/messages' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Messages'}
+              activeType={'MessagesFilled'}
+              isActive={focused}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Activity"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/notifications' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Notifications'}
+              activeType={'NotificationsFilled'}
+              isActive={focused}
+            />
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Discover"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/find' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon type="Discover" isActive={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/profile' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon type="Profile" isActive={focused} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 function TabIcon({
   type,

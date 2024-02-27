@@ -22,7 +22,12 @@ import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
-import { syncContacts } from './lib/sync';
+import {
+  syncContacts,
+  syncGroups,
+  syncPinnedGroups,
+  syncUnreads,
+} from './lib/sync';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -59,7 +64,14 @@ const App = ({ wer: initialWer }: Props) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      syncContacts();
+      Promise.all([
+        syncContacts(),
+        syncGroups(),
+        syncPinnedGroups(),
+        syncUnreads(),
+      ]).catch((err) => {
+        console.log(err);
+      });
     }
   }, [isAuthenticated]);
 
