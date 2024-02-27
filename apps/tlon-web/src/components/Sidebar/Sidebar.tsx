@@ -154,7 +154,7 @@ export default function Sidebar() {
         <AddGroupSidebarItem />
       ) : (
         <SidebarItem
-          className="group relative mx-2 mt-2 bg-blue-500 text-white"
+          className="group relative mx-2 mt-2 bg-blue text-white"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
           to={'/dm/new'}
           highlight="transparent"

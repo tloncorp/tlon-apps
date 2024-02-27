@@ -67,8 +67,8 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   return (
     <Link
       className={cn(
-        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg',
-        !props.isInactive && 'bg-gray-100'
+        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
+        !props.isInactive && '!bg-gray-100'
       )}
       to="/"
     >
@@ -133,8 +133,8 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   return (
     <Link
       className={cn(
-        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg',
-        !props.isInactive && 'bg-gray-100'
+        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
+        !props.isInactive && '!bg-gray-100'
       )}
       to="/messages"
     >
@@ -188,8 +188,8 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   return (
     <Link
       className={cn(
-        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg',
-        !props.isInactive && 'bg-gray-100'
+        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
+        !props.isInactive && '!bg-gray-100'
       )}
       to="/notifications"
     >
@@ -245,7 +245,6 @@ function UpdateTab() {
 
 function ProfileTab(props: { isInactive: boolean }) {
   const isMobile = useIsMobile();
-  const { isInactive } = props;
 
   if (isMobile) {
     return (
@@ -269,8 +268,8 @@ function ProfileTab(props: { isInactive: boolean }) {
   return (
     <Link
       className={cn(
-        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg',
-        !isInactive && 'bg-gray-100'
+        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
+        !props.isInactive && '!bg-gray-100'
       )}
       to="/profile"
     >

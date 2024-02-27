@@ -25,7 +25,7 @@ export default function GroupSidebarItem() {
   return (
     <Dropdown.Root open={open} onOpenChange={onOpenChange}>
       <SidebarItem
-        className="group relative mx-2 mt-2 bg-blue-500 text-white"
+        className="group relative mx-2 mt-2 bg-blue text-white"
         onClick={onClick}
         data-testid="add-group-sidebar-button-icon"
         actions={<Dropdown.Trigger />}
