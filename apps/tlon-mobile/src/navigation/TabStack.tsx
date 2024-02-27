@@ -1,8 +1,9 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon, View, ZStack } from '@tloncorp/ui';
+import { Icon, UrbitSigil, View, ZStack } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
 import { SingletonWebview } from '../components/SingletonWebview';
+import { useShip } from '../contexts/ship';
 import {
   WebviewPositionProvider,
   useWebviewPositionContext,
@@ -15,6 +16,7 @@ import { WebViewStack } from './WebViewStack';
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
+  const { ship } = useShip();
   return (
     <WebviewPositionProvider>
       <WebviewProvider>
@@ -74,9 +76,9 @@ export const TabStack = () => {
               component={WebViewStack}
               initialParams={{ initialPath: getInitialPath('Profile') }}
               options={{
-                tabBarIcon: ({ focused }) => (
-                  <TabIcon type="Profile" isActive={focused} />
-                ),
+                tabBarIcon: () =>
+                  ship ? <UrbitSigil ship={ship} /> : undefined,
+
                 tabBarShowLabel: false,
               }}
             />
