@@ -14,78 +14,80 @@ import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-export const TabStack = () => (
-  <WebviewPositionProvider>
-    <WebviewProvider>
-      <ZStack flex={1}>
-        <Tab.Navigator
-          id="TabBar"
-          initialRouteName="Groups"
-          screenOptions={{ headerShown: false }}
-        >
-          <Tab.Screen
-            name="Groups"
-            component={WebViewStack}
-            initialParams={{ initialPath: getInitialPath('Groups') }}
-            options={{
-              tabBarIcon: ({ focused }) => (
-                <TabIcon
-                  type={'Home'}
-                  activeType={'HomeFilled'}
-                  isActive={focused}
-                />
-              ),
-              tabBarShowLabel: false,
-            }}
-          />
-          <Tab.Screen
-            name="Messages"
-            component={WebViewStack}
-            initialParams={{ initialPath: getInitialPath('Messages') }}
-            options={{
-              tabBarIcon: ({ focused }) => (
-                <TabIcon
-                  type={'Messages'}
-                  activeType={'MessagesFilled'}
-                  isActive={focused}
-                />
-              ),
-              tabBarShowLabel: false,
-            }}
-          />
-          <Tab.Screen
-            name="Activity"
-            component={WebViewStack}
-            initialParams={{ initialPath: getInitialPath('Activity') }}
-            options={{
-              tabBarIcon: ({ focused }) => (
-                <TabIcon
-                  type={'Notifications'}
-                  activeType={'NotificationsFilled'}
-                  isActive={focused}
-                />
-              ),
-              tabBarShowLabel: false,
-            }}
-          />
-          <Tab.Screen
-            name="Profile"
-            component={WebViewStack}
-            initialParams={{ initialPath: getInitialPath('Profile') }}
-            options={{
-              tabBarIcon: ({ focused }) => (
-                <TabIcon type="Profile" isActive={focused} />
-              ),
-              tabBarShowLabel: false,
-            }}
-          />
-        </Tab.Navigator>
+export const TabStack = () => {
+  return (
+    <WebviewPositionProvider>
+      <WebviewProvider>
+        <ZStack flex={1}>
+          <Tab.Navigator
+            id="TabBar"
+            initialRouteName="Groups"
+            screenOptions={{ headerShown: false }}
+          >
+            <Tab.Screen
+              name="Groups"
+              component={WebViewStack}
+              initialParams={{ initialPath: getInitialPath('Groups') }}
+              options={{
+                tabBarIcon: ({ focused }) => (
+                  <TabIcon
+                    type={'Home'}
+                    activeType={'HomeFilled'}
+                    isActive={focused}
+                  />
+                ),
+                tabBarShowLabel: false,
+              }}
+            />
+            <Tab.Screen
+              name="Messages"
+              component={WebViewStack}
+              initialParams={{ initialPath: getInitialPath('Messages') }}
+              options={{
+                tabBarIcon: ({ focused }) => (
+                  <TabIcon
+                    type={'Messages'}
+                    activeType={'MessagesFilled'}
+                    isActive={focused}
+                  />
+                ),
+                tabBarShowLabel: false,
+              }}
+            />
+            <Tab.Screen
+              name="Activity"
+              component={WebViewStack}
+              initialParams={{ initialPath: getInitialPath('Activity') }}
+              options={{
+                tabBarIcon: ({ focused }) => (
+                  <TabIcon
+                    type={'Notifications'}
+                    activeType={'NotificationsFilled'}
+                    isActive={focused}
+                  />
+                ),
+                tabBarShowLabel: false,
+              }}
+            />
+            <Tab.Screen
+              name="Profile"
+              component={WebViewStack}
+              initialParams={{ initialPath: getInitialPath('Profile') }}
+              options={{
+                tabBarIcon: ({ focused }) => (
+                  <TabIcon type="Profile" isActive={focused} />
+                ),
+                tabBarShowLabel: false,
+              }}
+            />
+          </Tab.Navigator>
 
-        <WebviewOverlay />
-      </ZStack>
-    </WebviewProvider>
-  </WebviewPositionProvider>
-);
+          <WebviewOverlay />
+        </ZStack>
+      </WebviewProvider>
+    </WebviewPositionProvider>
+  );
+};
 
 function TabIcon({
   type,
