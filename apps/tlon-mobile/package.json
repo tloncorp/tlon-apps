@@ -72,8 +72,7 @@
     "react-native-storage": "^1.0.1",
     "react-native-svg": "^14.1.0",
     "react-native-webview": "13.6.4",
-    "tailwind-rn": "^4.2.0",
-    "tamagui": "^1.90.6"
+    "tailwind-rn": "^4.2.0"
   },
   "devDependencies": {
     "@react-native/metro-config": "^0.73.5",

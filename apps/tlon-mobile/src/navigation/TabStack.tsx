@@ -1,7 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from '@tloncorp/ui';
+import { Icon, View, ZStack } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
-import { View, ZStack } from 'tamagui';
 
 import { SingletonWebview } from '../components/SingletonWebview';
 import {
