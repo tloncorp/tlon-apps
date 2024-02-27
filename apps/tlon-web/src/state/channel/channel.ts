@@ -22,6 +22,7 @@ import queryClient from '@/queryClient';
 import {
   Action,
   Channel,
+  ChannelScam,
   ChannelScan,
   ChannelScanItem,
   Channels,
@@ -2420,26 +2421,35 @@ export function useChannelSearch(nest: string, query: string) {
   const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
     enabled: query !== '',
-    queryFn: async ({ pageParam = 0 }) => {
-      const res = await api.scry<ChannelScan>({
+    queryFn: async ({ pageParam = null }) => {
+      console.log('requesting', query, pageParam);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log('firing    ', query, pageParam);
+      const res = await api.scry<ChannelScam>({
         app: 'channels',
-        path: `/${nest}/search/text/${
-          decToUd(pageParam.toString()) || '0'
-        }/20/${encodedQuery}`,
+        path: `/${nest}/search/bounded/text/${
+          pageParam ? decToUd(pageParam.toString()) : '~'  //TODO  proxy bug?
+        }/3/${encodedQuery}`,  //TODO  broader window
       });
       return res;
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length === 0) return undefined;
-      return allPages.length * 20;
+      console.log('prev page had', lastPage.scan.length, 'items', query);
+      console.log('new total is ', allPages.reduce((n, p) => n+p.scan.length, 0), 'items', query);
+      if (lastPage.last === null) {
+        console.log('end of the line!!', query);
+        return undefined;
+      }
+      return lastPage.last;
     },
   });
 
   const scan = useMemo(
-    () =>
-      newChatMap(
+    () => {
+      console.log('scan updated', query);
+      return newChatMap(
         (data?.pages || [])
-          .flat()
+          .reduce((a: ChannelScan, b: ChannelScam): ChannelScan => [...a, ...b.scan], [])
           .map((scItem: ChannelScanItem) =>
             'post' in scItem
               ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
@@ -2449,8 +2459,9 @@ export function useChannelSearch(nest: string, query: string) {
                 ] as ReplyTuple)
           ),
         true
-      ),
-    [data]
+      );
+    },
+    [data, query]
   );
 
   return {

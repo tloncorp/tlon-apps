@@ -1290,16 +1290,39 @@
       ?~  u.post  ~
       ?.  (has:on-v-replies:c replies.u.u.post reply-id)  ~
       `(ca-rope kind.nest post-id `reply-id)
+    ::
+        [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
+      :^  ~  ~  %channel-scam
+      !>  ^-  scam:c
+      %^    ?-  kind.pole
+              %text     text:tries-bound:ca-search
+              %mention  mention:tries-bound:ca-search
+            ==
+          ?:  =(%$ from.pole)
+            ~&  >  %good
+            ~
+          ?:  =(%'~' from.pole)
+            ~&  >  %acceptable
+            ~
+          `(slav %ud from.pole)
+        (slav %ud tries.pole)
+      ?-  kind.pole
+        %text     (fall (slaw %t nedl.pole) nedl.pole)
+        %mention  (slav %p nedl.pole)
+      ==
+    ::
         [%search %text skip=@ count=@ nedl=@ ~]
-      :^  ~  ~  %channel-scan  !>
-      %^    text:ca-search
+      :^  ~  ~  %channel-scan
+      !>  ^-  scan:c
+      %^    text:hits-bound:ca-search
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (fall (slaw %t nedl.pole) nedl.pole)
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
-      :^  ~  ~  %channel-scan  !>
-      %^    mention:ca-search
+      :^  ~  ~  %channel-scan
+      !>  ^-  scan:c
+      %^    mention:hits-bound:ca-search
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (slav %p nedl.pole)
@@ -1405,15 +1428,33 @@
   ::
   ++  ca-search
     |^  |%
-        ++  mention
-          |=  [sip=@ud len=@ud nedl=ship]
-          ^-  scan:c
-          (scour sip len %mention nedl)
+        ::NOTE  largely considered deprecated in favor of +tries-bound,
+        ::      which (when used sanely) delivers better performance and ux.
+        ++  hits-bound  ::  searches until len results
+          |%
+          ++  mention
+            |=  [sip=@ud len=@ud nedl=ship]
+            ^-  scan:c
+            (scour-count sip len %mention nedl)
+          ::
+          ++  text
+            |=  [sip=@ud len=@ud nedl=@t]
+            ^-  scan:c
+            (scour-count sip len %text nedl)
+          --
         ::
-        ++  text
-          |=  [sip=@ud len=@ud nedl=@t]
-          ^-  scan:c
-          (scour sip len %text nedl)
+        ++  tries-bound  ::  searches until sum messages searched
+          |%
+          ++  mention
+            |=  [fro=(unit id-post:c) sum=@ud nedl=ship]
+            ^-  [(unit id-post:c) scan:c]
+            (scour-tries fro sum %mention nedl)
+          ::
+          ++  text
+            |=  [fro=(unit id-post:c) sum=@ud nedl=@t]
+            ^-  [(unit id-post:c) scan:c]
+            (scour-tries fro sum %text nedl)
+          --
         --
     ::
     +$  match-type
@@ -1421,12 +1462,55 @@
           [%text nedl=@t]
       ==
     ::
-    ++  scour
+    ++  scour-tries
+      |=  [from=(unit id-post:c) tries=@ud =match-type]
+      =*  posts  posts.channel
+      =.  posts  (lot:on-v-posts:c posts ~ from)  ::  verified correct
+      =|  s=[tries=_tries last=(unit id-post:c) =scan:c]
+      =<  [last scan]
+      =-  ~&  [%searched-from from until=last]
+          -
+      |-  ^+  s
+      ?~  posts  s
+      ?:  =(0 tries.s)  s
+      =.  s  $(posts r.posts)  ::  process latest first
+      ?:  =(0 tries.s)  s
+      ::
+      =.  scan.s
+        ?~  val.n.posts  scan.s
+        ?.  (match u.val.n.posts match-type)  scan.s
+        :_  scan.s
+        [%post (uv-post-without-replies:utils u.val.n.posts)]
+      ::
+      =.  scan.s
+        ?~  val.n.posts  scan.s
+        =*  id-post  id.u.val.n.posts
+        =*  replies  replies.u.val.n.posts
+        |-  ^+  scan.s
+        ?~  replies  scan.s
+        =.  scan.s  $(replies r.replies)
+        ::
+        =.  scan.s
+          ?~  val.n.replies  scan.s
+          ?.  (match-reply u.val.n.replies match-type)  scan.s
+          :_  scan.s
+          [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
+        ::
+        $(replies l.replies)
+      ::
+      =.  last.s  `key.n.posts
+      =.  tries.s  (dec tries.s)
+      $(posts l.posts)
+    ::
+    ++  scour-count
       |=  [skip=@ud len=@ud =match-type]
       =*  posts  posts.channel
       ?>  (gth len 0)
       =+  s=[skip=skip len=len *=scan:c]
       =-  (flop scan)
+      ::NOTE  yes, walking the tree manually is faster than using built-ins.
+      ::      +dop:mo gets closest, but is still slower.
+      ::      should re-evaluate the implementation here is mops ever get jets.
       |-  ^+  s
       ?~  posts  s
       ?:  =(0 len.s)  s
@@ -1549,6 +1633,8 @@
         &
       $(pos +(pos))
     ::
+    ::NOTE  :(cork trip ^cass crip) may be _very slightly_ faster,
+    ::      but not enough to matter
     ++  cass
       |=  text=@t
       ^-  @t
