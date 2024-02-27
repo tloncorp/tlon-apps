@@ -19,16 +19,27 @@ export default function SettingsView({ title }: ViewProps) {
       header={
         isMobile ? <MobileHeader title="Settings" pathBack="/profile" /> : null
       }
-      className="flex flex-col overflow-y-auto"
-      style={{
-        paddingBottom: shouldApplyPaddingBottom ? 64 : 0,
-      }}
+      className="flex flex-col"
+      mainClass="overflow-scroll flex-grow h-full bg-gray-50"
     >
       <Helmet>
         <title>{title}</title>
       </Helmet>
 
-      <div className="px-6 pt-8">
+      <div
+        className="flex flex-col space-y-4 px-4 pt-4"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 64 : 0,
+        }}
+      >
+        {!isMobile && (
+          <div>
+            <h2 className="mb-1 text-lg font-semibold">App Settings</h2>
+            <p className="text-gray-600">
+              Configure your experience for the Tlon app
+            </p>
+          </div>
+        )}
         <Settings />
       </div>
     </Layout>

@@ -106,6 +106,7 @@ import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import ShareDMLure from './profiles/ShareDMLure';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -376,26 +377,65 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
             }
           />
-          <Route
-            path="/profile/edit"
-            element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
-          />
-          <Route
-            path="/profile"
-            element={<Profile title={`Profile • ${groupsTitle}`} />}
-          />
-          <Route
-            path="/profile/settings"
-            element={<SettingsView title={`Settings • ${groupsTitle}`} />}
-          />
-          <Route
-            path="/profile/settings/blocked"
-            element={<BlockedUsersView />}
-          />
-          <Route
-            path="/profile/about"
-            element={<AboutView title={`About • ${groupsTitle}`} />}
-          />
+          {!isMobile ? (
+            <Route
+              path="/profile"
+              element={<Profile title={`Profile • ${groupsTitle}`} />}
+            >
+              <Route
+                path="edit"
+                element={
+                  <EditProfile title={`Edit Profile • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="share"
+                element={
+                  <ShareDMLure title={`Share with Friends • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="settings"
+                element={<SettingsView title={`Settings • ${groupsTitle}`} />}
+              />
+              <Route path="settings/blocked" element={<BlockedUsersView />} />
+              <Route
+                path="about"
+                element={<AboutView title={`About • ${groupsTitle}`} />}
+              />
+            </Route>
+          ) : (
+            <>
+              <Route
+                path="/profile"
+                element={<Profile title={`Profile • ${groupsTitle}`} />}
+              />
+              <Route
+                path="/profile/edit"
+                element={
+                  <EditProfile title={`Edit Profile • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="/profile/share"
+                element={
+                  <ShareDMLure title={`Share with Friends • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="/profile/settings"
+                element={<SettingsView title={`Settings • ${groupsTitle}`} />}
+              />
+              <Route
+                path="/profile/settings/blocked"
+                element={<BlockedUsersView />}
+              />
+              <Route
+                path="/profile/about"
+                element={<AboutView title={`About • ${groupsTitle}`} />}
+              />
+            </>
+          )}
         </Route>
       </Routes>
       {state?.backgroundLocation ? (

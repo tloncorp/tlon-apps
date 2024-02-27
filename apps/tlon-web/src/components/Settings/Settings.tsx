@@ -43,17 +43,14 @@ export default function Settings() {
     useResetAnalyticsIdMutation();
 
   return (
-    <div className="flex flex-col space-y-8">
-      {!isMobile ? (
-        <span className="text-lg font-bold">App Settings</span>
-      ) : null}
-      <div className="space-y-4">
+    <>
+      <div className="card">
         <div className="flex flex-col">
-          <h2 className="mb-2 text-lg font-bold">Blocked Users</h2>
+          <h2 className="mb-2 text-lg font-semibold">Blocked Users</h2>
           <div className="flex flex-row items-center space-x-2">
             <Link
               state={{ backgroundLocation: location.state?.backgroundLocation }}
-              to={isMobile ? './blocked' : '/blocked'}
+              to={'blocked'}
               className="small-button"
             >
               Manage Blocked Users
@@ -61,10 +58,10 @@ export default function Settings() {
           </div>
         </div>
       </div>
-      <div className="space-y-4">
-        <div className="mb-6 flex flex-col">
-          <h2 className="mb-2 text-lg font-bold">CalmEngine</h2>
-          <span className="text-gray-600">
+      <div className="card">
+        <div className="mb-4 flex flex-col">
+          <h2 className="mb-2 text-lg font-semibold">CalmEngine</h2>
+          <span className="leading-5 text-gray-600">
             Tune the behavior of attention-grabbing interfaces in Tlon
           </span>
         </div>
@@ -88,14 +85,14 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn user-set nicknames off and only display urbit-style names
+            Turn user-set nicknames off and only display Urbit-style names
             across Tlon
           </p>
         </Setting>
       </div>
-      <div className="space-y-4">
-        <div className="mb-6 flex flex-col">
-          <h2 className="mb-2 text-lg font-bold">Notifications</h2>
+      <div className="card">
+        <div className="mb-4 flex flex-col">
+          <h2 className="mb-2 text-lg font-semibold">Notifications</h2>
           <span className="text-gray-600">
             Control how notifications are delivered. These settings can be
             overriden for individual channels and groups.
@@ -107,9 +104,9 @@ export default function Settings() {
           </div>
         </section>
       </div>
-      <div className="space-y-4">
-        <div className="mb-6 flex flex-col">
-          <h2 className="mb-2 text-lg font-bold">Privacy</h2>
+      <div className="card">
+        <div className="mb-4 flex flex-col">
+          <h2 className="mb-2 text-lg font-semibold">Privacy</h2>
           <span className="text-gray-600">
             Limit your urbit’s ability to be read or tracked by clearnet
             services in Tlon
@@ -128,8 +125,8 @@ export default function Settings() {
           </p>
         </Setting>
         {logActivity && (
-          <div className="flex flex-col items-center space-y-2">
-            <div className="flex flex-row items-center space-x-2">
+          <div className="my-2 flex flex-col space-y-2 pl-8">
+            <div className="flex flex-row space-x-2">
               <button
                 onClick={() => resetAnalyticsId()}
                 className="small-button"
@@ -169,9 +166,9 @@ export default function Settings() {
           </p>
         </Setting>
       </div>
-      <div className="space-y-2">
+      <div className="card">
         <div className="flex flex-col">
-          <h2 className="mb-2 text-lg font-bold">Theme</h2>
+          <h2 className="mb-2 text-lg font-semibold">Theme</h2>
         </div>
         <SettingDropdown
           name="Set your theme"
@@ -190,10 +187,10 @@ export default function Settings() {
           status={status}
         >
           <p className="leading-5 text-gray-600">
-            Change the color scheme of the Tlon
+            Change the color scheme of the Tlon app
           </p>
         </SettingDropdown>
       </div>
-    </div>
+    </>
   );
 }
