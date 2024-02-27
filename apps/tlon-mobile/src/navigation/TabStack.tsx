@@ -1,8 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from '@tloncorp/ui';
+import { Icon, UrbitSigil } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
-import { UrbitSigil } from '../components/UrbitSigil';
 import { useShip } from '../contexts/ship';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
