@@ -4,7 +4,7 @@ import type { NativeWebViewOptions } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView } from 'react-native';
+import { Button, View } from 'react-native';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -269,13 +269,35 @@ const InnerWebViewScreen = ({
   );
 };
 
-export const WebViewScreen = ({ initialPath }: { initialPath: string }) => {
-  const tailwind = useTailwind();
+// export const WebViewScreen = ({ initialPath }: { initialPath: string }) => {
+//   const tailwind = useTailwind();
+//   if (IS_IOS) {
+//     return (
+//       <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
+//         <InnerWebViewScreen initialPath={initialPath} />
+//       </KeyboardAvoidingView>
+//     );
+//   }
+//   return <InnerWebViewScreen initialPath={initialPath} />;
+// };
+
+export const WebViewScreen = ({
+  initialPath,
+  id,
+}: {
+  initialPath: string;
+  id: string;
+}) => {
+  console.log(`Webview ${id} rendering..`);
+  const [counter, setCounter] = useState(0);
   if (IS_IOS) {
     return (
-      <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
-        <InnerWebViewScreen initialPath={initialPath} />
-      </KeyboardAvoidingView>
+      <View>
+        <Button
+          onPress={() => setCounter(counter + 1)}
+          title={`I have been clicked ${counter} times`}
+        ></Button>
+      </View>
     );
   }
   return <InnerWebViewScreen initialPath={initialPath} />;

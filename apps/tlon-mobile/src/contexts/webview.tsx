@@ -1,10 +1,7 @@
 import { createContext, useContext } from 'react';
-import { View } from 'react-native';
 
-import { WebViewScreen } from '../screens/SingletonWebviewScreen';
-
-const AppWebviewContext = createContext<{ webview: React.JSX.Element }>({
-  webview: <View />,
+const AppWebviewContext = createContext<{ url: string }>({
+  url: '/',
 });
 
 interface AppWebviewProviderProps {
@@ -12,9 +9,8 @@ interface AppWebviewProviderProps {
 }
 
 export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
-  const webview = <WebViewScreen initialPath="/" />;
   return (
-    <AppWebviewContext.Provider value={{ webview }}>
+    <AppWebviewContext.Provider value={{ url: '/' }}>
       {children}
     </AppWebviewContext.Provider>
   );

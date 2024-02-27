@@ -5,7 +5,7 @@ import type { IconType } from '@tloncorp/ui';
 import { useShip } from '../contexts/ship';
 import { WebviewProvider } from '../contexts/webview';
 import type { TabParamList } from '../types';
-import { WebviewSingletonStack } from './WebViewStack';
+import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -20,7 +20,7 @@ export const TabStack = () => {
       >
         <Tab.Screen
           name="Groups"
-          component={WebviewSingletonStack}
+          component={WebViewStack}
           initialParams={{ initialPath: '/' }}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -35,7 +35,7 @@ export const TabStack = () => {
         />
         <Tab.Screen
           name="Messages"
-          component={WebviewSingletonStack}
+          component={WebViewStack}
           initialParams={{ initialPath: '/messages' }}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -50,7 +50,7 @@ export const TabStack = () => {
         />
         <Tab.Screen
           name="Activity"
-          component={WebviewSingletonStack}
+          component={WebViewStack}
           initialParams={{ initialPath: '/notifications' }}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -65,7 +65,7 @@ export const TabStack = () => {
         />
         <Tab.Screen
           name="Discover"
-          component={WebviewSingletonStack}
+          component={WebViewStack}
           initialParams={{ initialPath: '/find' }}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -76,7 +76,7 @@ export const TabStack = () => {
         />
         <Tab.Screen
           name="Profile"
-          component={WebviewSingletonStack}
+          component={WebViewStack}
           initialParams={{ initialPath: '/profile' }}
           options={{
             tabBarIcon: () => (ship ? <UrbitSigil ship={ship} /> : undefined),

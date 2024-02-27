@@ -4,7 +4,7 @@ import type { NativeWebViewOptions } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView } from 'react-native';
+import { View } from 'react-native';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -263,13 +263,24 @@ const InnerWebViewScreen = ({
   );
 };
 
+// export const WebViewScreen = (props: Props) => {
+//   const tailwind = useTailwind();
+//   if (IS_IOS) {
+//     return (
+//       <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
+//         <InnerWebViewScreen {...props} />
+//       </KeyboardAvoidingView>
+//     );
+//   }
+//   return <InnerWebViewScreen {...props} />;
+// };
+
 export const WebViewScreen = (props: Props) => {
-  const tailwind = useTailwind();
   if (IS_IOS) {
     return (
-      <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
-        <InnerWebViewScreen {...props} />
-      </KeyboardAvoidingView>
+      <View
+        style={{ height: '100%', width: '100%', backgroundColor: 'orange' }}
+      />
     );
   }
   return <InnerWebViewScreen {...props} />;
