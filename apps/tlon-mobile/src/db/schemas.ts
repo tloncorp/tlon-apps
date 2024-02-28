@@ -1,12 +1,12 @@
 export type Contact = {
   id: string;
-  nickname?: string;
-  bio?: string;
-  status?: string;
-  color?: string;
-  avatar?: string | null;
-  cover?: string | null;
-  groups?: string[];
+  nickname: string | null;
+  bio: string | null;
+  status: string | null;
+  color: string | null;
+  avatarImage: string | null;
+  coverImage: string | null;
+  pinnedGroupIds: string[];
 };
 
 const contactSchema = {
@@ -17,9 +17,9 @@ const contactSchema = {
     bio: 'string?',
     status: 'string?',
     color: 'string?',
-    avatar: 'string?',
-    cover: 'string?',
-    groups: 'string[]',
+    avatarImage: 'string?',
+    coverImage: 'string?',
+    pinnedGroupIds: 'string[]',
   },
   primaryKey: 'id',
 };
