@@ -550,7 +550,6 @@
       ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       ::TODO  could optimize and no-op if the edit is identical to current
       =/  new-essay=essay:c  [-.essay.c-post [%chat [%edited ~]]]
-      ~&  "channel-server: new essay {<new-essay>}"
       =/  new=v-post:c  [-.u.u.post +(rev.u.u.post) new-essay]
       :-  `[%post id.c-post %set ~ new]
       (put:on-v-posts:c posts.channel id.c-post ~ new)
