@@ -2,6 +2,7 @@ import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Action,
   Channel,
+  ChannelScam,
   ChannelScan,
   ChannelScanItem,
   Channels,
@@ -2430,26 +2431,26 @@ export function useChannelSearch(nest: string, query: string) {
   const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
     enabled: query !== '',
-    queryFn: async ({ pageParam = 0 }) => {
-      const res = await api.scry<ChannelScan>({
+    queryFn: async ({ pageParam = null }) => {
+      const res = await api.scry<ChannelScam>({
         app: 'channels',
-        path: `/${nest}/search/text/${
-          decToUd(pageParam.toString()) || '0'
-        }/20/${encodedQuery}`,
+        path: `/${nest}/search/bounded/text/${
+          pageParam ? decToUd(pageParam.toString()) : '~'  //TODO  proxy bug?
+        }/500/${encodedQuery}`,
       });
       return res;
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length === 0) return undefined;
-      return allPages.length * 20;
+      if (lastPage.last === null) return undefined;
+      return lastPage.last;
     },
   });
 
   const scan = useMemo(
-    () =>
-      newChatMap(
+    () => {
+      return newChatMap(
         (data?.pages || [])
-          .flat()
+          .reduce((a: ChannelScan, b: ChannelScam): ChannelScan => [...a, ...b.scan], [])
           .map((scItem: ChannelScanItem) =>
             'post' in scItem
               ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
@@ -2459,7 +2460,8 @@ export function useChannelSearch(nest: string, query: string) {
                 ] as ReplyTuple)
           ),
         true
-      ),
+      );
+    },
     [data]
   );
 
