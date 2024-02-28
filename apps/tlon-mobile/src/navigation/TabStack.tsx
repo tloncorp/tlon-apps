@@ -1,83 +1,89 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from '@tloncorp/ui';
+import { Icon, UrbitSigil } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
+import { useShip } from '../contexts/ship';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-export const TabStack = () => (
-  <Tab.Navigator
-    id="TabBar"
-    initialRouteName="Groups"
-    screenOptions={{ headerShown: false }}
-  >
-    <Tab.Screen
-      name="Groups"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon type={'Home'} activeType={'HomeFilled'} isActive={focused} />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Messages"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/messages' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon
-            type={'Messages'}
-            activeType={'MessagesFilled'}
-            isActive={focused}
-          />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Activity"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/notifications' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon
-            type={'Notifications'}
-            activeType={'NotificationsFilled'}
-            isActive={focused}
-          />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Discover"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/find' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon type="Discover" isActive={focused} />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-    <Tab.Screen
-      name="Profile"
-      component={WebViewStack}
-      initialParams={{ initialPath: '/profile' }}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon type="Profile" isActive={focused} />
-        ),
-        tabBarShowLabel: false,
-      }}
-    />
-  </Tab.Navigator>
-);
+export const TabStack = () => {
+  const { ship } = useShip();
+  return (
+    <Tab.Navigator
+      id="TabBar"
+      initialRouteName="Groups"
+      screenOptions={{ headerShown: false }}
+    >
+      <Tab.Screen
+        name="Groups"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Home'}
+              activeType={'HomeFilled'}
+              isActive={focused}
+            />
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/messages' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Messages'}
+              activeType={'MessagesFilled'}
+              isActive={focused}
+            />
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Activity"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/notifications' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Notifications'}
+              activeType={'NotificationsFilled'}
+              isActive={focused}
+            />
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Discover"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/find' }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon type="Discover" isActive={focused} />
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={WebViewStack}
+        initialParams={{ initialPath: '/profile' }}
+        options={{
+          tabBarIcon: () => (ship ? <UrbitSigil ship={ship} /> : undefined),
+          tabBarShowLabel: false,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 function TabIcon({
   type,
