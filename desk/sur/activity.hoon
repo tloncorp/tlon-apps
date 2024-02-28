@@ -78,4 +78,5 @@
       [%post id=time-id]    ::  mark an individual post as read
       [%all ~]            ::  mark _everything_ as read
   ==
++$  full-info  [=stream =indices unreads=(map index unread-summary)]
 --

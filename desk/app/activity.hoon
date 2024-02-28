@@ -322,7 +322,7 @@
     =.  indices
       (~(put by indices) index new)
     =.  cor  (update-floor index)
-    (give-unreads new)
+    (give-unreads index new)
   ::
       %post
     =/  indy  (~(get by indices) index)
@@ -336,7 +336,7 @@
     =.  indices
       (~(put by indices) index new)
     =.  cor  (update-floor index)
-    (give-unreads new)
+    (give-unreads index new)
   ::
       %all
     =/  indy  (~(get by indices) index)
@@ -349,13 +349,13 @@
       u.indy(reads [time.u.latest ~])
     =.  indices
       (~(put by indices) index new)
-    (give-unreads new)
+    (give-unreads index new)
   ==
 ::
 ++  give-unreads
-  |=  [=stream:a =reads:a]
+  |=  [=index:a =stream:a =reads:a]
   ^+  cor
-  (give %fact ~[/unreads] activity-index-unreads+!>((summarize-unreads [stream reads])))
+  (give %fact ~[/unreads] activity-index-unreads+!>([index (summarize-unreads [stream reads])]))
 ::
 ++  adjust
   |=  [=index:a =index-level:a]
@@ -374,7 +374,8 @@
   ::  remove replies older than reply-floor from the event stream
   ::  then call stream-to-unreads
   |-
-  ?~  event-parents  (stream-to-unreads stream)
+  ?~  event-parents
+    (stream-to-unreads stream)
   =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:on-parent:a event-parents)
   %=  $
       event-parents
@@ -387,7 +388,7 @@
     |=  [@ key=@da =event:a]
     ^-  [(unit event:a) ? @]
     ?>  ?=(?(%post %reply %dm-post) -.event)
-    ?:  &(seen.event-parent =(time time.message-key.event))
+    ?:  &(seen.event-parent =(time key))
       [~ | ~]
     ?.  =(-.event %reply)
       [`event | ~]
@@ -396,9 +397,9 @@
     [`event | ~]
   ==
 ++  stream-to-unreads
-  |=  stream:a
+  |=  =stream:a
   ^-  unread-summary:a
-  =/  newest  *time
+  =/  newest=(unit time)  ~
   =/  count  0
   =/  threads=(map message-id:a [oldest-unread=time count=@ud])  ~
   ::  for each event
@@ -406,7 +407,7 @@
   ::  if reply, update thread state
   |-
   ?~  stream
-    :+  newest  count
+    :+  (fall newest now.bowl)  count
     %+  turn  ~(val by threads)
     |=  [oldest-unread=time count=@ud]
     [oldest-unread count]
@@ -416,7 +417,7 @@
     ?>  ?=(?(%dm-post %post %reply) -.event)
     ::REVIEW  should we take timestamp of parent post if reply??
     ::        (in which case we would need to do (max newest time.mk.e))
-    time.message-key.event
+    `time.message-key.event
   =?  threads  ?=(%reply -.event)
     =/  old
       %+  ~(gut by threads)  id.target.event

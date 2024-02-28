@@ -7,16 +7,17 @@
 ^-  form:m
 =/  verb  (fall !<((unit ?) arg) |)
 ;<  our=ship  bind:m  get-our:s
-;<  ~  bind:m  (poke-our:s %hood %kiln-nuke !>([%activity &]))
+;<  ~  bind:m  (poke-our:s %hood %kiln-nuke !>([%activity |]))
 ;<  ~  bind:m  (poke-our:s %hood %kiln-revive !>(%activity))
 ::
 ::  add an event and get a fact
 ::
+=/  post-time  ~2010.1.1
 =/  add-post=action:a
   :-  %add
   ^-  event:a
   :*  %post
-      :*  [[~sampel-poster *time] *time]
+      :*  [[~sampel-poster post-time] post-time]
           [%chat ~sampel-palnet %mychat]
           [~sampel-hoster %mygroup]
       ==
@@ -25,8 +26,8 @@
   ==
 ;<  ~  bind:m  (watch:s /root [our %activity] /)
 ;<  ~  bind:m  (poke-our:s %activity %activity-action !>(add-post))
-;<  [=mark =vase]  bind:m  (take-fact:s /root)
-=/  [fact-time=time fact-event=event:a]  !<(time-event:a vase)
+;<  [* add-vase=vase]  bind:m  (take-fact:s /root)
+=/  [fact-time=time fact-event=event:a]  !<(time-event:a add-vase)
 ?>  .=  +.add-post  fact-event
 ::
 ::  scry the event we added
@@ -36,4 +37,23 @@
 ;<  scried-event=time-event:a  bind:m  (scry:s time-event:a %gx %activity /event/(scot %da fact-time)/noun)
 ?>  =(event.scried-event +:add-post)
 ::
+::  scry the full state
+::
+;<  =full-info:a  bind:m  (scry:s full-info:a %gx %activity /noun)
+=/  expected-index  [%channel [%chat ~sampel-palnet %mychat] [~sampel-hoster %mygroup]]
+?>  =(1 ~(wyt by stream.full-info))
+?>  .=  (silt ~[expected-index])
+      ~(key by indices.full-info)
+?>  .=  (~(got by unreads.full-info) expected-index)
+      [newest=post-time count=1 threads=~]
+::
+::  read the post and get a fact
+::
+;<  ~  bind:m  (watch:s /unreads [our %activity] /unreads)
+;<  ~  bind:m  (poke-our:s %activity %activity-action !>([%read expected-index %post fact-time]))
+;<  [* read-vase=vase]  bind:m  (take-fact:s /unreads)
+=/  [=index:a =unread-summary:a]  !<([index:a unread-summary:a] read-vase)
+?>  =(index expected-index)
+?>  (gth newest.unread-summary post-time)
+?>  =(0 count.unread-summary)
 (pure:m !>(~))
