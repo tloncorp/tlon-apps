@@ -56,7 +56,7 @@
 ::  $essay: a chat message with metadata
 +$  essay  [memo:d %chat =kind]
 ::  $kind: whether or not the chat is a system message
-+$  kind  $@(~ [%notice ~])
++$  kind  $?(~ [%notice ~] [%edited ~])
 ::  $reacts: a set of reactions to a chat message
 +$  reacts  (map ship react)
 ::

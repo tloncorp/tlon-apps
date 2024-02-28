@@ -346,6 +346,19 @@ function ChatMessageOptions(props: {
     keepOpenOnClick: true,
   });
 
+  if (showEditAction) {
+    actions.push({
+      key: 'edit',
+      content: (
+        <div className="flex items-center">
+          <PencilIcon className="mr-2 h-6 w-6" />
+          Edit Message
+        </div>
+      ),
+      onClick: edit,
+    });
+  }
+
   actions.push({
     key: 'hide',
     onClick: isDMorMultiDM ? toggleMsg : togglePost,
@@ -392,19 +405,6 @@ function ChatMessageOptions(props: {
       ),
       onClick: () => setDeleteOpen(true),
       keepOpenOnClick: true,
-    });
-  }
-
-  if (showEditAction) {
-    actions.push({
-      key: 'edit',
-      content: (
-        <div className="flex items-center">
-          <PencilIcon className="mr-2 h-6 w-6" />
-          Edit
-        </div>
-      ),
-      onClick: edit,
     });
   }
 

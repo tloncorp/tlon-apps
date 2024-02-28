@@ -214,7 +214,12 @@
     %+  frond  -.kind-data
     ?-    -.kind-data
       %heap   ?~(title.kind-data ~ s+u.title.kind-data)
-      %chat   ?~(kind.kind-data ~ (pairs notice+~ ~))
+      %chat   ?~  kind.kind-data
+                  ~
+              ?-  -.kind.kind-data
+                  %notice  (pairs notice+~ ~)
+                  %edited  (pairs edited+~ ~)
+              ==
       %diary  (pairs title+s+title.kind-data image+s+image.kind-data ~)
     ==
   ::
@@ -492,10 +497,10 @@
     ==
   ::
   ++  chat-kind
-    ^-  $-(json $@(~ [%notice ~]))
+    ^-  $-(json $?(~ [%notice ~] [%edited ~]))
     |=  jon=json
     ?~  jon  ~
-    ((of notice+ul ~) jon)
+    ((of edited+ul notice+ul ~) jon)
   ::
   ++  verse
     ^-  $-(json verse:c)

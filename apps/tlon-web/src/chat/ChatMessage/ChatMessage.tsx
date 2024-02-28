@@ -33,6 +33,7 @@ import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import getKindDataFromEssay from '@/logic/getKindData';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
@@ -149,6 +150,7 @@ const ChatMessage = React.memo<
       const [searchParms, setSearchParams] = useSearchParams();
       const isEditing = searchParms.get('edit') === writ.seal.id;
       const { seal, essay } = writ;
+      const { edited: isEdited } = getKindDataFromEssay(essay);
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
         idShip: string;
@@ -545,13 +547,24 @@ const ChatMessage = React.memo<
                 </div>
               )}
 
-              <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
+              <div
+                className={cn(
+                  'relative flex items-end rounded-r sm:group-one-hover:bg-gray-50',
+                  {
+                    'w-10': isEdited && isDelivered,
+                    'w-5': !isEdited,
+                  }
+                )}
+              >
                 {!isDelivered && !isEditing && (
                   <DoubleCaretRightIcon
                     className="absolute bottom-2 left-0 h-5 w-5"
                     primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
+                )}
+                {isEdited && !isEditing && (
+                  <span className="text-xs text-gray-400">Edited</span>
                 )}
               </div>
             </div>

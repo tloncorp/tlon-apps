@@ -103,7 +103,7 @@
 +$  kind-data
   $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
-      [%chat kind=$@(~ [%notice ~])]
+      [%chat kind=$?(~ [%notice ~] [%edited ~])]
   ==
 ::  $memo: post data proper
 ::

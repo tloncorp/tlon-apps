@@ -163,7 +163,7 @@ export type KindDataDiary = {
 };
 
 export type KindDataChat = {
-  chat: null | { notice: null };
+  chat: null | { notice: null } | { edited: null };
 };
 
 export type KindData = KindDataDiary | KindDataChat | KindDataHeap;
