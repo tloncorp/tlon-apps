@@ -116,10 +116,10 @@
     ``activity-stream+!>((tap:eon:a stream))
       [%x %all start=@ count=@ ~]
     ``activity-stream+!>((scag count.pole (top:emp:a stream start.pole)))
-      [%u %event id=@]
+      [%u %event id=@ ~]
     ``loob+!>((has:eon:a stream (slav %da id.pole)))
-      [%x %event id=@]
-    ``activity-event+!>((got:eon:a stream (slav %da id.pole)))
+      [%x %event id=@ ~]
+    ``activity-event+!>([id.pole (got:eon:a stream (slav %da id.pole))])
       [%x %unreads ~]
     ``activity-unreads+!>((~(run by indices) summarize-unreads))
   ==
@@ -128,7 +128,7 @@
   |=  =event:a
   ^+  cor
   =.  cor
-    (give %fact ~[/] activity-event+!>(event))
+    (give %fact ~[/] activity-event+!>([now.bowl event]))
   =?  cor  (notifiable event)
     (give %fact ~[/notifications] activity-event+!>(event))
   =.  stream

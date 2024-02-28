@@ -1,4 +1,4 @@
-/-  c=channels
+/-  c=channels, g=groups
 /+  mp=mop-extensions
 |%
 ++  eon     ((on time event) lte)
@@ -48,13 +48,14 @@
       [%reply reply-concern content=story:c mention=?]
       [%flag post-concern]
   ==
-+$  group-concern     group=flag:c
-+$  channel-concern   [channel=nest:c group=flag:c]
++$  time-event  [=time =event]
++$  group-concern     group=flag:g
++$  channel-concern   [channel=nest:c group=flag:g]
 +$  dm-concern        =whom
 +$  dm-post-concern   [=message-key =whom]
 +$  dm-reply-concern  [=message-key target=message-key =whom]
-+$  post-concern      [=message-key channel=nest:c group=flag:c]
-+$  reply-concern     [=message-key target=message-key channel=nest:c group=flag:c]
++$  post-concern      [=message-key channel=nest:c group=flag:g]
++$  reply-concern     [=message-key target=message-key channel=nest:c group=flag:g]
 +$  whom
   $%  [%ship p=ship]
       [%club p=@uvH]
