@@ -1,9 +1,9 @@
 /-  c=channels, g=groups
 /+  mp=mop-extensions
 |%
-++  eon     ((on time event) lte)
-++  emp     ((mp time event) lte)
-++  mep     ((on time event-parent) lte)
+++  on-event      ((on time event) lte)
+++  ex-event      ((mp time event) lte)
+++  on-parent     ((on time event-parent) lte)
 +$  stream  ((mop time event) lte)
 +$  indices  (map index [=stream =reads])
 +$  reads
@@ -11,7 +11,7 @@
       =event-parents  ::
   ==
 +$  event-parent  [seen=? reply-floor=time]
-+$  event-parents  ((mop timid event-parent) lte)
++$  event-parents  ((mop time-id event-parent) lte)
 +$  index
   $%  [%channel channel-concern]
       [%dm dm-concern]
@@ -60,8 +60,8 @@
   $%  [%ship p=ship]
       [%club p=@uvH]
   ==
-+$  timid  time
-+$  message-id   (pair ship timid)
++$  time-id  time
++$  message-id   (pair ship time-id)
 +$  message-key  [id=message-id =time]
 +$  action
   $%  [%add =event]
@@ -74,8 +74,8 @@
       threads=(list [oldest-unread=time count=@ud])
   ==
 +$  read-action
-  $%  [%thread id=timid]  ::  mark a whole thread as read
-      [%post id=timid]    ::  mark an individual post as read
+  $%  [%thread id=time-id]  ::  mark a whole thread as read
+      [%post id=time-id]    ::  mark an individual post as read
       [%all ~]            ::  mark _everything_ as read
   ==
 --

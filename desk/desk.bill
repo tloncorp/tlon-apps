@@ -7,6 +7,5 @@
     %groups-ui
     %channels
     %channels-server
-    %activity
     %profile
 ==
