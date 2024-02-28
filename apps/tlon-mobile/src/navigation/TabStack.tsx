@@ -1,8 +1,9 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon, Text, useStyle } from '@tloncorp/ui';
+import { Icon, Text, UrbitSigil, useStyle } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 
+import { useShip } from '../contexts/ship';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 import { WebViewStack } from './WebViewStack';
@@ -13,6 +14,7 @@ export const TabStack = () => {
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
   }) as ViewStyle;
+  const { ship } = useShip();
   return (
     <Tab.Navigator
       id="TabBar"
@@ -89,9 +91,7 @@ export const TabStack = () => {
         component={WebViewStack}
         initialParams={{ initialPath: '/profile' }}
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon type="Profile" isActive={focused} />
-          ),
+          tabBarIcon: () => (ship ? <UrbitSigil ship={ship} /> : undefined),
         }}
       />
     </Tab.Navigator>

@@ -247,7 +247,7 @@ export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
     <db.RealmProvider>
-      <TamaguiProvider>
+      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
         <ShipProvider>
           <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
             <PostHogProvider client={posthogAsync} autocapture>

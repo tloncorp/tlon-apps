@@ -17,6 +17,7 @@ export * from "./components/TamaguiProvider";
 export * from "./components/Text";
 export * from "./components/View";
 export * from "./tamagui.config";
+export * from "./components/UrbitSigil";
 
 export const token = {
   size: (size: SizeTokens) => {
