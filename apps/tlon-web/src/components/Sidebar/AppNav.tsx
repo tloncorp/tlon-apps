@@ -46,6 +46,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         onDoubleClick={() => navigate('/')}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
         aria-label="Groups"
+        data-testid="groups-tab"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -75,6 +76,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       )}
       to="/"
       aria-label="Groups"
+      data-testid="groups-tab"
     >
       <HomeIconMobileNav
         isInactive={props.isInactive}
@@ -114,6 +116,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         onDoubleClick={() => navigate('/messages')}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
         aria-label="Messages"
+        data-testid="messages-tab"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -143,6 +146,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       )}
       to="/messages"
       aria-label="Messages"
+      data-testid="messages-tab"
     >
       <MessagesIcon
         isInactive={props.isInactive}
@@ -171,6 +175,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         onDoubleClick={() => navigate('/notifications')}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
         aria-label="Notifications"
+        data-testid="notifications-tab"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -200,6 +205,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       )}
       to="/notifications"
       aria-label="Notifications"
+      data-testid="notifications-tab"
     >
       <BellIcon
         isInactive={props.isInactive}
@@ -262,6 +268,7 @@ function ProfileTab(props: { isInactive: boolean }) {
         to="/profile"
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
         aria-label="Profile & Settings"
+        data-testid="profile-tab"
       >
         <div className="flex-1" />
         <div className="flex h-8 w-8 items-center justify-center">
@@ -284,6 +291,7 @@ function ProfileTab(props: { isInactive: boolean }) {
       )}
       to="/profile"
       aria-label="Profile & Settings"
+      data-testid="profile-tab"
     >
       <Avatar
         className="h-[24px] w-[24px] rounded-md"
@@ -341,7 +349,10 @@ export default function AppNav() {
   if (!isMobile) {
     return (
       <div className="flex h-full w-full">
-        <nav className="h-full w-14 border-r-2 border-r-gray-50">
+        <nav
+          className="h-full w-14 border-r-2 border-r-gray-50"
+          data-testid="app-nav"
+        >
           <ul className="flex h-full flex-col justify-between pb-3 pt-[10px]">
             <div className="space-y-4">
               <GroupsTab
@@ -383,6 +394,7 @@ export default function AppNav() {
       <Outlet />
       {showTabBar ? (
         <footer
+          data-testid="app-nav"
           className={cn(
             'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white fixed bottom-0 w-full',
             isChatInputFocused && 'translate-y-[200%] opacity-0 h-0',

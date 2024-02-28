@@ -95,7 +95,10 @@ export default function MobileRoot() {
         />
       }
     >
-      <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
+      <nav
+        className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden"
+        data-testid="groups-menu"
+      >
         <WelcomeCard />
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>

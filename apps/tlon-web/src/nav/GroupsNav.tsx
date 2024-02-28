@@ -46,7 +46,10 @@ export function DesktopNav() {
   }, [activeTab, lastLocation, location.pathname, saveNavState]);
 
   return (
-    <div className="relative flex h-full min-w-64 flex-none resize-x overflow-hidden border-r-2 border-gray-50 bg-white">
+    <div
+      className="relative flex h-full min-w-64 flex-none resize-x overflow-hidden border-r-2 border-gray-50 bg-white"
+      data-testid="groups-menu"
+    >
       <AnimatePresence initial={false}>
         {match || backgroundLocationMatch ? (
           <motion.div

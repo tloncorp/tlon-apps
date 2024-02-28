@@ -41,7 +41,10 @@ export default function Profile({ title }: ViewProps) {
           marginBottom: shouldApplyPaddingBottom ? 64 : 0,
         }}
       >
-        <nav className="flex grow flex-col gap-1 p-4 md:w-64 md:shrink-0 md:border-r-2 md:border-r-gray-50 md:px-1 md:py-2">
+        <nav
+          className="flex grow flex-col gap-1 p-4 md:w-64 md:shrink-0 md:border-r-2 md:border-r-gray-50 md:px-1 md:py-2"
+          data-testid="profile-menu"
+        >
           <ProfileCoverImage
             cover={contact.cover || ''}
             className={cn(

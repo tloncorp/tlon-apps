@@ -168,6 +168,7 @@ export default function Notifications({
         style={{
           paddingBottom: shouldApplyPaddingBottom ? 50 : 24,
         }}
+        data-testid="notifications-screen"
       >
         <Helmet>
           <title>{group ? `${group?.meta?.title} ${title}` : title}</title>

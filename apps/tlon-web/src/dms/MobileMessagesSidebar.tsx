@@ -29,6 +29,7 @@ export default function MobileMessagesSidebar() {
       style={{
         paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
       }}
+      data-testid="messages-menu"
     >
       <MobileHeader
         title="Messages"
