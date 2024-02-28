@@ -38,6 +38,7 @@
     "@react-navigation/bottom-tabs": "^6.5.12",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
+    "@realm/react": "^0.6.2",
     "@tloncorp/shared": "*",
     "@urbit/aura": "^1.0.0",
     "classnames": "^2.3.2",
@@ -72,6 +73,7 @@
     "react-native-storage": "^1.0.1",
     "react-native-svg": "^14.1.0",
     "react-native-webview": "13.6.4",
+    "realm": "^12.6.0",
     "tailwind-rn": "^4.2.0"
   },
   "devDependencies": {

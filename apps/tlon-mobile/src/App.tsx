@@ -18,11 +18,13 @@ import { useTailwind } from 'tailwind-rn';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { DEV_LOCAL, DEV_SHIP_CODE } from './constants';
 import { ShipProvider, useShip } from './contexts/ship';
+import * as db from './db';
 import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
 import { getDevCookie } from './lib/landscapeApi';
+import { syncContacts } from './lib/sync';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -56,6 +58,12 @@ const App = ({ wer: initialWer }: Props) => {
   const navigation = useNavigation();
   const screenOptions = useScreenOptions();
   const gotoPath = wer ?? initialWer;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      syncContacts();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
@@ -248,17 +256,19 @@ const App = ({ wer: initialWer }: Props) => {
   );
 };
 
-export default function AnalyticsApp(props: Props) {
+export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-      <ShipProvider>
-        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-          <PostHogProvider client={posthogAsync} autocapture>
-            <App {...props} />
-          </PostHogProvider>
-        </NavigationContainer>
-      </ShipProvider>
-    </TamaguiProvider>
+    <db.RealmProvider>
+      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+        <ShipProvider>
+          <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+            <PostHogProvider client={posthogAsync} autocapture>
+              <App {...props} />
+            </PostHogProvider>
+          </NavigationContainer>
+        </ShipProvider>
+      </TamaguiProvider>
+    </db.RealmProvider>
   );
 }

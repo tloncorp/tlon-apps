@@ -13,7 +13,6 @@ export default function ChatScrollerDebugOverlay({
   anchorIndex,
   scrollHeight,
   scrollDirection,
-  readingDirection,
   scrollOffset,
   isLoadingOlder,
   isLoadingNewer,
@@ -30,7 +29,6 @@ export default function ChatScrollerDebugOverlay({
   scrollOffset: number;
   scrollHeight: number;
   scrollDirection: 'forward' | 'backward' | null;
-  readingDirection: string;
   isLoadingOlder: boolean;
   isLoadingNewer: boolean;
   hasLoadedNewest: boolean;
@@ -64,7 +62,6 @@ export default function ChatScrollerDebugOverlay({
       </label>
       <label>Load direction: {loadDirection}</label>
       <label>Scroll direction: {scrollDirection ?? 'none'}</label>
-      <label>Reading direction: {readingDirection}</label>
       <label> {count} items</label>
       <DebugBoolean label="User scrolled" value={userHasScrolled} />
       <DebugBoolean label="At bottom" value={isAtBottom} />
