@@ -1550,9 +1550,6 @@
         (emit (pass-hark new-yarn))
       (di-give-writs-diff diff)
     ::
-        %edit
-      =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
-    ::
         %reply
       =*  delt  delta.q.diff
       =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
