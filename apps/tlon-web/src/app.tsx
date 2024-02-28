@@ -729,7 +729,7 @@ function RoutedApp() {
           </TooltipProvider>
         </AppUpdateContext.Provider>
         <LureAutojoiner />
-        {false && (
+        {showDevTools && (
           <>
             <React.Suspense fallback={null}>
               <ReactQueryDevtoolsProduction />
