@@ -137,7 +137,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
       const res = await api.scry<ChatScam>({
         app: 'chat',
         path: `/${type}/${whom}/search/bounded/text/${
-          pageParam ? decToUd(pageParam.toString()) : '~' // TODO  vite proxy bug
+          pageParam ? decToUd(pageParam.toString()) : ''
         }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
       });
       return res;

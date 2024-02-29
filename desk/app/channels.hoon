@@ -1354,10 +1354,7 @@
               %text     text:tries-bound:ca-search
               %mention  mention:tries-bound:ca-search
             ==
-          ?:  =(%$ from.pole)
-            ~
-          ?:  =(%'~' from.pole)  ::TODO  vite proxy bug workaround
-            ~
+          ?:  =(%$ from.pole)  ~
           `(slav %ud from.pole)
         (slav %ud tries.pole)
       ?-  kind.pole

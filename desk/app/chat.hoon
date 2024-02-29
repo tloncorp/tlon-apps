@@ -1338,10 +1338,7 @@
               %text     text:tries-bound:search:cu-pact
               %mention  mention:tries-bound:search:cu-pact
             ==
-          ?:  =(%$ from.pole)
-            ~
-          ?:  =(%'~' from.pole)  ::TODO  removeme, workaround for vite bug
-            ~
+          ?:  =(%$ from.pole)  ~
           `(slav %ud from.pole)
         (slav %ud tries.pole)
       ?-  kind.pole
@@ -1729,10 +1726,7 @@
               %text     text:tries-bound:search:di-pact
               %mention  mention:tries-bound:search:di-pact
             ==
-          ?:  =(%$ from.pole)
-            ~
-          ?:  =(%'~' from.pole)  ::TODO  removeme, workaround for vite bug
-            ~
+          ?:  =(%$ from.pole)  ~
           `(slav %ud from.pole)
         (slav %ud tries.pole)
       ?-  kind.pole
