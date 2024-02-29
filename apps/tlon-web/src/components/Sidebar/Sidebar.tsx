@@ -9,7 +9,6 @@ import React, {
 } from 'react';
 
 import GroupList from '@/components/Sidebar/GroupList';
-import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useIsMobile } from '@/logic/useMedia';
 import {
@@ -30,12 +29,10 @@ import GroupsSidebarItem from './GroupsSidebarItem';
 import MessagesSidebar from './MessagesSidebar';
 import SidebarItem from './SidebarItem';
 import SidebarSorter from './SidebarSorter';
-import SidebarTopMenu from './SidebarTopMenu';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
 import useActiveTab from './util';
 
 export default function Sidebar() {
-  const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();

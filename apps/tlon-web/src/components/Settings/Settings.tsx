@@ -72,7 +72,7 @@ export default function Settings() {
           name="Disable avatars"
           labelClassName="font-semibold"
         >
-          <p className="leading-5 text-gray-600">
+          <p className="mb-4 leading-5 text-gray-600">
             Turn user-set visual avatars off and only display urbit sigils in
             Tlon
           </p>
@@ -109,7 +109,7 @@ export default function Settings() {
           <h2 className="mb-2 text-lg font-semibold">Privacy</h2>
           <span className="text-gray-600">
             Limit your urbit’s ability to be read or tracked by clearnet
-            services in Tlon
+            services
           </span>
         </div>
         <Setting
@@ -119,13 +119,20 @@ export default function Settings() {
           name="Log Usage"
           labelClassName="font-semibold"
         >
-          <p className="leading-5 text-gray-600">
+          <p className="mb-4 leading-5 text-gray-600">
             Enable or disable basic activity tracking. Tlon uses this data to
-            make product decisions and to bring you a better experience.
+            make product decisions and to bring you a better experience.{' '}
+            <Link
+              className="text-underline text-blue"
+              to="/privacy"
+              state={{ backgroundLocation: location }}
+            >
+              Read about our approach to activity tracking and personal privacy.
+            </Link>
           </p>
         </Setting>
         {logActivity && (
-          <div className="my-2 flex flex-col space-y-2 pl-8">
+          <div className="mb-4 flex flex-col space-y-2 pl-8">
             <div className="flex flex-row space-x-2">
               <button
                 onClick={() => resetAnalyticsId()}
@@ -148,7 +155,7 @@ export default function Settings() {
           name="Disable spell-check"
           labelClassName="font-semibold"
         >
-          <p className="leading-5 text-gray-600">
+          <p className="mb-2 leading-5 text-gray-600">
             Turn spell-check off across all text inputs in Tlon. Spell-check
             reads your keyboard input, which may be undesirable.
           </p>
@@ -162,7 +169,7 @@ export default function Settings() {
         >
           <p className="leading-5 text-gray-600">
             Turn off automatically-displaying media embeds across Tlon. This may
-            result in some software appearing to have content missing.
+            result in some content to appear missing.
           </p>
         </Setting>
       </div>

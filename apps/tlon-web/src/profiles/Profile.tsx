@@ -13,6 +13,7 @@ import InfoIcon from '@/components/icons/InfoIcon';
 import LogOutIcon from '@/components/icons/LogOutIcon';
 import PersonIcon from '@/components/icons/PersonIcon';
 import ShareIcon from '@/components/icons/ShareIcon';
+import TlonIcon from '@/components/icons/TlonIcon';
 import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import { useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -138,6 +139,17 @@ export default function Profile({ title }: ViewProps) {
           >
             <SidebarItem icon={<FeedbackIcon className="h-6 w-6" />}>
               Submit Feedback
+            </SidebarItem>
+          </a>
+          <a
+            className="no-underline"
+            href="https://tlon.zendesk.com/hc/en-us/requests/new"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Contact Support"
+          >
+            <SidebarItem icon={<TlonIcon className="m-0.5 h-5 w-5" />}>
+              Contact Support
             </SidebarItem>
           </a>
           {isNativeApp() && (
