@@ -1356,7 +1356,7 @@
             ==
           ?:  =(%$ from.pole)
             ~
-          ?:  =(%'~' from.pole)  ::TODO  proxy bug(?) workaround
+          ?:  =(%'~' from.pole)  ::TODO  vite proxy bug workaround
             ~
           `(slav %ud from.pole)
         (slav %ud tries.pole)

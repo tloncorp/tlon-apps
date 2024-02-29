@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import {
+  ChanScam,
   ChatMap,
   ReplyTuple,
   newChatMap,
@@ -124,23 +125,24 @@ export function updateSearchHistory(
 }
 
 export function useInfiniteChatSearch(whom: string, query: string) {
+  const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const encodedQuery = stringToTa(query);
   const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
   const { data, ...rest } = useInfiniteQuery({
     enabled: query !== '',
     queryKey: ['chat', 'search', whom, query],
-    queryFn: async ({ pageParam = 0 }) => {
-      const res = await api.scry<ChatScan>({
+    queryFn: async ({ pageParam = null }) => {
+      const res = await api.scry<ChatScam>({
         app: 'chat',
-        path: `/${type}/${whom}/search/text/${
-          decToUd(pageParam.toString()) || '0'
-        }/20/${encodedQuery}`,
+        path: `/${type}/${whom}/search/bounded/text/${
+          pageParam ? decToUd(pageParam.toString()) : '~' // TODO  vite proxy bug
+        }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
       });
       return res;
     },
-    getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length === 0) return undefined;
-      return allPages.length * 20;
+    getNextPageParam: (lastPage) => {
+      if (lastPage.last === null) return undefined;
+      return lastPage.last;
     },
   });
 
@@ -148,6 +150,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     () =>
       newChatMap(
         (data?.pages || [])
+          .reduce((a: ChatScan, b: ChatScam): ChatScan => [...a, ...b.scan], [])
           .flat()
           .map((scItem: ChatScanItem) =>
             scItem && 'writ' in scItem

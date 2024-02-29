@@ -2436,7 +2436,7 @@ export function useChannelSearch(nest: string, query: string) {
       const res = await api.scry<ChannelScam>({
         app: 'channels',
         path: `/${nest}/search/bounded/text/${
-          pageParam ? decToUd(pageParam.toString()) : '~' // TODO  proxy bug?
+          pageParam ? decToUd(pageParam.toString()) : '~' // TODO  vite proxy bug
         }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
       });
       return res;
