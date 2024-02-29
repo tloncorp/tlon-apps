@@ -1,12 +1,14 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatSearchResults from '@/chat/ChatSearch/ChatSearchResults';
 import SearchBar from '@/chat/ChatSearch/SearchBar';
 import Layout from '@/components/Layout/Layout';
+import { CHANNEL_SEARCH_RESULT_SIZE } from '@/constants';
 import { useSafeAreaInsets } from '@/logic/native';
 import useDebounce from '@/logic/useDebounce';
+import useShowTabBar from '@/logic/useShowTabBar';
 import { useChannelSearch } from '@/state/channel/channel';
 import { useSearchState } from '@/state/chat/search';
 
@@ -22,15 +24,21 @@ export default function MobileChatSearch() {
   const insets = useSafeAreaInsets();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const [searchInput, setSearchInput] = useState(params.query || '');
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar;
 
   const whom =
     params.chShip && params.chName
       ? `${params.chShip}/${params.chName}`
       : params.ship!;
-  const { scan, isLoading, fetchNextPage } = useChannelSearch(
-    `chat/${whom}`,
-    params.query || ''
-  );
+  const {
+    scan,
+    isLoading,
+    fetchNextPage,
+    oldestMessageSearched,
+    depth,
+    hasNextPage,
+  } = useChannelSearch(`chat/${whom}`, params.query || '');
   const history = useSearchState.getState().history[whom];
 
   const root = location.pathname.split('/search')[0];
@@ -42,6 +50,13 @@ export default function MobileChatSearch() {
 
     navigate(`${root}/search/${input}`);
   }, 500);
+
+  useEffect(() => {
+    const numResults = scan.toArray().length;
+    if (!isLoading && numResults < CHANNEL_SEARCH_RESULT_SIZE) {
+      fetchNextPage();
+    }
+  }, [fetchNextPage, isLoading, scan, depth]);
 
   const setValue = (newValue: string) => {
     setSearchInput(newValue);
@@ -61,6 +76,7 @@ export default function MobileChatSearch() {
   return (
     <Layout
       className="flex-1 bg-white px-4"
+      style={{ paddingBottom: shouldApplyPaddingBottom ? 50 : 0 }}
       header={
         <div className="mt-2 flex" style={{ paddingTop: insets.top }}>
           <SearchBar
@@ -78,7 +94,7 @@ export default function MobileChatSearch() {
         </div>
       }
     >
-      <div className="z-30 flex h-full w-full flex-col pt-4">
+      <div className="pb-4 z-30 flex h-full w-full flex-col pt-4">
         {showRecentQueries && (
           <div className="mb-4 flex flex-col items-start">
             <p className="mb-4 text-sm font-semibold text-gray-400">
@@ -107,13 +123,21 @@ export default function MobileChatSearch() {
           whom={whom}
           root={root}
           scan={showRecentResults ? history.lastQuery.result : scan}
+          searchDetails={{
+            numResults: showRecentResults
+              ? history.lastQuery.result.size
+              : scan.toArray().length,
+            depth,
+            oldestMessageSearched,
+            searchComplete: !hasNextPage,
+          }}
           isLoading={!showRecentResults && isLoading}
           query={
             showRecentResults ? history.lastQuery.query : params.query || ''
           }
           selected={-1}
           withHeader={!showRecentResults}
-          endReached={() => fetchNextPage()}
+          endReached={fetchNextPage}
         />
       </div>
     </Layout>
