@@ -16,7 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { DEV_LOCAL, DEV_SHIP_CODE } from './constants';
+import { DEV_LOCAL, DEV_LOCAL_CODE } from './constants';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useDeepLink } from './hooks/useDeepLink';
@@ -112,7 +112,7 @@ const App = ({ wer: initialWer }: Props) => {
     async function setupDevAuth() {
       let cookie = null;
       try {
-        cookie = await getLandscapeAuthCookie(DEV_SHIP_URL, DEV_SHIP_CODE);
+        cookie = await getLandscapeAuthCookie(DEV_SHIP_URL, DEV_LOCAL_CODE);
       } catch (e) {
         console.error('Error getting dev cookie:', e);
       }

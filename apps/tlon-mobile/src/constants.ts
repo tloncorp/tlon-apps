@@ -29,4 +29,4 @@ export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
 export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
 
 export const DEV_LOCAL = extra.devLocal ?? false;
-export const DEV_SHIP_CODE = extra.devShipCode ?? 'sigbec-nibden-risrys-dalhex'; // TODO: why not finding real code?
+export const DEV_LOCAL_CODE = extra.devLocalCode ?? '';

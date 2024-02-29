@@ -1,10 +1,5 @@
-import dotenv from 'dotenv';
-import { expand } from 'dotenv-expand';
 import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
-
-const webEnv = dotenv.config({ path: '../../tlon-web/.env.local' });
-expand(webEnv);
 
 const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
@@ -31,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
     devLocal: Boolean(process.env.DEV_LOCAL),
-    devShipCode: process.env.VITE_SHIP_CODE,
+    devLocalCode: process.env.DEV_LOCAL_CODE,
   },
   ios: {
     runtimeVersion: '4.0.0',
