@@ -221,6 +221,10 @@ export function makePrettyDate(date: Date) {
   return `${format(date, 'PPP')}`;
 }
 
+export function makePrettyShortDate(date: Date) {
+  return format(date, 'MMM dd, yyyy');
+}
+
 export interface DayTimeDisplay {
   original: Date;
   diff: number;
