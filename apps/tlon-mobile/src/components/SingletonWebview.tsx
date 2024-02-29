@@ -140,7 +140,6 @@ export const SingletonWebview = () => {
       }
     );
 
-    // Start notification prompt (TODO: should this be commented out?)
     // connectNotifications();
 
     return () => {
