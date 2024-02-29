@@ -36,6 +36,7 @@ export function useDevTools(config: { enabled: boolean; localCode: string }) {
     if (config.enabled) {
       if (!config.localCode) {
         console.warn('No code found, skipping development auth');
+        return;
       }
       setupDevAuth();
     }
