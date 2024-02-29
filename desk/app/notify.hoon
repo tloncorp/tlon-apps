@@ -64,9 +64,11 @@
       pass  pass:io
   ::
   ++  on-init
+    =/  tomorrow=@da  (add now.bowl ~d1)
     :_  this
     :~  (~(watch-our pass:io /hark) %hark /ui)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
+        (~(wait pass:io /daily-timer) tomorrow)
     ==
   ::
   ++  on-save   !>(state)
@@ -227,6 +229,8 @@
       =/  =uid  (slav %uv uid.pole)
       =/  note=notification  (~(got by notifications) uid)
       ``hark-note+!>(note)
+        [%x %provider-state ~]  ``provider-state+!>(provider-state)
+        [%x %client-state ~]    ``client-state+!>(client-state)
     ==
   ::
   ++  on-agent
@@ -283,6 +287,18 @@
     |=  [=wire =sign-arvo]
     ^-  (quip card _this)
     ?+  wire  (on-arvo:def wire sign-arvo)
+        [%daily-timer ~]  :: Handling the daily timer wake event
+      ?>  ?=([%behn %wake *] sign-arvo)
+      =/  args-vase  !>(~)
+      =/  tid  `@ta`(cat 3 'thread_' (scot %uv (sham eny.bowl)))
+      =/  ta-now  `@ta`(scot %da now.bowl)
+      =/  watch-path  /thread-result/[tid]
+      =/  poke-vase  !>([~ `tid byk.bowl %check-notify-provider-state args-vase])
+      :_  this
+      :~  [%pass /thread/[ta-now] %agent [our.bowl %spider] %poke %spider-start !>(poke-vase)]
+          [%pass /daily-timer %arvo %b %wait (add now.bowl ~d1)]
+      ==
+    ::
         [%register-binding @ @ @ ~]
       =/  who=@p   (slav %p i.t.wire)
       =*  service  i.t.t.wire
