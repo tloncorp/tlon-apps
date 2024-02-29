@@ -2452,7 +2452,7 @@ export function useChannelSearch(nest: string, query: string) {
       newChatMap(
         (data?.pages || [])
           .reduce(
-            (a: ChannelScan, b: ChannelScam): ChannelScan => [...a, ...b.scan],
+            (a: ChannelScan, b: ChannelScam): ChannelScan => a.concat(b.scan),
             []
           )
           .map((scItem: ChannelScanItem) =>

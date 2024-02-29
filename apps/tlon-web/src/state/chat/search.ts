@@ -152,7 +152,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     () =>
       newChatMap(
         (data?.pages || [])
-          .reduce((a: ChatScan, b: ChatScam): ChatScan => [...a, ...b.scan], [])
+          .reduce((a: ChatScan, b: ChatScam): ChatScan => a.concat(b.scan), [])
           .flat()
           .map((scItem: ChatScanItem) =>
             scItem && 'writ' in scItem
