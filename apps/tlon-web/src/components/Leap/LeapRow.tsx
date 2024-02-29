@@ -4,7 +4,7 @@ import { IconProps } from '../icons/icon';
 
 export interface LeapOption {
   onSelect: () => void;
-  icon: (props: IconProps) => JSX.Element;
+  icon: React.ReactElement | ((props: IconProps) => React.ReactElement);
   input?: string | undefined;
   title: string;
   subtitle: string;
@@ -55,7 +55,9 @@ export default function LeapRow({
       } flex cursor-pointer items-center justify-between whitespace-nowrap p-3 text-base text-gray-700 hover:bg-gray-100`}
     >
       <div className="flex w-full items-center">
-        <div className="mr-2 shrink-0">{icon({ className: 'w-6 h-6' })}</div>
+        <div className="mr-2 shrink-0">
+          {typeof icon === 'function' ? icon({ className: 'w-6 h-6' }) : icon}
+        </div>
         <LeapRowTitle title={title} input={input} />
         <span className="shrink-1 ml-2 truncate text-base font-semibold text-gray-400">
           {subtitle}
