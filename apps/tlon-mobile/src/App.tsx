@@ -23,7 +23,7 @@ import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
-import { getDevCookie } from './lib/landscapeApi';
+import { getLandscapeAuthCookie } from './lib/landscapeApi';
 import { syncContacts } from './lib/sync';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
@@ -42,6 +42,7 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync, trackError } from './utils/posthog';
+import { getShipFromCookie } from './utils/ship';
 
 type Props = {
   wer?: string;
@@ -109,14 +110,20 @@ const App = ({ wer: initialWer }: Props) => {
   useEffect(() => {
     const DEV_SHIP_URL = 'http://localhost:3000';
     async function setupDevAuth() {
-      const auth = await getDevCookie(DEV_SHIP_URL, DEV_SHIP_CODE);
-      if (auth) {
-        console.log(`got auth: ${auth.cookie}`);
+      let cookie = null;
+      try {
+        cookie = await getLandscapeAuthCookie(DEV_SHIP_URL, DEV_SHIP_CODE);
+      } catch (e) {
+        console.error('Error getting dev cookie:', e);
+      }
+
+      if (cookie) {
+        const ship = getShipFromCookie(cookie);
         setShip({
-          ship: auth.ship,
+          ship,
           shipUrl: DEV_SHIP_URL,
         });
-        console.log(`Development auth configured for ${auth.ship}`);
+        console.log(`Development auth configured for ${ship}`);
       } else {
         console.warn('Failed to set up development auth');
         clearShip();
@@ -124,7 +131,6 @@ const App = ({ wer: initialWer }: Props) => {
     }
 
     if (DEV_LOCAL) {
-      console.log(`dev local set, code: ${DEV_SHIP_CODE}`);
       setupDevAuth();
     }
   }, []);
