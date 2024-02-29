@@ -6,6 +6,7 @@ import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
+import { makePrettyShortDate } from '@/logic/utils';
 
 import ChatSearchResult from './ChatSearchResult';
 
@@ -179,9 +180,9 @@ function SearchDetails({
             <>
               through&nbsp;
               <span className="text-gray-800">
-                {new Date(
-                  searchDetails?.oldestMessageSearched
-                ).toLocaleDateString()}
+                {makePrettyShortDate(
+                  new Date(searchDetails?.oldestMessageSearched)
+                )}
               </span>
             </>
           )}
