@@ -17,6 +17,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
   const { ship } = useShip();
+  const shipIsPlanetOrLarger = ship && ship.length <= 14;
   return (
     <WebviewPositionProvider>
       <WebviewProvider>
@@ -76,8 +77,16 @@ export const TabStack = () => {
               component={WebViewStack}
               initialParams={{ initialPath: getInitialPath('Profile') }}
               options={{
-                tabBarIcon: () =>
-                  ship ? <UrbitSigil ship={ship} /> : undefined,
+                tabBarIcon: ({ focused }) =>
+                  ship && shipIsPlanetOrLarger ? (
+                    <UrbitSigil ship={ship} />
+                  ) : (
+                    <TabIcon
+                      type={'Profile'}
+                      activeType={'Profile'}
+                      isActive={focused}
+                    />
+                  ),
 
                 tabBarShowLabel: false,
               }}
