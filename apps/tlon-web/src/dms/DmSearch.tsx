@@ -7,10 +7,14 @@ export default function DmSearch(
   props: Omit<ChatSearchProps, 'scan' | 'query' | 'isLoading' | 'endReached'>
 ) {
   const { query } = useParams<{ query: string }>();
-  const { scan, isLoading, fetchNextPage } = useInfiniteChatSearch(
-    props.whom,
-    query || ''
-  );
+  const {
+    scan,
+    isLoading,
+    fetchNextPage,
+    depth,
+    oldestMessageSearched,
+    hasNextPage,
+  } = useInfiniteChatSearch(props.whom, query || '');
   return (
     <ChatSearch
       {...props}
@@ -18,6 +22,12 @@ export default function DmSearch(
       scan={scan}
       isLoading={isLoading}
       endReached={fetchNextPage}
+      searchDetails={{
+        depth,
+        oldestMessageSearched,
+        numResults: scan.toArray().length,
+        searchComplete: !hasNextPage,
+      }}
     >
       {props.children}
     </ChatSearch>

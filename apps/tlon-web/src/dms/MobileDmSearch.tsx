@@ -7,6 +7,7 @@ import SearchBar from '@/chat/ChatSearch/SearchBar';
 import Layout from '@/components/Layout/Layout';
 import { useSafeAreaInsets } from '@/logic/native';
 import useDebounce from '@/logic/useDebounce';
+import useShowTabBar from '@/logic/useShowTabBar';
 import { useInfiniteChatSearch } from '@/state/chat/search';
 import { useSearchState } from '@/state/chat/search';
 
@@ -22,15 +23,21 @@ export default function MobileDmSearch() {
   const insets = useSafeAreaInsets();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const [searchInput, setSearchInput] = useState(params.query || '');
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar;
 
   const whom =
     params.chShip && params.chName
       ? `${params.chShip}/${params.chName}`
       : params.ship!;
-  const { scan, isLoading, fetchNextPage } = useInfiniteChatSearch(
-    whom,
-    params.query || ''
-  );
+  const {
+    scan,
+    isLoading,
+    fetchNextPage,
+    depth,
+    oldestMessageSearched,
+    hasNextPage,
+  } = useInfiniteChatSearch(whom, params.query || '');
   const history = useSearchState.getState().history[whom];
 
   const root = location.pathname.split('/search')[0];
@@ -60,7 +67,8 @@ export default function MobileDmSearch() {
 
   return (
     <Layout
-      className="flex-1 bg-white px-4"
+      className="mb-4 flex-1 bg-white px-4"
+      style={{ paddingBottom: shouldApplyPaddingBottom ? 64 : 0 }}
       header={
         <div className="mt-2 flex" style={{ paddingTop: insets.top }}>
           <SearchBar
@@ -110,6 +118,16 @@ export default function MobileDmSearch() {
           isLoading={!showRecentResults && isLoading}
           query={
             showRecentResults ? history.lastQuery.query : params.query || ''
+          }
+          searchDetails={
+            showRecentResults
+              ? undefined
+              : {
+                  depth,
+                  oldestMessageSearched,
+                  numResults: scan.size,
+                  searchComplete: !hasNextPage,
+                }
           }
           selected={-1}
           withHeader={!showRecentResults}

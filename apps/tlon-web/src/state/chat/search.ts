@@ -13,7 +13,9 @@ import {
   newWritMap,
 } from '@tloncorp/shared/dist/urbit/dms';
 import { decToUd } from '@urbit/api';
+import { daToUnix } from '@urbit/aura';
 import bigInt from 'big-integer';
+import _ from 'lodash';
 import { useMemo } from 'react';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -169,8 +171,24 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     updateSearchHistory(whom, query, scan);
   }
 
+  const depth = useMemo(
+    () => (data?.pages.length ?? 0) * SINGLE_PAGE_SEARCH_DEPTH,
+    [data]
+  );
+
+  const oldestMessageSearched = useMemo(() => {
+    const params = data?.pages ?? [];
+    const lastValidParam = _.findLast(
+      params,
+      (page) => page.last !== null
+    )?.last;
+    return lastValidParam ? new Date(daToUnix(bigInt(lastValidParam))) : null;
+  }, [data]);
+
   return {
     scan,
+    depth,
+    oldestMessageSearched,
     ...rest,
   };
 }
