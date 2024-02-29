@@ -11,7 +11,6 @@
     "dev:shared": "npm run dev --prefix ./packages/shared",
     "dev:android": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run android --prefix ./apps/tlon-mobile\"",
     "dev:ios": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run ios --prefix ./apps/tlon-mobile\"",
-    "dev:ios:local": "cross-env DEV_LOCAL=true npm run dev:ios",
     "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./apps/tlon-web\"",
     "test": "npm run test --workspaces --if-present -- run -u",
     "prepare": "husky",
