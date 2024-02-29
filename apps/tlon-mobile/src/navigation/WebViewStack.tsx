@@ -7,7 +7,7 @@ import { useWebViewContext } from '../contexts/webview/webview';
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import { getInitialPath } from '../lib/WebAppHelpers';
 import { ExternalWebViewScreen } from '../screens/ExternalWebViewScreen';
-import { WebviewPlaceholderScreen } from '../screens/WebViewScreen';
+import { WebviewPlaceholderScreen } from '../screens/WebviewPlaceholderScreen';
 import type { TabParamList, WebViewStackParamList } from '../types';
 
 type Props = BottomTabScreenProps<TabParamList, keyof TabParamList>;
