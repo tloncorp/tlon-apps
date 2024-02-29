@@ -1,11 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import {
-  ChanScam,
   ChatMap,
   ReplyTuple,
   newChatMap,
 } from '@tloncorp/shared/dist/urbit/channel';
 import {
+  ChatScam,
   ChatScan,
   ChatScanItem,
   Writ,
