@@ -23,8 +23,8 @@ import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
-import { getLandscapeAuthCookie } from './lib/landscapeApi';
 import { syncContacts } from './lib/sync';
+import { useDevTools } from './lib/useDevTools';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -42,7 +42,6 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync, trackError } from './utils/posthog';
-import { getShipFromCookie } from './utils/ship';
 
 type Props = {
   wer?: string;
@@ -51,9 +50,10 @@ type Props = {
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 const App = ({ wer: initialWer }: Props) => {
+  useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
-  const { isLoading, isAuthenticated, ship, setShip, clearShip } = useShip();
+  const { isLoading, isAuthenticated, ship } = useShip();
   const [connected, setConnected] = useState(true);
   const { wer, lure, priorityToken, clearDeepLink } = useDeepLink();
   const navigation = useNavigation();
@@ -106,34 +106,6 @@ const App = ({ wer: initialWer }: Props) => {
       })();
     }
   }, [ship, lure, clearDeepLink]);
-
-  useEffect(() => {
-    const DEV_SHIP_URL = 'http://localhost:3000';
-    async function setupDevAuth() {
-      let cookie = null;
-      try {
-        cookie = await getLandscapeAuthCookie(DEV_SHIP_URL, DEV_LOCAL_CODE);
-      } catch (e) {
-        console.error('Error getting dev cookie:', e);
-      }
-
-      if (cookie) {
-        const ship = getShipFromCookie(cookie);
-        setShip({
-          ship,
-          shipUrl: DEV_SHIP_URL,
-        });
-        console.log(`Development auth configured for ${ship}`);
-      } else {
-        console.warn('Failed to set up development auth');
-        clearShip();
-      }
-    }
-
-    if (DEV_LOCAL) {
-      setupDevAuth();
-    }
-  }, []);
 
   useEffect(() => {
     // Broadcast path update to webview when changed

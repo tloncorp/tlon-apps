@@ -28,5 +28,5 @@ export const SHIP_URL_PATTERN =
 export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
 export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
 
-export const DEV_LOCAL = extra.devLocal ?? false;
+export const DEV_LOCAL = extra.devLocal ? Boolean(extra.devLocal) : false;
 export const DEV_LOCAL_CODE = extra.devLocalCode ?? '';
