@@ -32,7 +32,7 @@ import {
   newChatMap,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
 import _ from 'lodash';
@@ -2427,6 +2427,7 @@ export function useDeleteReplyReactMutation() {
 }
 
 export function useChannelSearch(nest: string, query: string) {
+  const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const encodedQuery = stringToTa(query);
   const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
@@ -2435,22 +2436,25 @@ export function useChannelSearch(nest: string, query: string) {
       const res = await api.scry<ChannelScam>({
         app: 'channels',
         path: `/${nest}/search/bounded/text/${
-          pageParam ? decToUd(pageParam.toString()) : '~'  //TODO  proxy bug?
-        }/500/${encodedQuery}`,
+          pageParam ? decToUd(pageParam.toString()) : '~' // TODO  proxy bug?
+        }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
       });
       return res;
     },
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (lastPage) => {
       if (lastPage.last === null) return undefined;
       return lastPage.last;
     },
   });
 
   const scan = useMemo(
-    () => {
-      return newChatMap(
+    () =>
+      newChatMap(
         (data?.pages || [])
-          .reduce((a: ChannelScan, b: ChannelScam): ChannelScan => [...a, ...b.scan], [])
+          .reduce(
+            (a: ChannelScan, b: ChannelScam): ChannelScan => [...a, ...b.scan],
+            []
+          )
           .map((scItem: ChannelScanItem) =>
             'post' in scItem
               ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
@@ -2460,13 +2464,27 @@ export function useChannelSearch(nest: string, query: string) {
                 ] as ReplyTuple)
           ),
         true
-      );
-    },
+      ),
     [data]
   );
 
+  const depth = useMemo(
+    () => (data?.pages.length ?? 0) * SINGLE_PAGE_SEARCH_DEPTH,
+    [data]
+  );
+  const oldestMessageSearched = useMemo(() => {
+    const params = data?.pages ?? [];
+    const lastValidParam = _.findLast(
+      params,
+      (page) => page.last !== null
+    )?.last;
+    return lastValidParam ? new Date(daToUnix(bigInt(lastValidParam))) : null;
+  }, [data]);
+
   return {
     scan,
+    depth,
+    oldestMessageSearched,
     ...rest,
   };
 }
