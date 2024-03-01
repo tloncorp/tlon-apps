@@ -7,8 +7,8 @@ import SearchBar from '@/chat/ChatSearch/SearchBar';
 import Layout from '@/components/Layout/Layout';
 import { CHANNEL_SEARCH_RESULT_SIZE } from '@/constants';
 import { useSafeAreaInsets } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import useDebounce from '@/logic/useDebounce';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { useInfiniteChatSearch, useSearchState } from '@/state/chat/search';
 
 export default function MobileDmSearch() {
@@ -23,8 +23,7 @@ export default function MobileDmSearch() {
   const insets = useSafeAreaInsets();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const [searchInput, setSearchInput] = useState(params.query || '');
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
 
   const whom =
     params.chShip && params.chName
@@ -75,7 +74,7 @@ export default function MobileDmSearch() {
   return (
     <Layout
       className="mb-4 flex-1 bg-white px-4"
-      style={{ paddingBottom: shouldApplyPaddingBottom ? 64 : 0 }}
+      style={{ paddingBottom }}
       header={
         <div className="mt-2 flex" style={{ paddingTop: insets.top }}>
           <SearchBar

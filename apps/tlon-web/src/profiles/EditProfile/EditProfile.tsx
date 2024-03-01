@@ -16,9 +16,9 @@ import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
+import { useBottomPadding } from '@/logic/position';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
-import useShowTabBar from '@/logic/useShowTabBar';
 import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { useProfileIsPublic } from '@/state/profile/profile';
@@ -58,7 +58,6 @@ const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
 
 function EditProfileContent() {
   const profileIsPublic = useProfileIsPublic();
-  const isMobile = useIsMobile();
   const [allGroups, setAllGroups] = useState<GroupOption[]>([]);
   const groupData = useGroups();
   const groupFlags = Object.keys(groupData);
@@ -143,15 +142,13 @@ function EditProfileContent() {
   };
 
   const watchCover = form.watch('cover');
-
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
 
   return (
     <div
       className="w-full p-4"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
     >
       <FormProvider {...form}>
