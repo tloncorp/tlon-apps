@@ -17,11 +17,15 @@ import { useLocalState } from '@/state/local';
 
 import Avatar from '../Avatar';
 import useLeap from '../Leap/useLeap';
-import NavTab, { DoubleClickableNavTab } from '../NavTab';
+import NavTab, {
+  DoubleClickableNavButton,
+  DoubleClickableNavTab,
+} from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import CmdSmallIcon from '../icons/CmdSmallIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import MessagesIcon from '../icons/MessagesIcon';
+import useActiveTab, { ActiveTab } from './util';
 
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
@@ -30,10 +34,8 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const isMobile = useIsMobile();
 
   const onSingleClick = () => {
-    if (isNativeApp()) {
-      if (props.isInactive) {
-        navigate(groupsLocation);
-      }
+    if (props.isInactive) {
+      navigate(groupsLocation ?? '/');
     } else {
       navigate('/');
     }
@@ -69,12 +71,13 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   }
 
   return (
-    <Link
+    <DoubleClickableNavButton
       className={cn(
         'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
         !props.isInactive && '!bg-gray-100'
       )}
-      to="/"
+      onSingleClick={onSingleClick}
+      onDoubleClick={() => navigate('/')}
       aria-label="Groups"
       data-testid="groups-tab"
     >
@@ -89,7 +92,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
           groupsUnread && 'bg-blue'
         )}
       />
-    </Link>
+    </DoubleClickableNavButton>
   );
 }
 
@@ -100,10 +103,8 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const isMobile = useIsMobile();
 
   const onSingleClick = () => {
-    if (isNativeApp()) {
-      if (props.isInactive) {
-        navigate(messagesLocation);
-      }
+    if (props.isInactive) {
+      navigate(messagesLocation ?? '/messages');
     } else {
       navigate('/messages');
     }
@@ -139,12 +140,13 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   }
 
   return (
-    <Link
+    <DoubleClickableNavButton
       className={cn(
         'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
         !props.isInactive && '!bg-gray-100'
       )}
-      to="/messages"
+      onSingleClick={onSingleClick}
+      onDoubleClick={() => navigate('/messages')}
       aria-label="Messages"
       data-testid="messages-tab"
     >
@@ -159,7 +161,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
           hasUnreads && 'bg-blue'
         )}
       />
-    </Link>
+    </DoubleClickableNavButton>
   );
 }
 
@@ -331,6 +333,11 @@ export default function AppNav() {
   const { isChatInputFocused } = useChatInputFocus();
   const groupsCharge = useCharge('groups');
   const showTabBar = useShowTabBar();
+  const activeTab = useActiveTab();
+  const [lastLocation, setLastLocation] = useState<{
+    tab: ActiveTab;
+    pathname: string;
+  }>({ tab: activeTab, pathname: location.pathname });
 
   useEffect(() => {
     if (groupsCharge && needsUpdate && !informedOfUpdate) {
@@ -345,6 +352,21 @@ export default function AppNav() {
     setInformedOfUpdate,
     groupsCharge,
   ]);
+
+  // if we switch tabs from messages or groups, save the nav state
+  useEffect(() => {
+    if (lastLocation.tab !== activeTab) {
+      if (lastLocation.tab === 'groups') {
+        useLocalState.setState({ groupsLocation: lastLocation.pathname });
+      }
+      if (lastLocation.tab === 'messages') {
+        useLocalState.setState({ messagesLocation: lastLocation.pathname });
+      }
+      setLastLocation({ tab: activeTab, pathname: location.pathname });
+    } else if (lastLocation.pathname !== location.pathname) {
+      setLastLocation({ tab: activeTab, pathname: location.pathname });
+    }
+  }, [activeTab, lastLocation, location.pathname]);
 
   if (!isMobile) {
     return (
