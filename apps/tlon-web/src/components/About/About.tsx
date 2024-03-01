@@ -21,56 +21,61 @@ export default function About() {
   );
 
   return (
-    <div className="flex flex-col space-y-8 text-[17px] leading-[22px]">
-      {!isMobile && <span className="text-lg font-bold">About Tlon</span>}
-      <span className="px-2 text-gray-500">{charge?.info}</span>
-      <div className="grid grid-cols-3 gap-y-2 rounded-xl bg-gray-50 p-6">
-        <span className="flex items-center text-lg text-gray-400">Version</span>
-        <div className="col-span-2 -ml-6 flex items-center">
-          <span className="flex items-center">{charge?.version}</span>
+    <div className="card">
+      <p className="mb-4 leading-5 text-gray-800">{charge?.info}</p>
+      <div className="grid grid-cols-3 gap-y-2 rounded-xl border-2 border-gray-50 p-4">
+        <span className="flex items-center">
+          Version{' '}
           <IconButton
             label="Copy Version"
             icon={
               didCopyVersion ? (
-                <CheckIcon className="h-6 w-6 text-gray-300" />
+                <CheckIcon className="h-4 w-4 text-gray-300" />
               ) : (
-                <CopyIcon className="h-6 w-6 text-gray-300" />
+                <CopyIcon className="h-4 w-4 text-gray-300" />
               )
             }
             action={doCopyVersion}
           />
-        </div>
-        <span className="flex items-center text-lg text-gray-400">Source</span>
+        </span>
         <div className="col-span-2 -ml-6 flex items-center">
-          <span className="flex items-center break-words">
-            {pike?.sync?.ship}
-          </span>
+          <span className="flex items-center">{charge?.version}</span>
+        </div>
+        <span className="flex items-center">
+          Source{' '}
           <IconButton
             label="Copy Source"
             icon={
               didCopyShip ? (
-                <CheckIcon className="h-6 w-6 text-gray-300" />
+                <CheckIcon className="h-4 w-4 text-gray-300" />
               ) : (
-                <CopyIcon className="h-6 w-6 text-gray-300" />
+                <CopyIcon className="h-4 w-4 text-gray-300" />
               )
             }
             action={doCopyShip}
           />
-        </div>
-        <span className="flex items-center text-lg text-gray-400">Hash</span>
+        </span>
         <div className="col-span-2 -ml-6 flex items-center">
-          <span className="flex items-center break-all">{pike?.hash}</span>
+          <span className="flex items-center break-words">
+            {pike?.sync?.ship}
+          </span>
+        </div>
+        <span className="flex items-center">
+          Hash{' '}
           <IconButton
             label="Copy Hash"
             icon={
               didCopyHash ? (
-                <CheckIcon className="h-6 w-6 text-gray-300" />
+                <CheckIcon className="h-4 w-4 text-gray-300" />
               ) : (
-                <CopyIcon className="h-6 w-6 text-gray-300" />
+                <CopyIcon className="h-4 w-4 text-gray-300" />
               )
             }
             action={doCopyHash}
           />
+        </span>
+        <div className="col-span-2 -ml-6 flex items-center">
+          <span className="flex items-center break-all">{pike?.hash}</span>
         </div>
       </div>
     </div>

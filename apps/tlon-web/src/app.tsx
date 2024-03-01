@@ -32,7 +32,7 @@ import { LeapProvider } from '@/components/Leap/useLeap';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
 import SettingsView from '@/components/Settings/SettingsView';
-import MobileSidebar from '@/components/Sidebar/MobileSidebar';
+import AppNav from '@/components/Sidebar/AppNav';
 import DiaryChannel from '@/diary/DiaryChannel';
 import DiaryNote from '@/diary/DiaryNote';
 import DMHome from '@/dms/DMHome';
@@ -110,6 +110,7 @@ import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import ShareDMLure from './profiles/ShareDMLure';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -179,38 +180,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
     <>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
-        <Route element={<GroupsNav />}>
-          <Route element={isMobile ? <MobileSidebar /> : undefined}>
+        <Route element={<AppNav />}>
+          <Route element={<GroupsNav />}>
             <Route path="/groups" element={<GroupsNav />} />
-            <Route
-              index
-              element={
-                isMobile ? (
-                  <MobileGroupsNavHome />
-                ) : (
-                  <Notifications
-                    child={GroupNotification}
-                    title={`Activity • ${groupsTitle}`}
-                  />
-                )
-              }
-            />
-            <Route
-              path="/notifications"
-              element={
-                <Notifications
-                  child={GroupNotification}
-                  title={`Activity • ${groupsTitle}`}
-                />
-              }
-            />
+            <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
             <Route
               path="/messages"
               element={isMobile ? <MobileMessagesSidebar /> : null}
             />
             <Route path="/dm/" element={<Dms />}>
               <Route index element={<DMHome />} />
-
               <Route path="new">
                 <Route index element={<NewDM />} />
                 <Route path=":ship" element={<Message />} />
@@ -261,49 +240,27 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               )}
             </Route>
-            <Route
-              path="/profile/edit"
-              element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/profile"
-              element={<Profile title={`Profile • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/profile/settings"
-              element={<SettingsView title={`Settings • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/profile/settings/blocked"
-              element={<BlockedUsersView />}
-            />
-            <Route
-              path="/profile/about"
-              element={<AboutView title={`About • ${groupsTitle}`} />}
-            />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
             <Route path="/groups/:ship/:name" element={<Groups />}>
-              <Route element={isMobile ? <MobileSidebar /> : undefined}>
-                <Route
-                  index
-                  element={isMobile ? <MobileGroupChannelList /> : null}
-                />
-                <Route
-                  path="activity"
-                  element={
-                    <Notifications
-                      child={GroupNotification}
-                      title={`• ${groupsTitle}`}
-                    />
-                  }
-                />
-                <Route
-                  path="channels"
-                  element={<GroupChannelManager title={` • ${groupsTitle}`} />}
-                />
-                <Route path="members" element={<Members />} />
-              </Route>
+              <Route
+                index
+                element={isMobile ? <MobileGroupChannelList /> : null}
+              />
+              <Route
+                path="activity"
+                element={
+                  <Notifications
+                    child={GroupNotification}
+                    title={`• ${groupsTitle}`}
+                  />
+                }
+              />
+              <Route
+                path="channels"
+                element={<GroupChannelManager title={` • ${groupsTitle}`} />}
+              />
+              <Route path="members" element={<Members />} />
               <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
                 {!isMobile && (
                   <>
@@ -415,6 +372,74 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </Route>
             </Route>
           </Route>
+          <Route
+            path="/notifications"
+            element={
+              <Notifications
+                child={GroupNotification}
+                title={`Activity • ${groupsTitle}`}
+              />
+            }
+          />
+          {!isMobile ? (
+            <Route
+              path="/profile"
+              element={<Profile title={`Profile • ${groupsTitle}`} />}
+            >
+              <Route
+                path="edit"
+                element={
+                  <EditProfile title={`Edit Profile • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="share"
+                element={
+                  <ShareDMLure title={`Share with Friends • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="settings"
+                element={<SettingsView title={`Settings • ${groupsTitle}`} />}
+              />
+              <Route path="settings/blocked" element={<BlockedUsersView />} />
+              <Route
+                path="about"
+                element={<AboutView title={`About • ${groupsTitle}`} />}
+              />
+            </Route>
+          ) : (
+            <>
+              <Route
+                path="/profile"
+                element={<Profile title={`Profile • ${groupsTitle}`} />}
+              />
+              <Route
+                path="/profile/edit"
+                element={
+                  <EditProfile title={`Edit Profile • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="/profile/share"
+                element={
+                  <ShareDMLure title={`Share with Friends • ${groupsTitle}`} />
+                }
+              />
+              <Route
+                path="/profile/settings"
+                element={<SettingsView title={`Settings • ${groupsTitle}`} />}
+              />
+              <Route
+                path="/profile/settings/blocked"
+                element={<BlockedUsersView />}
+              />
+              <Route
+                path="/profile/about"
+                element={<AboutView title={`About • ${groupsTitle}`} />}
+              />
+            </>
+          )}
         </Route>
       </Routes>
       {state?.backgroundLocation ? (
@@ -598,18 +623,6 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
-
-  useEffect(() => {
-    if (!isMobile) return;
-    if (location.pathname === '/' || location.pathname.startsWith('/groups')) {
-      useLocalState.setState({ groupsLocation: location.pathname });
-    } else if (
-      location.pathname.startsWith('/messages') ||
-      location.pathname.startsWith('/dm')
-    ) {
-      useLocalState.setState({ messagesLocation: location.pathname });
-    }
-  }, [location, isMobile]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
