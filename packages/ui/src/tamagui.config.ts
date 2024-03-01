@@ -1,18 +1,18 @@
 import { createAnimations } from "@tamagui/animations-moti";
 import { createFont, createTamagui, createTokens } from "tamagui";
 
-export const animations = createAnimations({
-  simple: {
-    type: "timing",
-    duration: 100,
-  },
-  quick: {
-    type: "spring",
-    damping: 30,
-    mass: 1,
-    stiffness: 250,
-  },
-});
+// export const animations = createAnimations({
+//   simple: {
+//     type: "timing",
+//     duration: 100,
+//   },
+//   quick: {
+//     type: "spring",
+//     damping: 30,
+//     mass: 1,
+//     stiffness: 250,
+//   },
+// });
 
 export const tokens = createTokens({
   color: {
@@ -102,6 +102,7 @@ export const themes = {
     negativeActionText: "#E96A6A",
     negativeBackground: "#4B2525",
     negativeBorder: "#814444",
+    darkBackground: "#4C4C4C",
   },
   light: {
     primaryText: "#1A1818",
@@ -117,6 +118,7 @@ export const themes = {
     negativeActionText: "#E22A2A",
     negativeBackground: "#FEF5F5",
     negativeBorder: "#FCD0D0",
+    darkBackground: "#333333",
   },
 };
 
@@ -175,5 +177,5 @@ export const config = createTamagui({
   settings: {
     allowedStyleValues: "somewhat-strict",
   },
-  animations,
+  // animations,
 });

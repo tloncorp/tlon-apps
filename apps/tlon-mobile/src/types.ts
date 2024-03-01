@@ -10,7 +10,7 @@ type WebViewScreenParams = {
 };
 
 export type WebViewStackParamList = {
-  WebView: WebViewScreenParams;
+  Webview: WebViewScreenParams;
   ExternalWebView: {
     uri: string;
     headers?: Record<string, string | null>;
@@ -25,6 +25,8 @@ export type TabParamList = {
   Profile: WebViewScreenParams;
   Discover: WebViewScreenParams;
 };
+
+export type TabName = keyof TabParamList;
 
 export type OnboardingStackParamList = {
   Welcome: undefined;

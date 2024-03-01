@@ -50,7 +50,13 @@ import { isNativeApp } from '@/logic/native';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { checkNest, log, nestToFlag, whomIsFlag } from '@/logic/utils';
+import {
+  checkNest,
+  log,
+  nestToFlag,
+  stringToTa,
+  whomIsFlag,
+} from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { channelKey, infinitePostsKey, postKey } from './keys';
@@ -2446,6 +2452,7 @@ export function useDeleteReplyReactMutation() {
 }
 
 export function useChannelSearch(nest: string, query: string) {
+  const encodedQuery = stringToTa(query);
   const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
     enabled: query !== '',
@@ -2454,7 +2461,7 @@ export function useChannelSearch(nest: string, query: string) {
         app: 'channels',
         path: `/${nest}/search/text/${
           decToUd(pageParam.toString()) || '0'
-        }/20/${query}`,
+        }/20/${encodedQuery}`,
       });
       return res;
     },

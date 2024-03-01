@@ -53,3 +53,13 @@ export const poke = async ({
     mark,
     json,
   });
+
+export const scry = async <T>({ app, path }: { app: string; path: string }) => {
+  return fetch(`${config.shipUrl}/~/scry/${app}${path}.json`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    credentials: 'include',
+  }).then((res) => res.json()) as Promise<T>;
+};

@@ -5,6 +5,7 @@ import {
   ContactEditField,
 } from '@tloncorp/shared/dist/urbit/contact';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -17,6 +18,7 @@ import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
+import useShowTabBar from '@/logic/useShowTabBar';
 import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { useProfileIsPublic } from '@/state/profile/profile';
@@ -142,12 +144,23 @@ function EditProfileContent() {
 
   const watchCover = form.watch('cover');
 
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar;
+
   return (
-    <div className="w-full p-6">
+    <div
+      className="w-full p-4"
+      style={{
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+      }}
+    >
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage
-            className="flex items-end rounded-b-lg"
+            className={cn(
+              'flex items-end rounded-b-lg',
+              watchCover ? 'h-36' : 'h-12'
+            )}
             cover={watchCover || ''}
           >
             <Avatar
@@ -168,7 +181,7 @@ function EditProfileContent() {
           </div>
         </div>
 
-        {!isMobile && profileIsPublic && (
+        {profileIsPublic && (
           <div className="card mb-4">
             <div className="max-w-lg">
               <PublicProfileSelector isMobile={false} />
