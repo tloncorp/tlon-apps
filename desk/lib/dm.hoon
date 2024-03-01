@@ -258,15 +258,33 @@
 ::
 ++  search
   |^  |%
-      ++  mention
-        |=  [sip=@ud len=@ud nedl=^ship]
-        ^-  scan:c
-        (scour sip len %mention nedl)
+      ::NOTE  largely considered deprecated in favor of +tries-bound,
+      ::      which (when used sanely) delivers better performance and ux.
+      ++  hits-bound  ::  searches until len results
+        |%
+        ++  mention
+          |=  [sip=@ud len=@ud nedl=^ship]
+          ^-  scan:c
+          (scour-count sip len %mention nedl)
+        ::
+        ++  text
+          |=  [sip=@ud len=@ud nedl=@t]
+          ^-  scan:c
+          (scour-count sip len %text nedl)
+        --
       ::
-      ++  text
-        |=  [sip=@ud len=@ud nedl=@t]
-        ^-  scan:c
-        (scour sip len %text nedl)
+      ++  tries-bound  ::  searches until sum messages searched
+        |%
+        ++  mention
+          |=  [fro=(unit time) sum=@ud nedl=ship]
+          ^-  [(unit time) scan:c]
+          (scour-tries fro sum %mention nedl)
+        ::
+        ++  text
+          |=  [fro=(unit time) sum=@ud nedl=@t]
+          ^-  [(unit time) scan:c]
+          (scour-tries fro sum %text nedl)
+        --
       --
   ::
   +$  match-type
@@ -274,7 +292,40 @@
         [%text nedl=@t]
     ==
   ::
-  ++  scour
+  ++  scour-tries
+    |=  [from=(unit time) tries=@ud =match-type]
+    =*  posts  wit.pac
+    =.  posts  (lot:on:writs:c posts ~ from)  ::  verified correct
+    =|  s=[tries=_tries last=(unit time) =scan:c]
+    =<  [last scan]
+    |-  ^+  s
+    ?~  posts  s
+    ?:  =(0 tries.s)  s
+    =.  s  $(posts r.posts)  ::  process latest first
+    ?:  =(0 tries.s)  s
+    ::
+    =.  scan.s
+      ?.  (match val.n.posts match-type)  scan.s
+      [[%writ val.n.posts] scan.s]
+    ::
+    =.  scan.s
+      =*  id-post  id.val.n.posts
+      =*  replies  replies.val.n.posts
+      |-  ^+  scan.s
+      ?~  replies  scan.s
+      =.  scan.s  $(replies r.replies)
+      ::
+      =.  scan.s
+        ?.  (match-reply val.n.replies match-type)  scan.s
+        [[%reply id-post val.n.replies] scan.s]
+      ::
+      $(replies l.replies)
+    ::
+    =.  last.s  `key.n.posts
+    =.  tries.s  (dec tries.s)
+    $(posts l.posts)
+  ::
+  ++  scour-count
     |=  [sip=@ud len=@ud =match-type]
     ?>  (gth len 0)
     ^-  scan:c
@@ -359,8 +410,16 @@
     |=  =inline:d
     ?@  inline
       (find nedl inline |)
-    ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
-    ^$(p.verse p.inline)
+    ?+  -.inline  |
+      ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
+      ?(%code %inline-code)                  $(inline p.inline)
+      ::
+          %link
+        ?|  $(inline p.inline)
+        ?&  !=(p.inline q.inline)
+            $(inline q.inline)
+        ==  ==
+    ==
   ::
   ++  find
     |=  [nedl=@t hay=@t case=?]

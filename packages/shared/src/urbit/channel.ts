@@ -641,6 +641,8 @@ export type ChannelScanItem = { post: Post } | ReplyReferenceResponse;
 
 export type ChannelScan = ChannelScanItem[];
 
+export type ChannelScam = { last: string | null; scan: ChannelScan };
+
 export type TogglePost = { hide: string } | { show: string };
 
 export type HiddenPosts = string[];
