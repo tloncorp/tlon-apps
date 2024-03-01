@@ -1,15 +1,15 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatSearchResults from '@/chat/ChatSearch/ChatSearchResults';
 import SearchBar from '@/chat/ChatSearch/SearchBar';
 import Layout from '@/components/Layout/Layout';
+import { CHANNEL_SEARCH_RESULT_SIZE } from '@/constants';
 import { useSafeAreaInsets } from '@/logic/native';
 import useDebounce from '@/logic/useDebounce';
 import useShowTabBar from '@/logic/useShowTabBar';
-import { useInfiniteChatSearch } from '@/state/chat/search';
-import { useSearchState } from '@/state/chat/search';
+import { useInfiniteChatSearch, useSearchState } from '@/state/chat/search';
 
 export default function MobileDmSearch() {
   const params = useParams<{
@@ -39,6 +39,13 @@ export default function MobileDmSearch() {
     hasNextPage,
   } = useInfiniteChatSearch(whom, params.query || '');
   const history = useSearchState.getState().history[whom];
+
+  useEffect(() => {
+    const numResults = scan.toArray().length;
+    if (!isLoading && numResults < CHANNEL_SEARCH_RESULT_SIZE) {
+      fetchNextPage();
+    }
+  }, [fetchNextPage, isLoading, scan, depth]);
 
   const root = location.pathname.split('/search')[0];
   const debouncedSearch = useDebounce((input: string) => {

@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router';
 
 import ChatSearch, { ChatSearchProps } from '@/chat/ChatSearch/ChatSearch';
+import { CHANNEL_SEARCH_RESULT_SIZE } from '@/constants';
 import { useInfiniteChatSearch } from '@/state/chat/search';
 
 export default function DmSearch(
@@ -15,6 +17,14 @@ export default function DmSearch(
     oldestMessageSearched,
     hasNextPage,
   } = useInfiniteChatSearch(props.whom, query || '');
+
+  useEffect(() => {
+    const numResults = scan.toArray().length;
+    if (!isLoading && numResults < CHANNEL_SEARCH_RESULT_SIZE) {
+      fetchNextPage();
+    }
+  }, [fetchNextPage, isLoading, scan, depth]);
+
   return (
     <ChatSearch
       {...props}
