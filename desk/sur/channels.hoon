@@ -103,7 +103,7 @@
 +$  kind-data
   $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
-      [%chat kind=$?(~ [%notice ~] [%edited ~])]
+      [%chat kind=$@(~ [%notice ~])]
   ==
 ::  $memo: post data proper
 ::
@@ -206,8 +206,8 @@
 ::  $scan: search results
 +$  scan  (list reference)
 +$  reference
-  $%  [%post =post]
-      [%reply =id-post =reply]
+  $%  [%post post=simple-post]
+      [%reply =id-post reply=simple-reply]
   ==
 ::  $said: used for references
 +$  said  (pair nest reference)
@@ -452,17 +452,29 @@
       total=@ud
   ==
 +$  posts  ((mop id-post (unit post)) lte)
-+$  post   [seal essay]
++$  simple-posts  ((mop id-post (unit simple-post)) lte)
++$  post   [seal [rev=@ud essay]]
++$  simple-post  [seal-with-simple-replies essay]
 +$  seal
   $:  id=id-post
       =reacts
       =replies
       =reply-meta
   ==
++$  seal-with-simple-replies
+  $:  id=id-post
+      =reacts
+      replies=simple-replies
+      =reply-meta
+  ==
 +$  reacts      (map ship react)
-+$  reply       [reply-seal memo]
++$  reply       [reply-seal [rev=@ud memo]]
++$  simple-reply  [reply-seal memo]
 +$  replies     ((mop id-reply reply) lte)
++$  simple-replies     ((mop id-reply simple-reply) lte)
 +$  reply-seal  [id=id-reply parent-id=id-post =reacts]
 ++  on-posts    ((on id-post (unit post)) lte)
+++  on-simple-posts    ((on id-post (unit simple-post)) lte)
 ++  on-replies  ((on id-reply reply) lte)
+++  on-simple-replies  ((on id-reply simple-reply) lte)
 --

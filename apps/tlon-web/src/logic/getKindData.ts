@@ -4,7 +4,6 @@ export default function getKindDataFromEssay(essay: PostEssay | undefined): {
   title: string;
   image: string;
   notice?: boolean;
-  edited?: boolean;
 } {
   if (essay === undefined) {
     return { title: '', image: '' };
@@ -31,12 +30,9 @@ export default function getKindDataFromEssay(essay: PostEssay | undefined): {
   const notice =
     'chat' in kindData && kindData.chat !== null
       ? 'notice' in kindData.chat
+        ? true
+        : false
       : false;
 
-  const edited =
-    'chat' in kindData && kindData.chat !== null
-      ? 'edited' in kindData.chat
-      : false;
-
-  return { title, image: image ?? '', notice, edited };
+  return { title, image: image ?? '', notice };
 }

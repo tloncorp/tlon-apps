@@ -149,8 +149,8 @@ const ChatMessage = React.memo<
     ) => {
       const [searchParms, setSearchParams] = useSearchParams();
       const isEditing = searchParms.get('edit') === writ.seal.id;
+      const isEdited = 'rev' in writ && writ.rev !== '0' ? true : false;
       const { seal, essay } = writ;
-      const { edited: isEdited } = getKindDataFromEssay(essay);
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
         idShip: string;

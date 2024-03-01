@@ -94,9 +94,18 @@
     [(scot %ud id) ?~(post ~ (^post u.post))]
   ::
   ++  post
-    |=  [=seal:c =essay:c]
+    |=  [=seal:c [rev=@ud =essay:c]]
     %-  pairs
     :~  seal+(^seal seal)
+        rev+s+(scot %ud rev)
+        essay+(^essay essay)
+        type+s+%post
+    ==
+  ::
+  ++  said-post
+    |=  [seal=seal-with-simple-replies:c =essay:c]
+    %-  pairs
+    :~  seal+(simple-seal seal)
         essay+(^essay essay)
         type+s+%post
     ==
@@ -108,7 +117,22 @@
     |=  [t=@da =reply:c]
     [(scot %ud t) (^reply reply)]
   ::
+  ++  simple-replies
+    |=  replies=simple-replies:c
+    %-  pairs
+    %+  turn  (tap:on-simple-replies:c replies)
+    |=  [t=@da reply=simple-reply:c]
+    [(scot %ud t) (simple-reply reply)]
+  ::
   ++  reply
+    |=  [=reply-seal:c [rev=@ud =memo:c]]
+    %-  pairs
+    :~  seal+(^reply-seal reply-seal)
+        rev+s+(scot %ud rev)
+        memo+(^memo memo)
+    ==
+  ::
+  ++  simple-reply
     |=  [=reply-seal:c =memo:c]
     %-  pairs
     :~  seal+(^reply-seal reply-seal)
@@ -121,6 +145,15 @@
     :~  id+(id id.seal)
         reacts+(reacts reacts.seal)
         replies+(replies replies.seal)
+        meta+(reply-meta reply-meta.seal)
+    ==
+  ::
+  ++  simple-seal
+    |=  seal=seal-with-simple-replies:c
+    %-  pairs
+    :~  id+(id id.seal)
+        reacts+(reacts reacts.seal)
+        replies+(simple-replies replies.seal)
         meta+(reply-meta reply-meta.seal)
     ==
   ::
@@ -214,12 +247,7 @@
     %+  frond  -.kind-data
     ?-    -.kind-data
       %heap   ?~(title.kind-data ~ s+u.title.kind-data)
-      %chat   ?~  kind.kind-data
-                  ~
-              ?-  -.kind.kind-data
-                  %notice  (pairs notice+~ ~)
-                  %edited  (pairs edited+~ ~)
-              ==
+      %chat   ?~(kind.kind-data ~ (pairs notice+~ ~))
       %diary  (pairs title+s+title.kind-data image+s+image.kind-data ~)
     ==
   ::
@@ -381,11 +409,11 @@
     |=  =reference:c
     %+  frond  -.reference
     ?-    -.reference
-        %post  (post post.reference)
+        %post  (said-post post.reference)
         %reply
       %-  pairs
       :~  id-post+(id id-post.reference)
-          reply+(reply reply.reference)
+          reply+(simple-reply reply.reference)
       ==
     ==
   ::
@@ -445,6 +473,7 @@
     %-  of
     :~  add+memo
         del+id
+        edit+(ot id+id memo+memo ~)
         add-react+(ot id+id ship+ship react+so ~)
         del-react+(ot id+id ship+ship ~)
     ==
@@ -497,10 +526,10 @@
     ==
   ::
   ++  chat-kind
-    ^-  $-(json $?(~ [%notice ~] [%edited ~]))
+    ^-  $-(json $@(~ [%notice ~]))
     |=  jon=json
     ?~  jon  ~
-    ((of edited+ul notice+ul ~) jon)
+    ((of notice+ul ~) jon)
   ::
   ++  verse
     ^-  $-(json verse:c)

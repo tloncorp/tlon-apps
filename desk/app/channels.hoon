@@ -1529,7 +1529,7 @@
         ?~  val.n.posts  scan.s
         ?.  (match u.val.n.posts match-type)  scan.s
         :_  scan.s
-        [%post (uv-post-without-replies:utils u.val.n.posts)]
+        [%post (uv-simple-post-without-replies:utils u.val.n.posts)]
       ::
       =.  scan.s
         ?~  val.n.posts  scan.s
@@ -1543,7 +1543,7 @@
           ?~  val.n.replies  scan.s
           ?.  (match-reply u.val.n.replies match-type)  scan.s
           :_  scan.s
-          [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
+          [%reply id-post (uv-simple-reply:utils id-post u.val.n.replies)]
         ::
         $(replies l.replies)
       ::
@@ -1571,7 +1571,7 @@
         ?.  (match u.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (uv-post-without-replies:utils u.val.n.posts)]
+        =/  res  [%post (uv-simple-post-without-replies:utils u.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
@@ -1593,7 +1593,7 @@
         ?.  (match-reply u.val.n.replies match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
+        =/  res  [%reply id-post (uv-simple-reply:utils id-post u.val.n.replies)]
         s(len (dec len.s), scan [res scan.s])
       ::
       $(replies l.replies)

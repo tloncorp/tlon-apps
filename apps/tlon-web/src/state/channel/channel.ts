@@ -1929,6 +1929,68 @@ export function useAddReplyMutation() {
   });
 }
 
+export function useEditReplyMutation() {
+  const mutationFn = async (variables: {
+    nest: Nest;
+    postId: string;
+    replyId: string;
+    memo: Memo;
+  }) => {
+    checkNest(variables.nest);
+
+    const replying = decToUd(variables.postId);
+    const action: Action = {
+      post: {
+        reply: {
+          id: replying,
+          action: {
+            edit: {
+              id: decToUd(variables.replyId),
+              memo: variables.memo,
+            },
+          },
+        },
+      },
+    };
+
+    await api.poke(channelAction(variables.nest, action));
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      const updater = (prevPost: PostDataResponse | undefined) => {
+        if (prevPost === undefined) {
+          return prevPost;
+        }
+
+        const prevReplies = prevPost.seal.replies;
+        const newReplies = { ...prevReplies };
+        newReplies[variables.replyId] = {
+          seal: {
+            id: variables.replyId,
+            'parent-id': variables.postId,
+            reacts: {},
+          },
+          memo: variables.memo,
+        };
+
+        const updatedPost: PostDataResponse = {
+          ...prevPost,
+          seal: {
+            ...prevPost.seal,
+            replies: newReplies,
+          },
+        };
+
+        return updatedPost;
+      };
+
+      await updatePostInCache(variables, updater);
+    },
+  });
+}
+
 export function useDeleteReplyMutation() {
   const mutationFn = async (variables: {
     nest: Nest;

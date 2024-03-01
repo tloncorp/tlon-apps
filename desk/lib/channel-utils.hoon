@@ -30,7 +30,7 @@
 ++  uv-post
   |=  =v-post:c
   ^-  post:c
-  :_  +>.v-post
+  :_  +.v-post
   :*  id.v-post
       (uv-reacts reacts.v-post)
       (uv-replies id.v-post replies.v-post)
@@ -49,10 +49,20 @@
 ++  uv-post-without-replies
   |=  post=v-post:c
   ^-  post:c
-  :_  +>.post
+  :_  +.post
   :*  id.post
       (uv-reacts reacts.post)
       *replies:c
+      (get-reply-meta post)
+  ==
+::
+++  uv-simple-post-without-replies
+  |=  post=v-post:c
+  ^-  simple-post:c
+  :_  +>.post
+  :*  id.post
+      (uv-reacts reacts.post)
+      *simple-replies:c
       (get-reply-meta post)
   ==
 ::
@@ -67,9 +77,26 @@
   %-  some
   [time (uv-reply parent-id u.v-reply)]
 ::
+++  uv-simple-replies
+  |=  [parent-id=id-post:c =v-replies:c]
+  ^-  simple-replies:c
+  %+  gas:on-simple-replies:c  *simple-replies:c
+  %+  murn  (tap:on-v-replies:c v-replies)
+  |=  [=time v-reply=(unit v-reply:c)]
+  ^-  (unit [id-reply:c simple-reply:c])
+  ?~  v-reply  ~
+  %-  some
+  [time (uv-simple-reply parent-id u.v-reply)]
+::
 ++  uv-reply
   |=  [parent-id=id-reply:c =v-reply:c]
   ^-  reply:c
+  :_  +.v-reply
+  [id.v-reply parent-id (uv-reacts reacts.v-reply)]
+::
+++  uv-simple-reply
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ^-  simple-reply:c
   :_  +>.v-reply
   [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
@@ -87,27 +114,27 @@
   ^-  cage
   =/  post=(unit (unit v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  =post:c
+    =/  post=simple-post:c
       ?~  post
         ::TODO  give "outline" that formally declares deletion
-        :-  *seal:c
+        :-  *seal-with-simple-replies:c
         ?-  kind.nest
           %diary  [*memo:c %diary 'Unknown post' '']
           %heap   [*memo:c %heap ~ 'Unknown link']
           %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
         ==
       ?~  u.post
-        :-  *seal:c
+        :-  *seal-with-simple-replies:c
         ?-  kind.nest
             %diary  [*memo:c %diary 'This post was deleted' '']
             %heap   [*memo:c %heap ~ 'This link was deleted']
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
-      (uv-post-without-replies u.u.post)
+      (uv-simple-post-without-replies u.u.post)
     [%channel-said !>(`said:c`[nest %post post])]
   ::
-  =/  =reply:c
+  =/  reply=[reply-seal:c memo:c]
     ?~  post
       [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?~  u.post
@@ -117,7 +144,7 @@
       [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?~  u.reply
       [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
-    (uv-reply p.plan u.u.reply)
+    (uv-simple-reply p.plan u.u.reply)
   [%channel-said !>(`said:c`[nest %reply p.plan reply])]
 ::
 ++  was-mentioned
