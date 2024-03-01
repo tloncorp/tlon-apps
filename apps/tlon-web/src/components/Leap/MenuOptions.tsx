@@ -68,7 +68,7 @@ export const menuOptions: IMenuOption[] = [
     title: 'Profile & Settings',
     subtitle: '',
     to: '/profile',
-    icon: <Avatar ship={window.our} size="xs" />,
+    icon: () => <Avatar ship={window.our} size="xs" />,
     modal: false,
   },
 ];
