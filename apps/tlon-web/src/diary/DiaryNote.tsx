@@ -15,6 +15,7 @@ import {
   useChannelIsJoined,
 } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
+import { isNativeApp } from '@/logic/native';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, pluralize } from '@/logic/utils';
@@ -72,6 +73,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const paddingBottom = isNativeApp() ? 64 : 50;
   const { compatible } = useChannelCompatibility(nest);
   const { mutateAsync: joinDiary } = useJoinMutation();
   const joinChannel = useCallback(async () => {
@@ -136,7 +138,7 @@ export default function DiaryNote({ title }: ViewProps) {
     return (
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+          paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
         }}
         className="h-full flex-1 bg-white"
         header={

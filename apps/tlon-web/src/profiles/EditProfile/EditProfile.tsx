@@ -16,6 +16,7 @@ import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
+import { isNativeApp } from '@/logic/native';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -146,12 +147,13 @@ function EditProfileContent() {
 
   const showTabBar = useShowTabBar();
   const shouldApplyPaddingBottom = showTabBar;
+  const paddingBottom = isNativeApp() ? 86 : 50;
 
   return (
     <div
       className="w-full p-4"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
       }}
     >
       <FormProvider {...form}>

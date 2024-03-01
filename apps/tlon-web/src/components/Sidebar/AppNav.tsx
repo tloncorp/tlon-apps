@@ -418,10 +418,12 @@ export default function AppNav() {
         <footer
           data-testid="app-nav"
           className={cn(
-            'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white fixed bottom-0 w-full',
-            isChatInputFocused && 'translate-y-[200%] opacity-0 h-0',
-            !isNativeApp() && 'pb-1'
+            'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white fixed w-full bottom-0',
+            isChatInputFocused && 'translate-y-[200%] opacity-0 h-0'
           )}
+          style={{
+            paddingBottom: isNativeApp() ? safeAreaInsets.bottom : 0,
+          }}
         >
           <nav>
             <ul className="flex h-12">

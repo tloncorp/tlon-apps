@@ -13,6 +13,7 @@ import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useFullChannel } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
+import { isNativeApp } from '@/logic/native';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -48,6 +49,7 @@ export default function HeapDetail({ title }: ViewProps) {
   const { isChatInputFocused } = useChatInputFocus();
   const showTabBar = useShowTabBar();
   const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
+  const paddingBottom = isNativeApp() ? 86 : 50;
   const { nextPost: nextNote, prevPost: prevNote } = useOrderedPosts(
     nest,
     idTime || ''
@@ -84,7 +86,7 @@ export default function HeapDetail({ title }: ViewProps) {
   return (
     <Layout
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
       }}
       className="padding-bottom-transition flex-1 bg-white"
       header={

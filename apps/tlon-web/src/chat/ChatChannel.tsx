@@ -17,6 +17,7 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
+import { isNativeApp } from '@/logic/native';
 import { useIsScrolling } from '@/logic/scroll';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -71,6 +72,7 @@ function ChatChannel({ title }: ViewProps) {
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
+  const paddingBottom = isNativeApp() ? 86 : 50;
 
   const {
     group,
@@ -86,7 +88,7 @@ function ChatChannel({ title }: ViewProps) {
     <>
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+          paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
         }}
         className="padding-bottom-transition flex-1 bg-white"
         header={

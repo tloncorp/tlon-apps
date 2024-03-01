@@ -13,6 +13,7 @@ import WelcomeCard from '@/components/WelcomeCard';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import AddGroupSheet from '@/groups/AddGroupSheet';
 import GroupJoinList from '@/groups/GroupJoinList';
+import { isNativeApp } from '@/logic/native';
 import useGroupSort from '@/logic/useGroupSort';
 import useShowTabBar from '@/logic/useShowTabBar';
 import {
@@ -27,6 +28,7 @@ import {
 export default function MobileRoot() {
   const showTabBar = useShowTabBar();
   const shouldApplyPaddingBottom = showTabBar;
+  const paddingBottom = isNativeApp() ? 86 : 50;
   const [isScrolling, setIsScrolling] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const scroll = useRef(
@@ -74,7 +76,7 @@ export default function MobileRoot() {
     <Layout
       className="flex-1 bg-white"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
       }}
       header={
         <MobileHeader

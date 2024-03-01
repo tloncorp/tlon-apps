@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { isNativeApp } from '@/logic/native';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -31,6 +32,7 @@ export default function NewDM() {
   const isScrolling = useIsScrolling(scrollElementRef);
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const paddingBottom = isNativeApp() ? 86 : 50;
   const shouldBlockInput =
     isMultiDm && !existingMultiDm && multiDmVersionMismatch;
 
@@ -38,7 +40,7 @@ export default function NewDM() {
     <Layout
       className="flex-1"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
       }}
       header={
         isMobile && <MobileHeader title="New Message" pathBack={dmListPath} />
