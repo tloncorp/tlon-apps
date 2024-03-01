@@ -1,5 +1,10 @@
 import cn from 'classnames';
-import { AnchorHTMLAttributes, PropsWithChildren, useState } from 'react';
+import {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  PropsWithChildren,
+  useState,
+} from 'react';
 import { NavLink, NavLinkProps } from 'react-router-dom';
 
 const DOUBLE_CLICK_WINDOW = 300;
@@ -52,7 +57,7 @@ export default function NavTab({
   );
 }
 
-type DoubleClickableNavTab = PropsWithChildren<
+type DoubleClickableNavTabProps = PropsWithChildren<
   (
     | Omit<NavLinkProps, 'className' | 'style'>
     | AnchorHTMLAttributes<HTMLAnchorElement>
@@ -68,7 +73,7 @@ export function DoubleClickableNavTab({
   onSingleClick,
   onDoubleClick,
   ...props
-}: DoubleClickableNavTab) {
+}: DoubleClickableNavTabProps) {
   const [clickTimeout, setClickTimeout] = useState<number | null>(null);
 
   const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -91,5 +96,43 @@ export function DoubleClickableNavTab({
     <NavTab onClick={onClick} {...props}>
       {props.children}
     </NavTab>
+  );
+}
+
+type DoubleClickableNavButtonProps = PropsWithChildren<
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    className?: string;
+    onSingleClick: () => void;
+    onDoubleClick: () => void;
+  }
+>;
+
+export function DoubleClickableNavButton({
+  onSingleClick,
+  onDoubleClick,
+  ...props
+}: DoubleClickableNavButtonProps) {
+  const [clickTimeout, setClickTimeout] = useState<number | null>(null);
+
+  const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+
+    if (clickTimeout !== null) {
+      window.clearTimeout(clickTimeout);
+      setClickTimeout(null);
+      onDoubleClick();
+    } else {
+      const timeout = window.setTimeout(() => {
+        setClickTimeout(null);
+      }, DOUBLE_CLICK_WINDOW);
+      setClickTimeout(timeout);
+    }
+    onSingleClick();
+  };
+
+  return (
+    <button onClick={onClick} {...props}>
+      {props.children}
+    </button>
   );
 }

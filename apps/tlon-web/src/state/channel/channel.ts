@@ -2,6 +2,7 @@ import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Action,
   Channel,
+  ChannelScam,
   ChannelScan,
   ChannelScanItem,
   Channels,
@@ -37,7 +38,7 @@ import {
   newWritTupleArray,
 } from '@tloncorp/shared/dist/urbit/dms';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
 import _, { last } from 'lodash';
@@ -59,6 +60,7 @@ import {
   checkNest,
   log,
   nestToFlag,
+  stringToTa,
   useIsDmOrMultiDm,
   whomIsFlag,
 } from '@/logic/utils';
@@ -2409,21 +2411,23 @@ export function useDeleteReplyReactMutation() {
 }
 
 export function useChannelSearch(nest: string, query: string) {
+  const SINGLE_PAGE_SEARCH_DEPTH = 500;
+  const encodedQuery = stringToTa(query);
   const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
     enabled: query !== '',
-    queryFn: async ({ pageParam = 0 }) => {
-      const res = await api.scry<ChannelScan>({
+    queryFn: async ({ pageParam = null }) => {
+      const res = await api.scry<ChannelScam>({
         app: 'channels',
-        path: `/${nest}/search/text/${
-          decToUd(pageParam.toString()) || '0'
-        }/20/${query}`,
+        path: `/${nest}/search/bounded/text/${
+          pageParam ? decToUd(pageParam.toString()) : ''
+        }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
       });
       return res;
     },
-    getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length === 0) return undefined;
-      return allPages.length * 20;
+    getNextPageParam: (lastPage) => {
+      if (lastPage.last === null) return undefined;
+      return lastPage.last;
     },
   });
 
@@ -2431,7 +2435,10 @@ export function useChannelSearch(nest: string, query: string) {
     () =>
       newChatMap(
         (data?.pages || [])
-          .flat()
+          .reduce(
+            (a: ChannelScan, b: ChannelScam): ChannelScan => a.concat(b.scan),
+            []
+          )
           .map((scItem: ChannelScanItem) =>
             'post' in scItem
               ? ([bigInt(scItem.post.seal.id), scItem.post] as PostTuple)
@@ -2445,8 +2452,23 @@ export function useChannelSearch(nest: string, query: string) {
     [data]
   );
 
+  const depth = useMemo(
+    () => (data?.pages.length ?? 0) * SINGLE_PAGE_SEARCH_DEPTH,
+    [data]
+  );
+  const oldestMessageSearched = useMemo(() => {
+    const params = data?.pages ?? [];
+    const lastValidParam = _.findLast(
+      params,
+      (page) => page.last !== null
+    )?.last;
+    return lastValidParam ? new Date(daToUnix(bigInt(lastValidParam))) : null;
+  }, [data]);
+
   return {
     scan,
+    depth,
+    oldestMessageSearched,
     ...rest,
   };
 }

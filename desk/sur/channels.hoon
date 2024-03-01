@@ -198,6 +198,11 @@
 ::  $react: either an emoji identifier like :diff or a URL for custom
 +$  react     @ta
 +$  v-reacts  (map ship (rev (unit react)))
+::  $scam: bounded search results
++$  scam
+  $:  last=(unit id-post)  ::  last (top-level) message that was searched
+      =scan                ::  search results
+  ==
 ::  $scan: search results
 +$  scan  (list reference)
 +$  reference

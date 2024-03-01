@@ -16,11 +16,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { DEV_LOCAL, DEV_LOCAL_CODE } from './constants';
 import { ShipProvider, useShip } from './contexts/ship';
+import * as db from './db';
 import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
+import { syncContacts } from './lib/sync';
+import { useDevTools } from './lib/useDevTools';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -46,6 +50,7 @@ type Props = {
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 const App = ({ wer: initialWer }: Props) => {
+  useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated, ship } = useShip();
@@ -54,6 +59,12 @@ const App = ({ wer: initialWer }: Props) => {
   const navigation = useNavigation();
   const screenOptions = useScreenOptions();
   const gotoPath = wer ?? initialWer;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      syncContacts();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
@@ -223,17 +234,19 @@ const App = ({ wer: initialWer }: Props) => {
   );
 };
 
-export default function AnalyticsApp(props: Props) {
+export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <TamaguiProvider>
-      <ShipProvider>
-        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-          <PostHogProvider client={posthogAsync} autocapture>
-            <App {...props} />
-          </PostHogProvider>
-        </NavigationContainer>
-      </ShipProvider>
-    </TamaguiProvider>
+    <db.RealmProvider>
+      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+        <ShipProvider>
+          <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+            <PostHogProvider client={posthogAsync} autocapture>
+              <App {...props} />
+            </PostHogProvider>
+          </NavigationContainer>
+        </ShipProvider>
+      </TamaguiProvider>
+    </db.RealmProvider>
   );
 }
