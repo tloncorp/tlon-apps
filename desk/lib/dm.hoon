@@ -410,8 +410,16 @@
     |=  =inline:d
     ?@  inline
       (find nedl inline |)
-    ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
-    ^$(p.verse p.inline)
+    ?+  -.inline  |
+      ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
+      ?(%code %inline-code)                  $(inline p.inline)
+      ::
+          %link
+        ?|  $(inline p.inline)
+        ?&  !=(p.inline q.inline)
+            $(inline q.inline)
+        ==  ==
+    ==
   ::
   ++  find
     |=  [nedl=@t hay=@t case=?]
