@@ -619,18 +619,6 @@ function App() {
     })();
   }, [handleError]);
 
-  useEffect(() => {
-    if (!isMobile) return;
-    if (location.pathname === '/' || location.pathname.startsWith('/groups')) {
-      useLocalState.setState({ groupsLocation: location.pathname });
-    } else if (
-      location.pathname.startsWith('/messages') ||
-      location.pathname.startsWith('/dm')
-    ) {
-      useLocalState.setState({ messagesLocation: location.pathname });
-    }
-  }, [location, isMobile]);
-
   const state = location.state as { backgroundLocation?: Location } | null;
 
   return (
