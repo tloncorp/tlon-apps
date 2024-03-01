@@ -25,6 +25,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultPriorityToken: process.env.DEFAULT_PRIORITY_TOKEN,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
+    devLocal: Boolean(process.env.DEV_LOCAL),
+    devLocalCode: process.env.DEV_LOCAL_CODE,
   },
   ios: {
     runtimeVersion: '4.0.0',

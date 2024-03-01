@@ -68,7 +68,11 @@ import {
   captureAnalyticsEvent,
   captureError,
 } from '@/logic/analytics';
-import { isNativeApp, postActionToNativeApp } from '@/logic/native';
+import {
+  isNativeApp,
+  postActionToNativeApp,
+  useNativeBridge,
+} from '@/logic/native';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
@@ -569,6 +573,7 @@ function Scheduler() {
 }
 
 function App() {
+  useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
   const location = useLocation();

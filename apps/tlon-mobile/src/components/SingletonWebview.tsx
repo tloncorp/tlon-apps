@@ -1,61 +1,53 @@
 import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { NativeWebViewOptions } from '@tloncorp/shared';
+// import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  type MobileNavTab,
+  type NativeWebViewOptions,
+  type WebAppAction,
+} from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView } from 'react-native';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
-import { IS_IOS } from '../constants';
+import { DEV_LOCAL } from '../constants';
 import { useShip } from '../contexts/ship';
+import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
+import WebAppHelpers from '../lib/WebAppHelpers';
 import { markChatRead } from '../lib/chatApi';
 import { getHostingUser } from '../lib/hostingApi';
 // import { connectNotifications } from '../lib/notifications';
-import type { WebViewStackParamList } from '../types';
 import {
-  getHostingToken,
   getHostingUserId,
   removeHostingToken,
   removeHostingUserId,
 } from '../utils/hosting';
 
-type WebViewMessage = {
-  action: 'copy' | 'logout' | 'manageAccount' | 'appLoaded';
-  value?: string;
+// TODO: add typing for data beyond generic value string
+type WebAppCommand = {
+  action: WebAppAction;
+  value?: string | { tab: string; path: string };
 };
-
-export type Props = NativeStackScreenProps<WebViewStackParamList, 'WebView'>;
 
 const createUri = (shipUrl: string, path?: string) =>
   `${shipUrl}/apps/groups${
     path ? (path.startsWith('/') ? path : `/${path}`) : '/'
   }`;
 
-const InnerWebViewScreen = ({
-  navigation,
-  route: {
-    params: { initialPath, gotoPath },
-  },
-}: Props) => {
+export const SingletonWebview = () => {
   const tailwind = useTailwind();
-  const { shipUrl = '', clearShip } = useShip();
+  const { shipUrl = '', ship, clearShip } = useShip();
   const webViewProps = useWebView();
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
+  const webviewRef = useRef<WebView>(null);
   const didManageAccount = useRef(false);
-  const [{ uri, key }, setUri] = useState<{
-    uri: string;
-    key: number;
-  }>({
-    uri: createUri(shipUrl, initialPath),
-    key: 1,
-  });
   const [appLoaded, setAppLoaded] = useState(false);
+  const webviewContext = useWebViewContext();
 
   const handleLogout = useCallback(() => {
     clearShip();
@@ -63,11 +55,11 @@ const InnerWebViewScreen = ({
     removeHostingUserId();
   }, [clearShip]);
 
-  const handleMessage = async ({ action, value }: WebViewMessage) => {
+  const handleMessage = async ({ action, value }: WebAppCommand) => {
     switch (action) {
       case 'copy':
         if (value) {
-          await Clipboard.setStringAsync(value);
+          await Clipboard.setStringAsync(value as string);
         }
         break;
       case 'logout':
@@ -90,21 +82,25 @@ const InnerWebViewScreen = ({
           }
         );
         break;
-      case 'manageAccount':
-        {
-          const [hostingSession, hostingUserId] = await Promise.all([
-            getHostingToken(),
-            getHostingUserId(),
-          ]);
-          didManageAccount.current = true;
-          navigation.push('ExternalWebView', {
-            uri: 'https://tlon.network/account',
-            headers: {
-              Cookie: hostingSession,
-            },
-            injectedJavaScript: `localStorage.setItem("X-SESSION-ID", "${hostingUserId}")`,
-          });
+      case 'activeTabChange':
+        webviewContext.setGotoTab(value as MobileNavTab);
+        break;
+      case 'saveLastPath': {
+        if (!value || typeof value !== 'object' || !value.tab || !value.path) {
+          return;
         }
+
+        if (value.tab === 'Messages') {
+          webviewContext.setLastMessagesPath(value.path);
+        }
+        if (value.tab === 'Groups') {
+          webviewContext.setLastGroupsPath(value.path);
+        }
+        break;
+      }
+      // TODO: handle manage account
+      case 'manageAccount':
+        webviewContext.setDidManageAccount(true);
         break;
       case 'appLoaded':
         // Slight delay otherwise white background flashes
@@ -134,16 +130,16 @@ const InnerWebViewScreen = ({
         } else if (actionIdentifier === 'reply' && userText) {
           // Send reply
         } else if (data.wer) {
-          setUri((curr) => ({
-            ...curr,
-            uri: createUri(shipUrl, data.wer),
-            key: curr.key + 1,
-          }));
+          // TODO: handle wer
+          // setUri((curr) => ({
+          //   ...curr,
+          //   uri: createUri(shipUrl, data.wer),
+          //   key: curr.key + 1,
+          // }));
         }
       }
     );
 
-    // Start notification prompt
     // connectNotifications();
 
     return () => {
@@ -151,18 +147,6 @@ const InnerWebViewScreen = ({
       notificationTapListener.remove();
     };
   }, [shipUrl]);
-
-  // If the tab for this screen gets tapped while focused, navigate back to the initial path
-  useEffect(
-    () =>
-      // @ts-expect-error: react-navigation ID and event name mismatch
-      navigation.getParent('TabBar')?.addListener('tabPress', () => {
-        if (navigation.isFocused()) {
-          navigation.setParams({ gotoPath: initialPath });
-        }
-      }),
-    [navigation, initialPath]
-  );
 
   // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
   useFocusEffect(
@@ -191,17 +175,17 @@ const InnerWebViewScreen = ({
 
   useEffect(() => {
     // Path was changed by the parent view
-    if (gotoPath) {
-      setUri((curr) => ({
-        ...curr,
-        uri: createUri(shipUrl, gotoPath),
-        key: curr.key + 1,
-      }));
+    if (webviewContext.gotoPath) {
+      // Navigate within the webview
+      WebAppHelpers.sendCommand(webviewRef, {
+        action: 'goto',
+        path: webviewContext.gotoPath,
+      });
 
       // Clear the path to mark it as handled
-      navigation.setParams({ gotoPath: undefined });
+      webviewContext.clearGotoPath();
     }
-  }, [shipUrl, gotoPath, navigation]);
+  }, [shipUrl, webviewContext, webviewRef]);
 
   // Injected web settings
   const nativeOptions: NativeWebViewOptions = {
@@ -213,10 +197,9 @@ const InnerWebViewScreen = ({
   return (
     <WebView
       {...webViewProps}
-      // Use key to force reload of view when uri is explicitly set
       scrollEnabled={false}
-      key={key}
-      source={{ uri }}
+      ref={webviewRef}
+      source={{ uri: createUri(shipUrl, '/') }}
       style={
         appLoaded
           ? tailwind('bg-transparent')
@@ -227,6 +210,11 @@ const InnerWebViewScreen = ({
         // set old values for backwards compatibility
         window.colorscheme="${nativeOptions.colorScheme}";
         window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
+        ${
+          DEV_LOCAL
+            ? ` window.our="${ship}"; window.ship="${ship?.slice(1)}"; `
+            : ''
+        }
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
@@ -248,20 +236,8 @@ const InnerWebViewScreen = ({
         return true;
       }}
       onMessage={async ({ nativeEvent: { data } }) =>
-        handleMessage(JSON.parse(data) as WebViewMessage)
+        handleMessage(JSON.parse(data) as WebAppCommand)
       }
     />
   );
-};
-
-export const WebViewScreen = (props: Props) => {
-  const tailwind = useTailwind();
-  if (IS_IOS) {
-    return (
-      <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
-        <InnerWebViewScreen {...props} />
-      </KeyboardAvoidingView>
-    );
-  }
-  return <InnerWebViewScreen {...props} />;
 };
