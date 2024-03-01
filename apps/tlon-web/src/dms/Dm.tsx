@@ -27,11 +27,10 @@ import DmInvite from '@/dms/DmInvite';
 import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { isNativeApp } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath } from '@/logic/utils';
 import { useDmIsPending, useDmUnread, useSendMessage } from '@/state/chat';
 import { useContact } from '@/state/contact';
@@ -120,11 +119,9 @@ export default function Dm() {
   const unread = useDmUnread(ship);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const showTabBar = useShowTabBar();
   const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
-  const paddingBottom = isNativeApp() ? 86 : 50;
+  const { paddingBottom } = useBottomPadding();
   const { matchedOrPending, isLoading: negotiationLoading } = useNegotiate(
     ship,
     'chat',
@@ -157,7 +154,7 @@ export default function Dm() {
     <>
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
+          paddingBottom,
         }}
         className="padding-bottom-transition flex-1"
         header={

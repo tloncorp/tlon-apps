@@ -14,6 +14,7 @@ import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useFullChannel } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { isNativeApp } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -46,10 +47,7 @@ export default function HeapDetail({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const { post: note, isLoading } = usePost(nest, idTime || '');
   const { title: curioTitle } = getKindDataFromEssay(note.essay);
-  const { isChatInputFocused } = useChatInputFocus();
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
-  const paddingBottom = isNativeApp() ? 86 : 50;
+  const { paddingBottom } = useBottomPadding();
   const { nextPost: nextNote, prevPost: prevNote } = useOrderedPosts(
     nest,
     idTime || ''
@@ -86,7 +84,7 @@ export default function HeapDetail({ title }: ViewProps) {
   return (
     <Layout
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
+        paddingBottom,
       }}
       className="padding-bottom-transition flex-1 bg-white"
       header={

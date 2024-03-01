@@ -21,11 +21,10 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { isNativeApp } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath, pluralize } from '@/logic/utils';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useNegotiateMulti } from '@/state/negotiation';
@@ -87,9 +86,7 @@ export default function MultiDm() {
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
-  const paddingBottom = isNativeApp() ? 86 : 50;
+  const { paddingBottom } = useBottomPadding();
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
   const { match: negotiationMatch, isLoading: negotiationLoading } =
     useNegotiateMulti(dmParticipants, 'chat', 'chat');
@@ -116,7 +113,7 @@ export default function MultiDm() {
     <>
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
+          paddingBottom,
         }}
         className="padding-bottom-transition flex-1"
         header={

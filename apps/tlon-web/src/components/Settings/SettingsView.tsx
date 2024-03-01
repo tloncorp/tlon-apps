@@ -1,9 +1,8 @@
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import { Helmet } from 'react-helmet';
 
-import { isNativeApp } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
-import useShowTabBar from '@/logic/useShowTabBar';
 
 import Layout from '../Layout/Layout';
 import MobileHeader from '../MobileHeader';
@@ -11,10 +10,7 @@ import Settings from './Settings';
 
 export default function SettingsView({ title }: ViewProps) {
   const isMobile = useIsMobile();
-
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
-  const paddingBottom = isNativeApp() ? 64 : 50;
+  const { paddingBottom } = useBottomPadding();
 
   return (
     <Layout
@@ -31,7 +27,7 @@ export default function SettingsView({ title }: ViewProps) {
       <div
         className="flex flex-col space-y-4 px-4 pt-4"
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? paddingBottom : 0,
+          paddingBottom,
         }}
       >
         {!isMobile && (

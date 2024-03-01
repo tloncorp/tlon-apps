@@ -15,8 +15,8 @@ import PersonIcon from '@/components/icons/PersonIcon';
 import ShareIcon from '@/components/icons/ShareIcon';
 import TlonIcon from '@/components/icons/TlonIcon';
 import { isNativeApp, postActionToNativeApp } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { isHosted } from '@/logic/utils';
 import { useOurContact } from '@/state/contact';
 
@@ -25,9 +25,7 @@ import ProfileCoverImage from './ProfileCoverImage';
 export default function Profile({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const contact = useOurContact();
-
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
 
   return (
     <>
@@ -40,7 +38,7 @@ export default function Profile({ title }: ViewProps) {
         <nav
           className="flex grow flex-col gap-1 overflow-auto p-4 md:w-64 md:shrink-0 md:border-r-2 md:border-r-gray-50 md:px-1 md:py-2"
           style={{
-            marginBottom: shouldApplyPaddingBottom ? 148 : 0,
+            paddingBottom,
           }}
           data-testid="profile-menu"
         >
