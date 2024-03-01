@@ -48,7 +48,7 @@ export default function MobileChatSearch() {
       return;
     }
 
-    navigate(`${root}/search/${input}`);
+    navigate(`${root}/search/${encodeURIComponent(input)}`);
   }, 500);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function MobileChatSearch() {
 
   const repeatRecentSearch = (query: string) => {
     setSearchInput(query);
-    navigate(`${root}/search/${query}`);
+    navigate(`${root}/search/${encodeURIComponent(query)}`);
   };
 
   const showRecentQueries =

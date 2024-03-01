@@ -54,7 +54,7 @@ export default function MobileDmSearch() {
       return;
     }
 
-    navigate(`${root}/search/${input}`);
+    navigate(`${root}/search/${encodeURIComponent(input)}`);
   }, 500);
 
   const setValue = (newValue: string) => {
@@ -64,7 +64,7 @@ export default function MobileDmSearch() {
 
   const repeatRecentSearch = (query: string) => {
     setSearchInput(query);
-    navigate(`${root}/search/${query}`);
+    navigate(`${root}/search/${encodeURIComponent(query)}`);
   };
 
   const showRecentQueries =

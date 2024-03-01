@@ -39,7 +39,7 @@ export function useChatSearchInput({
       return;
     }
 
-    navigate(`${root}/search/${input}`);
+    navigate(`${root}/search/${encodeURIComponent(input)}`);
   }, 500);
 
   const onChange = useCallback(
