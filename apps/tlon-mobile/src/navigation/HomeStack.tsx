@@ -1,16 +1,19 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { Icon, Text, View, useStyle } from '@tloncorp/ui';
 import React, { useCallback, useEffect } from 'react';
 import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import { SectionList } from 'react-native';
 
 import { GroupListItem } from '../components/GroupListItem';
+import { useWebviewPositionContext } from '../contexts/webview/position';
 import * as db from '../db';
 import type { TabParamList } from '../types';
 
-export const HomeStack = ({
-  navigation,
-}: NativeStackScreenProps<TabParamList, 'Groups'>) => {
+type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
+
+export const HomeStack = ({ navigation }: Props) => {
+  const { setVisibility } = useWebviewPositionContext();
+
   const pinnedGroups = db.useQuery<db.Group>(
     'Group',
     db.groupQuery({ isPinned: true, sortBy: 'pinIndex' })
@@ -51,7 +54,14 @@ export const HomeStack = ({
         />
       ),
     });
-  }, [navigation]);
+
+    const unsubscribe = navigation.addListener('tabPress', () => {
+      // hide the webview from other tabs
+      setVisibility(false);
+    });
+
+    return unsubscribe;
+  }, [navigation, setVisibility]);
 
   return (
     <View backgroundColor="$background" flex={1}>

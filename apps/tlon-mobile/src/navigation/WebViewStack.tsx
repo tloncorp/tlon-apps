@@ -3,6 +3,7 @@ import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 
+import { useWebviewPositionContext } from '../contexts/webview/position';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import { getInitialPath } from '../lib/WebAppHelpers';
@@ -34,6 +35,7 @@ export const WebViewStack = (props: Props) => {
     lastMessagesPath,
     setLastMessagesPath,
   } = useWebViewContext();
+  const { setVisibility } = useWebviewPositionContext();
 
   // Handle navigation when the webview is focused
   useFocusEffect(() => {
@@ -105,6 +107,9 @@ export const WebViewStack = (props: Props) => {
       // clear the gotoTab since it's been handled
       setGotoTab(null);
     }
+
+    // set the webview as visible
+    setVisibility(true);
   }, [
     focused,
     gotoTab,
@@ -112,6 +117,7 @@ export const WebViewStack = (props: Props) => {
     props.route.name,
     setGotoTab,
     setReactingToWebappNav,
+    setVisibility,
   ]);
 
   return (
