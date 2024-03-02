@@ -91,7 +91,7 @@ function ListItemIcon({
       height={size}
     >
       {fallbackText ? (
-        <Text fontSize={16} color={"$secondaryBackground"}>
+        <Text fontSize={16} color="$primaryText">
           {fallbackText.toUpperCase()}
         </Text>
       ) : null}
