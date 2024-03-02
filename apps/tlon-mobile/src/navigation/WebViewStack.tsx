@@ -31,9 +31,7 @@ export const WebViewStack = (props: Props) => {
     reactingToWebappNav,
     setGotoTab,
     setReactingToWebappNav,
-    lastGroupsPath,
     lastMessagesPath,
-    setLastGroupsPath,
     setLastMessagesPath,
   } = useWebViewContext();
 
@@ -52,14 +50,8 @@ export const WebViewStack = (props: Props) => {
         return;
       }
 
-      // If we're navigating to the Groups tab, go to its last location
-      if (props.route.name === 'Groups' && lastGroupsPath) {
-        setGotoPath(lastGroupsPath);
-        return;
-      }
-
       // Else, go to the tab's initial location
-      setGotoPath(props.route.params.initialPath);
+      setGotoPath(props.route.params?.initialPath ?? '/');
     });
 
     return unsubscribe;
@@ -77,10 +69,6 @@ export const WebViewStack = (props: Props) => {
         if (props.route.name === 'Messages') {
           setLastMessagesPath(getInitialPath(props.route.name));
         }
-
-        if (props.route.name === 'Groups') {
-          setLastGroupsPath(getInitialPath(props.route.name));
-        }
       } else {
         const timeout = window.setTimeout(() => {
           setDoubleClickTimeout(null);
@@ -94,7 +82,6 @@ export const WebViewStack = (props: Props) => {
     props.navigation,
     props.route.name,
     setGotoPath,
-    setLastGroupsPath,
     setLastMessagesPath,
   ]);
 
@@ -111,7 +98,7 @@ export const WebViewStack = (props: Props) => {
       setReactingToWebappNav(true);
 
       // navigate to the new active tab
-      props.navigation.navigate(gotoTab as keyof TabParamList, {
+      props.navigation.navigate(gotoTab as keyof Omit<TabParamList, 'Groups'>, {
         initialPath: getInitialPath(gotoTab),
       });
 
