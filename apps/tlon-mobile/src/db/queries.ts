@@ -122,7 +122,7 @@ export type QueryFn<T extends SchemaName, IsRealm extends boolean = false> = (
 export function getObjects<T extends SchemaName>(
   schemaName: T,
   query?: QueryFn<T>
-): ReadonlyArray<SchemaModel<T>> {
+) {
   const results = realm.objects(schemaName) as unknown as Results<T>;
   return query ? query(results) : results;
 }

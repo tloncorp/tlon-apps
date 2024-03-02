@@ -68,11 +68,11 @@ export const HomeStack = ({ navigation }: Props) => {
       <SectionList
         sections={[
           ...(pinnedGroups.length > 0
-            ? [{ name: 'Pinned', data: pinnedGroups }]
+            ? [{ name: 'Pinned', data: Array.from(pinnedGroups) }]
             : []),
           {
             name: pinnedGroups.length > 0 ? 'Other' : undefined,
-            data: otherGroups,
+            data: Array.from(otherGroups),
           },
         ]}
         renderItem={renderGroup}
