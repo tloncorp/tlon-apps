@@ -39,6 +39,7 @@ export const TabStack = () => {
                     fontSize="$m"
                     fontWeight="$s"
                     lineHeight="$s"
+                    color="$primaryText"
                     {...props}
                   />
                 );
@@ -51,7 +52,6 @@ export const TabStack = () => {
             <Tab.Screen
               name="Groups"
               component={HomeStack}
-              initialParams={{ initialPath: '/' }}
               options={{
                 headerShown: true,
                 tabBarIcon: ({ focused }) => (

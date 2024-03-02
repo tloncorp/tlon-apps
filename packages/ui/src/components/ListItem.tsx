@@ -96,6 +96,7 @@ const ListItemTitle = styled(SizableText, {
   numberOfLines: 1,
   lineHeight: 0,
   alignItems: "baseline",
+  color: "$secondaryText",
 });
 
 const ListItemTitleRow = styled(XStack, {

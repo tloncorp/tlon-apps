@@ -19,7 +19,7 @@ export type WebViewStackParamList = {
 };
 
 export type TabParamList = {
-  Groups: WebViewScreenParams;
+  Groups: undefined;
   Messages: WebViewScreenParams;
   Activity: WebViewScreenParams;
   Profile: WebViewScreenParams;
