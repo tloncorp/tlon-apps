@@ -67,14 +67,16 @@ const App = ({ wer: initialWer }: Props) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      Promise.all([
+      Promise.allSettled([
         syncContacts(),
         syncGroups(),
         syncPinnedGroups(),
         syncUnreads(),
-      ]).catch((err) => {
-        console.log(err);
-      });
+      ]).then((results) =>
+        results.forEach((result) => {
+          if (result.status === 'rejected') console.error(result.reason);
+        })
+      );
     }
   }, [isAuthenticated]);
 

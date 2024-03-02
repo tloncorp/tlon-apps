@@ -23,9 +23,11 @@ export const HomeStack = ({
       sortDirection: 'desc',
     })
   );
+
   const renderGroup = useCallback(({ item }: ListRenderItemInfo<db.Group>) => {
     return <GroupListItem model={item} />;
   }, []);
+
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
@@ -35,6 +37,7 @@ export const HomeStack = ({
     // Shouldn't have to cast this, since gap and padding will resolve to
     // numeric values, but I think tamagui's types are off here.
   ) as StyleProp<ViewStyle>;
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -49,24 +52,32 @@ export const HomeStack = ({
       ),
     });
   }, [navigation]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <SectionList
         sections={[
-          { name: 'Pinned', data: pinnedGroups },
-          { name: 'Other', data: otherGroups },
+          ...(pinnedGroups.length > 0
+            ? [{ name: 'Pinned', data: pinnedGroups }]
+            : []),
+          {
+            name: pinnedGroups.length > 0 ? 'Other' : undefined,
+            data: otherGroups,
+          },
         ]}
         renderItem={renderGroup}
-        renderSectionHeader={({ section }) => (
-          <Text
-            paddingHorizontal="$l"
-            paddingVertical="$xl"
-            fontSize={'$s'}
-            color="$secondaryText"
-          >
-            {section.name}
-          </Text>
-        )}
+        renderSectionHeader={({ section }) =>
+          section.name ? (
+            <Text
+              paddingHorizontal="$l"
+              paddingVertical="$xl"
+              fontSize={'$s'}
+              color="$secondaryText"
+            >
+              {section.name}
+            </Text>
+          ) : null
+        }
         stickySectionHeadersEnabled={false}
         contentContainerStyle={contentContainerStyle}
         keyExtractor={getGroupId}
