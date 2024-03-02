@@ -117,6 +117,7 @@ export default function ProfileModal() {
       <ProfileCoverImage
         className={cn(
           'flex items-end rounded-b-none',
+          cover ? 'h-64' : 'h-16',
           isMobile ? 'rounded-t-[32px]' : 'rounded-t-xl'
         )}
         cover={cover}
@@ -125,7 +126,7 @@ export default function ProfileModal() {
           icon={false}
           ship={ship}
           size="huge"
-          className="translate-y-9"
+          className="translate-x-5 translate-y-9"
         />
       </ProfileCoverImage>
       <div className="flex flex-col space-y-2 p-5 pt-14">

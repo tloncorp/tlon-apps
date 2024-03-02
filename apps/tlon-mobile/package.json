@@ -42,6 +42,7 @@
     "@tloncorp/shared": "*",
     "@urbit/aura": "^1.0.0",
     "classnames": "^2.3.2",
+    "dotenv-expand": "^11.0.6",
     "expo": "^50.0.6",
     "expo-application": "~5.8.3",
     "expo-asset": "~9.0.2",

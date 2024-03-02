@@ -1,24 +1,13 @@
 import cn from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
 import { Outlet, matchPath, useLocation, useMatch } from 'react-router';
 
 import Sidebar from '@/components/Sidebar/Sidebar';
-import useActiveTab, {
-  ActiveTab,
-  useSaveNavState,
-} from '@/components/Sidebar/util';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
 import { useIsMobile } from '@/logic/useMedia';
 
 export function DesktopNav() {
   const location = useLocation();
-  const activeTab = useActiveTab();
-  const saveNavState = useSaveNavState();
-  const [lastLocation, setLastLocation] = useState<{
-    tab: ActiveTab;
-    pathname: string;
-  }>({ tab: activeTab, pathname: location.pathname });
   const state = location.state as { backgroundLocation?: Location } | null;
   const match = useMatch('/groups/:ship/:name/*');
   const backgroundLocationMatch = matchPath(
@@ -31,22 +20,11 @@ export function DesktopNav() {
     damping: 120,
   };
 
-  // if we switch tabs from messages or groups, save the nav state
-  useEffect(() => {
-    if (lastLocation.tab !== activeTab) {
-      // TODO: we only save messages state for now since unclear how to do with groups
-      // given existing sidebar
-      if (['messages'].includes(lastLocation.tab)) {
-        saveNavState(lastLocation.tab, lastLocation.pathname);
-      }
-      setLastLocation({ tab: activeTab, pathname: location.pathname });
-    } else if (lastLocation.pathname !== location.pathname) {
-      setLastLocation({ tab: activeTab, pathname: location.pathname });
-    }
-  }, [activeTab, lastLocation, location.pathname, saveNavState]);
-
   return (
-    <div className="relative flex h-full min-w-64 flex-none resize-x overflow-hidden border-r-2 border-gray-50 bg-white">
+    <div
+      className="relative flex h-full min-w-64 flex-none resize-x overflow-hidden border-r-2 border-gray-50 bg-white"
+      data-testid="groups-menu"
+    >
       <AnimatePresence initial={false}>
         {match || backgroundLocationMatch ? (
           <motion.div
@@ -79,7 +57,7 @@ export function DesktopNav() {
 export default function GroupsNav() {
   const isMobile = useIsMobile();
   return (
-    <div className={cn('fixed flex h-full w-full')}>
+    <div className={cn('flex h-full w-full', isMobile && 'fixed')}>
       {isMobile ? null : <DesktopNav />}
       <Outlet />
     </div>

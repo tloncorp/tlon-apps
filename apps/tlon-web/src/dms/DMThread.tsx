@@ -27,8 +27,8 @@ import MobileHeader from '@/components/MobileHeader';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
@@ -66,8 +66,7 @@ export default function DMThread() {
   const threadRef = useRef<HTMLDivElement | null>(null);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const { isChatInputFocused } = useChatInputFocus();
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const { mutate: markDmRead } = useMarkDmReadMutation();
   const isSmall = useMedia('(max-width: 1023px)');
@@ -127,8 +126,8 @@ export default function DMThread() {
     clearOnNavRef.current = { isSmall, readTimeout, whom, markDmRead };
   }, [readTimeout, whom, isSmall, markDmRead]);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       const curr = clearOnNavRef.current;
       if (
         curr.isSmall &&
@@ -139,8 +138,9 @@ export default function DMThread() {
         useChatStore.getState().read(curr.whom);
         curr.markDmRead({ whom: curr.whom });
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   if (!writ || isLoading) return null;
 
@@ -151,7 +151,7 @@ export default function DMThread() {
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
     >
       {isMobile ? (

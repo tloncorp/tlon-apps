@@ -83,6 +83,7 @@ export default function MobileGroupChannelList() {
           </div>
         }
         pathBack="/"
+        // TODO: here is where we will wire up the back button once the native groups list is ready
       />
       <div className="relative z-10 mt-2 h-full rounded-t-3xl bg-white pb-4 drop-shadow-[0_-2px_4px_rgba(0,0,0,0.125)]">
         <ChannelList paddingTop={6} />

@@ -7,7 +7,6 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
 import ShipScroller from '@/components/ShipScroller';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import { useIsMobile } from '@/logic/useMedia';
 import { useBlockedShips, useUnblockShipMutation } from '@/state/chat';
 import { useContact } from '@/state/contact';
 
@@ -70,14 +69,10 @@ const BlockedUser = React.memo(({ ship: user }: { ship: string }) => {
 });
 
 export default function BlockedUsers() {
-  const isMobile = useIsMobile();
   const { blocked, isLoading } = useBlockedShips();
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!isMobile ? (
-        <span className="text-lg font-bold">Blocked Users</span>
-      ) : null}
       {isLoading ? (
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner />

@@ -45,8 +45,6 @@ export function getFont(name: FontFamilyTokens, size = "$true") {
   };
 }
 
-export { useStyle } from "tamagui";
-
 function getFontTokenValue(
   token: string | number | Variable | undefined
 ): string | number | undefined {
@@ -56,3 +54,4 @@ function getFontTokenValue(
     return token.val;
   }
 }
+export { useStyle, ZStack, View } from "tamagui";
