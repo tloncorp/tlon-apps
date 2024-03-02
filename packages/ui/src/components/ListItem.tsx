@@ -1,5 +1,6 @@
 import React, { ComponentProps, PropsWithChildren, ReactElement } from "react";
-import { styled, withStaticProperties } from "tamagui";
+import { SvgUri } from "react-native-svg";
+import { styled, View, withStaticProperties } from "tamagui";
 import { SizableText, Stack, XStack, YStack, Image, Text } from "tamagui";
 import { Icon } from "./Icon";
 
@@ -54,17 +55,31 @@ function ListItemIcon({
   const resolvedBackgroundColor = backgroundColor ?? "$secondaryBackground";
   const size = "$4xl";
   return imageUrl ? (
-    <Image
-      width={size}
-      height={size}
-      borderRadius="$s"
-      //@ts-ignore This is an arbitrary, user-set color
-      backgroundColor={resolvedBackgroundColor}
-      {...props}
-      source={{
-        uri: imageUrl,
-      }}
-    />
+    imageUrl.includes(".svg") ? (
+      <View
+        width={size}
+        height={size}
+        borderRadius="$s"
+        //@ts-ignore This is an arbitrary, user-set color
+        backgroundColor={resolvedBackgroundColor}
+        overflow="hidden"
+        {...props}
+      >
+        <SvgUri width="100%" height="100%" uri={imageUrl} />
+      </View>
+    ) : (
+      <Image
+        width={size}
+        height={size}
+        borderRadius="$s"
+        //@ts-ignore This is an arbitrary, user-set color
+        backgroundColor={resolvedBackgroundColor}
+        {...props}
+        source={{
+          uri: imageUrl,
+        }}
+      />
+    )
   ) : (
     <Stack
       //@ts-ignore This is an arbitrary, user-set color
@@ -74,7 +89,6 @@ function ListItemIcon({
       justifyContent="center"
       width={size}
       height={size}
-      //@ts-ignore This is an arbitrary, user-set color
     >
       {fallbackText ? (
         <Text fontSize={16} color={"$secondaryBackground"}>
