@@ -7,8 +7,8 @@ import SearchBar from '@/chat/ChatSearch/SearchBar';
 import Layout from '@/components/Layout/Layout';
 import { CHANNEL_SEARCH_RESULT_SIZE } from '@/constants';
 import { useSafeAreaInsets } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import useDebounce from '@/logic/useDebounce';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { useChannelSearch } from '@/state/channel/channel';
 import { useSearchState } from '@/state/chat/search';
 
@@ -24,8 +24,7 @@ export default function MobileChatSearch() {
   const insets = useSafeAreaInsets();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const [searchInput, setSearchInput] = useState(params.query || '');
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
 
   const whom =
     params.chShip && params.chName
@@ -76,7 +75,7 @@ export default function MobileChatSearch() {
   return (
     <Layout
       className="flex-1 bg-white px-4"
-      style={{ paddingBottom: shouldApplyPaddingBottom ? 50 : 0 }}
+      style={{ paddingBottom }}
       header={
         <div className="mt-2 flex" style={{ paddingTop: insets.top }}>
           <SearchBar
@@ -94,7 +93,7 @@ export default function MobileChatSearch() {
         </div>
       }
     >
-      <div className="pb-4 z-30 flex h-full w-full flex-col pt-4">
+      <div className="z-30 flex h-full w-full flex-col py-4">
         {showRecentQueries && (
           <div className="mb-4 flex flex-col items-start">
             <p className="mb-4 text-sm font-semibold text-gray-400">
