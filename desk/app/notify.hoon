@@ -229,7 +229,7 @@
       =/  =uid  (slav %uv uid.pole)
       =/  note=notification  (~(got by notifications) uid)
       ``hark-note+!>(note)
-        [%x %provider-state ~]  ``provider-state+!>(provider-state)
+        [%x %provider-state ~]  ``noun+!>(provider-state)
         [%x %client-state ~]    ``client-state+!>(client-state)
     ==
   ::
