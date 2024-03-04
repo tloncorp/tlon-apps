@@ -598,10 +598,15 @@
   [nest ca-unread:(ca-abed:ca-core nest)]
 ::
 ++  pass-hark
+  |=  =cage
+  ^-  card
+  =/  =wire  /hark
+  =/  =dock  [our.bowl %hark]
+  [%pass wire %agent dock %poke cage]
+++  pass-yarn
   |=  =new-yarn:ha
   ^-  card
-  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
-  [%pass /hark %agent [our.bowl %hark] %poke cage]
+  (pass-hark hark-action-1+!>([%new-yarn new-yarn]))
 ::
 ++  from-self  =(our src):bowl
 ::
@@ -679,6 +684,31 @@
   ++  ca-a-remark
     |=  =a-remark:c
     ^+  ca-core
+    =?  ca-core  =(%read -.a-remark)
+      %-  emil
+      =/  last-read  last-read.remark.channel
+      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
+      %+  murn
+        ~(tap by cable.carpet)
+      |=  [=rope:ha =thread:ha]
+      ^-  (unit card)
+      ?~  can.rope  ~
+      ?.  =(nest u.can.rope)  ~
+      ~&  ted.rope
+      =/  thread=(pole knot)  ted.rope
+      =/  top-id=(unit id-post:c)
+        ?+  thread  ~
+          [* * * * id=@ rest=*]  `(slav %ui (cat 3 '0i' id.thread))
+        ==
+      ::  look at what post id the notification is coming from, and
+      ::  if it's newer than the last read, mark the notification
+      ::  read as well
+      ?~  top-id  ~
+      ~&  [u.top-id last-read.remark.channel]
+      ?:  (lth u.top-id last-read.remark.channel)  ~
+      =/  =cage  hark-action-1+!>([%saw-rope rope])
+      ~&  rope
+      `(pass-hark cage)
     =.  remark.channel
       ?-    -.a-remark
           %watch    remark.channel(watching &)
@@ -1145,12 +1175,12 @@
           ca-core
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin rope cs ~)))
+        (emit (pass-yarn (ca-spin rope cs ~)))
       ::
       ?:  (want-hark %any)
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' sent a message: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin rope cs ~)))
+        (emit (pass-yarn (ca-spin rope cs ~)))
       ca-core
     ::
     ++  on-reply
@@ -1183,7 +1213,7 @@
       =;  cs=(unit (list content:ha))
         ?~  cs  ca-core
         =/  =rope:ha  (ca-rope -.kind-data.post id-post `id.reply)
-        (emit (pass-hark (ca-spin rope u.cs ~)))
+        (emit (pass-yarn (ca-spin rope u.cs ~)))
       ::  notify because we wrote the post the reply responds to
       ::
       ?:  =(author.post our.bowl)
