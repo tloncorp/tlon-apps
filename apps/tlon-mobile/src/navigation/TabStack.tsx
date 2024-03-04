@@ -1,14 +1,8 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon, UrbitSigil, View, ZStack } from '@tloncorp/ui';
+import { Icon, UrbitSigil } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
-import { SingletonWebview } from '../components/SingletonWebview';
 import { useShip } from '../contexts/ship';
-import {
-  WebviewPositionProvider,
-  useWebviewPositionContext,
-} from '../contexts/webview/position';
-import { WebviewProvider } from '../contexts/webview/webview';
 import { getInitialPath } from '../lib/WebAppHelpers';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
@@ -18,85 +12,78 @@ const Tab = createBottomTabNavigator<TabParamList>();
 export const TabStack = () => {
   const { ship } = useShip();
   const shipIsPlanetOrLarger = ship && ship.length <= 14;
+
   return (
-    <WebviewPositionProvider>
-      <WebviewProvider>
-        <ZStack flex={1}>
-          <Tab.Navigator
-            id="TabBar"
-            initialRouteName="Groups"
-            screenOptions={{ headerShown: false }}
-          >
-            <Tab.Screen
-              name="Groups"
-              component={WebViewStack}
-              initialParams={{ initialPath: getInitialPath('Groups') }}
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <TabIcon
-                    type={'Home'}
-                    activeType={'HomeFilled'}
-                    isActive={focused}
-                  />
-                ),
-                tabBarShowLabel: false,
-              }}
+    <Tab.Navigator
+      id="TabBar"
+      initialRouteName="Groups"
+      screenOptions={{ headerShown: false }}
+    >
+      <Tab.Screen
+        name="Groups"
+        component={WebViewStack}
+        initialParams={{ initialPath: getInitialPath('Groups') }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Home'}
+              activeType={'HomeFilled'}
+              isActive={focused}
             />
-            <Tab.Screen
-              name="Messages"
-              component={WebViewStack}
-              initialParams={{ initialPath: getInitialPath('Messages') }}
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <TabIcon
-                    type={'Messages'}
-                    activeType={'MessagesFilled'}
-                    isActive={focused}
-                  />
-                ),
-                tabBarShowLabel: false,
-              }}
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Messages"
+        component={WebViewStack}
+        initialParams={{ initialPath: getInitialPath('Messages') }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Messages'}
+              activeType={'MessagesFilled'}
+              isActive={focused}
             />
-            <Tab.Screen
-              name="Activity"
-              component={WebViewStack}
-              initialParams={{ initialPath: getInitialPath('Activity') }}
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <TabIcon
-                    type={'Notifications'}
-                    activeType={'NotificationsFilled'}
-                    isActive={focused}
-                  />
-                ),
-                tabBarShowLabel: false,
-              }}
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Activity"
+        component={WebViewStack}
+        initialParams={{ initialPath: getInitialPath('Activity') }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              type={'Notifications'}
+              activeType={'NotificationsFilled'}
+              isActive={focused}
             />
-            <Tab.Screen
-              name="Profile"
-              component={WebViewStack}
-              initialParams={{ initialPath: getInitialPath('Profile') }}
-              options={{
-                tabBarIcon: ({ focused }) =>
-                  ship && shipIsPlanetOrLarger ? (
-                    <UrbitSigil ship={ship} />
-                  ) : (
-                    <TabIcon
-                      type={'Profile'}
-                      activeType={'Profile'}
-                      isActive={focused}
-                    />
-                  ),
+          ),
+          tabBarShowLabel: false,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={WebViewStack}
+        initialParams={{ initialPath: getInitialPath('Profile') }}
+        options={{
+          tabBarIcon: ({ focused }) =>
+            ship && shipIsPlanetOrLarger ? (
+              <UrbitSigil ship={ship} />
+            ) : (
+              <TabIcon
+                type={'Profile'}
+                activeType={'Profile'}
+                isActive={focused}
+              />
+            ),
 
-                tabBarShowLabel: false,
-              }}
-            />
-          </Tab.Navigator>
-
-          <WebviewOverlay />
-        </ZStack>
-      </WebviewProvider>
-    </WebviewPositionProvider>
+          tabBarShowLabel: false,
+        }}
+      />
+    </Tab.Navigator>
   );
 };
 
@@ -115,24 +102,5 @@ function TabIcon({
       type={resolvedType}
       color={isActive ? '$primaryText' : '$activeBorder'}
     />
-  );
-}
-
-function WebviewOverlay() {
-  const { position, visible } = useWebviewPositionContext();
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        top: position.y,
-        left: position.x,
-        width: position.width,
-        height: position.height,
-        opacity: !visible ? 0 : undefined,
-        pointerEvents: !visible ? 'none' : undefined,
-      }}
-    >
-      <SingletonWebview />
-    </View>
   );
 }
