@@ -36,11 +36,12 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
+import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import { nestToFlag, useIsDmOrMultiDm } from '@/logic/utils';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 import {
   useEditReplyMutation,
   useIsEdited,
@@ -450,6 +451,16 @@ const ReplyMessage = React.memo<
                 )}
               </div>
             </div>
+            {isEditing && messageEditor && messageEditor.getText() !== '' && (
+              <div className="flex flex-col justify-end ml-2.5">
+                <button
+                  onClick={() => onSubmit(messageEditor)}
+                  className="h-8 w-8 bg-blue rounded-full flex items-center justify-center text-white"
+                >
+                  <CheckIcon className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );
