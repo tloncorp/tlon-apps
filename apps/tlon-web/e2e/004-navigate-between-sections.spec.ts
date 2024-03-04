@@ -28,7 +28,7 @@ test('Render AppNav correctly in different screen sizes', async ({ page }) => {
   const mobileBoundingBox = await mobileNav.boundingBox();
   if (mobileBoundingBox) {
     expect(mobileBoundingBox.x).toBeCloseTo(0);
-    expect(mobileBoundingBox.y).toBeCloseTo(790);
+    expect(mobileBoundingBox.y).toBeCloseTo(794);
   } else {
     throw new Error('Mobile navigation bounding box is null');
   }

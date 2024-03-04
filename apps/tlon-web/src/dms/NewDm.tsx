@@ -1,12 +1,12 @@
 import cn from 'classnames';
-import React, { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -29,8 +29,7 @@ export default function NewDM() {
   const isMobile = useIsMobile();
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const { isChatInputFocused } = useChatInputFocus();
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const shouldBlockInput =
     isMultiDm && !existingMultiDm && multiDmVersionMismatch;
 
@@ -38,7 +37,7 @@ export default function NewDM() {
     <Layout
       className="flex-1"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
       header={
         isMobile && <MobileHeader title="New Message" pathBack={dmListPath} />
