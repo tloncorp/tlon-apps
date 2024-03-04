@@ -34,9 +34,9 @@ export default function Profile({ title }: ViewProps) {
       </Helmet>
 
       {isMobile ? <MobileHeader title="Profile" /> : null}
-      <div className="flex h-full w-full">
+      <div className="flex h-full w-full overflow-auto md:overflow-hidden">
         <nav
-          className="flex grow flex-col gap-1 overflow-auto p-4 md:w-64 md:shrink-0 md:border-r-2 md:border-r-gray-50 md:px-1 md:py-2"
+          className="flex grow flex-col gap-1 p-4 md:w-64 md:shrink-0 md:overflow-auto md:border-r-2 md:border-r-gray-50 md:px-1 md:py-2"
           style={{
             paddingBottom,
           }}
