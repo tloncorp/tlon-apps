@@ -2728,7 +2728,7 @@ export function useMyLastMessage(
 
 export function useIsEdited(message: Post | Writ | Reply) {
   const isEdited = useMemo(
-    () => 'edited' in message && message.edited !== 'false',
+    () => 'revision' in message && message.revision !== '0',
     [message]
   );
 

@@ -179,7 +179,7 @@ export interface PostEssay {
 export type Post = {
   seal: PostSeal;
   essay: PostEssay;
-  edited?: string;
+  revision?: string;
 };
 
 export interface PagedPosts {
@@ -206,7 +206,7 @@ export type PageMap = BTree<BigInteger, Post | null>;
 export interface Reply {
   seal: ReplySeal;
   memo: Memo;
-  edited?: string;
+  revision?: string;
 }
 
 export interface Memo {
@@ -544,7 +544,7 @@ export const emptyPost: Post = {
       lastReply: null
     }
   },
-  edited: 'false',
+  revision: '0',
   essay: {
     author: '',
     content: [],
@@ -559,7 +559,7 @@ export const emptyReply: Reply = {
     'parent-id': '',
     reacts: {}
   },
-  edited: 'false',
+  revision: '0',
   memo: {
     author: '',
     content: [],
@@ -673,7 +673,7 @@ export interface PostSealDataResponse {
 
 export interface PostDataResponse {
   seal: PostSealDataResponse;
-  edited?: string;
+  revision?: string;
   essay: PostEssay;
 }
 

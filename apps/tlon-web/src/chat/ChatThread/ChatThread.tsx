@@ -73,7 +73,7 @@ export default function ChatThread() {
       bigInt(idTime!),
       {
         memo: note.essay,
-        edited: note.edited,
+        revision: note.revision,
         seal: {
           id: note.seal.id,
           'parent-id': note.seal.id,
