@@ -30,6 +30,7 @@ test('Add reaction', async ({ browser }) => {
   await expect(page.getByTestId('chat-message-options')).toBeVisible();
 
   // open picker and add reaction
+  await page.getByTestId('react').waitFor();
   await page.getByTestId('react').click();
   await page.getByTestId('emoji-picker').waitFor();
   await expect(page.getByTestId('emoji-picker')).toBeVisible();
