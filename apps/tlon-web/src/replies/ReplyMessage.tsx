@@ -43,6 +43,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag, useIsDmOrMultiDm } from '@/logic/utils';
 import {
   useEditReplyMutation,
+  useIsEdited,
   useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
@@ -125,7 +126,7 @@ const ReplyMessage = React.memo<
     ) => {
       const [searchParms, setSearchParams] = useSearchParams();
       const isEditing = searchParms.get('edit') === reply.seal.id;
-      const isEdited = 'rev' in reply && reply.rev !== '0' ? true : false;
+      const isEdited = useIsEdited(reply);
       const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = seal['parent-id'] === seal.id;

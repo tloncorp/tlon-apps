@@ -7,9 +7,15 @@ export const infinitePostsKey = (nest: string) => {
   return [han, 'posts', flag, 'infinite'];
 };
 
+export const postKey = (nest: string, id: string) => {
+  const [han, flag] = nestToFlag(nest);
+  return [han, 'posts', flag, id];
+};
+
 export const ChannnelKeys = {
   channel: channelKey,
   infinitePostsKey,
+  postKey,
 };
 
 export default ChannnelKeys;

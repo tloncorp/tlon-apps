@@ -33,13 +33,13 @@ import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
-import getKindDataFromEssay from '@/logic/getKindData';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import {
   useEditPostMutation,
+  useIsEdited,
   useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
@@ -149,7 +149,7 @@ const ChatMessage = React.memo<
     ) => {
       const [searchParms, setSearchParams] = useSearchParams();
       const isEditing = searchParms.get('edit') === writ.seal.id;
-      const isEdited = 'rev' in writ && writ.rev !== '0' ? true : false;
+      const isEdited = useIsEdited(writ);
       const { seal, essay } = writ;
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
@@ -226,11 +226,6 @@ const ChatMessage = React.memo<
         author: window.our,
         sent: essay.sent,
       });
-      // const msgStatus = useTrackedMessageStatus(seal.id);
-      // const status = useTrackedPostStatus({
-      //   author: window.our,
-      //   sent: essay.sent,
-      // });
 
       const isDelivered =
         msgStatus === 'delivered' && trackedPostStatus === 'delivered';
@@ -564,7 +559,7 @@ const ChatMessage = React.memo<
                   />
                 )}
                 {isEdited && !isEditing && (
-                  <span className="text-xs text-gray-400">Edited</span>
+                  <span className="text-xs text-gray-400 ml-1">Edited</span>
                 )}
               </div>
             </div>

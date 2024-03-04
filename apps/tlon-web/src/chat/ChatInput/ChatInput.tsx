@@ -182,9 +182,7 @@ export default function ChatInput({
   const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
-  const myLastMessage = useMyLastMessage(
-    `${!isDmOrMultiDM ? 'chat/' : ''}${whom}`
-  );
+  const myLastMessage = useMyLastMessage(whom, replying);
   const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
 
   const handleUnblockClick = useCallback(() => {

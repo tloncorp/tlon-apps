@@ -22,6 +22,7 @@ import {
   PostEssay,
   PostTuple,
   Posts,
+  Replies,
   Reply,
   ReplyTuple,
   Said,
@@ -68,7 +69,7 @@ import queryClient from '@/queryClient';
 
 // eslint-disable-next-line import/no-cycle
 import ChatQueryKeys from '../chat/keys';
-import { channelKey, infinitePostsKey } from './keys';
+import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 
 const POST_PAGE_SIZE = isNativeApp()
@@ -1964,9 +1965,11 @@ export function useEditReplyMutation() {
           return prevPost;
         }
 
+        const replyId = decToUd(variables.replyId);
+
         const prevReplies = prevPost.seal.replies;
         const newReplies = { ...prevReplies };
-        newReplies[variables.replyId] = {
+        newReplies[replyId] = {
           seal: {
             id: variables.replyId,
             'parent-id': variables.postId,
@@ -2599,8 +2602,20 @@ export function usePostToggler(postId: string) {
   };
 }
 
-export function useMyLastMessage(whom: string): Post | Writ | null {
+export function useMyLastMessage(
+  whom: string,
+  postId?: string
+): Post | Writ | Reply | null {
   const isDmOrMultiDm = useIsDmOrMultiDm(whom);
+  let nest = '';
+
+  if (whom === '') {
+    return null;
+  }
+
+  if (!isDmOrMultiDm) {
+    nest = `chat/${whom}`;
+  }
 
   const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
     if (!pages || pages.length === 0) {
@@ -2637,9 +2652,32 @@ export function useMyLastMessage(whom: string): Post | Writ | null {
     return null;
   };
 
+  const lastReply = (replies: Replies) => {
+    const myReplies = Object.entries(replies).filter(
+      ([_id, msg]) => msg?.memo.author === window.our
+    );
+
+    const lastReplyMessage = last(myReplies);
+    if (!lastReplyMessage) {
+      return null;
+    }
+
+    return lastReplyMessage[1];
+  };
+
   if (!isDmOrMultiDm) {
+    if (postId) {
+      const data = queryClient.getQueryData<PostDataResponse>(
+        postKey(nest, postId)
+      );
+      if (data && 'seal' in data) {
+        const { seal } = data;
+        return lastReply(seal.replies);
+      }
+    }
+
     const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
-      infinitePostsKey(whom)
+      infinitePostsKey(nest)
     );
     if (data) {
       const { pages } = data;
@@ -2660,4 +2698,13 @@ export function useMyLastMessage(whom: string): Post | Writ | null {
   }
 
   return null;
+}
+
+export function useIsEdited(message: Post | Writ | Reply) {
+  const isEdited = useMemo(
+    () => 'edited' in message && message.edited !== 'false',
+    [message]
+  );
+
+  return isEdited;
 }

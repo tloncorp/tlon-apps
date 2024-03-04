@@ -97,7 +97,7 @@
     |=  [=seal:c [rev=@ud =essay:c]]
     %-  pairs
     :~  seal+(^seal seal)
-        rev+s+(scot %ud rev)
+        edited+s+?:(!=(rev 0) 'true' 'false')
         essay+(^essay essay)
         type+s+%post
     ==
@@ -128,7 +128,7 @@
     |=  [=reply-seal:c [rev=@ud =memo:c]]
     %-  pairs
     :~  seal+(^reply-seal reply-seal)
-        rev+s+(scot %ud rev)
+        edited+s+?:(!=(rev 0) 'true' 'false')
         memo+(^memo memo)
     ==
   ::
