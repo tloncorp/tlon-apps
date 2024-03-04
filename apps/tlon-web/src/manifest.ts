@@ -17,6 +17,18 @@ export default {
       sizes: '192x192',
       type: 'image/png',
     },
+    {
+      src: './icon-512-maskable.png',
+      sizes: '512x512',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
+    {
+      src: './icon-192-maskable.png',
+      sizes: '192x192',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
   ],
   theme_color: '#ffffff',
   background_color: '#ffffff',

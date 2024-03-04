@@ -16,7 +16,6 @@ import {
 } from 'react-router-dom';
 
 import { IS_MOCK } from '@/api';
-import tlonFavicon from '@/assets/favicon.ico';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import ChatChannel from '@/chat/ChatChannel';
 import ChatThread from '@/chat/ChatThread/ChatThread';
@@ -729,12 +728,6 @@ function RoutedApp() {
       <Router basename={basename()}>
         <Helmet>
           <title>Tlon</title>
-          <link
-            rel="icon"
-            href={tlonFavicon}
-            sizes="any"
-            type="image/svg+xml"
-          />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
         <AppUpdateContext.Provider value={appUpdateContextValue}>
