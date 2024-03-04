@@ -31,7 +31,7 @@ test('Add reaction', async ({ browser }) => {
 
   // open picker and add reaction
   await page.getByTestId('react').waitFor();
-  await page.getByTestId('react').click();
+  await page.getByTestId('react').dispatchEvent('click'); // workaround for vaul intercepting the click event
   await page.getByTestId('emoji-picker').waitFor();
   await expect(page.getByTestId('emoji-picker')).toBeVisible();
   await page.getByText(defaultVisibleEmoji).waitFor();
