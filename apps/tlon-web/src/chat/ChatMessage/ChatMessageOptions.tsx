@@ -431,7 +431,6 @@ function ChatMessageOptions(props: {
                   icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
                   label="React"
                   showTooltip
-                  aria-label="React"
                   action={openPicker}
                 />
               </EmojiPicker>
