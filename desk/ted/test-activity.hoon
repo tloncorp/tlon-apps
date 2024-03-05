@@ -56,4 +56,29 @@
 ?>  =(index expected-index)
 ?>  (gth newest.unread-summary post-time)
 ?>  =(0 count.unread-summary)
+::
+::  add a second event, which notifies
+::
+=/  second-post-time  ~2012.1.1
+=/  add-second-post=action:a
+  :-  %add
+  ^-  event:a
+  :*  %post
+      :*  [[~sampel-poster second-post-time] second-post-time]
+          [%chat ~mister-palnet %mister-chat]
+          [~mister-hoster %mister-group]
+      ==
+      ~[[%inline ~['howdy']]]
+      &
+  ==
+;<  ~  bind:m  (watch:s /notifications [our %activity] /notifications)
+;<  ~  bind:m  (poke-our:s %activity %activity-action !>(add-second-post))
+;<  [* second-add-vase=vase]  bind:m  (take-fact:s /notifications)
+=/  [second-fact-time=time second-fact-event=event:a]  !<(time-event:a second-add-vase)
+?>  .=  +.add-second-post  second-fact-event
+::
+::  scry events (paginated)
+::
+;<  scried-stream=(list time-event:a)  bind:m  (scry:s (list time-event:a) %gx %activity /all/(scot %da fact-time)/2/noun)
+?>  =(~[[second-fact-time +.add-second-post]] scried-stream)
 (pure:m !>(~))

@@ -115,7 +115,8 @@
       [%x %all ~]
     ``activity-stream+!>((tap:on-event:a stream))
       [%x %all start=@ count=@ ~]
-    ``activity-stream+!>((scag count.pole (top:ex-event:a stream start.pole)))
+    =-  ``activity-stream+!>(-)
+    (tab:on-event:a stream `(slav %da start.pole) (slav %ud count.pole))
       [%u %event id=@ ~]
     ``loob+!>((has:on-event:a stream (slav %da id.pole)))
       [%x %event id=@ ~]
@@ -127,12 +128,17 @@
 ++  add
   |=  =event:a
   ^+  cor
+  =/  =time-id:a
+    =/  t  now.bowl
+    |-
+    ?.  (has:on-event:a stream t)  t
+    $(t +(t))
   =.  cor
-    (give %fact ~[/] activity-event+!>([now.bowl event]))
+    (give %fact ~[/] activity-event+!>([time-id event]))
   =?  cor  (notifiable event)
-    (give %fact ~[/notifications] activity-event+!>(event))
+    (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  stream
-    (put:on-event:a stream now.bowl event)
+    (put:on-event:a stream time-id event)
   ?+  -.event  cor
       %dm-post
     =/  index  [%dm whom.event]
@@ -140,11 +146,11 @@
       (~(put by indices) index [*stream:a *reads:a])
     =/  indy  (~(got by indices) index)
     =/  new
-      :*  (put:on-event:a stream.indy now.bowl event)
+      :*  (put:on-event:a stream.indy time-id event)
           floor.reads.indy
           %^  put:on-parent:a  event-parents.reads.indy
-            now.bowl
-          [| now.bowl]
+            time-id
+          [| time-id]
       ==
     =.  indices
       (~(put by indices) index new)
@@ -155,7 +161,7 @@
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
     =/  new
-      :-  (put:on-event:a stream.indy now.bowl event)
+      :-  (put:on-event:a stream.indy time-id event)
       reads.indy
     =.  indices
       (~(put by indices) index new)
@@ -166,11 +172,11 @@
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
     =/  new
-      :*  (put:on-event:a stream.indy now.bowl event)
+      :*  (put:on-event:a stream.indy time-id event)
           floor.reads.indy
           %^  put:on-parent:a  event-parents.reads.indy
-            now.bowl
-          [| now.bowl]
+            time-id
+          [| time-id]
       ==
     =.  indices
       (~(put by indices) index new)
@@ -181,7 +187,7 @@
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
     =/  new
-      :-  (put:on-event:a stream.indy now.bowl event)
+      :-  (put:on-event:a stream.indy time-id event)
       reads.indy
     =.  indices
       (~(put by indices) index new)
