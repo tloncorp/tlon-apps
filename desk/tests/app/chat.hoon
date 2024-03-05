@@ -1,48 +1,46 @@
-/-  e=epic, c=chat
-/+  *test
+/-  c=chat, ch=channels, h=hark, contacts
+/+  *test-agent
 /=  agent  /app/chat
 |%
-+$  current-state
-  $:  %1
-      chats=(map flag:c chat:c)
-      dms=(map ship dm:c)
-      clubs=(map id:club:c club:c)
-      drafts=(map whom:c story:c)
-      pins=(list whom:c)
-      bad=(set ship)
-      inv=(set ship)
-      voc=(map [flag:c id:c] (unit said:c))
-  ==
-++  chat-1  [~zod %test]
-++  bowl
-  |=  run=@ud
-  ^-  bowl:gall
-  :*  [~zod ~zod %chat]
-      [~ ~]
-      [run `@uvJ`(shax run) (add (mul run ~s1) *time) [~zod %groups ud+run]]
-  ==
---
-|%
-++  zod  `agent:gall`agent
-++  wet  `agent:gall`agent
-++  test-epic
-  =|  run=@ud
-  =|  =create:c
-  =|  =flag:c
-  =^  mov1  agent
-    (~(on-poke agent (bowl run)) %chat-create !>(create(name %test)))
-  =^  mova  agent
-    =+  =<  .(our ~wet)  (bowl run)
-    (~(on-poke agent -) %flag !>(flag(q %test)))
-  =^  mov2  agent
-    =+  =<  .(our ~wet)  (bowl run)
-    (~(on-agent agent -) /epic [%fact %epic !>(`epic:e`0)])
-  =.  run  +(run)
-  =+  !<([=current-state epic=@ud] on-save:agent)
-  ~&  >>  chats+chats.current-state
-  :: should be 0
-  ~&  >>  epic+epic
-  :: should be a resub watch task as the epics match.
-  ~&  >>  mov2+mov2
-  (expect-eq !>(&) !>(&))
+++  dap  %chat-test
+++  test-dm-notification-clearing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~zod)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hi ' [%ship ~dev]]]
+  =/  =diff:dm:c  (dm-message ~zod now.bw verse)
+  ::  start a dm from zod
+  ;<  *  bind:m  (do-poke %chat-dm-diff !>(diff))
+  (pure:m ~)
+  ;<  *  bind:m  (set-src ~dev)
+  ::  accept the dm and set read
+  ;<  *  bind:m  (do-poke %chat-dm-rsvp !>([~dev &]))
+  ;<  *  bind:m  (do-poke %chat-remark-action !>([[%ship ~zod] %read ~]))
+  ::  send another dm from zod with a notification
+  ;<  *  bind:m  (set-src ~zod)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff !>(diff))
+  ::  expect a notification and an unread dm
+  =/  =whom:c  [%ship ~zod]
+  =/  =unread:unreads:c  [now.bw 1 `[[[~zod now.bw] now.bw] 1] ~]
+  =/  =unreads:c  (malt [whom unread] ~)
+  =/  =response:writs:c  [[~zod now.bw] %add [~[verse] ~zod now.bw] now.bw]
+  =/  content=(list content:h)  ~[[%ship ~zod] ': ' 'hi ~dev']
+  =/  =new-yarn:h  [& & [~ ~ %groups /dm/zod] content /dm/zod ~]
+  ;<  *  bind:m  (ex-scry-result /x/unreads !>(unreads))
+  :: ;<  *  bind:m
+  %+  ex-cards  caz
+    :~  (ex-poke /contacts/zod [~dev %contacts] act:mar:contacts !>([%heed ~[~zod]]))
+        (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
+        (ex-poke /hark [~dev %hark] %hark-action-1 !>([%new-yarn new-yarn]))
+        (ex-fact ~[/dm/zod] %writ-response !>(response))
+        (ex-fact ~[/dm/zod/writs] %writ-response !>(response))
+    ==
+::++  test-club-notification-clearing
+++  dm-message
+  |=  [author=ship =time =verse:ch]
+  ^-  diff:dm:c
+  =/  =memo:ch  [~[verse] author time]
+  [[author time] %add memo ~ ~]
 --

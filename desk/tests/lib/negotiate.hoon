@@ -121,13 +121,6 @@
   ;<  state=vase  bind:m  get-save
   (pure:m o:!<([[%negotiate o=libstate] vase] state))
 ::
-++  ex-scry-result
-  |=  [=path =vase]
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  res=(unit (unit cage))  bind:m  (get-peek path)
-  (ex-equal q:(need (need res)) vase)
-::
 ++  perform-hear-version
   |=  [=gill:gall =protocol:libn =version:libn]
   %+  do-agent

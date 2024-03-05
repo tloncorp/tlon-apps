@@ -338,4 +338,11 @@
 ++  ex-arvo
   |=  [=wire note=note-arvo]
   (ex-card %pass wire %arvo note)
+++  ex-scry-result
+  |=  [=path =vase]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  res=(unit (unit cage))  bind:m  (get-peek path)
+  (ex-equal q:(need (need res)) vase)
+::
 --
