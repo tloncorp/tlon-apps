@@ -694,7 +694,6 @@
       ^-  (unit card)
       ?~  can.rope  ~
       ?.  =(nest u.can.rope)  ~
-      ~&  ted.rope
       =/  thread=(pole knot)  ted.rope
       =/  top-id=(unit id-post:c)
         ?+  thread  ~
@@ -704,10 +703,8 @@
       ::  if it's newer than the last read, mark the notification
       ::  read as well
       ?~  top-id  ~
-      ~&  [u.top-id last-read.remark.channel]
       ?:  (lth u.top-id last-read.remark.channel)  ~
       =/  =cage  hark-action-1+!>([%saw-rope rope])
-      ~&  rope
       `(pass-hark cage)
     =.  remark.channel
       ?-    -.a-remark
