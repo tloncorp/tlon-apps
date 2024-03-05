@@ -426,6 +426,25 @@
   $%  [%set reply=(unit reply)]
       [%reacts =reacts]
   ==
+::
++$  r-channels-simple-post  [=nest =r-channel-simple-post]
++$  r-channel-simple-post
+  $%  $<(?(%posts %post) r-channel)
+      [%posts posts=simple-posts]
+      [%post id=id-post r-post=r-simple-post]
+  ==
+::
++$  r-simple-post
+  $%  $<(?(%set %reply) r-post)
+      [%set post=(unit simple-post)]
+      [%reply id=id-reply =reply-meta r-reply=r-simple-reply]
+  ==
+::
++$  r-simple-reply
+  $%  $<(%set r-reply)
+      [%set reply=(unit simple-reply)]
+      $<(%set r-reply)
+  ==
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::

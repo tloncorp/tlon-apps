@@ -35,6 +35,33 @@
       %unwatch  ~
     ==
   ::
+  ++  r-channels-simple-post
+    |=  [=nest:c =r-channel-simple-post:c]
+    %-  pairs
+    :~  nest+(^nest nest)
+        response+(^r-channel-simple-post r-channel-simple-post)
+    ==
+  ::
+  ++  r-channel-simple-post
+    |=  r-channel=r-channel-simple-post:c
+    %+  frond  -.r-channel
+    ?-  -.r-channel
+      %posts    (simple-posts posts.r-channel)
+      %post     (pairs id+(id id.r-channel) r-post+(r-simple-post r-post.r-channel) ~)
+      %order    (order order.r-channel)
+      %view     s+view.r-channel
+      %sort     s+sort.r-channel
+      %perm     (perm perm.r-channel)
+    ::
+      %create   (perm perm.r-channel)
+      %join     (flag group.r-channel)
+      %leave    ~
+      %read     ~
+      %read-at  s+(scot %ud time.r-channel)
+      %watch    ~
+      %unwatch  ~
+    ==
+  ::
   ++  r-post
     |=  =r-post:c
     %+  frond  -.r-post
@@ -51,11 +78,35 @@
       ==
     ==
   ::
+  ++  r-simple-post
+    |=  r-post=r-simple-post:c
+    %+  frond  -.r-post
+    ?-  -.r-post
+      %set    ?~(post.r-post ~ (simple-post u.post.r-post))
+      %reacts  (reacts reacts.r-post)
+      %essay  (essay essay.r-post)
+    ::
+        %reply
+      %-  pairs
+      :~  id+(id id.r-post)
+          r-reply+(r-simple-reply r-reply.r-post)
+          meta+(reply-meta reply-meta.r-post)
+      ==
+    ==
+  ::
   ++  r-reply
     |=  =r-reply:c
     %+  frond  -.r-reply
     ?-  -.r-reply
       %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
+      %reacts  (reacts reacts.r-reply)
+    ==
+  ::
+  ++  r-simple-reply
+    |=  r-reply=r-simple-reply:c
+    %+  frond  -.r-reply
+    ?-  -.r-reply
+      %set    ?~(reply.r-reply ~ (simple-reply u.reply.r-reply))
       %reacts  (reacts reacts.r-reply)
     ==
   ::

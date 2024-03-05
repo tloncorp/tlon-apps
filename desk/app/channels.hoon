@@ -423,17 +423,20 @@
         %hide  (~(put in hidden-posts) id-post.toggle)
         %show  (~(del in hidden-posts) id-post.toggle)
       ==
-    (give %fact ~[/] toggle-post+!>(toggle))
+    (give %fact ~[/ /v0 /v1] toggle-post+!>(toggle))
   ::
 ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
+  ?.  ?=([?(%v0 %v1) *] pole)
+    $(pole [%v0 pole])
   ?+    pole  ~|(bad-watch-path+pole !!)
-      ~                          ?>(from-self cor)
-      [%unreads ~]               ?>(from-self cor)
-      [=kind:c ship=@ name=@ ~]  ?>(from-self cor)
-      [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [%v0 ~]                    ?>(from-self cor)
+      [%v1 ~]                    ?>(from-self cor)
+      [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
+      [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+      [?(%v0 %v1) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
@@ -452,7 +455,7 @@
   |=  [=nest:c =plan:c]
   ^-  wire
   %+  welp
-    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/post/(scot %ud p.plan)
+    /v1/said/[kind.nest]/(scot %p ship.nest)/[name.nest]/post/(scot %ud p.plan)
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
@@ -631,7 +634,7 @@
   ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
   ++  ca-sub-wire  (weld ca-area /updates)
   ++  ca-give-unread
-    (give %fact ~[/unreads] channel-unread-update+!>([nest ca-unread]))
+    (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
 ::
   ::
   ::  handle creating a channel
@@ -727,11 +730,11 @@
     |=  =plan:c
     ^+  ca-core
     =.  ca-core
-      %^  give  %fact  ~
+      %^  give  %fact  ~[/ /v0 /v1]
       ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
       (said:utils nest plan posts.channel)
-    (give %kick ~ ~)
+    (give %kick ~[/ /v0 /v1] ~)
   ::
   ++  ca-has-sub
     ^-  ?
@@ -1281,7 +1284,9 @@
   ++  ca-response
     |=  =r-channel:c
     =/  =r-channels:c  [nest r-channel]
-    (give %fact ~[/ ca-area] channel-response+!>(r-channels))
+    :: TODO handle the r-channels-simple-post case
+    (give %fact ~[/v1 ca-area] channel-response+!>(r-channels))
+    :: (give %fact ~[/ ca-area /v0 v0+ca-area] channel-simple-post-response+!>(r-channels-simple-post))
   ::
   ::  produce an up-to-date unread state
   ::
