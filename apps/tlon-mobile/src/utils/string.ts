@@ -47,7 +47,7 @@ export const formatPhoneNumber = (phoneNumber: string) => {
 export const transformShipURL = (shipUrl: string) => {
   // this definition is duplicated here because importing it from src/constants will cause vitest to
   // attempt to import react-native libraries, which fill fail
-  const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?(?=\/?$)/;
+  const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?$/;
   const shipUrlMatch = shipUrl.match(SHIP_URL_REGEX);
 
   let shipUrlToUse = shipUrl;
@@ -69,6 +69,9 @@ export const transformShipURL = (shipUrl: string) => {
       /^(https?:\/\/[\w-]+(\.[\w-]+)*(:\d+)?).*$/,
       '$1'
     );
+
+    // Remove trailing slashes
+    transformed = transformed.replace(/\/+$/, '');
 
     shipUrlToUse = transformed;
   }
