@@ -81,4 +81,44 @@
 ::
 ;<  scried-stream=(list time-event:a)  bind:m  (scry:s (list time-event:a) %gx %activity /all/(scot %da fact-time)/2/noun)
 ?>  =(~[[second-fact-time +.add-second-post]] scried-stream)
+::
+::  mute a dm
+::
+=/  adjust-action=action:a
+  :*  %adjust
+      [%dm %ship ~walnut]
+      %hush
+  ==
+;<  ~  bind:m  (poke-our:s %activity %activity-action !>(adjust-action))
+::
+::  add two dms. the first is muted and does not notify
+::
+=/  dm-time  ~2014.1.1
+=/  add-dm=action:a
+  :-  %add
+  ^-  event:a
+  :*  %dm-post
+      :*  [[~walnut dm-time] dm-time]
+          [%ship ~walnut]
+      ==
+      ~[[%inline ~['hey']]]
+      |
+  ==
+=/  add-second-dm=action:a
+  :-  %add
+  ^-  event:a
+  :*  %dm-post
+      :*  [[~walrus dm-time] +(dm-time)]
+          [%ship ~walrus]
+      ==
+      ~[[%inline ~['yo']]]
+      |
+  ==
+;<  ~  bind:m  (poke-our:s %activity %activity-action !>(add-dm))
+;<  ~  bind:m  (poke-our:s %activity %activity-action !>(add-second-dm))
+::  we cannot assert that we didn't get a fact, so we send another event after
+::  and assert that we get that first
+;<  [* third-add-vase=vase]  bind:m  (take-fact:s /notifications)
+=/  [third-fact-time=time third-fact-event=event:a]  !<(time-event:a third-add-vase)
+?>  .=  +.add-second-dm  third-fact-event
 (pure:m !>(~))
