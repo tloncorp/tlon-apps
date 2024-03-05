@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon, UrbitSigil, View, ZStack } from '@tloncorp/ui';
+import { Icon, Text, UrbitSigil, View, ZStack, useStyle } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
+import type { ViewStyle } from 'react-native';
 
 import { SingletonWebview } from '../components/SingletonWebview';
 import { useShip } from '../contexts/ship';
@@ -11,11 +12,15 @@ import {
 import { WebviewProvider } from '../contexts/webview/webview';
 import { getInitialPath } from '../lib/WebAppHelpers';
 import type { TabParamList } from '../types';
+import { HomeStack } from './HomeStack';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
+  const headerStyle = useStyle({
+    paddingHorizontal: '$xl',
+  }) as ViewStyle;
   const { ship } = useShip();
   const shipIsPlanetOrLarger = ship && ship.length <= 14;
   return (
@@ -25,13 +30,30 @@ export const TabStack = () => {
           <Tab.Navigator
             id="TabBar"
             initialRouteName="Groups"
-            screenOptions={{ headerShown: false }}
+            screenOptions={{
+              headerShown: false,
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              headerTitle({ style, ...props }) {
+                return (
+                  <Text
+                    fontSize="$m"
+                    fontWeight="$s"
+                    lineHeight="$s"
+                    color="$primaryText"
+                    {...props}
+                  />
+                );
+              },
+              headerLeftContainerStyle: headerStyle,
+              headerRightContainerStyle: headerStyle,
+              tabBarShowLabel: false,
+            }}
           >
             <Tab.Screen
               name="Groups"
-              component={WebViewStack}
-              initialParams={{ initialPath: getInitialPath('Groups') }}
+              component={HomeStack}
               options={{
+                headerShown: true,
                 tabBarIcon: ({ focused }) => (
                   <TabIcon
                     type={'Home'}
@@ -39,7 +61,6 @@ export const TabStack = () => {
                     isActive={focused}
                   />
                 ),
-                tabBarShowLabel: false,
               }}
             />
             <Tab.Screen
