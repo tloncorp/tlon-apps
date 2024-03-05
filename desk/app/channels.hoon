@@ -569,13 +569,26 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %channels ~]   ``channels+!>((uv-channels:utils v-channels))
+      [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels:utils v-channels))
       [%x %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
+      [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
       [%x %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
+      [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x %unreads ~]  ``channel-unreads+!>(unreads)
+      [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x =kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole)
+    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole %0)
+      [%x %v0 =kind:c ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole %0)
+      [%x %v1 =kind:c ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole %1)
   ::
+      [%u ?(%v0 %v1) =kind:c ship=@ name=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
       [%u =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
@@ -1332,12 +1345,12 @@
   ::  handle scries
   ::
   ++  ca-peek
-    |=  =(pole knot)
+    |=  [=(pole knot) ver=?(%0 %1)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
-        [%posts rest=*]  (ca-peek-posts-0 rest.pole)
-        [%v0 %posts rest=*]  (ca-peek-posts-0 rest.pole)
-        [%v1 %posts rest=*]  (ca-peek-posts-1 rest.pole)
+        [%posts rest=*]
+      ?:  =(ver %0)  (ca-peek-posts-0 rest.pole)
+      (ca-peek-posts-1 rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%hark %rope post=@ ~]
       =/  id  (slav %ud post.pole)

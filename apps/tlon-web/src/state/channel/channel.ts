@@ -222,7 +222,7 @@ export function usePostsOnHost(
   const { data } = useReactQueryScry({
     queryKey: [han, 'posts', 'live', flag],
     app: 'channels',
-    path: `/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/v1/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -605,13 +605,13 @@ export const infinitePostQueryFn =
     if (pageParam) {
       const { time, direction } = pageParam;
       const ud = decToUd(time);
-      path = `/${nest}/v1/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
+      path = `/v1/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
     } else if (initialTime) {
-      path = `/${nest}/v1/posts/around/${decToUd(initialTime)}/${
+      path = `/v1/${nest}/posts/around/${decToUd(initialTime)}/${
         POST_PAGE_SIZE / 2
       }/outline`;
     } else {
-      path = `/${nest}/v1/posts/newest/${POST_PAGE_SIZE}/outline`;
+      path = `/v1/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
     }
 
     const response = await api.scry<PagedPosts>({
@@ -699,7 +699,7 @@ export async function prefetchPostWithComments({
   const [han] = nestToFlag(nest);
   const data = (await api.scry({
     app: 'channels',
-    path: `/${nest}/posts/post/${ud}`,
+    path: `/v1/${nest}/posts/post/${ud}`,
   })) as Post;
   if (data) {
     queryClient.setQueryData([han, nest, 'posts', time, 'withComments'], data);
@@ -952,7 +952,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
   );
 
   const scryPath = useMemo(
-    () => `/${nest}/v1/posts/post/${decToUd(postId)}`,
+    () => `/v1/${nest}/posts/post/${decToUd(postId)}`,
     [nest, postId]
   );
 
