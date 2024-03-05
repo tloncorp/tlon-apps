@@ -122,7 +122,7 @@ export const themes = {
   },
 };
 
-export const sfFont = createFont({
+export const systemFont = createFont({
   family: "System",
   size: {
     s: 14,
@@ -164,8 +164,8 @@ export const monoFont = createFont({
 
 export const fonts = {
   // === Tamagui components require fonts for these properties
-  heading: sfFont,
-  body: sfFont,
+  heading: systemFont,
+  body: systemFont,
   mono: monoFont,
   // ===
 };
