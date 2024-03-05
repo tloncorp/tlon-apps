@@ -1330,7 +1330,9 @@
     |=  =(pole knot)
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
-        [%posts rest=*]  (ca-peek-posts rest.pole)
+        [%posts rest=*]  (ca-peek-posts-0 rest.pole)
+        [%v0 %posts rest=*]  (ca-peek-posts-0 rest.pole)
+        [%v1 %posts rest=*]  (ca-peek-posts-1 rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%hark %rope post=@ ~]
       =/  id  (slav %ud post.pole)
@@ -1379,7 +1381,29 @@
       (slav %p nedl.pole)
     ==
   ::
-  ++  give-posts
+  ++  give-posts-0
+    |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
+    ^-  (unit (unit cage))
+    =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
+    =;  paged-posts=paged-simple-posts:c
+      ``channel-simple-posts+!>(paged-posts)
+    ?:  =(0 (lent ls))  [*simple-posts:c ~ ~ 0]
+    =/  posts=simple-posts:c
+      ?:  =(%post mode)  (uv-simple-posts:utils posts)
+      (uv-simple-posts-without-replies:utils posts)
+    =/  newer=(unit time)
+      =/  more  (tab:on-v-posts:c posts.channel `-:(rear ls) 1)
+      ?~(more ~ `-:(head more))
+    =/  older=(unit time)
+      =/  more  (bat:mo-v-posts:c posts.channel `-:(head ls) 1)
+      ?~(more ~ `-:(head more))
+    :*  posts
+        newer
+        older
+        (wyt:on-v-posts:c posts.channel)
+    ==
+  ::
+  ++  give-posts-1
     |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
     ^-  (unit (unit cage))
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
@@ -1401,7 +1425,7 @@
         (wyt:on-v-posts:c posts.channel)
     ==
   ::
-  ++  ca-peek-posts
+  ++  ca-peek-posts-0
     |=  =(pole knot)
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
@@ -1409,19 +1433,19 @@
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  ls     (top:mo-v-posts:c posts.channel count)
-      (give-posts mode.pole ls)
+      (give-posts-0 mode.pole ls)
     ::
         [%older start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  ls     (bat:mo-v-posts:c posts.channel `start count)
-      (give-posts mode.pole ls)
+      (give-posts-0 mode.pole ls)
     ::
         [%newer start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  ls     (tab:on posts.channel `start count)
-      (give-posts mode.pole ls)
+      (give-posts-0 mode.pole ls)
     ::
         [%around time=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -1432,7 +1456,55 @@
       =/  posts
           ?~  post  (welp older newer)
           (welp (snoc older [time u.post]) newer)
-      (give-posts mode.pole posts)
+      (give-posts-0 mode.pole posts)
+    ::
+        [%post time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =/  post  (get:on posts.channel time)
+      ?~  post  ~
+      ?~  u.post  `~
+      ``channel-post+!>((uv-simple-post:utils u.u.post))
+    ::
+        [%post %id time=@ %replies rest=*]
+      =/  time  (slav %ud time.pole)
+      =/  post  (get:on posts.channel `@da`time)
+      ?~  post  ~
+      ?~  u.post  `~
+      (ca-peek-replies-0 id.u.u.post replies.u.u.post rest.pole)
+    ==
+  ::
+  ++  ca-peek-posts-1
+    |=  =(pole knot)
+    ^-  (unit (unit cage))
+    =*  on   on-v-posts:c
+    ?+    pole  [~ ~]
+        [%newest count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  ls     (top:mo-v-posts:c posts.channel count)
+      (give-posts-1 mode.pole ls)
+    ::
+        [%older start=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  ls     (bat:mo-v-posts:c posts.channel `start count)
+      (give-posts-1 mode.pole ls)
+    ::
+        [%newer start=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  ls     (tab:on posts.channel `start count)
+      (give-posts-1 mode.pole ls)
+    ::
+        [%around time=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  time  (slav %ud time.pole)
+      =/  older  (bat:mo-v-posts:c posts.channel `time count)
+      =/  newer  (tab:on posts.channel `time count)
+      =/  post   (get:on posts.channel time)
+      =/  posts
+          ?~  post  (welp older newer)
+          (welp (snoc older [time u.post]) newer)
+      (give-posts-1 mode.pole posts)
     ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)
@@ -1446,10 +1518,38 @@
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole)
+      (ca-peek-replies-1 id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
-  ++  ca-peek-replies
+  ++  ca-peek-replies-0
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
+    ^-  (unit (unit cage))
+    =*  on   on-v-replies:c
+    ?+    pole  [~ ~]
+        [%all ~]  ``channel-replies+!>(replies)
+        [%newest count=@ ~]
+      =/  count  (slav %ud count.pole)
+      ``channel-replies+!>((gas:on *v-replies:c (top:mo-v-replies:c replies count)))
+    ::
+        [%older start=@ count=@ ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      ``channel-replies+!>((gas:on *v-replies:c (bat:mo-v-replies:c replies `start count)))
+    ::
+        [%newer start=@ count=@ ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      ``channel-replies+!>((gas:on *v-replies:c (tab:on replies `start count)))
+    ::
+        [%reply %id time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =/  reply  (get:on-v-replies:c replies `@da`time)
+      ?~  reply  ~
+      ?~  u.reply  `~
+      ``channel-reply+!>(`simple-reply:c`(uv-simple-reply:utils parent-id u.u.reply))
+    ==
+  ::
+  ++  ca-peek-replies-1
     |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c

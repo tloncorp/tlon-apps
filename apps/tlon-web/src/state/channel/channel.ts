@@ -605,13 +605,13 @@ export const infinitePostQueryFn =
     if (pageParam) {
       const { time, direction } = pageParam;
       const ud = decToUd(time);
-      path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
+      path = `/${nest}/v1/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
     } else if (initialTime) {
-      path = `/${nest}/posts/around/${decToUd(initialTime)}/${
+      path = `/${nest}/v1/posts/around/${decToUd(initialTime)}/${
         POST_PAGE_SIZE / 2
       }/outline`;
     } else {
-      path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
+      path = `/${nest}/v1/posts/newest/${POST_PAGE_SIZE}/outline`;
     }
 
     const response = await api.scry<PagedPosts>({
@@ -952,7 +952,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
   );
 
   const scryPath = useMemo(
-    () => `/${nest}/posts/post/${decToUd(postId)}`,
+    () => `/${nest}/v1/posts/post/${decToUd(postId)}`,
     [nest, postId]
   );
 

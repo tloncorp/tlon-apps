@@ -12,6 +12,7 @@
 /$  scan        %channel-scan         %json
 /$  unreads     %channel-unreads      %json
 /$  posts       %channel-posts        %json
+/$  simple-posts  %channel-simple-posts  %json
 /$  post        %channel-post         %json
 /$  replies     %channel-replies      %json
 /$  reply       %channel-reply        %json

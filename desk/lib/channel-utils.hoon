@@ -27,6 +27,15 @@
   ^-  [id-post:c (unit post:c)]
   [id-post ?~(v-post ~ `(uv-post u.v-post))]
 ::
+++  uv-simple-posts
+  |=  =v-posts:c
+  ^-  simple-posts:c
+  %+  gas:on-simple-posts:c  *simple-posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit simple-post:c)]
+  [id-post ?~(v-post ~ `(uv-simple-post u.v-post))]
+::
 ++  uv-post
   |=  =v-post:c
   ^-  post:c
@@ -34,6 +43,16 @@
   :*  id.v-post
       (uv-reacts reacts.v-post)
       (uv-replies id.v-post replies.v-post)
+      (get-reply-meta v-post)
+  ==
+::
+++  uv-simple-post
+  |=  =v-post:c
+  ^-  simple-post:c
+  :_  +>.v-post
+  :*  id.v-post
+      (uv-reacts reacts.v-post)
+      (uv-simple-replies id.v-post replies.v-post)
       (get-reply-meta v-post)
   ==
 ::
@@ -45,6 +64,15 @@
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit post:c)]
   [id-post ?~(v-post ~ `(uv-post-without-replies u.v-post))]
+::
+++  uv-simple-posts-without-replies
+  |=  =v-posts:c
+  ^-  simple-posts:c
+  %+  gas:on-simple-posts:c  *simple-posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit simple-post:c)]
+  [id-post ?~(v-post ~ `(uv-simple-post-without-replies u.v-post))]
 ::
 ++  uv-post-without-replies
   |=  post=v-post:c

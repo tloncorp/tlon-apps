@@ -451,6 +451,12 @@
       older=(unit time)
       total=@ud
   ==
++$  paged-simple-posts
+  $:  posts=simple-posts
+      newer=(unit time)
+      older=(unit time)
+      total=@ud
+  ==
 +$  posts  ((mop id-post (unit post)) lte)
 +$  simple-posts  ((mop id-post (unit simple-post)) lte)
 +$  post   [seal [rev=@ud essay]]

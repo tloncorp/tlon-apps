@@ -67,6 +67,14 @@
         older+?~(older.pn ~ (id u.older.pn))
         total+(numb total.pn)
     ==
+  ++  paged-simple-posts
+    |=  pn=paged-simple-posts:c
+    %-  pairs
+    :~  posts+(simple-posts posts.pn)
+        newer+?~(newer.pn ~ (id u.newer.pn))
+        older+?~(older.pn ~ (id u.older.pn))
+        total+(numb total.pn)
+    ==
   +|  %rr
   ::
   ++  channels
@@ -102,7 +110,14 @@
         type+s+%post
     ==
   ::
-  ++  said-post
+  ++  simple-posts
+    |=  posts=simple-posts:c
+    %-  pairs
+    %+  turn  (tap:on-simple-posts:c posts)
+    |=  [id=id-post:c post=(unit simple-post:c)]
+    [(scot %ud id) ?~(post ~ (simple-post u.post))]
+  ::
+  ++  simple-post
     |=  [seal=seal-with-simple-replies:c =essay:c]
     %-  pairs
     :~  seal+(simple-seal seal)
@@ -409,7 +424,7 @@
     |=  =reference:c
     %+  frond  -.reference
     ?-    -.reference
-        %post  (said-post post.reference)
+        %post  (simple-post post.reference)
         %reply
       %-  pairs
       :~  id-post+(id id-post.reference)
