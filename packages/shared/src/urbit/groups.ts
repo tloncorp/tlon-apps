@@ -1,11 +1,9 @@
-export const allRanks = ["czar", "king", "duke", "earl", "pawn"] as const;
+export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = (typeof allRanks)[number];
 
 export interface ViewProps {
   title?: string;
 }
-
-export type PinnedGroupsResponse = string[];
 
 export interface GroupMeta {
   title: string;
@@ -91,11 +89,11 @@ export interface Group {
   cordon: Cordon;
   meta: GroupMeta;
   zones: Zones;
-  "zone-ord": Zone[];
+  'zone-ord': Zone[];
   bloc: string[];
   secret: boolean;
   saga: Saga | null;
-  "flagged-content": FlaggedContent;
+  'flagged-content': FlaggedContent;
 }
 
 export interface Fleet {
@@ -110,11 +108,11 @@ interface FleetDiffDel {
 }
 
 interface FleetDiffAddSects {
-  "add-sects": string[];
+  'add-sects': string[];
 }
 
 interface FleetDiffDelSects {
-  "del-sects": string[];
+  'del-sects': string[];
 }
 
 export interface FleetDiff {
@@ -160,11 +158,11 @@ interface ChannelDiffAddZone {
 }
 
 interface ChannelDiffAddSects {
-  "add-sects": string[];
+  'add-sects': string[];
 }
 
 interface ChannelDiffDelSects {
-  "del-sects": string[];
+  'del-sects': string[];
 }
 
 interface ChannelDiffJoin {
@@ -186,18 +184,18 @@ interface ChannelDiff {
 }
 
 interface CordonDiffOpenAddShips {
-  "add-ships": string[];
+  'add-ships': string[];
 }
 
 interface CordonDiffOpenDelShips {
-  "del-ships": string[];
+  'del-ships': string[];
 }
 
 interface CordonDiffOpenAddRanks {
-  "add-ranks": string[];
+  'add-ranks': string[];
 }
 interface CordonDiffOpenDelRanks {
-  "del-ranks": string[];
+  'del-ranks': string[];
 }
 
 interface CordonDiffOpen {
@@ -208,17 +206,17 @@ interface CordonDiffOpen {
     | CordonDiffOpenDelRanks;
 }
 
-type CordonDiffShutKind = "ask" | "pending";
+type CordonDiffShutKind = 'ask' | 'pending';
 
 interface CordonDiffShutAddShips {
-  "add-ships": {
+  'add-ships': {
     kind: CordonDiffShutKind;
     ships: string[];
   };
 }
 
 interface CordonDiffShutDelShips {
-  "del-ships": {
+  'del-ships': {
     kind: CordonDiffShutKind;
     ships: string[];
   };
@@ -245,7 +243,7 @@ interface ZoneEdit {
 interface ZoneMoveChannel {
   zone: Zone;
   delta: {
-    "mov-nest": {
+    'mov-nest': {
       nest: string;
       idx: number;
     };
@@ -285,10 +283,10 @@ export interface SecretDiff {
 }
 
 export interface FlagContentDiff {
-  "flag-content": {
+  'flag-content': {
     nest: string;
     src: string;
-    "post-key": {
+    'post-key': {
       post: string;
       reply: string | null;
     };
@@ -341,7 +339,7 @@ export type Saga = SagaAhead | SagaBehind | SagaSynced;
 
 export interface GroupJoin {
   flag: string;
-  "join-all": boolean;
+  'join-all': boolean;
 }
 
 export interface Groups {
@@ -366,15 +364,15 @@ export interface Invite {
 }
 
 export type JoinProgress =
-  | "knocking"
-  | "adding"
-  | "watching"
-  | "done"
-  | "error";
+  | 'knocking'
+  | 'adding'
+  | 'watching'
+  | 'done'
+  | 'error';
 
 interface GroupClaim {
   progress: JoinProgress;
-  "join-all": boolean;
+  'join-all': boolean;
 }
 
 export interface Gang {
@@ -387,11 +385,11 @@ export interface Gangs {
   [flag: string]: Gang;
 }
 
-export type PrivacyType = "public" | "private" | "secret";
+export type PrivacyType = 'public' | 'private' | 'secret';
 
-export type ChannelPrivacyType = "public" | "custom";
+export type ChannelPrivacyType = 'public' | 'custom';
 
-export type ChannelType = "chat" | "heap" | "diary";
+export type ChannelType = 'chat' | 'heap' | 'diary';
 
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;
@@ -400,8 +398,8 @@ export interface GroupFormSchema extends GroupMeta {
 export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
   writers: string[];
-  sort?: "time" | "alpha" | "arranged";
-  view?: "grid" | "list";
+  sort?: 'time' | 'alpha' | 'arranged';
+  view?: 'grid' | 'list';
 }
 
 export interface NewChannelFormSchema extends ChannelFormSchema {
@@ -415,5 +413,5 @@ export interface ChannelPreview {
 }
 
 export function isGroup(obj: any): obj is Group {
-  return "fleet" in obj && "cabals" in obj;
+  return 'fleet' in obj && 'cabals' in obj;
 }

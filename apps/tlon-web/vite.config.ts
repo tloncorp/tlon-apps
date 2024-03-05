@@ -136,9 +136,9 @@ export default ({ mode }: { mode: string }) => {
             proxy.on('proxyReq', (proxyReq) => {
               proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
             });
-          },
-        },
-      },
+          }
+        }
+      }
     },
     build:
       mode !== 'profile'
