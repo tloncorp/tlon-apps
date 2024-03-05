@@ -1,6 +1,8 @@
 import type { MobileNavTab, NativeCommand } from '@tloncorp/shared';
 import { createContext, useContext, useState } from 'react';
 
+type ManageAccountState = 'initial' | 'triggered' | 'navigated';
+
 export interface WebviewContext {
   gotoPath: string;
   gotoTab: MobileNavTab | null;
@@ -8,8 +10,8 @@ export interface WebviewContext {
   lastMessagesPath: string;
   lastGroupsPath: string;
   pendingCommand: NativeCommand | null;
-  didManageAccount: boolean;
-  setDidManageAccount: (didManageAccount: boolean) => void;
+  manageAccountState: ManageAccountState;
+  setManageAccountState: (didManageAccount: ManageAccountState) => void;
   sendCommand: (command: NativeCommand) => void;
   setLastMessagesPath: (path: string) => void;
   setLastGroupsPath: (path: string) => void;
@@ -26,8 +28,8 @@ const AppWebviewContext = createContext<WebviewContext>({
   lastMessagesPath: '',
   lastGroupsPath: '',
   pendingCommand: null,
-  didManageAccount: false,
-  setDidManageAccount: () => {},
+  manageAccountState: 'initial',
+  setManageAccountState: () => {},
   sendCommand: () => {},
   setLastGroupsPath: () => {},
   setLastMessagesPath: () => {},
@@ -48,7 +50,8 @@ export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
   const [reactingToWebappNav, setReactingToWebappNav] = useState(false);
   const [gotoPath, setGotoPath] = useState('');
   const [gotoTab, setGotoTab] = useState<MobileNavTab | null>(null);
-  const [didManageAccount, setDidManageAccount] = useState(false);
+  const [manageAccountState, setManageAccountState] =
+    useState<ManageAccountState>('initial');
 
   return (
     <AppWebviewContext.Provider
@@ -59,8 +62,8 @@ export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
         lastMessagesPath,
         lastGroupsPath,
         pendingCommand,
-        didManageAccount,
-        setDidManageAccount,
+        manageAccountState,
+        setManageAccountState,
         sendCommand,
         setLastMessagesPath,
         setLastGroupsPath,

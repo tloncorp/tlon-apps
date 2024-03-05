@@ -127,6 +127,23 @@ export const WebViewStack = (props: Props) => {
     setReactingToWebappNav,
   ]);
 
+  // useEffect(() => {
+  //   async function manageAccount() {
+  //     const [hostingSession, hostingUserId] = await Promise.all([
+  //       getHostingToken(),
+  //       getHostingUserId(),
+  //     ]);
+  //     // didManageAccount.current = true;
+  //     props.push('ExternalWebView', {
+  //       uri: 'https://tlon.network/account',
+  //       headers: {
+  //         Cookie: hostingSession,
+  //       },
+  //       injectedJavaScript: `localStorage.setItem("X-SESSION-ID", "${hostingUserId}")`,
+  //     });
+  //   }
+  // }, [didManageAccount])
+
   return (
     <Stack.Navigator initialRouteName="Webview" screenOptions={screenOptions}>
       <Stack.Screen

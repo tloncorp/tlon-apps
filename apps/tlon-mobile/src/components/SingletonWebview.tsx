@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+// import { useFocusEffect } from '@react-navigation/native';
 // import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   type MobileNavTab,
@@ -17,12 +17,7 @@ import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
-import { getHostingUser } from '../lib/hostingApi';
-import {
-  getHostingUserId,
-  removeHostingToken,
-  removeHostingUserId,
-} from '../utils/hosting';
+import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
 type WebAppCommand = {
@@ -42,7 +37,7 @@ export const SingletonWebview = () => {
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
-  const didManageAccount = useRef(false);
+  // const didManageAccount = useRef(false);
   const [appLoaded, setAppLoaded] = useState(false);
   const webviewContext = useWebViewContext();
 
@@ -97,7 +92,8 @@ export const SingletonWebview = () => {
       }
       // TODO: handle manage account
       case 'manageAccount':
-        webviewContext.setDidManageAccount(true);
+        console.log('webview: manage account message received');
+        webviewContext.setManageAccountState('triggered');
         break;
       case 'appLoaded':
         // Slight delay otherwise white background flashes
@@ -108,30 +104,30 @@ export const SingletonWebview = () => {
     }
   };
 
-  // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
-  useFocusEffect(
-    useCallback(() => {
-      if (!didManageAccount.current) {
-        return;
-      }
+  // // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (!didManageAccount.current) {
+  //       return;
+  //     }
 
-      (async () => {
-        const hostingUserId = await getHostingUserId();
-        if (hostingUserId) {
-          try {
-            const user = await getHostingUser(hostingUserId);
-            if (user.verified) {
-              didManageAccount.current = false;
-            } else {
-              handleLogout();
-            }
-          } catch (err) {
-            handleLogout();
-          }
-        }
-      })();
-    }, [handleLogout])
-  );
+  //     (async () => {
+  //       const hostingUserId = await getHostingUserId();
+  //       if (hostingUserId) {
+  //         try {
+  //           const user = await getHostingUser(hostingUserId);
+  //           if (user.verified) {
+  //             didManageAccount.current = false;
+  //           } else {
+  //             handleLogout();
+  //           }
+  //         } catch (err) {
+  //           handleLogout();
+  //         }
+  //       }
+  //     })();
+  //   }, [handleLogout])
+  // );
 
   useEffect(() => {
     // Path was changed by the parent view
