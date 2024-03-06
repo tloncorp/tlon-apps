@@ -170,11 +170,8 @@ export function useGroup(flag: string, updating = false): Group | undefined {
     path: `/groups/${flag}/v1`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
-      initialData: group,
       refetchOnMount: updating,
       retry: true,
-      // prevents skeleton from flashing on unmount when we have cached data
-      keepPreviousData: true,
     },
   });
 
@@ -185,10 +182,10 @@ export function useGroup(flag: string, updating = false): Group | undefined {
   }, [flag, updating, subscribe]);
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return undefined;
+    return group;
   }
 
-  return data;
+  return data || group;
 }
 
 export function useGroupIsLoading(flag: string) {
