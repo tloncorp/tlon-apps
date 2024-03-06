@@ -13,6 +13,7 @@ import useNotificationListener from '../hooks/useNotificationListener';
 import { inviteShipWithLure } from '../lib/hostingApi';
 import { TabStack } from '../navigation/TabStack';
 import { trackError } from '../utils/posthog';
+import { getPathFromWer } from '../utils/string';
 import WebviewOverlay from './WebviewOverlay';
 
 export interface AuthenticatedAppProps {
@@ -24,7 +25,7 @@ function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
   const { ship } = useShip();
   const { wer, lure, clearDeepLink } = useDeepLink();
   const webviewContext = useWebViewContext();
-  const gotoPath = wer ?? initialWer;
+  const gotoPath = initialWer ? getPathFromWer(initialWer) : wer;
 
   // If lure is present, invite it and mark as handled
   useEffect(() => {

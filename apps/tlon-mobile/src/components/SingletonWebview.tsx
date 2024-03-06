@@ -9,6 +9,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { URL } from 'react-native-url-polyfill';
 import { WebView } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
@@ -32,7 +33,7 @@ const createUri = (shipUrl: string, path?: string) =>
 
 export const SingletonWebview = () => {
   const tailwind = useTailwind();
-  const { shipUrl = '', ship, clearShip } = useShip();
+  const { shipUrl = '', ship, clearShip, setShip } = useShip();
   const webViewProps = useWebView();
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
@@ -177,6 +178,24 @@ export const SingletonWebview = () => {
         setTimeout(() => setAppLoaded(true), 10_000);
       }}
       onShouldStartLoadWithRequest={({ url }) => {
+        const parsedUrl = new URL(url);
+        const parsedShipUrl = new URL(shipUrl);
+        const redirectedToHttps =
+          parsedUrl.protocol === 'https:' &&
+          parsedShipUrl.protocol === 'http:' &&
+          parsedUrl.host === parsedShipUrl.host &&
+          parsedUrl.pathname.startsWith('/apps/groups');
+
+        // Allow redirect to HTTPS
+        if (redirectedToHttps) {
+          setShip({
+            ship,
+            shipUrl: parsedUrl.origin,
+          });
+
+          return true;
+        }
+
         // Clear ship info if webview is redirecting to login page
         if (url.includes(`${shipUrl}/~/login`)) {
           clearShip();

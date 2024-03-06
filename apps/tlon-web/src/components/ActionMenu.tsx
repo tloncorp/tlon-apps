@@ -32,6 +32,7 @@ type ActionMenuProps = PropsWithChildren<{
   className?: string;
   triggerClassName?: string;
   contentClassName?: string;
+  testId?: string;
 }>;
 
 function classNameForType(type?: ActionType) {
@@ -58,6 +59,7 @@ const ActionMenu = React.memo(
     disabled,
     align,
     ariaLabel,
+    testId,
     className,
     triggerClassName,
     contentClassName,
@@ -81,9 +83,13 @@ const ActionMenu = React.memo(
             )}
             <Drawer.Portal>
               <Drawer.Overlay className="fixed inset-0 z-[49] bg-black/20" />
-              <Drawer.Content className="fixed bottom-0 z-[49] flex w-full flex-col rounded-t-[32px] bg-white px-[24px] pb-8 pt-4 outline-none after:!bg-transparent">
+              <Drawer.Content
+                data-testid={testId}
+                className="fixed bottom-0 z-[49] flex w-full flex-col rounded-t-[32px] bg-white px-[24px] pb-8 pt-4 outline-none after:!bg-transparent"
+              >
                 {actions.map((action) => (
                   <button
+                    data-testid={action.key}
                     key={action.key}
                     onClick={
                       action.keepOpenOnClick
