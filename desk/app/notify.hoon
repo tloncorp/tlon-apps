@@ -249,7 +249,7 @@
     ++  provider-state-message
       ^-  (quip card _state)
       ~&  "provider-state-message"
-      ?>  =(our.bowl ~parrul-millug-finned-palmer)
+      ?>  =(our.bowl ~rivfur-livmet)
       =/  now  now.bowl
       =/  time-since-last  (sub `@`last-timer `@`now)
       ~&  ['time since last daily-stats-interval' time-since-last]
@@ -266,7 +266,7 @@
       ~&  ['total clients on all providers' total-clients]
       =/  story=story:c  [[%inline [[%bold ['BotPoast: ' ~]] 'Daily ' [%inline-code '%notify'] ' provider check-in. Total providers: ' [%bold [(scot %u total-providers) ~]] ', total clients: ' [%bold [(scot %u total-clients) ~]] '.' ~]]~]
       =/  essay=essay:c  [[story our.bowl now.bowl] [%chat ~]]
-      =/  nest=nest:c  [%chat ~dotdev-dotdev-finned-palmer %empty-chat]
+      =/  nest=nest:c  [%chat ~bitpyx-dildus %interface]
       =/  channel-action=a-channels:c  [%channel nest [%post [%add essay]]]
       =/  new-timer  (add now daily-stats-interval)
       =.  last-timer  new-timer
