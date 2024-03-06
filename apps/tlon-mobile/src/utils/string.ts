@@ -47,7 +47,7 @@ export const formatPhoneNumber = (phoneNumber: string) => {
 export const transformShipURL = (shipUrl: string) => {
   // this definition is duplicated here because importing it from src/constants will cause vitest to
   // attempt to import react-native libraries, which fill fail
-  const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?(?=\/?$)/;
+  const SHIP_URL_REGEX = /^https?:\/\/([\w-]+\.)+[\w-]+(:\d+)?$/;
   const shipUrlMatch = shipUrl.match(SHIP_URL_REGEX);
 
   let shipUrlToUse = shipUrl;
@@ -70,8 +70,51 @@ export const transformShipURL = (shipUrl: string) => {
       '$1'
     );
 
+    // Remove trailing slashes
+    transformed = transformed.replace(/\/+$/, '');
+
     shipUrlToUse = transformed;
   }
 
   return shipUrlToUse;
+};
+
+/**
+ * This function is used to determine the path to navigate to
+ * when the app is opened from a notification.
+ * @param wer The path from the backend
+ * @returns path to navigate to
+ * This is necessary because the backend sends a path to the app
+ * that is not always the correct path to navigate to (e.g. when
+ * there's a post in an "all notifications" channel, the path
+ * will be to a thread starting with the post, but we want to
+ * navigate to the post itself in the main chat).
+ * This same logic exists in the web app in Notification.tsx
+ */
+export const getPathFromWer = (wer: string): string => {
+  const pathParts = wer.split('/');
+  // if not going to a specific post, return the path
+  if (pathParts.length < 10) {
+    return wer;
+  }
+
+  const path = wer;
+  const parts = path.split('/');
+  const isChatMsg = parts.includes('chat');
+  const index = 8;
+  const post = parts[index + 1];
+  const reply = parts[index + 2];
+
+  // all replies should go to the post and scroll to the reply
+  if (reply) {
+    return `${parts.slice(0, index + 2).join('/')}?reply=${reply}`;
+  }
+
+  // chat messages should go to the channel and scroll to the message
+  if (isChatMsg) {
+    return `${parts.slice(0, index).join('/')}?msg=${post}`;
+  }
+
+  // all other posts should go to the post
+  return path;
 };
