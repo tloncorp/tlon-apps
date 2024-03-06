@@ -1,5 +1,5 @@
 ::
-/-  *notify, resource, ha=hark
+/-  *notify, resource, ha=hark, c=channels
 /+  default-agent, verb, dbug, agentio
 ::
 |%
@@ -14,6 +14,7 @@
       =whitelist
   ==
 ++  clear-interval  ~d7
+++  daily-stats-interval  ~d1
 ::
 +$  client-state
   $:  providers=(jug @p term)
@@ -28,6 +29,12 @@
       base-state-0
   ==
 ::
++$  base-state-3
+  $:  last-timer=time
+      notifications=(map uid notification)
+      base-state-0
+  ==
+::
 +$  state-0
   [%0 base-state-0]
 ::
@@ -39,16 +46,53 @@
 +$  state-3
   [%3 base-state-2]
 ::
++$  state-4
+  [%4 base-state-3]
+::
 +$  versioned-state
   $%  state-0
       state-1
       state-2
       state-3
+      state-4
   ==
+::
++$  current-state  state-4
+::
+++  migrate-state
+  |=  old=versioned-state
+  ^-  current-state
+  ?-  -.old
+    %0  $(old (migrate-0-to-1 old))
+    %1  $(old (migrate-1-to-2 old))
+    %2  $(old (migrate-2-to-3 old))
+    %3  $(old (migrate-3-to-4 old))
+    %4  old
+  ==
+::
+++  migrate-0-to-1
+  |=  old=state-0
+  ^-  state-1
+  [%1 [+.old]]
+::
+++  migrate-1-to-2
+  |=  old=state-1
+  ^-  state-2
+  [%2 [~ +.old]]
+::
+++  migrate-2-to-3
+  |=  old=state-2
+  ^-  state-3
+  [%3 [+.old]]
+::
+++  migrate-3-to-4
+  |=  old=state-3
+  ^-  state-4
+  [%4 `@da`0 [+.old]]
 ::
 --
 ::
-=|  state-3
+=|  current-state
 =*  state  -
 ::
 %-  agent:dbug
@@ -64,25 +108,24 @@
       pass  pass:io
   ::
   ++  on-init
-    =/  tomorrow=@da  (add now.bowl ~d1)
     :_  this
     :~  (~(watch-our pass:io /hark) %hark /ui)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
-        (~(wait pass:io /daily-timer) tomorrow)
+        [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
     ==
   ::
   ++  on-save   !>(state)
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
-    =/  old=(unit state-3)
-      (mole |.(!<(state-3 vase)))
-    ?~  old
-      on-init
-    :_  this(state u.old)
+    =+  !<([old-state=versioned-state] vase)
+    =/  migrated  (migrate-state old-state)
+    :_  this(state migrated)
     ?:  (~(has by wex.bowl) [/hark our.bowl %hark])
-      ~
-    ~[(~(watch-our pass:io /hark) %hark /ui)]
+      [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]~
+    :~  (~(watch-our pass:io /hark) %hark /ui)
+        [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
+    ==
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -90,6 +133,7 @@
     |^
     =^  cards  state
       ?+  mark  (on-poke:def mark vase)
+        %provider-state-message  provider-state-message
         %notify-provider-action  (handle-provider-action !<(provider-action vase))
         %notify-client-action    (handle-client-action !<(client-action vase))
       ==
@@ -201,6 +245,35 @@
         :_  state
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
       ==
+    ::
+    ++  provider-state-message
+      ^-  (quip card _state)
+      ~&  "provider-state-message"
+      ?>  =(our.bowl ~parrul-millug-finned-palmer)
+      =/  now  now.bowl
+      =/  time-since-last  (sub `@`last-timer `@`now)
+      ~&  ['time since last daily-stats-interval' time-since-last]
+      ?>  (gth time-since-last daily-stats-interval)
+      ~&  [provider-state]
+      =/  ps-list  ~(tap by provider-state)
+      =/  total-providers  (lent ps-list)
+      ~&  ['total providers' total-providers]
+      =/  total-clients
+        %+  roll  ps-list
+          |=  [[provider=@tas =provider-entry] accumulator=@]
+          ^-  @
+          (add accumulator (lent ~(tap by clients.provider-entry)))
+      ~&  ['total clients on all providers' total-clients]
+      =/  story=story:c  [[%inline [[%bold ['BotPoast: ' ~]] 'Daily ' [%inline-code '%notify'] ' provider check-in. Total providers: ' [%bold [(scot %u total-providers) ~]] ', total clients: ' [%bold [(scot %u total-clients) ~]] '.' ~]]~]
+      =/  essay=essay:c  [[story our.bowl now.bowl] [%chat ~]]
+      =/  nest=nest:c  [%chat ~dotdev-dotdev-finned-palmer %empty-chat]
+      =/  channel-action=a-channels:c  [%channel nest [%post [%add essay]]]
+      =/  new-timer  (add now daily-stats-interval)
+      =.  last-timer  new-timer
+      :_  state
+      :~  [(poke:pass [our.bowl %channels] %channel-action !>(channel-action))]
+          [(~(wait pass:io /daily-timer) new-timer)]
+      ==
     --
   ::
   ++  on-watch
@@ -287,17 +360,10 @@
     |=  [=wire =sign-arvo]
     ^-  (quip card _this)
     ?+  wire  (on-arvo:def wire sign-arvo)
-        [%daily-timer ~]  :: Handling the daily timer wake event
+        [%daily-timer ~]
       ?>  ?=([%behn %wake *] sign-arvo)
-      =/  args-vase  !>(~)
-      =/  tid  `@ta`(cat 3 'thread_' (scot %uv (sham eny.bowl)))
-      =/  ta-now  `@ta`(scot %da now.bowl)
-      =/  watch-path  /thread-result/[tid]
-      =/  poke-vase  !>([~ `tid byk.bowl %check-notify-provider-state args-vase])
       :_  this
-      :~  [%pass /thread/[ta-now] %agent [our.bowl %spider] %poke %spider-start !>(poke-vase)]
-          [%pass /daily-timer %arvo %b %wait (add now.bowl ~d1)]
-      ==
+      [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]~
     ::
         [%register-binding @ @ @ ~]
       =/  who=@p   (slav %p i.t.wire)
