@@ -27,7 +27,7 @@ export const WebviewPositionProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [visible, setVisibility] = useState(false);
+  const [visible, setVisibility] = useState(true);
   const [position, setPosition] = useState<WebviewPosition>({
     x: 0,
     y: 0,
