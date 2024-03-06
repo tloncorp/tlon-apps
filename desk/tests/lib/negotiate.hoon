@@ -321,7 +321,7 @@
   ::  if we know for sure we don't match, sending a poke must crash
   ::
   ;<  *  bind:m  (perform-hear-version [~zod %hard] %prot %miss)
-  ;<  ~  bind:m  (ex-crash (do-poke %emit-cards !>([poke]~)))
+  ;<  ~  bind:m  (ex-crash-in-do (do-poke %emit-cards !>([poke]~)))
   ::  once we do exactly match, poking is fine again
   ::
   ;<  *  bind:m  (perform-hear-version [~zod %hard] %prot %vers)

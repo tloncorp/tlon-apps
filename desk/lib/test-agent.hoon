@@ -17,6 +17,7 @@
 ::      %-  eval-mare
 ::      =/  m  (mare ,~)
 ::      ^-  form:m
+::      ;<  ~                bind:m  (set-scry-gate |=(path `%some-noun))
 ::      ;<  caz=(list card)  bind:m  (do-init %my-agent-name my-agent-core)
 ::      ;<  ~                bind:m  (ex-cards caz ~)
 ::      ;<  ~                bind:m  (set-src ~dev)
@@ -35,7 +36,7 @@
 +$  bowl   $+(bowl bowl:gall)
 +$  card   $+(card card:agent:gall)
 ::
-+$  state       [=agent =bowl]                          ::  passed continuously
++$  state       [=agent =bowl scry=$-(path (unit *))]   ::  passed continuously
 ++  form-raw    |$  [a]  $-(state (output-raw a))       ::  continuation
 ++  output-raw  |$  [a]  (each [out=a =state] tang)     ::  continue or fail
 ::
@@ -129,9 +130,27 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   |=  s=state
-  =^  c  agent.s  (call s)
-  =.  bowl.s  (play-cards bowl.s c)
-  &+[c s]
+  =;  result=(each [(list card) agent:gall] (list tank))
+    ?:  ?=(%| -.result)
+      |+p.result  ::TODO  maybe flop the trace?
+    =^  c  agent.s  p.result
+    =.  bowl.s  (play-cards bowl.s c)
+    &+[c s]
+  =/  res=toon
+    %+  mock  [. !=((call s))]
+    |=  p=^
+    ^-  (unit (unit))
+    =/  res=(unit *)  (scry.s ;;(path p))
+    ?~(res ~ ``u.res)
+  ?-  -.res
+    %0  :-  %&
+        ::NOTE  we would ;;, but it's too slow.
+        ::      we pretend it's a vase instead.
+        !<  [(list card) agent:gall]
+        [-:!>(*[(list card) agent:gall]) p.res]
+    %1  |+~['blocking on scry' >;;(path p.res)<]
+    %2  |+p.res
+  ==
 ::
 ::  managed agent lifecycle
 ::
@@ -141,11 +160,14 @@
   ^-  form:m
   |=  s=state
   =.  bowl.s  %*(. *bowl dap dap, our our.bowl.s, src our.bowl.s)
+  ::TODO  wrap in +do call so we can scry
   =^  c  agent.s  ~(on-init agent bowl.s)
   &+[c s]
 ::
 ++  do-load
   |=  =agent
+  ::TODO  temporarily make scry a crashing gate,
+  ::      to protect against scry-on-load implementations.
   %-  do
   |=  s=state
   (~(on-load agent bowl.s) ~(on-save agent.s bowl.s))
@@ -255,6 +277,13 @@
   %-  jab-bowl
   |=(b=bowl b(now (add now.b d)))
 ::
+++  set-scry-gate
+  |=  gate=$-(path (unit *))
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  &+[~ s(scry gate)]
+::
 ::  testing utilities
 ::
 ++  ex-equal
@@ -265,12 +294,12 @@
   =/  =tang  (expect-eq:test expected actual)
   ?~(tang &+[~ s] |+tang)
 ::
-++  ex-crash
-  |=  form=$-(state *)
+++  ex-crash-in-do
+  |=  form=(form-raw ,(list card))
   =/  m  (mare ,~)
   ^-  form:m
   |=  =state
-  =+  res=(mule |.((form state)))
+  =/  res  (form state)
   ?-(-.res %| &+[~ state], %& |+['expected crash, but succeeded']~)
 ::
 ++  ex-cards
