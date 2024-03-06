@@ -566,8 +566,9 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =?  pole  !?=([?(%v0 %v1) *] pole)
-    [%v0 pole]
+  ?>  ?=(^ pole)
+  =?  +.pole  !?=([?(%v0 %v1) *] +.pole)
+    [%v0 +.pole]
   ?+    pole  [~ ~]
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels:utils v-channels))
       [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
