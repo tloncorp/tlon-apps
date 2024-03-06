@@ -139,9 +139,13 @@
   =/  res=toon
     %+  mock  [. !=((call s))]
     |=  p=^
+    ~&  p
     ^-  (unit (unit))
-    =/  res=(unit *)  (scry.s ;;(path p))
+    ~&  %a
+    =/  res=(unit *)  (scry.s ;;(path +.p))
+    ~&  %b
     ?~(res ~ ``u.res)
+  ~&  %c
   ?-  -.res
     %0  :-  %&
         ::NOTE  we would ;;, but it's too slow.

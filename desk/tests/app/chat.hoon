@@ -6,6 +6,7 @@
 ++  test-dm-notification-clearing
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (do-init dap agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~zod)))
   ;<  bw=bowl  bind:m  get-bowl
@@ -13,7 +14,6 @@
   =/  =diff:dm:c  (dm-message ~zod now.bw verse)
   ::  start a dm from zod
   ;<  *  bind:m  (do-poke %chat-dm-diff !>(diff))
-  (pure:m ~)
   ;<  *  bind:m  (set-src ~dev)
   ::  accept the dm and set read
   ;<  *  bind:m  (do-poke %chat-dm-rsvp !>([~dev &]))
@@ -38,6 +38,14 @@
         (ex-fact ~[/dm/zod/writs] %writ-response !>(response))
     ==
 ::++  test-club-notification-clearing
+++  scries
+  |=  =path
+  ^-  (unit *)
+  ~&  path
+  ?+  path  ~
+    [%gu @ %groups @ *]  `!>(`?`%.y)
+    [%gx @ %groups @ %volume *]  `!>(%soft)
+  ==
 ++  dm-message
   |=  [author=ship =time =verse:ch]
   ^-  diff:dm:c
