@@ -3,7 +3,11 @@
 ::
 |%
 ::  +uv-* functions convert posts, replies, and reacts into their "unversioned"
-::  forms, suitable for responses to our subscribers
+::  forms, suitable for responses to our subscribers.
+::  +s-* functions convert those posts and replies into their "simple" forms,
+::  suitable for responses to subscribers that use an older version of the api,
+::  or just don't care about details like edit status.
+::  +suv-* functions do both, sequentially.
 ::
 ++  uv-channels
   |=  =v-channels:c
@@ -27,14 +31,23 @@
   ^-  [id-post:c (unit post:c)]
   [id-post ?~(v-post ~ `(uv-post u.v-post))]
 ::
-++  uv-simple-posts
+++  s-posts
+  |=  =posts:c
+  ^-  simple-posts:c
+  %+  gas:on-simple-posts:c  *simple-posts:c
+  %+  turn  (tap:on-posts:c posts)
+  |=  [=id-post:c post=(unit post:c)]
+  ^-  [id-post:c (unit simple-post:c)]
+  [id-post ?~(post ~ `(s-post u.post))]
+::
+++  suv-posts
   |=  =v-posts:c
   ^-  simple-posts:c
   %+  gas:on-simple-posts:c  *simple-posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit simple-post:c)]
-  [id-post ?~(v-post ~ `(uv-simple-post u.v-post))]
+  [id-post ?~(v-post ~ `(suv-post u.v-post))]
 ::
 ++  uv-post
   |=  =v-post:c
@@ -46,15 +59,16 @@
       (get-reply-meta v-post)
   ==
 ::
-++  uv-simple-post
+++  s-post
+  |=  =post:c
+  ^-  simple-post:c
+  :_  +>.post
+  -.post(replies (s-replies replies.post))
+::
+++  suv-post
   |=  =v-post:c
   ^-  simple-post:c
-  :_  +>.v-post
-  :*  id.v-post
-      (uv-reacts reacts.v-post)
-      (uv-simple-replies id.v-post replies.v-post)
-      (get-reply-meta v-post)
-  ==
+  (s-post (uv-post v-post))
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
@@ -65,34 +79,26 @@
   ^-  [id-post:c (unit post:c)]
   [id-post ?~(v-post ~ `(uv-post-without-replies u.v-post))]
 ::
-++  uv-simple-posts-without-replies
+++  suv-posts-without-replies
   |=  =v-posts:c
   ^-  simple-posts:c
   %+  gas:on-simple-posts:c  *simple-posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit simple-post:c)]
-  [id-post ?~(v-post ~ `(uv-simple-post-without-replies u.v-post))]
+  [id-post ?~(v-post ~ `(suv-post-without-replies u.v-post))]
 ::
 ++  uv-post-without-replies
   |=  post=v-post:c
   ^-  post:c
-  :_  +.post
-  :*  id.post
-      (uv-reacts reacts.post)
-      *replies:c
-      (get-reply-meta post)
-  ==
+  =.  replies.post  ~
+  (uv-post post)
 ::
-++  uv-simple-post-without-replies
+++  suv-post-without-replies
   |=  post=v-post:c
   ^-  simple-post:c
-  :_  +>.post
-  :*  id.post
-      (uv-reacts reacts.post)
-      *simple-replies:c
-      (get-reply-meta post)
-  ==
+  =.  replies.post  ~
+  (s-post (uv-post-without-replies post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
@@ -101,20 +107,23 @@
   %+  murn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(unit v-reply:c)]
   ^-  (unit [id-reply:c reply:c])
-  ?~  v-reply  ~
+  ?~  v-reply  ~  ::REVIEW  discrepance w/ +uv-posts?
   %-  some
   [time (uv-reply parent-id u.v-reply)]
 ::
-++  uv-simple-replies
-  |=  [parent-id=id-post:c =v-replies:c]
+++  s-replies
+  |=  =replies:c
   ^-  simple-replies:c
   %+  gas:on-simple-replies:c  *simple-replies:c
-  %+  murn  (tap:on-v-replies:c v-replies)
-  |=  [=time v-reply=(unit v-reply:c)]
-  ^-  (unit [id-reply:c simple-reply:c])
-  ?~  v-reply  ~
-  %-  some
-  [time (uv-simple-reply parent-id u.v-reply)]
+  %+  turn  (tap:on-replies:c replies)
+  |=  [=time =reply:c]
+  ^-  [id-reply:c simple-reply:c]
+  [time (s-reply reply)]
+::
+++  suv-replies
+  |=  [parent-id=id-post:c =v-replies:c]
+  ^-  simple-replies:c
+  (s-replies (uv-replies parent-id v-replies))
 ::
 ++  uv-reply
   |=  [parent-id=id-reply:c =v-reply:c]
@@ -122,11 +131,15 @@
   :_  +.v-reply
   [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
-++  uv-simple-reply
+++  s-reply
+  |=  =reply:c
+  ^-  simple-reply:c
+  [-.reply +>.reply]
+::
+++  suv-reply
   |=  [parent-id=id-reply:c =v-reply:c]
   ^-  simple-reply:c
-  :_  +>.v-reply
-  [id.v-reply parent-id (uv-reacts reacts.v-reply)]
+  (s-reply (uv-reply parent-id v-reply))
 ::
 ++  uv-reacts
   |=  =v-reacts:c
@@ -145,21 +158,21 @@
     =/  post=simple-post:c
       ?~  post
         ::TODO  give "outline" that formally declares deletion
-        :-  *seal-with-simple-replies:c
+        :-  *simple-seal:c
         ?-  kind.nest
           %diary  [*memo:c %diary 'Unknown post' '']
           %heap   [*memo:c %heap ~ 'Unknown link']
           %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
         ==
       ?~  u.post
-        :-  *seal-with-simple-replies:c
+        :-  *simple-seal:c
         ?-  kind.nest
             %diary  [*memo:c %diary 'This post was deleted' '']
             %heap   [*memo:c %heap ~ 'This link was deleted']
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
-      (uv-simple-post-without-replies u.u.post)
+      (suv-post-without-replies u.u.post)
     [%channel-said !>(`said:c`[nest %post post])]
   ::
   =/  reply=[reply-seal:c memo:c]
@@ -172,7 +185,7 @@
       [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?~  u.reply
       [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
-    (uv-simple-reply p.plan u.u.reply)
+    (suv-reply p.plan u.u.reply)
   [%channel-said !>(`said:c`[nest %reply p.plan reply])]
 ::
 ++  was-mentioned

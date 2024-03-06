@@ -169,7 +169,7 @@
     [(scot %ud id) ?~(post ~ (simple-post u.post))]
   ::
   ++  simple-post
-    |=  [seal=seal-with-simple-replies:c =essay:c]
+    |=  [seal=simple-seal:c =essay:c]
     %-  pairs
     :~  seal+(simple-seal seal)
         essay+(^essay essay)
@@ -215,7 +215,7 @@
     ==
   ::
   ++  simple-seal
-    |=  seal=seal-with-simple-replies:c
+    |=  seal=simple-seal:c
     %-  pairs
     :~  id+(id id.seal)
         reacts+(reacts reacts.seal)

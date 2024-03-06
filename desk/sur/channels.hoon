@@ -443,7 +443,6 @@
 +$  r-simple-reply
   $%  $<(%set r-reply)
       [%set reply=(unit simple-reply)]
-      $<(%set r-reply)
   ==
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
@@ -479,14 +478,14 @@
 +$  posts  ((mop id-post (unit post)) lte)
 +$  simple-posts  ((mop id-post (unit simple-post)) lte)
 +$  post   [seal [rev=@ud essay]]
-+$  simple-post  [seal-with-simple-replies essay]
++$  simple-post  [simple-seal essay]
 +$  seal
   $:  id=id-post
       =reacts
       =replies
       =reply-meta
   ==
-+$  seal-with-simple-replies
++$  simple-seal
   $:  id=id-post
       =reacts
       replies=simple-replies
