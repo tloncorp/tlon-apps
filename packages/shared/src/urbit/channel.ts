@@ -409,14 +409,16 @@ export type PostResponse =
 
 export type ReplyResponse = { set: Reply } | { reacts: Record<string, string> };
 
+export interface ChannelPostResponse {
+  post: {
+    id: string;
+    'r-post': PostResponse;
+  };
+}
+
 export type Response =
   | { posts: Posts }
-  | {
-      post: {
-        id: string;
-        'r-post': PostResponse;
-      };
-    }
+  | ChannelPostResponse
   | { order: string[] }
   | { view: DisplayMode }
   | { sort: SortMode }
@@ -640,6 +642,8 @@ export interface PostDataResponse {
 export type ChannelScanItem = { post: Post } | ReplyReferenceResponse;
 
 export type ChannelScan = ChannelScanItem[];
+
+export type ChannelScam = { last: string | null; scan: ChannelScan };
 
 export type TogglePost = { hide: string } | { show: string };
 

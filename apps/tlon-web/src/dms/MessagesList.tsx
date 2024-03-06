@@ -240,6 +240,7 @@ export default function MessagesList({
       isScrolling={isScrolling}
       restoreStateFrom={virtuosoState}
       className="w-full overflow-x-hidden"
+      data-testid="messages-menu"
     />
   );
 }

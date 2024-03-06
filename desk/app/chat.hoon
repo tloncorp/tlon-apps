@@ -1331,12 +1331,27 @@
       [%writs rest=*]  (peek:cu-pact care rest.pole)
       [%crew ~]   ``chat-club-crew+!>(crew.club)
     ::
+        [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
+      :^  ~  ~  %chat-scam
+      !>  ^-  scam:c
+      %^    ?-  kind.pole
+              %text     text:tries-bound:search:cu-pact
+              %mention  mention:tries-bound:search:cu-pact
+            ==
+          ?:  =(%$ from.pole)  ~
+          `(slav %ud from.pole)
+        (slav %ud tries.pole)
+      ?-  kind.pole
+        %text     (fall (slaw %t nedl.pole) nedl.pole)
+        %mention  (slav %p nedl.pole)
+      ==
+    ::
         [%search %text skip=@ count=@ nedl=@ ~]
       %-  some
       %-  some
       :-  %chat-scan
-      !>
-      %^    text:search:cu-pact
+      !>  ^-  scan:c
+      %^    text:hits-bound:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (fall (slaw %t nedl.pole) nedl.pole)
@@ -1345,8 +1360,8 @@
       %-  some
       %-  some
       :-  %chat-scan
-      !>
-      %^    mention:search:cu-pact
+      !>  ^-  scan:c
+      %^    mention:hits-bound:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (slav %p nedl.pole)
@@ -1704,12 +1719,27 @@
         [%writs rest=*]
       (peek:di-pact care rest.pole)
     ::
+        [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
+      :^  ~  ~  %chat-scam
+      !>  ^-  scam:c
+      %^    ?-  kind.pole
+              %text     text:tries-bound:search:di-pact
+              %mention  mention:tries-bound:search:di-pact
+            ==
+          ?:  =(%$ from.pole)  ~
+          `(slav %ud from.pole)
+        (slav %ud tries.pole)
+      ?-  kind.pole
+        %text     (fall (slaw %t nedl.pole) nedl.pole)
+        %mention  (slav %p nedl.pole)
+      ==
+    ::
         [%search %text skip=@ count=@ nedl=@ ~]
       %-  some
       %-  some
       :-  %chat-scan
-      !>
-      %^    text:search:di-pact
+      !>  ^-  scan:c
+      %^    text:hits-bound:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (fall (slaw %t nedl.pole) nedl.pole)
@@ -1718,8 +1748,8 @@
       %-  some
       %-  some
       :-  %chat-scan
-      !>
-      %^    mention:search:di-pact
+      !>  ^-  scan:c
+      %^    mention:hits-bound:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (slav %p nedl.pole)

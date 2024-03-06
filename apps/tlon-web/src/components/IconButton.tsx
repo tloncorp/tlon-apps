@@ -1,6 +1,6 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
 import cn from 'classnames';
-import React, { MouseEventHandler } from 'react';
+import React, { MouseEventHandler, useMemo } from 'react';
 
 interface IconButtonProps {
   icon: React.ReactElement;
@@ -21,6 +21,11 @@ export default function IconButton({
   small = false,
   disabled = false,
 }: IconButtonProps) {
+  const testId = useMemo(
+    () => label.toLowerCase().split(' ').join('-'),
+    [label]
+  );
+
   return (
     <div className={cn('group-two cursor-pointer', className)}>
       <Tooltip.Root delayDuration={800} disableHoverableContent>
@@ -64,6 +69,7 @@ export default function IconButton({
             )}
             onClick={action}
             aria-label={label}
+            data-testid={testId}
             disabled={disabled}
           >
             {icon}

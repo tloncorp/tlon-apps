@@ -101,10 +101,9 @@ function GroupHeader() {
       </GroupActions>
       <Link
         to=".."
-        className={cn(
-          'h-6-w-6 absolute left-2 top-2.5 z-40 flex items-center justify-center rounded bg-transparent bg-white p-1 text-gray-400',
-          needsUpdate ? 'bg-yellow' : 'bg-transparent'
-        )}
+        className={
+          'h-6-w-6 absolute left-2 top-2.5 z-40 flex items-center justify-center rounded bg-transparent bg-white p-1 text-gray-400'
+        }
       >
         {needsUpdate ? (
           <AsteriskIcon className="h-4 w-4 text-black dark:text-white" />

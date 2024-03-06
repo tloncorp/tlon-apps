@@ -1,7 +1,7 @@
+import Avatar from '../Avatar';
 import AddIcon16 from '../icons/Add16Icon';
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
 import GridIcon from '../icons/GridIcon';
-import TlonIcon from '../icons/TlonIcon';
 import { IconProps } from '../icons/icon';
 
 function CommandBadge() {
@@ -21,7 +21,7 @@ function PlusBadge() {
 }
 
 export interface IMenuOption {
-  icon: (props: IconProps) => JSX.Element;
+  icon: React.ReactElement | ((props: IconProps) => React.ReactElement);
   title: string;
   subtitle: string;
   to: string;
@@ -51,38 +51,24 @@ export const menuOptions: IMenuOption[] = [
     modal: false,
   },
   {
-    title: 'Find Groups',
+    title: 'Create a new Group',
     subtitle: '',
-    to: '/find',
-    icon: CommandBadge,
-    modal: false,
-  },
-  {
-    title: 'Create New Group',
-    subtitle: '',
-    to: '/groups/new',
+    to: '/add-group/create',
     icon: PlusBadge,
     modal: true,
   },
   {
-    title: 'Profile',
+    title: 'Join a Group',
     subtitle: '',
-    to: '/profile/edit',
-    icon: CommandBadge,
-    modal: false,
-  },
-  {
-    title: 'Tlon Settings',
-    subtitle: '',
-    to: '/settings',
-    icon: CommandBadge,
+    to: '/add-group/join',
+    icon: PlusBadge,
     modal: true,
   },
   {
-    title: 'Tlon',
+    title: 'Profile & Settings',
     subtitle: '',
-    to: '/',
-    icon: TlonIcon,
+    to: '/profile',
+    icon: () => <Avatar ship={window.our} size="xs" />,
     modal: false,
   },
 ];

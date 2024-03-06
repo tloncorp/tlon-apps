@@ -10,6 +10,11 @@
 +$  reply   [reply-seal memo:d]
 ::  $react: either an emoji identifier like :wave: or a URL for custom
 +$  react   @ta
+::  $scam: bounded search results
++$  scam
+  $:  last=(unit time)  ::  last (top-level) msg (local) id that was searched
+      =scan             ::  search results
+  ==
 ::  $scan: search results
 +$  scan  (list reference)
 ::  $blocked: a set of ships that the user has blocked

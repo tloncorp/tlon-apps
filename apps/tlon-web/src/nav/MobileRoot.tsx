@@ -13,6 +13,7 @@ import WelcomeCard from '@/components/WelcomeCard';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import AddGroupSheet from '@/groups/AddGroupSheet';
 import GroupJoinList from '@/groups/GroupJoinList';
+import { useBottomPadding } from '@/logic/position';
 import useGroupSort from '@/logic/useGroupSort';
 import {
   useGangsWithClaim,
@@ -24,6 +25,7 @@ import {
 } from '@/state/groups';
 
 export default function MobileRoot() {
+  const { paddingBottom } = useBottomPadding();
   const [isScrolling, setIsScrolling] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const scroll = useRef(
@@ -70,6 +72,9 @@ export default function MobileRoot() {
   return (
     <Layout
       className="flex-1 bg-white"
+      style={{
+        paddingBottom,
+      }}
       header={
         <MobileHeader
           title="Groups"
@@ -89,7 +94,10 @@ export default function MobileRoot() {
         />
       }
     >
-      <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
+      <nav
+        className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden"
+        data-testid="groups-menu"
+      >
         <WelcomeCard />
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>

@@ -20,6 +20,12 @@ export type ChatSearchProps = PropsWithChildren<{
   root: string;
   query?: string;
   scan: ChatMap;
+  searchDetails?: {
+    numResults: number;
+    depth: number;
+    oldestMessageSearched: Date | null;
+    searchComplete: boolean;
+  };
   isLoading: boolean;
   placeholder: string;
   endReached: () => void;
@@ -30,6 +36,7 @@ export default function ChatSearch({
   root,
   query,
   scan,
+  searchDetails,
   isLoading,
   placeholder,
   endReached,
@@ -130,6 +137,7 @@ export default function ChatSearch({
                   whom={whom}
                   root={root}
                   scan={scan}
+                  searchDetails={searchDetails}
                   isLoading={isLoading}
                   query={query}
                   selected={selected.index}
