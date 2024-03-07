@@ -17,7 +17,7 @@
 ::      %-  eval-mare
 ::      =/  m  (mare ,~)
 ::      ^-  form:m
-::      ;<  ~                bind:m  (set-scry-gate |=(path `%some-noun))
+::      ;<  ~                bind:m  (set-scry-gate |=(path `!>(%some-noun)))
 ::      ;<  caz=(list card)  bind:m  (do-init %my-agent-name my-agent-core)
 ::      ;<  ~                bind:m  (ex-cards caz ~)
 ::      ;<  ~                bind:m  (set-src ~dev)
