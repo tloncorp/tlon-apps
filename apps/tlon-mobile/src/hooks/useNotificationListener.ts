@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 
 import { useWebViewContext } from '../contexts/webview/webview';
 import { markChatRead } from '../lib/chatApi';
+import { connectNotifications } from '../lib/notifications';
 import type { TabParamList } from '../types';
 import { useDeepLink } from './useDeepLink';
 
@@ -51,7 +52,7 @@ export default function useNotificationListener() {
       }
     );
 
-    // connectNotifications();
+    connectNotifications();
 
     return () => {
       // Clean up listeners

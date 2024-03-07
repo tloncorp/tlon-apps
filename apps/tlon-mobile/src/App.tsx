@@ -8,7 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
-import { StatusBar, Text, View } from 'react-native';
+import { Alert, StatusBar, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
@@ -39,6 +39,7 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync } from './utils/posthog';
+import { getPathFromWer } from './utils/string';
 
 type Props = {
   wer?: string;
@@ -54,6 +55,23 @@ const App = ({ wer: initialWer }: Props) => {
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useDeepLink();
   const screenOptions = useScreenOptions();
+
+  // log initial wer
+  useEffect(() => {
+    if (initialWer) {
+      Alert.alert(
+        '',
+        `Initial wer: ${initialWer} : formatted: ${getPathFromWer(initialWer || '')}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => null,
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  }, [initialWer]);
 
   useEffect(() => {
     if (isAuthenticated) {
