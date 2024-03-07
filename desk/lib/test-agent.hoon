@@ -186,7 +186,6 @@
   |=  [dap=term =agent]
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  ~              bind:m  (set-scry-gate |=(path `!>(&)))
   ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
   ;<  ~              bind:m  %-  set-scry-gate
                              |=  p=path
@@ -204,7 +203,6 @@
   |=  =agent
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  ~              bind:m  (set-scry-gate |=(path `!>(&)))
   ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
   ;<  ~              bind:m  %-  set-scry-gate
                              |=  p=path
