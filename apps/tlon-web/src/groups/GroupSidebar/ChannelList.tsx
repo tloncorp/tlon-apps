@@ -29,12 +29,7 @@ import {
 } from '@/logic/channel';
 import useFilteredSections from '@/logic/useFilteredSections';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  useGroup,
-  useGroupConnection,
-  useGroupFlag,
-  useVessel,
-} from '@/state/groups';
+import { useGroup, useGroupConnection, useVessel } from '@/state/groups';
 
 const UNZONED = 'default';
 
@@ -122,187 +117,200 @@ type ListItem =
 
 const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
-const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
-  const flag = useGroupFlag();
-  const group = useGroup(flag);
-  const connected = useGroupConnection(flag);
-  const { sortFn, sortChannels } = useChannelSort();
-  const isDefaultSort = sortFn === DEFAULT_SORT;
-  const { sectionedChannels } = useChannelSections(flag);
-  const filteredSections = useFilteredSections(flag, true);
-  const isMobile = useIsMobile();
-  const vessel = useVessel(flag, window.our);
-  const isChannelJoined = useCheckChannelJoined();
-  const isChannelUnread = useCheckChannelUnread();
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
+const ChannelList = React.memo(
+  ({
+    paddingTop,
+    flag,
+    noScroller,
+  }: {
+    paddingTop?: number;
+    flag: string;
+    noScroller?: boolean;
+  }) => {
+    const group = useGroup(flag);
+    const connected = useGroupConnection(flag);
+    const { sortFn, sortChannels } = useChannelSort();
+    const isDefaultSort = sortFn === DEFAULT_SORT;
+    const { sectionedChannels } = useChannelSections(flag);
+    const filteredSections = useFilteredSections(flag, true);
+    const isMobile = useIsMobile();
+    const vessel = useVessel(flag, window.our);
+    const isChannelJoined = useCheckChannelJoined();
+    const isChannelUnread = useCheckChannelUnread();
+    const virtuosoRef = useRef<VirtuosoHandle>(null);
 
-  useEffect(() => {
-    const currentVirtuosoRef = virtuosoRef.current;
-    return () => {
-      currentVirtuosoRef?.getState((state) => {
-        virtuosoStateByFlag[flag] = state;
-      });
-    };
-  }, [flag]);
+    useEffect(() => {
+      const currentVirtuosoRef = virtuosoRef.current;
+      return () => {
+        currentVirtuosoRef?.getState((state) => {
+          virtuosoStateByFlag[flag] = state;
+        });
+      };
+    }, [flag]);
 
-  const items: ListItem[] = useMemo(() => {
-    if (!group) {
-      return [];
-    }
+    const items: ListItem[] = useMemo(() => {
+      if (!group) {
+        return [];
+      }
 
-    const arr: ListItem[] = [{ type: 'static-top' }];
+      const arr: ListItem[] = [{ type: 'static-top' }];
 
-    const shouldShowChannel = ([nest, channel]: [string, GroupChannel]) =>
-      isChannelJoined(nest) && canReadChannel(channel, vessel, group.bloc);
+      const shouldShowChannel = ([nest, channel]: [string, GroupChannel]) =>
+        isChannelJoined(nest) && canReadChannel(channel, vessel, group.bloc);
 
-    if (isDefaultSort) {
-      filteredSections.forEach((s) => {
-        if (s !== UNZONED) {
-          const title = s in group.zones ? group.zones[s].meta.title : '';
-          arr.push({
-            type: 'section-header',
-            section: title,
+      if (isDefaultSort) {
+        filteredSections.forEach((s) => {
+          if (s !== UNZONED) {
+            const title = s in group.zones ? group.zones[s].meta.title : '';
+            arr.push({
+              type: 'section-header',
+              section: title,
+            });
+          }
+
+          sectionedChannels[s].forEach((channel) => {
+            if (shouldShowChannel(channel)) {
+              arr.push({ type: 'channel', channel });
+            }
           });
-        }
-
-        sectionedChannels[s].forEach((channel) => {
+        });
+      } else {
+        sortChannels(group.channels).forEach((channel) => {
           if (shouldShowChannel(channel)) {
             arr.push({ type: 'channel', channel });
           }
         });
-      });
-    } else {
-      sortChannels(group.channels).forEach((channel) => {
-        if (shouldShowChannel(channel)) {
-          arr.push({ type: 'channel', channel });
-        }
-      });
-    }
+      }
 
-    return arr;
-  }, [
-    group,
-    isDefaultSort,
-    isChannelJoined,
-    vessel,
-    filteredSections,
-    sectionedChannels,
-    sortChannels,
-  ]);
+      return arr;
+    }, [
+      group,
+      isDefaultSort,
+      isChannelJoined,
+      vessel,
+      filteredSections,
+      sectionedChannels,
+      sortChannels,
+    ]);
 
-  const renderStaticTop = useCallback(() => {
-    if (!isMobile) {
-      return <ChannelSorter isMobile={false} />;
-    }
-    // TODO: Add welcome message to group for admins and non-admins
-    return <div className={cn(paddingTop && `pt-${paddingTop}`)} />;
-  }, [isMobile, paddingTop]);
+    const renderStaticTop = useCallback(() => {
+      if (!isMobile) {
+        return <ChannelSorter isMobile={false} />;
+      }
+      // TODO: Add welcome message to group for admins and non-admins
+      return <div className={cn(paddingTop && `pt-${paddingTop}`)} />;
+    }, [isMobile, paddingTop]);
 
-  const renderSectionHeader = useCallback(
-    (section: string) => <Divider isMobile={isMobile}>{section}</Divider>,
-    [isMobile]
-  );
+    const renderSectionHeader = useCallback(
+      (section: string) => <Divider isMobile={isMobile}>{section}</Divider>,
+      [isMobile]
+    );
 
-  const renderChannel = useCallback(
-    ([nest, channel]: [string, GroupChannel]) => {
-      const icon = (active: boolean) =>
-        isMobile ? (
-          <span
-            className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-md',
-              active && 'bg-white'
-            )}
+    const renderChannel = useCallback(
+      ([nest, channel]: [string, GroupChannel]) => {
+        const icon = (active: boolean) =>
+          isMobile ? (
+            <span
+              className={cn(
+                'flex h-12 w-12 items-center justify-center rounded-md',
+                active && 'bg-white'
+              )}
+            >
+              <ChannelIcon nest={nest} className="h-6 w-6 text-gray-800" />
+            </span>
+          ) : (
+            <ChannelIcon nest={nest} className="h-6 w-6" />
+          );
+
+        return (
+          <SidebarItem
+            inexact
+            key={nest}
+            icon={icon}
+            to={channelHref(flag, nest)}
+            actions={
+              isChannelUnread(nest) ? (
+                <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
+              ) : null
+            }
           >
-            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-800" />
-          </span>
-        ) : (
-          <ChannelIcon nest={nest} className="h-6 w-6" />
+            {channel.meta.title || nest}
+          </SidebarItem>
         );
+      },
+      [flag, isChannelUnread, isMobile]
+    );
 
-      return (
-        <SidebarItem
-          inexact
-          key={nest}
-          icon={icon}
-          to={channelHref(flag, nest)}
-          actions={
-            isChannelUnread(nest) ? (
-              <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
-            ) : null
-          }
-        >
-          {channel.meta.title || nest}
-        </SidebarItem>
-      );
-    },
-    [flag, isChannelUnread, isMobile]
-  );
+    const renderItem = useCallback(
+      (_index: number, item: ListItem) => {
+        switch (item.type) {
+          case 'static-top':
+            return renderStaticTop();
+          case 'section-header':
+            return (
+              <div className="mx-4 text-gray-100 sm:mx-2">
+                {renderSectionHeader(item.section)}
+              </div>
+            );
+          case 'channel':
+            return (
+              <div className="mx-4 sm:mx-2">{renderChannel(item.channel)}</div>
+            );
+          default:
+            return null;
+        }
+      },
+      [renderStaticTop, renderSectionHeader, renderChannel]
+    );
 
-  const renderItem = useCallback(
-    (_index: number, item: ListItem) => {
+    const computeItemKey = useCallback((_index: number, item: ListItem) => {
       switch (item.type) {
         case 'static-top':
-          return renderStaticTop();
+          return 'static-top';
         case 'section-header':
-          return (
-            <div className="mx-4 text-gray-100 sm:mx-2">
-              {renderSectionHeader(item.section)}
-            </div>
-          );
+          return item.section;
         case 'channel':
-          return (
-            <div className="mx-4 sm:mx-2">{renderChannel(item.channel)}</div>
-          );
+          return item.channel[0];
         default:
-          return null;
+          return '';
       }
-    },
-    [renderStaticTop, renderSectionHeader, renderChannel]
-  );
+    }, []);
 
-  const computeItemKey = useCallback((_index: number, item: ListItem) => {
-    switch (item.type) {
-      case 'static-top':
-        return 'static-top';
-      case 'section-header':
-        return item.section;
-      case 'channel':
-        return item.channel[0];
-      default:
-        return '';
+    if (!group || group.meta.title === '') {
+      return (
+        <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
+          <h2 className="px-4 pb-0 text-sm font-semibold text-gray-400">
+            <div className="flex justify-between">
+              {!connected ? (
+                'Host is Offline.'
+              ) : (
+                <>
+                  Loading Channels
+                  <LoadingSpinner className="h-4 w-4 text-gray-400" />
+                </>
+              )}
+            </div>
+          </h2>
+          <GroupListPlaceholder count={15} pulse={connected} />;
+        </div>
+      );
     }
-  }, []);
 
-  if (!group || group.meta.title === '') {
+    if (noScroller) {
+      return <>{items.map((item, index) => renderItem(index, item))}</>;
+    }
+
     return (
-      <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
-        <h2 className="px-4 pb-0 text-sm font-semibold text-gray-400">
-          <div className="flex justify-between">
-            {!connected ? (
-              'Host is Offline.'
-            ) : (
-              <>
-                Loading Channels
-                <LoadingSpinner className="h-4 w-4 text-gray-400" />
-              </>
-            )}
-          </div>
-        </h2>
-        <GroupListPlaceholder count={15} pulse={connected} />;
-      </div>
+      <Virtuoso
+        ref={virtuosoRef}
+        data={items}
+        computeItemKey={computeItemKey}
+        itemContent={renderItem}
+        restoreStateFrom={virtuosoStateByFlag[flag]}
+        className="h-full w-full flex-1 space-y-0.5 overflow-x-hidden"
+      />
     );
   }
-
-  return (
-    <Virtuoso
-      ref={virtuosoRef}
-      data={items}
-      computeItemKey={computeItemKey}
-      itemContent={renderItem}
-      restoreStateFrom={virtuosoStateByFlag[flag]}
-      className="h-full w-full flex-1 space-y-0.5 overflow-x-hidden"
-    />
-  );
-});
+);
 
 export default ChannelList;

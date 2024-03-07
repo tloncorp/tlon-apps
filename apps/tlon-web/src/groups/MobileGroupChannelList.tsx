@@ -93,7 +93,7 @@ export default function MobileGroupChannelList() {
           paddingBottom,
         }}
       >
-        <ChannelList paddingTop={6} />
+        <ChannelList flag={flag} paddingTop={6} />
       </div>
       <div
         className="absolute left-[-5%] top-[-5%] -z-10 h-64 w-[110%] bg-cover bg-center mix-blend-multiply blur-md dark:mix-blend-screen"
