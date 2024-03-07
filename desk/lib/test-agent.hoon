@@ -35,8 +35,9 @@
 +$  agent  $+(agent agent:gall)
 +$  bowl   $+(bowl bowl:gall)
 +$  card   $+(card card:agent:gall)
++$  scry   $-(path (unit vase))
 ::
-+$  state       [=agent =bowl scry=$-(path (unit *))]   ::  passed continuously
++$  state       [=agent =bowl =scry]                    ::  passed continuously
 ++  form-raw    |$  [a]  $-(state (output-raw a))       ::  continuation
 ++  output-raw  |$  [a]  (each [out=a =state] tang)     ::  continue or fail
 ::
@@ -125,35 +126,50 @@
     ?<(ack [& path])
   ==
 ::
-++  do
+++  do  ::  execute agent lifecycle step with mocked scry
   |=  call=$-(state [(list card) agent:gall])
   =/  m  (mare ,(list card))
   ^-  form:m
   |=  s=state
   =;  result=(each [(list card) agent:gall] (list tank))
     ?:  ?=(%| -.result)
-      |+p.result  ::TODO  maybe flop the trace?
+      |+p.result
     =^  c  agent.s  p.result
     =.  bowl.s  (play-cards bowl.s c)
     &+[c s]
-  =/  res=toon
-    %+  mock  [. !=((call s))]
-    |=  p=^
-    ~&  p
-    ^-  (unit (unit))
-    ~&  %a
-    =/  res=(unit *)  (scry.s ;;(path +.p))
-    ~&  %b
-    ?~(res ~ ``u.res)
-  ~&  %c
-  ?-  -.res
-    %0  :-  %&
-        ::NOTE  we would ;;, but it's too slow.
-        ::      we pretend it's a vase instead.
-        !<  [(list card) agent:gall]
-        [-:!>(*[(list card) agent:gall]) p.res]
-    %1  |+~['blocking on scry' >;;(path p.res)<]
-    %2  |+p.res
+  =;  res=toon
+    ?-  -.res
+      %0  :-  %&
+          ::NOTE  we would ;;, but it's too slow.
+          ::      we know for a fact p.res is of the type we expect,
+          ::      so we just play pretend with vases instead.
+          !<  [(list card) agent:gall]
+          [-:!>(*[(list card) agent:gall]) p.res]
+      %1  |+~['blocking on scry' >;;(path p.res)<]
+      %2  |+p.res
+    ==
+  %+  mock  [. !=((call s))]
+  |=  [ref=* pax=*]
+  ^-  (unit (unit *))
+  ?>  ?=(^ ref)
+  ?>  =(hoon-version -.ref)
+  =+  ;;(pax=path pax)
+  =/  res=(unit vase)  (scry.s pax)
+  %.  ?~(res ~ ``q.u.res)
+  ::  warn about type mismatches if the tested code expects a result type
+  ::  different from what the mocked scry produces.
+  ::
+  ::NOTE  we would ;;, but it's too slow.
+  ::      we can safely assume +.ref is indeed a type,
+  ::      so we just play pretend with vases instead.
+  =+  !<(typ=type [-:!>(*type) +.ref])
+  ?.  &(?=(^ res) !(~(nest ut typ) | p.u.res))
+    same
+  %-  %*(. slog pri 2)
+  :~  'mocked scry result mismatches expected type'
+      >pax<
+      (~(dunk ut typ) %need)
+      (~(dunk ut p.u.res) %have)
   ==
 ::
 ::  managed agent lifecycle
@@ -282,11 +298,11 @@
   |=(b=bowl b(now (add now.b d)))
 ::
 ++  set-scry-gate
-  |=  gate=$-(path (unit *))
+  |=  f=scry
   =/  m  (mare ,~)
   ^-  form:m
   |=  s=state
-  &+[~ s(scry gate)]
+  &+[~ s(scry f)]
 ::
 ::  testing utilities
 ::

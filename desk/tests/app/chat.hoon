@@ -40,10 +40,9 @@
 ::++  test-club-notification-clearing
 ++  scries
   |=  =path
-  ^-  (unit *)
-  ~&  path
+  ^-  (unit vase)
   ?+  path  ~
-    [%gu @ %groups @ *]  `!>(`?`%.y)
+    [%gu @ %groups @ *]  `!>(%.y)
     [%gx @ %groups @ %volume *]  `!>(%soft)
   ==
 ++  dm-message
