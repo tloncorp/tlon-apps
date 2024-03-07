@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
@@ -22,6 +23,7 @@ export interface AuthenticatedAppProps {
 
 function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
   useNotificationListener();
+  const navigation = useNavigation();
   const { ship } = useShip();
   const { wer, lure, clearDeepLink } = useDeepLink();
   const webviewContext = useWebViewContext();
@@ -60,10 +62,28 @@ function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
   // webview and mark as handled
   useEffect(() => {
     if (gotoPath) {
+      console.log(`we have a wer: ${gotoPath}`);
       webviewContext.setGotoPath(gotoPath);
+      Alert.alert(
+        '',
+        `Goto path: ${gotoPath}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => null,
+          },
+        ],
+        { cancelable: true }
+      );
+      navigation.navigate('TabList', {
+        screen: 'Groups',
+        params: {
+          screen: 'Webview',
+        },
+      });
       clearDeepLink();
     }
-  }, [gotoPath, clearDeepLink, webviewContext]);
+  }, [gotoPath, clearDeepLink, webviewContext, navigation]);
 
   return (
     <ZStack flex={1}>

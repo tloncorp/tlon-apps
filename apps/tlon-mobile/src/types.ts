@@ -1,16 +1,18 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type SignUpExtras = {
   nickname?: string;
   notificationToken?: string;
   telemetry?: boolean;
 };
 
-type WebViewScreenParams = {
-  initialPath: string;
-  gotoPath?: string;
-};
+// type WebViewScreenParams = {
+//   initialPath: string;
+//   gotoPath?: string;
+// };
 
 export type WebViewStackParamList = {
-  Webview: WebViewScreenParams;
+  Webview: undefined;
   ExternalWebView: {
     uri: string;
     headers?: Record<string, string | null>;
@@ -19,12 +21,25 @@ export type WebViewStackParamList = {
 };
 
 export type TabParamList = {
-  Groups: WebViewScreenParams;
-  Messages: WebViewScreenParams;
-  Activity: WebViewScreenParams;
-  Profile: WebViewScreenParams;
-  Discover: WebViewScreenParams;
+  Groups: NavigatorScreenParams<WebViewStackParamList>;
+  Messages: NavigatorScreenParams<WebViewStackParamList>;
+  Activity: NavigatorScreenParams<WebViewStackParamList>;
+  Profile: NavigatorScreenParams<WebViewStackParamList>;
+  Discover: NavigatorScreenParams<WebViewStackParamList>;
 };
+
+export type RootStackParamList = {
+  TabList: NavigatorScreenParams<TabParamList>;
+  Onboarding: NavigatorScreenParams<OnboardingStackParamList>;
+};
+
+declare global {
+  // Configures top level navigation typing
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}
 
 export type TabName = keyof TabParamList;
 

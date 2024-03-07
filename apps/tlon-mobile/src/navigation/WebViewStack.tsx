@@ -59,7 +59,8 @@ export const WebViewStack = (props: Props) => {
       }
 
       // Else, go to the tab's initial location
-      setGotoPath(props.route.params.initialPath);
+      // setGotoPath(props.route.params.initialPath);
+      setGotoPath(getInitialPath(props.route.name));
     });
 
     return unsubscribe;
@@ -111,8 +112,9 @@ export const WebViewStack = (props: Props) => {
       setReactingToWebappNav(true);
 
       // navigate to the new active tab
+      // props.navigation.navigate(gotoTab as keyof TabParamList);
       props.navigation.navigate(gotoTab as keyof TabParamList, {
-        initialPath: getInitialPath(gotoTab),
+        screen: 'Webview',
       });
 
       // clear the gotoTab since it's been handled
@@ -149,7 +151,7 @@ export const WebViewStack = (props: Props) => {
       <Stack.Screen
         name="Webview"
         component={WebviewPlaceholderScreen}
-        initialParams={props.route.params}
+        // initialParams={props.route.params}
         options={{ headerShown: false }}
       />
       <Stack.Screen name="ExternalWebView" component={ExternalWebViewScreen} />

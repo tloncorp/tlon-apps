@@ -3,7 +3,7 @@ import { Icon, UrbitSigil } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
 import { useShip } from '../contexts/ship';
-import { getInitialPath } from '../lib/WebAppHelpers';
+// import { getInitialPath } from '../lib/WebAppHelpers';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
 
@@ -22,7 +22,7 @@ export const TabStack = () => {
       <Tab.Screen
         name="Groups"
         component={WebViewStack}
-        initialParams={{ initialPath: getInitialPath('Groups') }}
+        // initialParams={{ initialPath: getInitialPath('Groups') }}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -37,7 +37,7 @@ export const TabStack = () => {
       <Tab.Screen
         name="Messages"
         component={WebViewStack}
-        initialParams={{ initialPath: getInitialPath('Messages') }}
+        // initialParams={{ initialPath: getInitialPath('Messages') }}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -52,7 +52,7 @@ export const TabStack = () => {
       <Tab.Screen
         name="Activity"
         component={WebViewStack}
-        initialParams={{ initialPath: getInitialPath('Activity') }}
+        // initialParams={{ initialPath: getInitialPath('Activity') }}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -67,7 +67,7 @@ export const TabStack = () => {
       <Tab.Screen
         name="Profile"
         component={WebViewStack}
-        initialParams={{ initialPath: getInitialPath('Profile') }}
+        // initialParams={{ initialPath: getInitialPath('Profile') }}
         options={{
           tabBarIcon: ({ focused }) =>
             ship && shipIsPlanetOrLarger ? (

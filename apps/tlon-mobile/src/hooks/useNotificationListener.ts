@@ -1,11 +1,14 @@
+import { useNavigation } from '@react-navigation/native';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 
 import { useWebViewContext } from '../contexts/webview/webview';
 import { markChatRead } from '../lib/chatApi';
 import { useDeepLink } from './useDeepLink';
 
 export default function useNotificationListener() {
+  const navigation = useNavigation();
   const webviewContext = useWebViewContext();
   const { clearDeepLink } = useDeepLink();
 
@@ -35,6 +38,23 @@ export default function useNotificationListener() {
           //   key: curr.key + 1,
           // }));
           webviewContext.setGotoPath(data.wer);
+          Alert.alert(
+            '',
+            `Goto path: ${data.wer}`,
+            [
+              {
+                text: 'OK',
+                onPress: () => null,
+              },
+            ],
+            { cancelable: true }
+          );
+          navigation.navigate('TabList', {
+            screen: 'Groups',
+            params: {
+              screen: 'Webview',
+            },
+          });
           clearDeepLink();
         }
       }
