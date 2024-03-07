@@ -39,7 +39,7 @@ export const AUTHORS = [
   '~mister-dister-dozzod-dozzod',
 ];
 
-export const lsDesk = 'garden';
+export const lsDesk = 'landscape';
 
 export const ALPHABETICAL_SORT = 'A → Z';
 export const DEFAULT_SORT = 'Arranged';
