@@ -106,7 +106,7 @@ export default function useSidebarSort({
       records: Record<string, T>,
       accessor: (k: string, v: T) => string,
       reverse = false
-    ) => {
+    ): [string, T][] => {
       // pre-compute values for comparison
       const entries = Object.entries(records).map(([key, obj]) => ({
         key,
