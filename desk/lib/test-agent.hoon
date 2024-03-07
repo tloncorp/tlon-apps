@@ -172,25 +172,49 @@
       (~(dunk ut p.u.res) %have)
   ==
 ::
+++  jab-state
+  |=  f=$-(state state)
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  &+[~ (f s)]
+::
 ::  managed agent lifecycle
 ::
 ++  do-init
+  =+  scry-warn=&
   |=  [dap=term =agent]
   =/  m  (mare ,(list card))
   ^-  form:m
-  |=  s=state
-  =.  bowl.s  %*(. *bowl dap dap, our our.bowl.s, src our.bowl.s)
-  ::TODO  wrap in +do call so we can scry
-  =^  c  agent.s  ~(on-init agent bowl.s)
-  &+[c s]
+  ;<  ~              bind:m  (set-scry-gate |=(path `!>(&)))
+  ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
+  ;<  ~              bind:m  %-  set-scry-gate
+                             |=  p=path
+                             ~?  >>  scry-warn
+                               ['scrying during +on-init... careful!' p]
+                             (old-scry p)
+  ;<  b=bowl         bind:m  get-bowl
+  ;<  ~              bind:m  (set-bowl %*(. *bowl dap dap, our our.b, src our.b))
+  ;<  c=(list card)  bind:m  (do |=(s=state ~(on-init agent bowl.s)))
+  ;<  ~              bind:m  (set-scry-gate old-scry)
+  (pure:m c)
 ::
 ++  do-load
+  =+  scry-warn=&
   |=  =agent
-  ::TODO  temporarily make scry a crashing gate,
-  ::      to protect against scry-on-load implementations.
-  %-  do
-  |=  s=state
-  (~(on-load agent bowl.s) ~(on-save agent.s bowl.s))
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~              bind:m  (set-scry-gate |=(path `!>(&)))
+  ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
+  ;<  ~              bind:m  %-  set-scry-gate
+                             |=  p=path
+                             ~?  >>  scry-warn
+                               ['scrying during +on-load... careful!' p]
+                             (old-scry p)
+  ;<  c=(list card)  bind:m  %-  do  |=  s=state
+                             (~(on-load agent bowl.s) ~(on-save agent.s bowl.s))
+  ;<  ~              bind:m  (set-scry-gate old-scry)
+  (pure:m c)
 ::
 ++  do-poke
   |=  [=mark =vase]
