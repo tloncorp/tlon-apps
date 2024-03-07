@@ -1,3 +1,5 @@
+// eslint-disable-next-line prettier/prettier
+import './src/lib/fetchPollyfill';
 import { registerRootComponent } from 'expo';
 import { TailwindProvider } from 'tailwind-rn';
 

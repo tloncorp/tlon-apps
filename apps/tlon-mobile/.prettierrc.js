@@ -39,7 +39,7 @@ module.exports = {
   tailwindConfig: './tailwind.config.js',
   semi: true,
   trailingComma: 'es5',
-  importOrder: ['<THIRD_PARTY_MODULES>', '^[./]'],
-  importOrderSeparation: true,
-  importOrderSortSpecifiers: true,
+  // importOrder: ['<THIRD_PARTY_MODULES>', '^[./]'],
+  // importOrderSeparation: true,
+  // importOrderSortSpecifiers: true,
 };

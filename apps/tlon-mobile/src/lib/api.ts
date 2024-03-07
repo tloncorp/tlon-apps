@@ -1,4 +1,5 @@
 import { deSig } from '@urbit/aura';
+import Urbit from '@urbit/http-api';
 
 import { createHexString } from '../utils/string';
 
@@ -9,6 +10,32 @@ const config = {
 };
 
 let lastEventId = 1;
+let client: Urbit;
+
+function fetchHandler(url: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response> {
+  return fetch(url, { ...(init ?? {}), reactNative: { textStreaming: true}} as RequestInit);
+}
+
+export const initClient = (shipUrl: string) => {
+  client = new Urbit(shipUrl, undefined, undefined, fetchHandler);
+  client.verbose = true;
+
+  console.log('initialized client', client);
+
+  client.subscribe({
+    app: 'channels',
+    path: '/',
+    event: (json: any) => {
+      console.log('got a sub event', json);
+    }
+  });
+};
+
+// export function useSubUnreads () {
+//   client.subscribe({
+//     app: ''
+//   })
+// }
 
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);

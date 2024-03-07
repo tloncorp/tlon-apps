@@ -22,6 +22,7 @@ import * as db from './db';
 import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
+import { initClient } from './lib/api';
 import { inviteShipWithLure } from './lib/hostingApi';
 import { syncContacts } from './lib/sync';
 import { useDevTools } from './lib/useDevTools';
@@ -54,7 +55,7 @@ const App = ({ wer: initialWer }: Props) => {
   useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
-  const { isLoading, isAuthenticated, ship } = useShip();
+  const { isLoading, isAuthenticated, ship, shipUrl } = useShip();
   const [connected, setConnected] = useState(true);
   const { wer, lure, priorityToken, clearDeepLink } = useDeepLink();
   const navigation = useNavigation();
@@ -63,6 +64,7 @@ const App = ({ wer: initialWer }: Props) => {
 
   useEffect(() => {
     if (isAuthenticated) {
+      initClient(shipUrl ?? '');
       syncContacts();
     }
   }, [isAuthenticated]);
