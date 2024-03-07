@@ -1,5 +1,6 @@
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useLocation } from 'react-router';
 
 import WidgetDrawer from '@/components/WidgetDrawer';
 import { useDismissNavigate } from '@/logic/routing';
@@ -10,6 +11,12 @@ import ChannelList from '../GroupSidebar/ChannelList';
 export default function GroupInfo({ title }: ViewProps) {
   const flag = useRouteGroup();
   const dismiss = useDismissNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    console.log(location);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onOpenChange = (open: boolean) => {
     if (!open) {

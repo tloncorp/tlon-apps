@@ -35,10 +35,8 @@ const GroupsSidebarItem = React.memo(
     }, [navigate, flag, location]);
 
     useEffect(() => {
-      console.log(location);
-    }, [location]);
+      console.log('BL: EFFECT RUN', action);
 
-    useEffect(() => {
       if (!isMobile) {
         return;
       }
