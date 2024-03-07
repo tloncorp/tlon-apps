@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-polyfill-globals/src/readable-stream.js b/node_modules/react-native-polyfill-globals/src/readable-stream.js
+index 0cc879a..643b654 100644
+--- a/node_modules/react-native-polyfill-globals/src/readable-stream.js
++++ b/node_modules/react-native-polyfill-globals/src/readable-stream.js
+@@ -1,7 +1,7 @@
+ import { polyfillGlobal } from 'react-native/Libraries/Utilities/PolyfillFunctions';
+ 
+ export const polyfill = () => {
+-    const { ReadableStream } = require('web-streams-polyfill/ponyfill/es6');
++    const { ReadableStream } = require('web-streams-polyfill');
+ 
+     polyfillGlobal('ReadableStream', () => ReadableStream);
+ };

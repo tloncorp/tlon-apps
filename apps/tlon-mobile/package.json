@@ -16,9 +16,7 @@
     "lint": "eslint ./src",
     "lint:staged": "lint-staged",
     "test": "vitest --watch false",
-    "tsc": "tsc --noEmit",
-    "postinstall": "npm run generate",
-    "eas-build-post-install": "./post-install"
+    "tsc": "tsc --noEmit"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
