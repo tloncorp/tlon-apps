@@ -6,18 +6,15 @@ export type SignUpExtras = {
   telemetry?: boolean;
 };
 
-// type WebViewScreenParams = {
-//   initialPath: string;
-//   gotoPath?: string;
-// };
+type ExternalWebViewScreenParams = {
+  uri: string;
+  headers?: Record<string, string | null>;
+  injectedJavaScript?: string;
+};
 
 export type WebViewStackParamList = {
   Webview: undefined;
-  ExternalWebView: {
-    uri: string;
-    headers?: Record<string, string | null>;
-    injectedJavaScript?: string;
-  };
+  ExternalWebView: ExternalWebViewScreenParams;
 };
 
 export type TabParamList = {
@@ -27,19 +24,6 @@ export type TabParamList = {
   Profile: NavigatorScreenParams<WebViewStackParamList>;
   Discover: NavigatorScreenParams<WebViewStackParamList>;
 };
-
-export type RootStackParamList = {
-  TabList: NavigatorScreenParams<TabParamList>;
-  Onboarding: NavigatorScreenParams<OnboardingStackParamList>;
-};
-
-declare global {
-  // Configures top level navigation typing
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace ReactNavigation {
-    interface RootParamList extends RootStackParamList {}
-  }
-}
 
 export type TabName = keyof TabParamList;
 

@@ -1,3 +1,4 @@
+import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
@@ -13,6 +14,7 @@ import { useDeepLink } from '../hooks/useDeepLink';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { inviteShipWithLure } from '../lib/hostingApi';
 import { TabStack } from '../navigation/TabStack';
+import type { TabParamList } from '../types';
 import { trackError } from '../utils/posthog';
 import { getPathFromWer } from '../utils/string';
 import WebviewOverlay from './WebviewOverlay';
@@ -23,7 +25,7 @@ export interface AuthenticatedAppProps {
 
 function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
   useNotificationListener();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<TabParamList>>();
   const { ship } = useShip();
   const { wer, lure, clearDeepLink } = useDeepLink();
   const webviewContext = useWebViewContext();
@@ -62,25 +64,9 @@ function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
   // webview and mark as handled
   useEffect(() => {
     if (gotoPath) {
-      console.log(`we have a wer: ${gotoPath}`);
+      console.log(`wer gotopath set: ${gotoPath}`);
       webviewContext.setGotoPath(gotoPath);
-      Alert.alert(
-        '',
-        `Goto path: ${gotoPath}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => null,
-          },
-        ],
-        { cancelable: true }
-      );
-      navigation.navigate('TabList', {
-        screen: 'Groups',
-        params: {
-          screen: 'Webview',
-        },
-      });
+      navigation.navigate('Groups', { screen: 'Webview' });
       clearDeepLink();
     }
   }, [gotoPath, clearDeepLink, webviewContext, navigation]);

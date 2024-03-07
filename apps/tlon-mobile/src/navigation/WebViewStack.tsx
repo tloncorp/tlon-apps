@@ -112,7 +112,6 @@ export const WebViewStack = (props: Props) => {
       setReactingToWebappNav(true);
 
       // navigate to the new active tab
-      // props.navigation.navigate(gotoTab as keyof TabParamList);
       props.navigation.navigate(gotoTab as keyof TabParamList, {
         screen: 'Webview',
       });

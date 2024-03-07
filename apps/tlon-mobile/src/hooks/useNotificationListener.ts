@@ -1,3 +1,4 @@
+import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect } from 'react';
@@ -5,10 +6,11 @@ import { Alert } from 'react-native';
 
 import { useWebViewContext } from '../contexts/webview/webview';
 import { markChatRead } from '../lib/chatApi';
+import type { TabParamList } from '../types';
 import { useDeepLink } from './useDeepLink';
 
 export default function useNotificationListener() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<TabParamList>>();
   const webviewContext = useWebViewContext();
   const { clearDeepLink } = useDeepLink();
 
@@ -31,12 +33,6 @@ export default function useNotificationListener() {
         } else if (actionIdentifier === 'reply' && userText) {
           // Send reply
         } else if (data.wer) {
-          // TODO: handle wer
-          // setUri((curr) => ({
-          //   ...curr,
-          //   uri: createUri(shipUrl, data.wer),
-          //   key: curr.key + 1,
-          // }));
           webviewContext.setGotoPath(data.wer);
           Alert.alert(
             '',
@@ -49,12 +45,7 @@ export default function useNotificationListener() {
             ],
             { cancelable: true }
           );
-          navigation.navigate('TabList', {
-            screen: 'Groups',
-            params: {
-              screen: 'Webview',
-            },
-          });
+          navigation.navigate('Groups', { screen: 'Webview' });
           clearDeepLink();
         }
       }
@@ -66,5 +57,5 @@ export default function useNotificationListener() {
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [clearDeepLink, webviewContext]);
+  }, [clearDeepLink, navigation, webviewContext]);
 }
