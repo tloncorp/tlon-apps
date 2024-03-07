@@ -1287,7 +1287,7 @@
     |=  =r-channel:c
     =/  =r-channels:c  [nest r-channel]
     ::TODO  the mark type changing will give us trouble, right?
-    =.  ca-core  (give %fact ~[/v1 v1+ca-area] channel-response-2+!>(r-channels))
+    =.  ca-core  (give %fact ~[/v1 v1+ca-area] channel-response-1+!>(r-channels))
     =;  r-simple=r-channels-simple-post:c
       (give %fact ~[/ ca-area /v0 v0+ca-area] channel-response+!>(r-simple))
     :-  nest
