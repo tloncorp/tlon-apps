@@ -338,13 +338,13 @@
   =/  =tang  (expect-eq:test expected actual)
   ?~(tang &+[~ s] |+tang)
 ::
-++  ex-crash-in-do
-  |=  form=(form-raw ,(list card))
+++  ex-fail
+  |=  form=(form-raw ,*)
   =/  m  (mare ,~)
   ^-  form:m
   |=  =state
   =/  res  (form state)
-  ?-(-.res %| &+[~ state], %& |+['expected crash, but succeeded']~)
+  ?-(-.res %| &+[~ state], %& |+['expected failure, but succeeded']~)
 ::
 ++  ex-cards
   |=  [caz=(list card) exes=(list $-(card tang))]
