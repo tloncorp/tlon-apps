@@ -1,4 +1,4 @@
-/-  c=channels, g=groups
+/-  c=channels, ch=chat, g=groups
 /+  mp=mop-extensions
 |%
 ++  on-event      ((on time event) lte)
@@ -64,7 +64,7 @@
 +$  reply-concern     [=message-key target=message-key channel=nest:c group=flag:g]
 +$  whom
   $%  [%ship p=ship]
-      [%club p=@uvH]
+      [%club p=id:club:ch]
   ==
 +$  time-id  time
 +$  message-id   (pair ship time-id)

@@ -1,6 +1,8 @@
 ::
 /-  a=activity
 /+  default-agent, verb, dbug
+::  build for performance
+/+  activity-json
 ::
 =>
   |%
