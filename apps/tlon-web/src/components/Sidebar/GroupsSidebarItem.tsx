@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
+import { useModalNavigate } from '@/logic/routing';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroups } from '@/state/groups';
@@ -23,15 +25,28 @@ const GroupsSidebarItem = React.memo(
     );
     const enableImages = useMemo(() => !isScrolling, [isScrolling]);
 
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleNavigate = useCallback(() => {
+      navigate(`/groups/${flag}/info`, {
+        state: { backgroundLocation: location },
+      });
+    }, [navigate, flag, location]);
+
+    useEffect(() => {
+      console.log(location);
+    }, [location]);
+
     useEffect(() => {
       if (!isMobile) {
         return;
       }
 
       if (action === 'longpress') {
-        setOptionsOpen(true);
+        handleNavigate();
       }
-    }, [action, isMobile]);
+    }, [action, handleNavigate, isMobile]);
 
     return (
       <SidebarItem
@@ -43,25 +58,26 @@ const GroupsSidebarItem = React.memo(
           />
         }
         actions={
-          isNew ? (
-            <GroupActions
-              open={optionsOpen}
-              onOpenChange={setOptionsOpen}
-              flag={flag}
-              triggerDisabled={disableActions}
-            >
-              <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
-                NEW
-              </p>
-            </GroupActions>
-          ) : (
-            <GroupActions
-              open={optionsOpen}
-              onOpenChange={setOptionsOpen}
-              flag={flag}
-              triggerDisabled={disableActions}
-            />
-          )
+          <div />
+          // isNew ? (
+          //   <GroupActions
+          //     open={optionsOpen}
+          //     onOpenChange={setOptionsOpen}
+          //     flag={flag}
+          //     triggerDisabled={disableActions}
+          //   >
+          //     <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+          //       NEW
+          //     </p>
+          //   </GroupActions>
+          // ) : (
+          //   <GroupActions
+          //     open={optionsOpen}
+          //     onOpenChange={setOptionsOpen}
+          //     flag={flag}
+          //     triggerDisabled={disableActions}
+          //   />
+          // )
         }
         className={isNew ? 'pr-10' : undefined}
         to={`/groups/${flag}`}
