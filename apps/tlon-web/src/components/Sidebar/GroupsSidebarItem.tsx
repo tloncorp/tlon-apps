@@ -35,16 +35,16 @@ const GroupsSidebarItem = React.memo(
     }, [navigate, flag, location]);
 
     useEffect(() => {
-      console.log('BL: EFFECT RUN', action);
-
-      if (!isMobile) {
+      if (!isMobile || isNew) {
         return;
       }
 
       if (action === 'longpress') {
         handleNavigate();
       }
-    }, [action, handleNavigate, isMobile]);
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [action]);
 
     return (
       <SidebarItem
@@ -56,26 +56,25 @@ const GroupsSidebarItem = React.memo(
           />
         }
         actions={
-          <div />
-          // isNew ? (
-          //   <GroupActions
-          //     open={optionsOpen}
-          //     onOpenChange={setOptionsOpen}
-          //     flag={flag}
-          //     triggerDisabled={disableActions}
-          //   >
-          //     <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
-          //       NEW
-          //     </p>
-          //   </GroupActions>
-          // ) : (
-          //   <GroupActions
-          //     open={optionsOpen}
-          //     onOpenChange={setOptionsOpen}
-          //     flag={flag}
-          //     triggerDisabled={disableActions}
-          //   />
-          // )
+          isNew ? (
+            <GroupActions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              flag={flag}
+              triggerDisabled={disableActions}
+            >
+              <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+                NEW
+              </p>
+            </GroupActions>
+          ) : (
+            <GroupActions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              flag={flag}
+              triggerDisabled={disableActions}
+            />
+          )
         }
         className={isNew ? 'pr-10' : undefined}
         to={`/groups/${flag}`}
