@@ -6,13 +6,13 @@ import WidgetDrawer from '@/components/WidgetDrawer';
 import InviteIcon from '@/components/icons/InviteIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import PinIcon16 from '@/components/icons/PinIcon16';
+import SlidersIcon from '@/components/icons/SlidersIcon';
 import SmileIcon from '@/components/icons/SmileIcon';
+import { useGroupActions } from '@/groups/GroupActions';
+import GroupAvatar from '@/groups/GroupAvatar';
+import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
-
-import { useGroup, useRouteGroup } from '../../state/groups/groups';
-import { useGroupActions } from '../GroupActions';
-import GroupAvatar from '../GroupAvatar';
-import ChannelList from '../GroupSidebar/ChannelList';
+import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups/groups';
 
 export default function GroupInfo() {
   const flag = useRouteGroup();
@@ -20,6 +20,7 @@ export default function GroupInfo() {
   const dismiss = useDismissNavigate();
   const location = useLocation();
   const navigate = useModalNavigate();
+  const isAdmin = useAmAdmin(flag);
 
   const { isPinned, copyItemText, onCopy, onPinClick } = useGroupActions({
     flag,
@@ -68,18 +69,25 @@ export default function GroupInfo() {
             <SmileIcon className="h-6 w-6" />
             <span>Members</span>
           </Link>
-          <button
-            className={buttonClasses}
-            onClick={() => {
-              setNavigationStarted(true);
-              navigate(`/groups/${flag}/leave`, {
-                state: { backgroundLocation: location },
-              });
-            }}
-          >
-            <LeaveIcon className="h-6 w-6" />
-            <span>Leave</span>
-          </button>
+          {isAdmin ? (
+            <Link to={`/groups/${flag}/edit`} className={buttonClasses}>
+              <SlidersIcon className="h-6 w-6" />
+              <span>Settings</span>
+            </Link>
+          ) : (
+            <button
+              className={buttonClasses}
+              onClick={() => {
+                setNavigationStarted(true);
+                navigate(`/groups/${flag}/leave`, {
+                  state: { backgroundLocation: location },
+                });
+              }}
+            >
+              <LeaveIcon className="h-6 w-6" />
+              <span>Leave</span>
+            </button>
+          )}
         </div>
         <div className="flex flex-col items-stretch justify-center space-y-3 px-6">
           <button className={buttonClasses} onClick={onCopy}>
