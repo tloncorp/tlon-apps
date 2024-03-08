@@ -127,6 +127,9 @@ const ChannelList = React.memo(
     flag: string;
     noScroller?: boolean;
   }) => {
+    // Using the useGroup hook to get the group data with a mandatory flag,
+    // rather than relying on whatever "group" is in scope. This is used to
+    // ensure we get a complete channel list on the MobileRoot view.
     const group = useGroup(flag);
     const connected = useGroupConnection(flag);
     const { sortFn, sortChannels } = useChannelSort();
@@ -298,6 +301,9 @@ const ChannelList = React.memo(
       );
     }
 
+    // If noScroller is true, we're rendering this list in a context where
+    // scrolling is handled by a parent component. In this case, we don't want
+    // to use Virtuoso, so we just render the items directly.
     if (noScroller) {
       return <>{items.map((item, index) => renderItem(index, item))}</>;
     }

@@ -26,12 +26,17 @@ export default function GroupInfo() {
     flag,
   });
 
+  // We need to track if the user has started a navigation so that we can
+  // dismiss the drawer if they close it without starting a navigation
   const [navigationStarted, setNavigationStarted] = useState(false);
 
   const onOpenChange = (open: boolean) => {
+    // If the drawer is being closed and we haven't started a navigation,
+    // dismiss the drawer
     if (!open && !navigationStarted) {
       dismiss();
     }
+    // Reset the navigation started state
     setNavigationStarted(false);
   };
 
