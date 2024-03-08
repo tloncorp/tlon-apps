@@ -1,3 +1,4 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { useMemo, useRef } from 'react';
 import { Helmet } from 'react-helmet';
@@ -16,16 +17,15 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
-import useShowTabBar from '@/logic/useShowTabBar';
 import {
   useAddPostMutation,
   useLeaveMutation,
   useReplyPost,
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
-import { ViewProps } from '@/types/groups';
 
 import ChatThread from './ChatThread/ChatThread';
 
@@ -64,13 +64,10 @@ function ChatChannel({ title }: ViewProps) {
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const showTabBar = useShowTabBar();
   const root = `${
     activeTab === 'messages' ? '/dm' : ''
   }/groups/${groupFlag}/channels/${nest}`;
-  // We only inset the bottom for groups, since DMs display the navbar
-  // underneath this view
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
 
   const {
     group,
@@ -86,7 +83,7 @@ function ChatChannel({ title }: ViewProps) {
     <>
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+          paddingBottom,
         }}
         className="padding-bottom-transition flex-1 bg-white"
         header={

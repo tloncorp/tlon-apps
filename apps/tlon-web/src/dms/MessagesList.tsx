@@ -1,3 +1,5 @@
+import { Unread } from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import { deSig } from '@urbit/api';
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -12,8 +14,6 @@ import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
-import { Unread } from '@/types/channel';
-import { DMUnread } from '@/types/dms';
 
 import {
   useDmUnreads,
@@ -240,6 +240,7 @@ export default function MessagesList({
       isScrolling={isScrolling}
       restoreStateFrom={virtuosoState}
       className="w-full overflow-x-hidden"
+      data-testid="messages-menu"
     />
   );
 }

@@ -1,5 +1,10 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { JSONContent } from '@tiptap/core';
+import {
+  chatStoryFromStory,
+  storyFromChatStory,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { Inline } from '@tloncorp/shared/dist/urbit/content';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
@@ -14,8 +19,6 @@ import useRequestState from '@/logic/useRequestState';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import { useEditPostMutation, usePost } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups';
-import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
-import { Inline } from '@/types/content';
 
 import HeapTextInput from './HeapTextInput';
 import useCurioActions from './useCurioActions';

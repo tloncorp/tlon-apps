@@ -1,3 +1,5 @@
+import { Post, Posts } from '@tloncorp/shared/dist/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -6,15 +8,14 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import {
   canWriteChannel,
   useChannelCompatibility,
   useChannelIsJoined,
 } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
+import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
-import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, pluralize } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
@@ -35,8 +36,6 @@ import {
 } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Post, Posts } from '@/types/channel';
-import { ViewProps } from '@/types/groups';
 
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -69,9 +68,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const unread = useUnread(nest);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = usePerms(nest);
-  const isMobile = useIsMobile();
-  const { isChatInputFocused } = useChatInputFocus();
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const { compatible } = useChannelCompatibility(nest);
   const { mutateAsync: joinDiary } = useJoinMutation();
   const joinChannel = useCallback(async () => {
@@ -136,7 +133,7 @@ export default function DiaryNote({ title }: ViewProps) {
     return (
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+          paddingBottom,
         }}
         className="h-full flex-1 bg-white"
         header={

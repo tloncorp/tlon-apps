@@ -1,20 +1,32 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { decToUd } from '@urbit/api';
-import bigInt from 'big-integer';
-import { useMemo } from 'react';
-import create from 'zustand';
-import { persist } from 'zustand/middleware';
-
-import api from '@/api';
-import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
 import {
+  ChatMap,
+  ReplyTuple,
+  newChatMap,
+} from '@tloncorp/shared/dist/urbit/channel';
+import {
+  ChatScam,
   ChatScan,
   ChatScanItem,
   Writ,
   WritTuple,
   newWritMap,
-} from '@/types/dms';
+} from '@tloncorp/shared/dist/urbit/dms';
+import { decToUd } from '@urbit/api';
+import { daToUnix } from '@urbit/aura';
+import bigInt from 'big-integer';
+import _ from 'lodash';
+import { useMemo } from 'react';
+import create from 'zustand';
+import { persist } from 'zustand/middleware';
+
+import api from '@/api';
+import {
+  createStorageKey,
+  stringToTa,
+  whomIsDm,
+  whomIsMultiDm,
+} from '@/logic/utils';
 
 type Whom = string;
 type SearchResult = ChatMap;
@@ -115,22 +127,24 @@ export function updateSearchHistory(
 }
 
 export function useInfiniteChatSearch(whom: string, query: string) {
+  const SINGLE_PAGE_SEARCH_DEPTH = 500;
+  const encodedQuery = stringToTa(query);
   const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
   const { data, ...rest } = useInfiniteQuery({
     enabled: query !== '',
     queryKey: ['chat', 'search', whom, query],
-    queryFn: async ({ pageParam = 0 }) => {
-      const res = await api.scry<ChatScan>({
+    queryFn: async ({ pageParam = null }) => {
+      const res = await api.scry<ChatScam>({
         app: 'chat',
-        path: `/${type}/${whom}/search/text/${
-          decToUd(pageParam.toString()) || '0'
-        }/20/${query}`,
+        path: `/${type}/${whom}/search/bounded/text/${
+          pageParam ? decToUd(pageParam.toString()) : ''
+        }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
       });
       return res;
     },
-    getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length === 0) return undefined;
-      return allPages.length * 20;
+    getNextPageParam: (lastPage) => {
+      if (lastPage.last === null) return undefined;
+      return lastPage.last;
     },
   });
 
@@ -138,6 +152,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     () =>
       newChatMap(
         (data?.pages || [])
+          .reduce((a: ChatScan, b: ChatScam): ChatScan => a.concat(b.scan), [])
           .flat()
           .map((scItem: ChatScanItem) =>
             scItem && 'writ' in scItem
@@ -156,8 +171,24 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     updateSearchHistory(whom, query, scan);
   }
 
+  const depth = useMemo(
+    () => (data?.pages.length ?? 0) * SINGLE_PAGE_SEARCH_DEPTH,
+    [data]
+  );
+
+  const oldestMessageSearched = useMemo(() => {
+    const params = data?.pages ?? [];
+    const lastValidParam = _.findLast(
+      params,
+      (page) => page.last !== null
+    )?.last;
+    return lastValidParam ? new Date(daToUnix(bigInt(lastValidParam))) : null;
+  }, [data]);
+
   return {
     scan,
+    depth,
+    oldestMessageSearched,
     ...rest,
   };
 }

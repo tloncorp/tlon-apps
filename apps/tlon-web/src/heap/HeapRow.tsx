@@ -1,3 +1,9 @@
+import {
+  Post,
+  Story,
+  VerseBlock,
+  imageUrlFromContent,
+} from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import cn from 'classnames';
@@ -33,7 +39,6 @@ import {
   useRouteGroup,
 } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import { Post, Story, VerseBlock, imageUrlFromContent } from '@/types/channel';
 
 import useCurioActions from './useCurioActions';
 

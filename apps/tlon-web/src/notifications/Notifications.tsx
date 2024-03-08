@@ -1,3 +1,5 @@
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import { Skein } from '@tloncorp/shared/dist/urbit/hark';
 import cn from 'classnames';
 import { ComponentType, PropsWithChildren, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -9,12 +11,11 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ToggleGroup from '@/components/ToggleGroup';
 import WelcomeCard from '@/components/WelcomeCard';
 import GroupSummary from '@/groups/GroupSummary';
+import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
-import { ViewProps } from '@/types/groups';
-import { Skein } from '@/types/hark';
 
 import { NotificationFilterType, useNotifications } from './useNotifications';
 
@@ -70,6 +71,7 @@ export default function Notifications({
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const isMobile = useIsMobile();
+  const { paddingBottom } = useBottomPadding();
   const isAdmin = useAmAdmin(flag);
   const location = useLocation();
   const [notificationFilter, setNotificationFilter] =
@@ -159,7 +161,13 @@ export default function Notifications({
           }
         />
       )}
-      <section className="relative flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6">
+      <section
+        className="relative flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6"
+        style={{
+          paddingBottom,
+        }}
+        data-testid="notifications-screen"
+      >
         <Helmet>
           <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
         </Helmet>

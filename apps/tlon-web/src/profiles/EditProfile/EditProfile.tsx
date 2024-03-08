@@ -1,3 +1,11 @@
+import {
+  Contact,
+  ContactAddGroup,
+  ContactDelGroup,
+  ContactEditField,
+} from '@tloncorp/shared/dist/urbit/contact';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
+import cn from 'classnames';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -8,18 +16,12 @@ import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
+import { useBottomPadding } from '@/logic/position';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { useProfileIsPublic } from '@/state/profile/profile';
-import {
-  Contact,
-  ContactAddGroup,
-  ContactDelGroup,
-  ContactEditField,
-} from '@/types/contact';
-import { ViewProps } from '@/types/groups';
 
 import ProfileCoverImage from '../ProfileCoverImage';
 import PublicProfileSelector from '../PublicProfileSelector';
@@ -56,7 +58,6 @@ const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
 
 function EditProfileContent() {
   const profileIsPublic = useProfileIsPublic();
-  const isMobile = useIsMobile();
   const [allGroups, setAllGroups] = useState<GroupOption[]>([]);
   const groupData = useGroups();
   const groupFlags = Object.keys(groupData);
@@ -141,13 +142,22 @@ function EditProfileContent() {
   };
 
   const watchCover = form.watch('cover');
+  const { paddingBottom } = useBottomPadding();
 
   return (
-    <div className="w-full p-6">
+    <div
+      className="w-full p-4"
+      style={{
+        paddingBottom,
+      }}
+    >
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage
-            className="flex items-end rounded-b-lg"
+            className={cn(
+              'flex items-end rounded-b-lg',
+              watchCover ? 'h-36' : 'h-12'
+            )}
             cover={watchCover || ''}
           >
             <Avatar
@@ -168,7 +178,7 @@ function EditProfileContent() {
           </div>
         </div>
 
-        {!isMobile && profileIsPublic && (
+        {profileIsPublic && (
           <div className="card mb-4">
             <div className="max-w-lg">
               <PublicProfileSelector isMobile={false} />

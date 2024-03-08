@@ -1,9 +1,9 @@
+import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import { ChangeEvent, KeyboardEvent, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import useDebounce from '@/logic/useDebounce';
-import { ChatMap } from '@/types/channel';
 
 export interface Selection {
   index: number;
@@ -39,7 +39,7 @@ export function useChatSearchInput({
       return;
     }
 
-    navigate(`${root}/search/${input}`);
+    navigate(`${root}/search/${encodeURIComponent(input)}`);
   }, 500);
 
   const onChange = useCallback(

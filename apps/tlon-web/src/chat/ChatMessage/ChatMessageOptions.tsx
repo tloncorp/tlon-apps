@@ -1,3 +1,4 @@
+import { Post, emptyPost } from '@tloncorp/shared/dist/urbit/channel';
 import { decToUd } from '@urbit/api';
 import cn from 'classnames';
 import React, {
@@ -50,7 +51,6 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups';
-import { Post, emptyPost } from '@/types/channel';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -405,7 +405,12 @@ function ChatMessageOptions(props: {
   return (
     <>
       {isMobile ? (
-        <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
+        <ActionMenu
+          testId="chat-message-options"
+          open={open}
+          onOpenChange={onOpenChange}
+          actions={actions}
+        />
       ) : (
         <div
           className="absolute -top-5 right-2 z-10 min-h-fit"
@@ -426,7 +431,6 @@ function ChatMessageOptions(props: {
                   icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
                   label="React"
                   showTooltip
-                  aria-label="React"
                   action={openPicker}
                 />
               </EmojiPicker>

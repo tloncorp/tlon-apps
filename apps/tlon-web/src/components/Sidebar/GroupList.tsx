@@ -1,8 +1,8 @@
+import { Group } from '@tloncorp/shared/dist/urbit/groups';
 import React, { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import { useIsMobile } from '@/logic/useMedia';
-import { Group } from '@/types/groups';
 
 import GangItem from './GangItem';
 import GroupListPlaceholder from './GroupListPlaceholder';

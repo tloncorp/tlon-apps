@@ -1,18 +1,25 @@
+import { ChatMap, Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
+import { Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
-import { ChatMap, Post, Reply } from '@/types/channel';
-import { Writ } from '@/types/dms';
+import { makePrettyShortDate } from '@/logic/utils';
 
-import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
   whom: string;
   root: string;
   scan: ChatMap;
+  searchDetails?: {
+    numResults: number;
+    depth: number;
+    oldestMessageSearched: Date | null;
+    searchComplete: boolean;
+  };
   isLoading: boolean;
   query?: string;
   selected?: number;
@@ -45,6 +52,7 @@ const ChatSearchResults = React.forwardRef<
       whom,
       root,
       scan,
+      searchDetails,
       isLoading,
       selected,
       endReached,
@@ -53,8 +61,6 @@ const ChatSearchResults = React.forwardRef<
     },
     scrollerRef
   ) => {
-    const [delayedLoading, setDelayedLoading] = useState(false);
-    const reallyLoading = isLoading && query && query !== '';
     const isMobile = useIsMobile();
     const thresholds = {
       atBottomThreshold: 125,
@@ -83,27 +89,10 @@ const ChatSearchResults = React.forwardRef<
       [scan, whom, root, selected]
     );
 
-    useEffect(() => {
-      let timeout = 0;
-
-      if (reallyLoading) {
-        timeout = setTimeout(() => {
-          setDelayedLoading(true);
-        }, 150) as unknown as number;
-      } else {
-        clearTimeout(timeout);
-        setDelayedLoading(false);
-      }
-
-      return () => {
-        clearTimeout(timeout);
-      };
-    }, [reallyLoading]);
-
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
         {withHeader && (
-          <div className="mb-6 flex items-center justify-between text-sm text-gray-400">
+          <div className="mb-4 flex items-center justify-between text-sm text-gray-400">
             {query && (
               <strong>
                 Search Results for &ldquo;
@@ -117,15 +106,17 @@ const ChatSearchResults = React.forwardRef<
             )}
           </div>
         )}
-        {delayedLoading ? (
-          <div className="-mx-4 flex-1">
-            <ChatScrollerPlaceholder count={30} />
-          </div>
-        ) : entries.length === 0 ? (
+        {entries.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center">
             <div className="font-semibold text-gray-600">
               {query ? 'No results found' : 'Enter a search to get started'}
             </div>
+            {query && searchDetails && (
+              <SearchDetails
+                searchDetails={searchDetails}
+                loading={isLoading}
+              />
+            )}
           </div>
         ) : (
           <Virtuoso
@@ -137,6 +128,17 @@ const ChatSearchResults = React.forwardRef<
             computeItemKey={(i, item) => item.time.toString()}
             endReached={endReached}
             className="h-full w-full list-none overflow-x-hidden overflow-y-scroll"
+            components={{
+              Footer: () =>
+                query && searchDetails ? (
+                  <SearchDetails
+                    searchDetails={searchDetails}
+                    loading={isLoading}
+                  />
+                ) : (
+                  <span />
+                ),
+            }}
           />
         )}
       </div>
@@ -145,3 +147,49 @@ const ChatSearchResults = React.forwardRef<
 );
 
 export default ChatSearchResults;
+
+function SearchDetails({
+  searchDetails,
+  loading,
+}: {
+  loading: boolean;
+  searchDetails: {
+    numResults: number;
+    depth: number;
+    oldestMessageSearched: Date | null;
+    searchComplete: boolean;
+  };
+}) {
+  return (
+    <div className="mt-2 flex w-full items-center justify-center text-gray-400">
+      {(loading || !searchDetails.searchComplete) && (
+        <LoadingSpinner className="mr-2 h-3 w-3 text-black" />
+      )}
+      {searchDetails.numResults !== 0 && (
+        <>
+          <strong className="text-gray-800">{searchDetails.numResults}</strong>
+          &nbsp;results found&nbsp;{'·'}&nbsp;
+        </>
+      )}
+      {searchDetails.oldestMessageSearched ? (
+        <span className="">
+          Searched&nbsp;
+          {searchDetails.searchComplete ? (
+            'all channel history'
+          ) : (
+            <>
+              through&nbsp;
+              <span className="text-gray-800">
+                {makePrettyShortDate(
+                  new Date(searchDetails?.oldestMessageSearched)
+                )}
+              </span>
+            </>
+          )}
+        </span>
+      ) : (
+        'Searching...'
+      )}
+    </div>
+  );
+}

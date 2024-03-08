@@ -1,3 +1,4 @@
+import { Unread, UnreadPoint } from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -7,7 +8,6 @@ import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
 import { nestToFlag, pluralize } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { Unread, UnreadPoint } from '@/types/channel';
 
 import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 import { useChatInfo, useChatStore } from './useChatStore';

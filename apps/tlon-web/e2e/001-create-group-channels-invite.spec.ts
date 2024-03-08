@@ -24,7 +24,7 @@ test('Create a group', async ({ browser }) => {
   await page.getByTestId('create-group-dropdown-button').click();
   await page.getByTestId('create-group-name-input').fill('mardev Club');
   await page.getByTestId('create-group-submit-button').click();
-  await page.getByText('New Channel').waitFor();
+  await page.getByTestId('new-channel-button').waitFor();
 });
 
 test('Create a chat channel', async ({ browser }) => {
@@ -36,8 +36,8 @@ test('Create a chat channel', async ({ browser }) => {
   await page.goto(ownerUrl);
   await page.getByRole('link', { name: 'mardev Club' }).waitFor();
   await page.getByRole('link', { name: 'mardev Club' }).click();
-  await page.getByRole('link', { name: 'New Channel' }).waitFor();
-  await page.getByRole('link', { name: 'New Channel' }).click();
+  await page.getByTestId('new-channel-button').waitFor();
+  await page.getByTestId('new-channel-button').click();
   await page
     .locator('label')
     .filter({ hasText: 'ChatA simple, standard text chat' })
@@ -68,7 +68,7 @@ test('Create a notebook channel and post to it.', async ({ browser }) => {
   await page.getByRole('link', { name: 'mardev Club' }).waitFor();
   await page.getByRole('link', { name: 'mardev Club' }).click();
   await page.getByRole('link', { name: 'All Channels' }).click();
-  await page.getByRole('link', { name: 'New Channel' }).click();
+  await page.getByTestId('new-channel-button').click();
   await page
     .locator('label')
     .filter({ hasText: 'NotebookLongform publishing and discussion' })

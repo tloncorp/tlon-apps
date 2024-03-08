@@ -1,3 +1,4 @@
+import { Gangs, ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -17,7 +18,6 @@ import {
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Gangs, ViewProps } from '@/types/groups';
 
 import GroupJoinList, { GroupJoinItem } from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';

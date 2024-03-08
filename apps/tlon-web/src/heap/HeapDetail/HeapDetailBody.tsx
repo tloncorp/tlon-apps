@@ -1,3 +1,9 @@
+import {
+  PostEssay,
+  VerseBlock,
+  imageUrlFromContent,
+  isCite,
+} from '@tloncorp/shared/dist/urbit/channel';
 import { useEffect } from 'react';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -12,12 +18,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import { validOembedCheck } from '@/logic/utils';
 import { useEmbed } from '@/state/embed';
 import { useCalm } from '@/state/settings';
-import {
-  PostEssay,
-  VerseBlock,
-  imageUrlFromContent,
-  isCite,
-} from '@/types/channel';
 
 import HeapVideoPlayer from '../HeapVideoPlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';

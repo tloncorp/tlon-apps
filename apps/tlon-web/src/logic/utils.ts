@@ -1,4 +1,31 @@
 import {
+  ChatStory,
+  Cite,
+  Listing,
+  Story,
+  Verse,
+  VerseBlock,
+  VerseInline,
+} from '@tloncorp/shared/dist/urbit/channel';
+import {
+  Bold,
+  Inline,
+  Italics,
+  Strikethrough,
+} from '@tloncorp/shared/dist/urbit/content';
+import {
+  Cabals,
+  ChannelPrivacyType,
+  Cordon,
+  Gang,
+  Group,
+  GroupChannel,
+  GroupPreview,
+  PrivacyType,
+  Rank,
+  Saga,
+} from '@tloncorp/shared/dist/urbit/groups';
+import {
   BigIntOrderedMap,
   Docket,
   DocketHref,
@@ -18,29 +45,6 @@ import { useParams } from 'react-router';
 import ob from 'urbit-ob';
 import { useCopyToClipboard } from 'usehooks-ts';
 import isURL from 'validator/es/lib/isURL';
-
-import {
-  ChatStory,
-  Cite,
-  Listing,
-  Story,
-  Verse,
-  VerseBlock,
-  VerseInline,
-} from '@/types/channel';
-import { Bold, Inline, Italics, Strikethrough } from '@/types/content';
-import {
-  Cabals,
-  ChannelPrivacyType,
-  Cordon,
-  Gang,
-  Group,
-  GroupChannel,
-  GroupPreview,
-  PrivacyType,
-  Rank,
-  Saga,
-} from '@/types/groups';
 
 import type {
   ConnectionCompleteStatus,
@@ -151,6 +155,52 @@ export function strToSym(str: string): string {
   return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
 }
 
+//  encode the string into @ta-safe format, using logic from +wood.
+//  for example, 'some Chars!' becomes '~.some.~43.hars~21.'
+//  this is equivalent to (scot %t string), and is url-safe encoding for
+//  arbitrary strings.
+//
+//  TODO  should probably go into aura-js
+export function stringToTa(string: string) {
+  let out = '';
+  for (let i = 0; i < string.length; i += 1) {
+    const char = string[i];
+    let add = '';
+    switch (char) {
+      case ' ':
+        add = '.';
+        break;
+      case '.':
+        add = '~.';
+        break;
+      case '~':
+        add = '~~';
+        break;
+      default: {
+        const codePoint = string.codePointAt(i);
+        if (!codePoint) break;
+        //  js strings are encoded in UTF-16, so 16 bits per character.
+        //  codePointAt() reads a _codepoint_ at a character index, and may
+        //  consume up to two js string characters to do so, in the case of
+        //  16 bit surrogate pseudo-characters. here we detect that case, so
+        //  we can advance the cursor to skip past the additional character.
+        if (codePoint > 0xffff) i += 1;
+        if (
+          (codePoint >= 97 && codePoint <= 122) || // a-z
+          (codePoint >= 48 && codePoint <= 57) || // 0-9
+          char === '-'
+        ) {
+          add = char;
+        } else {
+          add = `~${codePoint.toString(16)}.`;
+        }
+      }
+    }
+    out += add;
+  }
+  return `~~${out}`;
+}
+
 export function makePrettyTime(date: Date) {
   return format(date, 'HH:mm');
 }
@@ -169,6 +219,10 @@ export function makePrettyDay(date: Date) {
 
 export function makePrettyDate(date: Date) {
   return `${format(date, 'PPP')}`;
+}
+
+export function makePrettyShortDate(date: Date) {
+  return format(date, 'MMM dd, yyyy');
 }
 
 export interface DayTimeDisplay {

@@ -1,3 +1,4 @@
+import { ReplySeal } from '@tloncorp/shared/dist/urbit/channel';
 import _ from 'lodash';
 import { useCallback, useState } from 'react';
 
@@ -10,7 +11,6 @@ import {
   useAddReplyReactMutation,
 } from '@/state/channel/channel';
 import { useAddDMReplyReactMutation } from '@/state/chat';
-import { ReplySeal } from '@/types/channel';
 
 import ReplyReaction from './ReplyReaction';
 

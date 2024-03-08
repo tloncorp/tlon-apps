@@ -254,14 +254,45 @@ export const useFileStore = create<FileStore>((set, get) => ({
         ACL: 'public-read',
       });
 
+      const { isSecureContext } = window;
+
+      let s3Url: URL;
+
+      if (config.publicUrlBase) {
+        s3Url = new URL(config.publicUrlBase);
+      } else {
+        s3Url = new URL(
+          await getSignedUrl(client, command)
+            .then((res) => res.split('?')[0])
+            .catch((e) => {
+              console.log('failed to get signed url', { e });
+              return '';
+            })
+        );
+      }
+
       const url = config.publicUrlBase
-        ? new URL(key, config.publicUrlBase).toString()
+        ? s3Url.toString()
         : await getSignedUrl(client, command)
             .then((res) => res.split('?')[0])
             .catch((e) => {
               console.log('failed to get signed url', { e });
               return '';
             });
+
+      if (
+        isSecureContext &&
+        config.publicUrlBase &&
+        s3Url.protocol !== 'https:'
+      ) {
+        updateStatus(
+          uploader,
+          key,
+          'error',
+          `S3 upload error: Attempting to upload to non-secure S3 endpoint from secure (https) context.`
+        );
+        return;
+      }
 
       client
         .send(command)

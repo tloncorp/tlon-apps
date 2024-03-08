@@ -1,10 +1,10 @@
+import { Post } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
 
 import getKindDataFromEssay from '@/logic/getKindData';
 import { useIsPostUndelivered, usePostToggler } from '@/state/channel/channel';
 import { useCalm } from '@/state/settings';
-import { Post } from '@/types/channel';
 
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 

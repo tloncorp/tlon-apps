@@ -1,24 +1,10 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { decToUd, udToDec } from '@urbit/api';
-import { formatUd, unixToDa } from '@urbit/aura';
-import { Poke } from '@urbit/http-api';
-import bigInt, { BigInteger } from 'big-integer';
-import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import create from 'zustand';
-
-import api from '@/api';
-import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
 import {
-  LARGE_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
-import { isNativeApp } from '@/logic/native';
-import useReactQueryScry from '@/logic/useReactQueryScry';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { whomIsDm } from '@/logic/utils';
-import queryClient from '@/queryClient';
-import { ChannelsAction, Replies, Reply, ReplyTuple } from '@/types/channel';
+  ChannelsAction,
+  Replies,
+  Reply,
+  ReplyTuple,
+} from '@tloncorp/shared/dist/urbit/channel';
 import {
   BlockedByShips,
   BlockedShips,
@@ -45,8 +31,27 @@ import {
   WritSeal,
   WritTuple,
   Writs,
-} from '@/types/dms';
-import { GroupMeta } from '@/types/groups';
+} from '@tloncorp/shared/dist/urbit/dms';
+import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
+import { decToUd, udToDec } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
+import { Poke } from '@urbit/http-api';
+import bigInt, { BigInteger } from 'big-integer';
+import _ from 'lodash';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import create from 'zustand';
+
+import api from '@/api';
+import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
+import {
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
+import { isNativeApp } from '@/logic/native';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { whomIsDm } from '@/logic/utils';
+import queryClient from '@/queryClient';
 
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
@@ -1239,6 +1244,37 @@ export function checkWritsForDeliveries(writs: Writs) {
   });
 }
 
+export const infiniteDMsQueryFn =
+  (whom: string, type: 'dm' | 'club', initialTime?: string) =>
+  async ({ pageParam }: { pageParam?: PageParam }) => {
+    let path = '';
+
+    if (pageParam) {
+      const { time, direction } = pageParam;
+      const ud = decToUd(time.toString());
+      path = `/${type}/${whom}/writs/${direction}/${ud}/${CHAT_PAGE_SIZE}/light`;
+    } else if (initialTime) {
+      path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
+        CHAT_PAGE_SIZE / 2
+      }/light`;
+    } else {
+      path = `/${type}/${whom}/writs/newest/${CHAT_PAGE_SIZE}/light`;
+    }
+
+    const response = await api.scry<PagedWrits>({
+      app: 'chat',
+      path,
+    });
+
+    if (response.writs && useWritsStore.getState().hasSomeUndelivered()) {
+      checkWritsForDeliveries(response.writs);
+    }
+
+    return {
+      ...response,
+    };
+  };
+
 export function useInfiniteDMs(whom: string, initialTime?: string) {
   const unread = useDmUnread(whom);
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
@@ -1279,34 +1315,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
 
   const { data, ...rest } = useInfiniteQuery<PagedWrits>({
     queryKey,
-    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
-      let path = '';
-
-      if (pageParam) {
-        const { time, direction } = pageParam;
-        const ud = decToUd(time.toString());
-        path = `/${type}/${whom}/writs/${direction}/${ud}/${CHAT_PAGE_SIZE}/light`;
-      } else if (initialTime) {
-        path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
-          CHAT_PAGE_SIZE / 2
-        }/light`;
-      } else {
-        path = `/${type}/${whom}/writs/newest/${CHAT_PAGE_SIZE}/light`;
-      }
-
-      const response = await api.scry<PagedWrits>({
-        app: 'chat',
-        path,
-      });
-
-      if (response.writs && useWritsStore.getState().hasSomeUndelivered()) {
-        checkWritsForDeliveries(response.writs);
-      }
-
-      return {
-        ...response,
-      };
-    },
+    queryFn: infiniteDMsQueryFn(whom, type, initialTime),
     getNextPageParam: (lastPage): PageParam | undefined => {
       const { older } = lastPage;
 

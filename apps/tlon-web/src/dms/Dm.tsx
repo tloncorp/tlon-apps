@@ -1,3 +1,4 @@
+import { Contact } from '@tloncorp/shared/dist/urbit/contact';
 import cn from 'classnames';
 import React, { useCallback, useMemo, useRef } from 'react';
 import {
@@ -26,16 +27,15 @@ import DmInvite from '@/dms/DmInvite';
 import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath } from '@/logic/utils';
 import { useDmIsPending, useDmUnread, useSendMessage } from '@/state/chat';
 import { useContact } from '@/state/contact';
 import { useNegotiate } from '@/state/negotiation';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Contact } from '@/types/contact';
 
 import DmSearch from './DmSearch';
 import MessageSelector from './MessageSelector';
@@ -119,10 +119,9 @@ export default function Dm() {
   const unread = useDmUnread(ship);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const showTabBar = useShowTabBar();
   const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const { matchedOrPending, isLoading: negotiationLoading } = useNegotiate(
     ship,
     'chat',
@@ -155,7 +154,7 @@ export default function Dm() {
     <>
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+          paddingBottom,
         }}
         className="padding-bottom-transition flex-1"
         header={

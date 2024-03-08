@@ -1,8 +1,9 @@
+import { PostEssay } from '@tloncorp/shared/dist/urbit/channel';
+
 import Author from '@/chat/ChatMessage/Author';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { firstInlineSummary } from '@/logic/tiptap';
 import { URL_REGEX, getFirstInline, makePrettyDay } from '@/logic/utils';
-import { PostEssay } from '@/types/channel';
 
 interface HeapDetailSidebarProps {
   essay: PostEssay;
