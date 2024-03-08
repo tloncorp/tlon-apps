@@ -13,7 +13,7 @@ export default function WebviewOverlay() {
         left: position.x,
         width: position.width,
         height: position.height,
-        opacity: !visible ? 0 : 0.4,
+        opacity: !visible ? 0 : undefined,
         pointerEvents: !visible ? 'none' : undefined,
       }}
     >

@@ -29,7 +29,25 @@ function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
   const { ship } = useShip();
   const { wer, lure, clearDeepLink } = useDeepLink();
   const webviewContext = useWebViewContext();
-  const gotoPath = initialWer ? getPathFromWer(initialWer) : wer;
+  const gotoPath = initialWer
+    ? getPathFromWer(initialWer)
+    : wer
+      ? getPathFromWer(wer)
+      : '';
+
+  if (initialWer) {
+    Alert.alert(
+      '',
+      `Auth app got initial wer: ${initialWer}`,
+      [
+        {
+          text: 'OK',
+          onPress: () => null,
+        },
+      ],
+      { cancelable: true }
+    );
+  }
 
   // If lure is present, invite it and mark as handled
   useEffect(() => {
