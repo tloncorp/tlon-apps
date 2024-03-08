@@ -11,6 +11,7 @@ import { inviteShipWithLure } from '../lib/hostingApi';
 import storage from '../lib/storage';
 import type { TabParamList } from '../types';
 import { trackError } from '../utils/posthog';
+import { getPathFromWer } from '../utils/string';
 
 type Lure = {
   lure: string | undefined;
@@ -123,14 +124,9 @@ export function useDeepLinkListener(initialWer?: string) {
   const webviewContext = useWebViewContext();
   const { ship } = useShip();
   const { wer, lure, clearDeepLink } = useDeepLink();
-  const [gotoPath, setGotoPath] = useState(initialWer ?? '');
-
-  useEffect(() => {
-    if (wer) {
-      setGotoPath(wer);
-      clearDeepLink();
-    }
-  }, [wer, clearDeepLink]);
+  const [gotoPath, setGotoPath] = useState(
+    initialWer ? getPathFromWer(initialWer) : ''
+  );
 
   // If lure is present, invite it and mark as handled
   useEffect(() => {
@@ -164,11 +160,18 @@ export function useDeepLinkListener(initialWer?: string) {
   // If deep link clicked, broadcast that navigation update to the
   // webview and mark as handled
   useEffect(() => {
+    if (wer) {
+      setGotoPath(getPathFromWer(wer));
+      clearDeepLink();
+    }
+  }, [wer, clearDeepLink]);
+
+  useEffect(() => {
     if (gotoPath) {
       webviewContext.setGotoPath(gotoPath);
       const tab = parseActiveTab(gotoPath) ?? 'Groups';
       navigation.navigate(tab, { screen: 'Webview' });
-      clearDeepLink();
+      setGotoPath('');
     }
   }, [gotoPath, clearDeepLink, webviewContext, navigation]);
 }
