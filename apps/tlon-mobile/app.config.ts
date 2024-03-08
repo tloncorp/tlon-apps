@@ -30,14 +30,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   ios: {
     runtimeVersion: '4.0.0',
-    buildNumber: '53',
+    buildNumber: '54',
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
     runtimeVersion: '4.0.0',
-    versionCode: 53,
+    versionCode: 54,
   },
   updates: {
     url: `https://u.expo.dev/${projectId}`,
