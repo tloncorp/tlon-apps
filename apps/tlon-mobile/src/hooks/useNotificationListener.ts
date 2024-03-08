@@ -8,6 +8,7 @@ import { useWebViewContext } from '../contexts/webview/webview';
 import { markChatRead } from '../lib/chatApi';
 import { connectNotifications } from '../lib/notifications';
 import type { TabParamList } from '../types';
+import { getPathFromWer } from '../utils/string';
 import { useDeepLink } from './useDeepLink';
 
 export default function useNotificationListener() {
@@ -34,10 +35,10 @@ export default function useNotificationListener() {
         } else if (actionIdentifier === 'reply' && userText) {
           // Send reply
         } else if (data.wer) {
-          webviewContext.setGotoPath(data.wer);
+          webviewContext.setGotoPath(getPathFromWer(data.wer));
           Alert.alert(
             '',
-            `Goto path: ${data.wer}`,
+            `Goto path: ${getPathFromWer(data.wer)}`,
             [
               {
                 text: 'OK',
