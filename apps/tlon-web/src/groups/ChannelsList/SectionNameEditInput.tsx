@@ -1,3 +1,4 @@
+import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -8,7 +9,6 @@ import {
   useGroupMoveZoneMutation,
   useRouteGroup,
 } from '@/state/groups';
-import { GroupMeta } from '@/types/groups';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;

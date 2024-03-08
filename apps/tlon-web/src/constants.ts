@@ -8,6 +8,7 @@ export const LEAP_DESCRIPTION_TRUNCATE_LENGTH = 48;
 export const LEAP_RESULT_TRUNCATE_SIZE = 5;
 export const LEAP_RESULT_SCORE_THRESHOLD = 10;
 export const CURIO_PAGE_SIZE = 250;
+export const CHANNEL_SEARCH_RESULT_SIZE = 20;
 
 export const PASTEABLE_MEDIA_TYPES = [
   'image/gif',
@@ -38,7 +39,7 @@ export const AUTHORS = [
   '~mister-dister-dozzod-dozzod',
 ];
 
-export const lsDesk = 'garden';
+export const lsDesk = 'landscape';
 
 export const ALPHABETICAL_SORT = 'A → Z';
 export const DEFAULT_SORT = 'Arranged';

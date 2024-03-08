@@ -25,17 +25,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultPriorityToken: process.env.DEFAULT_PRIORITY_TOKEN,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
+    devLocal: Boolean(process.env.DEV_LOCAL),
+    devLocalCode: process.env.DEV_LOCAL_CODE,
   },
   ios: {
     runtimeVersion: '4.0.0',
-    buildNumber: '45',
+    buildNumber: '48',
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
     runtimeVersion: '4.0.0',
-    versionCode: 45,
+    versionCode: 48,
   },
   updates: {
     url: `https://u.expo.dev/${projectId}`,

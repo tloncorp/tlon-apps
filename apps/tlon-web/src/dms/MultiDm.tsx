@@ -1,3 +1,4 @@
+import { Club } from '@tloncorp/shared/dist/urbit/dms';
 import cn from 'classnames';
 import React, { useCallback, useRef } from 'react';
 import {
@@ -20,14 +21,13 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
-import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath, pluralize } from '@/logic/utils';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useNegotiateMulti } from '@/state/negotiation';
-import { Club } from '@/types/dms';
 
 import DmOptions from './DMOptions';
 import DmSearch from './DmSearch';
@@ -86,8 +86,7 @@ export default function MultiDm() {
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
   const { match: negotiationMatch, isLoading: negotiationLoading } =
     useNegotiateMulti(dmParticipants, 'chat', 'chat');
@@ -114,7 +113,7 @@ export default function MultiDm() {
     <>
       <Layout
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+          paddingBottom,
         }}
         className="padding-bottom-transition flex-1"
         header={

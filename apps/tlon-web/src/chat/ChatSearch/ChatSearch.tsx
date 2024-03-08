@@ -1,4 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
+import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback } from 'react';
 import { useNavigate } from 'react-router';
@@ -9,7 +10,6 @@ import useActiveTab from '@/components/Sidebar/util';
 import { useSafeAreaInsets } from '@/logic/native';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { disableDefault } from '@/logic/utils';
-import { ChatMap } from '@/types/channel';
 
 import ChatSearchResults from './ChatSearchResults';
 import SearchBar from './SearchBar';
@@ -20,6 +20,12 @@ export type ChatSearchProps = PropsWithChildren<{
   root: string;
   query?: string;
   scan: ChatMap;
+  searchDetails?: {
+    numResults: number;
+    depth: number;
+    oldestMessageSearched: Date | null;
+    searchComplete: boolean;
+  };
   isLoading: boolean;
   placeholder: string;
   endReached: () => void;
@@ -30,6 +36,7 @@ export default function ChatSearch({
   root,
   query,
   scan,
+  searchDetails,
   isLoading,
   placeholder,
   endReached,
@@ -130,6 +137,7 @@ export default function ChatSearch({
                   whom={whom}
                   root={root}
                   scan={scan}
+                  searchDetails={searchDetails}
                   isLoading={isLoading}
                   query={query}
                   selected={selected.index}

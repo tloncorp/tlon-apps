@@ -1,3 +1,4 @@
+import { Group } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import { useEffect } from 'react';
 
@@ -5,7 +6,6 @@ import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isGroupHost } from '@/logic/utils';
 import { useLureLinkStatus } from '@/state/lure/lure';
-import { Group } from '@/types/groups';
 
 interface LureInviteBlock {
   flag: string;

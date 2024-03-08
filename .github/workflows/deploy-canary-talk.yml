@@ -1,0 +1,86 @@
+name: Deploy Talk (canary)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: false
+        description: Enter the tag to deploy
+        default: v5.6.0
+env:
+  tag: ${{ github.event.inputs.tag || 'v5.6.0' }}
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    name: "Build Frontend"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.tag }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: ./ui/.nvmrc
+      - working-directory: ./ui
+        run: |
+          npm ci
+          npm run build:chat
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "ui-dist"
+          path: ui/dist
+  glob:
+    runs-on: ubuntu-latest
+    name: 'Make a glob'
+    needs: build-frontend
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.tag }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'ui-dist'
+          path: ui/dist
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      - name: 'glob'
+        uses: ./.github/actions/glob
+        with:
+          folder: 'ui/dist/*'
+          docket: 'talk/desk.docket-0'
+      - name: Commit and Push Glob
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+          git add talk/desk.docket-0
+          git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
+          sleep 10
+          INPUT=${{ env.tag }}
+          BRANCH=${INPUT:-"v5.6.0"}
+          git pull origin $BRANCH --rebase --autostash
+          git push
+  deploy:
+    runs-on: ubuntu-latest
+    name: "Release to ~binnec-dozzod-marnus (canary)"
+    needs: glob
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.tag }}
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+      - id: deploy
+        name: Deploy
+        run:
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps talk binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
+        env:
+          SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
+          URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG }}

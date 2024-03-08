@@ -1,4 +1,6 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
+import { PageTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
 import React, {
   PropsWithChildren,
@@ -33,8 +35,6 @@ import {
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { useShowDevTools } from '@/state/local';
-import { PageTuple, ReplyTuple } from '@/types/channel';
-import { WritTuple } from '@/types/dms';
 
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
@@ -218,8 +218,10 @@ export default function ChatScroller({
   // Update the tracked load direction when loading state changes.
   useEffect(() => {
     if (isLoadingOlder && loadDirection !== 'older') {
+      logger.log('setting load direction to older');
       setLoadDirection('older');
     } else if (isLoadingNewer && loadDirection !== 'newer') {
+      logger.log('setting load direction to newer');
       setLoadDirection('newer');
     }
   }, [isLoadingOlder, isLoadingNewer, loadDirection]);
@@ -280,6 +282,7 @@ export default function ChatScroller({
       anchorIndex,
       isLoadingOlder,
       isLoadingNewer,
+      userHasScrolled,
     },
     logger
   );
@@ -292,6 +295,7 @@ export default function ChatScroller({
   const forceScroll = useCallback((offset: number) => {
     const virt = virtualizerRef.current;
     if (!virt) return;
+    logger.log('forcing scroll', offset);
     virt.scrollOffset = offset;
     virt.scrollElement?.scrollTo?.({ top: offset });
   }, []);
@@ -366,6 +370,7 @@ export default function ChatScroller({
           return undefined;
         }
         const onScroll = () => {
+          logger.log('observing scroll', el.scrollTop);
           cb(el.scrollTop);
         };
         cb(el.scrollTop);
@@ -396,17 +401,25 @@ export default function ChatScroller({
         }: { adjustments?: number; behavior?: ScrollBehavior },
         instance: DivVirtualizer
       ) => {
+        logger.log('scrollToFn:', offset, adjustments, behavior);
         // On iOS, changing scroll during momentum scrolling will cause stutters
         if (isMobile && isScrolling && userHasScrolled) {
+          logger.log(
+            'scrollToFn: skipping scrollToFn, isScrolling and userHasScrolled on mobile'
+          );
           return;
         }
         // By default, the virtualizer tries to keep the position of the topmost
         // item on screen pinned, but we need to override that behavior to keep a
         // message centered or to stay at the bottom of the chat.
         if (anchorIndex !== null && !userHasScrolled) {
+          logger.log(
+            'scrollToFn: anchorIndex is not null and user has not scrolled, scrolling to anchor'
+          );
           // Fix for no-param-reassign
           scrollToAnchor();
         } else {
+          logger.log('scrollToFn: scrolling to offset', offset);
           instance.scrollElement?.scrollTo?.({
             // We only want adjustments if they're greater than zero.
             // Virtualizer will sometimes give us negative adjustments of -1, which
@@ -426,7 +439,9 @@ export default function ChatScroller({
     // Called by the virtualizer whenever any layout property changes.
     // We're using it to keep track of top and bottom thresholds.
     onChange: useCallback(() => {
+      logger.log('virtualizer onChange');
       if (anchorIndex !== null && !userHasScrolled) {
+        logger.log('onChange: scrolling to anchor');
         scrollToAnchor();
       }
       const { clientHeight, scrollTop, scrollHeight } =
@@ -450,6 +465,12 @@ export default function ChatScroller({
         (isInverted && isAtScrollBeginning) || (!isInverted && isAtScrollEnd);
       setIsAtTop(nextAtTop);
       setIsAtBottom(nextAtBottom);
+      logger.log('onChange', {
+        isAtScrollBeginning,
+        isAtScrollEnd,
+        nextAtTop,
+        nextAtBottom,
+      });
     }, [
       isInverted,
       anchorIndex,
@@ -561,6 +582,7 @@ export default function ChatScroller({
             count,
             scrollOffset: virtualizer.scrollOffset,
             scrollHeight: finalHeight,
+            scrollDirection: virtualizer.scrollDirection,
             hasLoadedNewest,
             hasLoadedOldest,
             anchorIndex,

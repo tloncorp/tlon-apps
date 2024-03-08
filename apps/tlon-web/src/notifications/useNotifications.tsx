@@ -1,9 +1,9 @@
+import { Flag, Rope, Skein, Yarn } from '@tloncorp/shared/dist/urbit/hark';
 import _ from 'lodash';
 
 import { useIsMobile } from '@/logic/useMedia';
 import { makePrettyDay } from '@/logic/utils';
 import { useSkeins } from '@/state/hark';
-import { Flag, Rope, Skein, Yarn } from '@/types/hark';
 
 export interface DayGrouping {
   date: string;

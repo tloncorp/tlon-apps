@@ -1,12 +1,15 @@
 /* eslint-disable */
 import { JSONContent } from '@tiptap/core';
+import {
+  PostEssay,
+  storyFromChatStory,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { ChatStory } from '@tloncorp/shared/dist/urbit/channel';
+import { Inline, InlineKey } from '@tloncorp/shared/dist/urbit/content';
 import { reduce } from 'lodash';
 import isURL from 'validator/lib/isURL';
 
 import { JSONToInlines } from '@/logic/tiptap';
-import { PostEssay, storyFromChatStory } from '@/types/channel';
-import { ChatStory } from '@/types/channel';
-import { Inline, InlineKey } from '@/types/content';
 
 import { isRef, pathToCite } from './utils';
 import { isImageUrl } from './utils';

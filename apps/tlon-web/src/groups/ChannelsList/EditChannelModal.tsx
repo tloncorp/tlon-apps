@@ -1,9 +1,9 @@
+import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 import React from 'react';
 
 import EditChannelForm from '@/channels/EditChannelForm';
 import Dialog from '@/components/Dialog';
 import { prettyChannelTypeName } from '@/logic/channel';
-import { GroupChannel } from '@/types/groups';
 
 interface EditChannelModalProps {
   nest: string;

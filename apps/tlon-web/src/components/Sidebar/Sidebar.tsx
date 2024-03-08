@@ -9,7 +9,6 @@ import React, {
 } from 'react';
 
 import GroupList from '@/components/Sidebar/GroupList';
-import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useIsMobile } from '@/logic/useMedia';
 import {
@@ -21,18 +20,19 @@ import {
   usePinnedGroups,
 } from '@/state/groups';
 
+import AddIcon16 from '../icons/Add16Icon';
 import X16Icon from '../icons/X16Icon';
+import AddGroupSidebarItem from './AddGroupSidebarItem';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import GroupsSidebarItem from './GroupsSidebarItem';
 import MessagesSidebar from './MessagesSidebar';
+import SidebarItem from './SidebarItem';
 import SidebarSorter from './SidebarSorter';
-import SidebarTopMenu from './SidebarTopMenu';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
 import useActiveTab from './util';
 
 export default function Sidebar() {
-  const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
@@ -87,7 +87,7 @@ export default function Sidebar() {
     Object.keys(invitedGroups).forEach((flag) => {
       accum.set(flag, 'invited');
     });
-    Object.keys(newGroups).forEach((flag) => {
+    newGroups.forEach(([flag]) => {
       accum.set(flag, 'new');
     });
     return accum;
@@ -145,13 +145,20 @@ export default function Sidebar() {
     [newGroups]
   );
 
-  if (isMobile) {
-    return <MobileSidebar />;
-  }
-
   return (
     <nav className="flex h-full w-full flex-none flex-col bg-white">
-      <SidebarTopMenu />
+      {activeTab !== 'messages' ? (
+        <AddGroupSidebarItem />
+      ) : (
+        <SidebarItem
+          className="group relative mx-2 mt-2 bg-blue text-white"
+          icon={<AddIcon16 className="m-1 h-4 w-4" />}
+          to={'/dm/new'}
+          highlight="transparent"
+        >
+          <span className="text-white">New Message</span>
+        </SidebarItem>
+      )}
 
       <div className="relative mb-1 flex">
         <input

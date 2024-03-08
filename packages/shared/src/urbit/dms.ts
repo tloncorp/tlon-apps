@@ -312,6 +312,8 @@ export type ChatScanItem = { writ: Writ } | WritReplyReferenceResponse;
 
 export type ChatScan = ChatScanItem[];
 
+export type ChatScam = { last: string | null; scan: ChatScan };
+
 interface WritSealInCache extends PostSealDataResponse {
   time: number;
 }

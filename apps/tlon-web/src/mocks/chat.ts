@@ -1,14 +1,18 @@
 /* eslint-disable import/no-cycle */
 import faker from '@faker-js/faker';
+import {
+  Post,
+  Posts,
+  Story,
+  storyFromChatStory,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
 import { decToUd, unixToDa } from '@urbit/api';
 import { subDays, subMinutes } from 'date-fns';
 import _ from 'lodash';
 
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
-import { Post, Posts, Story, storyFromChatStory } from '@/types/channel';
-
-import { DMUnreads } from '../types/dms';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1

@@ -1,3 +1,9 @@
+import {
+  Post,
+  Story,
+  imageUrlFromContent,
+  isCite,
+} from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -34,7 +40,6 @@ import {
   useRouteGroup,
 } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import { Post, Story, imageUrlFromContent, isCite } from '@/types/channel';
 
 import useCurioActions from './useCurioActions';
 

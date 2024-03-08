@@ -99,8 +99,14 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
           user,
         });
       }
-    } catch (err) {
-      setRemoteError((err as Error).message);
+    } catch (err: any) {
+      if ('name' in err && err.name === 'AbortError') {
+        setRemoteError(
+          'Sorry, we could not connect to the server. Please try again later.'
+        );
+      } else {
+        setRemoteError((err as Error).message);
+      }
     }
 
     setIsSubmitting(false);

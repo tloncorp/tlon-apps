@@ -1,4 +1,8 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  ChannelFormSchema,
+  ChannelPrivacyType,
+} from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import _ from 'lodash';
@@ -7,7 +11,6 @@ import { useFormContext } from 'react-hook-form';
 
 import CheckIcon from '@/components/icons/CheckIcon';
 import { useGroup, useRouteGroup } from '@/state/groups';
-import { ChannelFormSchema, ChannelPrivacyType } from '@/types/groups';
 
 interface ChannelPrivacySetting {
   title: string;

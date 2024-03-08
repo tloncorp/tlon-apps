@@ -1,3 +1,4 @@
+import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import React, { useCallback, useState } from 'react';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
@@ -25,7 +26,6 @@ import {
   useDeleteChannelMutation,
   useRouteGroup,
 } from '@/state/groups';
-import { GroupChannel } from '@/types/groups';
 
 interface ChannelsListItemProps {
   nest: string;

@@ -6,6 +6,7 @@ import { NativeModules } from 'react-native';
 
 import { configureApi } from '../lib/api';
 import storage from '../lib/storage';
+import { transformShipURL } from '../utils/string';
 
 const { UrbitModule } = NativeModules;
 
@@ -57,36 +58,39 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // The passed shipUrl should already be normalized, but defensively ensure it is
+    const normalizedShipUrl = transformShipURL(shipUrl);
+
     // Save to React Native stoage
-    storage.save({ key: 'store', data: { ship, shipUrl } });
+    storage.save({ key: 'store', data: { ship, shipUrl: normalizedShipUrl } });
 
     // Save context state
-    setShipInfo({ ship, shipUrl });
+    setShipInfo({ ship, shipUrl: normalizedShipUrl });
 
     // Configure API
-    configureApi(ship, shipUrl);
+    configureApi(ship, normalizedShipUrl);
 
     // Configure analytics
     crashlytics().setAttribute(
       'isHosted',
-      shipUrl.includes('.tlon.network') ? 'true' : 'false'
+      normalizedShipUrl.includes('.tlon.network') ? 'true' : 'false'
     );
 
     // If cookie was passed in, use it, otherwise fetch from ship
     if (authCookie) {
       // Save to native storage
-      UrbitModule.setUrbit(ship, shipUrl, authCookie);
+      UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
     } else {
       // Run this in the background
       (async () => {
         // Fetch the root ship URL and parse headers
-        const response = await fetch(shipUrl, {
+        const response = await fetch(normalizedShipUrl, {
           credentials: 'include',
         });
         const fetchedAuthCookie = response.headers.get('set-cookie');
         if (fetchedAuthCookie) {
           // Save to native storage
-          UrbitModule.setUrbit(ship, shipUrl, fetchedAuthCookie);
+          UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
         }
       })();
     }

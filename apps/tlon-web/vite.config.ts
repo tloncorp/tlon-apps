@@ -123,6 +123,22 @@ export default ({ mode }: { mode: string }) => {
       https: process.env.SSL === 'true' ? true : false,
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
+      //NOTE  the proxy used by vite is written poorly, and ends up removing
+      //      empty path segments from urls: http-party/node-http-proxy#1420.
+      //      as a workaround for this, we rewrite the path going into the
+      //      proxy to "hide" the empty path segments, and then rewrite the
+      //      path coming "out" of the proxy to obtain the original path.
+      proxy: {
+        '^.*//.*': {
+          target: SHIP_URL,
+          rewrite: (path) => path.replaceAll('//', '/@@@/'),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
+            });
+          }
+        }
+      }
     },
     build:
       mode !== 'profile'

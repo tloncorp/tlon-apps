@@ -1,3 +1,4 @@
+import { SigilProps } from '@tloncorp/shared/dist/urbit/sigil';
 import { Contact, cite } from '@urbit/api';
 import '@urbit/sigil-js';
 import classNames from 'classnames';
@@ -11,7 +12,6 @@ import { useAvatar } from '@/state/avatar';
 import { useContact } from '@/state/contact';
 import { useCurrentTheme } from '@/state/local';
 import { useCalm } from '@/state/settings';
-import { SigilProps } from '@/types/sigil';
 
 export type AvatarSizes =
   | 'sidebar'

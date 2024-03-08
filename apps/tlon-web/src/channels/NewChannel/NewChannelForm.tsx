@@ -1,4 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { NewChannelFormSchema } from '@tloncorp/shared/dist/urbit/groups';
 import { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
@@ -15,7 +16,6 @@ import {
   useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
-import { NewChannelFormSchema } from '@/types/groups';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();

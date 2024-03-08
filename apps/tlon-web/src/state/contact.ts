@@ -1,11 +1,4 @@
 /* eslint-disable no-param-reassign */
-import { Patp, preSig } from '@urbit/api';
-import produce from 'immer';
-import _ from 'lodash';
-import { useCallback, useMemo } from 'react';
-
-import api from '@/api';
-import { BaseState, createState } from '@/state/base';
 import {
   ContactAnon,
   ContactEdit,
@@ -13,7 +6,14 @@ import {
   ContactHeed,
   ContactNews,
   ContactRolodex,
-} from '@/types/contact';
+} from '@tloncorp/shared/dist/urbit/contact';
+import { Patp, preSig } from '@urbit/api';
+import produce from 'immer';
+import _ from 'lodash';
+import { useCallback, useMemo } from 'react';
+
+import api from '@/api';
+import { BaseState, createState } from '@/state/base';
 
 export interface BaseContactState {
   contacts: ContactRolodex;

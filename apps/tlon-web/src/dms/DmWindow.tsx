@@ -1,3 +1,4 @@
+import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -12,7 +13,6 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useIsScrolling } from '@/logic/scroll';
 import { getPatdaParts, log } from '@/logic/utils';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
-import { WritTuple } from '@/types/dms';
 
 interface DmWindowProps {
   whom: string;

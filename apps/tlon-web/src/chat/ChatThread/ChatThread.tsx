@@ -1,3 +1,4 @@
+import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
@@ -18,6 +19,7 @@ import keyMap from '@/keyMap';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
@@ -32,7 +34,6 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { ReplyTuple } from '@/types/channel';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
@@ -66,7 +67,8 @@ export default function ChatThread() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
   const { replies } = note.seal;
-  if (replies !== null) {
+  const idTimeIsNumber = !Number.isNaN(Number(idTime));
+  if (replies !== null && idTimeIsNumber) {
     replies.unshift([
       bigInt(idTime!),
       {
@@ -105,7 +107,7 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const readTimeout = useChatInfo(flag).unread?.readTimeout;
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
@@ -117,6 +119,14 @@ export default function ChatThread() {
         activeTab === 'messages' ? '/dm' : ''
       }/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
     [chName, chShip, name, ship, idTime, activeTab]
+  );
+
+  const returnURLWithoutMsg = useCallback(
+    () =>
+      `${
+        activeTab === 'messages' ? '/dm' : ''
+      }/groups/${ship}/${name}/channels/chat/${chShip}/${chName}`,
+    [chName, chShip, name, ship, activeTab]
   );
 
   const onAtBottom = useCallback(() => {
@@ -140,8 +150,8 @@ export default function ChatThread() {
     clearOnNavRef.current = { isSmall, readTimeout, nest, flag, markRead };
   }, [readTimeout, nest, flag, isSmall, markRead]);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       const curr = clearOnNavRef.current;
       if (
         curr.isSmall &&
@@ -152,8 +162,15 @@ export default function ChatThread() {
         useChatStore.getState().read(curr.flag);
         curr.markRead({ nest: curr.nest });
       }
-    };
-  }, []);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!idTimeIsNumber) {
+      navigate(returnURLWithoutMsg());
+    }
+  }, [replies, idTimeIsNumber, navigate, returnURLWithoutMsg]);
 
   const BackButton = isMobile ? Link : 'div';
 
@@ -162,7 +179,7 @@ export default function ChatThread() {
       className="padding-bottom-transition relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
     >
       {isMobile ? (

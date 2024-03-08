@@ -1,3 +1,5 @@
+import { Post, newReplyMap } from '@tloncorp/shared/dist/urbit/channel';
+import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import { Helmet } from 'react-helmet';
@@ -11,6 +13,8 @@ import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useFullChannel } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
+import { isNativeApp } from '@/logic/native';
+import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -20,8 +24,6 @@ import {
   usePost,
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups';
-import { Post, newReplyMap } from '@/types/channel';
-import { ViewProps } from '@/types/groups';
 
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -45,9 +47,7 @@ export default function HeapDetail({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const { post: note, isLoading } = usePost(nest, idTime || '');
   const { title: curioTitle } = getKindDataFromEssay(note.essay);
-  const { isChatInputFocused } = useChatInputFocus();
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
+  const { paddingBottom } = useBottomPadding();
   const { nextPost: nextNote, prevPost: prevNote } = useOrderedPosts(
     nest,
     idTime || ''
@@ -84,7 +84,7 @@ export default function HeapDetail({ title }: ViewProps) {
   return (
     <Layout
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
       className="padding-bottom-transition flex-1 bg-white"
       header={

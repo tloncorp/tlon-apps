@@ -1,10 +1,10 @@
+import { Gang, Gangs } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { matchesBans } from '@/logic/utils';
 import { useGang } from '@/state/groups';
-import { Gang, Gangs } from '@/types/groups';
 
 import GroupAvatar from './GroupAvatar';
 import useGroupJoin from './useGroupJoin';
