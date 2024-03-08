@@ -1,8 +1,8 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { parseActiveTab } from '@tloncorp/shared';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
 
 import { useWebViewContext } from '../contexts/webview/webview';
 import { markChatRead } from '../lib/chatApi';
@@ -36,18 +36,8 @@ export default function useNotificationListener() {
           // Send reply
         } else if (data.wer) {
           webviewContext.setGotoPath(getPathFromWer(data.wer));
-          Alert.alert(
-            '',
-            `Goto path: ${getPathFromWer(data.wer)}`,
-            [
-              {
-                text: 'OK',
-                onPress: () => null,
-              },
-            ],
-            { cancelable: true }
-          );
-          navigation.navigate('Groups', { screen: 'Webview' });
+          const tab = parseActiveTab(data.wer) ?? 'Groups';
+          navigation.navigate(tab, { screen: 'Webview' });
           clearDeepLink();
         }
       }

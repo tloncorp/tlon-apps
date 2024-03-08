@@ -1,5 +1,6 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { parseActiveTab } from '@tloncorp/shared';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
@@ -34,20 +35,6 @@ function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
     : wer
       ? getPathFromWer(wer)
       : '';
-
-  if (initialWer) {
-    Alert.alert(
-      '',
-      `Auth app got initial wer: ${initialWer}`,
-      [
-        {
-          text: 'OK',
-          onPress: () => null,
-        },
-      ],
-      { cancelable: true }
-    );
-  }
 
   // If lure is present, invite it and mark as handled
   useEffect(() => {
@@ -84,7 +71,8 @@ function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
     if (gotoPath) {
       console.log(`wer gotopath set: ${gotoPath}`);
       webviewContext.setGotoPath(gotoPath);
-      navigation.navigate('Groups', { screen: 'Webview' });
+      const tab = parseActiveTab(gotoPath) ?? 'Groups';
+      navigation.navigate(tab, { screen: 'Webview' });
       clearDeepLink();
     }
   }, [gotoPath, clearDeepLink, webviewContext, navigation]);
