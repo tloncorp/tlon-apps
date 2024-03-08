@@ -1,44 +1,37 @@
-import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 
 import WidgetDrawer from '@/components/WidgetDrawer';
 import InviteIcon from '@/components/icons/InviteIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
-import PinIcon from '@/components/icons/PinIcon';
 import PinIcon16 from '@/components/icons/PinIcon16';
 import SmileIcon from '@/components/icons/SmileIcon';
-import { useDismissNavigate } from '@/logic/routing';
+import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
 
-import {
-  useGroup,
-  usePinnedGroups,
-  useRouteGroup,
-} from '../../state/groups/groups';
+import { useGroup, useRouteGroup } from '../../state/groups/groups';
 import { useGroupActions } from '../GroupActions';
 import GroupAvatar from '../GroupAvatar';
 import ChannelList from '../GroupSidebar/ChannelList';
 
-export default function GroupInfo({ title }: ViewProps) {
+export default function GroupInfo() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const dismiss = useDismissNavigate();
   const location = useLocation();
+  const navigate = useModalNavigate();
 
   const { isPinned, copyItemText, onCopy, onPinClick } = useGroupActions({
     flag,
   });
 
-  // useEffect(() => {
-  //   console.log(location);
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
+  const [navigationStarted, setNavigationStarted] = useState(false);
 
   const onOpenChange = (open: boolean) => {
-    if (!open) {
+    if (!open && !navigationStarted) {
       dismiss();
     }
+    setNavigationStarted(false);
   };
 
   const buttonClasses =
@@ -55,37 +48,54 @@ export default function GroupInfo({ title }: ViewProps) {
           </div>
         </div>
         <div className="flex items-center justify-between space-x-1 px-6">
-          <Link
+          <button
             className={buttonClasses}
-            to={`/groups/${flag}/invite`}
-            state={{ backgroundLocation: location }}
+            onClick={() => {
+              setNavigationStarted(true);
+              navigate(`/groups/${flag}/invite`, {
+                state: { backgroundLocation: location },
+              });
+            }}
           >
             <InviteIcon className="h-6 w-6" />
             <span>Invite</span>
-          </Link>
-
+          </button>
           <button className={buttonClasses} onClick={onPinClick}>
             <PinIcon16 className="h-6 w-6" />
             <span>{isPinned ? 'Unpin' : 'Pin'}</span>
           </button>
-          <Link className={buttonClasses} to={`/groups/${flag}/members`}>
+          <Link to={`/groups/${flag}/members`} className={buttonClasses}>
             <SmileIcon className="h-6 w-6" />
             <span>Members</span>
           </Link>
-          <Link
+          <button
             className={buttonClasses}
-            to={`/groups/${flag}/leave`}
-            state={{ backgroundLocation: location }}
+            onClick={() => {
+              setNavigationStarted(true);
+              navigate(`/groups/${flag}/leave`, {
+                state: { backgroundLocation: location },
+              });
+            }}
           >
             <LeaveIcon className="h-6 w-6" />
             <span>Leave</span>
-          </Link>
+          </button>
         </div>
         <div className="flex flex-col items-stretch justify-center space-y-3 px-6">
           <button className={buttonClasses} onClick={onCopy}>
             {copyItemText}
           </button>
-          <button className={buttonClasses}>Group Notification Settings</button>
+          <button
+            className={buttonClasses}
+            onClick={() => {
+              setNavigationStarted(true);
+              navigate(`/groups/${flag}/volume`, {
+                state: { backgroundLocation: location },
+              });
+            }}
+          >
+            Group notifications settings
+          </button>
         </div>
         <div className="w-full">
           <ChannelList noScroller={true} flag={flag} />

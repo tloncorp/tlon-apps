@@ -248,13 +248,15 @@ const ChannelList = React.memo(
             return renderStaticTop();
           case 'section-header':
             return (
-              <div className="mx-4 text-gray-100 sm:mx-2">
+              <div key={_index} className="mx-4 text-gray-100 sm:mx-2">
                 {renderSectionHeader(item.section)}
               </div>
             );
           case 'channel':
             return (
-              <div className="mx-4 sm:mx-2">{renderChannel(item.channel)}</div>
+              <div key={_index} className="mx-4 sm:mx-2">
+                {renderChannel(item.channel)}
+              </div>
             );
           default:
             return null;

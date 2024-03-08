@@ -30,11 +30,9 @@ export function useDismissNavigate() {
   const state = location.state as ModalLocationState | null;
 
   return useCallback(() => {
-    console.log('BL: DISMISS CALLED', state?.backgroundLocation.pathname);
     if (state?.backgroundLocation) {
       // we want to replace the current location with the background location
       // so that the user won't navigate back to the modal if they hit the back button
-      console.log('BL: FOUND', state.backgroundLocation.pathname);
       navigate(state.backgroundLocation, { replace: true });
     }
   }, [navigate, state]);

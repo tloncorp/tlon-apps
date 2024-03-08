@@ -43,6 +43,10 @@ const GroupsSidebarItem = React.memo(
         handleNavigate();
       }
 
+      // FIXME: the exhaustive deps rule is disabled because we don't want to
+      // trigger the navigation when something deep in isMobile or any of the
+      // dependencies of handleNavigate change.
+
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [action]);
 
