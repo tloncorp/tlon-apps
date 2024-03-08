@@ -1,5 +1,6 @@
 import cn from 'classnames';
 import { PropsWithChildren } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -28,6 +29,8 @@ export default function ChannelHeader({
   const isMobile = useIsMobile();
   const channel = useGroupChannel(groupFlag, nest);
   const isAdmin = useAmAdmin(groupFlag);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const actionProps: ChannelActionsProps = {
     nest,
@@ -41,9 +44,13 @@ export default function ChannelHeader({
     return (
       <MobileHeader
         title={
-          <ChannelActions
-            {...actionProps}
+          <button
             className="flex max-w-full items-center justify-center"
+            onClick={() => {
+              navigate(`/groups/${groupFlag}/info`, {
+                state: { backgroundLocation: location },
+              });
+            }}
           >
             <ChannelIcon
               nest={nest}
@@ -56,7 +63,7 @@ export default function ChannelHeader({
               className="ml-1 inline-flex flex-none"
               nest={nest}
             />
-          </ChannelActions>
+          </button>
         }
         action={
           <div className="flex h-12 flex-row items-center justify-end space-x-2">
