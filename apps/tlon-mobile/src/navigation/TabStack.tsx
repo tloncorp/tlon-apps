@@ -3,12 +3,14 @@ import { Icon, UrbitSigil } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
 import { useShip } from '../contexts/ship';
+import { useUnreads } from '../lib/api';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
+  useUnreads();
   const { ship } = useShip();
   const shipIsPlanetOrLarger = ship && ship.length <= 14;
 

@@ -21,6 +21,7 @@ import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
+import { initializeUrbit } from './lib/api';
 import { syncContacts } from './lib/sync';
 import { useDevTools } from './lib/useDevTools';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
@@ -51,7 +52,7 @@ const App = ({ wer: initialWer }: Props) => {
   useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
-  const { isLoading, isAuthenticated } = useShip();
+  const { isLoading, isAuthenticated, ship, shipUrl } = useShip();
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
@@ -59,8 +60,9 @@ const App = ({ wer: initialWer }: Props) => {
   useEffect(() => {
     if (isAuthenticated) {
       syncContacts();
+      initializeUrbit(ship ?? '', shipUrl ?? '');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ship, shipUrl]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(

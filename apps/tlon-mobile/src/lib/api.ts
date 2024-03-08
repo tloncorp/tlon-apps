@@ -1,6 +1,7 @@
 import { deSig } from '@urbit/aura';
 
 import { createHexString } from '../utils/string';
+import { Urbit } from './urbit/src';
 
 const config = {
   shipName: '',
@@ -9,6 +10,34 @@ const config = {
 };
 
 let lastEventId = 1;
+let client: Urbit;
+
+export function initializeUrbit(ship: string, shipUrl: string) {
+  client = new Urbit(shipUrl, undefined, undefined);
+  client.ship = ship;
+  client.verbose = true;
+}
+
+export function useUnreads() {
+  client.on('status-update', (status) => {
+    console.log(`client status:`, status);
+  });
+
+  client.on('error', (error) => {
+    console.error('client error:', error);
+  });
+
+  client.subscribe({
+    app: 'chat',
+    path: '/unreads',
+    event: (json) => {
+      console.log(`got sub event:`, json);
+    },
+    err: (error) => {
+      console.error(`got sub error:`, error);
+    },
+  });
+}
 
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);
