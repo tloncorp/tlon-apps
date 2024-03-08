@@ -6,7 +6,6 @@ import {
   type WebAppAction,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
-import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,9 +18,7 @@ import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
-import { markChatRead } from '../lib/chatApi';
 import { getHostingUser } from '../lib/hostingApi';
-// import { connectNotifications } from '../lib/notifications';
 import {
   getHostingUserId,
   removeHostingToken,
@@ -111,43 +108,6 @@ export const SingletonWebview = () => {
         break;
     }
   };
-
-  useEffect(() => {
-    // Start notification tap listener
-    // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
-    const notificationTapListener = addNotificationResponseReceivedListener(
-      (response) => {
-        const {
-          actionIdentifier,
-          userText,
-          notification: {
-            request: {
-              content: { data },
-            },
-          },
-        } = response;
-        if (actionIdentifier === 'markAsRead' && data.channelId) {
-          markChatRead(data.channelId);
-        } else if (actionIdentifier === 'reply' && userText) {
-          // Send reply
-        } else if (data.wer) {
-          // TODO: handle wer
-          // setUri((curr) => ({
-          //   ...curr,
-          //   uri: createUri(shipUrl, data.wer),
-          //   key: curr.key + 1,
-          // }));
-        }
-      }
-    );
-
-    // connectNotifications();
-
-    return () => {
-      // Clean up listeners
-      notificationTapListener.remove();
-    };
-  }, [shipUrl]);
 
   // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
   useFocusEffect(

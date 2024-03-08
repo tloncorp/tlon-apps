@@ -70,6 +70,18 @@ Plug in your iOS device or start the iPhone Simulator and run the application in
 npm run ios
 ```
 
+#### Run Preview Scheme
+
+Run the Preview version of the app by specifying `scheme` or `variant` in the run command:
+
+```sh
+npm run ios -- --scheme=Landscape-preview
+```
+
+```sh
+npm run android -- --variant=preview
+```
+
 ## Deployment
 
 Deployment is handled by [Expo Application Services](https://expo.dev/eas).

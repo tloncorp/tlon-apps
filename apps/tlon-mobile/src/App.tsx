@@ -8,6 +8,8 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
+import type { Subscription } from 'expo-notifications';
+import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
 import { Alert, StatusBar, Text, View } from 'react-native';
@@ -23,6 +25,7 @@ import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
+import { connectNotifications } from './lib/notifications';
 import { syncContacts } from './lib/sync';
 import { useDevTools } from './lib/useDevTools';
 import { TabStack } from './navigation/TabStack';
@@ -41,6 +44,7 @@ import { SignUpPasswordScreen } from './screens/SignUpPasswordScreen';
 import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
+import { handleNotificationResponse } from './utils/notifications';
 import { posthogAsync, trackError } from './utils/posthog';
 import { getPathFromWer } from './utils/string';
 
@@ -62,9 +66,22 @@ const App = ({ wer: initialWer }: Props) => {
   const gotoPath = initialWer ? getPathFromWer(initialWer) : wer;
 
   useEffect(() => {
+    let notificationTapListener: Subscription | undefined;
     if (isAuthenticated) {
+      // Start notification tap listener
+      // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
+      notificationTapListener = addNotificationResponseReceivedListener(
+        handleNotificationResponse
+      );
+
+      connectNotifications();
       syncContacts();
     }
+
+    return () => {
+      // Clean up listeners
+      notificationTapListener?.remove();
+    };
   }, [isAuthenticated]);
 
   useEffect(() => {
