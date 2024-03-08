@@ -1,5 +1,3 @@
-// import { useFocusEffect } from '@react-navigation/native';
-// import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   type MobileNavTab,
   type NativeWebViewOptions,
@@ -38,7 +36,6 @@ export const SingletonWebview = () => {
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
-  // const didManageAccount = useRef(false);
   const [appLoaded, setAppLoaded] = useState(false);
   const webviewContext = useWebViewContext();
 
@@ -91,9 +88,7 @@ export const SingletonWebview = () => {
         }
         break;
       }
-      // TODO: handle manage account
       case 'manageAccount':
-        console.log('webview: manage account message received');
         webviewContext.setManageAccountState('triggered');
         break;
       case 'appLoaded':
@@ -104,31 +99,6 @@ export const SingletonWebview = () => {
         break;
     }
   };
-
-  // // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     if (!didManageAccount.current) {
-  //       return;
-  //     }
-
-  //     (async () => {
-  //       const hostingUserId = await getHostingUserId();
-  //       if (hostingUserId) {
-  //         try {
-  //           const user = await getHostingUser(hostingUserId);
-  //           if (user.verified) {
-  //             didManageAccount.current = false;
-  //           } else {
-  //             handleLogout();
-  //           }
-  //         } catch (err) {
-  //           handleLogout();
-  //         }
-  //       }
-  //     })();
-  //   }, [handleLogout])
-  // );
 
   useEffect(() => {
     // Path was changed by the parent view

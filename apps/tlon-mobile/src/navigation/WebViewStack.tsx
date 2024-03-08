@@ -59,7 +59,6 @@ export const WebViewStack = (props: Props) => {
       }
 
       // Else, go to the tab's initial location
-      // setGotoPath(props.route.params.initialPath);
       setGotoPath(getInitialPath(props.route.name));
     });
 
@@ -133,7 +132,6 @@ export const WebViewStack = (props: Props) => {
       <Stack.Screen
         name="Webview"
         component={WebviewPlaceholderScreen}
-        // initialParams={props.route.params}
         options={{ headerShown: false }}
       />
       <Stack.Screen name="ExternalWebView" component={ExternalWebViewScreen} />

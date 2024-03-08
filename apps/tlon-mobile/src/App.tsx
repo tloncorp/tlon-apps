@@ -104,7 +104,6 @@ const App = ({ wer: initialWer }: Props) => {
               <AuthenticatedApp initialWer={initialWer} />
             ) : (
               <OnboardingStack.Navigator
-                id="Onboarding"
                 initialRouteName="Welcome"
                 screenOptions={screenOptions}
               >
