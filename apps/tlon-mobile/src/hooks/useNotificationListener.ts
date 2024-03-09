@@ -2,19 +2,25 @@ import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { parseActiveTab } from '@tloncorp/shared';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useWebViewContext } from '../contexts/webview/webview';
 import { markChatRead } from '../lib/chatApi';
 import { connectNotifications } from '../lib/notifications';
 import type { TabParamList } from '../types';
 import { getPathFromWer } from '../utils/string';
-import { useDeepLink } from './useDeepLink';
 
-export default function useNotificationListener() {
+export default function useNotificationListener(initialWer?: string) {
   const navigation = useNavigation<NavigationProp<TabParamList>>();
   const webviewContext = useWebViewContext();
-  const { clearDeepLink } = useDeepLink();
+  const [gotoPath, setGotoPath] = useState(
+    initialWer ? getPathFromWer(initialWer) : ''
+  );
+
+  // Start notifications prompt
+  useEffect(() => {
+    connectNotifications();
+  }, []);
 
   useEffect(() => {
     // Start notification tap listener
@@ -33,21 +39,31 @@ export default function useNotificationListener() {
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
-          // Send reply
+          // TODO: Send reply
         } else if (data.wer) {
-          webviewContext.setGotoPath(getPathFromWer(data.wer));
-          const tab = parseActiveTab(data.wer) ?? 'Groups';
-          navigation.navigate(tab, { screen: 'Webview' });
-          clearDeepLink();
+          setGotoPath(getPathFromWer(data.wer));
         }
       }
     );
-
-    connectNotifications();
 
     return () => {
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [clearDeepLink, navigation, webviewContext]);
+  }, [navigation, webviewContext]);
+
+  // If notification tapped, broadcast that navigation update to the
+  // webview and mark as handled
+  useEffect(() => {
+    if (gotoPath && webviewContext.appLoaded) {
+      console.debug(
+        '[useNotificationListener] Setting webview path:',
+        gotoPath
+      );
+      webviewContext.setGotoPath(gotoPath);
+      const tab = parseActiveTab(gotoPath) ?? 'Groups';
+      navigation.navigate(tab, { screen: 'Webview' });
+      setGotoPath('');
+    }
+  }, [gotoPath, webviewContext, navigation]);
 }

@@ -16,9 +16,9 @@ import { useTailwind } from 'tailwind-rn';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { DEV_LOCAL, DEV_LOCAL_CODE } from './constants';
+import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
-import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { syncContacts } from './lib/sync';
@@ -52,7 +52,7 @@ const App = ({ wer: initialWer }: Props) => {
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
-  const { lure, priorityToken } = useDeepLink();
+  const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
 
   useEffect(() => {
@@ -197,9 +197,11 @@ export default function ConnectedApp(props: Props) {
       <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
         <ShipProvider>
           <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-            <PostHogProvider client={posthogAsync} autocapture>
-              <App {...props} />
-            </PostHogProvider>
+            <BranchProvider>
+              <PostHogProvider client={posthogAsync} autocapture>
+                <App {...props} />
+              </PostHogProvider>
+            </BranchProvider>
           </NavigationContainer>
         </ShipProvider>
       </TamaguiProvider>

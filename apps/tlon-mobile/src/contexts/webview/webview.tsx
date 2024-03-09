@@ -4,6 +4,7 @@ import { createContext, useContext, useState } from 'react';
 type ManageAccountState = 'initial' | 'triggered' | 'navigated';
 
 export interface WebviewContext {
+  appLoaded: boolean;
   gotoPath: string;
   gotoTab: MobileNavTab | null;
   reactingToWebappNav: boolean;
@@ -11,6 +12,7 @@ export interface WebviewContext {
   lastGroupsPath: string;
   pendingCommand: NativeCommand | null;
   manageAccountState: ManageAccountState;
+  setAppLoaded: (isLoaded: boolean) => void;
   setManageAccountState: (didManageAccount: ManageAccountState) => void;
   sendCommand: (command: NativeCommand) => void;
   setLastMessagesPath: (path: string) => void;
@@ -22,6 +24,7 @@ export interface WebviewContext {
 }
 
 const AppWebviewContext = createContext<WebviewContext>({
+  appLoaded: false,
   gotoPath: '',
   gotoTab: null,
   reactingToWebappNav: false,
@@ -29,6 +32,7 @@ const AppWebviewContext = createContext<WebviewContext>({
   lastGroupsPath: '',
   pendingCommand: null,
   manageAccountState: 'initial',
+  setAppLoaded: () => {},
   setManageAccountState: () => {},
   sendCommand: () => {},
   setLastGroupsPath: () => {},
@@ -44,6 +48,7 @@ interface AppWebviewProviderProps {
 }
 
 export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
+  const [appLoaded, setAppLoaded] = useState(false);
   const [pendingCommand, sendCommand] = useState<NativeCommand | null>(null);
   const [lastMessagesPath, setLastMessagesPath] = useState('');
   const [lastGroupsPath, setLastGroupsPath] = useState('');
@@ -56,6 +61,7 @@ export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
   return (
     <AppWebviewContext.Provider
       value={{
+        appLoaded,
         gotoPath,
         gotoTab,
         reactingToWebappNav,
@@ -63,6 +69,7 @@ export const WebviewProvider = ({ children }: AppWebviewProviderProps) => {
         lastGroupsPath,
         pendingCommand,
         manageAccountState,
+        setAppLoaded,
         setManageAccountState,
         sendCommand,
         setLastMessagesPath,

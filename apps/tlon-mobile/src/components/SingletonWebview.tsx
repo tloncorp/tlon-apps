@@ -4,7 +4,7 @@ import {
   type WebAppAction,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { URL } from 'react-native-url-polyfill';
@@ -36,7 +36,6 @@ export const SingletonWebview = () => {
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
-  const [appLoaded, setAppLoaded] = useState(false);
   const webviewContext = useWebViewContext();
 
   const handleLogout = useCallback(() => {
@@ -94,7 +93,7 @@ export const SingletonWebview = () => {
       case 'appLoaded':
         // Slight delay otherwise white background flashes
         setTimeout(() => {
-          setAppLoaded(true);
+          webviewContext.setAppLoaded(true);
         }, 100);
         break;
     }
@@ -128,7 +127,7 @@ export const SingletonWebview = () => {
       ref={webviewRef}
       source={{ uri: createUri(shipUrl, '/') }}
       style={
-        appLoaded
+        webviewContext.appLoaded
           ? tailwind('bg-transparent')
           : { flex: 0, height: 0, opacity: 0 }
       }
@@ -145,7 +144,7 @@ export const SingletonWebview = () => {
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
-        setTimeout(() => setAppLoaded(true), 10_000);
+        setTimeout(() => webviewContext.setAppLoaded(true), 10_000);
       }}
       onShouldStartLoadWithRequest={({ url }) => {
         const parsedUrl = new URL(url);
