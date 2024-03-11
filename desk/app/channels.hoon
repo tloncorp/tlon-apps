@@ -1545,7 +1545,8 @@
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
-        [%all ~]  ``channel-simple-replies+!>(replies)
+        [%all ~]
+      ``channel-simple-replies+!>((suv-replies:utils parent-id replies))
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
@@ -1576,7 +1577,8 @@
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
-        [%all ~]  ``channel-replies+!>(replies)
+        [%all ~]
+      ``channel-replies+!>((uv-replies:utils parent-id replies))
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
