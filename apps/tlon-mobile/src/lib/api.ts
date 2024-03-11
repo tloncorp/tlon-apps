@@ -10,15 +10,14 @@ const config = {
 };
 
 let lastEventId = 1;
-let client: Urbit;
+export let client: Urbit;
 
-export function initializeUrbit(ship: string, shipUrl: string) {
+// TODO: remove client on logout
+export function initializeUrbitClient(shipName: string, shipUrl: string) {
   client = new Urbit(shipUrl, undefined, undefined);
-  client.ship = 'pondus-watbel';
+  client.ship = deSig(shipName);
   client.verbose = true;
-}
 
-export function useUnreads() {
   client.on('status-update', (status) => {
     console.log(`client status:`, status);
   });
@@ -26,15 +25,34 @@ export function useUnreads() {
   client.on('error', (error) => {
     console.error('client error:', error);
   });
+}
 
+interface UrbitEndpoint {
+  app: string;
+  path: string;
+}
+
+function printEndpoint(endpoint: UrbitEndpoint) {
+  return `${endpoint.app}${endpoint.path}`;
+}
+
+// TODO: we need to harden this similar to tlon-web
+export function subscribe<T>(
+  endpoint: UrbitEndpoint,
+  handler: (update: T) => void
+) {
   client.subscribe({
-    app: 'chat',
-    path: '/unreads',
-    event: (json) => {
-      console.log(`got sub event:`, json);
+    app: endpoint.app,
+    path: endpoint.path,
+    event: (data: T) => {
+      console.debug(
+        `got subscription event on ${printEndpoint(endpoint)}:`,
+        data
+      );
+      handler(data);
     },
     err: (error) => {
-      console.error(`got sub error:`, error);
+      console.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
     },
   });
 }

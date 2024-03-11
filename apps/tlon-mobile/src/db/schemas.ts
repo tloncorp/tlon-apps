@@ -9,6 +9,13 @@ export type Contact = {
   pinnedGroupIds: string[];
 };
 
+export type UnreadType = 'channel' | 'dm';
+export type Unread = {
+  channelId: string;
+  type: UnreadType;
+  totalCount: number;
+};
+
 const contactSchema = {
   name: 'Contact',
   properties: {
@@ -24,12 +31,23 @@ const contactSchema = {
   primaryKey: 'id',
 };
 
+const unreadSchema = {
+  name: 'Unread',
+  properties: {
+    channelId: 'string',
+    totalCount: 'int',
+    type: 'string',
+  },
+  primaryKey: 'channelId',
+};
+
 // Should contain all schemas, will be passed to Realm constructor
-export const schemas = [contactSchema];
+export const schemas = [contactSchema, unreadSchema];
 
 // Should contain all schema types, used to map Realm object types to TypeScript types
 export type SchemaMap = {
   Contact: Contact;
+  Unread: Unread;
 };
 
 export type SchemaName = keyof SchemaMap;

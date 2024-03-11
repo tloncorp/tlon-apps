@@ -64,6 +64,8 @@ const IconComponent = View.styleable<{
       height={frameSize}
       alignItems="center"
       justifyContent="center"
+      // borderWidth={1}
+      // borderColor="$color.indigo"
       {...props}
     >
       <IconGraphic
