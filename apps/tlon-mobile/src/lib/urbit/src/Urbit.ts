@@ -537,6 +537,7 @@ export class Urbit {
   private async sendJSONtoChannel(...json: Message[]): Promise<void> {
     console.log('sending json to channel');
     console.log('json: ', JSON.stringify(json, null, 2));
+    console.log(`fetch options`, this.fetchOptions);
     const response = await fetch(this.channelUrl, {
       ...this.fetchOptions,
       method: 'PUT',
@@ -546,6 +547,8 @@ export class Urbit {
     if (!response.ok) {
       console.log('its not okay :(');
       console.log(JSON.stringify(response, null, 2));
+      let text = await response.text();
+      console.log(`bod`, text);
       throw new Error('Failed to PUT channel');
     }
     console.log('so far so good');

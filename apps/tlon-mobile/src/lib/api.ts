@@ -14,7 +14,7 @@ let client: Urbit;
 
 export function initializeUrbit(ship: string, shipUrl: string) {
   client = new Urbit(shipUrl, undefined, undefined);
-  client.ship = ship;
+  client.ship = 'pondus-watbel';
   client.verbose = true;
 }
 
