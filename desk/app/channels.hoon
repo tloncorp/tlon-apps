@@ -1348,6 +1348,7 @@
   ++  ca-peek
     |=  [=(pole knot) ver=?(%v0 %v1)]
     ^-  (unit (unit cage))
+    ~&  ['ca-peek' pole]
     ?+    pole  [~ ~]
         [%posts rest=*]
       ?:  =(ver %v0)  (ca-peek-posts-0 rest.pole)
@@ -1496,6 +1497,7 @@
     |=  =(pole knot)
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
+    ~&  ['ca-peek-posts-1' pole]
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -1548,17 +1550,20 @@
         [%all ~]  ``channel-replies+!>(replies)
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (top:mo-v-replies:c replies count)))
+      =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
+      ``channel-replies+!>((suv-replies:utils parent-id reply-map))
     ::
         [%older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (bat:mo-v-replies:c replies `start count)))
+      =/  reply-map  (gas:on *v-replies:c (bat:mo-v-replies:c replies `start count))
+      ``channel-replies+!>((suv-replies:utils parent-id reply-map))
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (tab:on replies `start count)))
+      =/  reply-map  (gas:on *v-replies:c (tab:on replies `start count))
+      ``channel-replies+!>((suv-replies:utils parent-id reply-map))
     ::
         [%reply %id time=@ ~]
       =/  time  (slav %ud time.pole)
@@ -1571,22 +1576,27 @@
   ++  ca-peek-replies-1
     |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
+    ~&  ['ca-peek-replies-1' pole]
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
         [%all ~]  ``channel-replies+!>(replies)
         [%newest count=@ ~]
+      ~&  ['newest replies']
       =/  count  (slav %ud count.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (top:mo-v-replies:c replies count)))
+      =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
+      ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (bat:mo-v-replies:c replies `start count)))
+      =/  reply-map  (gas:on *v-replies:c (bat:mo-v-replies:c replies `start count))
+      ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (tab:on replies `start count)))
+      =/  reply-map  (gas:on *v-replies:c (tab:on replies `start count))
+      ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%reply %id time=@ ~]
       =/  time  (slav %ud time.pole)
