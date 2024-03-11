@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/prefer-default-export
 export const STANDARD_MESSAGE_FETCH_PAGE_SIZE = 100;
-export const LARGE_MESSAGE_FETCH_PAGE_SIZE = 300;
+export const LARGE_MESSAGE_FETCH_PAGE_SIZE = 60;
 export const FETCH_BATCH_SIZE = 3;
 export const MAX_DISPLAYED_OPTIONS = 40;
 export const NOTE_REF_DISPLAY_LIMIT = 600;

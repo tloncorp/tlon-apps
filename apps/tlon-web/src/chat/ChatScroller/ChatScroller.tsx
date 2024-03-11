@@ -157,7 +157,7 @@ function useFakeVirtuosoHandle(
 type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
 
 const thresholds = {
-  atEndThreshold: 2000,
+  atEndThreshold: 200,
   overscan: 6,
 };
 
