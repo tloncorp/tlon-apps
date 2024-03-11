@@ -72,7 +72,7 @@ export const SingletonWebview = () => {
         );
         break;
       case 'activeTabChange':
-        webviewContext.setGotoTab(value as MobileNavTab);
+        webviewContext.setNewWebappTab(value as MobileNavTab);
         break;
       case 'saveLastPath': {
         if (!value || typeof value !== 'object' || !value.tab || !value.path) {
