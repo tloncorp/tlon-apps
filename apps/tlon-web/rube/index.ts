@@ -596,7 +596,7 @@ const runPlaywrightTests = async () => {
       const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
-        playwrightArgs.push('--debug');
+        playwrightArgs.push('--ui');
       }
 
       const testProcess = childProcess.spawn('npx', playwrightArgs, {
