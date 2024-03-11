@@ -135,7 +135,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     console.debug('[branch] Clearing deep link state');
     setState((curr) => ({
       ...curr,
-      wer: undefined,
+      deepLinkPath: undefined,
     }));
   }, []);
 
