@@ -47,7 +47,9 @@ type Props = {
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-const App = ({ wer: initialWer }: Props) => {
+// on Android if a notification click causes the app to open, the corresponding notification
+// path is passed in here as "wer"
+const App = ({ wer }: Props) => {
   useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
@@ -85,7 +87,7 @@ const App = ({ wer: initialWer }: Props) => {
               </View>
             ) : isAuthenticated ? (
               <AuthenticatedApp
-                initialNotificationPath={getPathFromWer(initialWer ?? '')}
+                initialNotificationPath={getPathFromWer(wer ?? '')}
               />
             ) : (
               <OnboardingStack.Navigator
