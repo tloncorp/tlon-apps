@@ -56,9 +56,9 @@ export const useDeepLinkListener = () => {
         '[useDeepLinkListener] Setting webview path:',
         deepLinkPath
       );
-      webviewContext.setGotoPath(deepLinkPath);
       const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
-      navigation.navigate(tab, { screen: 'Webview' });
+      webviewContext.setGotoPath(deepLinkPath);
+      webviewContext.setGotoTab(tab);
       clearDeepLink();
     }
   }, [deepLinkPath, webviewContext, navigation, clearDeepLink]);
