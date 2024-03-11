@@ -16,6 +16,7 @@ import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
+import { isUsingTlonAuth } from '../lib/hostingApi';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
@@ -117,6 +118,7 @@ export const SingletonWebview = () => {
   const nativeOptions: NativeWebViewOptions = {
     colorScheme,
     hideTabBar: true,
+    isUsingTlonAuth: isUsingTlonAuth(),
     safeAreaInsets,
   };
 
