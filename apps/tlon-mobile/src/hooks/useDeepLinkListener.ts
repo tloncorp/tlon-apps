@@ -10,13 +10,12 @@ import { useWebViewContext } from '../contexts/webview/webview';
 import { inviteShipWithLure } from '../lib/hostingApi';
 import type { TabParamList } from '../types';
 import { trackError } from '../utils/posthog';
-import { getPathFromWer } from '../utils/string';
 
 export const useDeepLinkListener = () => {
   const navigation = useNavigation<NavigationProp<TabParamList>>();
   const webviewContext = useWebViewContext();
   const { ship } = useShip();
-  const { lure, wer, clearLure, clearDeepLink } = useBranch();
+  const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
 
   // If lure is present, invite it and mark as handled
   useEffect(() => {
@@ -52,13 +51,15 @@ export const useDeepLinkListener = () => {
 
   // If deep link clicked, broadcast that navigation update to the webview and mark as handled
   useEffect(() => {
-    if (wer && webviewContext.appLoaded) {
-      const gotoPath = getPathFromWer(wer);
-      console.debug('[useDeepLinkListener] Setting webview path:', gotoPath);
-      webviewContext.setGotoPath(gotoPath);
-      const tab = parseActiveTab(gotoPath) ?? 'Groups';
+    if (deepLinkPath && webviewContext.appLoaded) {
+      console.debug(
+        '[useDeepLinkListener] Setting webview path:',
+        deepLinkPath
+      );
+      webviewContext.setGotoPath(deepLinkPath);
+      const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
       navigation.navigate(tab, { screen: 'Webview' });
       clearDeepLink();
     }
-  }, [wer, webviewContext, navigation, clearDeepLink]);
+  }, [deepLinkPath, webviewContext, navigation, clearDeepLink]);
 };

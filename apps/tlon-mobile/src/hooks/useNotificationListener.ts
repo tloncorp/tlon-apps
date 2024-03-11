@@ -10,11 +10,11 @@ import { connectNotifications } from '../lib/notifications';
 import type { TabParamList } from '../types';
 import { getPathFromWer } from '../utils/string';
 
-export default function useNotificationListener(initialWer?: string) {
+export default function useNotificationListener(initialNotifPath?: string) {
   const navigation = useNavigation<NavigationProp<TabParamList>>();
   const webviewContext = useWebViewContext();
-  const [gotoPath, setGotoPath] = useState(
-    initialWer ? getPathFromWer(initialWer) : ''
+  const [gotoPath, setGotoPath] = useState<string | null>(
+    initialNotifPath ?? null
   );
 
   // Start notifications prompt
@@ -41,7 +41,8 @@ export default function useNotificationListener(initialWer?: string) {
         } else if (actionIdentifier === 'reply' && userText) {
           // TODO: Send reply
         } else if (data.wer) {
-          setGotoPath(getPathFromWer(data.wer));
+          const notifPath = getPathFromWer(data.wer);
+          setGotoPath(notifPath);
         }
       }
     );
@@ -63,7 +64,7 @@ export default function useNotificationListener(initialWer?: string) {
       webviewContext.setGotoPath(gotoPath);
       const tab = parseActiveTab(gotoPath) ?? 'Groups';
       navigation.navigate(tab, { screen: 'Webview' });
-      setGotoPath('');
+      setGotoPath(null);
     }
   }, [gotoPath, webviewContext, navigation]);
 }

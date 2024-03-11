@@ -9,6 +9,7 @@ import {
 import branch from 'react-native-branch';
 
 import storage from '../lib/storage';
+import { getPathFromWer } from '../utils/string';
 
 type Lure = {
   lure: string | undefined;
@@ -16,7 +17,7 @@ type Lure = {
 };
 
 type State = Lure & {
-  wer: string | undefined;
+  deepLinkPath: string | undefined;
 };
 
 type ContextValue = State & {
@@ -25,7 +26,7 @@ type ContextValue = State & {
 };
 
 const INITIAL_STATE: State = {
-  wer: undefined,
+  deepLinkPath: undefined,
   lure: undefined,
   priorityToken: undefined,
 };
@@ -63,7 +64,8 @@ export const useBranch = () => {
 };
 
 export const BranchProvider = ({ children }: { children: ReactNode }) => {
-  const [{ wer, lure, priorityToken }, setState] = useState(INITIAL_STATE);
+  const [{ deepLinkPath, lure, priorityToken }, setState] =
+    useState(INITIAL_STATE);
 
   useEffect(() => {
     console.debug('[branch] Subscribing to Branch listener');
@@ -84,14 +86,15 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             };
             setState({
               ...nextLure,
-              wer: undefined,
+              deepLinkPath: undefined,
             });
             saveLure(nextLure);
           } else if (params.wer) {
             // Link had a wer (deep link) field embedded
-            console.debug('[branch] Detected deep link:', params.wer);
+            const deepLinkPath = getPathFromWer(params.wer as string);
+            console.debug('[branch] Detected deep link:', deepLinkPath);
             setState({
-              wer: params.wer as string,
+              deepLinkPath,
               lure: undefined,
               priorityToken: undefined,
             });
@@ -107,7 +110,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         console.debug('[branch] Detected saved lure:', nextLure.lure);
         setState({
           ...nextLure,
-          wer: undefined,
+          deepLinkPath: undefined,
         });
       }
     })();
@@ -139,7 +142,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   return (
     <Context.Provider
       value={{
-        wer,
+        deepLinkPath,
         lure,
         priorityToken,
         clearLure,

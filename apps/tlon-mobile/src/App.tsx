@@ -39,6 +39,7 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync } from './utils/posthog';
+import { getPathFromWer } from './utils/string';
 
 type Props = {
   wer?: string;
@@ -83,7 +84,9 @@ const App = ({ wer: initialWer }: Props) => {
                 <LoadingSpinner />
               </View>
             ) : isAuthenticated ? (
-              <AuthenticatedApp initialWer={initialWer} />
+              <AuthenticatedApp
+                initialNotificationPath={getPathFromWer(initialWer ?? '')}
+              />
             ) : (
               <OnboardingStack.Navigator
                 initialRouteName="Welcome"

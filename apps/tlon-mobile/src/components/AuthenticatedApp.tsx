@@ -8,11 +8,11 @@ import { TabStack } from '../navigation/TabStack';
 import WebviewOverlay from './WebviewOverlay';
 
 export interface AuthenticatedAppProps {
-  initialWer?: string;
+  initialNotificationPath?: string;
 }
 
-function AuthenticatedApp({ initialWer }: AuthenticatedAppProps) {
-  useNotificationListener(initialWer);
+function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
+  useNotificationListener(initialNotificationPath);
   useDeepLinkListener();
 
   return (
