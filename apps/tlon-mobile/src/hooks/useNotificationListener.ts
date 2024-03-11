@@ -61,9 +61,9 @@ export default function useNotificationListener(initialNotifPath?: string) {
         '[useNotificationListener] Setting webview path:',
         gotoPath
       );
-      const tab = parseActiveTab(gotoPath) ?? 'Groups';
-      webviewContext.setGotoTab(tab);
       webviewContext.setGotoPath(gotoPath);
+      const tab = parseActiveTab(gotoPath) ?? 'Groups';
+      navigation.navigate(tab, { screen: 'Webview' });
       setGotoPath(null);
     }
   }, [gotoPath, webviewContext, navigation]);
