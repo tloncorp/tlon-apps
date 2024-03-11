@@ -14,7 +14,6 @@ export const TabStack = () => {
   const shipIsPlanetOrLarger = ship && ship.length <= 14;
 
   const groupUnreads = useQuery<Unread[]>('Unread', (collection) => {
-    console.log(JSON.stringify(collection, null, 2));
     return collection.filtered(
       'type == $0 AND totalCount > 0',
       'channel' as UnreadType
@@ -24,7 +23,7 @@ export const TabStack = () => {
   const dmUnreads = useQuery<Unread[]>('Unread', (collection) => {
     return collection.filtered(
       'type == $0 AND totalCount > 0',
-      'channel' as UnreadType
+      'dm' as UnreadType
     );
   });
 

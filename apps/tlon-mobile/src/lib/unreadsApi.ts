@@ -38,12 +38,12 @@ export const toClientUnreads = (
 };
 
 export const toClientUnread = (
-  nest: string,
+  nestOrWhom: string,
   unread: ubChan.Unread,
   type: db.UnreadType
 ): db.Unread => {
   return {
-    channelId: `${type}:${nest}`,
+    channelId: nestOrWhom,
     totalCount: unread.count,
     type,
   };
