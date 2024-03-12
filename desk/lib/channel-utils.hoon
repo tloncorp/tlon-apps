@@ -91,8 +91,12 @@
 ++  uv-post-without-replies
   |=  post=v-post:c
   ^-  post:c
-  =.  replies.post  ~
-  (uv-post post)
+  :_  +.post
+  :*  id.post
+      (uv-reacts reacts.post)
+      *replies:c
+      (get-reply-meta post)
+  ==
 ::
 ++  suv-post-without-replies
   |=  post=v-post:c
