@@ -93,6 +93,7 @@ import {
   useTheme,
 } from '@/state/settings';
 
+import ChannelInfo from './channels/ChannelInfo';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import ReportContent from './components/ReportContent';
@@ -479,13 +480,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
-          <Route
-            path="/groups/:ship/:name/info"
-            element={<GroupInfo title={`• ${groupsTitle}`} />}
-          />
+          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
           <Route
             path="/groups/:ship/:name/volume"
             element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
+          />
+          <Route
+            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/info"
+            element={<ChannelInfo />}
           />
           <Route
             path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"

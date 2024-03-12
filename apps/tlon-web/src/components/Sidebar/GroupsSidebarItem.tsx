@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router';
 
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
-import { useModalNavigate } from '@/logic/routing';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroups } from '@/state/groups';

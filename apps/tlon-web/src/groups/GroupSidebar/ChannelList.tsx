@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import ChannelIcon from '@/channels/ChannelIcon';
@@ -27,6 +28,7 @@ import {
   useCheckChannelJoined,
   useCheckChannelUnread,
 } from '@/logic/channel';
+import { useModalNavigate } from '@/logic/routing';
 import useFilteredSections from '@/logic/useFilteredSections';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useGroupConnection, useVessel } from '@/state/groups';
@@ -141,6 +143,9 @@ const ChannelList = React.memo(
     const isChannelJoined = useCheckChannelJoined();
     const isChannelUnread = useCheckChannelUnread();
     const virtuosoRef = useRef<VirtuosoHandle>(null);
+    const location = useLocation();
+    const modalNavigate = useModalNavigate();
+    const pageNavigate = useNavigate();
 
     useEffect(() => {
       const currentVirtuosoRef = virtuosoRef.current;
@@ -211,6 +216,19 @@ const ChannelList = React.memo(
 
     const renderChannel = useCallback(
       ([nest, channel]: [string, GroupChannel]) => {
+        // Either navigate to a page or open a modal depending on the current
+        // location. If we're already on a ChannelList page, navigate to the
+        // route directly. If we're in a GroupInfo sheet, use modal-navigation.
+        const navigate = (path: string) => {
+          if (location.pathname.includes('/channels/')) {
+            pageNavigate(path);
+          } else {
+            modalNavigate(path, {
+              state: { backgroundLocation: location },
+            });
+          }
+        };
+
         const icon = (active: boolean) =>
           isMobile ? (
             <span
@@ -232,16 +250,34 @@ const ChannelList = React.memo(
             icon={icon}
             to={channelHref(flag, nest)}
             actions={
-              isChannelUnread(nest) ? (
-                <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
-              ) : null
+              <>
+                {!isMobile && isChannelUnread(nest) && (
+                  <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
+                )}
+
+                {isMobile && isChannelUnread(nest) && (
+                  <div
+                    onClick={() => navigate(`${channelHref(flag, nest)}/info`)}
+                  >
+                    <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
+                  </div>
+                )}
+
+                {isMobile && !isChannelUnread(nest) && (
+                  <div
+                    onClick={() => navigate(`${channelHref(flag, nest)}/info`)}
+                  >
+                    <UnreadIndicator className="m-0.5 h-5 w-5 text-gray-400" />
+                  </div>
+                )}
+              </>
             }
           >
             {channel.meta.title || nest}
           </SidebarItem>
         );
       },
-      [flag, isChannelUnread, isMobile]
+      [flag, isChannelUnread, isMobile, location, modalNavigate, pageNavigate]
     );
 
     const renderItem = useCallback(
