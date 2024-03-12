@@ -183,7 +183,7 @@ export default function ChatInput({
   const { mutate: unblockShip } = useUnblockShipMutation();
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
   const myLastMessage = useMyLastMessage(whom, replying);
-  const lastMessageId = !isMobile && myLastMessage ? myLastMessage.seal.id : '';
+  const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -381,29 +381,26 @@ export default function ChatInput({
     ]
   );
 
-  const onUpArrow = useCallback(
-    ({ editor }: HandlerParams) => {
-      if (
-        lastMessageId !== '' &&
-        !isEditing &&
-        !editor.isDestroyed &&
-        // don't allow editing of DM/Group DM messages until we support it
-        // on the backend.
-        !isDmOrMultiDM
-      ) {
-        setSearchParams(
-          {
-            edit: lastMessageId,
-          },
-          { replace: true }
-        );
-        editor.commands.blur();
-        return true;
-      }
-      return false;
-    },
-    [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
-  );
+  const onUpArrow = useRef(({ editor }: HandlerParams) => {
+    if (
+      lastMessageId &&
+      !isEditing &&
+      !editor.isDestroyed &&
+      // don't allow editing of DM/Group DM messages until we support it
+      // on the backend.
+      !isDmOrMultiDM
+    ) {
+      setSearchParams(
+        {
+          edit: lastMessageId,
+        },
+        { replace: true }
+      );
+      editor.commands.blur();
+      return true;
+    }
+    return false;
+  });
 
   /**
    * !!! CAUTION !!!
@@ -419,14 +416,14 @@ export default function ChatInput({
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
-      ({ editor }: HandlerParams) => {
+      ({ editor }) => {
         onSubmit(editor);
         return true;
       },
       [onSubmit]
     ),
     onUpdate: onUpdate.current,
-    onUpArrow,
+    onUpArrow: onUpArrow.current,
   });
 
   useEffect(() => {
