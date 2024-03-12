@@ -54,6 +54,7 @@ import {
   createStorageKey,
   pathToCite,
   useIsDmOrMultiDm,
+  useObjectChangeLogging,
   useThreadParentId,
 } from '@/logic/utils';
 import { CacheId, useMyLastMessage } from '@/state/channel/channel';
@@ -183,7 +184,7 @@ export default function ChatInput({
   const { mutate: unblockShip } = useUnblockShipMutation();
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
   const myLastMessage = useMyLastMessage(whom, replying);
-  const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
+  const lastMessageId = !isMobile && myLastMessage ? myLastMessage.seal.id : '';
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -381,6 +382,38 @@ export default function ChatInput({
     ]
   );
 
+  useObjectChangeLogging({
+    lastMessageId,
+    setSearchParams,
+    isEditing,
+    isDmOrMultiDM,
+    isMobile,
+  });
+
+  const onUpArrow = useCallback(
+    ({ editor }: HandlerParams) => {
+      if (
+        lastMessageId !== '' &&
+        !isEditing &&
+        !editor.isDestroyed &&
+        // don't allow editing of DM/Group DM messages until we support it
+        // on the backend.
+        !isDmOrMultiDM
+      ) {
+        setSearchParams(
+          {
+            edit: lastMessageId,
+          },
+          { replace: true }
+        );
+        editor.commands.blur();
+        return true;
+      }
+      return false;
+    },
+    [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
+  );
+
   /**
    * !!! CAUTION !!!
    *
@@ -402,32 +435,7 @@ export default function ChatInput({
       [onSubmit]
     ),
     onUpdate: onUpdate.current,
-    // this is causing a re-render
-    // TODO: investigate why and re-implement
-    // onUpArrow: useCallback(
-    // ({ editor }: HandlerParams) => {
-    // if (
-    // lastMessageId &&
-    // !isEditing &&
-    // !editor.isDestroyed &&
-    // // don't allow editing of DM/Group DM messages until we support it
-    // // on the backend.
-    // // TODO: remove this check when backend supports it
-    // !isDmOrMultiDM
-    // ) {
-    // setSearchParams(
-    // {
-    // edit: lastMessageId,
-    // },
-    // { replace: true }
-    // );
-    // editor.commands.blur();
-    // return true;
-    // }
-    // return false;
-    // },
-    // [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
-    // ),
+    onUpArrow,
   });
 
   useEffect(() => {
