@@ -183,7 +183,14 @@ export default function ChatInput({
   const { mutate: unblockShip } = useUnblockShipMutation();
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
   const myLastMessage = useMyLastMessage(whom, replying);
-  const lastMessageId = !isMobile && myLastMessage ? myLastMessage.seal.id : '';
+  const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
+  const lastMessageIdRef = useRef(lastMessageId);
+
+  useEffect(() => {
+    if (lastMessageId && lastMessageId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = lastMessageId;
+    }
+  }, [lastMessageId]);
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -384,7 +391,7 @@ export default function ChatInput({
   const onUpArrow = useCallback(
     ({ editor }: HandlerParams) => {
       if (
-        lastMessageId !== '' &&
+        lastMessageIdRef.current &&
         !isEditing &&
         !editor.isDestroyed &&
         // don't allow editing of DM/Group DM messages until we support it
@@ -393,7 +400,7 @@ export default function ChatInput({
       ) {
         setSearchParams(
           {
-            edit: lastMessageId,
+            edit: lastMessageIdRef.current,
           },
           { replace: true }
         );
@@ -402,7 +409,7 @@ export default function ChatInput({
       }
       return false;
     },
-    [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
+    [isEditing, isDmOrMultiDM, setSearchParams]
   );
 
   /**
@@ -419,7 +426,7 @@ export default function ChatInput({
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
-      ({ editor }: HandlerParams) => {
+      ({ editor }) => {
         onSubmit(editor);
         return true;
       },
