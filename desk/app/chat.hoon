@@ -1311,7 +1311,6 @@
     ^+  cu-core
     =?  cor  =(%read -.diff)
       %-  emil
-      =/  last-read  last-read.remark.club
       =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
       %+  murn
         ~(tap by cable.carpet)
@@ -1776,7 +1775,6 @@
     ^+  di-core
     =?  cor  =(%read -.diff)
       %-  emil
-      =/  last-read  last-read.remark.dm
       =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
       %+  murn
         ~(tap by cable.carpet)
