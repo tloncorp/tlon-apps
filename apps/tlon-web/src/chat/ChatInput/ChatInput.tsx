@@ -54,7 +54,6 @@ import {
   createStorageKey,
   pathToCite,
   useIsDmOrMultiDm,
-  useObjectChangeLogging,
   useThreadParentId,
 } from '@/logic/utils';
 import { CacheId, useMyLastMessage } from '@/state/channel/channel';
@@ -381,14 +380,6 @@ export default function ChatInput({
       mostRecentFile?.url,
     ]
   );
-
-  useObjectChangeLogging({
-    lastMessageId,
-    setSearchParams,
-    isEditing,
-    isDmOrMultiDM,
-    isMobile,
-  });
 
   const onUpArrow = useCallback(
     ({ editor }: HandlerParams) => {
