@@ -77,7 +77,7 @@ export const SingletonWebview = () => {
         url: crashRecovery.lastUrl,
         key: source.key + 1,
       });
-      setCrashRecovery({ isCrashed: false, lastUrl: '', crashEvent: null });
+      setCrashRecovery((prev) => ({ ...prev, isCrashed: false }));
 
       // TODO: for debugging purposes, log the crash recovery. Remove before
       // shipping to prod.
