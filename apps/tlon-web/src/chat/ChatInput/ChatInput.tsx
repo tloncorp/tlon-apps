@@ -395,37 +395,39 @@ export default function ChatInput({
     placeholder: 'Message',
     allowMentions: true,
     onEnter: useCallback(
-      ({ editor }) => {
+      ({ editor }: HandlerParams) => {
         onSubmit(editor);
         return true;
       },
       [onSubmit]
     ),
     onUpdate: onUpdate.current,
-    onUpArrow: useCallback(
-      ({ editor }: HandlerParams) => {
-        if (
-          lastMessageId &&
-          !isEditing &&
-          !editor.isDestroyed &&
-          // don't allow editing of DM/Group DM messages until we support it
-          // on the backend.
-          // TODO: remove this check when backend supports it
-          !isDmOrMultiDM
-        ) {
-          setSearchParams(
-            {
-              edit: lastMessageId,
-            },
-            { replace: true }
-          );
-          editor.commands.blur();
-          return true;
-        }
-        return false;
-      },
-      [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
-    ),
+    // this is causing a re-render
+    // TODO: investigate why and re-implement
+    // onUpArrow: useCallback(
+    // ({ editor }: HandlerParams) => {
+    // if (
+    // lastMessageId &&
+    // !isEditing &&
+    // !editor.isDestroyed &&
+    // // don't allow editing of DM/Group DM messages until we support it
+    // // on the backend.
+    // // TODO: remove this check when backend supports it
+    // !isDmOrMultiDM
+    // ) {
+    // setSearchParams(
+    // {
+    // edit: lastMessageId,
+    // },
+    // { replace: true }
+    // );
+    // editor.commands.blur();
+    // return true;
+    // }
+    // return false;
+    // },
+    // [lastMessageId, setSearchParams, isEditing, isDmOrMultiDM]
+    // ),
   });
 
   useEffect(() => {
