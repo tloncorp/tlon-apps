@@ -179,17 +179,10 @@ export default function EditChannelForm({
 
   return (
     <FormProvider {...form}>
-      <div className="sm:w-96">
-        <header className="mb-3 flex flex-col">
-          <h2 className="text-lg font-bold leading-6">
-            {prettyChannelTypeName(app)} Channel Details
-          </h2>
-          <p className="text-sm leading-5 text-gray-600">
-            Edit the channel&apos;s details
-          </p>
-        </header>
-      </div>
-      <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className="flex w-full flex-col"
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
         <label className="mb-3 font-semibold">
           Channel Name*
           <input
