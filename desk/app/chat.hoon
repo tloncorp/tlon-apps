@@ -712,12 +712,15 @@
   ==
 ::
 ++  pass-hark
-  |=  =new-yarn:ha
+  |=  =cage
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
+++  pass-yarn
+  |=  =new-yarn:ha
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
+  (pass-hark cage)
 ::
 ++  make-notice
     |=  [=ship text=cord]
@@ -1232,7 +1235,7 @@
             ==
           ~
         =?  cor  (want-hark %to-us)
-          (emit (pass-hark new-yarn))
+          (emit (pass-yarn new-yarn))
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1263,7 +1266,7 @@
               ==
             ~
           =?  cor  (want-hark %to-us)
-            (emit (pass-hark new-yarn))
+            (emit (pass-yarn new-yarn))
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1306,6 +1309,15 @@
   ++  cu-remark-diff
     |=  diff=remark-diff:c
     ^+  cu-core
+    =?  cor  =(%read -.diff)
+      %-  emil
+      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
+      %+  murn
+        ~(tap by cable.carpet)
+      |=  [=rope:ha =thread:ha]
+      ?.  =(/club/(scot %uv id) ted.rope)  ~
+      =/  =cage  hark-action-1+!>([%saw-rope rope])
+      `(pass-hark cage)
     =.  remark.club
       ?-  -.diff
         %watch    remark.club(watching &)
@@ -1562,7 +1574,7 @@
           ==
         ~
       =?  cor  (want-hark %to-us)
-        (emit (pass-hark new-yarn))
+        (emit (pass-yarn new-yarn))
       (di-give-writs-diff diff)
     ::
         %reply
@@ -1592,7 +1604,7 @@
             ==
           ~
         =?  cor  (want-hark %to-us)
-          (emit (pass-hark new-yarn))
+          (emit (pass-yarn new-yarn))
         (di-give-writs-diff diff)
       ==
     ==
@@ -1761,6 +1773,15 @@
   ++  di-remark-diff
     |=  diff=remark-diff:c
     ^+  di-core
+    =?  cor  =(%read -.diff)
+      %-  emil
+      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
+      %+  murn
+        ~(tap by cable.carpet)
+      |=  [=rope:ha =thread:ha]
+      ?.  =(/dm/(scot %p ship) ted.rope)  ~
+      =/  =cage  hark-action-1+!>([%saw-rope rope])
+      `(pass-hark cage)
     =.  remark.dm
       ?-  -.diff
         %watch    remark.dm(watching &)
