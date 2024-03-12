@@ -1,9 +1,15 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Circle, Icon, UrbitSigil, View } from '@tloncorp/ui';
+import { Avatar, Circle, Icon, View } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 
 import { useShip } from '../contexts/ship';
-import { type Unread, type UnreadType, useQuery } from '../db';
+import {
+  type Contact,
+  type Unread,
+  type UnreadType,
+  useQuery,
+  useRealm,
+} from '../db';
 import type { TabParamList } from '../types';
 import { WebViewStack } from './WebViewStack';
 
@@ -11,7 +17,6 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
   const { ship } = useShip();
-  const shipIsPlanetOrLarger = ship && ship.length <= 14;
 
   const groupUnreads = useQuery<Unread[]>('Unread', (collection) => {
     return collection.filtered(
@@ -83,23 +88,25 @@ export const TabStack = () => {
         name="Profile"
         component={WebViewStack}
         options={{
-          tabBarIcon: ({ focused }) =>
-            ship && shipIsPlanetOrLarger ? (
-              <UrbitSigil ship={ship} />
-            ) : (
-              <TabIcon
-                type={'Profile'}
-                activeType={'Profile'}
-                isActive={focused}
-              />
-            ),
-
+          tabBarIcon: ({ focused }) => (
+            <AvatarTabIcon id={ship!} focused={focused} />
+          ),
           tabBarShowLabel: false,
         }}
       />
     </Tab.Navigator>
   );
 };
+
+function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
+  const realm = useRealm();
+  const contact = realm.objects<Contact>('Contact').filtered('id == $0', id)[0];
+  const avatarImage = (contact && contact.avatarImage) ?? '';
+
+  return (
+    <Avatar id={id} avatarImage={avatarImage} opacity={focused ? 1 : 0.6} />
+  );
+}
 
 function TabIcon({
   type,
@@ -114,27 +121,14 @@ function TabIcon({
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
   return (
-    <View
-      // borderWidth={1}
-      // borderColor="$orange"
-      flex={1}
-    >
+    <View flex={1}>
       <View flex={1} />
       <Icon
         type={resolvedType}
         color={isActive ? '$primaryText' : '$activeBorder'}
       />
-      <View
-        flex={1}
-        // borderWidth={1}
-        // borderColor="$green"
-        justifyContent="center"
-        alignItems="center"
-      >
-        <Circle
-          size={6} // TODO: why isn't config value working?
-          backgroundColor={hasUnreads ? '$color.blue' : undefined}
-        />
+      <View flex={1} justifyContent="center" alignItems="center">
+        <Circle size="$s" backgroundColor={hasUnreads ? '$blue' : undefined} />
       </View>
     </View>
   );
