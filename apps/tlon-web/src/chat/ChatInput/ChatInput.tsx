@@ -184,6 +184,13 @@ export default function ChatInput({
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
   const myLastMessage = useMyLastMessage(whom, replying);
   const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
+  const lastMessageIdRef = useRef(lastMessageId);
+
+  useEffect(() => {
+    if (lastMessageId && lastMessageId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = lastMessageId;
+    }
+  }, [lastMessageId]);
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -381,26 +388,29 @@ export default function ChatInput({
     ]
   );
 
-  const onUpArrow = useRef(({ editor }: HandlerParams) => {
-    if (
-      lastMessageId &&
-      !isEditing &&
-      !editor.isDestroyed &&
-      // don't allow editing of DM/Group DM messages until we support it
-      // on the backend.
-      !isDmOrMultiDM
-    ) {
-      setSearchParams(
-        {
-          edit: lastMessageId,
-        },
-        { replace: true }
-      );
-      editor.commands.blur();
-      return true;
-    }
-    return false;
-  });
+  const onUpArrow = useCallback(
+    ({ editor }: HandlerParams) => {
+      if (
+        lastMessageIdRef.current &&
+        !isEditing &&
+        !editor.isDestroyed &&
+        // don't allow editing of DM/Group DM messages until we support it
+        // on the backend.
+        !isDmOrMultiDM
+      ) {
+        setSearchParams(
+          {
+            edit: lastMessageIdRef.current,
+          },
+          { replace: true }
+        );
+        editor.commands.blur();
+        return true;
+      }
+      return false;
+    },
+    [isEditing, isDmOrMultiDM, setSearchParams]
+  );
 
   /**
    * !!! CAUTION !!!
@@ -423,7 +433,7 @@ export default function ChatInput({
       [onSubmit]
     ),
     onUpdate: onUpdate.current,
-    onUpArrow: onUpArrow.current,
+    onUpArrow,
   });
 
   useEffect(() => {
