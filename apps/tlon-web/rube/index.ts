@@ -88,10 +88,10 @@ const getUrbitBinaryUrlByPlatformAndArch = () => {
       switch (arch) {
         case 'x64':
           console.log('Downloading linux-x86_64');
-          return 'https://urbit.org/install/linux-x86_64/latest';
+          return 'https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz';
         case 'arm64':
           console.log('Downloading linux-aarch64');
-          return 'https://urbit.org/install/linux-aarch64/latest';
+          return 'https://github.com/urbit/vere/releases/latest/download/linux-aarch64.tgz';
         default:
           throw new Error(`unsupported arch ${arch}`);
       }
@@ -99,10 +99,10 @@ const getUrbitBinaryUrlByPlatformAndArch = () => {
       switch (arch) {
         case 'x64':
           console.log('Downloading macos-x86_64');
-          return 'https://urbit.org/install/macos-x86_64/latest';
+          return 'https://github.com/urbit/vere/releases/latest/download/macos-x86_64.tgz';
         case 'arm64':
           console.log('Downloading macos-aarch64');
-          return 'https://urbit.org/install/macos-aarch64/latest';
+          return 'https://github.com/urbit/vere/releases/latest/download/macos-aarch64.tgz';
         default:
           throw new Error(`unsupported arch ${arch}`);
       }
@@ -596,7 +596,7 @@ const runPlaywrightTests = async () => {
       const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
-        playwrightArgs.push('--debug');
+        playwrightArgs.push('--ui');
       }
 
       const testProcess = childProcess.spawn('npx', playwrightArgs, {

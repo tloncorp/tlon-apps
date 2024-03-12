@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
-import useShowTabBar from '@/logic/useShowTabBar';
+import { useBottomPadding } from '@/logic/position';
 import { usePinnedChats } from '@/state/pins';
 
 import MessagesList from './MessagesList';
@@ -14,8 +14,7 @@ import { MessagesScrollingContext } from './MessagesScrollingContext';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 export default function MobileMessagesSidebar() {
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
   const [isScrolling, setIsScrolling] = useState(false);
   const pinned = usePinnedChats(true);
 
@@ -27,7 +26,7 @@ export default function MobileMessagesSidebar() {
     <div
       className="flex h-full w-full flex-col"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
       data-testid="messages-menu"
     >

@@ -1,9 +1,11 @@
 /* eslint-disable react/no-unused-prop-types */
 // eslint-disable-next-line import/no-cycle
+import { Editor } from '@tiptap/core';
 import {
   Reply,
   Story,
   Unread,
+  constructStory,
   emptyReply,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
@@ -20,6 +22,8 @@ import React, {
   useState,
 } from 'react';
 import { useInView } from 'react-intersection-observer';
+import { useSearchParams } from 'react-router-dom';
+import { useEventListener } from 'usehooks-ts';
 
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import Author from '@/chat/ChatMessage/Author';
@@ -31,11 +35,16 @@ import {
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
+import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
+import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import { nestToFlag, useIsDmOrMultiDm } from '@/logic/utils';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 import {
+  useEditReplyMutation,
+  useIsEdited,
   useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
@@ -116,6 +125,9 @@ const ReplyMessage = React.memo<
       }: ReplyMessageProps,
       ref
     ) => {
+      const [searchParms, setSearchParams] = useSearchParams();
+      const isEditing = searchParms.get('edit') === reply.seal.id;
+      const isEdited = useIsEdited(reply);
       const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = seal['parent-id'] === seal.id;
@@ -129,6 +141,7 @@ const ReplyMessage = React.memo<
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
       const { mutate: markDmRead } = useMarkDmReadMutation();
+      const { mutate: editReply } = useEditReplyMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
       const isHidden = useMemo(
@@ -260,6 +273,59 @@ const ReplyMessage = React.memo<
         isThreadOp,
       ]);
 
+      const onSubmit = useCallback(
+        async (editor: Editor) => {
+          // const now = Date.now();
+          const editorJson = editor.getJSON();
+          const inlineContent = JSONToInlines(editorJson);
+          const content = constructStory(inlineContent);
+
+          if (content.length === 0) {
+            return;
+          }
+
+          editReply({
+            nest: `chat/${whom}`,
+            postId: seal['parent-id'],
+            replyId: seal.id,
+            memo: {
+              ...memo,
+              author: window.our,
+              content,
+            },
+          });
+
+          setSearchParams({}, { replace: true });
+        },
+        [editReply, whom, seal, memo, setSearchParams]
+      );
+
+      const messageEditor = useMessageEditor({
+        whom: seal.id,
+        content: diaryMixedToJSON(memo.content),
+        uploadKey: 'chat-editor-should-not-be-used-for-uploads',
+        allowMentions: true,
+        onEnter: useCallback(
+          ({ editor }) => {
+            onSubmit(editor);
+            return true;
+          },
+          [onSubmit]
+        ),
+      });
+
+      useEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isEditing) {
+          setSearchParams({}, { replace: true });
+        }
+      });
+
+      useEffect(() => {
+        if (messageEditor && !messageEditor.isDestroyed && isEditing) {
+          messageEditor.commands.focus('end');
+        }
+      }, [isEditing, messageEditor]);
+
       if (!reply) {
         return null;
       }
@@ -300,54 +366,101 @@ const ReplyMessage = React.memo<
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>
-            <div className="wrap-anywhere flex w-full">
+            <div
+              className={cn(
+                'wrap-anywhere flex w-full',
+                isEditing && 'bg-gray-50 rounded-2xl py-3 pl-12 pr-3'
+              )}
+            >
+              {isEditing && messageEditor && !messageEditor.isDestroyed ? (
+                <div className="flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 px-2 sm:group-one-hover:bg-gray-50">
+                  {messageEditor && !messageEditor.isDestroyed && (
+                    <MessageEditor
+                      editor={messageEditor}
+                      className="bg-gray-900/10"
+                      inputClassName="bg-gray-900/10"
+                    />
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Editing message</span>
+                    <button
+                      className="text-gray-600"
+                      onClick={() => setSearchParams({}, { replace: true })}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
+                    isReplyOp && 'bg-gray-50',
+                    isPending && 'text-gray-400',
+                    isLinked && 'bg-blue-softer'
+                  )}
+                >
+                  {isHidden ? (
+                    <ChatContent
+                      story={hiddenMessage}
+                      isScrolling={isScrolling}
+                      writId={seal.id}
+                    />
+                  ) : memo.content ? (
+                    <ChatContent
+                      story={memo.content}
+                      isScrolling={isScrolling}
+                      writId={seal.id}
+                    />
+                  ) : null}
+                  {seal.reacts && Object.keys(seal.reacts).length > 0 && (
+                    <>
+                      <ReplyReactions
+                        id="reactions-target"
+                        seal={seal}
+                        whom={whom}
+                        time={time.toString()}
+                      />
+                      <ReactionDetails
+                        open={reactionDetailsOpen}
+                        onOpenChange={setReactionDetailsOpen}
+                        reactions={seal.reacts}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
               <div
                 className={cn(
-                  'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
-                  isReplyOp && 'bg-gray-50',
-                  isPending && 'text-gray-400',
-                  isLinked && 'bg-blue-softer'
+                  'relative flex items-end rounded-r sm:group-one-hover:bg-gray-50',
+                  {
+                    'w-10': isEdited && isDelivered,
+                    'w-5': !isEdited,
+                  }
                 )}
               >
-                {isHidden ? (
-                  <ChatContent
-                    story={hiddenMessage}
-                    isScrolling={isScrolling}
-                    writId={seal.id}
-                  />
-                ) : memo.content ? (
-                  <ChatContent
-                    story={memo.content}
-                    isScrolling={isScrolling}
-                    writId={seal.id}
-                  />
-                ) : null}
-                {seal.reacts && Object.keys(seal.reacts).length > 0 && (
-                  <>
-                    <ReplyReactions
-                      id="reactions-target"
-                      seal={seal}
-                      whom={whom}
-                      time={time.toString()}
-                    />
-                    <ReactionDetails
-                      open={reactionDetailsOpen}
-                      onOpenChange={setReactionDetailsOpen}
-                      reactions={seal.reacts}
-                    />
-                  </>
-                )}
-              </div>
-              <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {!isDelivered && (
+                {!isDelivered && !isEditing && (
                   <DoubleCaretRightIcon
                     className="absolute bottom-2 left-0 h-5 w-5"
                     primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
                 )}
+                {isEdited && !isEditing && (
+                  <span className="text-xs text-gray-400">Edited</span>
+                )}
               </div>
             </div>
+            {isEditing && messageEditor && messageEditor.getText() !== '' && (
+              <div className="flex flex-col justify-end ml-2.5">
+                <button
+                  onClick={() => onSubmit(messageEditor)}
+                  className="h-8 w-8 bg-blue rounded-full flex items-center justify-center text-white"
+                >
+                  <CheckIcon className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );

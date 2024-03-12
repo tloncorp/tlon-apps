@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
-import { AppUpdateContext } from '@/logic/useAppUpdates';
+import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
@@ -227,6 +227,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 function UpdateTab() {
   const isMobile = useIsMobile();
   const location = useLocation();
+  const { triggerUpdate } = useAppUpdates();
 
   if (isMobile) {
     return (
@@ -248,16 +249,15 @@ function UpdateTab() {
   }
 
   return (
-    <Link
+    <button
       className="relative m-auto flex h-10 w-10 items-center justify-center rounded-lg"
-      to="/update-needed"
-      state={{ backgroundLocation: location }}
+      onClick={() => triggerUpdate(true)}
       aria-label="Update Needed"
     >
       <div className="flex h-[40px] w-[40px] items-center justify-center rounded-md bg-yellow">
         <Asterisk16Icon className="h-6 w-6 text-black dark:text-white" />
       </div>
-    </Link>
+    </button>
   );
 }
 
@@ -418,10 +418,12 @@ export default function AppNav() {
         <footer
           data-testid="app-nav"
           className={cn(
-            'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white fixed bottom-0 w-full',
-            isChatInputFocused && 'translate-y-[200%] opacity-0 h-0',
-            !isNativeApp() && 'pb-1'
+            'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white fixed w-full bottom-0',
+            isChatInputFocused && 'translate-y-[200%] opacity-0 h-0'
           )}
+          style={{
+            paddingBottom: isNativeApp() ? safeAreaInsets.bottom : 0,
+          }}
         >
           <nav>
             <ul className="flex h-12">

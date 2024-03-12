@@ -9,7 +9,7 @@ import { BuildOptions, defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 import packageJson from './package.json';
-import manifest from './src/assets/manifest';
+import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -136,9 +136,9 @@ export default ({ mode }: { mode: string }) => {
             proxy.on('proxyReq', (proxyReq) => {
               proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
             });
-          }
-        }
-      }
+          },
+        },
+      },
     },
     build:
       mode !== 'profile'

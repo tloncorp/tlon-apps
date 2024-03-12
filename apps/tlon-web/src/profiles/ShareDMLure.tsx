@@ -6,14 +6,12 @@ import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
 import { getDmLink } from '@/logic/branch';
+import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
-import useShowTabBar from '@/logic/useShowTabBar';
 
 export default function ShareDMLure({ title }: ViewProps) {
   const isMobile = useIsMobile();
-
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
 
   const [dmLink, setDmLink] = useState('');
 
@@ -41,7 +39,7 @@ export default function ShareDMLure({ title }: ViewProps) {
       <div
         className="flex flex-col space-y-4 px-4 pt-4"
         style={{
-          paddingBottom: shouldApplyPaddingBottom ? 64 : 0,
+          paddingBottom,
         }}
       >
         {!isMobile && (

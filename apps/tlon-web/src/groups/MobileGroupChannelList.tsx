@@ -6,6 +6,7 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import GroupAvatar from '@/groups/GroupAvatar';
 import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
+import { useBottomPadding } from '@/logic/position';
 import { useTextColor } from '@/logic/useTextColor';
 import { isColor } from '@/logic/utils';
 import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups';
@@ -22,6 +23,7 @@ export default function MobileGroupChannelList() {
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
   const textColor = useTextColor(group?.meta.cover || '');
+  const { paddingBottom } = useBottomPadding();
 
   const bgStyle = () => {
     if (
@@ -85,7 +87,12 @@ export default function MobileGroupChannelList() {
         pathBack="/"
         // TODO: here is where we will wire up the back button once the native groups list is ready
       />
-      <div className="relative z-10 mt-2 h-full rounded-t-3xl bg-white pb-4 drop-shadow-[0_-2px_4px_rgba(0,0,0,0.125)]">
+      <div
+        className="relative z-10 mt-2 h-full rounded-t-3xl bg-white pb-4 drop-shadow-[0_-2px_4px_rgba(0,0,0,0.125)]"
+        style={{
+          paddingBottom,
+        }}
+      >
         <ChannelList paddingTop={6} />
       </div>
       <div

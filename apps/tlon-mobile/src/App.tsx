@@ -42,6 +42,7 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync, trackError } from './utils/posthog';
+import { getPathFromWer } from './utils/string';
 
 type Props = {
   wer?: string;
@@ -58,7 +59,7 @@ const App = ({ wer: initialWer }: Props) => {
   const { wer, lure, priorityToken, clearDeepLink } = useDeepLink();
   const navigation = useNavigation();
   const screenOptions = useScreenOptions();
-  const gotoPath = wer ?? initialWer;
+  const gotoPath = initialWer ? getPathFromWer(initialWer) : wer;
 
   useEffect(() => {
     if (isAuthenticated) {

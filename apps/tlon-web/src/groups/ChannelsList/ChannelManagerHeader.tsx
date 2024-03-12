@@ -48,6 +48,7 @@ export default function ChannelManagerHeader({
               'bg-blue-soft text-center text-blue',
               isMobile ? 'small-button' : 'button'
             )}
+            data-testid="new-channel-button"
           >
             New Channel
           </Link>

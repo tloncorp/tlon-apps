@@ -4,8 +4,8 @@ import {
   Cite,
   Memo,
   Nest,
-  PageTuple,
   PostEssay,
+  PostTuple,
   ReplyTuple,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
@@ -44,6 +44,7 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import messageSender from '@/logic/messageSender';
 import { inlinesToJSON, makeMention } from '@/logic/tiptap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   IMAGE_REGEX,
@@ -52,9 +53,10 @@ import {
   VIDEO_REGEX,
   createStorageKey,
   pathToCite,
+  useIsDmOrMultiDm,
   useThreadParentId,
 } from '@/logic/utils';
-import { CacheId } from '@/state/channel/channel';
+import { CacheId, useMyLastMessage } from '@/state/channel/channel';
 import {
   SendMessageVariables,
   SendReplyVariables,
@@ -93,7 +95,7 @@ interface ChatInputProps {
     cacheId: CacheId;
   }) => void;
   dropZoneId: string;
-  replyingWrit?: PageTuple | WritTuple | ReplyTuple;
+  replyingWrit?: PostTuple | WritTuple | ReplyTuple;
   isScrolling: boolean;
 }
 
@@ -157,7 +159,8 @@ export default function ChatInput({
   );
   const threadParentId = useThreadParentId(whom);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
+  const isEditing = useIsEditingMessage();
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -178,6 +181,16 @@ export default function ChatInput({
   const shipIsBlocked = useIsShipBlocked(whom);
   const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
+  const isDmOrMultiDM = useIsDmOrMultiDm(whom);
+  const myLastMessage = useMyLastMessage(whom, replying);
+  const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
+  const lastMessageIdRef = useRef(lastMessageId);
+
+  useEffect(() => {
+    if (lastMessageId && lastMessageId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = lastMessageId;
+    }
+  }, [lastMessageId]);
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -375,6 +388,30 @@ export default function ChatInput({
     ]
   );
 
+  const onUpArrow = useCallback(
+    ({ editor }: HandlerParams) => {
+      if (
+        lastMessageIdRef.current &&
+        !isEditing &&
+        !editor.isDestroyed &&
+        // don't allow editing of DM/Group DM messages until we support it
+        // on the backend.
+        !isDmOrMultiDM
+      ) {
+        setSearchParams(
+          {
+            edit: lastMessageIdRef.current,
+          },
+          { replace: true }
+        );
+        editor.commands.blur();
+        return true;
+      }
+      return false;
+    },
+    [isEditing, isDmOrMultiDM, setSearchParams]
+  );
+
   /**
    * !!! CAUTION !!!
    *
@@ -396,6 +433,7 @@ export default function ChatInput({
       [onSubmit]
     ),
     onUpdate: onUpdate.current,
+    onUpArrow,
   });
 
   useEffect(() => {
@@ -403,15 +441,16 @@ export default function ChatInput({
       (autoFocus || replyCite) &&
       !isMobile &&
       messageEditor &&
-      !messageEditor.isDestroyed
+      !messageEditor.isDestroyed &&
+      !isEditing
     ) {
       // end brings the cursor to the end of the content
       messageEditor?.commands.focus('end');
     }
-  }, [autoFocus, replyCite, isMobile, messageEditor]);
+  }, [autoFocus, replyCite, isMobile, messageEditor, isEditing]);
 
   useEffect(() => {
-    if (messageEditor && !messageEditor.isDestroyed) {
+    if (messageEditor && !messageEditor.isDestroyed && !isEditing) {
       messageEditor?.commands.setContent(draft);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -547,6 +586,10 @@ export default function ChatInput({
     },
     [id, uploader]
   );
+
+  if (isEditing && isMobile) {
+    return null;
+  }
 
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);

@@ -1,4 +1,4 @@
-import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Action,
   Channel,
@@ -14,14 +14,15 @@ import {
   HiddenPosts,
   Memo,
   Nest,
-  PageTuple,
   PagedPosts,
   Perm,
   Post,
   PostAction,
   PostDataResponse,
   PostEssay,
+  PostTuple,
   Posts,
+  Replies,
   Reply,
   ReplyMeta,
   ReplyTuple,
@@ -31,12 +32,18 @@ import {
   UnreadUpdate,
   Unreads,
   newChatMap,
+  newPostTupleArray,
 } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  PagedWrits,
+  Writ,
+  newWritTupleArray,
+} from '@tloncorp/shared/dist/urbit/dms';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
 import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
-import _ from 'lodash';
+import _, { last } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import create from 'zustand';
 
@@ -56,10 +63,13 @@ import {
   log,
   nestToFlag,
   stringToTa,
+  useIsDmOrMultiDm,
   whomIsFlag,
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+// eslint-disable-next-line import/no-cycle
+import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 
@@ -212,7 +222,7 @@ export function usePostsOnHost(
   const { data } = useReactQueryScry({
     queryKey: [han, 'posts', 'live', flag],
     app: 'channels',
-    path: `/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/v1/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -595,13 +605,13 @@ export const infinitePostQueryFn =
     if (pageParam) {
       const { time, direction } = pageParam;
       const ud = decToUd(time);
-      path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
+      path = `/v1/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
     } else if (initialTime) {
-      path = `/${nest}/posts/around/${decToUd(initialTime)}/${
+      path = `/v1/${nest}/posts/around/${decToUd(initialTime)}/${
         POST_PAGE_SIZE / 2
       }/outline`;
     } else {
-      path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
+      path = `/v1/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
     }
 
     const response = await api.scry<PagedPosts>({
@@ -650,32 +660,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     retry: false,
   });
 
-  // we stringify the data here so that we can use it in useMemo's dependency array.
-  // this is because the data object is a reference and react will not
-  // do a deep comparison on it.
-  const stringifiedData = data ? JSON.stringify(data) : JSON.stringify({});
-
-  const posts: PageTuple[] = useMemo(() => {
-    if (data === undefined || data.pages.length === 0) {
-      return [];
-    }
-
-    return _.uniqBy(
-      data.pages
-        .map((page) => {
-          const pagePosts = Object.entries(page.posts).map(
-            ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
-          );
-
-          return pagePosts;
-        })
-        .flat(),
-      ([k]) => k.toString()
-    ).sort(([a], [b]) => a.compare(b));
-    // we disable exhaustive deps here because we add stringifiedData
-    // to the dependency array to force a re-render when the data changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stringifiedData, data]);
+  const posts = newPostTupleArray(data);
 
   return {
     data,
@@ -714,7 +699,7 @@ export async function prefetchPostWithComments({
   const [han] = nestToFlag(nest);
   const data = (await api.scry({
     app: 'channels',
-    path: `/${nest}/posts/post/${ud}`,
+    path: `/v1/${nest}/posts/post/${ud}`,
   })) as Post;
   if (data) {
     queryClient.setQueryData([han, nest, 'posts', time, 'withComments'], data);
@@ -967,7 +952,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
   );
 
   const scryPath = useMemo(
-    () => `/${nest}/posts/post/${decToUd(postId)}`,
+    () => `/v1/${nest}/posts/post/${decToUd(postId)}`,
     [nest, postId]
   );
 
@@ -1971,6 +1956,70 @@ export function useAddReplyMutation() {
   });
 }
 
+export function useEditReplyMutation() {
+  const mutationFn = async (variables: {
+    nest: Nest;
+    postId: string;
+    replyId: string;
+    memo: Memo;
+  }) => {
+    checkNest(variables.nest);
+
+    const replying = decToUd(variables.postId);
+    const action: Action = {
+      post: {
+        reply: {
+          id: replying,
+          action: {
+            edit: {
+              id: decToUd(variables.replyId),
+              memo: variables.memo,
+            },
+          },
+        },
+      },
+    };
+
+    await api.poke(channelAction(variables.nest, action));
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      const updater = (prevPost: PostDataResponse | undefined) => {
+        if (prevPost === undefined) {
+          return prevPost;
+        }
+
+        const replyId = decToUd(variables.replyId);
+
+        const prevReplies = prevPost.seal.replies;
+        const newReplies = { ...prevReplies };
+        newReplies[replyId] = {
+          seal: {
+            id: variables.replyId,
+            'parent-id': variables.postId,
+            reacts: {},
+          },
+          memo: variables.memo,
+        };
+
+        const updatedPost: PostDataResponse = {
+          ...prevPost,
+          seal: {
+            ...prevPost.seal,
+            replies: newReplies,
+          },
+        };
+
+        return updatedPost;
+      };
+
+      await updatePostInCache(variables, updater);
+    },
+  });
+}
+
 export function useDeleteReplyMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
@@ -2483,7 +2532,7 @@ export function useChannelSearch(nest: string, query: string) {
           )
           .map((scItem: ChannelScanItem) =>
             'post' in scItem
-              ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
+              ? ([bigInt(scItem.post.seal.id), scItem.post] as PostTuple)
               : ([
                   bigInt(scItem.reply.reply.seal.id),
                   scItem.reply.reply,
@@ -2577,4 +2626,111 @@ export function usePostToggler(postId: string) {
     hide,
     isHidden,
   };
+}
+
+export function useMyLastMessage(
+  whom: string,
+  postId?: string
+): Post | Writ | Reply | null {
+  const isDmOrMultiDm = useIsDmOrMultiDm(whom);
+  let nest = '';
+
+  if (whom === '') {
+    return null;
+  }
+
+  if (!isDmOrMultiDm) {
+    nest = `chat/${whom}`;
+  }
+
+  const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
+    if (!pages || pages.length === 0) {
+      return null;
+    }
+
+    if ('writs' in pages[0]) {
+      // @ts-expect-error we already have a type guard
+      const writs = newWritTupleArray({ pages });
+      const myWrits = writs.filter(
+        ([_id, msg]) => msg?.essay.author === window.our
+      );
+      const lastWrit = last(myWrits);
+      if (!lastWrit) {
+        return null;
+      }
+
+      return lastWrit[1];
+    }
+
+    if ('posts' in pages[0]) {
+      // @ts-expect-error we already have a type guard
+      const posts = newPostTupleArray({ pages });
+      const myPosts = posts.filter(
+        ([_id, msg]) => msg?.essay.author === window.our
+      );
+      const lastPost = last(myPosts);
+      if (!lastPost) {
+        return null;
+      }
+
+      return lastPost[1];
+    }
+    return null;
+  };
+
+  const lastReply = (replies: Replies) => {
+    const myReplies = Object.entries(replies).filter(
+      ([_id, msg]) => msg?.memo.author === window.our
+    );
+
+    const lastReplyMessage = last(myReplies);
+    if (!lastReplyMessage) {
+      return null;
+    }
+
+    return lastReplyMessage[1];
+  };
+
+  if (!isDmOrMultiDm) {
+    if (postId) {
+      const data = queryClient.getQueryData<PostDataResponse>(
+        postKey(nest, postId)
+      );
+      if (data && 'seal' in data) {
+        const { seal } = data;
+        return lastReply(seal.replies);
+      }
+    }
+
+    const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
+      infinitePostsKey(nest)
+    );
+    if (data) {
+      const { pages } = data;
+      return lastMessage(pages);
+    }
+
+    return null;
+  }
+
+  const data = queryClient.getQueryData<{ pages: PagedWrits[] }>(
+    ChatQueryKeys.infiniteDmsKey(whom)
+  );
+
+  if (data) {
+    const { pages } = data;
+
+    return lastMessage(pages);
+  }
+
+  return null;
+}
+
+export function useIsEdited(message: Post | Writ | Reply) {
+  const isEdited = useMemo(
+    () => 'revision' in message && message.revision !== '0',
+    [message]
+  );
+
+  return isEdited;
 }

@@ -13,8 +13,8 @@ import WelcomeCard from '@/components/WelcomeCard';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import AddGroupSheet from '@/groups/AddGroupSheet';
 import GroupJoinList from '@/groups/GroupJoinList';
+import { useBottomPadding } from '@/logic/position';
 import useGroupSort from '@/logic/useGroupSort';
-import useShowTabBar from '@/logic/useShowTabBar';
 import {
   useGangsWithClaim,
   useGroupsWithQuery,
@@ -25,8 +25,7 @@ import {
 } from '@/state/groups';
 
 export default function MobileRoot() {
-  const showTabBar = useShowTabBar();
-  const shouldApplyPaddingBottom = showTabBar;
+  const { paddingBottom } = useBottomPadding();
   const [isScrolling, setIsScrolling] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const scroll = useRef(
@@ -74,7 +73,7 @@ export default function MobileRoot() {
     <Layout
       className="flex-1 bg-white"
       style={{
-        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        paddingBottom,
       }}
       header={
         <MobileHeader
