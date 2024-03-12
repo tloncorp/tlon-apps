@@ -206,8 +206,8 @@
 ::  $scan: search results
 +$  scan  (list reference)
 +$  reference
-  $%  [%post =post]
-      [%reply =id-post =reply]
+  $%  [%post post=simple-post]
+      [%reply =id-post reply=simple-reply]
   ==
 ::  $said: used for references
 +$  said  (pair nest reference)
@@ -426,6 +426,24 @@
   $%  [%set reply=(unit reply)]
       [%reacts =reacts]
   ==
+::
++$  r-channels-simple-post  [=nest =r-channel-simple-post]
++$  r-channel-simple-post
+  $%  $<(?(%posts %post) r-channel)
+      [%posts posts=simple-posts]
+      [%post id=id-post r-post=r-simple-post]
+  ==
+::
++$  r-simple-post
+  $%  $<(?(%set %reply) r-post)
+      [%set post=(unit simple-post)]
+      [%reply id=id-reply =reply-meta r-reply=r-simple-reply]
+  ==
+::
++$  r-simple-reply
+  $%  $<(%set r-reply)
+      [%set reply=(unit simple-reply)]
+  ==
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::
@@ -451,18 +469,36 @@
       older=(unit time)
       total=@ud
   ==
++$  paged-simple-posts
+  $:  posts=simple-posts
+      newer=(unit time)
+      older=(unit time)
+      total=@ud
+  ==
 +$  posts  ((mop id-post (unit post)) lte)
-+$  post   [seal essay]
++$  simple-posts  ((mop id-post (unit simple-post)) lte)
++$  post   [seal [rev=@ud essay]]
++$  simple-post  [simple-seal essay]
 +$  seal
   $:  id=id-post
       =reacts
       =replies
       =reply-meta
   ==
++$  simple-seal
+  $:  id=id-post
+      =reacts
+      replies=simple-replies
+      =reply-meta
+  ==
 +$  reacts      (map ship react)
-+$  reply       [reply-seal memo]
++$  reply       [reply-seal [rev=@ud memo]]
++$  simple-reply  [reply-seal memo]
 +$  replies     ((mop id-reply reply) lte)
++$  simple-replies     ((mop id-reply simple-reply) lte)
 +$  reply-seal  [id=id-reply parent-id=id-post =reacts]
 ++  on-posts    ((on id-post (unit post)) lte)
+++  on-simple-posts    ((on id-post (unit simple-post)) lte)
 ++  on-replies  ((on id-reply reply) lte)
+++  on-simple-replies  ((on id-reply simple-reply) lte)
 --
