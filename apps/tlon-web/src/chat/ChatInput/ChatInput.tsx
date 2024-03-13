@@ -394,6 +394,7 @@ export default function ChatInput({
         lastMessageIdRef.current &&
         !isEditing &&
         !editor.isDestroyed &&
+        editor.isEmpty &&
         // don't allow editing of DM/Group DM messages until we support it
         // on the backend.
         !isDmOrMultiDM
