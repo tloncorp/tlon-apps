@@ -16,7 +16,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { DEV_LOCAL, DEV_LOCAL_CODE } from './constants';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useDeepLink } from './hooks/useDeepLink';
@@ -24,7 +23,6 @@ import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
 import { syncContacts } from './lib/sync';
-import { useDevTools } from './lib/useDevTools';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -51,7 +49,6 @@ type Props = {
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 const App = ({ wer: initialWer }: Props) => {
-  useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated, ship } = useShip();
