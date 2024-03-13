@@ -1,7 +1,7 @@
 {
   "~zod": {
     "authFile": "e2e/.auth/zod.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-zod6.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-zod7.tgz",
     "url": "http://localhost:35453",
     "ship": "zod",
     "code": "lidlut-tabwed-pillex-ridrup",
@@ -11,7 +11,7 @@
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-bus6.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-bus7.tgz",
     "url": "http://localhost:36963",
     "ship": "bus",
     "code": "riddec-bicrym-ridlev-pocsef",
@@ -21,7 +21,7 @@
   },
   "~habduc-patbud": {
     "authFile": "e2e/.auth/habduc-patbud.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-habduc-patbud6.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-habduc-patbud7.tgz",
     "url": "http://localhost:35553",
     "ship": "habduc-patbud",
     "code": "bisrym-lomwep-binbyr-tidwed",
@@ -31,7 +31,7 @@
   },
   "~naldeg-mardev": {
     "authFile": "e2e/.auth/naldeg-mardev.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-naldeg-mardev6.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-naldeg-mardev7.tgz",
     "url": "http://localhost:36663",
     "ship": "naldeg-mardev",
     "code": "hadbyn-savfel-lanlur-ronped",
