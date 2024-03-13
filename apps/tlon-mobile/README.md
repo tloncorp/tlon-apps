@@ -82,6 +82,25 @@ npm run ios -- --scheme=Landscape-preview
 npm run android -- --variant=preview
 ```
 
+## Debugging
+
+### Dev tools
+
+Press `j` while running expo-cli/metro to open chrome devtools. You can use the devtools to view logs, network requests, and more. [More info here](https://docs.expo.dev/debugging/tools/#debugging-with-chrome-devtools).
+
+### Default Credentials
+
+To streamline testing the login flow, you can use env variables to prepopulate fields in the Tlon Login and ship login screen. The relevant variables are:
+
+```
+DEFAULT_TLON_LOGIN_EMAIL=
+DEFAULT_TLON_LOGIN_PASSWORD=
+DEFAULT_SHIP_LOGIN_URL=
+DEFAULT_SHIP_LOGIN_ACCESS_CODE=
+```
+
+See `.env.sample` for other configurable env variables.
+
 ## Deployment
 
 Deployment is handled by [Expo Application Services](https://expo.dev/eas).

@@ -27,6 +27,8 @@ export const SHIP_URL_PATTERN =
   extra.shipUrlPattern ?? 'https://{shipId}.tlon.network';
 export const DEFAULT_LURE = extra.defaultLure ?? '~nibset-napwyn/tlon';
 export const DEFAULT_PRIORITY_TOKEN = extra.defaultPriorityToken ?? 'mobile';
-
-export const DEV_LOCAL = extra.devLocal ? Boolean(extra.devLocal) : false;
-export const DEV_LOCAL_CODE = extra.devLocalCode ?? '';
+export const DEFAULT_TLON_LOGIN_EMAIL = extra.defaultTlonLoginEmail ?? '';
+export const DEFAULT_TLON_LOGIN_PASSWORD = extra.defaultTlonLoginPassword ?? '';
+export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
+export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
+  extra.defaultShipLoginAccessCode ?? '';

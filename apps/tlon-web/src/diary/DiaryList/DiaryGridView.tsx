@@ -1,4 +1,4 @@
-import { PageTuple, Post } from '@tloncorp/shared/dist/urbit/channel';
+import { Post, PostTuple } from '@tloncorp/shared/dist/urbit/channel';
 import {
   RenderComponentProps,
   useInfiniteLoader,
@@ -12,11 +12,11 @@ import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
 import { useIsMobile } from '@/logic/useMedia';
 
 interface DiaryGridProps {
-  outlines: PageTuple[];
+  outlines: PostTuple[];
   loadOlderNotes: (atBottom: boolean) => void;
 }
 
-const masonryItem = ({ data }: RenderComponentProps<PageTuple>) => (
+const masonryItem = ({ data }: RenderComponentProps<PostTuple>) => (
   <DiaryGridItem time={data[0]} note={data[1]!} />
 );
 

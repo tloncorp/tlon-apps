@@ -1,5 +1,5 @@
 import * as Toast from '@radix-ui/react-toast';
-import { PageTuple, Post } from '@tloncorp/shared/dist/urbit/channel';
+import { Post, PostTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import bigInt from 'big-integer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -113,7 +113,7 @@ function HeapChannel({ title }: ViewProps) {
     [hasNextPage, fetchNextPage]
   );
 
-  const computeItemKey = (_i: number, [time, _curio]: PageTuple) =>
+  const computeItemKey = (_i: number, [time, _curio]: PostTuple) =>
     time.toString();
 
   const thresholds = {
