@@ -6,8 +6,6 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
-import type { Subscription } from 'expo-notifications';
-import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
 import { StatusBar, Text, View } from 'react-native';
@@ -58,22 +56,9 @@ const App = ({ wer }: Props) => {
   const screenOptions = useScreenOptions();
 
   useEffect(() => {
-    let notificationTapListener: Subscription | undefined;
     if (isAuthenticated) {
-      // Start notification tap listener
-      // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
-      notificationTapListener = addNotificationResponseReceivedListener(
-        handleNotificationResponse
-      );
-
-      connectNotifications();
       syncContacts();
     }
-
-    return () => {
-      // Clean up listeners
-      notificationTapListener?.remove();
-    };
   }, [isAuthenticated]);
 
   useEffect(() => {
