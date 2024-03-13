@@ -194,7 +194,7 @@
     "@typescript-eslint/eslint-plugin": "^5.19.0",
     "@typescript-eslint/parser": "^5.19.0",
     "@urbit/eslint-config": "^1.0.3",
-    "@urbit/vite-plugin-urbit": "^0.8.0",
+    "@urbit/vite-plugin-urbit": "^2.0.0",
     "@vitejs/plugin-basic-ssl": "^1.0.1",
     "@vitejs/plugin-react": "^4.0.3",
     "@welldone-software/why-did-you-render": "^7.0.1",
@@ -230,9 +230,10 @@
     "tar-fs": "^3.0.4",
     "tsc-files": "^1.1.3",
     "typescript": "^4.6.3",
-    "vite": "^4.4.3",
-    "vite-plugin-pwa": "^0.14.4",
-    "vitest": "^0.34.1"
+    "vite": "^5.1.6",
+    "vite-plugin-pwa": "^0.17.5",
+    "vitest": "^0.34.1",
+    "workbox-window": "^7.0.0"
   },
   "msw": {
     "workerDirectory": "./public"
