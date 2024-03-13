@@ -14,7 +14,7 @@
     "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./apps/tlon-web\"",
     "test": "npm run test --workspaces --if-present -- run -u",
     "prepare": "husky",
-    "postinstall": "npx patch-package && npm run build:shared"
+    "postinstall": "npx patch-package"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

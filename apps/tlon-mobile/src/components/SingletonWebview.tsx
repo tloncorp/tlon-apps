@@ -1,13 +1,10 @@
-import { useFocusEffect } from '@react-navigation/native';
-// import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   type MobileNavTab,
   type NativeWebViewOptions,
   type WebAppAction,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
-import { addNotificationResponseReceivedListener } from 'expo-notifications';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { URL } from 'react-native-url-polyfill';
@@ -19,14 +16,8 @@ import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
-import { markChatRead } from '../lib/chatApi';
-import { getHostingUser } from '../lib/hostingApi';
-// import { connectNotifications } from '../lib/notifications';
-import {
-  getHostingUserId,
-  removeHostingToken,
-  removeHostingUserId,
-} from '../utils/hosting';
+import { isUsingTlonAuth } from '../lib/hostingApi';
+import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
 type WebAppCommand = {
@@ -46,8 +37,6 @@ export const SingletonWebview = () => {
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
-  const didManageAccount = useRef(false);
-  const [appLoaded, setAppLoaded] = useState(false);
   const webviewContext = useWebViewContext();
 
   const handleLogout = useCallback(() => {
@@ -84,7 +73,7 @@ export const SingletonWebview = () => {
         );
         break;
       case 'activeTabChange':
-        webviewContext.setGotoTab(value as MobileNavTab);
+        webviewContext.setNewWebappTab(value as MobileNavTab);
         break;
       case 'saveLastPath': {
         if (!value || typeof value !== 'object' || !value.tab || !value.path) {
@@ -99,80 +88,17 @@ export const SingletonWebview = () => {
         }
         break;
       }
-      // TODO: handle manage account
       case 'manageAccount':
-        webviewContext.setDidManageAccount(true);
+        webviewContext.setManageAccountState('triggered');
         break;
       case 'appLoaded':
         // Slight delay otherwise white background flashes
         setTimeout(() => {
-          setAppLoaded(true);
+          webviewContext.setAppLoaded(true);
         }, 100);
         break;
     }
   };
-
-  useEffect(() => {
-    // Start notification tap listener
-    // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
-    const notificationTapListener = addNotificationResponseReceivedListener(
-      (response) => {
-        const {
-          actionIdentifier,
-          userText,
-          notification: {
-            request: {
-              content: { data },
-            },
-          },
-        } = response;
-        if (actionIdentifier === 'markAsRead' && data.channelId) {
-          markChatRead(data.channelId);
-        } else if (actionIdentifier === 'reply' && userText) {
-          // Send reply
-        } else if (data.wer) {
-          // TODO: handle wer
-          // setUri((curr) => ({
-          //   ...curr,
-          //   uri: createUri(shipUrl, data.wer),
-          //   key: curr.key + 1,
-          // }));
-        }
-      }
-    );
-
-    // connectNotifications();
-
-    return () => {
-      // Clean up listeners
-      notificationTapListener.remove();
-    };
-  }, [shipUrl]);
-
-  // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
-  useFocusEffect(
-    useCallback(() => {
-      if (!didManageAccount.current) {
-        return;
-      }
-
-      (async () => {
-        const hostingUserId = await getHostingUserId();
-        if (hostingUserId) {
-          try {
-            const user = await getHostingUser(hostingUserId);
-            if (user.verified) {
-              didManageAccount.current = false;
-            } else {
-              handleLogout();
-            }
-          } catch (err) {
-            handleLogout();
-          }
-        }
-      })();
-    }, [handleLogout])
-  );
 
   useEffect(() => {
     // Path was changed by the parent view
@@ -192,6 +118,7 @@ export const SingletonWebview = () => {
   const nativeOptions: NativeWebViewOptions = {
     colorScheme,
     hideTabBar: true,
+    isUsingTlonAuth: isUsingTlonAuth(),
     safeAreaInsets,
   };
 
@@ -202,7 +129,7 @@ export const SingletonWebview = () => {
       ref={webviewRef}
       source={{ uri: createUri(shipUrl, '/') }}
       style={
-        appLoaded
+        webviewContext.appLoaded
           ? tailwind('bg-transparent')
           : { flex: 0, height: 0, opacity: 0 }
       }
@@ -219,7 +146,7 @@ export const SingletonWebview = () => {
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
-        setTimeout(() => setAppLoaded(true), 10_000);
+        setTimeout(() => webviewContext.setAppLoaded(true), 10_000);
       }}
       onShouldStartLoadWithRequest={({ url }) => {
         const parsedUrl = new URL(url);
