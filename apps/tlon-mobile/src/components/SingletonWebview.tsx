@@ -11,7 +11,7 @@ import { URL } from 'react-native-url-polyfill';
 import { WebView } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
-import { DEV_LOCAL } from '../constants';
+import { DEFAULT_SHIP_LOGIN_URL, DEFAULT_TLON_LOGIN_EMAIL } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
@@ -139,7 +139,8 @@ export const SingletonWebview = () => {
         window.colorscheme="${nativeOptions.colorScheme}";
         window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
         ${
-          DEV_LOCAL
+          // in development, explicitly set Urbit runtime configured window vars
+          DEFAULT_SHIP_LOGIN_URL || DEFAULT_TLON_LOGIN_EMAIL
             ? ` window.our="${ship}"; window.ship="${ship?.slice(1)}"; `
             : ''
         }

@@ -15,14 +15,12 @@ import { useTailwind } from 'tailwind-rn';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { DEV_LOCAL, DEV_LOCAL_CODE } from './constants';
 import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { syncContacts } from './lib/sync';
-import { useDevTools } from './lib/useDevTools';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -50,7 +48,6 @@ const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 // on Android if a notification click causes the app to open, the corresponding notification
 // path is passed in here as "wer"
 const App = ({ wer }: Props) => {
-  useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated } = useShip();
