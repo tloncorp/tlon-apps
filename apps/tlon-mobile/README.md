@@ -70,6 +70,12 @@ Plug in your iOS device or start the iPhone Simulator and run the application in
 npm run ios
 ```
 
+## Debugging
+
+### Dev tools
+
+Press `j` while running expo-cli/metro to open chrome devtools. You can use the devtools to view logs, network requests, and more. [More info here](https://docs.expo.dev/debugging/tools/#debugging-with-chrome-devtools).
+
 ## Deployment
 
 Deployment is handled by [Expo Application Services](https://expo.dev/eas).
