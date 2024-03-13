@@ -864,7 +864,7 @@ export function useChannelsFirehose() {
   useEffect(() => {
     api.subscribe({
       app: 'channels',
-      path: '/',
+      path: '/v1',
       event: eventHandler,
     });
   }, [eventHandler]);
@@ -956,7 +956,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     [nest, postId]
   );
 
-  const subPath = useMemo(() => `/${nest}`, [nest]);
+  const subPath = useMemo(() => `/v1/${nest}`, [nest]);
 
   const enabled = useMemo(
     () => postId !== '0' && postId !== '' && nest !== '' && !disabled,
