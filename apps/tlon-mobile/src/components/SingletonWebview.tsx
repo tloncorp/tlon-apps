@@ -2,6 +2,7 @@ import {
   type MobileNavTab,
   type NativeWebViewOptions,
   type WebAppAction,
+  trimFullPath,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,7 +35,7 @@ type WebAppCommand = {
 interface CrashState {
   isCrashed: boolean;
   crashEvent: WebViewTerminatedEvent | WebViewRenderProcessGoneEvent | null;
-  lastUrl: string;
+  lastPath: string;
 }
 
 // used for forcing the webview to reload
@@ -62,7 +63,7 @@ export const SingletonWebview = () => {
   const [crashRecovery, setCrashRecovery] = useState<CrashState>({
     isCrashed: false,
     crashEvent: null,
-    lastUrl: '',
+    lastPath: '',
   });
 
   const [source, setSource] = useState<SourceState>({
@@ -74,10 +75,13 @@ export const SingletonWebview = () => {
   useEffect(() => {
     if (appStatus === 'active' && crashRecovery.isCrashed) {
       setSource({
-        url: crashRecovery.lastUrl,
+        url: createUri(shipUrl, crashRecovery.lastPath),
         key: source.key + 1,
       });
-      setCrashRecovery((prev) => ({ ...prev, isCrashed: false }));
+      setCrashRecovery((prev) => ({
+        ...prev,
+        isCrashed: false,
+      }));
 
       // TODO: for debugging purposes, log the crash recovery. Remove before
       // shipping to prod.
@@ -97,7 +101,7 @@ export const SingletonWebview = () => {
         );
       }, 2000);
     }
-  }, [appStatus, crashRecovery, source]);
+  }, [appStatus, crashRecovery, shipUrl, source]);
 
   const handleLogout = useCallback(() => {
     clearShip();
@@ -269,8 +273,9 @@ export const SingletonWebview = () => {
         }));
       }}
       // store a reference to the last url the webview was at for crash recovery
-      onNavigationStateChange={({ url }) => {
-        setCrashRecovery((prev) => ({ ...prev, lastUrl: url }));
+      onNavigationStateChange={({ url: rawUrl }) => {
+        const path = new URL(rawUrl).pathname;
+        setCrashRecovery((prev) => ({ ...prev, lastPath: trimFullPath(path) }));
       }}
     />
   );
