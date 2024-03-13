@@ -1,29 +1,26 @@
 import NetInfo from '@react-native-community/netinfo';
 import {
-  CommonActions,
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
-  useNavigation,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
-import { Alert, StatusBar, Text, View } from 'react-native';
+import { StatusBar, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
+import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
-import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
-import { inviteShipWithLure } from './lib/hostingApi';
 import { syncContacts } from './lib/sync';
-import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -39,7 +36,7 @@ import { SignUpPasswordScreen } from './screens/SignUpPasswordScreen';
 import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
-import { posthogAsync, trackError } from './utils/posthog';
+import { posthogAsync } from './utils/posthog';
 import { getPathFromWer } from './utils/string';
 
 type Props = {
@@ -48,15 +45,15 @@ type Props = {
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-const App = ({ wer: initialWer }: Props) => {
+// on Android if a notification click causes the app to open, the corresponding notification
+// path is passed in here as "wer"
+const App = ({ wer }: Props) => {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
-  const { isLoading, isAuthenticated, ship } = useShip();
+  const { isLoading, isAuthenticated } = useShip();
   const [connected, setConnected] = useState(true);
-  const { wer, lure, priorityToken, clearDeepLink } = useDeepLink();
-  const navigation = useNavigation();
+  const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
-  const gotoPath = initialWer ? getPathFromWer(initialWer) : wer;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -76,45 +73,6 @@ const App = ({ wer: initialWer }: Props) => {
     };
   }, []);
 
-  useEffect(() => {
-    // User received a lure link while authenticated
-    if (ship && lure) {
-      (async () => {
-        try {
-          await inviteShipWithLure({ ship, lure });
-          Alert.alert(
-            '',
-            'Your invitation to the group is on its way. It will appear in the Groups list.',
-            [
-              {
-                text: 'OK',
-                onPress: () => null,
-              },
-            ],
-            { cancelable: true }
-          );
-        } catch (err) {
-          console.error('Error inviting ship with lure:', err);
-          if (err instanceof Error) {
-            trackError(err);
-          }
-        }
-
-        clearDeepLink();
-      })();
-    }
-  }, [ship, lure, clearDeepLink]);
-
-  useEffect(() => {
-    // Broadcast path update to webview when changed
-    if (isAuthenticated && gotoPath) {
-      navigation.dispatch(CommonActions.setParams({ gotoPath }));
-
-      // Clear the deep link to mark it as handled
-      clearDeepLink();
-    }
-  }, [isAuthenticated, gotoPath, navigation, clearDeepLink]);
-
   return (
     <GestureHandlerRootView style={tailwind('flex-1')}>
       <SafeAreaProvider>
@@ -125,7 +83,9 @@ const App = ({ wer: initialWer }: Props) => {
                 <LoadingSpinner />
               </View>
             ) : isAuthenticated ? (
-              <TabStack />
+              <AuthenticatedApp
+                initialNotificationPath={getPathFromWer(wer ?? '')}
+              />
             ) : (
               <OnboardingStack.Navigator
                 initialRouteName="Welcome"
@@ -239,9 +199,11 @@ export default function ConnectedApp(props: Props) {
       <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
         <ShipProvider>
           <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-            <PostHogProvider client={posthogAsync} autocapture>
-              <App {...props} />
-            </PostHogProvider>
+            <BranchProvider>
+              <PostHogProvider client={posthogAsync} autocapture>
+                <App {...props} />
+              </PostHogProvider>
+            </BranchProvider>
           </NavigationContainer>
         </ShipProvider>
       </TamaguiProvider>
