@@ -194,7 +194,7 @@
     "@typescript-eslint/eslint-plugin": "^5.19.0",
     "@typescript-eslint/parser": "^5.19.0",
     "@urbit/eslint-config": "^1.0.3",
-    "@urbit/vite-plugin-urbit": "^2.0.0",
+    "@urbit/vite-plugin-urbit": "^2.0.1",
     "@vitejs/plugin-basic-ssl": "^1.1.0",
     "@vitejs/plugin-react": "^4.2.1",
     "@welldone-software/why-did-you-render": "^7.0.1",
