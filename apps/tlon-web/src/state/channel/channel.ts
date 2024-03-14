@@ -1224,7 +1224,7 @@ export function useJoinMutation() {
       channelAction(chan, {
         join: group,
       }),
-      { app: 'channels', path: '/' },
+      { app: 'channels', path: '/v1' },
       (event) => event.nest === chan && 'create' in event.response
     );
   };
@@ -1390,7 +1390,7 @@ export function useAddPostMutation(nest: string) {
               channelPostAction(nest, {
                 add: variables.essay,
               }),
-              { app: 'channels', path: `/${nest}` },
+              { app: 'channels', path: `/v1/${nest}` },
               ({ response }) => {
                 if ('post' in response) {
                   const { id, 'r-post': postResponse } = response.post;
@@ -1615,7 +1615,7 @@ export function useDeletePostMutation() {
       channelPostAction(variables.nest, { del: variables.time }),
       {
         app: 'channels',
-        path: `/${variables.nest}`,
+        path: `/v1/${variables.nest}`,
       },
       (event) => {
         if ('post' in event.response) {
@@ -1709,7 +1709,7 @@ export function useCreateMutation() {
           create: variables,
         },
       },
-      { app: 'channels', path: '/' },
+      { app: 'channels', path: '/v1' },
       (event) => {
         const { response, nest } = event;
         return (
