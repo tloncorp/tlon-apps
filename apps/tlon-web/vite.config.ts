@@ -1,17 +1,11 @@
-/// <reference types="vitest" />
+/// <reference types="vitest" />z
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
-import {
-  BuildOptions,
-  Plugin,
-  PluginOption,
-  defineConfig,
-  loadEnv,
-} from 'vite';
+import { BuildOptions, defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 import packageJson from './package.json';
@@ -44,27 +38,27 @@ export default ({ mode }: { mode: string }) => {
   };
 
   // eslint-disable-next-line
-  const plugins = (mode: string): PluginOption[] => {
+  const plugins = (mode: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return [
-        basicSsl() as Plugin,
+        basicSsl(),
         react({
           jsxImportSource: '@welldone-software/why-did-you-render',
-        }) as PluginOption[],
+        }),
       ];
     }
 
     return [
-      process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
+      process.env.SSL === 'true' ? basicSsl() : null,
       urbitPlugin({
         base: 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
         changeOrigin: true,
         secure: false,
-      }) as PluginOption[],
+      }),
       react({
         jsxImportSource: '@welldone-software/why-did-you-render',
-      }) as PluginOption[],
+      }),
       VitePWA({
         base: '/apps/groups/',
         manifest,
@@ -126,6 +120,7 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
+      https: process.env.SSL === 'true' ? true : false,
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
