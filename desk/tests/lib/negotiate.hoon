@@ -121,13 +121,6 @@
   ;<  state=vase  bind:m  get-save
   (pure:m o:!<([[%negotiate o=libstate] vase] state))
 ::
-++  ex-scry-result
-  |=  [=path =vase]
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  res=(unit (unit cage))  bind:m  (get-peek path)
-  (ex-equal q:(need (need res)) vase)
-::
 ++  perform-hear-version
   |=  [=gill:gall =protocol:libn =version:libn]
   %+  do-agent
@@ -328,7 +321,7 @@
   ::  if we know for sure we don't match, sending a poke must crash
   ::
   ;<  *  bind:m  (perform-hear-version [~zod %hard] %prot %miss)
-  ;<  ~  bind:m  (ex-crash (do-poke %emit-cards !>([poke]~)))
+  ;<  ~  bind:m  (ex-fail (do-poke %emit-cards !>([poke]~)))
   ::  once we do exactly match, poking is fine again
   ::
   ;<  *  bind:m  (perform-hear-version [~zod %hard] %prot %vers)

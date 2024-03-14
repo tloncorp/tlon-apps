@@ -27,6 +27,7 @@ import {
   useInvertedScrollInteraction,
   useUserHasScrolled,
 } from '@/logic/scroll';
+import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   ChatMessageListItemData,
@@ -214,6 +215,7 @@ export default function ChatScroller({
   const contentElementRef = useRef<HTMLDivElement>(null);
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
+  const isEditing = useIsEditingMessage();
 
   // Update the tracked load direction when loading state changes.
   useEffect(() => {
@@ -482,7 +484,7 @@ export default function ChatScroller({
   virtualizerRef.current = virtualizer;
 
   useFakeVirtuosoHandle(scrollerRef, virtualizer);
-  useInvertedScrollInteraction(scrollElementRef, isInverted);
+  useInvertedScrollInteraction(scrollElementRef, isInverted, isEditing);
 
   // Load more items when list reaches the top or bottom.
   useEffect(() => {

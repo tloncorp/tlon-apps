@@ -6,7 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup src/index.ts src/urbit/* --format esm --minify --dts --out-dir dist",
-    "dev": "npm run build -- --watch"
+    "dev": "npm run build -- --watch",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "big-integer": "^1.6.52",

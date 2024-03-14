@@ -55,13 +55,15 @@ export function useIsScrolling(
  */
 export function useInvertedScrollInteraction(
   scrollElementRef: RefObject<HTMLDivElement>,
-  isInverted: boolean
+  isInverted: boolean,
+  // isEditing must be passed in rather than using useIsEditingMessage because
+  // it won't update if we use it here.
+  isEditing: boolean
 ) {
-  const isEditing = useIsEditingMessage();
-
   useEffect(() => {
     const el = scrollElementRef.current;
     if (!isInverted || !el || isEditing) return undefined;
+
     const invertScrollWheel = (e: WheelEvent) => {
       el.scrollTop -= e.deltaY;
       e.preventDefault();
