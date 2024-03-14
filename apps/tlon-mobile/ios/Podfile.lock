@@ -999,6 +999,8 @@ PODS:
   - react-native-branch (5.9.2):
     - BranchSDK (= 2.2.1)
     - React-Core
+  - react-native-get-random-values (1.11.0):
+    - React-Core
   - react-native-netinfo (11.1.0):
     - React-Core
   - react-native-safe-area-context (4.8.2):
@@ -1268,6 +1270,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - react-native-branch (from `../../../node_modules/react-native-branch`)
+  - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
   - react-native-webview (from `../../../node_modules/react-native-webview`)
@@ -1425,6 +1428,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   react-native-branch:
     :path: "../../../node_modules/react-native-branch"
+  react-native-get-random-values:
+    :path: "../../../node_modules/react-native-get-random-values"
   react-native-netinfo:
     :path: "../../../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
@@ -1561,6 +1566,7 @@ SPEC CHECKSUMS:
   React-logger: 0a57b68dd2aec7ff738195f081f0520724b35dab
   React-Mapbuffer: 114be72666d7e3e317c1a36fb566cd3ad712fcc8
   react-native-branch: 021b9c261f732d0950e9a304284779d48bf81109
+  react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-netinfo: 3aa5637c18834966e0c932de8ae1ae56fea20a97
   react-native-safe-area-context: 0ee144a6170530ccc37a0fd9388e28d06f516a89
   react-native-webview: 1f6c37318115b6e96285e0b06770307d9a751bb8
@@ -1599,7 +1605,7 @@ SPEC CHECKSUMS:
   SocketRocket: f32cd54efbe0f095c4d7594881e52619cfe80b17
   sqlite3: f163dbbb7aa3339ad8fc622782c2d9d7b72f7e9c
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
-  Yoga: 1b901a6d6eeba4e8a2e8f308f708691cdb5db312
+  Yoga: 64cd2a583ead952b0315d5135bf39e053ae9be70
 
 PODFILE CHECKSUM: 82da24eb176d4abdeaf445b3581717ec492dd7e8
 
