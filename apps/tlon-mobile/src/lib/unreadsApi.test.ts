@@ -45,7 +45,7 @@ const inputDMUnread: [string, ubDM.DMUnread, UnreadType] = [
 
 const expectedDMUnread = {
   channelId: 'dm/~pondus-latter',
-  type: 'channel',
+  type: 'dm',
   totalCount: 0,
 };
 
@@ -53,7 +53,7 @@ test('converts a channel unread from server to client format', () => {
   expect(toClientUnread(...inputDMUnread)).toStrictEqual(expectedDMUnread);
 });
 
-test('converts an array of contacts from server to client format', () => {
+test('converts an array of channels from server to client format', () => {
   expect(
     toClientUnreads({ [inputDMUnread[0]]: inputDMUnread[1] }, inputDMUnread[2])
   ).toStrictEqual([expectedDMUnread]);
