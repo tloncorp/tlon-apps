@@ -1,7 +1,7 @@
 import { deSig } from '@urbit/aura';
+import { Urbit } from '@urbit/http-api';
 
 import { createHexString } from '../utils/string';
-import { Urbit } from './urbit/src';
 
 const config = {
   shipName: '',
