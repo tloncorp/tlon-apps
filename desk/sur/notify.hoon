@@ -30,7 +30,7 @@
   +$  bin      [=path =place]
   +$  place    [=desk =path]
   +$  body     [title=content =content =time binned=path link=path]
-  +$  content  (list $%([%ship =ship] [%cord =cord]))
+  +$  content  (list $%([%ship =ship] [%text =cord]))
   --
 ::
 +$  whitelist
