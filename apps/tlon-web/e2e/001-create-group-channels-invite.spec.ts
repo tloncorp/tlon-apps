@@ -6,7 +6,7 @@ import shipManifest from './shipManifest.json';
 // patbud is the invited ship
 
 const ownerUrl = `${shipManifest['~naldeg-mardev'].webUrl}/apps/groups/`;
-const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/notifications`;
+const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/`;
 const groupOwner = 'mardev';
 const invitedShip = 'patbud';
 
@@ -125,11 +125,11 @@ test('Accept group invite', async ({ browser }) => {
   const page = await invitedContext.newPage();
   await page.goto(invitedUrl);
   await page
-    .getByTestId('group-invite')
+    .getByTestId('group-join-item')
     .filter({ hasText: 'mardev Club' })
     .waitFor();
   const groupInvite = page
-    .getByTestId('group-invite')
+    .getByTestId('group-join-item')
     .filter({ hasText: 'mardev Club' });
   await groupInvite.getByRole('button', { name: 'Accept' }).first().click();
   await page.getByText('Join This Group').waitFor();
