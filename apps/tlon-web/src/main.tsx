@@ -35,8 +35,7 @@ if (IS_MOCK) {
   window.ship = 'finned-palmer';
   window.our = '~finned-palmer';
 }
-console.log('window.desk', window.desk);
-console.log('window.ship', window.ship);
+
 window.our = `~${window.ship}`;
 
 window.addEventListener('error', (e) => {
