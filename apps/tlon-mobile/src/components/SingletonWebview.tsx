@@ -11,11 +11,12 @@ import { URL } from 'react-native-url-polyfill';
 import { WebView } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
-import { DEV_LOCAL } from '../constants';
+import { DEFAULT_SHIP_LOGIN_URL, DEFAULT_TLON_LOGIN_EMAIL } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
+import { isUsingTlonAuth } from '../lib/hostingApi';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
@@ -72,7 +73,7 @@ export const SingletonWebview = () => {
         );
         break;
       case 'activeTabChange':
-        webviewContext.setGotoTab(value as MobileNavTab);
+        webviewContext.setNewWebappTab(value as MobileNavTab);
         break;
       case 'saveLastPath': {
         if (!value || typeof value !== 'object' || !value.tab || !value.path) {
@@ -117,6 +118,7 @@ export const SingletonWebview = () => {
   const nativeOptions: NativeWebViewOptions = {
     colorScheme,
     hideTabBar: true,
+    isUsingTlonAuth: isUsingTlonAuth(),
     safeAreaInsets,
   };
 
@@ -137,7 +139,8 @@ export const SingletonWebview = () => {
         window.colorscheme="${nativeOptions.colorScheme}";
         window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
         ${
-          DEV_LOCAL
+          // in development, explicitly set Urbit runtime configured window vars
+          DEFAULT_SHIP_LOGIN_URL || DEFAULT_TLON_LOGIN_EMAIL
             ? ` window.our="${ship}"; window.ship="${ship?.slice(1)}"; `
             : ''
         }

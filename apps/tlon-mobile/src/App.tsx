@@ -15,13 +15,11 @@ import { useTailwind } from 'tailwind-rn';
 
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
-import { DEV_LOCAL, DEV_LOCAL_CODE } from './constants';
 import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
-import { useDevTools } from './lib/useDevTools';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -46,8 +44,9 @@ type Props = {
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-const App = ({ wer: initialWer }: Props) => {
-  useDevTools({ enabled: DEV_LOCAL, localCode: DEV_LOCAL_CODE });
+// on Android if a notification click causes the app to open, the corresponding notification
+// path is passed in here as "wer"
+const App = ({ wer }: Props) => {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated } = useShip();
@@ -78,7 +77,7 @@ const App = ({ wer: initialWer }: Props) => {
               </View>
             ) : isAuthenticated ? (
               <AuthenticatedApp
-                initialNotificationPath={getPathFromWer(initialWer ?? '')}
+                initialNotificationPath={getPathFromWer(wer ?? '')}
               />
             ) : (
               <OnboardingStack.Navigator

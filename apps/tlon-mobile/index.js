@@ -1,4 +1,5 @@
 import { registerRootComponent } from 'expo';
+import 'expo-dev-client';
 import polyfill from 'react-native-polyfill-globals';
 import { TailwindProvider } from 'tailwind-rn';
 

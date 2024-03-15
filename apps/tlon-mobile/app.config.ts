@@ -23,21 +23,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     shipUrlPattern: process.env.SHIP_URL_PATTERN,
     defaultLure: process.env.DEFAULT_LURE,
     defaultPriorityToken: process.env.DEFAULT_PRIORITY_TOKEN,
+    defaultTlonLoginEmail: process.env.DEFAULT_TLON_LOGIN_EMAIL,
+    defaultTlonLoginPassword: process.env.DEFAULT_TLON_LOGIN_PASSWORD,
+    defaultShipLoginUrl: process.env.DEFAULT_SHIP_LOGIN_URL,
+    defaultShipLoginAccessCode: process.env.DEFAULT_SHIP_LOGIN_ACCESS_CODE,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
-    devLocal: Boolean(process.env.DEV_LOCAL),
-    devLocalCode: process.env.DEV_LOCAL_CODE,
   },
   ios: {
     runtimeVersion: '4.0.0',
-    buildNumber: '57',
+    buildNumber: '58',
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
     runtimeVersion: '4.0.0',
-    versionCode: 57,
+    versionCode: 58,
   },
   updates: {
     url: `https://u.expo.dev/${projectId}`,
