@@ -1,3 +1,4 @@
+import crashlytics from '@react-native-firebase/crashlytics';
 import {
   type MobileNavTab,
   type NativeWebViewOptions,
@@ -82,24 +83,6 @@ export const SingletonWebview = () => {
         ...prev,
         isCrashed: false,
       }));
-
-      // TODO: for debugging purposes, log the crash recovery. Remove before
-      // shipping to prod.
-      setTimeout(() => {
-        Alert.alert(
-          'Recovered from Webview Crash',
-          crashRecovery.crashEvent?.toString(),
-          [
-            {
-              text: 'Okay',
-              style: 'cancel',
-            },
-          ],
-          {
-            cancelable: true,
-          }
-        );
-      }, 2000);
     }
   }, [appStatus, crashRecovery, shipUrl, source]);
 
@@ -254,6 +237,9 @@ export const SingletonWebview = () => {
       // killed by the OS
       onContentProcessDidTerminate={(event) => {
         console.error('Content process terminated', event);
+        crashlytics().recordError(
+          new Error('Content process terminated, initiated recovery')
+        );
         webviewContext.setAppLoaded(false);
         setCrashRecovery((prev) => ({
           ...prev,
@@ -265,6 +251,9 @@ export const SingletonWebview = () => {
       // killed by the OS
       onRenderProcessGone={(event) => {
         console.error('Render process gone', event);
+        crashlytics().recordError(
+          new Error('Render process gone, initiated recovery')
+        );
         webviewContext.setAppLoaded(false);
         setCrashRecovery((prev) => ({
           ...prev,
