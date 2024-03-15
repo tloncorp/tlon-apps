@@ -16,6 +16,19 @@ export type Unread = {
   totalCount: number;
 };
 
+export function fallbackContact(id: string): Contact {
+  return {
+    id,
+    nickname: null,
+    bio: null,
+    status: null,
+    color: null,
+    avatarImage: null,
+    coverImage: null,
+    pinnedGroupIds: [],
+  };
+}
+
 const contactSchema = {
   name: 'Contact',
   properties: {
@@ -51,3 +64,6 @@ export type SchemaMap = {
 };
 
 export type SchemaName = keyof SchemaMap;
+export type SchemaModel<T extends SchemaName> = SchemaMap[T];
+export type SchemaKey<T extends SchemaName> = keyof SchemaModel<T>;
+export type SchemaValue<T extends SchemaName> = SchemaModel<T>[SchemaKey<T>];
