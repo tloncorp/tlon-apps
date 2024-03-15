@@ -14,7 +14,7 @@
       },
       "ios": {
         "scheme": "Landscape-preview",
-        "buildArtifactPaths": "ios/build/*"
+        "buildArtifactPaths": ["ios/build/*"]
       }
     },
     "production": {
@@ -24,7 +24,7 @@
       },
       "ios": {
         "scheme": "Landscape",
-        "buildArtifactPaths": "ios/build/*"
+        "buildArtifactPaths": ["ios/build/*"]
       }
     }
   },
