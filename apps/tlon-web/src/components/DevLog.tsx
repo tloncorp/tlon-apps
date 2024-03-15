@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useLocalState } from '@/state/local';
+import { toggleDevTools, useLocalState } from '@/state/local';
 
 export default function DevLog() {
   const { logs } = useLocalState();
@@ -9,9 +9,17 @@ export default function DevLog() {
   }, [logs]);
 
   return (
-    <div className="p-4 w-full h-full flex flex-col">
-      <h1 className="text-xl font-bold mb-2">Developer Logs</h1>
-      <div className="flex-1 bg-gray-100 rounded p-1 w-full sm:w-[80ch] overflow-y-scroll">
+    <div className="p-4 w-full sm:w-[80ch] h-full flex flex-col">
+      <div className="flex mb-2">
+        <h1 className="text-xl font-bold">Developer Logs</h1>
+        <button
+          className="small-button ml-auto flex-none self-center"
+          onClick={toggleDevTools}
+        >
+          Toggle Tools
+        </button>
+      </div>
+      <div className="flex-1 bg-gray-100 rounded p-1 w-full overflow-y-scroll">
         <pre className="font-mono text-sm h-full">{prettyLogs}</pre>
       </div>
     </div>
