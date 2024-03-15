@@ -5,6 +5,7 @@
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": false,
+    "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
@@ -18,7 +19,7 @@
       "vite/client",
       "vitest/globals",
       "@testing-library/jest-dom",
-      "vite-plugin-pwa/client"
+      "vite-plugin-pwa/react"
     ],
     "paths": {
       "@/*": ["./src/*"]
@@ -30,6 +31,7 @@
     "./*.config.ts",
     "./*.setup.ts",
     "./rube",
-    "cosmos/setup.ts"
+    "cosmos/setup.ts",
+    "vite.config.mts"
   ]
 }
