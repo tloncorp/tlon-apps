@@ -14,7 +14,7 @@ export const getChannelUnreads = async () => {
 
 export const getDMUnreads = async () => {
   const results = await scry<ubChan.Unreads>({
-    app: 'channels',
+    app: 'chat',
     path: '/unreads',
   });
   return toClientUnreads(results, 'dm');
