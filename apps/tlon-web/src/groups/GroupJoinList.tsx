@@ -31,6 +31,7 @@ export function GroupJoinItem({
 
   return (
     <SidebarItem
+      data-testid="group-join-item"
       onClick={() => open()}
       className={highlight ? 'bg-blue-soft dark:bg-blue-900' : ''}
       icon={

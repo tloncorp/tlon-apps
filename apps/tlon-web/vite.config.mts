@@ -1,11 +1,17 @@
-/// <reference types="vitest" />z
+/// <reference types="vitest" />
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
-import { BuildOptions, defineConfig, loadEnv } from 'vite';
+import {
+  BuildOptions,
+  Plugin,
+  PluginOption,
+  defineConfig,
+  loadEnv,
+} from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 import packageJson from './package.json';
@@ -38,27 +44,27 @@ export default ({ mode }: { mode: string }) => {
   };
 
   // eslint-disable-next-line
-  const plugins = (mode: string) => {
+  const plugins = (mode: string): PluginOption[] => {
     if (mode === 'mock' || mode === 'staging') {
       return [
-        basicSsl(),
+        basicSsl() as Plugin,
         react({
           jsxImportSource: '@welldone-software/why-did-you-render',
-        }),
+        }) as PluginOption[],
       ];
     }
 
     return [
-      process.env.SSL === 'true' ? basicSsl() : null,
+      process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       urbitPlugin({
         base: 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
         changeOrigin: true,
         secure: false,
-      }),
+      }) as PluginOption[],
       react({
         jsxImportSource: '@welldone-software/why-did-you-render',
-      }),
+      }) as PluginOption[],
       VitePWA({
         base: '/apps/groups/',
         manifest,
@@ -85,34 +91,35 @@ export default ({ mode }: { mode: string }) => {
         ? ['virtual:pwa-register/react']
         : [],
     output: {
+      hashCharacters: 'base36' as any,
       manualChunks: {
         lodash: ['lodash'],
         'lodash/fp': ['lodash/fp'],
-        '@urbit/api': ['@urbit/api'],
-        '@urbit/http-api': ['@urbit/http-api'],
-        '@urbit/sigil-js': ['@urbit/sigil-js'],
+        'urbit/api': ['@urbit/api'],
+        'urbit/http-api': ['@urbit/http-api'],
+        'urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
         'react-beautiful-dnd': ['react-beautiful-dnd'],
         'emoji-mart': ['emoji-mart'],
-        '@tiptap/core': ['@tiptap/core'],
-        '@tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
-        '@tiptap/extension-link': ['@tiptap/extension-link'],
+        'tiptap/core': ['@tiptap/core'],
+        'tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
+        'tiptap/extension-link': ['@tiptap/extension-link'],
         'react-virtuoso': ['react-virtuoso'],
         'react-select': ['react-select'],
         'react-hook-form': ['react-hook-form'],
         'framer-motion': ['framer-motion'],
         'date-fns': ['date-fns'],
         'tippy.js': ['tippy.js'],
-        '@aws-sdk/client-s3': ['@aws-sdk/client-s3'],
-        '@aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
+        'aws-sdk/client-s3': ['@aws-sdk/client-s3'],
+        'aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
         refractor: ['refractor'],
         'urbit-ob': ['urbit-ob'],
         'hast-to-hyperscript': ['hast-to-hyperscript'],
-        '@radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-        '@radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
-        '@radix-ui/react-popover': ['@radix-ui/react-popover'],
-        '@radix-ui/react-toast': ['@radix-ui/react-toast'],
-        '@radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
+        'radix-ui/react-dialog': ['@radix-ui/react-dialog'],
+        'radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
+        'radix-ui/react-popover': ['@radix-ui/react-popover'],
+        'radix-ui/react-toast': ['@radix-ui/react-toast'],
+        'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
       },
     },
   };
@@ -120,7 +127,6 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
-      https: process.env.SSL === 'true' ? true : false,
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
