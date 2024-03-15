@@ -9,3 +9,4 @@ export type {
   WebAppCommand,
 } from "./types/native";
 export { parseActiveTab, trimFullPath } from "./logic/navigation";
+export * from "./client";

@@ -1,16 +1,15 @@
 import { Image, View, ViewProps } from "tamagui";
 import { UrbitSigil } from "./UrbitSigil";
+import type { Contact } from "../../../shared";
 
 export function Avatar({
-  id,
-  avatarImage,
+  contact,
   ...props
 }: {
-  id: string;
-  avatarImage?: string;
+  contact: Contact;
 } & ViewProps) {
   // Note, the web Avatar component additionally checks calm settings and confirms the link is valid.
-  if (avatarImage) {
+  if (contact?.avatarImage) {
     return (
       <View
         height={20}
@@ -20,7 +19,7 @@ export function Avatar({
         {...props}
       >
         <Image
-          source={{ uri: avatarImage, width: 200, height: 200 }}
+          source={{ uri: contact.avatarImage, width: 200, height: 200 }}
           height="100%"
           width="100%"
         />
@@ -28,5 +27,5 @@ export function Avatar({
     );
   }
 
-  return <UrbitSigil ship={id} {...props} />;
+  return <UrbitSigil ship={contact?.id} {...props} />;
 }
