@@ -95,6 +95,7 @@ import {
 
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
+import DevLog from './components/DevLog';
 import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
@@ -440,6 +441,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
             </>
           )}
+          <Route path="/logs" element={<DevLog />} />
         </Route>
       </Routes>
       {state?.backgroundLocation ? (
@@ -537,11 +539,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
+              <Route path="/update-needed" element={<UpdateNoticeSheet />} />
             </>
           ) : null}
-          {isMobile && (
-            <Route path="/update-needed" element={<UpdateNoticeSheet />} />
-          )}
         </Routes>
       ) : null}
     </>

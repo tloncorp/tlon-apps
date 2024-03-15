@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import IconButton from '@/components/IconButton';
 import CheckIcon from '@/components/icons/CheckIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
@@ -78,6 +80,9 @@ export default function About() {
           <span className="flex items-center break-all">{pike?.hash}</span>
         </div>
       </div>
+      <Link to="/logs" className="button mt-4">
+        View Developer Logs
+      </Link>
     </div>
   );
 }
