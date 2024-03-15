@@ -60,6 +60,7 @@ export const SingletonWebview = () => {
   const webviewContext = useWebViewContext();
   const initialUrl = useMemo(() => createUri(shipUrl, '/'), [shipUrl]);
   const appStatus = useAppStatus();
+  const appLoadedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [crashRecovery, setCrashRecovery] = useState<CrashState>({
     isCrashed: false,
@@ -85,6 +86,24 @@ export const SingletonWebview = () => {
       }));
     }
   }, [appStatus, crashRecovery, shipUrl, source]);
+
+  // If the webapp does not signal its ready within 15 seconds,
+  // assume it may be broken and clear the cache
+  useEffect(() => {
+    if (!webviewContext.appLoaded) {
+      if (appStatus === 'active' && !appLoadedTimer.current) {
+        appLoadedTimer.current = setTimeout(() => {
+          // should clear resources without touching cookies
+          webviewRef.current?.clearCache?.(true);
+        }, 15_000);
+      }
+    }
+
+    if (webviewContext.appLoaded && appLoadedTimer.current) {
+      clearTimeout(appLoadedTimer.current);
+      appLoadedTimer.current = null;
+    }
+  }, [appLoadedTimer, webviewContext.appLoaded]);
 
   const handleLogout = useCallback(() => {
     clearShip();
