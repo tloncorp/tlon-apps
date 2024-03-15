@@ -212,10 +212,6 @@ export const SingletonWebview = () => {
             : ''
         }
       `}
-      onLoad={() => {
-        // Start a timeout in case the web app doesn't send the appLoaded message
-        setTimeout(() => webviewContext.setAppLoaded(true), 10_000);
-      }}
       onShouldStartLoadWithRequest={({ url }) => {
         const parsedUrl = new URL(url);
         const parsedShipUrl = new URL(shipUrl);
