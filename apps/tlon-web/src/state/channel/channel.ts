@@ -767,6 +767,7 @@ export function useChannelsFirehose() {
         ['channels', 'hidden'],
         (d: HiddenPosts = []) => [...d, ...hideEvents]
       );
+      queryClient.invalidateQueries(['channels', 'hidden']);
     }
 
     const showEvents = events.filter((e) => 'show' in e).map((e) => e.show);
@@ -775,6 +776,7 @@ export function useChannelsFirehose() {
         ['channels', 'hidden'],
         (d: HiddenPosts = []) => [...d, ...showEvents]
       );
+      queryClient.invalidateQueries(['channels', 'hidden']);
     }
 
     const postEvents = events.filter(
@@ -797,6 +799,7 @@ export function useChannelsFirehose() {
           existingQueryData
         );
         queryClient.setQueryData(key, newData);
+        queryClient.invalidateQueries(key);
       });
     }
 
@@ -839,6 +842,7 @@ export function useChannelsFirehose() {
           existingQueryData
         );
         queryClient.setQueryData(key, newData);
+        queryClient.invalidateQueries(key);
 
         if (!('reply' in postResponse)) {
           return;
@@ -851,6 +855,7 @@ export function useChannelsFirehose() {
           infinitePostsKey(nest),
           (d) => updateReplyMetaData(d, time, meta)
         );
+        queryClient.invalidateQueries(infinitePostsKey(nest));
       });
     }
 
