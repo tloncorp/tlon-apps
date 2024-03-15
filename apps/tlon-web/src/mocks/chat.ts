@@ -1,5 +1,5 @@
 /* eslint-disable import/no-cycle */
-import { faker } from '@faker-js/faker';
+import faker from '@faker-js/faker';
 import {
   Post,
   Posts,
