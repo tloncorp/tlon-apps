@@ -13,7 +13,8 @@
         "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
-        "scheme": "Landscape-preview"
+        "scheme": "Landscape-preview",
+        "buildArtifactPaths": "ios/build/*"
       }
     },
     "production": {
@@ -22,7 +23,8 @@
         "gradleCommand": ":app:bundleProductionRelease"
       },
       "ios": {
-        "scheme": "Landscape"
+        "scheme": "Landscape",
+        "buildArtifactPaths": "ios/build/*"
       }
     }
   },
