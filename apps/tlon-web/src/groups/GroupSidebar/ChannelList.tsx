@@ -17,6 +17,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import SortIcon from '@/components/icons/SortIcon';
 import { DEFAULT_SORT } from '@/constants';
@@ -267,7 +268,7 @@ const ChannelList = React.memo(
                   <div
                     onClick={() => navigate(`${channelHref(flag, nest)}/info`)}
                   >
-                    <UnreadIndicator className="m-0.5 h-5 w-5 text-gray-400" />
+                    <EllipsisIcon className="h-8 w-8 p-1 text-gray-400" />
                   </div>
                 )}
               </>

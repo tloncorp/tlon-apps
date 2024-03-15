@@ -3,10 +3,15 @@ import React, { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useActiveTab from '@/components/Sidebar/util';
 import VolumeSetting from '@/components/VolumeSetting';
 import WidgetDrawer from '@/components/WidgetDrawer';
+import BellIcon from '@/components/icons/BellIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import LeaveIcon from '@/components/icons/LeaveIcon';
+import PencilSettingsIcon from '@/components/icons/PencilSettingsIcon';
+import XIcon from '@/components/icons/XIcon';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useIsChannelHost } from '@/logic/channel';
 import { useDismissNavigate } from '@/logic/routing';
@@ -126,32 +131,38 @@ export default function ChannelInfo(props: {
               </div>
             </div>
             <div className="flex flex-col items-stretch justify-center space-y-3 px-6">
-              <button
-                className="button"
+              <SidebarItem
+                icon={<BellIcon className="h-6 w-6" />}
                 onClick={() => delayedViewNav('volume')}
+                showCaret
               >
                 Set Notifications for {channel?.meta.title}
-              </button>
-              {!isChannelHost && (
-                <button className="button" onClick={leaveChannel}>
-                  Leave {channel?.meta.title}
-                </button>
-              )}
+              </SidebarItem>
               {isAdmin && (
-                <button
-                  className="button"
+                <SidebarItem
+                  icon={<PencilSettingsIcon className="h-6 w-6" />}
                   onClick={() => delayedViewNav('edit')}
+                  showCaret
                 >
                   Edit {channel?.meta.title}
-                </button>
+                </SidebarItem>
               )}
               {isAdmin && (
-                <button
-                  className="button"
+                <SidebarItem
+                  icon={<XIcon className="h-6 w-6" />}
                   onClick={() => delayedViewNav('delete')}
+                  showCaret
                 >
                   Delete {channel?.meta.title}
-                </button>
+                </SidebarItem>
+              )}
+              {!isChannelHost && (
+                <SidebarItem
+                  onClick={leaveChannel}
+                  icon={<LeaveIcon className="h-6 w-6" />}
+                >
+                  Leave {channel?.meta.title}
+                </SidebarItem>
               )}
             </div>
           </>
