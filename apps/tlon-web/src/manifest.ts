@@ -3,8 +3,8 @@ export default {
   description:
     'Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Tlon is a peer-to-peer collaboration tool built on Urbit that provides a few simple basics that communities can shape into something unique to their needs.',
   short_name: 'Tlon',
-  start_url: '/apps/groups/',
-  scope: '/apps/groups/',
+  start_url: '/apps/groups',
+  scope: '/apps/groups',
   id: '/apps/groups/',
   icons: [
     {
