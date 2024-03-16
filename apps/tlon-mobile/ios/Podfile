@@ -38,7 +38,7 @@ elsif podfile_properties.key?('ios.flipper') then
   end
 end
 
-abstract_target 'common' do
+def shared(podfile_properties, flipper_config)
   use_expo_modules!
   config = use_native_modules!
 
@@ -49,7 +49,7 @@ abstract_target 'common' do
   flags = get_default_flags()
 
   use_react_native!(
-    :path => config[:reactNativePath],
+    :path => '../node_modules/react-native',
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     :fabric_enabled => flags[:fabric_enabled],
     # An absolute path to your application root.
@@ -57,39 +57,47 @@ abstract_target 'common' do
     # Note that if you have use_frameworks! enabled, Flipper will not work if enabled
     :flipper_configuration => flipper_config
   )
+end
 
-  post_install do |installer|
-    react_native_post_install(
-      installer,
-      config[:reactNativePath],
-      # Set `mac_catalyst_enabled` to `true` in order to apply patches
-      # necessary for Mac Catalyst builds
-      :mac_catalyst_enabled => false
-    )
+target 'Landscape' do
+  shared(podfile_properties, flipper_config)
+end
 
-    # This is necessary for Xcode 14, because it signs resource bundles by default
-    # when building for devices.
-    installer.target_installation_results.pod_target_installation_results
-      .each do |pod_name, target_installation_result|
-      target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
-        resource_bundle_target.build_configurations.each do |config|
-          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-        end
+target 'Landscape-preview' do
+  shared(podfile_properties, flipper_config)
+end
+
+post_install do |installer|
+  config = use_native_modules!
+  react_native_post_install(
+    installer,
+    '../node_modules/react-native',
+    # Set `mac_catalyst_enabled` to `true` in order to apply patches
+    # necessary for Mac Catalyst builds
+    :mac_catalyst_enabled => false
+  )
+
+  # This is necessary for Xcode 14, because it signs resource bundles by default
+  # when building for devices.
+  installer.target_installation_results.pod_target_installation_results
+    .each do |pod_name, target_installation_result|
+    target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
+      resource_bundle_target.build_configurations.each do |config|
+        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       end
     end
   end
+end
 
-  post_integrate do |installer|
+post_integrate do |installer|
     begin
       expo_patch_react_imports!(installer)
     rescue => e
       Pod::UI.warn e
     end
-  end
-
-  target 'Landscape' do
-  end
-
-  target 'Landscape-preview' do
+  begin
+    expo_patch_react_imports!(installer)
+  rescue => e
+    Pod::UI.warn e
   end
 end
