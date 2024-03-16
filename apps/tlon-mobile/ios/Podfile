@@ -49,7 +49,7 @@ def shared(podfile_properties, flipper_config)
   flags = get_default_flags()
 
   use_react_native!(
-    :path => '../node_modules/react-native',
+    :path => config[:reactNativePath],
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     :fabric_enabled => flags[:fabric_enabled],
     # An absolute path to your application root.
@@ -68,7 +68,6 @@ target 'Landscape-preview' do
 end
 
 post_install do |installer|
-  config = use_native_modules!
   react_native_post_install(
     installer,
     '../node_modules/react-native',
