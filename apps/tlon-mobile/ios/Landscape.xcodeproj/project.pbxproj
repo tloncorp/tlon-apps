@@ -24,6 +24,8 @@
 		705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */; };
 		7083A16C2AFB01A30022404A /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
+		7096E7152BA6593500993870 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */; };
+		7096E7162BA6593E00993870 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9DDD235A8D398E1B6395FF9 /* ExpoModulesProvider.swift */; };
 		709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
 		70A62C612A5A6B1A00EBED16 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 70A62C602A5A6B1A00EBED16 /* SimpleKeychain */; };
 		70D386482A6098F800AFB46E /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70D386472A6098F800AFB46E /* Alamofire */; };
@@ -864,6 +866,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7096E7152BA6593500993870 /* ExpoModulesProvider.swift in Sources */,
 				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
 				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
@@ -894,6 +897,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7096E7162BA6593E00993870 /* ExpoModulesProvider.swift in Sources */,
 				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
 				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,

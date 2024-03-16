@@ -9,39 +9,36 @@ ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = '1' if podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR'] == 'true'
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.0'
-install! 'cocoapods',
-  :deterministic_uuids => false
-
+install! 'cocoapods', :deterministic_uuids => false
 prepare_react_native_project!
 
-# If you are using a `react-native-flipper` your iOS build will fail when `NO_FLIPPER=1` is set.
-# because `react-native-flipper` depends on (FlipperKit,...), which will be excluded. To fix this,
-# you can also exclude `react-native-flipper` in `react-native.config.js`
-#
-# ```js
-# module.exports = {
-#   dependencies: {
-#     ...(process.env.NO_FLIPPER ? { 'react-native-flipper': { platforms: { ios: null } } } : {}),
-#   }
-# }
-# ```
-flipper_config = FlipperConfiguration.disabled
-if ENV['NO_FLIPPER'] == '1' then
-  # Explicitly disabled through environment variables
+def shared(podfile_properties)
+  # If you are using a `react-native-flipper` your iOS build will fail when `NO_FLIPPER=1` is set.
+  # because `react-native-flipper` depends on (FlipperKit,...), which will be excluded. To fix this,
+  # you can also exclude `react-native-flipper` in `react-native.config.js`
+  #
+  # ```js
+  # module.exports = {
+  #   dependencies: {
+  #     ...(process.env.NO_FLIPPER ? { 'react-native-flipper': { platforms: { ios: null } } } : {}),
+  #   }
+  # }
+  # ```
   flipper_config = FlipperConfiguration.disabled
-elsif podfile_properties.key?('ios.flipper') then
-  # Configure Flipper in Podfile.properties.json
-  if podfile_properties['ios.flipper'] == 'true' then
-    flipper_config = FlipperConfiguration.enabled(["Debug", "Release"])
-  elsif podfile_properties['ios.flipper'] != 'false' then
-    flipper_config = FlipperConfiguration.enabled(["Debug", "Release"], { 'Flipper' => podfile_properties['ios.flipper'] })
+  if ENV['NO_FLIPPER'] == '1' then
+    # Explicitly disabled through environment variables
+    flipper_config = FlipperConfiguration.disabled
+  elsif podfile_properties.key?('ios.flipper') then
+    # Configure Flipper in Podfile.properties.json
+    if podfile_properties['ios.flipper'] == 'true' then
+      flipper_config = FlipperConfiguration.enabled(["Debug", "Release"])
+    elsif podfile_properties['ios.flipper'] != 'false' then
+      flipper_config = FlipperConfiguration.enabled(["Debug", "Release"], { 'Flipper' => podfile_properties['ios.flipper'] })
+    end
   end
-end
 
-def shared(podfile_properties, flipper_config)
   use_expo_modules!
-  config = use_native_modules!
-
+  $config = use_native_modules!
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
@@ -49,7 +46,7 @@ def shared(podfile_properties, flipper_config)
   flags = get_default_flags()
 
   use_react_native!(
-    :path => config[:reactNativePath],
+    :path => $config[:reactNativePath],
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
     :fabric_enabled => flags[:fabric_enabled],
     # An absolute path to your application root.
@@ -60,11 +57,13 @@ def shared(podfile_properties, flipper_config)
 end
 
 target 'Landscape' do
-  shared(podfile_properties, flipper_config)
+  Pod::UI.puts 'Building Landscape'
+  shared(podfile_properties)
 end
 
 target 'Landscape-preview' do
-  shared(podfile_properties, flipper_config)
+  Pod::UI.puts 'Building Landscape-preview'
+  shared(podfile_properties)
 end
 
 post_install do |installer|
@@ -89,11 +88,6 @@ post_install do |installer|
 end
 
 post_integrate do |installer|
-    begin
-      expo_patch_react_imports!(installer)
-    rescue => e
-      Pod::UI.warn e
-    end
   begin
     expo_patch_react_imports!(installer)
   rescue => e
