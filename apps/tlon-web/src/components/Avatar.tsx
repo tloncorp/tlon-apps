@@ -106,7 +106,7 @@ function Avatar({
   const calm = useCalm();
   const { previewColor, previewAvatar } = previewData ?? {};
   const previewAvatarIsValid = useMemo(
-    () => previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar),
+    () => previewAvatar && isValidUrl(previewAvatar),
     [previewAvatar]
   );
   const { color, avatar } = contact || emptyContact;
@@ -114,7 +114,7 @@ function Avatar({
     (previewAvatarIsValid ? previewAvatar : avatar) || ''
   );
   const showImage = useMemo(
-    () => loadImage || hasLoaded,
+    () => loadImage && hasLoaded,
     [loadImage, hasLoaded]
   );
   const { classes, size: sigilSize } = useMemo(() => sizeMap[size], [size]);
@@ -132,33 +132,31 @@ function Avatar({
   );
   const citedShip = useMemo(() => cite(ship), [ship]);
   const props: SigilProps = {
-    point: citedShip || '~zod',
+    point: citedShip,
     size: sigilSize,
     detail: icon ? 'none' : 'default',
     space: 'none',
     background: adjustedColor,
     foreground: foregroundColor,
   };
-  const invalidShip = useMemo(
-    () =>
-      !ship ||
-      ship === 'undefined' ||
-      !isValidPatp(ship) ||
-      citedShip.match(/[_^]/) ||
-      citedShip.length > 14,
-    [ship, citedShip]
-  );
+  const invalidShip = useMemo(() => !isValidPatp(ship), [ship]);
 
   const shouldShowImage = useMemo(
     () =>
-      showImage &&
-      previewAvatarIsValid &&
       !calm.disableRemoteContent &&
-      !calm.disableAvatars,
-    [showImage, previewAvatarIsValid, calm]
+      !calm.disableAvatars &&
+      ((previewAvatarIsValid && showImage) ||
+        (!previewAvatarIsValid && avatar && showImage)),
+    [
+      previewAvatarIsValid,
+      showImage,
+      calm.disableRemoteContent,
+      calm.disableAvatars,
+      avatar,
+    ]
   );
 
-  if (shouldShowImage) {
+  if (shouldShowImage && previewAvatarIsValid) {
     return (
       <img
         className={classNames(className, classes, 'object-cover')}
@@ -170,16 +168,11 @@ function Avatar({
     );
   }
 
-  if (
-    avatar &&
-    showImage &&
-    !calm.disableRemoteContent &&
-    !calm.disableAvatars
-  ) {
+  if (shouldShowImage && !previewAvatarIsValid) {
     return (
       <img
         className={classNames(className, classes, 'object-cover')}
-        src={avatar}
+        src={avatar || ''} // Convert null to an empty string
         alt=""
         style={style}
         onLoad={load}
@@ -187,17 +180,12 @@ function Avatar({
     );
   }
 
+  // Fallback to sigil or other representation if the conditions for showing the image are not met
   return (
     <div
       className={classNames(
         'relative flex flex-none items-center justify-center rounded bg-black',
         classes,
-        size === 'sidebar' && 'p-1.5',
-        size === 'xs' && 'p-1.5',
-        size === 'small' && 'p-2',
-        size === 'default' && 'p-3',
-        size === 'big' && 'p-4',
-        size === 'huge' && 'p-3',
         className
       )}
       style={{ backgroundColor: adjustedColor, ...style }}
