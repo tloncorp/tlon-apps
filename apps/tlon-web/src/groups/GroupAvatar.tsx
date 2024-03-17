@@ -49,10 +49,11 @@ export default function GroupAvatar({
   const calm = useCalm();
   const showImage = useMemo(
     () =>
+      loadImage &&
       image &&
       !calm.disableRemoteContent &&
       !imageIsColor &&
-      (hasLoaded || loadImage),
+      hasLoaded,
     [image, calm.disableRemoteContent, imageIsColor, hasLoaded, loadImage]
   );
   const dark = useIsDark();
