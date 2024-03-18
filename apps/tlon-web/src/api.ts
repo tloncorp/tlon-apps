@@ -137,6 +137,30 @@ class API {
       })();
     };
 
+    this.client.on('status-update', ({ status }) => {
+      useLocalState.getState().log(`http-api status: ${status}`);
+    });
+
+    this.client.on('error', (error) => {
+      useLocalState.getState().log(`http-api error: ${error.msg}`);
+    });
+
+    this.client.on('fact', (msg) => {
+      useLocalState
+        .getState()
+        .log(
+          `http-api msg [${msg.id}]\n\t${JSON.stringify(JSON.parse(msg.data), null, 2).replace(/\n/g, '\n\t')}`
+        );
+    });
+
+    this.client.on('reset', () => {
+      useLocalState.getState().log('http-api reset');
+    });
+
+    this.client.on('seamless-reset', () => {
+      useLocalState.getState().log('http-api seamless-reset');
+    });
+
     return this.client;
   }
 
@@ -166,11 +190,21 @@ class API {
   }
 
   async scry<T>(params: Scry) {
-    return this.withClient((client) => client.scry<T>(params));
+    return this.withClient((client) => {
+      useLocalState.getState().log(`scry ${params.app} ${params.path}`);
+      return client.scry<T>(params);
+    });
   }
 
   async poke<T>(params: PokeInterface<T>) {
-    return this.withErrorHandling((client) => client.poke<T>(params));
+    return this.withErrorHandling((client) => {
+      useLocalState
+        .getState()
+        .log(
+          `poke ${params.app} ${params.mark}: ${JSON.stringify(params.json)}`
+        );
+      return client.poke<T>(params);
+    });
   }
 
   private async track<R>(
@@ -199,6 +233,11 @@ class API {
     return this.withErrorHandling(
       (client) =>
         new Promise<void>((resolve, reject) => {
+          useLocalState
+            .getState()
+            .log(
+              `poke ${params.app} ${params.mark}: ${JSON.stringify(params.json)}`
+            );
           client
             .poke<T>({
               ...params,
@@ -228,6 +267,7 @@ class API {
       return Promise.resolve(id);
     }
 
+    useLocalState.getState().log(`subscribe ${params.app} ${params.path}`);
     this.subscriptions.add(subId);
 
     const eventListener =
@@ -282,9 +322,10 @@ class API {
   }
 
   async subscribeOnce<T>(app: string, path: string, timeout?: number) {
-    return this.withErrorHandling(() =>
-      this.client!.subscribeOnce<T>(app, path, timeout)
-    );
+    return this.withErrorHandling(() => {
+      useLocalState.getState().log(`subscribe once ${app} ${path}`);
+      return this.client!.subscribeOnce<T>(app, path, timeout);
+    });
   }
 
   async thread<Return, T>(params: Thread<T>) {

@@ -1,4 +1,5 @@
 /* eslint-disable import/no-cycle */
+import { format } from 'date-fns';
 import produce from 'immer';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -23,6 +24,8 @@ interface LocalState {
   airLockErrorCount: number;
   lastReconnect: number;
   onReconnect: (() => void) | null;
+  logs: string[];
+  log: (msg: string) => void;
   set: (f: (s: LocalState) => void) => void;
 }
 
@@ -41,6 +44,14 @@ export const useLocalState = create<LocalState>(
       airLockErrorCount: 0,
       lastReconnect: Date.now(),
       onReconnect: null,
+      logs: [],
+      log: (msg: string) => {
+        set(
+          produce((s) => {
+            s.logs.unshift(`${format(new Date(), 'HH:mm:ss')} ${msg}`);
+          })
+        );
+      },
     }),
     {
       name: createStorageKey('local'),

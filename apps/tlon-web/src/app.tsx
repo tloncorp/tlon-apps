@@ -95,6 +95,8 @@ import {
 
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
+import DevLog from './components/DevLog/DevLog';
+import DevLogsView from './components/DevLog/DevLogView';
 import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
@@ -407,6 +409,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="about"
                 element={<AboutView title={`About • ${groupsTitle}`} />}
               />
+              <Route
+                path="logs"
+                element={
+                  <DevLogsView title={`Developer Logs • ${groupsTitle}`} />
+                }
+              />
             </Route>
           ) : (
             <>
@@ -437,6 +445,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route
                 path="/profile/about"
                 element={<AboutView title={`About • ${groupsTitle}`} />}
+              />
+              <Route
+                path="/profile/logs"
+                element={
+                  <DevLogsView title={`Developer Logs • ${groupsTitle}`} />
+                }
               />
             </>
           )}
@@ -537,11 +551,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
+              <Route path="/update-needed" element={<UpdateNoticeSheet />} />
             </>
           ) : null}
-          {isMobile && (
-            <Route path="/update-needed" element={<UpdateNoticeSheet />} />
-          )}
         </Routes>
       ) : null}
     </>
