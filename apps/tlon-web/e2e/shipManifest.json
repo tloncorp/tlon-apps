@@ -7,7 +7,7 @@
     "code": "lidlut-tabwed-pillex-ridrup",
     "httpPort": "35453",
     "loopbackPort": "",
-    "webUrl": "http://localhost:3000"
+    "webUrl": "http://127.0.0.1:3000"
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
@@ -17,7 +17,7 @@
     "code": "riddec-bicrym-ridlev-pocsef",
     "httpPort": "36963",
     "loopbackPort": "",
-    "webUrl": "http://localhost:3001"
+    "webUrl": "http://127.0.0.1:3001"
   },
   "~habduc-patbud": {
     "authFile": "e2e/.auth/habduc-patbud.json",
@@ -27,7 +27,7 @@
     "code": "bisrym-lomwep-binbyr-tidwed",
     "httpPort": "35553",
     "loopbackPort": "",
-    "webUrl": "http://localhost:3000"
+    "webUrl": "http://127.0.0.1:3000"
   },
   "~naldeg-mardev": {
     "authFile": "e2e/.auth/naldeg-mardev.json",
@@ -37,6 +37,6 @@
     "code": "hadbyn-savfel-lanlur-ronped",
     "httpPort": "36663",
     "loopbackPort": "",
-    "webUrl": "http://localhost:3001"
+    "webUrl": "http://127.0.0.1:3001"
   }
 }

@@ -17,6 +17,7 @@ export const postKey = (nest: string, id: string) => {
 export const ChannnelKeys = {
   channel: channelKey,
   infinitePostsKey,
+  postKey,
 };
 
 export default ChannnelKeys;
