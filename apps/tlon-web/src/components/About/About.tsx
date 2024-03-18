@@ -80,7 +80,7 @@ export default function About() {
           <span className="flex items-center break-all">{pike?.hash}</span>
         </div>
       </div>
-      <Link to="/logs" className="button mt-4">
+      <Link to="/profile/logs" className="button mt-4">
         View Developer Logs
       </Link>
     </div>
