@@ -1,4 +1,4 @@
-import type { Contact } from '@tloncorp/shared';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import type * as ub from '@tloncorp/shared/dist/urbit/contact';
 import { parseUx } from '@urbit/aura';
 
@@ -12,7 +12,9 @@ export const getContacts = async () => {
   return toClientContacts(results);
 };
 
-export const toClientContacts = (contacts: ub.ContactRolodex): Contact[] => {
+export const toClientContacts = (
+  contacts: ub.ContactRolodex
+): Client.Contact[] => {
   return Object.entries(contacts).map(([ship, contact]) =>
     toClientContact(ship, contact)
   );
@@ -21,7 +23,7 @@ export const toClientContacts = (contacts: ub.ContactRolodex): Contact[] => {
 export const toClientContact = (
   id: string,
   contact: ub.Contact | null
-): Contact => {
+): Client.Contact => {
   return {
     id,
     nickname: contact?.nickname ?? null,

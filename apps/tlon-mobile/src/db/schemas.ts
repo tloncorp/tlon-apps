@@ -1,6 +1,6 @@
-import type { Contact, Unread } from '@tloncorp/shared';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 
-export function fallbackContact(id: string): Contact {
+export function fallbackContact(id: string): Client.Contact {
   return {
     id,
     nickname: null,
@@ -43,8 +43,8 @@ export const schemas = [contactSchema, unreadSchema];
 
 // Should contain all schema types, used to map Realm object types to TypeScript types
 export type SchemaMap = {
-  Contact: Contact;
-  Unread: Unread;
+  Contact: Client.Contact;
+  Unread: Client.Unread;
 };
 
 export type SchemaName = keyof SchemaMap;

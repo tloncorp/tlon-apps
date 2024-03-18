@@ -1,4 +1,4 @@
-import type { UnreadType } from '@tloncorp/shared';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 
 import { UpdateMode, realm } from './realm';
 import type {
@@ -10,7 +10,9 @@ import type {
 
 // Model queries
 
-export function unreadChannelsQuery(type: UnreadType): QueryFn<'Unread'> {
+export function unreadChannelsQuery(
+  type: Client.UnreadType
+): QueryFn<'Unread'> {
   return (collection: Results<'Unread'>) => {
     return collection.filtered('type == $0 AND totalCount > 0', type);
   };

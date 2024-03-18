@@ -1,4 +1,4 @@
-import type { Unread, UnreadType } from '@tloncorp/shared';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import type * as ubChan from '@tloncorp/shared/dist/urbit/channel';
 import type * as ubDM from '@tloncorp/shared/dist/urbit/dms';
 
@@ -21,7 +21,7 @@ export const getDMUnreads = async () => {
 };
 
 export const subscribeChannelUnreads = (
-  handler: (unread: Unread) => Promise<void>
+  handler: (unread: Client.Unread) => Promise<void>
 ) => {
   subscribe<ubChan.UnreadUpdate>(
     { app: 'channels', path: '/unreads' },
@@ -33,7 +33,7 @@ export const subscribeChannelUnreads = (
 };
 
 export const subscribeDMUnreads = (
-  handler: (unread: Unread) => Promise<void>
+  handler: (unread: Client.Unread) => Promise<void>
 ) => {
   subscribe<ubDM.DMUnreadUpdate>(
     { app: 'chat', path: '/unreads' },
@@ -46,8 +46,8 @@ export const subscribeDMUnreads = (
 
 export const toClientUnreads = (
   unreads: ubChan.Unreads,
-  type: UnreadType
-): Unread[] => {
+  type: Client.UnreadType
+): Client.Unread[] => {
   return Object.entries(unreads).map(([nest, contact]) =>
     toClientUnread(nest, contact, type)
   );
@@ -56,8 +56,8 @@ export const toClientUnreads = (
 export const toClientUnread = (
   nestOrWhom: string,
   unread: ubChan.Unread,
-  type: UnreadType
-): Unread => {
+  type: Client.UnreadType
+): Client.Unread => {
   return {
     channelId: nestOrWhom,
     totalCount: unread.count,

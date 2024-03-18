@@ -1,11 +1,11 @@
-import type { UnreadType } from '@tloncorp/shared';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import type * as ubChan from '@tloncorp/shared/dist/urbit/channel';
 import type * as ubDM from '@tloncorp/shared/dist/urbit/dms';
 import { expect, test } from 'vitest';
 
 import { toClientUnread, toClientUnreads } from './unreadsApi';
 
-const inputUnread: [string, ubChan.Unread, UnreadType] = [
+const inputUnread: [string, ubChan.Unread, Client.UnreadType] = [
   'chat/~nibset-napwyn/commons',
   {
     unread: null,
@@ -32,7 +32,7 @@ test('converts an array of contacts from server to client format', () => {
   ).toStrictEqual([expectedChannelUnread]);
 });
 
-const inputDMUnread: [string, ubDM.DMUnread, UnreadType] = [
+const inputDMUnread: [string, ubDM.DMUnread, Client.UnreadType] = [
   'dm/~pondus-latter',
   {
     unread: null,
