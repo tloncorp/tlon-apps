@@ -1,8 +1,8 @@
+import type { UnreadType } from '@tloncorp/shared';
 import type * as ubChan from '@tloncorp/shared/dist/urbit/channel';
 import type * as ubDM from '@tloncorp/shared/dist/urbit/dms';
 import { expect, test } from 'vitest';
 
-import type { UnreadType } from '../db';
 import { toClientUnread, toClientUnreads } from './unreadsApi';
 
 const inputUnread: [string, ubChan.Unread, UnreadType] = [

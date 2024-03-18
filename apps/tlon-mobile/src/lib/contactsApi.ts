@@ -1,7 +1,7 @@
+import type { Contact } from '@tloncorp/shared';
 import type * as ub from '@tloncorp/shared/dist/urbit/contact';
 import { parseUx } from '@urbit/aura';
 
-import type * as db from '../db';
 import { scry } from './api';
 
 export const getContacts = async () => {
@@ -12,7 +12,7 @@ export const getContacts = async () => {
   return toClientContacts(results);
 };
 
-export const toClientContacts = (contacts: ub.ContactRolodex): db.Contact[] => {
+export const toClientContacts = (contacts: ub.ContactRolodex): Contact[] => {
   return Object.entries(contacts).map(([ship, contact]) =>
     toClientContact(ship, contact)
   );
@@ -21,7 +21,7 @@ export const toClientContacts = (contacts: ub.ContactRolodex): db.Contact[] => {
 export const toClientContact = (
   id: string,
   contact: ub.Contact | null
-): db.Contact => {
+): Contact => {
   return {
     id,
     nickname: contact?.nickname ?? null,

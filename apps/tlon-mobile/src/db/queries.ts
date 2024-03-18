@@ -1,10 +1,11 @@
+import type { UnreadType } from '@tloncorp/shared';
+
 import { UpdateMode, realm } from './realm';
 import type {
   SchemaMap,
   SchemaModel,
   SchemaName,
   SchemaValue,
-  UnreadType,
 } from './schemas';
 
 // Model queries
