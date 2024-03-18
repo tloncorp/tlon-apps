@@ -1,13 +1,17 @@
-export type Contact = {
-  id: string;
-  nickname: string | null;
-  bio: string | null;
-  status: string | null;
-  color: string | null;
-  avatarImage: string | null;
-  coverImage: string | null;
-  pinnedGroupIds: string[];
-};
+import type { ClientTypes as Client } from '@tloncorp/shared';
+
+export function fallbackContact(id: string): Client.Contact {
+  return {
+    id,
+    nickname: null,
+    bio: null,
+    status: null,
+    color: null,
+    avatarImage: null,
+    coverImage: null,
+    pinnedGroupIds: [],
+  };
+}
 
 const contactSchema = {
   name: 'Contact',
@@ -24,12 +28,26 @@ const contactSchema = {
   primaryKey: 'id',
 };
 
+const unreadSchema = {
+  name: 'Unread',
+  properties: {
+    channelId: 'string',
+    totalCount: 'int',
+    type: 'string',
+  },
+  primaryKey: 'channelId',
+};
+
 // Should contain all schemas, will be passed to Realm constructor
-export const schemas = [contactSchema];
+export const schemas = [contactSchema, unreadSchema];
 
 // Should contain all schema types, used to map Realm object types to TypeScript types
 export type SchemaMap = {
-  Contact: Contact;
+  Contact: Client.Contact;
+  Unread: Client.Unread;
 };
 
 export type SchemaName = keyof SchemaMap;
+export type SchemaModel<T extends SchemaName> = SchemaMap[T];
+export type SchemaKey<T extends SchemaName> = keyof SchemaModel<T>;
+export type SchemaValue<T extends SchemaName> = SchemaModel<T>[SchemaKey<T>];

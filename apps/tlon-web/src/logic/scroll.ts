@@ -1,6 +1,8 @@
 import { throttle } from 'lodash';
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
+import useIsEditingMessage from './useIsEditingMessage';
+
 /**
  * Utility for tracking scrolling state. Caller should call `didScroll` whenever
  * a scroll event occurs.
@@ -55,14 +57,24 @@ export function useInvertedScrollInteraction(
   scrollElementRef: RefObject<HTMLDivElement>,
   isInverted: boolean
 ) {
+  const isEditing = useIsEditingMessage();
+  const isEditingRef = useRef(isEditing);
+
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
+
   useEffect(() => {
     const el = scrollElementRef.current;
     if (!isInverted || !el) return undefined;
+
     const invertScrollWheel = (e: WheelEvent) => {
       el.scrollTop -= e.deltaY;
       e.preventDefault();
     };
     const invertSpaceAndArrows = (e: KeyboardEvent) => {
+      if (isEditingRef.current) return;
+
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         el.scrollBy({ top: 30, behavior: e.repeat ? 'auto' : 'smooth' });
@@ -78,13 +90,15 @@ export function useInvertedScrollInteraction(
         });
       }
     };
+
     el.addEventListener('wheel', invertScrollWheel, false);
     el.addEventListener('keydown', invertSpaceAndArrows, true);
+
     return () => {
       el.removeEventListener('wheel', invertScrollWheel);
       el.removeEventListener('keydown', invertSpaceAndArrows);
     };
-  }, [isInverted, scrollElementRef]);
+  }, [isInverted, scrollElementRef, isEditing]);
 }
 
 /**
