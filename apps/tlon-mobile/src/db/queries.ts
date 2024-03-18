@@ -18,6 +18,71 @@ export function unreadChannelsQuery(
   };
 }
 
+export interface GroupQuerySettings {
+  isPinned?: boolean;
+  sortBy?: 'pinIndex' | 'lastPostAt';
+  sortDirection?: 'asc' | 'desc';
+}
+
+export const groupQuery =
+  (settings: GroupQuerySettings): QueryFn<'Group'> =>
+  (query: Results<'Group'>) => {
+    if ('isPinned' in settings) {
+      query = query.filtered(
+        `pinIndex ${settings.isPinned ? '!=' : '=='} NULL`
+      );
+    }
+    if (settings.sortBy) {
+      query = query.sorted(
+        settings.sortBy,
+        settings.sortDirection === 'asc' ? false : true
+      );
+    }
+    return query;
+  };
+
+export const getUnreadChannelCount = (group: Client.Group) => {
+  return getObjects('Channel', (q) => {
+    return q.filtered('group == $0 && unreadCount > 0', group);
+  }).length;
+};
+
+export function updatePinnedGroups(pinnedGroups: string[]) {
+  return batch(() => {
+    // Clear previous pin indexes
+    const lastPinnedGroups = getObjects(
+      'Group',
+      groupQuery({ isPinned: true })
+    );
+    lastPinnedGroups.forEach((g) => (g.pinIndex = null));
+    // Set new pin indexes
+    pinnedGroups.forEach((groupId, i) => {
+      const group = getObject('Group', groupId);
+      if (group) {
+        group.pinIndex = i;
+      }
+    });
+  });
+}
+
+export function updateChannelUnreadStates(channels: Client.Unread[]) {
+  return batch(() => {
+    channels.forEach((c) => {
+      const channel = create(
+        'Channel',
+        { id: c.channelId, unreadCount: c.totalCount },
+        UpdateMode.Modified
+      );
+      if (
+        channel.group &&
+        (channel.lastPostAt ?? 0) > (channel.group.lastPostAt ?? 0)
+      ) {
+        channel.group.lastPostAt = channel.lastPostAt;
+      }
+    });
+  });
+}
+
 // Generic queries
 
 export function createBatch<T extends SchemaName>(

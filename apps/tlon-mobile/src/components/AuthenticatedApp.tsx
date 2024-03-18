@@ -8,7 +8,12 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { initializeUrbitClient } from '../lib/api';
 import { subscribeUnreads } from '../lib/subscribe';
-import { syncContacts, syncUnreads } from '../lib/sync';
+import {
+  syncContacts,
+  syncGroups,
+  syncPinnedGroups,
+  syncUnreads,
+} from '../lib/sync';
 import { TabStack } from '../navigation/TabStack';
 import WebviewOverlay from './WebviewOverlay';
 
@@ -26,6 +31,8 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
     syncContacts();
     syncUnreads();
     subscribeUnreads();
+    syncGroups();
+    syncPinnedGroups();
   }, [ship, shipUrl]);
 
   return (

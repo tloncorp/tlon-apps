@@ -8,7 +8,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tamagui-build --skip-types",
+    "build": "npx tamagui-build --skip-types",
     "watch": "tamagui-build --watch --skip-types"
   },
   "dependencies": {
@@ -19,5 +19,8 @@
   },
   "peerDependencies": {
     "@urbit/sigil-js": "^2.2.0"
+  },
+  "devDependencies": {
+    "@tamagui/build": "^1.89.26"
   }
 }

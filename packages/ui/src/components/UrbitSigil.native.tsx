@@ -1,4 +1,4 @@
-import sigil from "@urbit/sigil-js";
+import sigil from "@urbit/sigil-js/dist/core";
 import { useMemo } from "react";
 import { SvgXml } from "react-native-svg";
 import { useTheme, View } from "tamagui";

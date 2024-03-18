@@ -125,9 +125,6 @@ export const SingletonWebview = () => {
         if (value.tab === 'Messages') {
           webviewContext.setLastMessagesPath(value.path);
         }
-        if (value.tab === 'Groups') {
-          webviewContext.setLastGroupsPath(value.path);
-        }
         break;
       }
       case 'manageAccount':

@@ -92,7 +92,7 @@
     "@urbit/api": "^2.2.0",
     "@urbit/aura": "^1.0.0",
     "@urbit/http-api": "^3.1.0-dev-2",
-    "@urbit/sigil-js": "^2.1.0",
+    "@urbit/sigil-js": "^2.2.0",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.51",
     "browser-cookies": "^1.2.0",

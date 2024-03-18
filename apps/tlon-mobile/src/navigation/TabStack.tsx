@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Avatar, Circle, Icon, View } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
+import { Avatar, Circle, Icon, View } from '@tloncorp/ui';
 
 import { useShip } from '../contexts/ship';
 import { fallbackContact } from '../db';

@@ -16,4 +16,69 @@ export namespace ClientTypes {
     type: UnreadType;
     totalCount: number;
   };
+
+  export type Group = {
+    id: string;
+    roles?: GroupRole[];
+    navSections?: GroupNavSection[];
+    members?: GroupMember[];
+    iconImage?: string;
+    iconImageColor?: string;
+    title?: string;
+    coverImage?: string;
+    coverColor?: string;
+    description?: string;
+    isSecret: boolean;
+    isPreview?: boolean;
+    pinIndex?: number | null;
+    lastPostAt?: number | null;
+
+    // Linked objects
+    channels?: Channel[];
+  };
+
+  export type GroupMember = {
+    id: string;
+    roles: string[];
+    joinedAt: number;
+  };
+
+  export type GroupRole = {
+    name: string;
+    image?: string;
+    title?: string;
+    cover?: string;
+    description?: string;
+  };
+
+  export type GroupNavSection = {
+    id: string;
+    channelIds?: string[];
+    image?: string;
+    title?: string;
+    cover?: string;
+    description?: string;
+  };
+
+  export type Channel = {
+    id: string;
+    group?: Group;
+    image?: string;
+    title?: string;
+    cover?: string;
+    description?: string;
+    addedToGroupAt?: number;
+    currentUserIsMember?: boolean;
+    postCount?: number;
+    unreadCount?: number;
+    firstUnreadPostId?: string;
+    unreadThreads?: ThreadUnreadState[];
+    lastPostAt?: number;
+  };
+
+  export type ThreadUnreadState = {
+    threadId: string;
+    firstUnreadId?: string;
+    count: number;
+  };
 }

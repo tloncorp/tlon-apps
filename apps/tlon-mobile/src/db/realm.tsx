@@ -18,7 +18,8 @@ export enum UpdateMode {
 
 const config: Realm.Configuration = {
   schema: schemas,
-  schemaVersion: 0,
+  schemaVersion: 9,
+  deleteRealmIfMigrationNeeded: process.env.NODE_ENV === 'DEVELOPMENT',
 };
 
 const {
