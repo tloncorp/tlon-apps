@@ -660,7 +660,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     retry: false,
   });
 
-  const posts = newPostTupleArray(data);
+  const posts = useMemo(() => newPostTupleArray(data), [data]);
 
   return {
     data,

@@ -169,6 +169,7 @@ const loaderPadding = {
 export interface ChatScrollerProps {
   whom: string;
   messages: PostTuple[] | WritTuple[] | ReplyTuple[];
+  shouldInvert?: boolean;
   onAtTop?: () => void;
   onAtBottom?: () => void;
   isLoadingOlder: boolean;
@@ -190,6 +191,7 @@ export interface ChatScrollerProps {
 export default function ChatScroller({
   whom,
   messages,
+  shouldInvert = true,
   onAtTop,
   onAtBottom,
   isLoadingOlder,
@@ -308,7 +310,10 @@ export default function ChatScroller({
     ? false
     : !isScrollable
       ? true
-      : loadDirection === 'older';
+      : loadDirection === 'older' && shouldInvert
+        ? true
+        : shouldInvert;
+
   // We want to render newest messages first, but we receive them oldest-first.
   // This is a simple way to reverse the order without having to reverse a big array.
   const transformIndex = useCallback(
@@ -512,7 +517,7 @@ export default function ChatScroller({
   const lastIsInverted = useRef(isInverted);
   if (userHasScrolled && isInverted !== lastIsInverted.current) {
     logger.log('inverting chat scroller');
-    forceScroll(contentHeight - virtualizer.scrollOffset);
+    forceScroll(contentHeight - virtualizer.scrollOffset - scrollElementHeight);
     lastIsInverted.current = isInverted;
   }
 

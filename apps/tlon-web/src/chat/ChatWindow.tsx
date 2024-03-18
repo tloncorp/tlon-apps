@@ -1,4 +1,4 @@
-import { PageTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { PostTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import React, {
   ReactElement,
@@ -60,11 +60,9 @@ export default function ChatWindow({
     isFetchingPreviousPage,
   } = useInfinitePosts(nest, scrollToId);
   const { mutate: markRead } = useMarkReadMutation();
-  const totalMessagesCached = useMemo(
-    () => (messages ? messages.length : 0),
-    [messages]
-  );
-  const [scrollerMessages, setScrollerMessages] = useState<PageTuple[]>([]);
+  const totalMessagesCached = messages ? messages.length : 0;
+  const [scrollerMessages, setScrollerMessages] = useState<PostTuple[]>([]);
+  const [shouldInvert, setShouldInvert] = useState(true);
   const [scrollerMessagesSliceStart, setScrollerMessagesSliceStart] =
     useState<number>();
   const [scrollerMessagesSliceEnd, setScrollerMessagesSliceEnd] =
@@ -146,124 +144,105 @@ export default function ChatWindow({
   const lastWhom = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    // scorllerMessages only updates when scrollerMessagesSliceStart and
-    // scrollerMessagesSliceEnd change
+    // scrollerMessages only updates when slice start and end change
+    // or on initial load
 
-    console.log('maybe setting messages for scroller', {
-      scrollerMessagesSliceStart,
-      scrollerMessagesSliceEnd,
-      fakeLoadingNewer,
-      fakeLoadingOlder,
-      lastScrollerMessagesSliceStart: lastScrollerMessagesSliceStart.current,
-      lastScrollerMessagesSliceEnd: lastScrollerMessagesSliceEnd.current,
-    });
+    if (initialLoad && totalMessagesCached > 0 && !isLoading && !scrollToId) {
+      // if we're in the initial load, and we have messages, and we're not
+      // fetching, and we don't have a scrollToId, then we should set the
+      // scrollerMessages to the default slice start/end
 
-    // if (
-    // scrollerMessagesSliceStart === undefined ||
-    // scrollerMessagesSliceEnd === undefined ||
-    // fakeLoadingNewer ||
-    // fakeLoadingOlder
-    // ) {
-    // return;
-    // }
+      setScrollerMessagesSliceStart(totalMessagesCached - WINDOW_SIZE);
+      setScrollerMessagesSliceEnd(totalMessagesCached);
+      setCurrentPageIndex(1);
 
-    if (
-      lastScrollerMessagesSliceStart.current === scrollerMessagesSliceStart &&
-      lastScrollerMessagesSliceEnd.current === scrollerMessagesSliceEnd &&
-      lastWhom.current === whom
-    ) {
-      console.log('scroller messages already set for this channel');
-      return;
+      setScrollerMessages(
+        messages.slice(scrollerMessagesSliceStart, scrollerMessagesSliceEnd)
+      );
+
+      setInitialLoad(false);
     }
 
-    const posts = messages.slice(
-      scrollerMessagesSliceStart,
-      scrollerMessagesSliceEnd
-    );
+    if (
+      !initialLoad &&
+      !fakeLoadingNewer &&
+      !fakeLoadingOlder &&
+      totalMessagesCached > 0 &&
+      scrollerMessagesSliceStart !== undefined &&
+      scrollerMessagesSliceStart >= 0 &&
+      scrollerMessagesSliceEnd !== undefined &&
+      scrollerMessagesSliceEnd <= totalMessagesCached &&
+      lastWhom.current === whom &&
+      (lastScrollerMessagesSliceStart.current !== scrollerMessagesSliceStart ||
+        lastScrollerMessagesSliceEnd.current !== scrollerMessagesSliceEnd)
+    ) {
+      // if we're not in the initial load, and we're not faking loading newer
+      // or older messages, and we have a slice start and end, and the slice
+      // start and end are within the bounds of the total messages cached, and
+      // the whom hasn't changed, and the slice start and end have changed, then
+      // we should update the scrollerMessages
 
-    lastScrollerMessagesSliceStart.current = scrollerMessagesSliceStart;
-    lastScrollerMessagesSliceEnd.current = scrollerMessagesSliceEnd;
-    lastWhom.current = whom;
-
-    console.log('setting messages for scroller', {
-      scrollerMessagesSliceStart,
-      scrollerMessagesSliceEnd,
-    });
-    setScrollerMessages(posts);
+      setScrollerMessages(
+        messages.slice(scrollerMessagesSliceStart, scrollerMessagesSliceEnd)
+      );
+      lastScrollerMessagesSliceStart.current = scrollerMessagesSliceStart;
+      lastScrollerMessagesSliceEnd.current = scrollerMessagesSliceEnd;
+    }
   }, [
     messages,
     scrollerMessagesSliceStart,
     scrollerMessagesSliceEnd,
     fakeLoadingNewer,
     fakeLoadingOlder,
+    totalMessagesCached,
     whom,
+    initialLoad,
+    isLoading,
+    scrollToId,
   ]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
-    if (!scrollToId && totalMessagesCached > 0 && initialLoad) {
-      console.log('on channel change, set slice start and end', {
-        sliceStart: totalMessagesCached - WINDOW_SIZE,
-        sliceEnd: totalMessagesCached,
-      });
-      setCurrentPageIndex(1);
-      setScrollerMessagesSliceStart(totalMessagesCached - WINDOW_SIZE);
-      setScrollerMessagesSliceEnd(totalMessagesCached);
-      setInitialLoad(false);
-    }
-
     return () => {
       useChatStore.getState().setCurrent('');
     };
-  }, [whom, totalMessagesCached, scrollToId, initialLoad]);
+  }, [whom]);
 
   useEffect(() => {
-    // if we have a scrollToId, and we don't have the message in our current
-    // set of messages, and we haven't seen the scrollToId yet, then we need to
-    // set the slice start and end to include the scrollTo message
+    // channel switch
 
-    console.log({
-      scrollToId,
-      msgIdTimeInScrollerMessages,
-      currentPageIndex,
-      scrollToIndex,
-      totalMessages: totalMessagesCached,
-      seenScrollToIdRef: seenScrollToIdRef.current,
-    });
+    if (whom !== lastWhom.current && !scrollToId) {
+      lastWhom.current = whom;
+      setInitialLoad(true);
+    }
+  }, [whom, totalMessagesCached, scrollToId]);
 
-    if (
-      scrollToId &&
-      !msgIdTimeInScrollerMessages &&
-      !seenScrollToIdRef.current
-    ) {
-      console.log({
-        scrollToIndex,
-        WINDOW_SIZE,
-        totalMessages: totalMessagesCached,
-        currentPageIndex,
-      });
+  useEffect(() => {
+    // if we have a scrollToId and we're in the initial load, and the scrollToId
+    // is not in the current set of scrollerMessages, then we need to update the
+    // slice start and end to include the scrollToId
+
+    if (initialLoad && scrollToId && !msgIdTimeInScrollerMessages) {
       const sliceStart = scrollToIndex - WINDOW_SIZE / 2;
       const sliceEnd = scrollToIndex + WINDOW_SIZE / 2;
-      const pageIndex = Math.ceil(
-        (scrollToIndex / totalMessagesCached) * totalPagesCached
-      );
+      const pageIndex =
+        1 +
+        totalPagesCached -
+        Math.ceil((scrollToIndex / totalMessagesCached) * totalPagesCached);
 
       if (sliceStart > 0) {
-        console.log('scrollToId, setting slice start and end', {
-          pageIndex,
-          sliceStart,
-          sliceEnd,
-          totalPages: totalPagesCached,
-        });
         setScrollerMessagesSliceStart(sliceStart);
         setScrollerMessagesSliceEnd(sliceEnd);
-        lastScrollerMessagesSliceStart.current = sliceStart;
-        lastScrollerMessagesSliceEnd.current = sliceEnd;
         setCurrentPageIndex(pageIndex);
+        lastWhom.current = whom;
         seenScrollToIdRef.current = true;
+        setInitialLoad(false);
+        setShouldInvert(false);
       }
     }
   }, [
+    initialLoad,
+    whom,
     messages,
     currentPageIndex,
     totalMessagesCached,
@@ -274,33 +253,36 @@ export default function ChatWindow({
   ]);
 
   const onAtBottom = useCallback(() => {
-    console.log(
-      'at bottom, setting current page index to',
-      currentPageIndex - 1
-    );
+    setShouldInvert(false);
+
+    if (
+      currentPageIndex === 1 &&
+      scrollerMessagesSliceEnd !== totalMessagesCached &&
+      !isFetching &&
+      !fakeLoadingNewer &&
+      !fakeLoadingOlder
+    ) {
+      setFakeLoadingNewer(true);
+      setScrollerMessagesSliceEnd(totalMessagesCached);
+    }
 
     if (
       currentPageIndex !== 1 &&
       !isFetching &&
-      scrollerMessagesSliceStart &&
       scrollerMessagesSliceEnd &&
       !fakeLoadingNewer &&
       !fakeLoadingOlder
     ) {
+      // if we're not at the bottom of the first page, and we're not fetching,
+      // and we're not faking loading, and we have a slice end, then
+      // we should fake load newer messages
+
       setFakeLoadingNewer(true);
       const maybeSliceEnd = scrollerMessagesSliceEnd + WINDOW_SIZE;
       const sliceEnd =
         maybeSliceEnd > totalMessagesCached
           ? totalMessagesCached
           : maybeSliceEnd;
-
-      console.log('on at bottom, setting slice end', {
-        sliceEnd,
-        scrollerMessagesSliceStart,
-        scrollerMessagesSliceEnd,
-        currentPageIndex,
-        totalMessages: totalMessagesCached,
-      });
 
       setScrollerMessagesSliceEnd(sliceEnd);
 
@@ -326,7 +308,6 @@ export default function ChatWindow({
     hasPreviousPage,
     isFetching,
     currentPageIndex,
-    scrollerMessagesSliceStart,
     fakeLoadingNewer,
     fakeLoadingOlder,
     scrollerMessagesSliceEnd,
@@ -334,7 +315,7 @@ export default function ChatWindow({
   ]);
 
   const onAtTop = useCallback(() => {
-    console.log('at top, setting current page index to', currentPageIndex + 1);
+    setShouldInvert(true);
 
     if (
       currentPageIndex !== totalPagesCached &&
@@ -343,25 +324,15 @@ export default function ChatWindow({
       !fakeLoadingNewer &&
       scrollerMessagesSliceEnd
     ) {
+      // if we're not at the top of the first page, and we're not fetching,
+      // and we're not faking loading, and we have a slice end, then we should
+      // fake load older messages
+
       setFakeLoadingOlder(true);
       const newPageIndex = currentPageIndex + 1;
       const sliceStart =
         totalMessagesCached -
         (newPageIndex / totalPagesCached) * totalMessagesCached;
-
-      if (scrollerMessagesSliceEnd !== totalMessagesCached) {
-        setScrollerMessagesSliceEnd(totalMessagesCached);
-      }
-
-      console.log('on at top, setting slice start', {
-        newPageIndex,
-        sliceStart,
-        scrollerMessagesSliceStart,
-        scrollerMessagesSliceEnd,
-        currentPageIndex,
-        totalPages: totalPagesCached,
-        totalMessages: totalMessagesCached,
-      });
 
       setScrollerMessagesSliceStart(sliceStart);
       setCurrentPageIndex((prev) => prev + 1);
@@ -381,11 +352,27 @@ export default function ChatWindow({
     isFetching,
     currentPageIndex,
     totalPagesCached,
-    scrollerMessagesSliceStart,
     scrollerMessagesSliceEnd,
     fakeLoadingOlder,
     fakeLoadingNewer,
     totalMessagesCached,
+  ]);
+
+  useEffect(() => {
+    // if we have loaded the newest messages then we're at the bottom
+    // then we should be inverted
+    if (
+      currentPageIndex === 1 &&
+      scrollerMessagesSliceEnd === totalMessagesCached &&
+      !hasPreviousPage
+    ) {
+      setShouldInvert(true);
+    }
+  }, [
+    currentPageIndex,
+    scrollerMessagesSliceEnd,
+    totalMessagesCached,
+    hasPreviousPage,
   ]);
 
   // read the messages once navigated away
@@ -456,6 +443,7 @@ export default function ChatWindow({
            */
           key={whom}
           messages={scrollerMessages}
+          shouldInvert={shouldInvert}
           isLoadingOlder={fakeLoadingOlder ?? isFetchingNextPage}
           isLoadingNewer={fakeLoadingNewer ?? isFetchingPreviousPage}
           whom={whom}
@@ -469,7 +457,11 @@ export default function ChatWindow({
           hasLoadedOldest={
             currentPageIndex === totalPagesCached && !hasNextPage
           }
-          hasLoadedNewest={currentPageIndex === 1 && !hasPreviousPage}
+          hasLoadedNewest={
+            currentPageIndex === 1 &&
+            scrollerMessagesSliceEnd === totalMessagesCached &&
+            !hasPreviousPage
+          }
         />
       </div>
       {scrollToId &&
