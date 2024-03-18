@@ -153,6 +153,7 @@ export default ({ mode }: { mode: string }) => {
             rollupOptions,
           }
         : ({
+            target: 'esnext',
             rollupOptions: {
               ...rollupOptions,
               plugins: [

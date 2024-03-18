@@ -1,9 +1,10 @@
 import { createRealmContext } from '@realm/react';
-import type { SchemaMap, SchemaName } from '@tloncorp/shared/dist/db';
-import { schemas } from '@tloncorp/shared/dist/db';
 import React from 'react';
 import type { PropsWithChildren } from 'react';
 import type Realm from 'realm';
+
+import type { SchemaMap, SchemaName } from '@tloncorp/shared/dist/db';
+import { schemas } from '@tloncorp/shared/dist/db';
 
 // This is a copy of Realm's `UpdateMode` enum. Not ideal, but realm only
 // exports `UpdateMode` as a type, which causes a lint error if we try to use it
