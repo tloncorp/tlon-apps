@@ -10,9 +10,8 @@ const config = {
 };
 
 let lastEventId = 1;
-export let client: Urbit;
+let client: Urbit | null = null;
 
-// TODO: remove client on logout
 export function initializeUrbitClient(shipName: string, shipUrl: string) {
   client = new Urbit(
     shipUrl,
@@ -51,6 +50,10 @@ export function initializeUrbitClient(shipName: string, shipUrl: string) {
   });
 }
 
+export function removeUrbitClient() {
+  client = null;
+}
+
 interface UrbitEndpoint {
   app: string;
   path: string;
@@ -65,6 +68,10 @@ export function subscribe<T>(
   endpoint: UrbitEndpoint,
   handler: (update: T) => void
 ) {
+  if (!client) {
+    throw new Error('Tied to subscribe, but Urbit client is not initialized');
+  }
+
   client.subscribe({
     app: endpoint.app,
     path: endpoint.path,

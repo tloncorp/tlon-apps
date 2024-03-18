@@ -1,28 +1,17 @@
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect } from 'react';
 
-import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import { getHostingUser } from '../lib/hostingApi';
 import type { WebViewStackParamList } from '../types';
-import {
-  getHostingToken,
-  getHostingUserId,
-  removeHostingToken,
-  removeHostingUserId,
-} from '../utils/hosting';
+import { getHostingToken, getHostingUserId } from '../utils/hosting';
+import { useLogout } from './useLogout';
 
 export default function useManageAccount(
   navigation: NativeStackNavigationProp<WebViewStackParamList, 'Webview'>
 ) {
   const { manageAccountState, setManageAccountState } = useWebViewContext();
-  const { clearShip } = useShip();
-
-  const handleLogout = useCallback(() => {
-    clearShip();
-    removeHostingToken();
-    removeHostingUserId();
-  }, [clearShip]);
+  const { handleLogout } = useLogout();
 
   // If the user selected manage account, navigate to the external
   // hosting page
