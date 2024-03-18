@@ -1,18 +1,29 @@
 import { createAnimations } from "@tamagui/animations-moti";
-import { createFont, createTamagui, createTokens } from "tamagui";
+// import { ModalView } from "react-native-ios-modal";
+import {
+  createFont,
+  createTamagui,
+  createTokens,
+  setupNativeSheet,
+} from "tamagui";
 
-// export const animations = createAnimations({
-//   simple: {
-//     type: "timing",
-//     duration: 100,
-//   },
-//   quick: {
-//     type: "spring",
-//     damping: 30,
-//     mass: 1,
-//     stiffness: 250,
-//   },
-// });
+export const animations = createAnimations({
+  simple: {
+    type: "timing",
+    duration: 100,
+  },
+  quick: {
+    type: "timing",
+    duration: 20,
+    damping: 30,
+    mass: 1,
+    stiffness: 250,
+  },
+});
+
+// TODO: get this installed, was getting missing header files when I
+// tried to run expo
+// setupNativeSheet("ios", ModalView);
 
 export const tokens = createTokens({
   color: {
@@ -177,5 +188,9 @@ export const config = createTamagui({
   settings: {
     allowedStyleValues: "somewhat-strict",
   },
-  // animations,
+  // There's an issue with multiple conflicting deep dependency references to @tamagui/web
+  // which exports the AnimationDriver type (npm dedupe did not resolve). There's not actually
+  // an actual type issue so we ignore for now
+  // @ts-ignore
+  animations,
 });

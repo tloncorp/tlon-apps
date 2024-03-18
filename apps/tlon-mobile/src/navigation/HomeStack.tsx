@@ -1,6 +1,14 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { Icon, Text, View, useStyle } from '@tloncorp/ui';
-import React, { useCallback, useEffect } from 'react';
+import {
+  Icon,
+  Sheet,
+  Text,
+  View,
+  XStack,
+  YStack,
+  useStyle,
+} from '@tloncorp/ui';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import { SectionList } from 'react-native';
 
@@ -12,6 +20,7 @@ import type { TabParamList } from '../types';
 type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
 
 export const HomeStack = ({ navigation }: Props) => {
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const { setVisibility } = useWebviewPositionContext();
 
   const pinnedGroups = db.useQuery<db.Group>(
@@ -41,17 +50,32 @@ export const HomeStack = ({ navigation }: Props) => {
     // numeric values, but I think tamagui's types are off here.
   ) as StyleProp<ViewStyle>;
 
+  const handleSheetOpenChange = (open: boolean) => {
+    console.log(`open: ${open}`);
+    setSortSheetOpen(open);
+  };
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Icon
-          type="Add"
-          pressStyle={{
-            backgroundColor: '$secondaryBackground',
-            borderRadius: '$s',
-          }}
-          onPress={() => {}}
-        />
+        <XStack>
+          <Icon
+            type="Filter"
+            pressStyle={{
+              backgroundColor: '$secondaryBackground',
+              borderRadius: '$s',
+            }}
+            onPress={() => setSortSheetOpen(true)}
+          />
+          <Icon
+            type="Add"
+            pressStyle={{
+              backgroundColor: '$secondaryBackground',
+              borderRadius: '$s',
+            }}
+            onPress={() => {}}
+          />
+        </XStack>
       ),
     });
 
@@ -92,6 +116,27 @@ export const HomeStack = ({ navigation }: Props) => {
         contentContainerStyle={contentContainerStyle}
         keyExtractor={getGroupId}
       />
+      <Sheet
+        open={sortSheetOpen}
+        onOpenChange={handleSheetOpenChange}
+        modal
+        dismissOnSnapToBottom
+        snapPointsMode="percent"
+        snapPoints={[30]}
+      >
+        <Sheet.Overlay />
+        <Sheet.Frame borderTopLeftRadius="$l" borderTopRightRadius="$l">
+          <Sheet.Handle />
+          <YStack padding="$xl">
+            <Text fontSize="$l" fontWeight="500" color="$blue">
+              A → Z
+            </Text>
+            <Text fontSize="$l" fontWeight="500">
+              A → Z
+            </Text>
+          </YStack>
+        </Sheet.Frame>
+      </Sheet>
     </View>
   );
 };

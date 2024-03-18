@@ -8,4 +8,5 @@ export * from "./components/View";
 export * from "./tamagui.config";
 export * from "./components/UrbitSigil";
 export * from "./components/Avatar";
-export { ZStack, View, Circle, useStyle } from "tamagui";
+export * from "./components/Sheet";
+export { ZStack, XStack, YStack, View, Circle, useStyle } from "tamagui";
