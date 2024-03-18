@@ -46,7 +46,7 @@ export default function MultiDmAvatar({
   loadImage = true,
 }: MultiDmAvatarProps) {
   const { hasLoaded, load } = useAvatar(image || '');
-  const showImage = hasLoaded || loadImage;
+  const showImage = loadImage && hasLoaded;
 
   if (image && isColor(image)) {
     return (
@@ -69,6 +69,7 @@ export default function MultiDmAvatar({
     );
   }
 
+  // Fallback if the image isn't available or showImage is false
   return (
     <div
       className={cn(
