@@ -1,16 +1,30 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Avatar, Circle, Icon, View } from '@tloncorp/ui';
+import {
+  Avatar,
+  Circle,
+  Icon,
+  Text,
+  UrbitSigil,
+  View,
+  ZStack,
+  useStyle,
+} from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
+import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';
 import { fallbackContact } from '../db';
 import { useContact, useUnreadChannelsCount } from '../db/hooks';
 import type { TabParamList } from '../types';
+import { HomeStack } from './HomeStack';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
+  const headerStyle = useStyle({
+    paddingHorizontal: '$xl',
+  }) as ViewStyle;
   const { ship } = useShip();
   const unreadCount = useUnreadChannelsCount();
 
@@ -20,21 +34,35 @@ export const TabStack = () => {
       initialRouteName="Groups"
       screenOptions={{
         headerShown: false,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        headerTitle({ style, ...props }) {
+          return (
+            <Text
+              fontSize="$m"
+              fontWeight="$s"
+              lineHeight="$s"
+              color="$primaryText"
+              {...props}
+            />
+          );
+        },
+        headerLeftContainerStyle: headerStyle,
+        headerRightContainerStyle: headerStyle,
+        tabBarShowLabel: false,
       }}
     >
       <Tab.Screen
         name="Groups"
-        component={WebViewStack}
+        component={HomeStack}
         options={{
+          headerShown: true,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               type={'Home'}
               activeType={'HomeFilled'}
               isActive={focused}
-              hasUnreads={unreadCount.groups > 0}
             />
           ),
-          tabBarShowLabel: false,
         }}
       />
       <Tab.Screen
