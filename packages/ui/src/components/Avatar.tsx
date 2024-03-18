@@ -1,12 +1,12 @@
 import { Image, View, ViewProps } from "tamagui";
 import { UrbitSigil } from "./UrbitSigil";
-import type { Contact } from "../../../shared";
+import type { ClientTypes as Client } from "../../../shared";
 
 export function Avatar({
   contact,
   ...props
 }: {
-  contact: Contact;
+  contact: Client.Contact;
 } & ViewProps) {
   // Note, the web Avatar component additionally checks calm settings and confirms the link is valid.
   if (contact?.avatarImage) {

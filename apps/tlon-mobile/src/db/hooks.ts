@@ -1,9 +1,10 @@
+import type { ClientTypes as Client } from '@tloncorp/shared';
+
 import { unreadChannelsQuery } from './queries';
 import { useObject, useQuery } from './realm';
-import type { Contact } from './schemas';
 
 // Model hooks
-export function useContact(id: string): Contact | null {
+export function useContact(id: string): Client.Contact | null {
   return useObject('Contact', id);
 }
 
