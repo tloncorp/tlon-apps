@@ -1,5 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { Button, TamaguiProvider } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -177,7 +178,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   }, [loaded]);
 
   return (
-    <>
+    <TamaguiProvider>
+      <Button>
+        <Button.Text>Hi</Button.Text>
+      </Button>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
@@ -544,7 +548,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           )}
         </Routes>
       ) : null}
-    </>
+    </TamaguiProvider>
   );
 }
 

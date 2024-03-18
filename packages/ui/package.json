@@ -7,11 +7,17 @@
     "types",
     "dist"
   ],
+  "scripts": {
+    "build": "tamagui-build --skip-types",
+    "watch": "tamagui-build --watch --skip-types"
+  },
   "dependencies": {
     "@tamagui/animations-moti": "^1.89.26",
     "@tamagui/get-token": "^1.89.26",
-    "@urbit/sigil-js": "^2.2.0",
     "react-native-svg": "^15.0.0",
     "tamagui": "^1.89.26"
+  },
+  "peerDependencies": {
+    "@urbit/sigil-js": "^2.2.0"
   }
 }

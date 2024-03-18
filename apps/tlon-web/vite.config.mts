@@ -164,6 +164,9 @@ export default ({ mode }: { mode: string }) => {
             },
           } as BuildOptions),
     plugins: plugins(mode),
+    define: {
+      'process.env.TAMAGUI_BAIL_AFTER_SCANNING_X_CSS_RULES': false,
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
