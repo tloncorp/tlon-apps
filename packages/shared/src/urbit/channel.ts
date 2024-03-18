@@ -1,5 +1,4 @@
-import { udToDec } from '@urbit/api';
-import bigInt, { BigInteger } from 'big-integer';
+import { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -179,7 +178,6 @@ export interface PostEssay {
 export type Post = {
   seal: PostSeal;
   essay: PostEssay;
-  revision?: string;
 };
 
 export interface PagedPosts {
@@ -197,7 +195,7 @@ export interface Posts {
   [time: string]: Post | null;
 }
 
-export type PostTuple = [BigInteger, Post | null];
+export type PageTuple = [BigInteger, Post | null];
 
 export type ReplyTuple = [BigInteger, Reply | null];
 
@@ -206,7 +204,6 @@ export type PageMap = BTree<BigInteger, Post | null>;
 export interface Reply {
   seal: ReplySeal;
   memo: Memo;
-  revision?: string;
 }
 
 export interface Memo {
@@ -297,13 +294,6 @@ export interface ReplyActionAdd {
   add: Memo;
 }
 
-export interface ReplyActionEdit {
-  edit: {
-    id: string;
-    memo: Memo;
-  };
-}
-
 export interface ReplyActionDel {
   del: string;
 }
@@ -311,7 +301,6 @@ export interface ReplyActionDel {
 export type ReplyAction =
   | ReplyActionAdd
   | ReplyActionDel
-  | ReplyActionEdit
   | PostActionAddReact
   | PostActionDelReact;
 
@@ -462,15 +451,16 @@ export function isCite(s: Block): boolean {
 export function blockContentIsImage(content: Story) {
   return (
     content.length > 0 &&
-    content.filter(c => 'block' in c).length > 0 &&
-    isImage((content.filter(c => 'block' in c)[0] as VerseBlock).block)
+    content.filter((c) => 'block' in c).length > 0 &&
+    isImage((content.filter((c) => 'block' in c)[0] as VerseBlock).block)
   );
 }
 
 export function imageUrlFromContent(content: Story) {
   if (blockContentIsImage(content)) {
-    return ((content.filter(c => 'block' in c)[0] as VerseBlock).block as Image)
-      .image.src;
+    return (
+      (content.filter((c) => 'block' in c)[0] as VerseBlock).block as Image
+    ).image.src;
   }
   return undefined;
 }
@@ -478,16 +468,16 @@ export function imageUrlFromContent(content: Story) {
 export function chatStoryFromStory(story: Story): ChatStory {
   const newCon: ChatStory = {
     inline: [],
-    block: []
+    block: [],
   };
 
   const inlines: Inline[] = story
-    .filter(s => 'inline' in s)
-    .map(s => (s as VerseInline).inline)
+    .filter((s) => 'inline' in s)
+    .map((s) => (s as VerseInline).inline)
     .flat();
   const blocks: ChatBlock[] = story
-    .filter(s => 'block' in s)
-    .map(s => (s as VerseBlock).block as ChatBlock)
+    .filter((s) => 'block' in s)
+    .map((s) => (s as VerseBlock).block as ChatBlock)
     .flat();
 
   newCon.inline = inlines;
@@ -504,7 +494,7 @@ export function storyFromChatStory(chatStory: ChatStory): Story {
 
   newStory.push({ inline: inlines });
 
-  blocks.forEach(b => {
+  blocks.forEach((b) => {
     newStory.push({ block: b });
   });
 
@@ -541,30 +531,28 @@ export const emptyPost: Post = {
     meta: {
       replyCount: 0,
       lastRepliers: [],
-      lastReply: null
-    }
+      lastReply: null,
+    },
   },
-  revision: '0',
   essay: {
     author: '',
     content: [],
     sent: 0,
-    'kind-data': { chat: null }
-  }
+    'kind-data': { chat: null },
+  },
 };
 
 export const emptyReply: Reply = {
   seal: {
     id: '',
     'parent-id': '',
-    reacts: {}
+    reacts: {},
   },
-  revision: '0',
   memo: {
     author: '',
     content: [],
-    sent: 0
-  }
+    sent: 0,
+  },
 };
 
 export function constructStory(
@@ -582,8 +570,8 @@ export function constructStory(
       'header',
       'rule',
       'cite',
-      codeAsBlock ? 'code' : ''
-    ].some(k => typeof c !== 'string' && k in c);
+      codeAsBlock ? 'code' : '',
+    ].some((k) => typeof c !== 'string' && k in c);
   const postContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
@@ -597,7 +585,7 @@ export function constructStory(
     } else {
       const inline = _.takeWhile(
         _.drop(data, index),
-        d => !isBlock(d)
+        (d) => !isBlock(d)
       ) as Inline[];
       postContent.push({ inline });
       index += inline.length;
@@ -616,32 +604,7 @@ export function newReplyMap(
   );
 }
 
-export function newPostTupleArray(
-  data:
-    | {
-        pages: PagedPosts[];
-      }
-    | undefined
-): PostTuple[] {
-  if (data === undefined || data.pages.length === 0) {
-    return [];
-  }
-
-  return _.uniqBy(
-    data.pages
-      .map(page => {
-        const pagePosts = Object.entries(page.posts).map(
-          ([k, v]) => [bigInt(udToDec(k)), v] as PostTuple
-        );
-
-        return pagePosts;
-      })
-      .flat(),
-    ([k]) => k.toString()
-  ).sort(([a], [b]) => a.compare(b));
-}
-
-export function newPostMap(entries?: PostTuple[], reverse = false): PageMap {
+export function newPostMap(entries?: PageTuple[], reverse = false): PageMap {
   return new BTree<BigInteger, Post | null>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );
@@ -673,7 +636,6 @@ export interface PostSealDataResponse {
 
 export interface PostDataResponse {
   seal: PostSealDataResponse;
-  revision?: string;
   essay: PostEssay;
 }
 

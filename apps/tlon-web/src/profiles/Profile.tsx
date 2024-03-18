@@ -14,11 +14,7 @@ import LogOutIcon from '@/components/icons/LogOutIcon';
 import PersonIcon from '@/components/icons/PersonIcon';
 import ShareIcon from '@/components/icons/ShareIcon';
 import TlonIcon from '@/components/icons/TlonIcon';
-import {
-  isNativeApp,
-  isUsingTlonAuth,
-  postActionToNativeApp,
-} from '@/logic/native';
+import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
 import { isHosted } from '@/logic/utils';
@@ -109,7 +105,7 @@ export default function Profile({ title }: ViewProps) {
               </SidebarItem>
             </a>
           )}
-          {isNativeApp() && isHosted && isUsingTlonAuth() && (
+          {isNativeApp() && isHosted && (
             <button onClick={() => postActionToNativeApp('manageAccount')}>
               <SidebarItem icon={<PersonIcon className="h-6 w-6" />}>
                 Manage Account

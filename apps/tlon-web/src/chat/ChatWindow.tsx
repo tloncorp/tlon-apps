@@ -39,7 +39,7 @@ export default function ChatWindow({
   const [searchParams, setSearchParams] = useSearchParams();
   const { idTime } = useParams();
   const scrollToId = useMemo(
-    () => searchParams.get('msg') || searchParams.get('edit') || idTime,
+    () => searchParams.get('msg') || idTime,
     [searchParams, idTime]
   );
   const nest = `chat/${whom}`;

@@ -1,5 +1,5 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
-import { PostTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { PageTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
 import React, {
@@ -168,7 +168,7 @@ const loaderPadding = {
 
 export interface ChatScrollerProps {
   whom: string;
-  messages: PostTuple[] | WritTuple[] | ReplyTuple[];
+  messages: PageTuple[] | WritTuple[] | ReplyTuple[];
   onAtTop?: () => void;
   onAtBottom?: () => void;
   isLoadingOlder: boolean;

@@ -1,81 +1,48 @@
-/-  c=chat, ch=channels, h=hark, contacts
-/+  *test-agent
+/-  e=epic, c=chat
+/+  *test
 /=  agent  /app/chat
 |%
-++  dap  %chat-test
-++  test-dm-notification-clearing
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ;<  *  bind:m  (do-init dap agent)
-  ;<  *  bind:m  (set-scry-gate scries)
-  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~zod)))
-  ;<  bw=bowl  bind:m  get-bowl
-  =/  =verse:ch  [%inline ~['hi ' [%ship ~dev]]]
-  =/  =diff:dm:c  (dm-message ~zod now.bw verse)
-  ::  start a dm from zod
-  :: ~&  'starting dm from zod'
-  ;<  *  bind:m  (do-poke %chat-dm-diff !>(diff))
-  ;<  *  bind:m  (set-src ~dev)
-  ::  accept the dm and set read
-  :: ~&  'accepting dm from zod'
-  ;<  *  bind:m  (wait ~s1)
-  ;<  bw=bowl  bind:m  get-bowl
-  ;<  *  bind:m  (do-poke %chat-dm-rsvp !>([~zod &]))
-  ;<  *  bind:m  (do-poke %chat-remark-action !>([[%ship ~zod] %read ~]))
-  ::  send another dm from zod with a notification
-  ;<  *  bind:m  (set-src ~zod)
-  :: ~&  'sending dm from zod with notification'
-  ;<  *  bind:m  (wait ~s1)
-  ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (dm-message ~zod now.bw verse)
-  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff !>(diff))
-  ::  expect a notification and an unread dm
-  =/  =whom:c  [%ship ~zod]
-  =/  =unread:unreads:c  [now.bw 1 `[[[~zod now.bw] now.bw] 1] ~]
-  =/  =unreads:c  (malt [whom unread] ~)
-  =/  =response:writs:c  [[~zod now.bw] %add [~[verse] ~zod now.bw] now.bw]
-  =/  =new-yarn:h  [& & rope content /dm/~zod ~]
-  ;<  *  bind:m  (ex-scry-result /x/unreads !>(unreads))
-  :: ~&  'have unreads'
-  ;<  *  bind:m
-    %+  ex-cards  caz
-    :~  (ex-poke /contacts/~zod [~dev %contacts] act:mar:contacts !>([%heed ~[~zod]]))
-        (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
-        (ex-poke /hark [~dev %hark] %hark-action-1 !>([%new-yarn new-yarn]))
-        (ex-fact ~[/dm/~zod] %writ-response !>(response))
-        (ex-fact ~[/dm/~zod/writs] %writ-response !>(response))
-    ==
-  ;<  *  bind:m  (wait ~s1)
-  ;<  bw=bowl  bind:m  get-bowl
-  =/  =unread:unreads:c  [(sub now.bw ~s1) 0 ~ ~]
-  :: ~&  'marked read and notification cleared'
-  ;<  caz=(list card)  bind:m  (do-poke %chat-remark-action !>([[%ship ~zod] %read ~]))
-  %+  ex-cards  caz
-  :~  (ex-poke /hark [~dev %hark] %hark-action-1 !>([%saw-rope rope]))
-      (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
++$  current-state
+  $:  %1
+      chats=(map flag:c chat:c)
+      dms=(map ship dm:c)
+      clubs=(map id:club:c club:c)
+      drafts=(map whom:c story:c)
+      pins=(list whom:c)
+      bad=(set ship)
+      inv=(set ship)
+      voc=(map [flag:c id:c] (unit said:c))
   ==
-::++  test-club-notification-clearing
-++  scries
-  |=  =path
-  ^-  (unit vase)
-  ?+  path  ~
-    [%gu @ %groups @ *]           `!>(%.y)
-    [%gx @ %groups @ %volume *]   `!>(%soft)
-    [%gx @ %hark @ *]             `!>(carpet)
+++  chat-1  [~zod %test]
+++  bowl
+  |=  run=@ud
+  ^-  bowl:gall
+  :*  [~zod ~zod %chat]
+      [~ ~]
+      [run `@uvJ`(shax run) (add (mul run ~s1) *time) [~zod %groups ud+run]]
   ==
-++  rope  `rope:h`[~ ~ %groups /dm/~zod]
-++  content  `(list content:h)`~[[%ship ~zod] ': ' 'hi ~dev']
-++  carpet
-  =/  =yarn:h  [0v0 rope *time content /dm/~zod ~]
-  ^-  carpet:h
-  :*  [%desk %groups]
-      (malt ~[[0v0 yarn]])
-      (malt ~[[rope (silt ~[0v0])]])
-      0
-  ==
-++  dm-message
-  |=  [author=ship =time =verse:ch]
-  ^-  diff:dm:c
-  =/  =memo:ch  [~[verse] author time]
-  [[author time] %add memo ~ ~]
+--
+|%
+++  zod  `agent:gall`agent
+++  wet  `agent:gall`agent
+++  test-epic
+  =|  run=@ud
+  =|  =create:c
+  =|  =flag:c
+  =^  mov1  agent
+    (~(on-poke agent (bowl run)) %chat-create !>(create(name %test)))
+  =^  mova  agent
+    =+  =<  .(our ~wet)  (bowl run)
+    (~(on-poke agent -) %flag !>(flag(q %test)))
+  =^  mov2  agent
+    =+  =<  .(our ~wet)  (bowl run)
+    (~(on-agent agent -) /epic [%fact %epic !>(`epic:e`0)])
+  =.  run  +(run)
+  =+  !<([=current-state epic=@ud] on-save:agent)
+  ~&  >>  chats+chats.current-state
+  :: should be 0
+  ~&  >>  epic+epic
+  :: should be a resub watch task as the epics match.
+  ~&  >>  mov2+mov2
+  (expect-eq !>(&) !>(&))
 --

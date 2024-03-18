@@ -1,28 +1,29 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
-
 export type SignUpExtras = {
   nickname?: string;
   notificationToken?: string;
   telemetry?: boolean;
 };
 
-type ExternalWebViewScreenParams = {
-  uri: string;
-  headers?: Record<string, string | null>;
-  injectedJavaScript?: string;
+type WebViewScreenParams = {
+  initialPath: string;
+  gotoPath?: string;
 };
 
 export type WebViewStackParamList = {
-  Webview: undefined;
-  ExternalWebView: ExternalWebViewScreenParams;
+  Webview: WebViewScreenParams;
+  ExternalWebView: {
+    uri: string;
+    headers?: Record<string, string | null>;
+    injectedJavaScript?: string;
+  };
 };
 
 export type TabParamList = {
-  Groups: NavigatorScreenParams<WebViewStackParamList>;
-  Messages: NavigatorScreenParams<WebViewStackParamList>;
-  Activity: NavigatorScreenParams<WebViewStackParamList>;
-  Profile: NavigatorScreenParams<WebViewStackParamList>;
-  Discover: NavigatorScreenParams<WebViewStackParamList>;
+  Groups: WebViewScreenParams;
+  Messages: WebViewScreenParams;
+  Activity: WebViewScreenParams;
+  Profile: WebViewScreenParams;
+  Discover: WebViewScreenParams;
 };
 
 export type TabName = keyof TabParamList;

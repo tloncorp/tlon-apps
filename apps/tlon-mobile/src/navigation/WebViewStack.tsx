@@ -27,9 +27,9 @@ export const WebViewStack = (props: Props) => {
   );
   const {
     setGotoPath,
-    newWebappTab,
+    gotoTab,
     reactingToWebappNav,
-    setNewWebappTab,
+    setGotoTab,
     setReactingToWebappNav,
     lastGroupsPath,
     lastMessagesPath,
@@ -59,7 +59,7 @@ export const WebViewStack = (props: Props) => {
       }
 
       // Else, go to the tab's initial location
-      setGotoPath(getInitialPath(props.route.name));
+      setGotoPath(props.route.params.initialPath);
     });
 
     return unsubscribe;
@@ -105,25 +105,25 @@ export const WebViewStack = (props: Props) => {
       return;
     }
 
-    if (newWebappTab && newWebappTab !== props.route.name) {
+    if (gotoTab && gotoTab !== props.route.name) {
       // we have to register that we're reacting to webapp navigation
       // so we know not to return to the tab's default/last location (as with a tab click)
       setReactingToWebappNav(true);
 
       // navigate to the new active tab
-      props.navigation.navigate(newWebappTab as keyof TabParamList, {
-        screen: 'Webview',
+      props.navigation.navigate(gotoTab as keyof TabParamList, {
+        initialPath: getInitialPath(gotoTab),
       });
 
       // clear the gotoTab since it's been handled
-      setNewWebappTab(null);
+      setGotoTab(null);
     }
   }, [
     focused,
-    newWebappTab,
+    gotoTab,
     props.navigation,
     props.route.name,
-    setNewWebappTab,
+    setGotoTab,
     setReactingToWebappNav,
   ]);
 
@@ -132,6 +132,7 @@ export const WebViewStack = (props: Props) => {
       <Stack.Screen
         name="Webview"
         component={WebviewPlaceholderScreen}
+        initialParams={props.route.params}
         options={{ headerShown: false }}
       />
       <Stack.Screen name="ExternalWebView" component={ExternalWebViewScreen} />

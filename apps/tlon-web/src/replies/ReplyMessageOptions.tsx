@@ -17,7 +17,6 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
-import PencilIcon from '@/components/icons/PencilSettingsIcon';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import XIcon from '@/components/icons/XIcon';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -89,7 +88,6 @@ export default function ReplyMessageOptions(props: {
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
-  const showEditAction = window.our === reply.memo.author && !isDMorMultiDM;
   const perms = usePerms(isDMorMultiDM ? `fake/nest/${whom}` : nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
@@ -171,10 +169,6 @@ export default function ReplyMessageOptions(props: {
       }, 2000);
     }
   }, [doCopy, isMobile, onOpenChange]);
-
-  const edit = useCallback(() => {
-    setSearchParams({ edit: seal.id }, { replace: true });
-  }, [seal, setSearchParams]);
 
   const setReplyParam = useCallback(() => {
     setSearchParams({ replyTo: seal.id }, { replace: true });
@@ -329,19 +323,6 @@ export default function ReplyMessageOptions(props: {
     });
   }
 
-  if (showEditAction) {
-    actions.push({
-      key: 'edit',
-      content: (
-        <div className="flex items-center">
-          <PencilIcon className="mr-2 h-6 w-6" />
-          Edit Message
-        </div>
-      ),
-      onClick: edit,
-    });
-  }
-
   actions.push({
     key: 'hide',
     onClick: isDMorMultiDM ? toggleMsg : togglePost,
@@ -492,14 +473,6 @@ export default function ReplyMessageOptions(props: {
                 label="Delete"
                 showTooltip
                 action={() => setDeleteOpen(true)}
-              />
-            )}
-            {showEditAction && (
-              <IconButton
-                icon={<PencilIcon className="h-6 w-6 text-gray-400" />}
-                label="Edit"
-                showTooltip
-                action={edit}
               />
             )}
           </div>

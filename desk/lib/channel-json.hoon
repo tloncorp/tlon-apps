@@ -35,33 +35,6 @@
       %unwatch  ~
     ==
   ::
-  ++  r-channels-simple-post
-    |=  [=nest:c =r-channel-simple-post:c]
-    %-  pairs
-    :~  nest+(^nest nest)
-        response+(^r-channel-simple-post r-channel-simple-post)
-    ==
-  ::
-  ++  r-channel-simple-post
-    |=  r-channel=r-channel-simple-post:c
-    %+  frond  -.r-channel
-    ?-  -.r-channel
-      %posts    (simple-posts posts.r-channel)
-      %post     (pairs id+(id id.r-channel) r-post+(r-simple-post r-post.r-channel) ~)
-      %order    (order order.r-channel)
-      %view     s+view.r-channel
-      %sort     s+sort.r-channel
-      %perm     (perm perm.r-channel)
-    ::
-      %create   (perm perm.r-channel)
-      %join     (flag group.r-channel)
-      %leave    ~
-      %read     ~
-      %read-at  s+(scot %ud time.r-channel)
-      %watch    ~
-      %unwatch  ~
-    ==
-  ::
   ++  r-post
     |=  =r-post:c
     %+  frond  -.r-post
@@ -78,22 +51,6 @@
       ==
     ==
   ::
-  ++  r-simple-post
-    |=  r-post=r-simple-post:c
-    %+  frond  -.r-post
-    ?-  -.r-post
-      %set    ?~(post.r-post ~ (simple-post u.post.r-post))
-      %reacts  (reacts reacts.r-post)
-      %essay  (essay essay.r-post)
-    ::
-        %reply
-      %-  pairs
-      :~  id+(id id.r-post)
-          r-reply+(r-simple-reply r-reply.r-post)
-          meta+(reply-meta reply-meta.r-post)
-      ==
-    ==
-  ::
   ++  r-reply
     |=  =r-reply:c
     %+  frond  -.r-reply
@@ -102,26 +59,10 @@
       %reacts  (reacts reacts.r-reply)
     ==
   ::
-  ++  r-simple-reply
-    |=  r-reply=r-simple-reply:c
-    %+  frond  -.r-reply
-    ?-  -.r-reply
-      %set    ?~(reply.r-reply ~ (simple-reply u.reply.r-reply))
-      %reacts  (reacts reacts.r-reply)
-    ==
-  ::
   ++  paged-posts
     |=  pn=paged-posts:c
     %-  pairs
     :~  posts+(posts posts.pn)
-        newer+?~(newer.pn ~ (id u.newer.pn))
-        older+?~(older.pn ~ (id u.older.pn))
-        total+(numb total.pn)
-    ==
-  ++  paged-simple-posts
-    |=  pn=paged-simple-posts:c
-    %-  pairs
-    :~  posts+(simple-posts posts.pn)
         newer+?~(newer.pn ~ (id u.newer.pn))
         older+?~(older.pn ~ (id u.older.pn))
         total+(numb total.pn)
@@ -153,25 +94,9 @@
     [(scot %ud id) ?~(post ~ (^post u.post))]
   ::
   ++  post
-    |=  [=seal:c [rev=@ud =essay:c]]
+    |=  [=seal:c =essay:c]
     %-  pairs
     :~  seal+(^seal seal)
-        revision+s+(scot %ud rev)
-        essay+(^essay essay)
-        type+s+%post
-    ==
-  ::
-  ++  simple-posts
-    |=  posts=simple-posts:c
-    %-  pairs
-    %+  turn  (tap:on-simple-posts:c posts)
-    |=  [id=id-post:c post=(unit simple-post:c)]
-    [(scot %ud id) ?~(post ~ (simple-post u.post))]
-  ::
-  ++  simple-post
-    |=  [seal=simple-seal:c =essay:c]
-    %-  pairs
-    :~  seal+(simple-seal seal)
         essay+(^essay essay)
         type+s+%post
     ==
@@ -183,22 +108,7 @@
     |=  [t=@da =reply:c]
     [(scot %ud t) (^reply reply)]
   ::
-  ++  simple-replies
-    |=  replies=simple-replies:c
-    %-  pairs
-    %+  turn  (tap:on-simple-replies:c replies)
-    |=  [t=@da reply=simple-reply:c]
-    [(scot %ud t) (simple-reply reply)]
-  ::
   ++  reply
-    |=  [=reply-seal:c [rev=@ud =memo:c]]
-    %-  pairs
-    :~  seal+(^reply-seal reply-seal)
-        revision+s+(scot %ud rev)
-        memo+(^memo memo)
-    ==
-  ::
-  ++  simple-reply
     |=  [=reply-seal:c =memo:c]
     %-  pairs
     :~  seal+(^reply-seal reply-seal)
@@ -211,15 +121,6 @@
     :~  id+(id id.seal)
         reacts+(reacts reacts.seal)
         replies+(replies replies.seal)
-        meta+(reply-meta reply-meta.seal)
-    ==
-  ::
-  ++  simple-seal
-    |=  seal=simple-seal:c
-    %-  pairs
-    :~  id+(id id.seal)
-        reacts+(reacts reacts.seal)
-        replies+(simple-replies replies.seal)
         meta+(reply-meta reply-meta.seal)
     ==
   ::
@@ -475,11 +376,11 @@
     |=  =reference:c
     %+  frond  -.reference
     ?-    -.reference
-        %post  (simple-post post.reference)
+        %post  (post post.reference)
         %reply
       %-  pairs
       :~  id-post+(id id-post.reference)
-          reply+(simple-reply reply.reference)
+          reply+(reply reply.reference)
       ==
     ==
   ::
@@ -539,7 +440,6 @@
     %-  of
     :~  add+memo
         del+id
-        edit+(ot id+id memo+memo ~)
         add-react+(ot id+id ship+ship react+so ~)
         del-react+(ot id+id ship+ship ~)
     ==

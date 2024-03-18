@@ -1,6 +1,4 @@
-import { udToDec } from '@urbit/api';
-import bigInt, { BigInteger } from 'big-integer';
-import _ from 'lodash';
+import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
 
 import {
@@ -178,30 +176,6 @@ export function newWritMap(entries?: WritTuple[], reverse = false): WritMap {
   return new BTree<BigInteger, Writ>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );
-}
-
-export function newWritTupleArray(
-  data:
-    | {
-        pages: PagedWrits[];
-      }
-    | undefined
-): WritTuple[] {
-  if (data === undefined || data.pages.length === 0) {
-    return [];
-  }
-
-  return _.uniqBy(
-    data?.pages
-      ?.map((page) => {
-        const writPages = Object.entries(page.writs).map(
-          ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
-        );
-        return writPages;
-      })
-      .flat() || [],
-    ([k]) => k.toString()
-  ).sort(([a], [b]) => a.compare(b));
 }
 
 export interface Pact {

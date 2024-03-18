@@ -1,13 +1,5 @@
 /-  resource
 |%
-+$  provider-entry
-  $:  notify-endpoint=@t
-      binding-endpoint=@t
-      auth-token=@t
-      clients=(map ship binding=(unit @t))
-      =whitelist
-  ==
-+$  provider-state  (map term provider-entry)
 +$  provider-action
   $%  [%add service=term notify=@t binding=@t auth-token=@t =whitelist]
       [%remove service=term]
@@ -30,7 +22,7 @@
   +$  bin      [=path =place]
   +$  place    [=desk =path]
   +$  body     [title=content =content =time binned=path link=path]
-  +$  content  (list $%([%ship =ship] [%text =cord]))
+  +$  content  (list $%([%ship =ship] [%cord =cord]))
   --
 ::
 +$  whitelist

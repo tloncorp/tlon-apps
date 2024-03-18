@@ -106,24 +106,17 @@ export default function useSidebarSort({
       records: Record<string, T>,
       accessor: (k: string, v: T) => string,
       reverse = false
-    ): [string, T][] => {
-      // pre-compute values for comparison
-      const entries = Object.entries(records).map(([key, obj]) => ({
-        key,
-        obj,
-        value: accessor(key, obj),
-      }));
+    ) => {
+      const entries = Object.entries(records);
+      entries.sort(([aKey, aObj], [bKey, bObj]) => {
+        const aVal = accessor(aKey, aObj);
+        const bVal = accessor(bKey, bObj);
 
-      // integrate reverse sorting logic into the comparison
-      const directionMultiplier = reverse ? -1 : 1;
-
-      entries.sort((a, b) => {
         const sorter = sortOptions[sortFn] ?? sortOptions[RECENT_SORT];
-        return directionMultiplier * sorter(a.value, b.value);
+        return sorter(aVal, bVal);
       });
 
-      // map back to the original format
-      return entries.map(({ key, obj }) => [key, obj]);
+      return reverse ? entries.reverse() : entries;
     },
     [sortFn, sortOptions]
   );

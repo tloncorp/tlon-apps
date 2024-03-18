@@ -17,7 +17,6 @@
 ::      %-  eval-mare
 ::      =/  m  (mare ,~)
 ::      ^-  form:m
-::      ;<  ~                bind:m  (set-scry-gate |=(path `!>(%some-noun)))
 ::      ;<  caz=(list card)  bind:m  (do-init %my-agent-name my-agent-core)
 ::      ;<  ~                bind:m  (ex-cards caz ~)
 ::      ;<  ~                bind:m  (set-src ~dev)
@@ -35,9 +34,8 @@
 +$  agent  $+(agent agent:gall)
 +$  bowl   $+(bowl bowl:gall)
 +$  card   $+(card card:agent:gall)
-+$  scry   $-(path (unit vase))
 ::
-+$  state       [=agent =bowl =scry]                    ::  passed continuously
++$  state       [=agent =bowl]                          ::  passed continuously
 ++  form-raw    |$  [a]  $-(state (output-raw a))       ::  continuation
 ++  output-raw  |$  [a]  (each [out=a =state] tang)     ::  continue or fail
 ::
@@ -126,93 +124,31 @@
     ?<(ack [& path])
   ==
 ::
-++  do  ::  execute agent lifecycle step with mocked scry
+++  do
   |=  call=$-(state [(list card) agent:gall])
   =/  m  (mare ,(list card))
   ^-  form:m
   |=  s=state
-  =;  result=(each [(list card) agent:gall] (list tank))
-    ?:  ?=(%| -.result)
-      |+p.result
-    =^  c  agent.s  p.result
-    =.  bowl.s  (play-cards bowl.s c)
-    &+[c s]
-  =;  res=toon
-    ?-  -.res
-      %0  :-  %&
-          ::NOTE  we would ;;, but it's too slow.
-          ::      we know for a fact p.res is of the type we expect,
-          ::      so we just play pretend with vases instead.
-          !<  [(list card) agent:gall]
-          [-:!>(*[(list card) agent:gall]) p.res]
-      %1  |+~['blocking on scry' >;;(path p.res)<]
-      %2  |+p.res
-    ==
-  %+  mock  [. !=((call s))]
-  |=  [ref=* pax=*]
-  ^-  (unit (unit *))
-  ?>  ?=(^ ref)
-  ?>  =(hoon-version -.ref)
-  =+  ;;(pax=path pax)
-  =/  res=(unit vase)  (scry.s pax)
-  %.  ?~(res ~ ``q.u.res)
-  ::  warn about type mismatches if the tested code expects a result type
-  ::  different from what the mocked scry produces.
-  ::
-  ::NOTE  we would ;;, but it's too slow.
-  ::      we can safely assume +.ref is indeed a type,
-  ::      so we just play pretend with vases instead.
-  =+  !<(typ=type [-:!>(*type) +.ref])
-  ?.  &(?=(^ res) !(~(nest ut typ) | p.u.res))
-    same
-  %-  %*(. slog pri 2)
-  :~  'mocked scry result mismatches expected type'
-      >pax<
-      (~(dunk ut typ) %need)
-      (~(dunk ut p.u.res) %have)
-  ==
-::
-++  jab-state
-  |=  f=$-(state state)
-  =/  m  (mare ,~)
-  ^-  form:m
-  |=  s=state
-  &+[~ (f s)]
+  =^  c  agent.s  (call s)
+  =.  bowl.s  (play-cards bowl.s c)
+  &+[c s]
 ::
 ::  managed agent lifecycle
 ::
 ++  do-init
-  =+  scry-warn=&
   |=  [dap=term =agent]
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
-  ;<  ~              bind:m  %-  set-scry-gate
-                             |=  p=path
-                             ~?  >>  scry-warn
-                               ['scrying during +on-init... careful!' p]
-                             (old-scry p)
-  ;<  b=bowl         bind:m  get-bowl
-  ;<  ~              bind:m  (set-bowl %*(. *bowl dap dap, our our.b, src our.b))
-  ;<  c=(list card)  bind:m  (do |=(s=state ~(on-init agent bowl.s)))
-  ;<  ~              bind:m  (set-scry-gate old-scry)
-  (pure:m c)
+  |=  s=state
+  =.  bowl.s  %*(. *bowl dap dap, our our.bowl.s, src our.bowl.s)
+  =^  c  agent.s  ~(on-init agent bowl.s)
+  &+[c s]
 ::
 ++  do-load
-  =+  scry-warn=&
   |=  =agent
-  =/  m  (mare ,(list card))
-  ^-  form:m
-  ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
-  ;<  ~              bind:m  %-  set-scry-gate
-                             |=  p=path
-                             ~?  >>  scry-warn
-                               ['scrying during +on-load... careful!' p]
-                             (old-scry p)
-  ;<  c=(list card)  bind:m  %-  do  |=  s=state
-                             (~(on-load agent bowl.s) ~(on-save agent.s bowl.s))
-  ;<  ~              bind:m  (set-scry-gate old-scry)
-  (pure:m c)
+  %-  do
+  |=  s=state
+  (~(on-load agent bowl.s) ~(on-save agent.s bowl.s))
 ::
 ++  do-poke
   |=  [=mark =vase]
@@ -319,13 +255,6 @@
   %-  jab-bowl
   |=(b=bowl b(now (add now.b d)))
 ::
-++  set-scry-gate
-  |=  f=scry
-  =/  m  (mare ,~)
-  ^-  form:m
-  |=  s=state
-  &+[~ s(scry f)]
-::
 ::  testing utilities
 ::
 ++  ex-equal
@@ -336,13 +265,13 @@
   =/  =tang  (expect-eq:test expected actual)
   ?~(tang &+[~ s] |+tang)
 ::
-++  ex-fail
-  |=  form=(form-raw ,*)
+++  ex-crash
+  |=  form=$-(state *)
   =/  m  (mare ,~)
   ^-  form:m
   |=  =state
-  =/  res  (form state)
-  ?-(-.res %| &+[~ state], %& |+['expected failure, but succeeded']~)
+  =+  res=(mule |.((form state)))
+  ?-(-.res %| &+[~ state], %& |+['expected crash, but succeeded']~)
 ::
 ++  ex-cards
   |=  [caz=(list card) exes=(list $-(card tang))]
@@ -409,11 +338,4 @@
 ++  ex-arvo
   |=  [=wire note=note-arvo]
   (ex-card %pass wire %arvo note)
-++  ex-scry-result
-  |=  [=path =vase]
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  res=(unit (unit cage))  bind:m  (get-peek path)
-  (ex-equal q:(need (need res)) vase)
-::
 --

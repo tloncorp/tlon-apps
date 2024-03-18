@@ -41,7 +41,6 @@ const ships: Record<
     httpPort: string;
     loopbackPort: string;
     webUrl: string;
-    galaxy: boolean;
   }
 > = {
   zod: {
@@ -51,7 +50,6 @@ const ships: Record<
       shipManifest['~zod'].downloadUrl.split('/').pop()!
     ), // eslint-disable-line
     extractPath: path.join(__dirname, 'zod'),
-    galaxy: true,
   },
   bus: {
     ...shipManifest['~bus'],
@@ -60,7 +58,6 @@ const ships: Record<
       shipManifest['~bus'].downloadUrl.split('/').pop()!
     ), // eslint-disable-line
     extractPath: path.join(__dirname, 'bus'),
-    galaxy: true,
   },
   'habduc-patbud': {
     ...shipManifest['~habduc-patbud'],
@@ -69,7 +66,6 @@ const ships: Record<
       shipManifest['~habduc-patbud'].downloadUrl.split('/').pop()!
     ), // eslint-disable-line
     extractPath: path.join(__dirname, 'habduc-patbud'),
-    galaxy: false,
   },
   'naldeg-mardev': {
     ...shipManifest['~naldeg-mardev'],
@@ -78,7 +74,6 @@ const ships: Record<
       shipManifest['~naldeg-mardev'].downloadUrl.split('/').pop()!
     ), // eslint-disable-line
     extractPath: path.join(__dirname, 'naldeg-mardev'),
-    galaxy: false,
   },
 };
 
@@ -276,7 +271,7 @@ const copyDesks = async () => {
   const groups = path.resolve(__dirname, '../../../../desk');
 
   for (const ship of Object.values(ships)) {
-    if (ship.galaxy || (targetShip && targetShip !== ship.ship)) {
+    if (targetShip && targetShip !== ship.ship) {
       continue;
     }
 
@@ -402,7 +397,7 @@ const mountDesks = async () => {
   console.log('Mounting desks on fake ships');
 
   for (const ship of Object.values(ships)) {
-    if (ship.galaxy || (targetShip && targetShip !== ship.ship)) {
+    if (targetShip && targetShip !== ship.ship) {
       continue;
     }
 
@@ -414,7 +409,7 @@ const commitDesks = async () => {
   console.log('Committing desks on fake ships');
 
   for (const ship of Object.values(ships)) {
-    if (ship.galaxy || (targetShip && targetShip !== ship.ship)) {
+    if (targetShip && targetShip !== ship.ship) {
       continue;
     }
 
@@ -509,7 +504,7 @@ const shipsAreReadyForTests = async () => {
   const shipsArray = Object.values(ships);
   const results = await Promise.all(
     shipsArray.map(async (ship) => {
-      if (ship.galaxy || (targetShip && targetShip !== ship.ship)) {
+      if (targetShip && targetShip !== ship.ship) {
         return true;
       }
 
@@ -536,7 +531,7 @@ const shipsAreReadyForTests = async () => {
 
 const checkShipReadinessForTests = async () =>
   new Promise<void>((resolve, reject) => {
-    const maxAttempts = 30;
+    const maxAttempts = 10;
     let attempts = 0;
 
     const tryConnect = async () => {

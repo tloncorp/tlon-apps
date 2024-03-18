@@ -447,17 +447,6 @@
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
-  ::  a different %profile agent has been spotted in the wild. it was not
-  ::  compatible with the kelvin at which this agent was first released, made
-  ::  no passes beyond eyre binding, and the software suite it was a part of
-  ::  (realm) has since been discontinued.
-  ::  so here we detect that case, and simply discard the previous state,
-  ::  starting anew.
-  ::
-  ?:  ?&  =(%0 -.q.ole)
-          ?=(^ ((soft ,[%0 (map path mime) (set @p) (unit @t)]) q.ole))
-      ==
-    on-init
   =.  state  !<(state-0 ole)
   ::  delay, so we don't end up scrying during load
   ::

@@ -6,7 +6,6 @@ import { useTheme, View } from "tamagui";
 export const UrbitSigil = View.styleable<{
   ship: string;
 }>(({ ship, ...props }, ref) => {
-  const validShip = ship.length <= 14; // planet or larger
   const theme = useTheme();
   const sigilXml = useMemo(
     () =>
@@ -31,7 +30,7 @@ export const UrbitSigil = View.styleable<{
       borderRadius="$2xs"
       {...props}
     >
-      {validShip && <SvgXml xml={sigilXml} />}
+      <SvgXml xml={sigilXml} />
     </View>
   );
 });

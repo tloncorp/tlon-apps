@@ -1,7 +1,6 @@
 export interface NativeWebViewOptions {
   colorScheme?: "light" | "dark" | null;
   hideTabBar?: boolean;
-  isUsingTlonAuth?: boolean;
   safeAreaInsets?: {
     top: number;
     bottom: number;

@@ -15,6 +15,9 @@ on:
           - all
           - android
           - ios
+env:
+  NOTIFY_PROVIDER: rivfur-livmet
+  NOTIFY_SERVICE: groups-native
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -33,13 +36,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
         run: npm ci
-      - name: Create build vars
-        id: vars
-        run: |
-          echo "profile=${{ inputs.profile || 'preview' }}" >> $GITHUB_OUTPUT
       - name: Push update for selected platforms
         working-directory: ./apps/tlon-mobile
-        run: eas update --auto --profile ${{ steps.vars.outputs.profile }} --platform ${{ inputs.platform || 'all' }} --non-interactive
-        env:
-          NOTIFY_PROVIDER: "${{ steps.vars.outputs.profile == 'preview' && 'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
-          NOTIFY_SERVICE: "${{ steps.vars.outputs.profile == 'preview' && 'tlon-preview-release' || 'groups-native' }}"
+        run: eas update --auto --profile ${{ inputs.profile || 'preview' }} --platform ${{ inputs.platform || 'all' }} --non-interactive

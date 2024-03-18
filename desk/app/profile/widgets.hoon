@@ -170,7 +170,7 @@
             %+  join  `manx`;br;
             %+  turn  (to-wain:format bio.u.ours)
             |=  p=@t  ^-  manx
-            [[%$ [%$ (trip p)] ~] ~]
+            [[%$ $+[p ~] ~] ~]
       ==
     ==
   ==

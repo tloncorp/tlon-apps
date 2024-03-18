@@ -13,9 +13,6 @@ import { useSafeAreaContext } from './SafeAreaContext';
 
 export const isNativeApp = () => !!window.ReactNativeWebView;
 
-export const isUsingTlonAuth = () =>
-  window.nativeOptions?.isUsingTlonAuth ?? false;
-
 const postJSONToNativeApp = (obj: Record<string, unknown>) => {
   window.ReactNativeWebView?.postMessage(JSON.stringify(obj));
 };

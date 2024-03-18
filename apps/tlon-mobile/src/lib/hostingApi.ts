@@ -15,11 +15,7 @@ import type {
   ReservedShip,
   User,
 } from '../types';
-import {
-  getHostingUserId,
-  setHostingToken,
-  setHostingUserId,
-} from '../utils/hosting';
+import { setHostingToken, setHostingUserId } from '../utils/hosting';
 
 type HostingError = {
   message: string;
@@ -158,10 +154,6 @@ export const logInHostingUser = async (params: {
   }
 
   return result as User;
-};
-
-export const isUsingTlonAuth = () => {
-  return Boolean(getHostingUserId() ?? false);
 };
 
 export const getHostingUser = async (userId: string) =>

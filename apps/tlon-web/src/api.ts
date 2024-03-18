@@ -69,7 +69,6 @@ const Urbit = UrbitBase as new (
   url: string,
   code?: string,
   desk?: string,
-  fetch?: typeof window.fetch,
   urlTransformer?: (someUrl: string, json: EyrePayload) => string
 ) => UrbitBase;
 
@@ -110,7 +109,7 @@ class API {
       return this.client;
     }
 
-    this.client = new Urbit('', '', window.desk, undefined, hostingUrl);
+    this.client = new Urbit('', '', window.desk, hostingUrl);
     this.client.ship = window.ship;
     this.client.verbose = showDevTools;
 

@@ -46,7 +46,6 @@ interface useMessageEditorParams {
   allowMentions?: boolean;
   onEnter: ({ editor }: HandlerParams) => boolean;
   onUpdate?: ({ editor }: HandlerParams) => void;
-  onUpArrow?: ({ editor }: HandlerParams) => boolean;
 }
 
 /**
@@ -66,7 +65,6 @@ export function useMessageEditor({
   allowMentions = false,
   onEnter,
   onUpdate,
-  onUpArrow,
 }: useMessageEditorParams) {
   const calm = useCalm();
   const chatBlocks = useChatBlocks(whom);
@@ -111,7 +109,7 @@ export function useMessageEditor({
   const keyMapExt = useMemo(
     () =>
       Shortcuts({
-        Enter: ({ editor }) => onEnter({ editor } as HandlerParams),
+        Enter: ({ editor }) => onEnter({ editor } as any),
         'Shift-Enter': ({ editor }) =>
           editor.commands.first(({ commands }) => [
             () => commands.newlineInCode(),
@@ -119,11 +117,8 @@ export function useMessageEditor({
             () => commands.liftEmptyBlock(),
             () => commands.splitBlock(),
           ]),
-        ArrowUp: onUpArrow
-          ? ({ editor }) => onUpArrow({ editor } as HandlerParams)
-          : () => false,
       }),
-    [onEnter, onUpArrow]
+    [onEnter]
   );
 
   const extensions = [

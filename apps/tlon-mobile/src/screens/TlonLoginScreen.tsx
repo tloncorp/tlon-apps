@@ -6,10 +6,6 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import {
-  DEFAULT_TLON_LOGIN_EMAIL,
-  DEFAULT_TLON_LOGIN_PASSWORD,
-} from '../constants';
 import { useShip } from '../contexts/ship';
 import {
   getShipAccessCode,
@@ -39,12 +35,7 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
     handleSubmit,
     formState: { errors },
     getValues,
-  } = useForm<FormData>({
-    defaultValues: {
-      email: DEFAULT_TLON_LOGIN_EMAIL,
-      password: DEFAULT_TLON_LOGIN_PASSWORD,
-    },
-  });
+  } = useForm<FormData>();
   const { setShip } = useShip();
 
   const handleForgotPassword = () => {

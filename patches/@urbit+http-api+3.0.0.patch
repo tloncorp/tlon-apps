@@ -1,13 +1,13 @@
 diff --git a/node_modules/@urbit/http-api/dist/esm/index.js b/node_modules/@urbit/http-api/dist/esm/index.js
-index 5575d46..9ec251e 100644
+index 2e6756f..32ca00a 100644
 --- a/node_modules/@urbit/http-api/dist/esm/index.js
 +++ b/node_modules/@urbit/http-api/dist/esm/index.js
-@@ -446,10 +446,11 @@ class Urbit {
+@@ -442,10 +442,11 @@ class Urbit {
       * be the empty string.
       * @param code The access code for the ship at that address
       */
--    constructor(url, code, desk, fetchFn) {
-+    constructor(url, code, desk, fetchFn, urlTransformer = (url) => url) {
+-    constructor(url, code, desk) {
++    constructor(url, code, desk, urlTransformer = (url) => url) {
          this.url = url;
          this.code = code;
          this.desk = desk;
@@ -15,12 +15,12 @@ index 5575d46..9ec251e 100644
          if (isBrowser_1) {
              window.addEventListener('beforeunload', this.delete);
          }
-@@ -784,7 +785,7 @@ class Urbit {
+@@ -776,7 +777,7 @@ class Urbit {
          return eventId;
      }
      async sendJSONtoChannel(...json) {
--        const response = await this.fetchFn(this.channelUrl, {
-+        const response = await this.fetchFn(this.urlTransformer(this.channelUrl, json), {
+-        const response = await fetch(this.channelUrl, {
++        const response = await fetch(this.urlTransformer(this.channelUrl, json), {
              ...this.fetchOptions,
              method: 'PUT',
              body: JSON.stringify(json),

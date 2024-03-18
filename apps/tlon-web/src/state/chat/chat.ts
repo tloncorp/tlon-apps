@@ -31,7 +31,6 @@ import {
   WritSeal,
   WritTuple,
   Writs,
-  newWritTupleArray,
 } from '@tloncorp/shared/dist/urbit/dms';
 import { GroupMeta } from '@tloncorp/shared/dist/urbit/groups';
 import { decToUd, udToDec } from '@urbit/api';
@@ -54,7 +53,6 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { whomIsDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-// eslint-disable-next-line import/no-cycle
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
 import emptyMultiDm, {
@@ -1347,7 +1345,22 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
     retry: false,
   });
 
-  const writs = newWritTupleArray(data);
+  const writs: WritTuple[] = useMemo(
+    () =>
+      _.uniqBy(
+        data?.pages
+          ?.map((page) => {
+            const writPages = Object.entries(page.writs).map(
+              ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
+            );
+            return writPages;
+          })
+          .flat() || [],
+        ([k]) => k.toString()
+      ).sort(([a], [b]) => a.compare(b)),
+
+    [data]
+  );
 
   return {
     data,

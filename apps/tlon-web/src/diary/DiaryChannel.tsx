@@ -1,5 +1,5 @@
 import * as Toast from '@radix-ui/react-toast';
-import { PostTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { PageTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -138,7 +138,7 @@ function DiaryChannel({ title }: ViewProps) {
       return b.compare(a);
     });
 
-  const itemContent = (i: number, [time, outline]: PostTuple) => (
+  const itemContent = (i: number, [time, outline]: PageTuple) => (
     <div className="mx-auto my-6 max-w-[600px] px-6">
       <DiaryListItem note={outline!} time={time} />
       {lastArrangedNote === time.toString() && (

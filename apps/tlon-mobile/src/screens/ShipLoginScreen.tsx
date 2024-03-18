@@ -6,11 +6,7 @@ import { useTailwind } from 'tailwind-rn';
 
 import { HeaderButton } from '../components/HeaderButton';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import {
-  ACCESS_CODE_REGEX,
-  DEFAULT_SHIP_LOGIN_ACCESS_CODE,
-  DEFAULT_SHIP_LOGIN_URL,
-} from '../constants';
+import { ACCESS_CODE_REGEX } from '../constants';
 import { useShip } from '../contexts/ship';
 import { getLandscapeAuthCookie } from '../lib/landscapeApi';
 import type { OnboardingStackParamList } from '../types';
@@ -38,12 +34,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<FormData>({
-    defaultValues: {
-      shipUrl: DEFAULT_SHIP_LOGIN_URL,
-      accessCode: DEFAULT_SHIP_LOGIN_ACCESS_CODE,
-    },
-  });
+  } = useForm<FormData>();
   const { setShip } = useShip();
 
   const onSubmit = handleSubmit(async ({ shipUrl: rawShipUrl, accessCode }) => {
