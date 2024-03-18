@@ -40,6 +40,7 @@
     "@react-navigation/native-stack": "^6.9.13",
     "@realm/react": "^0.6.2",
     "@tloncorp/shared": "*",
+    "@tloncorp/ui": "*",
     "@urbit/aura": "^1.0.0",
     "@urbit/http-api": "^3.1.0-dev-2",
     "@urbit/sigil-js": "2.2.0",

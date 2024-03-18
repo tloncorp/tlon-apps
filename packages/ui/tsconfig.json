@@ -34,7 +34,6 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "../../apps/tlon-mobile/Group.tsx",
   ],
   "exclude": [
     "node_modules/**/*"
