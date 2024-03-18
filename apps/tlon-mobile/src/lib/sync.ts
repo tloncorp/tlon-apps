@@ -9,8 +9,13 @@ export const syncContacts = async () => {
 };
 
 export const syncUnreads = async () => {
-  const channelUnreads = await getChannelUnreads();
-  const dmUnreads = await getDMUnreads();
+  const [
+    channelUnreads,
+    dmUnreads,
+  ] = await Promise.all([
+    getChannelUnreads(),
+    getDMUnreads(),
+  ]);
   db.createBatch('Unread', channelUnreads, db.UpdateMode.All);
   db.createBatch('Unread', dmUnreads, db.UpdateMode.All);
   console.log('Synced', channelUnreads.length + dmUnreads.length, 'unreads');
