@@ -8,7 +8,7 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { initializeUrbitClient } from '../lib/api';
 import { subscribeUnreads } from '../lib/subscribe';
-import { syncContacts, syncUnreads } from '../lib/sync';
+import { syncContacts, syncGroups, syncUnreads } from '../lib/sync';
 import { TabStack } from '../navigation/TabStack';
 import WebviewOverlay from './WebviewOverlay';
 
@@ -23,6 +23,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
 
   useEffect(() => {
     initializeUrbitClient(ship ?? '', shipUrl ?? '');
+    syncGroups();
     syncContacts();
     syncUnreads();
     subscribeUnreads();

@@ -1,14 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import {
-  Avatar,
-  Circle,
-  Icon,
-  Text,
-  UrbitSigil,
-  View,
-  ZStack,
-  useStyle,
-} from '@tloncorp/ui';
+import { Avatar, Circle, Icon, Text, View, useStyle } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 

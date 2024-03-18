@@ -1,6 +1,6 @@
 import * as db from '../db';
-import { updateChannelUnreadStates } from '../db';
-import { getUnreadChannels } from './channelsApi';
+// import { updateChannelUnreadStates } from '../db';
+// import { getUnreadChannels } from './channelsApi';
 import { getContacts } from './contactsApi';
 import { getGroups, getPinnedGroupsAndDms } from './groupsApi';
 import { getChannelUnreads, getDMUnreads } from './unreadsApi';
