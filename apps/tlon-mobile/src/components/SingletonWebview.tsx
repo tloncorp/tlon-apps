@@ -1,38 +1,49 @@
-import { useFocusEffect } from '@react-navigation/native';
-// import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import crashlytics from '@react-native-firebase/crashlytics';
 import {
   type MobileNavTab,
   type NativeWebViewOptions,
   type WebAppAction,
+  trimFullPath,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
-import { addNotificationResponseReceivedListener } from 'expo-notifications';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { URL } from 'react-native-url-polyfill';
 import { WebView } from 'react-native-webview';
+import type {
+  WebViewRenderProcessGoneEvent,
+  WebViewTerminatedEvent,
+} from 'react-native-webview/lib/WebViewTypes';
 import { useTailwind } from 'tailwind-rn';
 
-import { DEV_LOCAL } from '../constants';
+import { DEFAULT_SHIP_LOGIN_URL, DEFAULT_TLON_LOGIN_EMAIL } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
+import useAppStatus from '../hooks/useAppStatus';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
-import { markChatRead } from '../lib/chatApi';
-import { getHostingUser } from '../lib/hostingApi';
-// import { connectNotifications } from '../lib/notifications';
-import {
-  getHostingUserId,
-  removeHostingToken,
-  removeHostingUserId,
-} from '../utils/hosting';
+import { isUsingTlonAuth } from '../lib/hostingApi';
+import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
 type WebAppCommand = {
   action: WebAppAction;
   value?: string | { tab: string; path: string };
 };
+
+// used for tracking and recovering from crashes
+interface CrashState {
+  isCrashed: boolean;
+  crashEvent: WebViewTerminatedEvent | WebViewRenderProcessGoneEvent | null;
+  lastPath: string;
+}
+
+// used for forcing the webview to reload
+interface SourceState {
+  url: string;
+  key: number;
+}
 
 const createUri = (shipUrl: string, path?: string) =>
   `${shipUrl}/apps/groups${
@@ -46,9 +57,34 @@ export const SingletonWebview = () => {
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
-  const didManageAccount = useRef(false);
-  const [appLoaded, setAppLoaded] = useState(false);
   const webviewContext = useWebViewContext();
+  const initialUrl = useMemo(() => createUri(shipUrl, '/'), [shipUrl]);
+  const appStatus = useAppStatus();
+
+  const [crashRecovery, setCrashRecovery] = useState<CrashState>({
+    isCrashed: false,
+    crashEvent: null,
+    lastPath: '',
+  });
+
+  const [source, setSource] = useState<SourceState>({
+    url: initialUrl,
+    key: 0,
+  });
+
+  // If the webview crashed, wait until it's back in the foreground to reload
+  useEffect(() => {
+    if (appStatus === 'active' && crashRecovery.isCrashed) {
+      setSource({
+        url: createUri(shipUrl, crashRecovery.lastPath),
+        key: source.key + 1,
+      });
+      setCrashRecovery((prev) => ({
+        ...prev,
+        isCrashed: false,
+      }));
+    }
+  }, [appStatus, crashRecovery, shipUrl, source]);
 
   const handleLogout = useCallback(() => {
     clearShip();
@@ -84,7 +120,7 @@ export const SingletonWebview = () => {
         );
         break;
       case 'activeTabChange':
-        webviewContext.setGotoTab(value as MobileNavTab);
+        webviewContext.setNewWebappTab(value as MobileNavTab);
         break;
       case 'saveLastPath': {
         if (!value || typeof value !== 'object' || !value.tab || !value.path) {
@@ -99,80 +135,17 @@ export const SingletonWebview = () => {
         }
         break;
       }
-      // TODO: handle manage account
       case 'manageAccount':
-        webviewContext.setDidManageAccount(true);
+        webviewContext.setManageAccountState('triggered');
         break;
       case 'appLoaded':
         // Slight delay otherwise white background flashes
         setTimeout(() => {
-          setAppLoaded(true);
+          webviewContext.setAppLoaded(true);
         }, 100);
         break;
     }
   };
-
-  useEffect(() => {
-    // Start notification tap listener
-    // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
-    const notificationTapListener = addNotificationResponseReceivedListener(
-      (response) => {
-        const {
-          actionIdentifier,
-          userText,
-          notification: {
-            request: {
-              content: { data },
-            },
-          },
-        } = response;
-        if (actionIdentifier === 'markAsRead' && data.channelId) {
-          markChatRead(data.channelId);
-        } else if (actionIdentifier === 'reply' && userText) {
-          // Send reply
-        } else if (data.wer) {
-          // TODO: handle wer
-          // setUri((curr) => ({
-          //   ...curr,
-          //   uri: createUri(shipUrl, data.wer),
-          //   key: curr.key + 1,
-          // }));
-        }
-      }
-    );
-
-    // connectNotifications();
-
-    return () => {
-      // Clean up listeners
-      notificationTapListener.remove();
-    };
-  }, [shipUrl]);
-
-  // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
-  useFocusEffect(
-    useCallback(() => {
-      if (!didManageAccount.current) {
-        return;
-      }
-
-      (async () => {
-        const hostingUserId = await getHostingUserId();
-        if (hostingUserId) {
-          try {
-            const user = await getHostingUser(hostingUserId);
-            if (user.verified) {
-              didManageAccount.current = false;
-            } else {
-              handleLogout();
-            }
-          } catch (err) {
-            handleLogout();
-          }
-        }
-      })();
-    }, [handleLogout])
-  );
 
   useEffect(() => {
     // Path was changed by the parent view
@@ -192,6 +165,7 @@ export const SingletonWebview = () => {
   const nativeOptions: NativeWebViewOptions = {
     colorScheme,
     hideTabBar: true,
+    isUsingTlonAuth: isUsingTlonAuth(),
     safeAreaInsets,
   };
 
@@ -200,9 +174,10 @@ export const SingletonWebview = () => {
       {...webViewProps}
       scrollEnabled={false}
       ref={webviewRef}
-      source={{ uri: createUri(shipUrl, '/') }}
+      key={source.key}
+      source={{ uri: source.url }}
       style={
-        appLoaded
+        webviewContext.appLoaded
           ? tailwind('bg-transparent')
           : { flex: 0, height: 0, opacity: 0 }
       }
@@ -212,14 +187,15 @@ export const SingletonWebview = () => {
         window.colorscheme="${nativeOptions.colorScheme}";
         window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
         ${
-          DEV_LOCAL
+          // in development, explicitly set Urbit runtime configured window vars
+          DEFAULT_SHIP_LOGIN_URL || DEFAULT_TLON_LOGIN_EMAIL
             ? ` window.our="${ship}"; window.ship="${ship?.slice(1)}"; `
             : ''
         }
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
-        setTimeout(() => setAppLoaded(true), 10_000);
+        setTimeout(() => webviewContext.setAppLoaded(true), 10_000);
       }}
       onShouldStartLoadWithRequest={({ url }) => {
         const parsedUrl = new URL(url);
@@ -257,6 +233,39 @@ export const SingletonWebview = () => {
       onMessage={async ({ nativeEvent: { data } }) =>
         handleMessage(JSON.parse(data) as WebAppCommand)
       }
+      // on iOS, this is called if the webview crashes or is
+      // killed by the OS
+      onContentProcessDidTerminate={(event) => {
+        console.error('Content process terminated', event);
+        crashlytics().recordError(
+          new Error('Content process terminated, initiated recovery')
+        );
+        webviewContext.setAppLoaded(false);
+        setCrashRecovery((prev) => ({
+          ...prev,
+          isCrashed: true,
+          crashEvent: event,
+        }));
+      }}
+      // on Android, this is called if the webview crashes or is
+      // killed by the OS
+      onRenderProcessGone={(event) => {
+        console.error('Render process gone', event);
+        crashlytics().recordError(
+          new Error('Render process gone, initiated recovery')
+        );
+        webviewContext.setAppLoaded(false);
+        setCrashRecovery((prev) => ({
+          ...prev,
+          isCrashed: true,
+          crashEvent: event,
+        }));
+      }}
+      // store a reference to the last url the webview was at for crash recovery
+      onNavigationStateChange={({ url: rawUrl }) => {
+        const path = new URL(rawUrl).pathname;
+        setCrashRecovery((prev) => ({ ...prev, lastPath: trimFullPath(path) }));
+      }}
     />
   );
 };

@@ -58,15 +58,23 @@ export function useInvertedScrollInteraction(
   isInverted: boolean
 ) {
   const isEditing = useIsEditingMessage();
+  const isEditingRef = useRef(isEditing);
+
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
 
   useEffect(() => {
     const el = scrollElementRef.current;
-    if (!isInverted || !el || isEditing) return undefined;
+    if (!isInverted || !el) return undefined;
+
     const invertScrollWheel = (e: WheelEvent) => {
       el.scrollTop -= e.deltaY;
       e.preventDefault();
     };
     const invertSpaceAndArrows = (e: KeyboardEvent) => {
+      if (isEditingRef.current) return;
+
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         el.scrollBy({ top: 30, behavior: e.repeat ? 'auto' : 'smooth' });

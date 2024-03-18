@@ -25,11 +25,21 @@
       =client-state
   ==
 +$  base-state-2
-  $:  notifications=(map uid notification)
+::  We set notifications to * because we had an issue with the notification type
+::  definition being wrong and this wrong state made its way onto some ships.
+  $:  notifications=*
       base-state-0
   ==
 ::
 +$  base-state-3
+::  We set notifications to * because we had an issue with the notification type
+::  definition being wrong and this wrong state made its way onto some ships.
+  $:  last-timer=time
+      notifications=*
+      base-state-0
+  ==
+::
++$  base-state-4
   $:  last-timer=time
       notifications=(map uid notification)
       base-state-0
@@ -49,15 +59,19 @@
 +$  state-4
   [%4 base-state-3]
 ::
++$  state-5
+  [%5 base-state-4]
+::
 +$  versioned-state
   $%  state-0
       state-1
       state-2
       state-3
       state-4
+      state-5
   ==
 ::
-+$  current-state  state-4
++$  current-state  state-5
 ::
 ++  migrate-state
   |=  old=versioned-state
@@ -67,7 +81,8 @@
     %1  $(old (migrate-1-to-2 old))
     %2  $(old (migrate-2-to-3 old))
     %3  $(old (migrate-3-to-4 old))
-    %4  old
+    %4  $(old (migrate-4-to-5 old))
+    %5  old
   ==
 ::
 ++  migrate-0-to-1
@@ -89,6 +104,11 @@
   |=  old=state-3
   ^-  state-4
   [%4 `@da`0 [+.old]]
+::
+++  migrate-4-to-5
+  |=  old=state-4
+  ^-  state-5
+  old(- %5, notifications ~)
 ::
 --
 ::
