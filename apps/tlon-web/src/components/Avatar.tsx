@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import { darken, lighten, parseToHsla } from 'color2k';
 import _ from 'lodash';
 import React, { CSSProperties, useMemo } from 'react';
-import { isValidPatp } from 'urbit-ob';
+import { isValidPatp, clan as shipType } from 'urbit-ob';
 
 import { isValidUrl, normalizeUrbitColor } from '@/logic/utils';
 import { useAvatar } from '@/state/avatar';
@@ -139,7 +139,10 @@ function Avatar({
     background: adjustedColor,
     foreground: foregroundColor,
   };
-  const invalidShip = useMemo(() => !isValidPatp(ship), [ship]);
+  const invalidShip = useMemo(
+    () => !isValidPatp(ship) || ['comet', 'moon'].includes(shipType(ship)),
+    [ship]
+  );
 
   const shouldShowImage = useMemo(
     () =>
@@ -172,7 +175,7 @@ function Avatar({
     return (
       <img
         className={classNames(className, classes, 'object-cover')}
-        src={avatar || ''} // Convert null to an empty string
+        src={avatar ?? ''} // Defensively avoid null src
         alt=""
         style={style}
         onLoad={load}
