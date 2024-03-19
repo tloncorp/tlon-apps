@@ -1,6 +1,7 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { Button, ListItem, TamaguiProvider } from '@tloncorp/ui';
+import { ClientTypes as Client } from '@tloncorp/shared';
+import { Avatar, Button, ListItem, TamaguiProvider, Text } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -112,6 +113,7 @@ import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ShareDMLure from './profiles/ShareDMLure';
 import { useChannelsFirehose } from './state/channel/channel';
+import { useContact } from './state/contact';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -162,8 +164,11 @@ interface RoutesProps {
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  const currentTheme = useLocalState((s) => s.currentTheme);
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
+  const pondus = useContact('~pondus-watbel');
+  console.log('pondus', pondus);
 
   useEffect(() => {
     if (loaded) {
@@ -177,11 +182,41 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
     };
   }, [loaded]);
 
+  const contact: Client.Contact = useMemo(
+    () => ({
+      id: '~pondus-watbel',
+      nickname: null,
+      color: null,
+      avatarImage:
+        'https://m.media-amazon.com/images/M/MV5BZWQ3NjEwNTctMGQyMy00MzExLWI5NGEtMzdkMjFiZTM2Mjc3XkEyXkFqcGdeQXVyMTAxODYyODI@._V1_.jpg',
+      bio: null,
+      coverImage: null,
+      status: null,
+      pinnedGroupIds: [],
+    }),
+    []
+  );
+
   return (
-    <TamaguiProvider>
+    <TamaguiProvider defaultTheme={currentTheme}>
       <Button>
         <Button.Text>Hi</Button.Text>
       </Button>
+      <Avatar contact={contact} height={200} width={200} />
+      <Text color="$orange">Hey there!</Text>
+      <div className="h-[600px] w-[400px]">
+        <ListItem onPress={() => console.log('clicky!')}>
+          <ListItem.Icon imageUrl="https://media.architecturaldigest.com/photos/5a3af19ecf0d6c31eb82ee75/1:1/w_3307,h_3307,c_limit/GettyImages-564107815.jpg" />
+          <ListItem.MainContent>
+            <ListItem.Title fontFamily="$body" color="$primaryText">
+              Cozy Interiors
+            </ListItem.Title>
+            <ListItem.Subtitle fontFamily="$body">
+              Hello, world here is a message for you
+            </ListItem.Subtitle>
+          </ListItem.MainContent>
+        </ListItem>
+      </div>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
