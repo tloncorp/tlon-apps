@@ -1,12 +1,12 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import type * as ub from '@tloncorp/shared/dist/urbit/channel';
+import type { ClientTypes as Client } from "../client";
+import type * as ub from "../urbit/channel";
 
-import { scry } from './api';
+import { scry } from "./urbit";
 
 export const getUnreadChannels = async () => {
   const response = await scry<ub.Unreads>({
-    app: 'channels',
-    path: '/unreads',
+    app: "channels",
+    path: "/unreads",
   });
   return toUnreadsData(response);
 };

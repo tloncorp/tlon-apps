@@ -1,15 +1,11 @@
-import { deSig } from '@urbit/aura';
-import { Urbit } from '@urbit/http-api';
-
-import { createHexString } from '../utils/string';
+import { deSig } from "@urbit/aura";
+import { Urbit } from "@urbit/http-api";
 
 const config = {
-  shipName: '',
-  shipUrl: '',
-  channelUrl: '',
+  shipName: "",
+  shipUrl: "",
 };
 
-let lastEventId = 1;
 let client: Urbit | null = null;
 
 export function initializeUrbitClient(shipName: string, shipUrl: string) {
@@ -24,8 +20,8 @@ export function initializeUrbitClient(shipName: string, shipUrl: string) {
       // subsequent requests and screws everything up. This ensures that explicit
       // cookie headers are never set, delegating all cookie handling to the
       // native http client.
-      headers.delete('Cookie');
-      headers.delete('cookie');
+      headers.delete("Cookie");
+      headers.delete("cookie");
       const newInit: RequestInit = {
         ...init,
         headers,
@@ -41,12 +37,12 @@ export function initializeUrbitClient(shipName: string, shipUrl: string) {
   client.ship = deSig(shipName);
   client.verbose = true;
 
-  client.on('status-update', (status) => {
+  client.on("status-update", (status) => {
     console.log(`client status:`, status);
   });
 
-  client.on('error', (error) => {
-    console.error('client error:', error);
+  client.on("error", (error) => {
+    console.error("client error:", error);
   });
 }
 
@@ -69,7 +65,7 @@ export function subscribe<T>(
   handler: (update: T) => void
 ) {
   if (!client) {
-    throw new Error('Tied to subscribe, but Urbit client is not initialized');
+    throw new Error("Tied to subscribe, but Urbit client is not initialized");
   }
 
   client.subscribe({
@@ -91,29 +87,7 @@ export function subscribe<T>(
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);
   config.shipUrl = shipUrl;
-  config.channelUrl = `${shipUrl}/~/channel/${Math.floor(
-    Date.now() / 1000
-  )}-${createHexString(6)}`;
-  console.debug('Configured new Urbit API for', shipName);
-};
-
-const putJson = async (json: any) => {
-  const response = await fetch(config.channelUrl, {
-    method: 'PUT',
-    body: JSON.stringify([
-      {
-        ...json,
-        id: lastEventId,
-        ship: config.shipName,
-      },
-    ]),
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  lastEventId += 1;
-  return response;
+  console.debug("Configured new Urbit API for", shipName);
 };
 
 export const poke = async ({
@@ -125,8 +99,7 @@ export const poke = async ({
   mark: string;
   json: any;
 }) =>
-  putJson({
-    action: 'poke',
+  client?.poke({
     app,
     mark,
     json,
@@ -135,9 +108,9 @@ export const poke = async ({
 export const scry = async <T>({ app, path }: { app: string; path: string }) => {
   return fetch(`${config.shipUrl}/~/scry/${app}${path}.json`, {
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+      "Content-Type": "application/json",
+      Accept: "application/json",
     },
-    credentials: 'include',
+    credentials: "include",
   }).then((res) => res.json()) as Promise<T>;
 };

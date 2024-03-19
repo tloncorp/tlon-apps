@@ -1,12 +1,11 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import type * as ub from '@tloncorp/shared/dist/urbit/groups';
-
-import { scry } from './api';
+import type { ClientTypes as Client } from "../client";
+import type * as ub from "../urbit/groups";
+import { scry } from "./urbit";
 
 export const getPinnedGroupsAndDms = async () => {
   const pinnedGroups = await scry<ub.PinnedGroupsResponse>({
-    app: 'groups-ui',
-    path: '/pins',
+    app: "groups-ui",
+    path: "/pins",
   });
   return pinnedGroups;
 };
@@ -20,8 +19,8 @@ export const getGroups = async (
     includeMembers: false,
   }
 ) => {
-  const path = includeMembers ? '/groups' : '/groups/light';
-  const groupData = await scry<ub.Groups>({ app: 'groups', path });
+  const path = includeMembers ? "/groups" : "/groups/light";
+  const groupData = await scry<ub.Groups>({ app: "groups", path });
   return toClientGroups(groupData);
 };
 
@@ -42,7 +41,7 @@ export function toClientGroup(id: string, group: ub.Group): Client.Group {
       };
       return data as Client.GroupRole;
     }),
-    navSections: group['zone-ord']
+    navSections: group["zone-ord"]
       ?.map((zoneId) => {
         const zone = group.zones?.[zoneId];
         if (!zone) {
@@ -116,9 +115,9 @@ function toClientGroupMember(id: string, vessel: ub.Vessel) {
 }
 
 function omitEmpty(val: string) {
-  return val === '' ? undefined : val;
+  return val === "" ? undefined : val;
 }
 
 function isColor(value: string) {
-  return value[0] === '#';
+  return value[0] === "#";
 }

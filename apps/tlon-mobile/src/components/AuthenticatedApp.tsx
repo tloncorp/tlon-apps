@@ -1,3 +1,5 @@
+import { initializeUrbitClient } from '@tloncorp/shared/dist/api/urbit';
+import { subscribeUnreads } from '@tloncorp/shared/src/api/subscribe';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -6,8 +8,6 @@ import { WebviewPositionProvider } from '../contexts/webview/position';
 import { WebviewProvider } from '../contexts/webview/webview';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
-import { initializeUrbitClient } from '../lib/api';
-import { subscribeUnreads } from '../lib/subscribe';
 import {
   syncContacts,
   syncGroups,

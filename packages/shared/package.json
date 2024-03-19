@@ -5,12 +5,18 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts src/urbit/* --format esm --minify --dts --out-dir dist",
+    "build": "tsup src/index.ts src/urbit/* src/api/* --format esm --minify --dts --out-dir dist",
     "dev": "npm run build -- --watch",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build",
+    "test": "vitest --watch false"
   },
   "dependencies": {
     "big-integer": "^1.6.52",
-    "sorted-btree": "^1.8.1"
+    "sorted-btree": "^1.8.1",
+    "@urbit/http-api": "^3.1.0-dev-2",
+    "@urbit/aura": "^1.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.4"
   }
 }

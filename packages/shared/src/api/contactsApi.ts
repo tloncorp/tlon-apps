@@ -1,13 +1,13 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import type * as ub from '@tloncorp/shared/dist/urbit/contact';
-import { parseUx } from '@urbit/aura';
+import { parseUx } from "@urbit/aura";
 
-import { scry } from './api';
+import type { ClientTypes as Client } from "../client";
+import type * as ub from "../urbit/contact";
+import { scry } from "./urbit";
 
 export const getContacts = async () => {
   const results = await scry<ub.ContactRolodex>({
-    app: 'contacts',
-    path: '/all',
+    app: "contacts",
+    path: "/all",
   });
   return toClientContacts(results);
 };
@@ -29,7 +29,7 @@ export const toClientContact = (
     nickname: contact?.nickname ?? null,
     bio: contact?.bio ?? null,
     status: contact?.status ?? null,
-    color: contact?.color ? '#' + parseUx(contact.color) : null,
+    color: contact?.color ? "#" + parseUx(contact.color) : null,
     coverImage: contact?.cover ?? null,
     avatarImage: contact?.avatar ?? null,
     pinnedGroupIds: contact?.groups ?? [],

@@ -1,8 +1,15 @@
+import { getContacts } from '@tloncorp/shared/dist/api/contactsApi';
+import {
+  getGroups,
+  getPinnedGroupsAndDms,
+} from '@tloncorp/shared/dist/api/groupsApi';
+import {
+  getChannelUnreads,
+  getDMUnreads,
+} from '@tloncorp/shared/dist/api/unreadsApi';
+
 import * as db from '../db';
 import { updateChannelUnreadStates } from '../db';
-import { getContacts } from './contactsApi';
-import { getGroups, getPinnedGroupsAndDms } from './groupsApi';
-import { getChannelUnreads, getDMUnreads } from './unreadsApi';
 
 export const syncContacts = async () => {
   const contacts = await getContacts();

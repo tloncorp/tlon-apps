@@ -1,4 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api/landscapeApi';
+import { configureApi } from '@tloncorp/shared/dist/api/urbit';
+import {
+  updateNickname,
+  updateTelemetrySetting,
+} from '@tloncorp/shared/dist/api/userApi';
 import { preSig } from '@urbit/aura';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
@@ -7,7 +13,6 @@ import { useTailwind } from 'tailwind-rn';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { configureApi } from '../lib/api';
 import {
   allocateReservedShip,
   getHostingUser,
@@ -16,9 +21,7 @@ import {
   getShipsWithStatus,
   reserveShip as reserveShipApi,
 } from '../lib/hostingApi';
-import { getLandscapeAuthCookie } from '../lib/landscapeApi';
 import { connectNotifyProvider } from '../lib/notificationsApi';
-import { updateNickname, updateTelemetrySetting } from '../lib/userApi';
 import type { OnboardingStackParamList } from '../types';
 import { trackError, trackOnboardingAction } from '../utils/posthog';
 import { getShipFromCookie, getShipUrl } from '../utils/ship';
