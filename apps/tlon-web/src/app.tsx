@@ -1,6 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { Button, TamaguiProvider } from '@tloncorp/ui';
+import { Button, ListItem, TamaguiProvider } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -557,6 +557,10 @@ function authRedirect() {
 }
 
 function checkIfLoggedIn() {
+  // hardcode to see if it works?
+  window.our = '~fogbes-tappur-pondus-watbel';
+  window.ship = 'fogbes-tappur-pondus-watbel';
+
   if (isNativeApp()) {
     return;
   }

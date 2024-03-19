@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
@@ -13,6 +14,7 @@ import {
   loadEnv,
 } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
 import manifest from './src/manifest';
@@ -65,6 +67,13 @@ export default ({ mode }: { mode: string }) => {
       react({
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],
+      svgr({
+        include: '**/*.svg',
+      }) as Plugin,
+      tamaguiPlugin({
+        config: '../../packages/ui/src/tamagui.config.ts',
+        platform: 'web',
+      }) as Plugin,
       VitePWA({
         base: '/apps/groups/',
         manifest,
@@ -129,11 +138,11 @@ export default ({ mode }: { mode: string }) => {
     server: {
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
-      //NOTE  the proxy used by vite is written poorly, and ends up removing
-      //      empty path segments from urls: http-party/node-http-proxy#1420.
-      //      as a workaround for this, we rewrite the path going into the
-      //      proxy to "hide" the empty path segments, and then rewrite the
-      //      path coming "out" of the proxy to obtain the original path.
+      //  NOTE  the proxy used by vite is written poorly, and ends up removing
+      //  empty path segments from urls: http-party/node-http-proxy#1420.
+      //  as a workaround for this, we rewrite the path going into the
+      //  proxy to "hide" the empty path segments, and then rewrite the
+      //  path coming "out" of the proxy to obtain the original path.
       proxy: {
         '^.*//.*': {
           target: SHIP_URL,
