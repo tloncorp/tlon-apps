@@ -88,19 +88,16 @@
       %activity-action
     =+  !<(=action:a vase)
     ?-  -.action
-        %add
-      (add +.action)
-        %read
-      (read +.action)
-        %adjust
-      (adjust +.action)
+      %add     (add +.action)
+      %read    (read +.action)
+      %adjust  (adjust +.action)
     ==
   ==
 ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+  pole  ~|(bat-watch-path+pole !!)
+  ?+  pole  ~|(bad-watch-path+pole !!)
     ~  ?>(from-self cor)
     [%notifications ~]  ?>(from-self cor)
     [%unreads ~]  ?>(from-self cor)
@@ -236,19 +233,11 @@
 ++  determine-flavor
   |=  =event:a
   ^-  flavor:a
-  ?-  -.event
-      %dm-invite       %dm-invite
-      %kick            %kick
-      %join            %join
-      %flag            %flag
-      %post
-    ?:  mention.event  %post-mention  %post
-      %reply
-    ?:  mention.event  %reply-mention  %reply
-      %dm-post
-    ?:  mention.event  %dm-post-mention  %dm-post
-      %dm-reply
-    ?:  mention.event  %dm-reply-mention  %dm-reply
+  ?+  -.event  -.event
+      %post      ?:(mention.event %post-mention %post)
+      %reply     ?:(mention.event %reply-mention %reply)
+      %dm-post   ?:(mention.event %dm-post-mention %dm-post)
+      %dm-reply  ?:(mention.event %dm-reply-mention %dm-reply)
   ==
 ::
 ++  find-floor

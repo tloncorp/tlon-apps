@@ -22,8 +22,11 @@
       %dm-post-mention
       %dm-reply
       %dm-reply-mention
+      %group-invite
       %kick
       %join
+      %ask
+      %role
       %post
       %post-mention
       %reply
@@ -43,7 +46,10 @@
       [%dm-post dm-post-concern content=story:c mention=?]
       [%dm-reply dm-reply-concern content=story:c mention=?]
       [%kick group-concern =ship]
+      [%group-invite group-concern =ship]
       [%join group-concern =ship]
+      [%ask group-concern =ship]
+      [%role group-concern =ship roles=(set sect:g)]
       [%post post-concern content=story:c mention=?]
       [%reply reply-concern content=story:c mention=?]
       [%flag ?(post-concern reply-concern)]  ::TODO  easier-to-disambiguate type
