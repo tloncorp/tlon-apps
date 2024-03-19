@@ -46,7 +46,7 @@
       [%join group-concern =ship]
       [%post post-concern content=story:c mention=?]
       [%reply reply-concern content=story:c mention=?]
-      [%flag post-concern]
+      [%flag ?(post-concern reply-concern)]  ::TODO  easier-to-disambiguate type
   ==
 +$  time-event  [=time =event]
 +$  group-concern     group=flag:g

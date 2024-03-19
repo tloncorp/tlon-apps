@@ -854,7 +854,7 @@
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
-            [%flag key=message-key =nest:c]
+            [%flag key=?(message-key [message-key message-key]) =nest:c]
         ==
     ^+  go-core
     ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
@@ -868,7 +868,9 @@
       ?-  -.concern
         %join  [%join ^flag ship.concern]
         %kick  [%kick ^flag ship.concern]
-        %flag  [%flag key.concern nest.concern ^flag]
+        %flag  ?:  ?=(message-key key.concern)
+                 [%flag key.concern nest.concern ^flag]
+               [%flag -.key.concern +.key.concern nest.concern ^flag]
       ==
     go-core
   ::
@@ -1337,9 +1339,8 @@
           ==
       ==
     =.  cor  (emit (pass-hark new-yarn))
-    ::TODO  want to (go-activity %flag), but we need:
-    ::      1) more deets than just the post-key,
-    ::      2) support for replies in activity's %flag event
+    ::TODO  want to (go-activity %flag), but we would need
+    ::      a more detailed "key" than just the post-key
     go-core
   ++  go-zone-update
     |=  [=zone:g =delta:zone:g]
