@@ -3,7 +3,8 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts
+/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts,
+    activity
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -848,6 +849,29 @@
       out
     (~(put in out) who)
   ::
+  ++  go-activity
+    =,  activity
+    |=  $=  concern
+        $%  [%join =ship]
+            [%kick =ship]
+            [%flag key=message-key =nest:c]
+        ==
+    ^+  go-core
+    ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
+      go-core
+    =.  cor  %-  emit
+      =;  =cage
+        [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+      :-  %activity-action
+      !>  ^-  action
+      :-  %add
+      ?-  -.concern
+        %join  [%join ^flag ship.concern]
+        %kick  [%kick ^flag ship.concern]
+        %flag  [%flag key.concern nest.concern ^flag]
+      ==
+    go-core
+  ::
   ++  go-channel-hosts
     ^-  (set ship)
     %-  ~(gas in *(set ship))
@@ -1313,6 +1337,9 @@
           ==
       ==
     =.  cor  (emit (pass-hark new-yarn))
+    ::TODO  want to (go-activity %flag), but we need:
+    ::      1) more deets than just the post-key,
+    ::      2) support for replies in activity's %flag event
     go-core
   ++  go-zone-update
     |=  [=zone:g =delta:zone:g]
@@ -1466,6 +1493,7 @@
           ==
         =?  cor  go-is-our-bloc
           (emit (pass-hark new-yarn))
+        ::TODO  want an activity event for this?
         go-core
       ::
           [%del-ships %ask]
@@ -1550,6 +1578,12 @@
         ==
       =?  cor  go-is-our-bloc
         (emit (pass-hark new-yarn))
+      =.  go-core
+        =+  ships=~(tap in ships)
+        |-
+        ?~  ships  go-core
+        =.  go-core  (go-activity %join i.ships)
+        $(ships t.ships)
       ?-  -.cordon
           ?(%open %afar)  go-core
           %shut
@@ -1591,6 +1625,12 @@
         ==
       =?  cor  go-is-our-bloc
         (emit (pass-hark new-yarn))
+      =.  go-core
+        =+  ships=~(tap in ships)
+        |-
+        ?~  ships  go-core
+        =.  go-core  (go-activity %kick i.ships)
+        $(ships t.ships)
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
@@ -1632,6 +1672,7 @@
         ==
       =?  cor  go-is-our-bloc
         (emit (pass-hark new-yarn))
+      ::TODO  want an activity event for this?
       go-core
     ::
         %del-sects
@@ -1903,6 +1944,7 @@
                     [%emph title.meta.u.pev.gang]
                 ==
             ==
+          ::TODO  want an activity event for this?
           =?  cor  !(~(has by groups) flag)
             (emit (pass-hark new-yarn))
           ga-core
