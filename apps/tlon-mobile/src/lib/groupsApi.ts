@@ -1,6 +1,6 @@
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import type * as ub from '@tloncorp/shared/dist/urbit/groups';
 
-import type * as db from '../db';
 import { scry } from './api';
 
 export const getPinnedGroupsAndDms = async () => {
@@ -31,16 +31,16 @@ export function toClientGroups(groups: Record<string, ub.Group>) {
   });
 }
 
-export function toClientGroup(id: string, group: ub.Group): db.Group {
+export function toClientGroup(id: string, group: ub.Group): Client.Group {
   return {
     id,
     ...toClientGroupMetadata(group),
     roles: Object.entries(group.cabals ?? {}).map(([name, role]) => {
-      const data: db.GroupRole = {
+      const data: Client.GroupRole = {
         name,
         ...role.meta,
       };
-      return data as db.GroupRole;
+      return data as Client.GroupRole;
     }),
     navSections: group['zone-ord']
       ?.map((zoneId) => {
@@ -48,7 +48,7 @@ export function toClientGroup(id: string, group: ub.Group): db.Group {
         if (!zone) {
           return;
         }
-        const data: db.GroupNavSection = {
+        const data: Client.GroupNavSection = {
           id: zoneId,
           channelIds: zone.idx,
           image: omitEmpty(zone.meta.image),
@@ -58,7 +58,7 @@ export function toClientGroup(id: string, group: ub.Group): db.Group {
         };
         return data;
       })
-      .filter((s): s is db.GroupNavSection => !!s),
+      .filter((s): s is Client.GroupNavSection => !!s),
     members: Object.entries(group.fleet).map(([userId, vessel]) => {
       return toClientGroupMember(userId, vessel);
     }),
@@ -90,13 +90,13 @@ function toClientGroupMetadata(group: ub.Group | ub.GroupPreview) {
 
 function toClientChannels(
   channels: Record<string, ub.GroupChannel>
-): db.Channel[] {
+): Client.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
     toClientChannel(id, channel)
   );
 }
 
-function toClientChannel(id: string, channel: ub.GroupChannel): db.Channel {
+function toClientChannel(id: string, channel: ub.GroupChannel): Client.Channel {
   return {
     id,
     image: omitEmpty(channel.meta.image),
