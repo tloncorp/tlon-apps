@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "Node",
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "sqlocal/*": ["../../node_modules/sqlocal/dist/*"]
+    },
+    "module": "NodeNext",
+    "jsx": "react-jsx"
+  },
+  "exclude": ["../../node_modules"]
+}

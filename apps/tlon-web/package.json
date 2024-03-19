@@ -29,7 +29,8 @@
     "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true npm run e2e",
     "tsc": "tsc --noEmit",
     "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
-    "cosmos": "cosmos"
+    "cosmos": "cosmos",
+    "generate": "drizzle-kit generate:sqlite"
   },
   "lint-staged": {
     "**/*.ts?(x)": [
@@ -103,6 +104,7 @@
     "cross-fetch": "^3.1.5",
     "date-fns": "^2.28.0",
     "dompurify": "^3.0.6",
+    "drizzle-orm": "^0.30.3",
     "emoji-mart": "^5.2.2",
     "emoji-regex": "^10.2.1",
     "fast-average-color": "^9.1.1",
@@ -150,6 +152,7 @@
     "refractor": "^4.8.0",
     "slugify": "^1.6.6",
     "sorted-btree": "^1.8.1",
+    "sqlocal": "^0.7.1",
     "tailwindcss-opentype": "^1.1.0",
     "tailwindcss-scoped-groups": "^2.0.0",
     "tippy.js": "^6.3.7",
@@ -201,6 +204,7 @@
     "autoprefixer": "^10.4.4",
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
+    "drizzle-kit": "^0.20.14",
     "eslint": "^8.13.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-prettier": "^9.1.0",
@@ -231,6 +235,7 @@
     "tsc-files": "^1.1.4",
     "typescript": "^5.4.2",
     "vite": "^5.1.6",
+    "vite-plugin-node-polyfills": "^0.21.0",
     "vite-plugin-pwa": "^0.17.5",
     "vitest": "^0.34.1",
     "workbox-window": "^7.0.0"

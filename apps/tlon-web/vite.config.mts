@@ -2,6 +2,7 @@
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -12,6 +13,7 @@ import {
   defineConfig,
   loadEnv,
 } from 'vite';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { VitePWA } from 'vite-plugin-pwa';
 
 import packageJson from './package.json';
@@ -89,7 +91,7 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : [],
+        : ['expo-sqlite', 'expo-sqlite/next'],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -127,6 +129,10 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
@@ -145,6 +151,9 @@ export default ({ mode }: { mode: string }) => {
           },
         },
       },
+    },
+    optimizeDeps: {
+      exclude: ['sqlocal'],
     },
     build:
       mode !== 'profile'
@@ -167,6 +176,10 @@ export default ({ mode }: { mode: string }) => {
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        'expo-sqlite/next': resolve(
+          __dirname,
+          './src/fake-expo-sqlite-wrapper.js'
+        ),
       },
     },
     test: {

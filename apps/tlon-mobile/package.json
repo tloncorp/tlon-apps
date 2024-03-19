@@ -18,7 +18,8 @@
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
     "postinstall": "npm run generate",
-    "eas-build-post-install": "./post-install"
+    "eas-build-post-install": "./post-install",
+    "generate:db": "drizzle-kit generate:sqlite"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
@@ -44,6 +45,7 @@
     "@urbit/http-api": "^3.1.0-dev-2",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
+    "drizzle-orm": "^0.30.3",
     "expo": "^50.0.6",
     "expo-application": "~5.8.3",
     "expo-asset": "~9.0.2",
@@ -57,6 +59,7 @@
     "expo-notifications": "~0.27.6",
     "expo-secure-store": "~12.8.1",
     "expo-splash-screen": "~0.26.4",
+    "expo-sqlite": "~13.3.0",
     "expo-status-bar": "~1.11.1",
     "expo-task-manager": "~11.7.2",
     "expo-updates": "~0.24.10",
@@ -95,6 +98,7 @@
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
     "dotenv": "^16.0.3",
+    "drizzle-kit": "^0.20.14",
     "eslint": "^8.50.0",
     "eslint-plugin-prettier": "^5.0.0",
     "eslint-plugin-react": "^7.33.2",
