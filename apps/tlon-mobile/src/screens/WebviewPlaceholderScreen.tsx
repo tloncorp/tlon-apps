@@ -29,7 +29,10 @@ export const WebviewPlaceholderScreen = (props: Props) => {
         <View
           ref={screenRef}
           onLayout={measureTab}
-          style={{ height: '100%', width: '100%' }} // Optionally set background color here for debugging
+          style={{
+            height: '100%',
+            width: '100%',
+          }}
         />
       </KeyboardAvoidingView>
     );

@@ -24,6 +24,7 @@ export const TabStack = () => {
       id="TabBar"
       initialRouteName="Groups"
       screenOptions={{
+        headerShown: false,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         headerTitle({ style, ...props }) {
           return (
@@ -45,6 +46,7 @@ export const TabStack = () => {
         name="Groups"
         component={HomeStack}
         options={{
+          headerShown: true,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               type={'Home'}
