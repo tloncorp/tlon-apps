@@ -767,11 +767,18 @@
   ::
   ++  ca-has-sub
     ^-  ?
-    (~(has by wex.bowl) [ca-sub-wire ship.nest dap.bowl])
+    (~(has by wex.bowl) [ca-sub-wire ship.nest %channels-server])
   ::
   ++  ca-safe-sub
     |=  delay=?
     ?:  ca-has-sub  ca-core
+    =/  =flag:g  group.perm.perm.channel
+    =/  =path
+      %+  weld
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)
+      /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
+    =+  .^(group=group-ui:g %gx path)
+    ?.  (~(has by channels.group) nest)  ca-core
     ?^  posts.channel  (ca-start-updates delay)
     =.  load.net.channel  |
     %.  delay
