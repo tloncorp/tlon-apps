@@ -94,6 +94,7 @@
     "@types/react": "^18.2.55",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
+    "babel-plugin-inline-import": "^3.0.0",
     "babel-preset-expo": "^10.0.0",
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",

@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
+import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
 import { StatusBar, Text, View } from 'react-native';
@@ -18,6 +19,8 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
+import { db as sqliteDb } from './db/client';
+import migrations from './drizzle/migrations';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
@@ -53,6 +56,15 @@ const App = ({ wer }: Props) => {
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
+  const { success, error } = useMigrations(sqliteDb, migrations);
+
+  useEffect(() => {
+    if (error) {
+      console.error('Error migrating database', error);
+    } else if (success) {
+      console.log('Database migrated successfully');
+    }
+  }, [success, error]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(

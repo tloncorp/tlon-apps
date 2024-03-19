@@ -1,10 +1,11 @@
 import * as db from '../db';
+import { insertContacts } from '@tloncorp/shared/dist/db/queries';
 import { getContacts } from './contactsApi';
 import { getChannelUnreads, getDMUnreads } from './unreadsApi';
 
 export const syncContacts = async () => {
   const contacts = await getContacts();
-  db.createBatch('Contact', contacts, db.UpdateMode.All);
+  insertContacts(contacts);
   console.log('Synced', contacts.length, 'contacts');
 };
 
