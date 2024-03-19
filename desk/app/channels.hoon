@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark
+/-  c=channels, g=groups, ha=hark, activity
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate
 /+  utils=channel-utils, volume, s=subscriber
@@ -493,6 +493,13 @@
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
+  ::
+      [%activity %submit ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"{<dap.bowl>} failed to submit activity" u.p.sign)
+    cor
+  ::
       [%contacts @ ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -642,6 +649,30 @@
   ++  ca-sub-wire  (weld ca-area /updates)
   ++  ca-give-unread
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
+  ::
+  ++  ca-activity
+    =,  activity
+    |=  $:  $=  concern
+            $%  [%post key=message-key]
+                [%reply key=message-key top=message-key]
+            ==
+            content=story:c
+            mention=?
+        ==
+    ^+  ca-core
+    ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
+      ca-core
+    %-  emit
+    =;  =cage
+      [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+    :-  %activity-action
+    !>  ^-  action
+    :-  %add
+    =*  cc=channel-concern  [nest group.perm.perm.channel]
+    ?-  -.concern
+      %post   [%post [key.concern cc] content mention]
+      %reply  [%reply [key.concern top.concern cc] content mention]
+    ==
 ::
   ::
   ::  handle creating a channel
@@ -728,6 +759,7 @@
         ==
       ==
     =.  ca-core  ca-give-unread
+    ::TODO  %read activity-action?
     (ca-response a-remark)
   ::
   ::  proxy command to host
@@ -921,8 +953,17 @@
     =.  posts.channel
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
     =?  ca-core  &(send !=(old posts.channel))
-      %+  ca-response  %posts
-      %+  gas:on-posts:c  *posts:c
+      =;  posts=(list [id=id-post:c post=(unit post:c)])
+        =.  ca-core  (ca-response %posts (gas:on-posts:c *posts:c posts))
+        |-
+        ?~  posts  ca-core
+        ?~  post.i.posts  $(posts t.posts)
+        =*  id  id.i.posts
+        =,  u.post.i.posts
+        =/  mention=?
+          (was-mentioned:utils content our.bowl)
+        =.  ca-core  (ca-activity [%post [[author id] id]] content mention)
+        $(posts t.posts)
       %+  murn  (turn (tap:on-v-posts:c posts.chk) head)
       |=  id=id-post:c
       ^-  (unit [id-post:c (unit post:c)])
@@ -1008,6 +1049,15 @@
     ?:  ?=(%set -.u-post)
       =?  recency.remark.channel  ?=(^ post.u-post)
         (max recency.remark.channel id-post)
+      =?  ca-core  ?&  ?=(^ post.u-post)
+                       |(?=(~ post) (gth rev.u.post.u-post rev.u.u.post))
+                   ==
+        ::REVIEW  this might re-submit on edits. is that what we want?
+        ::        it looks like %activity inserts even if it's a duplicate.
+        =,  u.post.u-post
+        =/  mention=?
+          (was-mentioned:utils content our.bowl)
+        (ca-activity [%post [[author id] id]] content mention)
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
@@ -1070,6 +1120,18 @@
     =/  reply  (get:on-v-replies:c replies.post id-reply)
     ?:  ?=([~ ~] reply)  ca-core
     ?:  ?=(%set -.u-reply)
+      =?  ca-core  ?&  ?=(^ reply)
+                       |(?=(~ reply.u-reply) ~!(reply (gth rev.u.reply.u-reply rev.u.u.reply)))
+                   ==
+        ::REVIEW  this might re-submit on edits. is that what we want?
+        ::        it looks like %activity inserts even if it's a duplicate.
+        =,  u.u.reply
+        =/  concern
+          :-  [[author id-reply] id-reply]
+          [[author.post id-post] id-post]
+        =/  mention=?
+          (was-mentioned:utils content our.bowl)
+        (ca-activity [%reply concern] content mention)
       ?~  reply
         =/  reply=(unit reply:c)
           ?~  reply.u-reply  ~
