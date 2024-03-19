@@ -1049,11 +1049,12 @@
       ::
         [%channel app=@ ship=@ name=@ rest=*]
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
-      =/  =channel:g  (~(got by channels.group) nes)
       ?+    rest.pole  ~
           [%can-read member=@ ~]
+        ?~  channel=(~(get by channels.group) nes)
+          `loob+!>(`?`|)
         =/  member  (slav %p member.rest.pole)
-        `loob+!>((go-can-read member channel))
+        `loob+!>((go-can-read member u.channel))
         ::
           [%can-write member=@ ~]
         =/  member  (slav %p member.rest.pole)
