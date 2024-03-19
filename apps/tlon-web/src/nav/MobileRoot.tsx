@@ -2,6 +2,7 @@ import {
   getGroups,
   getPinnedGroupsAndDms,
 } from '@tloncorp/shared/dist/api/groupsApi';
+import { Sheet, SheetHeader, Text } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -156,7 +157,22 @@ export default function MobileRoot() {
               ) : null}
             </GroupList>
           </GroupsScrollingContext.Provider>
-          <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} />
+          {/* <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} /> */}
+          <Sheet
+            open={addGroupOpen}
+            onOpenChange={setAddGroupOpen}
+            modal
+            dismissOnSnapToBottom
+            snapPointsMode="fit"
+          >
+            <Sheet.Overlay />
+            <Sheet.Frame>
+              <Sheet.Handle />
+              <SheetHeader>
+                <SheetHeader.Title>Add Group</SheetHeader.Title>
+              </SheetHeader>
+            </Sheet.Frame>
+          </Sheet>
         </div>
       </nav>
     </Layout>

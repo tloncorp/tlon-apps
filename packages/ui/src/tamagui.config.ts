@@ -1,18 +1,18 @@
 import { createAnimations } from "@tamagui/animations-moti";
 import { createFont, createTamagui, createTokens } from "tamagui";
 
-// export const animations = createAnimations({
-//   simple: {
-//     type: "timing",
-//     duration: 100,
-//   },
-//   quick: {
-//     type: "spring",
-//     damping: 30,
-//     mass: 1,
-//     stiffness: 250,
-//   },
-// });
+export const animations = createAnimations({
+  simple: {
+    type: "timing",
+    duration: 100,
+  },
+  quick: {
+    type: "spring",
+    damping: 30,
+    mass: 1,
+    stiffness: 250,
+  },
+});
 
 export const tokens = createTokens({
   color: {
@@ -178,5 +178,8 @@ export const config = createTamagui({
   settings: {
     allowedStyleValues: "somewhat-strict",
   },
-  // animations,
+  // Different versions of a transitive dependency are conflicting for the AnimationDriver,
+  // ignore the warning for now
+  // @ts-ignore
+  animations,
 });

@@ -7,4 +7,5 @@ export * from "./components/TamaguiProvider";
 export * from "./components/Text";
 export * from "./components/UrbitSigil";
 export * from "./components/View";
+export * from "./components/Sheet";
 export * from "./tamagui.config";

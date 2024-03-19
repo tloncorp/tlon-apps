@@ -199,7 +199,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
 
   return (
     <TamaguiProvider defaultTheme={currentTheme}>
-      <Button>
+      {/* <Button>
         <Button.Text>Hi</Button.Text>
       </Button>
       <Avatar contact={contact} height={200} width={200} />
@@ -216,7 +216,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             </ListItem.Subtitle>
           </ListItem.MainContent>
         </ListItem>
-      </div>
+      </div> */}
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
