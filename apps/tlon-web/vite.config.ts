@@ -13,6 +13,7 @@ import {
   defineConfig,
   loadEnv,
 } from 'vite';
+import htmlPlugin from 'vite-plugin-html-config';
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
@@ -91,6 +92,12 @@ export default ({ mode }: { mode: string }) => {
           maximumFileSizeToCacheInBytes: 100000000,
         },
       }),
+
+      // @urbit/vite-plugin-urbit should  handle this but the path is off?
+      // includes /apps/groups/ rather than root
+      htmlPlugin({
+        headScripts: [{ src: '/desk.js' }, { src: '../../session.js' }],
+      }) as Plugin,
     ];
   };
 

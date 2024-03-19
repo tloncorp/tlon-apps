@@ -233,6 +233,7 @@
     "tsc-files": "^1.1.4",
     "typescript": "^5.4.2",
     "vite": "^5.1.6",
+    "vite-plugin-html-config": "^1.0.11",
     "vite-plugin-pwa": "^0.17.5",
     "vite-plugin-svgr": "^4.2.0",
     "vitest": "^0.34.1",

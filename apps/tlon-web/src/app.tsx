@@ -557,10 +557,6 @@ function authRedirect() {
 }
 
 function checkIfLoggedIn() {
-  // hardcode to see if it works?
-  window.our = '~fogbes-tappur-pondus-watbel';
-  window.ship = 'fogbes-tappur-pondus-watbel';
-
   if (isNativeApp()) {
     return;
   }
