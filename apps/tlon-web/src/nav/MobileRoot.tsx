@@ -1,5 +1,9 @@
+import {
+  getGroups,
+  getPinnedGroupsAndDms,
+} from '@tloncorp/shared/dist/api/groupsApi';
 import { debounce } from 'lodash';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
@@ -46,6 +50,13 @@ export default function MobileRoot() {
       )),
     [pinnedGroups]
   );
+
+  useEffect(() => {
+    console.log('MOUNT GROUPS');
+    Promise.all([getGroups(), getPinnedGroupsAndDms()])
+      .then((result) => console.log('QUERY', result))
+      .catch((e) => console.log('QUERY', e));
+  }, []);
 
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
   const hasLoadingGroups = !!loadingGroups.length;
