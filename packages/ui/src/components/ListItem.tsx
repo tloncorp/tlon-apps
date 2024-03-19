@@ -1,5 +1,5 @@
 import React, { ComponentProps, PropsWithChildren, ReactElement } from "react";
-import { SvgUri } from "react-native-svg";
+import RemoteSvg from "./RemoteSvg";
 import { styled, View, withStaticProperties } from "tamagui";
 import { SizableText, Stack, XStack, YStack, Image, Text } from "tamagui";
 import { Icon } from "./Icon";
@@ -65,7 +65,7 @@ function ListItemIcon({
         overflow="hidden"
         {...props}
       >
-        <SvgUri width="100%" height="100%" uri={imageUrl} />
+        <RemoteSvg width="100%" height="100%" uri={imageUrl} />
       </View>
     ) : (
       <Image
