@@ -1,4 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import { Icon, Text, View, useStyle } from '@tloncorp/ui';
 import React, { useCallback, useEffect } from 'react';
 import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
@@ -14,11 +15,11 @@ type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
 export const HomeStack = ({ navigation }: Props) => {
   const { setVisibility } = useWebviewPositionContext();
 
-  const pinnedGroups = db.useQuery<db.Group>(
+  const pinnedGroups = db.useQuery<Client.Group>(
     'Group',
     db.groupQuery({ isPinned: true, sortBy: 'pinIndex' })
   );
-  const otherGroups = db.useQuery<db.Group>(
+  const otherGroups = db.useQuery<Client.Group>(
     'Group',
     db.groupQuery({
       isPinned: false,
@@ -27,9 +28,12 @@ export const HomeStack = ({ navigation }: Props) => {
     })
   );
 
-  const renderGroup = useCallback(({ item }: ListRenderItemInfo<db.Group>) => {
-    return <GroupListItem model={item} />;
-  }, []);
+  const renderGroup = useCallback(
+    ({ item }: ListRenderItemInfo<Client.Group>) => {
+      return <GroupListItem model={item} />;
+    },
+    []
+  );
 
   const contentContainerStyle = useStyle(
     {
@@ -96,6 +100,6 @@ export const HomeStack = ({ navigation }: Props) => {
   );
 };
 
-function getGroupId(group: db.Group) {
+function getGroupId(group: Client.Group) {
   return group.id;
 }

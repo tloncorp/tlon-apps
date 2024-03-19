@@ -1,6 +1,6 @@
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import type * as ub from '@tloncorp/shared/dist/urbit/channel';
 
-import type * as db from '../db';
 import { scry } from './api';
 
 export const getUnreadChannels = async () => {
@@ -16,7 +16,7 @@ type ChannelUnreadData = {
   postCount?: number;
   unreadCount?: number;
   firstUnreadPostId?: string;
-  unreadThreads?: db.ThreadUnreadState[];
+  unreadThreads?: Client.ThreadUnreadState[];
   lastPostAt?: number;
 };
 
@@ -36,7 +36,9 @@ function toUnreadData(channelId: string, unread: ub.Unread): ChannelUnreadData {
   };
 }
 
-function toThreadUnreadStateData(unread: ub.Unread): db.ThreadUnreadState[] {
+function toThreadUnreadStateData(
+  unread: ub.Unread
+): Client.ThreadUnreadState[] {
   return Object.entries(unread.threads).map(([threadId, unreadState]) => {
     return {
       threadId,
