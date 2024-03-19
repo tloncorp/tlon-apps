@@ -253,16 +253,21 @@
 ++  verify-cabals  (roll ~(tap by groups) verify-group-cabals)
 ++  verify-group-cabals
   |=  [[=flag:g [* =group:g]] core=_cor]
+  =/  current-sects  ~(key by cabals.group)
   =.  core
     ::  repair members as needed
     ::
-    %+  roll
-      ~(tap by fleet.group)
-    |=  [[s=ship =vessel:fleet:g] cre=_core]
-    =/  diff  (~(dif in sects.vessel) ~(key by cabals.group))
-    ?:  =(~(wyt in diff) 0)  cre
-    =/  action  [flag now.bowl %fleet (~(gas in *(set ship)) ~[s]) %del-sects diff]
-    cre(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cre])
+    =/  [affected=(set ship) old-sects=(set sect:g)]
+      %+  roll
+        ~(tap by fleet.group)
+      |=  [[s=ship =vessel:fleet:g] [ships=(set ship) sects=(set sect:g)]]
+      ::  traverse through each member to collect all old sects and the
+      ::  ships which had them
+      =/  dif  (~(dif in sects.vessel) current-sects)
+      :-  ?:(=(~(wyt in dif) 0) ships (~(put in ships) s))
+      (~(uni in sects) dif)
+    =/  action  [flag now.bowl %fleet affected %del-sects old-sects]
+    (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)])
   %+  roll
     ~(tap by channels.group)
   |=  [[=nest:g =channel:g] cr=_core]
