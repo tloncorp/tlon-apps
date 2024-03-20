@@ -23,6 +23,12 @@ vi.mock('posthog-js', () => ({
   },
 }));
 
+vi.mock('sqlocal/drizzle', () => ({
+  SQLocalDrizzle: vi.fn().mockImplementation(() => ({
+    driver: vi.fn(),
+  })),
+}));
+
 // Prevent vite from failing when resizeObserver is used
 
 Object.defineProperty(global, 'ResizeObserver', {

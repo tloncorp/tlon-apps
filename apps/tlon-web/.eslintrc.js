@@ -10,7 +10,7 @@ module.exports = {
       rules: {
         'import/no-unresolved': [
           'error',
-          { ignore: ['^@', '^virtual:pwa-register'] },
+          { ignore: ['^@', '^virtual:pwa-register', '^sqlocal/drizzle'] },
         ],
         'import/no-extraneous-dependencies': [
           'error',
@@ -57,6 +57,7 @@ module.exports = {
         // https://github.com/johvin/eslint-import-resolver-alias/issues/18
         map: [
           ['@', './src'],
+          ['sqlocal/drizzle', '.../../node_modules/sqlocal/drizzle'],
           ['big-integer', 'hack'],
           ['fuzzy', 'hack'],
           ['vitest', 'hack'],

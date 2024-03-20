@@ -685,13 +685,12 @@ function RoutedApp() {
 
   useEffect(() => {
     const runMigrations = async () =>
-      await migrate(db, { migrationsFolder: './src/drizzle' });
-    console.log({ hasRunMigrations });
+      migrate(db, { migrationsFolder: './src/drizzle' });
     if (!hasRunMigrations) {
       setHasRunMigrations(true);
       runMigrations();
     }
-  }, [hasRunMigrations]);
+  }, [hasRunMigrations, setHasRunMigrations]);
 
   useEffect(() => {
     window.toggleDevTools = () => toggleDevTools();
