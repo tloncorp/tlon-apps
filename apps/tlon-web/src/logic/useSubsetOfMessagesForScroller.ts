@@ -18,6 +18,7 @@ export default function useSubsetOfMessagesForScroller(
   nest: string,
   scrollToId: string | undefined,
   scrollToIndex: number,
+  msgIdTimeInMessages: boolean,
   markRead: (props: { nest: string }) => void
 ) {
   const WINDOW_SIZE = 30;
@@ -75,11 +76,25 @@ export default function useSubsetOfMessagesForScroller(
   }, [whom, totalMessagesCached, scrollToId]);
 
   useEffect(() => {
+    // if we have a scrollToId, then we need to set the initial load to true
+    // so that we can update the slice start and end to include the scrollToId
+
+    if (scrollToId) {
+      setInitialLoad(true);
+    }
+  }, [scrollToId]);
+
+  useEffect(() => {
     // if we have a scrollToId and we're in the initial load, and the scrollToId
     // is not in the current set of scrollerMessages, then we need to update the
     // slice start and end to include the scrollToId
 
-    if (initialLoad && scrollToId && !msgIdTimeInScrollerMessages) {
+    if (
+      initialLoad &&
+      scrollToId &&
+      msgIdTimeInMessages &&
+      !msgIdTimeInScrollerMessages
+    ) {
       const sliceStart = scrollToIndex - WINDOW_SIZE / 2;
       const sliceEnd = scrollToIndex + WINDOW_SIZE / 2;
       const pageIndex =
@@ -105,6 +120,7 @@ export default function useSubsetOfMessagesForScroller(
     scrollToId,
     scrollToIndex,
     msgIdTimeInScrollerMessages,
+    msgIdTimeInMessages,
     totalPagesCached,
   ]);
 

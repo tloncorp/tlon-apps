@@ -69,6 +69,13 @@ export default function ChatWindow({
         : latestMessageIndex,
     [scrollToId, messages, latestMessageIndex]
   );
+  const msgIdTimeInMessages = useMemo(
+    () =>
+      scrollToId
+        ? messages.findIndex((m) => m[0].toString() === scrollToId) !== -1
+        : false,
+    [scrollToId, messages]
+  );
   const {
     scrollerMessages,
     onAtBottom,
@@ -92,14 +99,8 @@ export default function ChatWindow({
     nest,
     scrollToId,
     scrollToIndex,
+    msgIdTimeInMessages,
     markRead
-  );
-  const msgIdTimeInMessages = useMemo(
-    () =>
-      scrollToId
-        ? messages.findIndex((m) => m[0].toString() === scrollToId) !== -1
-        : false,
-    [scrollToId, messages]
   );
   const latestIsMoreThan30NewerThanScrollTo = useMemo(
     () =>
