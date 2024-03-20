@@ -54,6 +54,7 @@ export default function CurioPreview({ url }: { url: string }) {
           portrait ? 'h-[350px]' : 'w-full'
         )}
         src={url}
+        crossOrigin="anonymous"
       />
     );
   }

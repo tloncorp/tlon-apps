@@ -13,7 +13,7 @@ export function initializeUrbitClient(shipName: string, shipUrl: string) {
     shipUrl,
     undefined,
     undefined,
-    (input, { ...init } = {}) => {
+    (input: string | Request | URL, { ...init }: RequestInit = {}) => {
       const headers = new Headers(init.headers);
       // The urbit client is inconsistent about sending cookies, sometimes causing
       // the server to send back a new, anonymous, cookie, which is sent on all

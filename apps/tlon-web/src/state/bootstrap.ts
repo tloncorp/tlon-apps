@@ -8,7 +8,7 @@ import { asyncWithDefault } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { initializeChat } from './chat';
-import useContactState from './contact';
+import useContactState, { fetchAllContacts } from './contact';
 import useDocketState from './docket';
 import useKilnState from './kiln';
 import { useLocalState } from './local';
@@ -65,7 +65,7 @@ type Bootstrap = 'initial' | 'reset' | 'full-reset';
 function auxiliaryData() {
   const { wait } = useSchedulerStore.getState();
   wait(() => {
-    useContactState.getState().start();
+    fetchAllContacts();
     useStorage.getState().initialize(api as unknown as Urbit);
   }, 4);
 

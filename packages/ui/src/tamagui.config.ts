@@ -41,6 +41,7 @@ export const tokens = createTokens({
     greenSoft: "#EAFBEC",
     blueSoft: "#E5F4FF",
     indigoSoft: "#EFEFFB",
+    darkOverlay: "rgba(0,0,0,.8)",
   },
   space: {
     "2xs": 2,
@@ -182,5 +183,5 @@ export const config = createTamagui({
   // Different versions of a transitive dependency are conflicting for the AnimationDriver,
   // ignore the warning for now
   // @ts-ignore
-  animations,
+  animations: animations as any,
 });

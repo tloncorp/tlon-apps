@@ -118,6 +118,7 @@ export default function Tile({
               className="absolute left-0 top-0 h-full w-full object-cover"
               src={image}
               alt=""
+              crossOrigin="anonymous"
             />
           )}
         </div>

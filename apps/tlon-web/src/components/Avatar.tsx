@@ -166,6 +166,7 @@ function Avatar({
         alt=""
         style={style}
         onLoad={load}
+        crossOrigin="anonymous"
       />
     );
   }
@@ -183,6 +184,7 @@ function Avatar({
         alt=""
         style={style}
         onLoad={load}
+        crossOrigin="anonymous"
       />
     );
   }

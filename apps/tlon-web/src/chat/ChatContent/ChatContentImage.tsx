@@ -83,6 +83,7 @@ export default function ChatContentImage({
             onError={() => setFailedToLoad(true)}
             className="max-h-[50vh] max-w-full cursor-pointer rounded"
             alt={altText ? altText : 'A chat image'}
+            crossOrigin="anonymous"
           />
         </button>
       )}
@@ -97,6 +98,7 @@ export default function ChatContentImage({
           height={height}
           width={width}
           alt={altText ? altText : 'A chat image'}
+          crossOrigin="anonymous"
         />
       </LightBox>
 

@@ -19,7 +19,7 @@ const Overlay = styled(YStack, {
   // },
   // enterStyle: { opacity: 0 },
   // exitStyle: { opacity: 0 },
-  backgroundColor: "$backgroundOverlay",
+  backgroundColor: "$darkOverlay",
   fullscreen: true,
   position: "absolute",
   zIndex: 100_000 - 1,

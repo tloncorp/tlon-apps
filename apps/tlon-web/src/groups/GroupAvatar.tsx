@@ -65,7 +65,12 @@ export default function GroupAvatar({
   }, [imageIsColor, dark, image]);
 
   return showImage ? (
-    <img className={cn('rounded', size, className)} src={image} onLoad={load} />
+    <img
+      className={cn('rounded', size, className)}
+      src={image}
+      onLoad={load}
+      crossOrigin="anonymous"
+    />
   ) : (
     <ColorBoxIcon
       className={cn('rounded', size, textSize(size), className)}

@@ -42,6 +42,7 @@ export default function GroupInfoPreview({
           src={watchCover}
           alt="Group Cover Image"
           className="absolute h-full w-full flex-none rounded-lg object-cover"
+          crossOrigin="anonymous"
         />
       ) : null}
       <div className="absolute top-0 flex w-full flex-col justify-between p-2 text-lg sm:text-base">

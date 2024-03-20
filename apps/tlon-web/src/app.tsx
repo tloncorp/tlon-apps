@@ -18,6 +18,7 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
+import { useLocalStorage } from 'usehooks-ts';
 
 import { IS_MOCK } from '@/api';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
@@ -36,6 +37,8 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
 import SettingsView from '@/components/Settings/SettingsView';
 import AppNav from '@/components/Sidebar/AppNav';
+import { db } from '@/db';
+import migrate from '@/db/migrator';
 import DiaryChannel from '@/diary/DiaryChannel';
 import DiaryNote from '@/diary/DiaryNote';
 import DMHome from '@/dms/DMHome';
@@ -678,6 +681,10 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
+  const [hasRunMigrations, setHasRunMigrations] = useLocalStorage(
+    'hasRunMigrations',
+    false
+  );
   const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
@@ -702,6 +709,15 @@ function RoutedApp() {
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
+
+  useEffect(() => {
+    console.log({ hasRunMigrations });
+    const runMigrations = async () => migrate(db);
+    if (!hasRunMigrations) {
+      setHasRunMigrations(true);
+      runMigrations();
+    }
+  }, [hasRunMigrations, setHasRunMigrations]);
 
   useEffect(() => {
     window.toggleDevTools = () => toggleDevTools();

@@ -7,13 +7,14 @@ import {
   getChannelUnreads,
   getDMUnreads,
 } from '@tloncorp/shared/dist/api/unreadsApi';
+import { insertContacts } from '@tloncorp/shared/dist/db/queries';
 
 import * as db from '../db';
 import { updateChannelUnreadStates } from '../db';
 
 export const syncContacts = async () => {
   const contacts = await getContacts();
-  db.createBatch('Contact', contacts, db.UpdateMode.All);
+  insertContacts(contacts);
   console.log('Synced', contacts.length, 'contacts');
 };
 

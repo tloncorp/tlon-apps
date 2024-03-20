@@ -99,7 +99,11 @@ function CurioReference({
         contextApp={contextApp}
         image={
           isImage ? (
-            <img src={url} className="h-[72px] w-[72px] rounded object-cover" />
+            <img
+              crossOrigin="anonymous"
+              src={url}
+              className="h-[72px] w-[72px] rounded object-cover"
+            />
           ) : (
             <ShapesIcon className="h-6 w-6 text-gray-400" />
           )

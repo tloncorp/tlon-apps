@@ -34,6 +34,7 @@ export default function DiaryContentImage({
             height={h}
             width={w}
             alt={altText ? altText : 'A Diary image'}
+            crossOrigin="anonymous"
           />
         )}
       </a>

@@ -433,6 +433,7 @@ export default function HeapRow({
               loading="lazy"
               src={url}
               alt={textFallbackTitle}
+              crossOrigin="anonymous"
             />
           ) : (
             <LinkIcon className="h-6 w-6 text-gray-400" />

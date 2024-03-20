@@ -9,7 +9,7 @@ export const getContacts = async () => {
     app: "contacts",
     path: "/all",
   });
-  return toClientContacts(results);
+  return results;
 };
 
 export const toClientContacts = (

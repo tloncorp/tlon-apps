@@ -129,6 +129,7 @@ function WritBaseReference({
             <img
               src={group.meta.image}
               className="h-[72px] w-[72px] rounded object-cover"
+              crossOrigin="anonymous"
             />
           ) : (
             <div

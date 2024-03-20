@@ -1,5 +1,12 @@
 /* eslint-disable no-param-reassign */
 import {
+  getContact,
+  getContacts,
+  insertContacts,
+} from '@tloncorp/shared/dist/db/queries';
+import { Contact as DBContact } from '@tloncorp/shared/dist/db/schemas';
+import {
+  Contact,
   ContactAnon,
   ContactEdit,
   ContactEditField,
@@ -10,7 +17,7 @@ import {
 import { Patp, preSig } from '@urbit/api';
 import produce from 'immer';
 import _ from 'lodash';
-import { useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import api from '@/api';
 import { BaseState, createState } from '@/state/base';
@@ -30,6 +37,18 @@ export interface BaseContactState {
 
 type ContactState = BaseContactState & BaseState<BaseContactState>;
 
+function dbContactToContact(dbContact: DBContact): Contact {
+  return {
+    nickname: dbContact.nickname ?? '',
+    bio: dbContact.bio ?? '',
+    status: dbContact.status ?? '',
+    color: dbContact.color ?? '0x0',
+    avatar: dbContact.avatarImage,
+    cover: dbContact.coverImage,
+    groups: dbContact.pinnedGroupIds ? dbContact.pinnedGroupIds.split(',') : [],
+  };
+}
+
 function contactAction<T>(data: T) {
   return {
     app: 'contacts',
@@ -37,6 +56,17 @@ function contactAction<T>(data: T) {
     json: data,
   };
 }
+
+export const fetchAllContacts = async () => {
+  const contacts = await api.scry<ContactRolodex>({
+    app: 'contacts',
+    path: '/all',
+  });
+
+  if (contacts !== null) {
+    insertContacts(contacts, true);
+  }
+};
 
 const useContactState = createState<BaseContactState>(
   'Contact',
@@ -74,6 +104,7 @@ const useContactState = createState<BaseContactState>(
         app: 'contacts',
         path: '/news',
         event: (event: ContactNews) => {
+          console.log({ event });
           set(
             produce((draft: ContactState) => {
               if (event.con) {
@@ -103,19 +134,49 @@ export const emptyContact = {
   groups: [] as string[],
 };
 
-const selContacts = (s: ContactState) => s.contacts;
-export function useContacts() {
-  return useContactState(selContacts);
+export function useContacts(): ContactRolodex {
+  const [contacts, setContacts] = useState<ContactRolodex | null>(null);
+
+  useEffect(() => {
+    const getContactsFromDb = async () => {
+      const contactsFromDb = (await getContacts(true)) as DBContact[];
+
+      if (contactsFromDb !== null) {
+        const contactsFromDbMapped = _.mapValues(
+          _.keyBy(contactsFromDb, 'id'),
+          dbContactToContact
+        );
+
+        setContacts(contactsFromDbMapped);
+      }
+    };
+
+    getContactsFromDb();
+  }, []);
+
+  return contacts ?? {};
 }
 
 export function useMemoizedContacts() {
   return useMemo(() => useContactState.getState().contacts, []);
 }
 
-export function useContact(ship: string) {
-  return useContactState(
-    useCallback((s) => s.contacts[preSig(ship)] || emptyContact, [ship])
-  );
+export function useContact(ship: string): Contact {
+  const [contact, setContact] = useState<Contact | null>(null);
+
+  useEffect(() => {
+    const getContactFromDb = async () => {
+      const contactFromDb = (await getContact(ship, true)) as DBContact;
+
+      if (contactFromDb && contactFromDb !== null) {
+        setContact(dbContactToContact(contactFromDb));
+      }
+    };
+
+    getContactFromDb();
+  }, [ship]);
+
+  return contact ?? emptyContact;
 }
 
 export function useOurContact() {

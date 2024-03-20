@@ -65,6 +65,7 @@ export default function MultiDmAvatar({
         className={cn(sizeMap[size].size, className)}
         src={image}
         onLoad={load}
+        crossOrigin="anonymous"
       />
     );
   }

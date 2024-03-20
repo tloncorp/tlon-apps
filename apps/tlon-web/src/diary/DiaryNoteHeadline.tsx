@@ -99,7 +99,12 @@ export default function DiaryNoteHeadline({
   return (
     <>
       {showImage && !isInGrid ? (
-        <img src={image} alt="" className="mb-4 h-auto w-full rounded-xl" />
+        <img
+          src={image}
+          alt=""
+          className="mb-4 h-auto w-full rounded-xl"
+          crossOrigin="anonymous"
+        />
       ) : null}
       <header className="space-y-4">
         <h1 className="break-words text-3xl font-medium leading-10">{title}</h1>

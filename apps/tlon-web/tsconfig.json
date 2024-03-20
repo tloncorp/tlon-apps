@@ -22,7 +22,8 @@
       "vite-plugin-pwa/react"
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "sqlocal/*": ["../../node_modules/sqlocal/dist/*"]
     }
   },
   "include": [

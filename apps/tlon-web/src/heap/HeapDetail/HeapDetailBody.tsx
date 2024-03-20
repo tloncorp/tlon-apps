@@ -82,7 +82,12 @@ export default function HeapDetailBody({ essay }: { essay?: PostEssay }) {
   if (isImage && !calm.disableRemoteContent) {
     return (
       <div className="flex justify-center bg-gray-50 lg:h-full lg:w-full">
-        <img className="object-contain" src={url} alt="" />
+        <img
+          crossOrigin="anonymous"
+          className="object-contain"
+          src={url}
+          alt=""
+        />
       </div>
     );
   }

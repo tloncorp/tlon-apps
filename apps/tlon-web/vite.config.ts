@@ -3,6 +3,7 @@ import { tamaguiExtractPlugin, tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -14,6 +15,7 @@ import {
   loadEnv,
 } from 'vite';
 import htmlPlugin from 'vite-plugin-html-config';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
@@ -88,7 +90,7 @@ export default ({ mode }: { mode: string }) => {
           type: 'module',
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
           maximumFileSizeToCacheInBytes: 100000000,
         },
       }),
@@ -143,6 +145,10 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
       //  NOTE  the proxy used by vite is written poorly, and ends up removing
@@ -161,6 +167,9 @@ export default ({ mode }: { mode: string }) => {
           },
         },
       },
+    },
+    optimizeDeps: {
+      exclude: ['sqlocal'],
     },
     build:
       mode !== 'profile'
@@ -186,6 +195,10 @@ export default ({ mode }: { mode: string }) => {
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        'expo-sqlite/next': resolve(
+          __dirname,
+          './src/fake-expo-sqlite-wrapper.js'
+        ),
       },
     },
     test: {
