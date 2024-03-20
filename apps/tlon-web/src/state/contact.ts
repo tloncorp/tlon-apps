@@ -1,5 +1,9 @@
 /* eslint-disable no-param-reassign */
-import { getContacts, insertContacts } from '@tloncorp/shared/dist/db/queries';
+import {
+  getContact,
+  getContacts,
+  insertContacts,
+} from '@tloncorp/shared/dist/db/queries';
 import { Contact as DBContact } from '@tloncorp/shared/dist/db/schemas';
 import {
   Contact,
@@ -75,9 +79,6 @@ const useContactState = createState<BaseContactState>(
         path: '/all',
       });
 
-      if (contacts !== null) {
-        insertContacts(contacts, true);
-      }
       set(
         produce((draft: BaseContactState) => {
           draft.contacts = {
@@ -161,13 +162,21 @@ export function useMemoizedContacts() {
 }
 
 export function useContact(ship: string): Contact {
-  const contacts = useContacts();
+  const [contact, setContact] = useState<Contact | null>(null);
 
-  if (!contacts || contacts === null) {
-    return emptyContact;
-  }
+  useEffect(() => {
+    const getContactFromDb = async () => {
+      const contactFromDb = (await getContact(ship, true)) as DBContact;
 
-  return contacts[ship] ?? emptyContact;
+      if (contactFromDb && contactFromDb !== null) {
+        setContact(dbContactToContact(contactFromDb));
+      }
+    };
+
+    getContactFromDb();
+  }, [ship]);
+
+  return contact ?? emptyContact;
 }
 
 export function useOurContact() {

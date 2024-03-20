@@ -67,6 +67,14 @@ export const getContacts = async (web?: boolean) => {
   return db.query.contacts.findMany();
 };
 
+export const getContact = async (id: string, web?: boolean) => {
+  const db = getDatabase(web);
+
+  return db.query.contacts.findFirst({
+    where: (contacts, { eq }) => eq(contacts.id, id)
+  });
+};
+
 export const insertContact = async (
   id: string,
   contact: Contact,
