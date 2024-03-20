@@ -103,7 +103,6 @@ function Avatar({
 }: AvatarProps) {
   const currentTheme = useCurrentTheme();
   const contact = useContact(ship);
-  console.log({ contact });
   const calm = useCalm();
   const { previewColor, previewAvatar } = previewData ?? {};
   const previewAvatarIsValid = useMemo(
@@ -167,6 +166,7 @@ function Avatar({
         alt=""
         style={style}
         onLoad={load}
+        crossOrigin="anonymous"
       />
     );
   }
@@ -184,6 +184,7 @@ function Avatar({
         alt=""
         style={style}
         onLoad={load}
+        crossOrigin="anonymous"
       />
     );
   }

@@ -95,6 +95,7 @@ function NoteReference({
             <img
               src={image}
               className="h-[72px] w-[72px] rounded object-cover"
+              crossOrigin="anonymous"
             />
           ) : (
             <NotebookIcon className="h-6 w-6 text-gray-400" />

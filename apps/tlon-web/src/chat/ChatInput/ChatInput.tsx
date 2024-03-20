@@ -665,12 +665,14 @@ export default function ChatInput({
                       title={img.image.alt}
                       src={img.image.src}
                       className="h-32 w-32 object-cover"
+                      crossOrigin="anonymous"
                     />
                   ) : isVideo ? (
                     <video
                       title={img.image.alt}
                       src={img.image.src}
                       className="h-32 w-32 object-cover"
+                      crossOrigin="anonymous"
                     />
                   ) : (
                     <div

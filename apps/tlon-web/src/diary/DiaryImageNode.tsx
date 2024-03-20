@@ -96,6 +96,7 @@ function DiaryImageComponent(props: NodeViewProps) {
             src={src}
             onError={onError}
             onLoad={onLoad}
+            crossOrigin="anonymous"
           />
         ) : (
           <div />

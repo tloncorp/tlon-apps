@@ -115,6 +115,7 @@ function GroupReference({
           <img
             src={meta?.image}
             className="h-[72px] w-[72px] rounded object-cover"
+            crossOrigin="anonymous"
           />
         );
       }

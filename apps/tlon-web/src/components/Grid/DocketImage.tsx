@@ -42,6 +42,7 @@ export default function DocketImage({
           src={image}
           alt=""
           onError={() => setImageError(true)}
+          crossOrigin="anonymous"
         />
       )}
     </div>

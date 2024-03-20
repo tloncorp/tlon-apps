@@ -40,7 +40,11 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
                   className="relative h-12 w-12 rounded-md"
                   style={{ background: treaty.color }}
                 >
-                  <img src={treaty.image} className="absolute m-0 h-12 w-12" />
+                  <img
+                    crossOrigin="anonymous"
+                    src={treaty.image}
+                    className="absolute m-0 h-12 w-12"
+                  />
                 </div>
               ) : (
                 <ColorBoxIcon

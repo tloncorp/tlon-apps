@@ -574,6 +574,7 @@ export default function HeapBlock({
                 className="h-[46px] w-[46px] rounded-full"
                 src={twitterProfilePic}
                 alt={author}
+                crossOrigin="anonymous"
               />
               <span className="font-semibold text-black">{author}</span>
               <span className="text-gray-300">@{twitterHandle}</span>
