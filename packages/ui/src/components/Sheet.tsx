@@ -13,7 +13,7 @@ const Overlay = styled(YStack, {
   name: "SheetOverlay",
   enterStyle: { opacity: 0 },
   exitStyle: { opacity: 0 },
-  backgroundColor: "$backgroundOverlay",
+  backgroundColor: "$translucentBlack",
   fullscreen: true,
   position: "absolute",
   zIndex: 100_000 - 1,
@@ -34,8 +34,8 @@ const Overlay = styled(YStack, {
 
 const Frame = styled(YStack, {
   name: "SheetFrame",
-  borderTopLeftRadius: "$l",
-  borderTopRightRadius: "$l",
+  borderTopLeftRadius: "$3xl",
+  borderTopRightRadius: "$3xl",
   backgroundColor: "$background",
 });
 
