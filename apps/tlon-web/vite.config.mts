@@ -80,7 +80,7 @@ export default ({ mode }: { mode: string }) => {
           type: 'module',
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
           maximumFileSizeToCacheInBytes: 100000000,
         },
       }),
@@ -91,7 +91,7 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : ['expo-sqlite', 'expo-sqlite/next'],
+        : [],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {

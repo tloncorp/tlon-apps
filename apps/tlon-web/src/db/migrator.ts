@@ -1,21 +1,21 @@
 // ref https://github.com/drizzle-team/drizzle-orm/blob/main/drizzle-orm/src/migrator.ts
 
-/* eslint no-restricted-syntax: 0 */
+/* eslint no-param-reassign: 0 */
 import { sql } from 'drizzle-orm';
-import type {
-  KitConfig,
-  MigrationConfig,
-  MigrationMeta,
-} from 'drizzle-orm/migrator';
+import type { MigrationMeta } from 'drizzle-orm/migrator';
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy';
 
+import Migration0000 from '../drizzle/0000_swift_thunderball.sql?raw';
 import journal from '../drizzle/meta/_journal.json';
 
-async function readFile(name: string): Promise<string> {
-  const path = `${name}?raw`;
-  console.log('readFile: ', path);
-  return (await import(path)).default;
-}
+const migrations: MigrationMeta[] = [
+  {
+    sql: Migration0000.split('--> statement-breakpoint'),
+    bps: journal.entries[0].breakpoints,
+    folderMillis: journal.entries[0].when,
+    hash: '',
+  },
+];
 
 async function digestMessage(message: string) {
   const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
@@ -27,75 +27,17 @@ async function digestMessage(message: string) {
   return hashHex;
 }
 
-export async function readMigrationFiles(
-  config: string | MigrationConfig
-): Promise<MigrationMeta[]> {
-  // let migrationFolderTo: string | undefined;
-  const migrationFolderTo = '../drizzle';
-  // if (typeof config === 'string') {
-  // const configAsString = await readFile(config);
-  // const jsonConfig = JSON.parse(configAsString) as KitConfig;
-  // migrationFolderTo = jsonConfig.out;
-  // } else {
-  // migrationFolderTo = config.migrationsFolder;
-  // }
-
-  // if (!migrationFolderTo) {
-  // throw new Error('no migration folder defined');
-  // }
-
-  const migrationQueries: MigrationMeta[] = [];
-
-  // const journalPath = await readFile(`${migrationFolderTo}/meta/_journal.json`);
-  // if (!journalPath) {
-  // throw new Error(`Can't find meta/_journal.json file`);
-  // }
-
-  // const journalAsString = await readFile(
-  // `${migrationFolderTo}/meta/_journal.json`
-  // );
-
-  // const journal = JSON.parse(journalAsString) as {
-  // entries: { idx: number; when: number; tag: string; breakpoints: boolean }[];
-  // };
-
-  for (const journalEntry of journal.entries) {
-    const migrationPath = `${migrationFolderTo}/${journalEntry.tag}.sql`;
-
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const query = await readFile(
-        `${migrationFolderTo}/${journalEntry.tag}.sql`
-      );
-
-      const result = query.split('--> statement-breakpoint').map((it) => {
-        return it;
-      });
-
-      migrationQueries.push({
-        sql: result,
-        bps: journalEntry.breakpoints,
-        folderMillis: journalEntry.when,
-        // eslint-disable-next-line no-await-in-loop
-        hash: await digestMessage(query),
-      });
-    } catch {
-      throw new Error(
-        `No file ${migrationPath} found in ${migrationFolderTo} folder`
-      );
-    }
-  }
-
-  return migrationQueries;
+async function populateHashes() {
+  migrations.forEach(async (migration) => {
+    migration.hash = await digestMessage(migration.sql.join(''));
+  });
 }
 
 // ref https://github.com/drizzle-team/drizzle-orm/blob/main/drizzle-orm/src/sqlite-core/dialect.ts#L615
-export async function migrate<TSchema extends Record<string, unknown>>(
-  db: SqliteRemoteDatabase<TSchema>,
-  config: string | MigrationConfig
+export default async function migrate<TSchema extends Record<string, unknown>>(
+  db: SqliteRemoteDatabase<TSchema>
 ) {
-  const migrations = await readMigrationFiles(config);
-  console.log('migrate: readMigrationFiles');
+  populateHashes();
 
   const migrationTableCreate = sql`
 			CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
@@ -105,7 +47,6 @@ export async function migrate<TSchema extends Record<string, unknown>>(
 			)
 		`;
   await db.run(migrationTableCreate);
-  console.log('migrate: ran migrationTableCreate');
 
   const dbMigrations = await db.values<[number, string, string]>(
     sql`SELECT id, hash, created_at FROM "__drizzle_migrations" ORDER BY created_at DESC LIMIT 1`
@@ -115,21 +56,19 @@ export async function migrate<TSchema extends Record<string, unknown>>(
   await db.run(sql`BEGIN`);
 
   try {
-    for (const migration of migrations) {
+    migrations.forEach(async (migration) => {
       if (
         !lastDbMigration ||
         Number(lastDbMigration[2])! < migration.folderMillis
       ) {
-        for (const stmt of migration.sql) {
-          // eslint-disable-next-line no-await-in-loop
+        migration.sql.forEach(async (stmt) => {
           await db.run(sql.raw(stmt));
-        }
-        // eslint-disable-next-line no-await-in-loop
+        });
         await db.run(
           sql`INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES(${migration.hash}, ${migration.folderMillis})`
         );
       }
-    }
+    });
 
     await db.run(sql`COMMIT`);
   } catch (e) {

@@ -34,7 +34,7 @@ import SettingsDialog from '@/components/Settings/SettingsDialog';
 import SettingsView from '@/components/Settings/SettingsView';
 import AppNav from '@/components/Sidebar/AppNav';
 import { db } from '@/db';
-import { migrate } from '@/db/migrator';
+import migrate from '@/db/migrator';
 import DiaryChannel from '@/diary/DiaryChannel';
 import DiaryNote from '@/diary/DiaryNote';
 import DMHome from '@/dms/DMHome';
@@ -684,8 +684,8 @@ function RoutedApp() {
   const isDarkMode = useIsDark();
 
   useEffect(() => {
-    const runMigrations = async () =>
-      migrate(db, { migrationsFolder: './src/drizzle' });
+    console.log({ hasRunMigrations });
+    const runMigrations = async () => migrate(db);
     if (!hasRunMigrations) {
       setHasRunMigrations(true);
       runMigrations();
