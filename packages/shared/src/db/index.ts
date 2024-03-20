@@ -1,29 +1,16 @@
-import * as schema from './schemas';
-import { SQLocalDrizzle } from 'sqlocal/drizzle';
-import { drizzle as drizzleSqlLiteProxy } from 'drizzle-orm/sqlite-proxy';
-import { drizzle as drizzleExpoSqlLite } from 'drizzle-orm/expo-sqlite';
-import { openDatabaseSync } from 'expo-sqlite/next';
+import {
+  drizzle as drizzleSqlLiteProxy,
+  RemoteCallback,
+} from "drizzle-orm/sqlite-proxy";
+import * as schema from "./schemas";
 
-const sqliteFile = 'tlon.sqlite';
-const { driver } = new SQLocalDrizzle(sqliteFile);
-const expoDriver = openDatabaseSync(sqliteFile);
+let driver: RemoteCallback;
 
-const openDatabaseWeb = () => {
-  const db = drizzleSqlLiteProxy(driver, { schema });
-
-  return db;
-};
-
-const openDatabaseExpo = () => {
-  const db = drizzleExpoSqlLite(expoDriver, { schema });
-
-  return db;
-};
+export function setDriver(inputDriver: RemoteCallback) {
+  driver = inputDriver;
+}
 
 export const getDatabase = (web?: boolean) => {
-  if (web) {
-    return openDatabaseWeb();
-  }
-
-  return openDatabaseExpo();
+  const db = drizzleSqlLiteProxy(driver, { schema });
+  return db;
 };

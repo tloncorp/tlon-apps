@@ -12,7 +12,6 @@
   "dependencies": {
     "big-integer": "^1.6.52",
     "drizzle-orm": "^0.30.3",
-    "sqlocal": "^0.7.1",
     "sorted-btree": "^1.8.1",
     "expo-sqlite": "~13.3.0"
   }
