@@ -1,22 +1,13 @@
 import type { ClientTypes as Client } from "@tloncorp/shared";
-import { ListItem, type ListItemProps } from "./ListItem";
-import { useCallback, useMemo } from "react";
-import { Icon } from "./Icon";
+import { ListItem, type ListItemProps } from "../ListItem";
+import { useMemo } from "react";
 
-export const GroupListItem = ({
+export default function ListItemContent({
   model,
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<Client.Group>) => {
-  const handlePress = useCallback(() => {
-    onPress?.(model);
-  }, [onPress, model]);
-
-  const handleLongPress = useCallback(() => {
-    onLongPress?.(model);
-  }, [onLongPress, model]);
-
+}: ListItemProps<Client.Group>) {
   const unreadCount = useMemo(() => {
     // return db.getUnreadChannelCount(model);
     return 4;
@@ -27,7 +18,11 @@ export const GroupListItem = ({
   }, []);
 
   return (
-    <ListItem {...props} onPress={handlePress} onLongPress={handleLongPress}>
+    <ListItem
+      {...props}
+      onPress={() => onPress?.(model)}
+      onLongPress={() => onLongPress?.(model)}
+    >
       <ListItem.Icon
         fallbackText={model.title?.[0]}
         backgroundColor={model.iconImageColor}
@@ -53,4 +48,4 @@ export const GroupListItem = ({
       </ListItem.EndContent>
     </ListItem>
   );
-};
+}

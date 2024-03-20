@@ -135,8 +135,8 @@ export default function MobileRoot() {
           <GroupList
             pinned={clientGroups.pinned}
             other={clientGroups.other}
-            // onGroupPress={(group) => navigate(`/groups/${group.id}`)}
-            onGroupPress={setLongPressedGroup}
+            onGroupPress={(group) => navigate(`/groups/${group.id}`)}
+            onGroupLongPress={setLongPressedGroup}
           />
 
           <GroupOptionsSheet
@@ -146,59 +146,6 @@ export default function MobileRoot() {
             }
             group={longPressedGroup ?? undefined}
           />
-
-          {/* <GroupsScrollingContext.Provider value={isScrolling}>
-            <GroupList groups={allOtherGroups} isScrolling={scroll.current}>
-              {hasPinnedGroups ||
-              hasPendingGangs ||
-              hasGangsWithClaims ||
-              hasLoadingGroups ||
-              hasNewGroups ? (
-                <>
-                  <div className="px-4">
-                    {hasPinnedGroups ? (
-                      <>
-                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                          Pinned
-                        </h2>
-                        {pinnedGroupsOptions}
-
-                        <h2 className="my-2 p-2 font-sans text-gray-400">
-                          All Groups
-                        </h2>
-                      </>
-                    ) : null}
-
-                    {hasLoadingGroups &&
-                      Object.keys(loadingGroups).map(([flag, _]) => (
-                        <GangItem key={flag} flag={flag} isJoining />
-                      ))}
-
-                    {hasGangsWithClaims &&
-                      gangsWithClaims.map((flag) => (
-                        <GangItem key={flag} flag={flag} />
-                      ))}
-
-                    {hasNewGroups &&
-                      newGroups.map(([flag]) => (
-                        <GroupsSidebarItem key={flag} flag={flag} isNew />
-                      ))}
-                  </div>
-
-                  {hasPendingGangs && (
-                    <GroupJoinList highlightAll gangs={pendingGangs} />
-                  )}
-                </>
-              ) : null}
-            </GroupList>
-          </GroupsScrollingContext.Provider> */}
-          {/* <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} /> */}
-
-          {/* <div className="">
-            {clientGroups.map((group) => (
-              <GroupListItem key={group.id} model={group} />
-            ))}
-          </div> */}
         </div>
       </nav>
     </Layout>

@@ -26,5 +26,9 @@
   "engines": {
     "node": ">=18.18.0",
     "npm": ">=9.8.1"
+  },
+  "dependencies": {
+    "@tamagui/animations-css": "^1.92.0",
+    "@uidotdev/usehooks": "^2.4.1"
   }
 }
