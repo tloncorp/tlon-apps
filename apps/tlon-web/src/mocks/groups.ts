@@ -1,5 +1,5 @@
 /* eslint-disable import/no-cycle */
-import faker from '@faker-js/faker';
+import { faker } from '@faker-js/faker';
 import {
   Cordon,
   Gang,
@@ -64,7 +64,7 @@ export function makeGroupPreview(privacy = 'public'): GroupPreview {
     cordon: makeCordon(privacy),
     time: Date.now(),
     meta: {
-      title: faker.company.companyName(),
+      title: faker.company.name(),
       description: faker.company.catchPhrase(),
       image: `#${randomColor()}`,
       cover: `#${randomColor()}`,
@@ -341,7 +341,7 @@ export function createChannel(title: string) {
 }
 
 for (let i = 0; i < 20; i += 1) {
-  const group = createMockGroup(faker.company.companyName());
+  const group = createMockGroup(faker.company.name());
 
   for (let j = 0; j < 20; j += 1) {
     group.channels[`/chat/~zod/tlon${i}${j}`] = createChannel(j.toString());

@@ -19,6 +19,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
+import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
   useAddPostMutation,
@@ -41,7 +42,7 @@ function ChatChannel({ title }: ViewProps) {
     idShip: string;
     idTime: string;
   }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const groupFlag = useRouteGroup();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
@@ -60,6 +61,7 @@ function ChatChannel({ title }: ViewProps) {
     () => searchParams.get('replyTo'),
     [searchParams]
   );
+  const isEditing = useIsEditingMessage();
   const activeTab = useActiveTab();
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
@@ -145,7 +147,7 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              (isDragging || isOver) && !inThread
+              ((isDragging || isOver) && !inThread) || (isEditing && isMobile)
                 ? ''
                 : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}

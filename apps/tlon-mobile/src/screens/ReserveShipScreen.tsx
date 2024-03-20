@@ -5,8 +5,8 @@ import { Alert, Text, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { useDeepLink } from '../hooks/useDeepLink';
 import { configureApi } from '../lib/api';
 import {
   allocateReservedShip,
@@ -39,7 +39,7 @@ export const ReserveShipScreen = ({
   });
   const { setShip } = useShip();
   const tailwind = useTailwind();
-  const { clearLure } = useDeepLink();
+  const { clearLure } = useBranch();
 
   const startShip = useCallback(
     async (shipIds: string[]) => {
