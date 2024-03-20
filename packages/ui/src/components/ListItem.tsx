@@ -180,7 +180,7 @@ const ListItemCount = ({ children }: PropsWithChildren) => {
       backgroundColor="$secondaryBackground"
       borderRadius="$xl"
     >
-      <Text size="$s" color="$secondaryText" textAlign="center">
+      <Text fontSize="$s" color="$secondaryText" textAlign="center">
         {children}
       </Text>
     </Stack>
