@@ -1,16 +1,18 @@
+import { ClientTypes } from '@tloncorp/shared';
 import {
   getGroups,
   getPinnedGroupsAndDms,
 } from '@tloncorp/shared/dist/api/groupsApi';
-import { Sheet, SheetHeader, Text } from '@tloncorp/ui';
+import { GroupList, GroupOptionsSheet } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import GangItem from '@/components/Sidebar/GangItem';
-import GroupList from '@/components/Sidebar/GroupList';
+// import GroupList from '@/components/Sidebar/GroupList';
 import { GroupsScrollingContext } from '@/components/Sidebar/GroupsScrollingContext';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
@@ -30,6 +32,7 @@ import {
 } from '@/state/groups';
 
 export default function MobileRoot() {
+  const navigate = useNavigate();
   const { paddingBottom } = useBottomPadding();
   const [isScrolling, setIsScrolling] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -52,11 +55,27 @@ export default function MobileRoot() {
     [pinnedGroups]
   );
 
+  const [clientGroups, setClientGroups] = useState<{
+    pinned: ClientTypes.Group[];
+    other: ClientTypes.Group[];
+  }>({ pinned: [], other: [] });
+
+  const [longPressedGroup, setLongPressedGroup] =
+    React.useState<ClientTypes.Group | null>(null);
+
   useEffect(() => {
-    console.log('MOUNT GROUPS');
-    Promise.all([getGroups(), getPinnedGroupsAndDms()])
-      .then((result) => console.log('QUERY', result))
-      .catch((e) => console.log('QUERY', e));
+    async function fetchGroups() {
+      const [allGroups, pinnedGroupIds] = await Promise.all([
+        getGroups(),
+        getPinnedGroupsAndDms(),
+      ]);
+      setClientGroups({
+        pinned: allGroups.filter((group) => pinnedGroupIds.includes(group.id)),
+        other: allGroups.filter((group) => !pinnedGroupIds.includes(group.id)),
+      });
+    }
+
+    fetchGroups();
   }, []);
 
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
@@ -89,6 +108,7 @@ export default function MobileRoot() {
       }}
       header={
         <MobileHeader
+          className="h-[600]"
           title="Groups"
           action={
             <div className="flex h-12 items-center justify-end space-x-2">
@@ -112,7 +132,22 @@ export default function MobileRoot() {
       >
         <WelcomeCard />
         <div className="flex-1">
-          <GroupsScrollingContext.Provider value={isScrolling}>
+          <GroupList
+            pinned={clientGroups.pinned}
+            other={clientGroups.other}
+            // onGroupPress={(group) => navigate(`/groups/${group.id}`)}
+            onGroupPress={setLongPressedGroup}
+          />
+
+          <GroupOptionsSheet
+            open={longPressedGroup !== null}
+            onOpenChange={(open) =>
+              !open ? setLongPressedGroup(null) : 'noop'
+            }
+            group={longPressedGroup ?? undefined}
+          />
+
+          {/* <GroupsScrollingContext.Provider value={isScrolling}>
             <GroupList groups={allOtherGroups} isScrolling={scroll.current}>
               {hasPinnedGroups ||
               hasPendingGangs ||
@@ -156,23 +191,14 @@ export default function MobileRoot() {
                 </>
               ) : null}
             </GroupList>
-          </GroupsScrollingContext.Provider>
+          </GroupsScrollingContext.Provider> */}
           {/* <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} /> */}
-          <Sheet
-            open={addGroupOpen}
-            onOpenChange={setAddGroupOpen}
-            modal
-            dismissOnSnapToBottom
-            snapPointsMode="fit"
-          >
-            <Sheet.Overlay />
-            <Sheet.Frame>
-              <Sheet.Handle />
-              <SheetHeader>
-                <SheetHeader.Title>Add Group</SheetHeader.Title>
-              </SheetHeader>
-            </Sheet.Frame>
-          </Sheet>
+
+          {/* <div className="">
+            {clientGroups.map((group) => (
+              <GroupListItem key={group.id} model={group} />
+            ))}
+          </div> */}
         </div>
       </nav>
     </Layout>

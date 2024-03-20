@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { tamaguiPlugin } from '@tamagui/vite-plugin';
+import { tamaguiExtractPlugin, tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';

@@ -1,8 +1,19 @@
 import React, { ComponentProps, PropsWithChildren, ReactElement } from "react";
 import RemoteSvg from "./RemoteSvg";
-import { styled, View, withStaticProperties } from "tamagui";
-import { SizableText, Stack, XStack, YStack, Image, Text } from "tamagui";
+import { SizableText } from "../core";
+import {
+  styled,
+  View,
+  withStaticProperties,
+  Stack,
+  XStack,
+  YStack,
+  Image,
+  Text,
+  NativePlatform,
+} from "tamagui";
 import { Icon } from "./Icon";
+import { Pressable } from "react-native";
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -107,10 +118,21 @@ const ListItemMainContent = styled(YStack, {
 });
 
 const ListItemTitle = styled(SizableText, {
-  numberOfLines: 1,
-  lineHeight: 0,
+  // lineHeight: 0,
   alignItems: "baseline",
-  color: "$secondaryText",
+  color: "$primaryText",
+
+  // numberOfLines: 1,
+  // TODO: is there an easy way to do something like this?
+  // $native: {
+  //   numberOfLines: 1,
+  // },
+
+  // $web: {
+  //   whiteSpace: "nowrap",
+  //   overflow: "hidden",
+  //   textOverflow: "ellipsis",
+  // },
 });
 
 const ListItemTitleRow = styled(XStack, {
@@ -130,7 +152,7 @@ function ListItemTitleAttribute({ children }: PropsWithChildren) {
       borderWidth={1}
       borderColor="$positiveBorder"
     >
-      <SizableText size="$s" lineHeight={0} color="$secondaryText">
+      <SizableText fontSize="$s" lineHeight={0} color="$secondaryText">
         {children}
       </SizableText>
     </Stack>
@@ -140,7 +162,7 @@ function ListItemTitleAttribute({ children }: PropsWithChildren) {
 const ListItemSubtitle = styled(SizableText, {
   numberOfLines: 1,
   size: "$s",
-  lineHeight: 0,
+  // lineHeight: 0,
   color: "$secondaryText",
 });
 
@@ -153,18 +175,14 @@ const ListItemTimeText = styled(SizableText, {
 const ListItemCount = ({ children }: PropsWithChildren) => {
   return (
     <Stack
-      paddingHorizontal="$s"
+      paddingHorizontal="$m"
+      paddingVertical="$xxs"
       backgroundColor="$secondaryBackground"
       borderRadius="$xl"
     >
-      <SizableText
-        size="$s"
-        lineHeight={0}
-        color="$secondaryText"
-        textAlign="center"
-      >
+      <Text size="$s" color="$secondaryText" textAlign="center">
         {children}
-      </SizableText>
+      </Text>
     </Stack>
   );
 };
@@ -201,6 +219,7 @@ const ListItemEndContent = styled(YStack, {
   paddingTop: "$s",
   height: "$4xl",
   paddingVertical: "$xs",
+  gap: "$s",
   justifyContent: "space-between",
   alignItems: "flex-end",
 });

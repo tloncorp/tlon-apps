@@ -137,6 +137,7 @@ export const systemFont = createFont({
   },
   weight: {
     s: "400",
+    m: "500",
   },
   letterSpacing: {
     s: 0,

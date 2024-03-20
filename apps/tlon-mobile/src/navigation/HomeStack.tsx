@@ -1,11 +1,8 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { ClientTypes as Client } from '@tloncorp/shared';
-import { Icon, Text, View, useStyle } from '@tloncorp/ui';
-import React, { useCallback, useEffect } from 'react';
-import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
-import { SectionList } from 'react-native';
+import { GroupList, GroupOptionsSheet, Icon, View } from '@tloncorp/ui';
+import React, { useEffect } from 'react';
 
-import { GroupListItem } from '../components/GroupListItem';
 import { useWebviewPositionContext } from '../contexts/webview/position';
 import * as db from '../db';
 import type { TabParamList } from '../types';
@@ -14,6 +11,8 @@ type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
 
 export const HomeStack = ({ navigation }: Props) => {
   const { setVisibility } = useWebviewPositionContext();
+  const [longPressedGroup, setLongPressedGroup] =
+    React.useState<Client.Group | null>(null);
 
   const pinnedGroups = db.useQuery<Client.Group>(
     'Group',
@@ -27,23 +26,6 @@ export const HomeStack = ({ navigation }: Props) => {
       sortDirection: 'desc',
     })
   );
-
-  const renderGroup = useCallback(
-    ({ item }: ListRenderItemInfo<Client.Group>) => {
-      return <GroupListItem model={item} />;
-    },
-    []
-  );
-
-  const contentContainerStyle = useStyle(
-    {
-      gap: '$s',
-      padding: '$l',
-    },
-    { resolveValues: 'value' }
-    // Shouldn't have to cast this, since gap and padding will resolve to
-    // numeric values, but I think tamagui's types are off here.
-  ) as StyleProp<ViewStyle>;
 
   useEffect(() => {
     navigation.setOptions({
@@ -69,37 +51,16 @@ export const HomeStack = ({ navigation }: Props) => {
 
   return (
     <View backgroundColor="$background" flex={1}>
-      <SectionList
-        sections={[
-          ...(pinnedGroups.length > 0
-            ? [{ name: 'Pinned', data: Array.from(pinnedGroups) }]
-            : []),
-          {
-            name: pinnedGroups.length > 0 ? 'Other' : undefined,
-            data: Array.from(otherGroups),
-          },
-        ]}
-        renderItem={renderGroup}
-        renderSectionHeader={({ section }) =>
-          section.name ? (
-            <Text
-              paddingHorizontal="$l"
-              paddingVertical="$xl"
-              fontSize={'$s'}
-              color="$secondaryText"
-            >
-              {section.name}
-            </Text>
-          ) : null
-        }
-        stickySectionHeadersEnabled={false}
-        contentContainerStyle={contentContainerStyle}
-        keyExtractor={getGroupId}
+      <GroupList
+        pinned={Array.from(pinnedGroups)}
+        other={Array.from(otherGroups)}
+        onGroupLongPress={setLongPressedGroup}
+      />
+      <GroupOptionsSheet
+        open={longPressedGroup !== null}
+        onOpenChange={(open) => (!open ? setLongPressedGroup(null) : 'noop')}
+        group={longPressedGroup ?? undefined}
       />
     </View>
   );
 };
-
-function getGroupId(group: Client.Group) {
-  return group.id;
-}

@@ -1,7 +1,9 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { ClientTypes as Client } from '@tloncorp/shared';
-import { Avatar, Button, ListItem, TamaguiProvider, Text } from '@tloncorp/ui';
+import { getGroups } from '@tloncorp/shared/dist/api/groupsApi';
+import { initializeUrbitClient } from '@tloncorp/shared/dist/api/urbit';
+import { Avatar, Button, TamaguiProvider, Text } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -167,12 +169,13 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const currentTheme = useLocalState((s) => s.currentTheme);
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
-  const pondus = useContact('~pondus-watbel');
-  console.log('pondus', pondus);
 
   useEffect(() => {
     if (loaded) {
       captureAnalyticsEvent('app_open');
+
+      // think this is a reasonable enough spot for now
+      initializeUrbitClient(window.ship, window.location.origin);
     }
 
     return () => {
@@ -181,21 +184,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       }
     };
   }, [loaded]);
-
-  const contact: Client.Contact = useMemo(
-    () => ({
-      id: '~pondus-watbel',
-      nickname: null,
-      color: null,
-      avatarImage:
-        'https://m.media-amazon.com/images/M/MV5BZWQ3NjEwNTctMGQyMy00MzExLWI5NGEtMzdkMjFiZTM2Mjc3XkEyXkFqcGdeQXVyMTAxODYyODI@._V1_.jpg',
-      bio: null,
-      coverImage: null,
-      status: null,
-      pinnedGroupIds: [],
-    }),
-    []
-  );
 
   return (
     <TamaguiProvider defaultTheme={currentTheme}>
