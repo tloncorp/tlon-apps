@@ -767,7 +767,7 @@
   ::
   ++  ca-has-sub
     ^-  ?
-    (~(has by wex.bowl) [ca-sub-wire ship.nest %channels-server])
+    (~(has by wex.bowl) [ca-sub-wire ship.nest server])
   ::
   ++  ca-safe-sub
     |=  delay=?

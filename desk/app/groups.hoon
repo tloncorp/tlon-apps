@@ -264,7 +264,7 @@
       ::  traverse through each member to collect all old sects and the
       ::  ships which had them
       =/  dif  (~(dif in sects.vessel) current-sects)
-      :-  ?:(=(~(wyt in dif) 0) ships (~(put in ships) s))
+      :-  ?:(=(~ dif) ships (~(put in ships) s))
       (~(uni in sects) dif)
     =/  action  [flag now.bowl %fleet affected %del-sects old-sects]
     (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)])
