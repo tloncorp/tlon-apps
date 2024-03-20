@@ -6,7 +6,7 @@ import {
   trimFullPath,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { URL } from 'react-native-url-polyfill';
@@ -21,10 +21,10 @@ import { DEFAULT_SHIP_LOGIN_URL, DEFAULT_TLON_LOGIN_EMAIL } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
 import useAppStatus from '../hooks/useAppStatus';
+import { useLogout } from '../hooks/useLogout';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
 import { isUsingTlonAuth } from '../lib/hostingApi';
-import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
 type WebAppCommand = {
@@ -56,6 +56,7 @@ export const SingletonWebview = () => {
   const webViewProps = useWebView();
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
+  const { handleLogout } = useLogout();
   const webviewRef = useRef<WebView>(null);
   const webviewContext = useWebViewContext();
   const initialUrl = useMemo(() => createUri(shipUrl, '/'), [shipUrl]);
@@ -85,12 +86,6 @@ export const SingletonWebview = () => {
       }));
     }
   }, [appStatus, crashRecovery, shipUrl, source]);
-
-  const handleLogout = useCallback(() => {
-    clearShip();
-    removeHostingToken();
-    removeHostingUserId();
-  }, [clearShip]);
 
   const handleMessage = async ({ action, value }: WebAppCommand) => {
     switch (action) {

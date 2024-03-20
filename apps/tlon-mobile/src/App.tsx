@@ -20,7 +20,6 @@ import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
-import { syncContacts } from './lib/sync';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -54,12 +53,6 @@ const App = ({ wer }: Props) => {
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      syncContacts();
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
