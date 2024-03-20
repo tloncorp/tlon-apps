@@ -11,37 +11,31 @@ import { YStack, XStack, Stack, Sheet as TamSheet } from "tamagui";
 
 const Overlay = styled(YStack, {
   name: "SheetOverlay",
-  // animation: {
-  //   type: "spring",
-  //   damping: 30,
-  //   mass: 1,
-  //   stiffness: 250,
-  // },
-  // enterStyle: { opacity: 0 },
-  // exitStyle: { opacity: 0 },
-  backgroundColor: "$darkOverlay",
+  enterStyle: { opacity: 0 },
+  exitStyle: { opacity: 0 },
+  backgroundColor: "$translucentBlack",
   fullscreen: true,
   position: "absolute",
   zIndex: 100_000 - 1,
   pointerEvents: "auto",
-  // variants: {
-  //   open: {
-  //     true: {
-  //       opacity: 1,
-  //       pointerEvents: "auto",
-  //     },
-  //     false: {
-  //       opacity: 0,
-  //       pointerEvents: "none",
-  //     },
-  //   },
-  // } as const,
+  variants: {
+    open: {
+      true: {
+        opacity: 1,
+        pointerEvents: "auto",
+      },
+      false: {
+        opacity: 0,
+        pointerEvents: "none",
+      },
+    },
+  } as const,
 });
 
 const Frame = styled(YStack, {
   name: "SheetFrame",
-  borderTopLeftRadius: "$l",
-  borderTopRightRadius: "$l",
+  borderTopLeftRadius: "$3xl",
+  borderTopRightRadius: "$3xl",
   backgroundColor: "$background",
 });
 

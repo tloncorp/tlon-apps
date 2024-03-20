@@ -190,24 +190,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
 
   return (
     <TamaguiProvider defaultTheme={currentTheme}>
-      {/* <Button>
-        <Button.Text>Hi</Button.Text>
-      </Button>
-      <Avatar contact={contact} height={200} width={200} />
-      <Text color="$orange">Hey there!</Text>
-      <div className="h-[600px] w-[400px]">
-        <ListItem onPress={() => console.log('clicky!')}>
-          <ListItem.Icon imageUrl="https://media.architecturaldigest.com/photos/5a3af19ecf0d6c31eb82ee75/1:1/w_3307,h_3307,c_limit/GettyImages-564107815.jpg" />
-          <ListItem.MainContent>
-            <ListItem.Title fontFamily="$body" color="$primaryText">
-              Cozy Interiors
-            </ListItem.Title>
-            <ListItem.Subtitle fontFamily="$body">
-              Hello, world here is a message for you
-            </ListItem.Subtitle>
-          </ListItem.MainContent>
-        </ListItem>
-      </div> */}
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>

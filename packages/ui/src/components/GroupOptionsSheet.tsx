@@ -16,8 +16,9 @@ export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {
       modal
       dismissOnSnapToBottom
       snapPointsMode="fit"
+      animation="quick"
     >
-      <Sheet.Overlay />
+      <Sheet.Overlay animation="quick" />
       <Sheet.Frame>
         <Sheet.Handle paddingTop="$xl" />
         <View
