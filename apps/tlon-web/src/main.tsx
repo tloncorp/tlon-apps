@@ -18,7 +18,6 @@ import { analyticsClient, captureError } from './logic/analytics';
 import queryClient from './queryClient';
 import './styles/index.css';
 
-
 const oldUpdateState = EditorView.prototype.updateState;
 
 EditorView.prototype.updateState = function updateState(state) {

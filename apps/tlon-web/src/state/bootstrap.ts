@@ -8,7 +8,7 @@ import { asyncWithDefault } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { initializeChat } from './chat';
-import useContactState, {fetchAllContacts} from './contact';
+import useContactState, { fetchAllContacts } from './contact';
 import useDocketState from './docket';
 import useKilnState from './kiln';
 import { useLocalState } from './local';
