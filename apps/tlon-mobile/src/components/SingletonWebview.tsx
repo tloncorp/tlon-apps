@@ -1,29 +1,49 @@
+import crashlytics from '@react-native-firebase/crashlytics';
 import {
   type MobileNavTab,
   type NativeWebViewOptions,
   type WebAppAction,
+  trimFullPath,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { URL } from 'react-native-url-polyfill';
 import { WebView } from 'react-native-webview';
+import type {
+  WebViewRenderProcessGoneEvent,
+  WebViewTerminatedEvent,
+} from 'react-native-webview/lib/WebViewTypes';
 import { useTailwind } from 'tailwind-rn';
 
 import { DEFAULT_SHIP_LOGIN_URL, DEFAULT_TLON_LOGIN_EMAIL } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebViewContext } from '../contexts/webview/webview';
+import useAppStatus from '../hooks/useAppStatus';
+import { useLogout } from '../hooks/useLogout';
 import { useWebView } from '../hooks/useWebView';
 import WebAppHelpers from '../lib/WebAppHelpers';
 import { isUsingTlonAuth } from '../lib/hostingApi';
-import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 // TODO: add typing for data beyond generic value string
 type WebAppCommand = {
   action: WebAppAction;
   value?: string | { tab: string; path: string };
 };
+
+// used for tracking and recovering from crashes
+interface CrashState {
+  isCrashed: boolean;
+  crashEvent: WebViewTerminatedEvent | WebViewRenderProcessGoneEvent | null;
+  lastPath: string;
+}
+
+// used for forcing the webview to reload
+interface SourceState {
+  url: string;
+  key: number;
+}
 
 const createUri = (shipUrl: string, path?: string) =>
   `${shipUrl}/apps/groups${
@@ -36,14 +56,36 @@ export const SingletonWebview = () => {
   const webViewProps = useWebView();
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
+  const { handleLogout } = useLogout();
   const webviewRef = useRef<WebView>(null);
   const webviewContext = useWebViewContext();
+  const initialUrl = useMemo(() => createUri(shipUrl, '/'), [shipUrl]);
+  const appStatus = useAppStatus();
 
-  const handleLogout = useCallback(() => {
-    clearShip();
-    removeHostingToken();
-    removeHostingUserId();
-  }, [clearShip]);
+  const [crashRecovery, setCrashRecovery] = useState<CrashState>({
+    isCrashed: false,
+    crashEvent: null,
+    lastPath: '',
+  });
+
+  const [source, setSource] = useState<SourceState>({
+    url: initialUrl,
+    key: 0,
+  });
+
+  // If the webview crashed, wait until it's back in the foreground to reload
+  useEffect(() => {
+    if (appStatus === 'active' && crashRecovery.isCrashed) {
+      setSource({
+        url: createUri(shipUrl, crashRecovery.lastPath),
+        key: source.key + 1,
+      });
+      setCrashRecovery((prev) => ({
+        ...prev,
+        isCrashed: false,
+      }));
+    }
+  }, [appStatus, crashRecovery, shipUrl, source]);
 
   const handleMessage = async ({ action, value }: WebAppCommand) => {
     switch (action) {
@@ -127,7 +169,8 @@ export const SingletonWebview = () => {
       {...webViewProps}
       scrollEnabled={false}
       ref={webviewRef}
-      source={{ uri: createUri(shipUrl, '/') }}
+      key={source.key}
+      source={{ uri: source.url }}
       style={
         webviewContext.appLoaded
           ? tailwind('bg-transparent')
@@ -185,6 +228,39 @@ export const SingletonWebview = () => {
       onMessage={async ({ nativeEvent: { data } }) =>
         handleMessage(JSON.parse(data) as WebAppCommand)
       }
+      // on iOS, this is called if the webview crashes or is
+      // killed by the OS
+      onContentProcessDidTerminate={(event) => {
+        console.error('Content process terminated', event);
+        crashlytics().recordError(
+          new Error('Content process terminated, initiated recovery')
+        );
+        webviewContext.setAppLoaded(false);
+        setCrashRecovery((prev) => ({
+          ...prev,
+          isCrashed: true,
+          crashEvent: event,
+        }));
+      }}
+      // on Android, this is called if the webview crashes or is
+      // killed by the OS
+      onRenderProcessGone={(event) => {
+        console.error('Render process gone', event);
+        crashlytics().recordError(
+          new Error('Render process gone, initiated recovery')
+        );
+        webviewContext.setAppLoaded(false);
+        setCrashRecovery((prev) => ({
+          ...prev,
+          isCrashed: true,
+          crashEvent: event,
+        }));
+      }}
+      // store a reference to the last url the webview was at for crash recovery
+      onNavigationStateChange={({ url: rawUrl }) => {
+        const path = new URL(rawUrl).pathname;
+        setCrashRecovery((prev) => ({ ...prev, lastPath: trimFullPath(path) }));
+      }}
     />
   );
 };
