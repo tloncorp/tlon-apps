@@ -29,6 +29,7 @@ export default function useSubsetOfMessagesForScroller(
     useState<number>();
   const [scrollerMessagesSliceEnd, setScrollerMessagesSliceEnd] =
     useState<number>();
+  const [hasSeenScrollToId, setHasSeenScrollToId] = useState('');
   const [currentPageIndex, setCurrentPageIndex] = useState(1);
   const [fakeLoadingOlder, setFakeLoadingOlder] = useState(false);
   const [fakeLoadingNewer, setFakeLoadingNewer] = useState(false);
@@ -79,10 +80,10 @@ export default function useSubsetOfMessagesForScroller(
     // if we have a scrollToId, then we need to set the initial load to true
     // so that we can update the slice start and end to include the scrollToId
 
-    if (scrollToId) {
+    if (scrollToId && hasSeenScrollToId !== scrollToId) {
       setInitialLoad(true);
     }
-  }, [scrollToId]);
+  }, [scrollToId, hasSeenScrollToId]);
 
   useEffect(() => {
     // if we have a scrollToId and we're in the initial load, and the scrollToId
@@ -93,6 +94,7 @@ export default function useSubsetOfMessagesForScroller(
       initialLoad &&
       scrollToId &&
       msgIdTimeInMessages &&
+      scrollToId !== hasSeenScrollToId &&
       !msgIdTimeInScrollerMessages
     ) {
       const sliceStart = scrollToIndex - WINDOW_SIZE / 2;
@@ -104,11 +106,19 @@ export default function useSubsetOfMessagesForScroller(
 
       if (sliceStart > 0) {
         setScrollerMessagesSliceStart(sliceStart);
-        setScrollerMessagesSliceEnd(sliceEnd);
+        if (sliceEnd > totalMessagesCached) {
+          // if the slice end is greater than the total messages cached, then
+          // we're at the bottom of the messages, so we should set the slice end
+          // to the total messages cached
+          setScrollerMessagesSliceEnd(totalMessagesCached);
+        } else {
+          setScrollerMessagesSliceEnd(sliceEnd);
+        }
         setCurrentPageIndex(pageIndex);
         lastWhom.current = whom;
         setInitialLoad(false);
         setShouldInvert(false);
+        setHasSeenScrollToId(scrollToId);
       }
     }
   }, [
@@ -122,6 +132,7 @@ export default function useSubsetOfMessagesForScroller(
     msgIdTimeInScrollerMessages,
     msgIdTimeInMessages,
     totalPagesCached,
+    hasSeenScrollToId,
   ]);
 
   useEffect(() => {
