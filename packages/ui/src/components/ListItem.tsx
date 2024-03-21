@@ -120,7 +120,7 @@ const ListItemMainContent = styled(YStack, {
 const ListItemTitle = styled(SizableText, {
   // lineHeight: 0,
   alignItems: "baseline",
-  color: "$primaryText",
+  color: "$red",
 
   // numberOfLines: 1,
   // TODO: is there an easy way to do something like this?
@@ -180,9 +180,9 @@ const ListItemCount = ({ children }: PropsWithChildren) => {
       backgroundColor="$secondaryBackground"
       borderRadius="$xl"
     >
-      <Text fontSize="$s" color="$secondaryText" textAlign="center">
+      <SizableText fontSize="$s" color="$secondaryText" textAlign="center">
         {children}
-      </Text>
+      </SizableText>
     </Stack>
   );
 };

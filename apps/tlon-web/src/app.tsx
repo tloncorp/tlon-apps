@@ -1,9 +1,7 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { ClientTypes as Client } from '@tloncorp/shared';
-import { getGroups } from '@tloncorp/shared/dist/api/groupsApi';
 import { initializeUrbitClient } from '@tloncorp/shared/dist/api/urbit';
-import { Avatar, Button, TamaguiProvider, Text } from '@tloncorp/ui';
+import { TamaguiProvider, config } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { useLiveQuery } from 'electric-sql/react';
 import { usePostHog } from 'posthog-js/react';
@@ -121,7 +119,6 @@ import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ShareDMLure from './profiles/ShareDMLure';
 import { useChannelsFirehose } from './state/channel/channel';
-import { useContact } from './state/contact';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -210,7 +207,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   }, [loaded]);
 
   return (
-    <TamaguiProvider defaultTheme={currentTheme}>
+    <TamaguiProvider config={config} defaultTheme={currentTheme}>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>

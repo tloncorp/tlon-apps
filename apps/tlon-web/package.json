@@ -178,7 +178,7 @@
     "@tailwindcss/aspect-ratio": "^0.4.0",
     "@tailwindcss/container-queries": "^0.1.0",
     "@tailwindcss/typography": "^0.5.7",
-    "@tamagui/vite-plugin": "^1.91.5",
+    "@tamagui/vite-plugin": "1.89.26",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.2.0",

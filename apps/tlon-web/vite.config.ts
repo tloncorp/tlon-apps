@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { tamaguiExtractPlugin, tamaguiPlugin } from '@tamagui/vite-plugin';
+import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
@@ -15,7 +15,6 @@ import {
   loadEnv,
 } from 'vite';
 import htmlPlugin from 'vite-plugin-html-config';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
@@ -74,7 +73,7 @@ export default ({ mode }: { mode: string }) => {
         include: '**/*.svg',
       }) as Plugin,
       tamaguiPlugin({
-        config: '../../packages/ui/src/tamagui.config.ts',
+        config: './tamagui.config.ts',
         platform: 'web',
       }) as Plugin,
       VitePWA({
@@ -146,8 +145,8 @@ export default ({ mode }: { mode: string }) => {
     base: base(mode),
     server: {
       // headers: {
-        // 'Cross-Origin-Opener-Policy': 'same-origin',
-        // 'Cross-Origin-Embedder-Policy': 'require-corp',
+      // 'Cross-Origin-Opener-Policy': 'same-origin',
+      // 'Cross-Origin-Embedder-Policy': 'require-corp',
       // },
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
