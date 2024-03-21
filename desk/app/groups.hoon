@@ -1459,50 +1459,38 @@
     ::
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
-      go-repair-permissions
-    ==
-  ::
-  ++  go-repair-permissions
-    =/  current-sects  ~(key by cabals.group)
-    =.  go-core
-      ::  repair members as needed
-      ::
-      %-  go-fleet-del-sects
-      %+  roll
-        ~(tap by fleet.group)
-      |=  [[s=ship =vessel:fleet:g] [ships=(set ship) sects=(set sect:g)]]
-      ::  traverse through each member to collect all old sects and the
-      ::  ships which had them
-      =/  dif  (~(dif in sects.vessel) current-sects)
-      :-  ?:(=(~ dif) ships (~(put in ships) s))
-      (~(uni in sects) dif)
-    =^  core=_go-core  cor
-      %+  roll
-        ~(tap by channels.group)
-      |=  [[=nest:g =channel:g] [gc=_go-core cr=_cor]]
-      =.  gc
+      =/  old-sect=(set sect:g)  (sy sect ~)
+      =.  go-core
+        ::  remove from members as needed
+        ::
+        %-  go-fleet-del-sects
+        :_  old-sect
+        %+  roll
+          ~(tap by fleet.group)
+        |=  [[s=ship =vessel:fleet:g] ships=(set ship)]
+        ?.  (~(has in sects.vessel) sect)  ships
+        (~(put in ships) s)
+      =^  core=_go-core  cor
+        %+  roll
+          ~(tap by channels.group)
+        |=  [[=nest:g =channel:g] [gc=_go-core cr=_cor]]
         ::  repair readers as needed
         ::
-        =/  invalid-readers  (~(dif in readers.channel) ~(key by cabals.group))
-        ?~  invalid-readers  gc
-        (go-channel-del-sects:gc nest invalid-readers)
-      ::  repair writers as needed
-      ::
-      =+  .^(has=? %gu (channel-scry nest))
-      ?.  has  [gc cr]
-      =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
-      =/  diff=(set sect:g)  (~(dif in writers) ~(key by cabals.group))
-      :: unsupported channel
-      ?.  ?=(?(%chat %heap %diary) p.nest)  [gc cr]
-      :: no writers to remove
-      ?:  =(diff ~)  [gc cr]
-      :: not host
-      ?:  !=(our.bowl p.q.nest)  [gc cr]
-      =/  cmd=c-channels:d  [%channel nest %del-writers diff]
-      =/  cage  [%channel-command !>(cmd)]
-      :-  gc
-      cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
-    core
+        =.  gc  (go-channel-del-sects:gc nest old-sect)
+        ::  repair writers as needed
+        ::
+        =+  .^(has=? %gu (channel-scry nest))
+        ?.  has  [gc cr]
+        :: unsupported channel
+        ?.  ?=(?(%chat %heap %diary) p.nest)  [gc cr]
+        :: not host
+        ?:  !=(our.bowl p.q.nest)  [gc cr]
+        =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
+        =/  cage  [%channel-command !>(cmd)]
+        :-  gc
+        cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
+      core
+    ==
   ::
   ++  go-fleet-update
     |=  [ships=(set ship) =diff:fleet:g]
