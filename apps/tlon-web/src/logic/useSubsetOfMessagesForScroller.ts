@@ -46,6 +46,34 @@ export default function useSubsetOfMessagesForScroller(
         : false,
     [scrollToId, scrollerMessages]
   );
+  const hasLoadedNewest = useMemo(
+    () =>
+      currentPageIndex === 1 &&
+      scrollerMessagesSliceEnd === totalMessagesCached &&
+      !hasPreviousPage,
+    [
+      currentPageIndex,
+      scrollerMessagesSliceEnd,
+      totalMessagesCached,
+      hasPreviousPage,
+    ]
+  );
+  const hasLoadedOldest = useMemo(
+    () => currentPageIndex === totalPagesCached && !hasNextPage,
+    [currentPageIndex, totalPagesCached, hasNextPage]
+  );
+  const isLoadingOlder = useMemo(
+    () => fakeLoadingOlder ?? isFetchingNextPage,
+    [fakeLoadingOlder, isFetchingNextPage]
+  );
+  const isLoadingNewer = useMemo(
+    () => fakeLoadingNewer ?? isFetchingPreviousPage,
+    [fakeLoadingNewer, isFetchingPreviousPage]
+  );
+  const isFetchingOrFakeLoading = useMemo(
+    () => isFetching || fakeLoadingOlder || fakeLoadingNewer,
+    [isFetching, fakeLoadingOlder, fakeLoadingNewer]
+  );
   const lastScrollerMessagesSliceStart = useRef<number | undefined>(undefined);
   const lastScrollerMessagesSliceEnd = useRef<number | undefined>(undefined);
   const lastWhom = useRef<string | undefined>(undefined);
@@ -53,19 +81,10 @@ export default function useSubsetOfMessagesForScroller(
   useEffect(() => {
     // if we have loaded the newest messages then we're at the bottom
     // then we should be inverted
-    if (
-      currentPageIndex === 1 &&
-      scrollerMessagesSliceEnd === totalMessagesCached &&
-      !hasPreviousPage
-    ) {
+    if (hasLoadedNewest) {
       setShouldInvert(true);
     }
-  }, [
-    currentPageIndex,
-    scrollerMessagesSliceEnd,
-    totalMessagesCached,
-    hasPreviousPage,
-  ]);
+  }, [hasLoadedNewest]);
 
   useEffect(() => {
     // channel switch
@@ -199,9 +218,7 @@ export default function useSubsetOfMessagesForScroller(
     if (
       currentPageIndex === 1 &&
       scrollerMessagesSliceEnd !== totalMessagesCached &&
-      !isFetching &&
-      !fakeLoadingNewer &&
-      !fakeLoadingOlder
+      !isFetchingOrFakeLoading
     ) {
       setFakeLoadingNewer(true);
       setScrollerMessagesSliceEnd(totalMessagesCached);
@@ -209,10 +226,8 @@ export default function useSubsetOfMessagesForScroller(
 
     if (
       currentPageIndex !== 1 &&
-      !isFetching &&
       scrollerMessagesSliceEnd &&
-      !fakeLoadingNewer &&
-      !fakeLoadingOlder
+      !isFetchingOrFakeLoading
     ) {
       // if we're not at the bottom of the first page, and we're not fetching,
       // and we're not faking loading, and we have a slice end, then
@@ -249,10 +264,9 @@ export default function useSubsetOfMessagesForScroller(
     hasPreviousPage,
     isFetching,
     currentPageIndex,
-    fakeLoadingNewer,
-    fakeLoadingOlder,
     scrollerMessagesSliceEnd,
     totalMessagesCached,
+    isFetchingOrFakeLoading,
   ]);
 
   const onAtTop = useCallback(() => {
@@ -260,9 +274,7 @@ export default function useSubsetOfMessagesForScroller(
 
     if (
       currentPageIndex !== totalPagesCached &&
-      !isFetching &&
-      !fakeLoadingOlder &&
-      !fakeLoadingNewer &&
+      !isFetchingOrFakeLoading &&
       scrollerMessagesSliceEnd
     ) {
       // if we're not at the top of the first page, and we're not fetching,
@@ -294,38 +306,9 @@ export default function useSubsetOfMessagesForScroller(
     currentPageIndex,
     totalPagesCached,
     scrollerMessagesSliceEnd,
-    fakeLoadingOlder,
-    fakeLoadingNewer,
     totalMessagesCached,
+    isFetchingOrFakeLoading,
   ]);
-
-  const hasLoadedNewest = useMemo(
-    () =>
-      currentPageIndex === 1 &&
-      scrollerMessagesSliceEnd === totalMessagesCached &&
-      !hasPreviousPage,
-    [
-      currentPageIndex,
-      scrollerMessagesSliceEnd,
-      totalMessagesCached,
-      hasPreviousPage,
-    ]
-  );
-
-  const hasLoadedOldest = useMemo(
-    () => currentPageIndex === totalPagesCached && !hasNextPage,
-    [currentPageIndex, totalPagesCached, hasNextPage]
-  );
-
-  const isLoadingOlder = useMemo(
-    () => fakeLoadingOlder ?? isFetchingNextPage,
-    [fakeLoadingOlder, isFetchingNextPage]
-  );
-
-  const isLoadingNewer = useMemo(
-    () => fakeLoadingNewer ?? isFetchingPreviousPage,
-    [fakeLoadingNewer, isFetchingPreviousPage]
-  );
 
   return {
     scrollerMessages,
