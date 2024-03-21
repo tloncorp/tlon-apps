@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
-import React, { PropsWithChildren, useCallback } from 'react';
+import React, { PropsWithChildren, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -86,6 +86,15 @@ export default function ChatSearch({
     [navigate, root]
   );
 
+  // This is a hack to prevent the bug where nested @radix-ui components cause
+  // pointerEvents to get set to none on body which trips up our prevent close
+  // detection
+  useEffect(() => {
+    setTimeout(() => {
+      document.body.style.pointerEvents = '';
+    }, 0);
+  });
+
   return (
     <div
       className="border-b-2 border-gray-50 bg-white"
@@ -112,11 +121,7 @@ export default function ChatSearch({
               isSmall={isSmall}
             />
           </label>
-          <Dialog.Root
-            open
-            modal={activeTab === 'messages' ? true : false}
-            onOpenChange={onOpenChange}
-          >
+          <Dialog.Root open onOpenChange={onOpenChange}>
             <Dialog.Content
               onInteractOutside={preventClose}
               onOpenAutoFocus={disableDefault}
