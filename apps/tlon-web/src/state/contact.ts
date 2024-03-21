@@ -64,7 +64,7 @@ export const fetchAllContacts = async () => {
   });
 
   if (contacts !== null) {
-    insertContacts(contacts, true);
+    insertContacts(contacts);
   }
 };
 
@@ -139,7 +139,7 @@ export function useContacts(): ContactRolodex {
 
   useEffect(() => {
     const getContactsFromDb = async () => {
-      const contactsFromDb = (await getContacts(true)) as DBContact[];
+      const contactsFromDb = (await getContacts()) as DBContact[];
 
       if (contactsFromDb !== null) {
         const contactsFromDbMapped = _.mapValues(
@@ -166,7 +166,7 @@ export function useContact(ship: string): Contact {
 
   useEffect(() => {
     const getContactFromDb = async () => {
-      const contactFromDb = (await getContact(ship, true)) as DBContact;
+      const contactFromDb = (await getContact(ship)) as DBContact;
 
       if (contactFromDb && contactFromDb !== null) {
         setContact(dbContactToContact(contactFromDb));

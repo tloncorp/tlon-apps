@@ -3,18 +3,14 @@ import { Group, Groups } from '../urbit/groups';
 import { Contact, ContactRolodex } from '../urbit/contact';
 import { getDatabase } from '.';
 
-export const getGroups = async (web?: boolean) => {
-  const db = getDatabase(web);
+export const getGroups = async () => {
+  const db = getDatabase();
 
   return db.query.groups.findMany();
 };
 
-export const insertGroup = async (
-  flag: string,
-  group: Group,
-  web?: boolean
-) => {
-  const db = getDatabase(web);
+export const insertGroup = async (flag: string, group: Group) => {
+  const db = getDatabase();
 
   return db.insert(groups).values({
     flag,
@@ -32,8 +28,8 @@ export const insertGroup = async (
   });
 };
 
-export const insertGroups = async (groupsData: Groups, web?: boolean) => {
-  const db = getDatabase(web);
+export const insertGroups = async (groupsData: Groups) => {
+  const db = getDatabase();
 
   const insertData = Object.entries(groupsData).map(([flag, group]) => ({
     flag,
@@ -53,34 +49,30 @@ export const insertGroups = async (groupsData: Groups, web?: boolean) => {
   return db.insert(groups).values(insertData).onConflictDoNothing();
 };
 
-export const getGroup = async (flag: string, web?: boolean) => {
-  const db = getDatabase(web);
+export const getGroup = async (flag: string) => {
+  const db = getDatabase();
 
   return db.query.groups.findFirst({
     where: (groups, { eq }) => eq(groups.flag, flag)
   });
 };
 
-export const getContacts = async (web?: boolean) => {
-  const db = getDatabase(web);
+export const getContacts = async () => {
+  const db = getDatabase();
 
   return db.query.contacts.findMany();
 };
 
-export const getContact = async (id: string, web?: boolean) => {
-  const db = getDatabase(web);
+export const getContact = async (id: string) => {
+  const db = getDatabase();
 
   return db.query.contacts.findFirst({
     where: (contacts, { eq }) => eq(contacts.id, id)
   });
 };
 
-export const insertContact = async (
-  id: string,
-  contact: Contact,
-  web?: boolean
-) => {
-  const db = getDatabase(web);
+export const insertContact = async (id: string, contact: Contact) => {
+  const db = getDatabase();
 
   return db.insert(contacts).values({
     id,
@@ -94,11 +86,8 @@ export const insertContact = async (
   });
 };
 
-export const insertContacts = async (
-  contactsData: ContactRolodex,
-  web?: boolean
-) => {
-  const db = getDatabase(web);
+export const insertContacts = async (contactsData: ContactRolodex) => {
+  const db = getDatabase();
 
   const insertData = Object.entries(contactsData)
     .filter(([, contact]) => contact !== null)
