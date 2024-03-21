@@ -145,10 +145,10 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      },
+      // headers: {
+        // 'Cross-Origin-Opener-Policy': 'same-origin',
+        // 'Cross-Origin-Embedder-Policy': 'require-corp',
+      // },
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
       //  NOTE  the proxy used by vite is written poorly, and ends up removing
@@ -169,7 +169,7 @@ export default ({ mode }: { mode: string }) => {
       },
     },
     optimizeDeps: {
-      exclude: ['sqlocal'],
+      exclude: ['sqlocal', 'wa-sqlite'],
     },
     build:
       mode !== 'profile'

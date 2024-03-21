@@ -63,9 +63,9 @@ export const fetchAllContacts = async () => {
     path: '/all',
   });
 
-  if (contacts !== null) {
-    insertContacts(contacts);
-  }
+  // if (contacts !== null) {
+    // insertContacts(contacts);
+  // }
 };
 
 const useContactState = createState<BaseContactState>(
@@ -139,16 +139,16 @@ export function useContacts(): ContactRolodex {
 
   useEffect(() => {
     const getContactsFromDb = async () => {
-      const contactsFromDb = (await getContacts()) as DBContact[];
+      // const contactsFromDb = (await getContacts()) as DBContact[];
 
-      if (contactsFromDb !== null) {
-        const contactsFromDbMapped = _.mapValues(
-          _.keyBy(contactsFromDb, 'id'),
-          dbContactToContact
-        );
+      // if (contactsFromDb !== null) {
+        // const contactsFromDbMapped = _.mapValues(
+          // _.keyBy(contactsFromDb, 'id'),
+          // dbContactToContact
+        // );
 
-        setContacts(contactsFromDbMapped);
-      }
+        // setContacts(contactsFromDbMapped);
+      // }
     };
 
     getContactsFromDb();
@@ -166,11 +166,11 @@ export function useContact(ship: string): Contact {
 
   useEffect(() => {
     const getContactFromDb = async () => {
-      const contactFromDb = (await getContact(ship)) as DBContact;
+      // const contactFromDb = (await getContact(ship)) as DBContact;
 
-      if (contactFromDb && contactFromDb !== null) {
-        setContact(dbContactToContact(contactFromDb));
-      }
+      // if (contactFromDb && contactFromDb !== null) {
+        // setContact(dbContactToContact(contactFromDb));
+      // }
     };
 
     getContactFromDb();

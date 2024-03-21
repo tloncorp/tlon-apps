@@ -30,7 +30,9 @@
     "tsc": "tsc --noEmit",
     "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
     "cosmos": "cosmos",
-    "generate": "drizzle-kit generate:sqlite"
+    "generate": "drizzle-kit generate:sqlite",
+    "db:generate-client": "npx electric-sql generate -o ./src/db/generated --with-migrations \"npx pg-migrations apply --database {{ELECTRIC_PROXY}} --directory ./src/db/migrations\"",
+    "prebuild": "npm run db:generate-client"
   },
   "lint-staged": {
     "**/*.ts?(x)": [
@@ -44,6 +46,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.190.0",
     "@aws-sdk/s3-request-presigner": "^3.190.0",
+    "@databases/pg-migrations": "^5.0.3",
     "@emoji-mart/data": "^1.0.6",
     "@emoji-mart/react": "^1.0.1",
     "@radix-ui/react-accordion": "^1.1.2",
@@ -106,6 +109,7 @@
     "date-fns": "^2.28.0",
     "dompurify": "^3.0.6",
     "drizzle-orm": "^0.30.3",
+    "electric-sql": "^0.9.6",
     "emoji-mart": "^5.2.2",
     "emoji-regex": "^10.2.1",
     "fast-average-color": "^9.1.1",
@@ -164,6 +168,7 @@
     "validator": "^13.7.0",
     "vaul": "github:latter-bolden/vaul",
     "video-react": "^0.16.0",
+    "wa-sqlite": "github:rhashimoto/wa-sqlite",
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
   },
