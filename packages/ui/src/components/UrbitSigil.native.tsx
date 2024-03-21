@@ -10,14 +10,16 @@ export const UrbitSigil = View.styleable<{
   const theme = useTheme();
   const sigilXml = useMemo(
     () =>
-      sigil({
-        point: ship,
-        detail: "none",
-        size: 12,
-        space: "none",
-        foreground: "#ffffff",
-        background: theme.darkBackground.val,
-      }),
+      validShip
+        ? sigil({
+            point: ship,
+            detail: "none",
+            size: 12,
+            space: "none",
+            foreground: "#ffffff",
+            background: theme.darkBackground.val,
+          })
+        : null,
     [ship]
   );
   return (
@@ -31,7 +33,7 @@ export const UrbitSigil = View.styleable<{
       borderRadius="$2xs"
       {...props}
     >
-      {validShip && <SvgXml xml={sigilXml} />}
+      {sigilXml && <SvgXml xml={sigilXml} />}
     </View>
   );
 });
