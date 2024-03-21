@@ -2,7 +2,7 @@ import type { ClientTypes as Client } from "@tloncorp/shared";
 import {
   subscribeChannelUnreads,
   subscribeDMUnreads,
-} from "@tloncorp/shared/dist/api/unreadsApi";
+} from "./unreadsApi";
 
 export const subscribeUnreads = async () => {
   async function handleUnreadUpdate(unread: Client.Unread) {
