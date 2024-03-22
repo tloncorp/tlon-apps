@@ -61,6 +61,7 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
         !lastDbMigration ||
         Number(lastDbMigration[2])! < migration.folderMillis
       ) {
+        console.log(`Migrating ${migration.folderMillis}`);
         migration.sql.forEach(async (stmt) => {
           await db.run(sql.raw(stmt));
         });

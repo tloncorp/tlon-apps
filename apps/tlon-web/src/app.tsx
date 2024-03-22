@@ -3,7 +3,6 @@ import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { initializeUrbitClient } from '@tloncorp/shared/dist/api/urbit';
 import { TamaguiProvider, config } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
-import { useLiveQuery } from 'electric-sql/react';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -17,7 +16,6 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { useLocalStorage } from 'usehooks-ts';
 
 import { IS_MOCK } from '@/api';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
@@ -105,11 +103,9 @@ import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import UpdateNoticeSheet from './components/UpdateNotices';
-import electric, { ElectricProvider, useElectric } from './db/electric';
 import DMThread from './dms/DMThread';
 import MobileDmSearch from './dms/MobileDmSearch';
 import EyrieMenu from './eyrie/EyrieMenu';
-import { Electric } from './generated/client';
 import { CreateGroupDialog } from './groups/AddGroup/CreateGroup';
 import { JoinGroupDialog } from './groups/AddGroup/JoinGroup';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
@@ -172,24 +168,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const currentTheme = useLocalState((s) => s.currentTheme);
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
-  const { db: electricDb } = useElectric()!;
-
-  const { results } = useLiveQuery(electricDb.items.liveMany());
-
-  useEffect(() => {
-    const syncItems = async () => {
-      // Resolves when the shape subscription has been established.
-      const shape = await electricDb.items.sync();
-
-      // Resolves when the data has been synced into the local database.
-      await shape.synced;
-    };
-
-    syncItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  console.log({ results });
 
   useEffect(() => {
     if (loaded) {
@@ -678,14 +656,10 @@ function App() {
 }
 
 function RoutedApp() {
-  const [localElectric, setLocalElectric] = useState<Electric>();
   const mode = import.meta.env.MODE;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
-  const [hasRunMigrations, setHasRunMigrations] = useLocalStorage(
-    'hasRunMigrations',
-    false
-  );
+  const [hasRunMigrations, setHasRunMigrations] = useState(false);
   const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
@@ -710,15 +684,6 @@ function RoutedApp() {
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
-
-  useEffect(() => {
-    console.log({ hasRunMigrations });
-    const runMigrations = async () => migrate(db);
-    if (!hasRunMigrations) {
-      setHasRunMigrations(true);
-      runMigrations();
-    }
-  }, [hasRunMigrations, setHasRunMigrations]);
 
   useEffect(() => {
     window.toggleDevTools = () => toggleDevTools();
@@ -764,25 +729,15 @@ function RoutedApp() {
   }, [posthog, showDevTools]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const init = async () => {
-      if (!isMounted) {
-        return;
-      }
-
-      setLocalElectric(electric);
+    const runMigrations = async () => {
+      await migrate(db);
+      setHasRunMigrations(true);
     };
 
-    init();
+    runMigrations();
+  }, [setHasRunMigrations]);
 
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (localElectric === undefined) {
+  if (!hasRunMigrations) {
     return null;
   }
 
@@ -798,12 +753,10 @@ function RoutedApp() {
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
         <AppUpdateContext.Provider value={appUpdateContextValue}>
-          <ElectricProvider db={localElectric}>
-            <TooltipProvider delayDuration={0} skipDelayDuration={400}>
-              <App />
-              <Scheduler />
-            </TooltipProvider>
-          </ElectricProvider>
+          <TooltipProvider delayDuration={0} skipDelayDuration={400}>
+            <App />
+            <Scheduler />
+          </TooltipProvider>
         </AppUpdateContext.Provider>
         <LureAutojoiner />
         {showDevTools && (

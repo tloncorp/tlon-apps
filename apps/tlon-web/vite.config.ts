@@ -17,6 +17,8 @@ import {
 import htmlPlugin from 'vite-plugin-html-config';
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
+import wasm from 'vite-plugin-wasm';
+import topLevelAwait from 'vite-plugin-top-level-await';
 
 import packageJson from './package.json';
 import manifest from './src/manifest';
@@ -66,6 +68,8 @@ export default ({ mode }: { mode: string }) => {
         changeOrigin: true,
         secure: false,
       }) as PluginOption[],
+      topLevelAwait(),
+      wasm(),
       react({
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],

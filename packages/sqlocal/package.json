@@ -1,0 +1,90 @@
+{
+	"name": "@tloncorp/sqlocal",
+	"version": "0.7.1",
+	"type": "module",
+	"types": "./dist/index.d.ts",
+	"browser": "./dist/index.js",
+	"module": "./dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"browser": "./dist/index.js",
+			"import": "./dist/index.js"
+		},
+		"./drizzle": {
+			"types": "./dist/drizzle/index.d.ts",
+			"browser": "./dist/drizzle/index.js",
+			"import": "./dist/drizzle/index.js"
+		},
+		"./kysely": {
+			"types": "./dist/kysely/index.d.ts",
+			"browser": "./dist/kysely/index.js",
+			"import": "./dist/kysely/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest",
+		"format": "prettier . --write",
+		"docs:dev": "vitepress dev docs",
+		"docs:build": "vitepress build docs",
+		"docs:preview": "vitepress preview docs",
+		"prepublishOnly": "npm run build && vitest run"
+	},
+	"dependencies": {
+		"@sqlite.org/sqlite-wasm": "^3.45.2-build1",
+		"async-mutex": "^0.5.0",
+		"nanoid": "^5.0.6",
+		"wa-sqlite": "github:rhashimoto/wa-sqlite"
+	},
+	"devDependencies": {
+		"@vitest/browser": "^1.4.0",
+		"drizzle-orm": "^0.30.2",
+		"kysely": "^0.27.3",
+		"prettier": "^3.2.5",
+		"typescript": "^5.4.2",
+		"vite": "^5.1.6",
+		"vitepress": "^1.0.0-rc.45",
+		"vitest": "^1.4.0",
+		"webdriverio": "^8.34.1"
+	},
+	"peerDependencies": {
+		"drizzle-orm": "*",
+		"kysely": "*"
+	},
+	"peerDependenciesMeta": {
+		"kysely": {
+			"optional": true
+		},
+		"drizzle-orm": {
+			"optional": true
+		}
+	},
+	"author": "Dallas Hoffman",
+	"license": "MIT",
+	"description": "SQLocal makes it easy to run SQLite3 in the browser, backed by the origin private file system.",
+	"keywords": [
+		"browser",
+		"sqlite",
+		"sql",
+		"database",
+		"wasm",
+		"opfs",
+		"worker",
+		"drizzle",
+		"kysely"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/DallasHoff/sqlocal"
+	},
+	"homepage": "https://sqlocal.dallashoffman.com",
+	"funding": {
+		"type": "paypal",
+		"url": "https://www.paypal.com/biz/fund?id=U3ZNM2Q26WJY8"
+	}
+}
