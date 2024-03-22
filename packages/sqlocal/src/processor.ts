@@ -61,7 +61,7 @@ export class SQLocalProcessor {
 
 	constructor() {
 		this.init();
-    // mutex is necessary to ensure that sql statements are not interleaved
+		// mutex is necessary to ensure that sql statements are not interleaved
 		this.#mutex = new Mutex();
 	}
 
@@ -79,6 +79,8 @@ export class SQLocalProcessor {
 			);
 
 			this.db = await this.sqlite3.open_v2(
+				this.config.databasePath,
+				SQLite.SQLITE_OPEN_CREATE | SQLite.SQLITE_OPEN_READWRITE,
 				this.config.databasePath
 			);
 		} catch (error) {
