@@ -28,7 +28,6 @@
 	],
 	"scripts": {
 		"build": "tsc",
-		"test": "vitest",
 		"format": "prettier . --write",
 		"docs:dev": "vitepress dev docs",
 		"docs:build": "vitepress build docs",
