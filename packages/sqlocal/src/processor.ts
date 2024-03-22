@@ -25,27 +25,6 @@ import { IDBBatchAtomicVFS } from 'wa-sqlite/src/examples/IDBBatchAtomicVFS.js';
 
 type SqlValue = string | number | null | Uint8Array | bigint;
 
-// type Row = { [key: string]: SqlValue };
-
-// interface QueryExecResult {
-// columns: string[];
-// values: SqlValue[][];
-// }
-
-// const resultToRows = (res: QueryExecResult): Row[] => {
-// const cols = res.columns;
-// return res.values.map((values: SqlValue[]) => {
-// const row: Row = {};
-
-// values.forEach((val: SqlValue, i: number) => {
-// const col = cols[i];
-// row[col] = val;
-// });
-
-// return row;
-// });
-// };
-
 export class SQLocalProcessor {
 	#mutex: Mutex;
 
@@ -163,24 +142,10 @@ export class SQLocalProcessor {
 
 			switch (message.type) {
 				case 'query':
-					// const rows = this.sqlite3.exec(this.db, {
-					// sql: message.sql,
-					// bind: message.params,
-					// returnValue: 'resultRows',
-					// rowMode: 'array',
-					// columnNames: response.columns,
-					// });
-
 					for await (const stmt of this.sqlite3.statements(
 						this.db,
 						message.sql
 					)) {
-						// const { rows } = await this.sqlite3.execWithParams(
-						// this.db,
-						// message.sql,
-						// message.params
-						// );
-
 						if (typeof message.params !== 'undefined') {
 							this.sqlite3.bind_collection(stmt, message.params);
 						}
@@ -210,15 +175,6 @@ export class SQLocalProcessor {
 					break;
 
 				case 'transaction':
-					// this.db.transaction((db: Sqlite3Db) => {
-					// for (let statement of message.statements) {
-					// db.exec({
-					// sql: statement.sql,
-					// bind: statement.params,
-					// });
-					// }
-					// });
-
 					// `statements` is a convenience function that manages statement compilation
 					// such that we don't have to prepare and finalize statements ourselves
 					// cf. https://rhashimoto.github.io/wa-sqlite/docs/interfaces/SQLiteAPI.html#statements
@@ -294,12 +250,6 @@ export class SQLocalProcessor {
 	protected initUserFunction = (fn: UserFunction) => {
 		if (!this.db) return;
 		if (!this.sqlite3) return;
-
-		// this.db.createFunction(
-		// fn.name,
-		// (_: number, ...args: any[]) => fn.handler(...args),
-		// { arity: -1 }
-		// );
 
 		this.sqlite3.create_function(
 			this.db,
