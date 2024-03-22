@@ -23,7 +23,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "sqlocal/*": ["../../node_modules/sqlocal/dist/*"]
+      "sqlocal/*": ["../../node_modules/sqlocal/dist/*"],
+      "@urbit/api": ["../../node_modules/@urbit/api/dist/api"]
     }
   },
   "include": [

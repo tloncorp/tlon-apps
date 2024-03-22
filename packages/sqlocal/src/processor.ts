@@ -20,8 +20,6 @@ import { Mutex } from 'async-mutex';
 import * as SQLite from 'wa-sqlite';
 
 // This is the recommended IndexedDB VFS
-// It is preferable over OPFS because OPFS works only in a worker
-// and is not yet supported on all browsers
 // see: https://github.com/rhashimoto/wa-sqlite/tree/master/src/examples
 import { IDBBatchAtomicVFS } from 'wa-sqlite/src/examples/IDBBatchAtomicVFS.js';
 
