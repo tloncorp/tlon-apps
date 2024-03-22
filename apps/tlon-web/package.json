@@ -30,8 +30,7 @@
     "tsc": "tsc --noEmit",
     "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
     "cosmos": "cosmos",
-    "generate": "drizzle-kit generate:sqlite",
-    "prebuild": "npm run db:generate-client"
+    "generate": "drizzle-kit generate:sqlite"
   },
   "lint-staged": {
     "**/*.ts?(x)": [
