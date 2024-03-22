@@ -15,4 +15,6 @@ export const getDatabase = (): SqliteRemoteDatabase<Schema> => {
   return db as unknown as SqliteRemoteDatabase<Schema>;
 };
 
+export * as schemas from "./schemas";
+
 export * from "./types";

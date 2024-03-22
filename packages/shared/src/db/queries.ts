@@ -86,7 +86,7 @@ export function conflictUpdateSet<TTable extends SQLiteTable>(
   return Object.assign(
     {},
     ...columns.map((k) => ({
-      [k]: sql.raw(`excluded.${(table[k] as Column).name}`),
+      [k]: sql.raw(`excluded.${(table[k] as unknown as Column).name}`),
     }))
   ) as SQLiteUpdateSetSource<TTable>;
 }

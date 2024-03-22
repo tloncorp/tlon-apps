@@ -90,7 +90,7 @@
     "@tiptap/suggestion": "^2.0.3",
     "@tloncorp/mock-http-api": "^1.2.0",
     "@tloncorp/shared": "*",
-    "@tloncorp/sqlocal": "^0.7.1",
+    "@tloncorp/sqlocal": "*",
     "@tloncorp/ui": "*",
     "@types/marked": "^4.3.0",
     "@urbit/api": "^2.2.0",

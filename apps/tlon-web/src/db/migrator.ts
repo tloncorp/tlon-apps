@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 import type { MigrationMeta } from 'drizzle-orm/migrator';
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy';
 
-import Migration0000 from '../drizzle/0000_swift_thunderball.sql?raw';
+import Migration0000 from '../drizzle/0000_omniscient_callisto.sql?raw';
 import journal from '../drizzle/meta/_journal.json';
 
 const migrations: MigrationMeta[] = [
