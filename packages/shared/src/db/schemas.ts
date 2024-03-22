@@ -1,15 +1,19 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import { GroupMeta } from "../urbit/groups";
+import { relations } from "drizzle-orm";
 import {
-  Cabals,
-  Channels,
-  Cordon,
-  FlaggedContent,
-  Fleet,
-  Saga,
-  Zone,
-  Zones,
-} from "../urbit/groups";
+  integer,
+  primaryKey,
+  foreignKey,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
+
+const boolean = (name: string) => {
+  return integer(name, { mode: "boolean" });
+};
+
+const timestamp = (name: string) => {
+  return integer(name);
+};
 
 export const contacts = sqliteTable("contacts", {
   id: text("id").primaryKey(),
@@ -22,34 +26,249 @@ export const contacts = sqliteTable("contacts", {
   pinnedGroupIds: text("pinnedGroupIds"),
 });
 
-export type Contact = typeof contacts.$inferSelect;
-export type ContactInsert = typeof contacts.$inferInsert;
-
 export const unreads = sqliteTable("unreads", {
   channelId: text("channelId"),
   type: text("type"),
   totalCount: integer("totalCount"),
 });
 
-export type Unread = typeof unreads.$inferSelect;
-export type UnreadInsert = typeof unreads.$inferInsert;
-
 export const groups = sqliteTable("groups", {
-  flag: text("flag").primaryKey(),
-  fleet: text("fleet", { mode: "json" }).$type<Fleet>(),
-  cabals: text("cabals", { mode: "json" }).$type<Cabals>(),
-  channels: text("channels", { mode: "json" }).$type<Channels>(),
-  cordon: text("cordon", { mode: "json" }).$type<Cordon>(),
-  meta: text("meta", { mode: "json" }).$type<GroupMeta>(),
-  zones: text("zones", { mode: "json" }).$type<Zones>(),
-  zoneOrder: text("zoneOrder", { mode: "json" }).$type<Zone[]>(),
-  bloc: text("bloc", { mode: "json" }).$type<string[]>(),
-  secret: integer("secret", { mode: "boolean" }),
-  saga: text("saga", { mode: "json" }).$type<Saga | null>(),
-  flaggedContent: text("flaggedContent", {
-    mode: "json",
-  }).$type<FlaggedContent>(),
+  id: text("id").primaryKey(),
+  iconImage: text("icon_image"),
+  iconImageColor: text("icon_image_color"),
+  coverImage: text("cover_image"),
+  coverImageColor: text("cover_image_color"),
+  title: text("title"),
+  description: text("description"),
+  isSecret: boolean("is_secret"),
+  lastPostAt: timestamp("last_post_at"),
 });
 
-export type Group = typeof groups.$inferSelect;
-export type GroupInsert = typeof groups.$inferInsert;
+export const groupsRelations = relations(groups, ({ one, many }) => ({
+  roles: many(groupRoles),
+  members: many(groupMembers),
+  navSections: many(groupNavSections),
+  channels: many(channels),
+  posts: many(posts),
+}));
+
+export const groupRoles = sqliteTable(
+  "group_roles",
+  {
+    id: text("id"),
+    groupId: text("group_id").references(() => groups.id),
+    iconImage: text("image"),
+    title: text("title"),
+    coverImage: text("cover"),
+    description: text("description"),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.groupId, table.id] }),
+    };
+  }
+);
+
+export const groupRolesRelations = relations(groupRoles, ({ one, many }) => ({
+  members: many(groupMembers),
+  group: one(groups, {
+    fields: [groupRoles.groupId],
+    references: [groups.id],
+  }),
+}));
+
+export const groupMembers = sqliteTable(
+  "group_members",
+  {
+    groupId: text("group_id").references(() => groups.id),
+    contactId: text("contact_id").references(() => contacts.id),
+    joinedAt: timestamp("joined_at"),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.groupId, table.contactId] }),
+    };
+  }
+);
+
+export const groupMembersRelations = relations(
+  groupMembers,
+  ({ one, many }) => ({
+    roles: many(groupMemberRoles),
+    group: one(groups, {
+      fields: [groupMembers.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupMembers.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupMemberRoles = sqliteTable(
+  "group_member_roles",
+  {
+    groupId: text("group_id").references(() => groups.id),
+    contactId: text("contact_id").references(() => contacts.id),
+    roleId: integer("role_id"),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId, table.roleId],
+      }),
+      role: foreignKey({
+        columns: [table.groupId, table.roleId],
+        foreignColumns: [groupRoles.groupId, groupRoles.id],
+      }),
+    };
+  }
+);
+
+export const groupMemberRolesRelations = relations(
+  groupMemberRoles,
+  ({ one }) => ({
+    role: one(groupRoles, {
+      fields: [groupMemberRoles.groupId, groupMemberRoles.roleId],
+      references: [groupRoles.groupId, groupRoles.id],
+    }),
+  })
+);
+
+export const groupNavSections = sqliteTable("group_nav_sections", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").references(() => groups.id),
+  iconImage: text("icon_image"),
+  coverImage: text("cover_image"),
+  title: text("title"),
+  description: text("description"),
+  index: integer("index"),
+});
+
+export const groupNavSectionRelations = relations(
+  groupNavSections,
+  ({ one, many }) => ({
+    channels: many(groupNavSectionChannels),
+    group: one(groups, {
+      fields: [groupNavSections.groupId],
+      references: [groups.id],
+    }),
+  })
+);
+
+export const groupNavSectionChannels = sqliteTable(
+  "group_nav_section_channels",
+  {
+    groupNavSectionId: integer("group_nav_section_id").references(
+      () => groupNavSections.id
+    ),
+    channelId: integer("channel_id").references(() => channels.id),
+    index: integer("index"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.groupNavSectionId, table.channelId] }),
+  })
+);
+
+export const channels = sqliteTable("channels", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").references(() => groups.id),
+  iconImage: text("icon_image"),
+  coverImage: text("cover_image"),
+  title: text("title"),
+  description: text("description"),
+  addedToGroupAt: timestamp("added_to_group_at"),
+  currentUserIsMember: boolean("current_user_is_member"),
+  postCount: integer("post_count"),
+  unreadCount: integer("unread_count"),
+  firstUnreadPostId: text("first_unread_post_id"),
+  lastPostAt: timestamp("last_post_at"),
+});
+
+export const channelRelations = relations(channels, ({ one, many }) => ({
+  group: one(groups, {
+    fields: [channels.groupId],
+    references: [groups.id],
+  }),
+  posts: many(posts),
+  threadUnreadStates: many(threadUnreadStates),
+}));
+
+export const threadUnreadStates = sqliteTable("thread_unread_states", {
+  id: text("id").primaryKey(),
+  channelId: integer("channel_id").references(() => channels.id),
+  threadId: text("thread_id"),
+  count: integer("count"),
+  firstUnreadPostId: text("first_unread_post_id"),
+});
+
+export const threadUnreadStateRelations = relations(
+  threadUnreadStates,
+  ({ one }) => ({
+    channel: one(channels, {
+      fields: [threadUnreadStates.channelId],
+      references: [channels.id],
+    }),
+  })
+);
+
+export const posts = sqliteTable("posts", {
+  id: text("id").primaryKey(),
+  authorId: integer("author_id").references(() => contacts.id),
+  title: text("title"),
+  image: text("image"),
+  content: text("content"),
+  sentAt: timestamp("sent_at"),
+  receivedAt: timestamp("received_at"),
+  replyCount: integer("reply_count"),
+  type: text("type"),
+  channelId: integer("channel_id").references(() => channels.id),
+  groupId: text("group_id").references(() => groups.id),
+  text: text("text"),
+});
+
+export const postsRelations = relations(posts, ({ one, many }) => ({
+  channel: one(channels, {
+    fields: [posts.channelId],
+    references: [channels.id],
+  }),
+  group: one(groups, {
+    fields: [posts.groupId],
+    references: [groups.id],
+  }),
+  reactions: many(reactions),
+  author: one(contacts, {
+    fields: [posts.authorId],
+    references: [contacts.id],
+  }),
+}));
+
+export const reactions = sqliteTable(
+  "reactions",
+  {
+    contactId: text("contact_id")
+      .references(() => contacts.id)
+      .notNull(),
+    postId: text("post_id")
+      .references(() => posts.id)
+      .notNull(),
+    value: text("value").notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.contactId, table.postId] }),
+    };
+  }
+);
+
+export const reactionsRelations = relations(reactions, ({ one }) => ({
+  post: one(posts, {
+    fields: [reactions.postId],
+    references: [posts.id],
+  }),
+  contact: one(contacts, {
+    fields: [reactions.contactId],
+    references: [contacts.id],
+  }),
+}));

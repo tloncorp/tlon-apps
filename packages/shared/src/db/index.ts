@@ -1,42 +1,18 @@
-import {
-  drizzle as drizzleSqlLiteProxy,
-  RemoteCallback,
-  SqliteRemoteDatabase
-} from 'drizzle-orm/sqlite-proxy';
-import {
-  drizzle as drizzleExpoSqlLite,
-  ExpoSQLiteDatabase
-} from 'drizzle-orm/expo-sqlite';
-import { SQLiteDatabase } from 'expo-sqlite/next';
-import * as schema from './schemas';
+import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import { Schema } from "./types";
 
-let driver: RemoteCallback | SQLiteDatabase;
+type AnySqliteDatabase =
+  | BetterSQLite3Database<Schema>
+  | SqliteRemoteDatabase<Schema>;
+let db: AnySqliteDatabase = null;
 
-// Type guards to discriminate the driver
-function isSQLiteDatabase(
-  driver: RemoteCallback | SQLiteDatabase
-): driver is SQLiteDatabase {
-  return (driver as SQLiteDatabase).isInTransactionAsync !== undefined;
+export function setDb<T extends AnySqliteDatabase>(newDb: T) {
+  db = newDb;
 }
 
-function isRemoteCallback(
-  driver: RemoteCallback | SQLiteDatabase
-): driver is RemoteCallback {
-  return !isSQLiteDatabase(driver);
-}
-
-export function setDriver(inputDriver: RemoteCallback | SQLiteDatabase) {
-  driver = inputDriver;
-}
-
-export const getDatabase = () => {
-  let db:
-    | ExpoSQLiteDatabase<typeof schema>
-    | SqliteRemoteDatabase<typeof schema>;
-  if (isRemoteCallback(driver)) {
-    db = drizzleSqlLiteProxy(driver, { schema });
-  } else {
-    db = drizzleExpoSqlLite(driver, { schema });
-  }
-  return db;
+export const getDatabase = (): SqliteRemoteDatabase<Schema> => {
+  return db as unknown as SqliteRemoteDatabase<Schema>;
 };
+
+export * from "./types";

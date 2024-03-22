@@ -19,6 +19,10 @@
     "sorted-btree": "^1.8.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/tmp": "^0.2.6",
+    "better-sqlite3": "^9.4.3",
+    "tmp": "^0.2.3",
     "tsup": "^8.0.2",
     "vitest": "^1.0.4"
   }

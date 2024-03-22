@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "moduleResolution": "Node",
+    "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "paths": {
       "sqlocal/*": ["../../node_modules/sqlocal/dist/*"]
