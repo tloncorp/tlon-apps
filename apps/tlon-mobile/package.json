@@ -17,6 +17,7 @@
     "lint:staged": "lint-staged",
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
+    "postinstall": "npm run generate",
     "eas-build-post-install": "./post-install",
     "generate:db": "drizzle-kit generate:sqlite"
   },
