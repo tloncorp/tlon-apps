@@ -135,7 +135,7 @@
 ::
 ++  perform-upgrade
   |=  args=libargs
-  (do-load ((agent:libn args) dummy-agent))
+  (do-load ((agent:libn args) dummy-agent) ~)
 ::
 ++  perform-init-clean
   |=  args=libargs
