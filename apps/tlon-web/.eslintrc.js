@@ -61,7 +61,7 @@ module.exports = {
           ['fuzzy', 'hack'],
           ['vitest', 'hack'],
         ],
-        extensions: ['.ts', '.tsx'],
+        extensions: ['.ts', '.tsx', '.js'],
       },
     },
   },

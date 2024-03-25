@@ -1,5 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { TamaguiProvider, config } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -163,6 +164,7 @@ interface RoutesProps {
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  const currentTheme = useLocalState((s) => s.currentTheme);
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
 
@@ -179,7 +181,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   }, [loaded]);
 
   return (
-    <>
+    <TamaguiProvider config={config} defaultTheme={currentTheme}>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
@@ -556,7 +558,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           ) : null}
         </Routes>
       ) : null}
-    </>
+    </TamaguiProvider>
   );
 }
 
