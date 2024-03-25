@@ -1465,10 +1465,11 @@
         ::
         %-  ~(urn by fleet.group)
         |=  [* =vessel:fleet:g]
-        vessel(sects (~(dif in sects.vessel) sects))
+        vessel(sects (~(dif in sects.vessel) old-sect))
       =/  channels  ~(tap by channels.group)
       |-
       ?~  channels  go-core
+      =*  next  $(channels t.channels)
       =/  [=nest:g =channel:g]  i.channels
       ::  repair readers as needed
       ::
@@ -1477,16 +1478,16 @@
       ::
       =+  .^(has=? %gu (channel-scry nest))
       ::  missing channel
-      ?.  has  $(channels t.channels)
+      ?.  has  next
       ::  unsupported channel
-      ?.  ?=(?(%chat %heap %diary) p.nest)  $(channels t.channels)
+      ?.  ?=(?(%chat %heap %diary) p.nest)  next
       ::  not host
-      ?:  !=(our.bowl p.q.nest)  $(channels t.channels)
+      ?:  !=(our.bowl p.q.nest)  next
       =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
       =/  cage  [%channel-command !>(cmd)]
       =/  dock  [p.q.nest %channels-server]
       =.  cor  (emit %pass /groups/role %agent dock %poke cage)
-      $(channels t.channels)
+      next
     ==
   ::
   ++  go-fleet-update
