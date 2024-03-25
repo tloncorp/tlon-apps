@@ -30,7 +30,7 @@ import { useRouteGroup } from '@/state/groups/groups';
 
 import ChatThread from './ChatThread/ChatThread';
 
-function ChatChannel({ title }: ViewProps) {
+const ChatChannel = React.memo(({ title }: ViewProps) => {
   const { isChatInputFocused } = useChatInputFocus();
   // TODO: We need to reroute users who can't read the channel
   // const navigate = useNavigate();
@@ -195,6 +195,6 @@ function ChatChannel({ title }: ViewProps) {
       </Routes>
     </>
   );
-}
+});
 
 export default ChatChannel;
