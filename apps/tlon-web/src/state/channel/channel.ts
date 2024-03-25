@@ -2588,7 +2588,7 @@ export function useTogglePostMutation() {
   return useMutation(mutationFn, {
     onMutate: ({ toggle }) => {
       const hiding = 'hide' in toggle;
-      queryClient.setQueryData<HiddenPosts>(['diary', 'hidden'], (prev) => {
+      queryClient.setQueryData<HiddenPosts>(['channels', 'hidden'], (prev) => {
         if (!prev) {
           return hiding ? [udToDec(toggle.hide)] : [];
         }
@@ -2599,7 +2599,7 @@ export function useTogglePostMutation() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['diary', 'hidden']);
+      queryClient.invalidateQueries(['channels', 'hidden']);
     },
   });
 }
