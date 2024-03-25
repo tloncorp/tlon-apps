@@ -1460,36 +1460,33 @@
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
       =/  old-sect=(set sect:g)  (sy sect ~)
-      =.  go-core
+      =.  fleet.group
         ::  remove from members as needed
         ::
-        %-  go-fleet-del-sects
-        :_  old-sect
-        %+  roll
-          ~(tap by fleet.group)
-        |=  [[s=ship =vessel:fleet:g] ships=(set ship)]
-        ?.  (~(has in sects.vessel) sect)  ships
-        (~(put in ships) s)
-      =^  core=_go-core  cor
-        %+  roll
-          ~(tap by channels.group)
-        |=  [[=nest:g =channel:g] [gc=_go-core cr=_cor]]
-        ::  repair readers as needed
-        ::
-        =.  gc  (go-channel-del-sects:gc nest old-sect)
-        ::  repair writers as needed
-        ::
-        =+  .^(has=? %gu (channel-scry nest))
-        ?.  has  [gc cr]
-        :: unsupported channel
-        ?.  ?=(?(%chat %heap %diary) p.nest)  [gc cr]
-        :: not host
-        ?:  !=(our.bowl p.q.nest)  [gc cr]
-        =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
-        =/  cage  [%channel-command !>(cmd)]
-        :-  gc
-        cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
-      core
+        %-  ~(urn by fleet.group)
+        |=  [* =vessel:fleet:g]
+        vessel(sects (~(dif in sects.vessel) sects))
+      =/  channels  ~(tap by channels.group)
+      |-
+      ?~  channels  go-core
+      =/  [=nest:g =channel:g]  i.channels
+      ::  repair readers as needed
+      ::
+      =.  go-core  (go-channel-del-sects nest old-sect)
+      ::  repair writers as needed
+      ::
+      =+  .^(has=? %gu (channel-scry nest))
+      ::  missing channel
+      ?.  has  $(channels t.channels)
+      ::  unsupported channel
+      ?.  ?=(?(%chat %heap %diary) p.nest)  $(channels t.channels)
+      ::  not host
+      ?:  !=(our.bowl p.q.nest)  $(channels t.channels)
+      =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
+      =/  cage  [%channel-command !>(cmd)]
+      =/  dock  [p.q.nest %channels-server]
+      =.  cor  (emit %pass /groups/role %agent dock %poke cage)
+      $(channels t.channels)
     ==
   ::
   ++  go-fleet-update
@@ -1630,16 +1627,13 @@
         %del-sects
       ?>  go-is-bloc
       ?:  &(has-host (~(has in sects.diff) 'admin'))  go-core
-      (go-fleet-del-sects ships sects.diff)
-    ==
-  ++  go-fleet-del-sects
-    |=  [ships=(set ship) sects=(set sect:g)]
-    =.  fleet.group
+      =.  fleet.group
         %-  ~(urn by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
-        vessel(sects (~(dif in sects.vessel) sects))
+        vessel(sects (~(dif in sects.vessel) sects.diff))
       go-core
+    ==
   ::
   ++  go-channel-update
     |=  [ch=nest:g =diff:channel:g]
