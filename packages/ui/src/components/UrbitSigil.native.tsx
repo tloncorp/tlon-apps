@@ -1,5 +1,6 @@
-import sigil from "@urbit/sigil-js";
+import sigil from "@urbit/sigil-js/dist/core";
 import { useMemo } from "react";
+import { SvgXml } from "react-native-svg";
 import { useTheme, View } from "tamagui";
 
 export const UrbitSigil = View.styleable<{
@@ -9,14 +10,16 @@ export const UrbitSigil = View.styleable<{
   const theme = useTheme();
   const sigilXml = useMemo(
     () =>
-      sigil({
-        point: ship,
-        detail: "none",
-        size: 12,
-        space: "none",
-        foreground: "#ffffff",
-        background: theme.darkBackground.val,
-      }),
+      validShip
+        ? sigil({
+            point: ship,
+            detail: "none",
+            size: 12,
+            space: "none",
+            foreground: "#ffffff",
+            background: theme.darkBackground.val,
+          })
+        : null,
     [ship]
   );
   return (
@@ -29,6 +32,8 @@ export const UrbitSigil = View.styleable<{
       backgroundColor="$darkBackground"
       borderRadius="$2xs"
       {...props}
-    />
+    >
+      {sigilXml && <SvgXml xml={sigilXml} />}
+    </View>
   );
 });
