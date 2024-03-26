@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import { useCallback, useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { foregroundFromBackground } from '@/components/Avatar';
@@ -28,7 +28,9 @@ import { useCalm } from '@/state/settings';
 
 function GroupHeader() {
   const flag = useGroupFlag();
-  const group = useGroup(flag);
+  const realGroup = useGroup(flag);
+  const lastGroupRef = useRef(realGroup);
+  const group = lastGroupRef.current;
   const { needsUpdate } = useContext(AppUpdateContext);
   const { preview, claim } = useGang(flag);
   const defaultImportCover = useMemo(
@@ -115,9 +117,11 @@ function GroupHeader() {
   );
 }
 
-export default function GroupSidebar() {
+const GroupSidebar = React.memo(() => {
   const flag = useGroupFlag();
-  const group = useGroup(flag);
+  const realGroup = useGroup(flag);
+  const lastGroupRef = useRef(realGroup);
+  const group = lastGroupRef.current;
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
@@ -183,4 +187,6 @@ export default function GroupSidebar() {
       </div>
     </nav>
   );
-}
+});
+
+export default GroupSidebar;

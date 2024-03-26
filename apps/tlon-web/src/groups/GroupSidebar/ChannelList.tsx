@@ -124,7 +124,9 @@ const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
 const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const flag = useGroupFlag();
-  const group = useGroup(flag);
+  const realGroup = useGroup(flag);
+  const lastGroupRef = useRef(realGroup);
+  const group = lastGroupRef.current;
   const connected = useGroupConnection(flag);
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT_SORT;
