@@ -1,6 +1,6 @@
-import { Sheet } from "./Sheet";
-import { Stack, View, Text, SizableText } from "../core";
-import { ClientTypes } from "@tloncorp/shared";
+import { Sheet } from './Sheet';
+import { Stack, View, Text, SizableText } from '../core';
+import { ClientTypes } from '@tloncorp/shared';
 
 interface Props {
   open: boolean;
@@ -17,9 +17,14 @@ export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {
       dismissOnSnapToBottom
       snapPointsMode="fit"
       // TODO: Figure out why typescript is complaining about the animation prop
+      // @ts-ignore - animation prop is not recognized
       animation="quick"
     >
-      <Sheet.Overlay animation="quick" />
+      <Sheet.Overlay
+        // TODO: Figure out why typescript is complaining about the animation prop
+        // @ts-ignore - animation prop is not recognized
+        animation="quick"
+      />
       <Sheet.Frame>
         <Sheet.Handle paddingTop="$xl" />
         <View
@@ -86,11 +91,11 @@ export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {
               borderBottomColor="rgb(229, 229, 229)"
             >
               <Text fontSize="$l" fontWeight="500">
-                {group?.pinIndex !== null ? "Unpin" : "Pin"}
+                {group?.pinIndex !== null ? 'Unpin' : 'Pin'}
               </Text>
               <Text color="$secondaryText" fontSize="$s">
-                {group?.pinIndex !== null ? "Unpin" : "Pin"} this group{" "}
-                {group?.pinIndex !== null ? "from" : "to"} the top of your
+                {group?.pinIndex !== null ? 'Unpin' : 'Pin'} this group{' '}
+                {group?.pinIndex !== null ? 'from' : 'to'} the top of your
                 Groups list
               </Text>
             </Stack>
