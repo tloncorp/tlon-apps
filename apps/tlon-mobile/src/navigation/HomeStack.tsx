@@ -4,7 +4,6 @@ import { GroupList, GroupOptionsSheet, Icon, View } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 
 import { useWebviewPositionContext } from '../contexts/webview/position';
-// import * as db from '../db';
 import type { TabParamList } from '../types';
 
 type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
@@ -14,19 +13,8 @@ export const HomeStack = ({ navigation }: Props) => {
   const [longPressedGroup, setLongPressedGroup] =
     React.useState<Client.Group | null>(null);
 
-  // const pinnedGroups = db.useQuery<Client.Group>(
-  // 'Group',
-  // db.groupQuery({ isPinned: true, sortBy: 'pinIndex' })
-  // );
+  // TODO: fetch groups from the API
   const pinnedGroups: Client.Group[] = [];
-  // const otherGroups = db.useQuery<Client.Group>(
-  // 'Group',
-  // db.groupQuery({
-  // isPinned: false,
-  // sortBy: 'lastPostAt',
-  // sortDirection: 'desc',
-  // })
-  // );
   const otherGroups: Client.Group[] = [
     {
       id: 'test',
