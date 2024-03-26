@@ -1,6 +1,13 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { IconType } from '@tloncorp/ui';
-import { Avatar, Circle, Icon, Text, View, useStyle } from '@tloncorp/ui';
+import {
+  Avatar,
+  Circle,
+  Icon,
+  SizableText,
+  View,
+  useStyle,
+} from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';
@@ -28,7 +35,8 @@ export const TabStack = () => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         headerTitle({ style, ...props }) {
           return (
-            <Text
+            <SizableText
+              size="$s"
               fontSize="$m"
               fontWeight="$s"
               lineHeight="$s"
