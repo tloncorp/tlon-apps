@@ -21,6 +21,7 @@
     ?-  -.r-channel
       %posts    (posts posts.r-channel)
       %post     (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
+      %pending  (pending r-channel)
       %order    (order order.r-channel)
       %view     s+view.r-channel
       %sort     s+sort.r-channel
@@ -48,6 +49,7 @@
     ?-  -.r-channel
       %posts    (simple-posts posts.r-channel)
       %post     (pairs id+(id id.r-channel) r-post+(r-simple-post r-post.r-channel) ~)
+      %pending  (pending r-channel)
       %order    (order order.r-channel)
       %view     s+view.r-channel
       %sort     s+sort.r-channel
@@ -60,6 +62,28 @@
       %read-at  s+(scot %ud time.r-channel)
       %watch    ~
       %unwatch  ~
+    ==
+  ::
+  ++  pending
+    |=  =r-channel:c
+    ?>  ?=([%pending *] r-channel)
+    %-  pairs
+    :~  id+(client-id id.r-channel)
+        pending+(r-pending r-pending.r-channel)
+    ==
+  ::
+  ++  r-pending
+    |=  =r-pending:c
+    %+  frond  -.r-pending
+    ?-  -.r-pending
+      %post  (essay essay.r-pending)
+    ::
+        %reply
+      %-  pairs
+      :~  top+(id top.r-pending)
+          meta+(reply-meta reply-meta.r-pending)
+          memo+(memo memo.r-pending)
+      ==
     ==
   ::
   ++  r-post
@@ -129,13 +153,30 @@
   +|  %rr
   ::
   ++  channels
+    |=  channels=channels-0:c
+    %-  pairs
+    %+  turn  ~(tap by channels)
+    |=  [n=nest:c ca=channel-0:c]
+    [(nest-cord n) (channel ca)]
+  ::
+  ++  channel
+    |=  channel=channel-0:c
+    %-  pairs
+    :~  posts+(posts posts.channel)
+        order+(order order.channel)
+        view+s+view.channel
+        sort+s+sort.channel
+        perms+(perm perm.channel)
+    ==
+  ::
+  ++  channels-2
     |=  =channels:c
     %-  pairs
     %+  turn  ~(tap by channels)
     |=  [n=nest:c ca=channel:c]
-    [(nest-cord n) (channel ca)]
+    [(nest-cord n) (channel-2 ca)]
   ::
-  ++  channel
+  ++  channel-2
     |=  =channel:c
     %-  pairs
     :~  posts+(posts posts.channel)
@@ -143,6 +184,7 @@
         view+s+view.channel
         sort+s+sort.channel
         perms+(perm perm.channel)
+        pending+(pending-msgs pending.channel)
     ==
   ::
   ++  posts
@@ -243,6 +285,36 @@
     |=  hp=hidden-posts:c
     a+(turn ~(tap in hp) id)
   ::
+  ++  pending-msgs
+    |=  pm=pending-messages:c
+    %-  pairs
+    :~  posts+(pending-posts posts.pm)
+        replies+(pending-replies replies.pm)
+    ==
+  ::
+  ++  pending-posts
+    |=  pp=pending-posts:c
+    %-  pairs
+    %+  turn  ~(tap by pp)
+    |=  [cid=client-id:c es=essay:c]
+    [(client-id-string cid) (essay es)]
+  ::
+  ++  pending-replies
+    |=  pr=pending-replies:c
+    =/  replies
+      %+  roll  ~(tap by pr)
+      |=  [[[top=id-post:c cid=client-id:c] mem=memo:c] rs=(map id-post:c (map client-id:c memo:c))]
+      %+  ~(jab by rs)  top
+      |=  mems=(map client-id:c memo:c)
+      (~(put by mems) cid mem)
+    %-  pairs
+    %+  turn  ~(tap by replies)
+    |=  [top=id-post:c rs=(map client-id:c memo:c)]
+    :-  (rsh 4 (scot %ui top))
+    %-  pairs
+    %+  turn  ~(tap by rs)
+    |=  [cid=client-id:c mem=memo:c]
+    [(client-id-string cid) (memo mem)]
   ::
   +|  %primitives
   ::
@@ -253,11 +325,26 @@
         perms+(perm perm.perm.ca)
         view+s+view.view.ca
         sort+s+sort.sort.ca
+        pending+(pending-msgs pending.ca)
     ==
   ::
   ++  id
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
+  ::
+  ++  client-id-string
+    |=  cid=client-id:c
+    %+  rap  3
+    :~  (scot %p author.cid)
+        '/'
+        (scot %ud (unm:chrono:userlib sent.cid))
+    ==
+  ++  client-id
+    |=  =client-id:c
+    %-  pairs
+    :~  author+(ship author.client-id)
+        sent+(time sent.client-id)
+    ==
   ::
   ++  flag
     |=  f=flag:g
