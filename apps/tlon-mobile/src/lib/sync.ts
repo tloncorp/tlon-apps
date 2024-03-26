@@ -9,10 +9,7 @@ export const syncContacts = async () => {
 };
 
 export const syncUnreads = async () => {
-  const [
-    channelUnreads,
-    dmUnreads,
-  ] = await Promise.all([
+  const [channelUnreads, dmUnreads] = await Promise.all([
     getChannelUnreads(),
     getDMUnreads(),
   ]);

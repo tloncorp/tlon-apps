@@ -1,18 +1,18 @@
 import { createAnimations } from "@tamagui/animations-moti";
 import { createFont, createTamagui, createTokens } from "tamagui";
 
-// export const animations = createAnimations({
-//   simple: {
-//     type: "timing",
-//     duration: 100,
-//   },
-//   quick: {
-//     type: "spring",
-//     damping: 30,
-//     mass: 1,
-//     stiffness: 250,
-//   },
-// });
+export const animations = createAnimations({
+  simple: {
+    type: "timing",
+    duration: 100,
+  },
+  quick: {
+    type: "spring",
+    damping: 30,
+    mass: 1,
+    stiffness: 250,
+  },
+});
 
 export const tokens = createTokens({
   color: {
@@ -41,6 +41,7 @@ export const tokens = createTokens({
     greenSoft: "#EAFBEC",
     blueSoft: "#E5F4FF",
     indigoSoft: "#EFEFFB",
+    darkOverlay: "rgba(0,0,0,.8)",
   },
   space: {
     "2xs": 2,
@@ -122,8 +123,9 @@ export const themes = {
   },
 };
 
-export const sfFont = createFont({
-  family: "System",
+export const systemFont = createFont({
+  family:
+    "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
   size: {
     s: 14,
     m: 17,
@@ -136,6 +138,7 @@ export const sfFont = createFont({
   },
   weight: {
     s: "400",
+    m: "500",
   },
   letterSpacing: {
     s: 0,
@@ -164,8 +167,8 @@ export const monoFont = createFont({
 
 export const fonts = {
   // === Tamagui components require fonts for these properties
-  heading: sfFont,
-  body: sfFont,
+  heading: systemFont,
+  body: systemFont,
   mono: monoFont,
   // ===
 };
@@ -177,5 +180,8 @@ export const config = createTamagui({
   settings: {
     allowedStyleValues: "somewhat-strict",
   },
-  // animations,
+  // Different versions of a transitive dependency are conflicting for the AnimationDriver,
+  // ignore the warning for now
+  // @ts-ignore
+  animations: animations as any,
 });
