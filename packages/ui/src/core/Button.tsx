@@ -53,7 +53,8 @@ const ButtonIcon = (props: { children: any }) => {
   const theme = useTheme();
   return cloneElement(props.children, {
     size: smaller.val * 0.5,
-    color: theme.primaryText.get(),
+    // typescript thinks theme.primaryText could be undefined
+    color: theme.primaryText?.get(),
   });
 };
 

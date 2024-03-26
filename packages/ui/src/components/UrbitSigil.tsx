@@ -1,6 +1,6 @@
-import sigil from "@urbit/sigil-js";
-import { useMemo } from "react";
-import { useTheme, View } from "tamagui";
+import sigil from '@urbit/sigil-js';
+import { useMemo } from 'react';
+import { useTheme, View } from 'tamagui';
 
 export const UrbitSigil = View.styleable<{
   ship: string;
@@ -11,11 +11,12 @@ export const UrbitSigil = View.styleable<{
     () =>
       sigil({
         point: ship,
-        detail: "none",
+        detail: 'none',
         size: 12,
-        space: "none",
-        foreground: "#ffffff",
-        background: theme.darkBackground.val,
+        space: 'none',
+        foreground: '#ffffff',
+        // typescript thinks theme.darkBackground could be undefined
+        background: theme.darkBackground?.val
       }),
     [ship]
   );
