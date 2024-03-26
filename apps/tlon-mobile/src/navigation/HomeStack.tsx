@@ -21,6 +21,7 @@ export const HomeStack = ({ navigation }: Props) => {
       description: 'This is a test group',
       members: [],
       title: 'Test Group',
+      isSecret: false,
       iconImage:
         'https://storage.googleapis.com/assets.tlon.io/tlon-co-group-icon.svg',
     },
