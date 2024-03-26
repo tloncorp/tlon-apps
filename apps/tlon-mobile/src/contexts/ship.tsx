@@ -1,10 +1,10 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { configureApi } from '@tloncorp/shared/dist/api';
 import type { ReactNode } from 'react';
 import { useContext, useEffect, useState } from 'react';
 import { createContext } from 'react';
 import { NativeModules } from 'react-native';
 
-import { configureApi } from '../lib/api';
 import storage from '../lib/storage';
 import { transformShipURL } from '../utils/string';
 

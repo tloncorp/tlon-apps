@@ -35,6 +35,6 @@ module.exports = mergeConfig(config, {
       // without this.
       path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
-    sourceExts: [...config.resolver.sourceExts, 'svg'],
+    sourceExts: [...config.resolver.sourceExts, 'svg', 'sql'],
   },
 });

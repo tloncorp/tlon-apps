@@ -1,3 +1,4 @@
+import { sync } from '@tloncorp/shared';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -6,9 +7,8 @@ import { WebviewPositionProvider } from '../contexts/webview/position';
 import { WebviewProvider } from '../contexts/webview/webview';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
-import { initializeUrbitClient } from '../lib/api';
+import { configureClient } from '../lib/api';
 import { subscribeUnreads } from '../lib/subscribe';
-import { syncContacts, syncUnreads } from '../lib/sync';
 import { TabStack } from '../navigation/TabStack';
 import WebviewOverlay from './WebviewOverlay';
 
@@ -22,9 +22,9 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   useDeepLinkListener();
 
   useEffect(() => {
-    initializeUrbitClient(ship ?? '', shipUrl ?? '');
-    syncContacts();
-    syncUnreads();
+    configureClient(ship ?? '', shipUrl ?? '');
+    sync.syncContacts();
+    sync.syncUnreads();
     subscribeUnreads();
   }, [ship, shipUrl]);
 

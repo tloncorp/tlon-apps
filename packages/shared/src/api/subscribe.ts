@@ -1,14 +1,9 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import {
-  subscribeChannelUnreads,
-  subscribeDMUnreads,
-} from '@tloncorp/shared/dist/api';
-
-import * as db from '../db';
+import type { ClientTypes as Client } from "../client";
+import { subscribeChannelUnreads, subscribeDMUnreads } from "./unreadsApi";
 
 export const subscribeUnreads = async () => {
   async function handleUnreadUpdate(unread: Client.Unread) {
-    db.create('Unread', unread, db.UpdateMode.All);
+    // db.create("Unread", unread, db.UpdateMode.All);
     console.log(`Updated an unread for ${unread.channelId}`);
   }
 

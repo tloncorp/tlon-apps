@@ -7,6 +7,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
+import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
 import { StatusBar, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -20,6 +21,7 @@ import { ShipProvider, useShip } from './contexts/ship';
 import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
+import { useMigrations } from './lib/nativeDb';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -185,6 +187,14 @@ const App = ({ wer }: Props) => {
   );
 };
 
+function MigrationCheck({ children }: PropsWithChildren) {
+  const { success, error } = useMigrations();
+  if (!success && !error) {
+    return null;
+  }
+  return children;
+}
+
 export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
@@ -194,7 +204,9 @@ export default function ConnectedApp(props: Props) {
           <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
             <BranchProvider>
               <PostHogProvider client={posthogAsync} autocapture>
-                <App {...props} />
+                <MigrationCheck>
+                  <App {...props} />
+                </MigrationCheck>
               </PostHogProvider>
             </BranchProvider>
           </NavigationContainer>

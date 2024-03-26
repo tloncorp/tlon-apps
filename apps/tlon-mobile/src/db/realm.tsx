@@ -18,7 +18,7 @@ export enum UpdateMode {
 
 const config: Realm.Configuration = {
   schema: schemas,
-  schemaVersion: 0,
+  schemaVersion: 10,
 };
 
 const {
