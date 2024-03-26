@@ -1,5 +1,5 @@
 diff --git a/node_modules/@tamagui/vite-plugin/dist/esm/extract.mjs b/node_modules/@tamagui/vite-plugin/dist/esm/extract.mjs
-index 2a3131a..49281c1 100644
+index 2a3131a..ed7b0e7 100644
 --- a/node_modules/@tamagui/vite-plugin/dist/esm/extract.mjs
 +++ b/node_modules/@tamagui/vite-plugin/dist/esm/extract.mjs
 @@ -1,11 +1,11 @@
@@ -35,7 +35,7 @@ index 2a3131a..49281c1 100644
          source: code,
          sourcePath: validId,
 diff --git a/node_modules/@tamagui/vite-plugin/dist/esm/getVitePath.mjs b/node_modules/@tamagui/vite-plugin/dist/esm/getVitePath.mjs
-index 51e1599..1872b9b 100644
+index 51e1599..5141116 100644
 --- a/node_modules/@tamagui/vite-plugin/dist/esm/getVitePath.mjs
 +++ b/node_modules/@tamagui/vite-plugin/dist/esm/getVitePath.mjs
 @@ -1,6 +1,6 @@
@@ -74,8 +74,9 @@ index 51e1599..1872b9b 100644
    }
  }
  export { getVitePath };
+\ No newline at end of file
 diff --git a/node_modules/@tamagui/vite-plugin/dist/esm/plugin.mjs b/node_modules/@tamagui/vite-plugin/dist/esm/plugin.mjs
-index 4995003..b1696a2 100644
+index 4995003..e16a181 100644
 --- a/node_modules/@tamagui/vite-plugin/dist/esm/plugin.mjs
 +++ b/node_modules/@tamagui/vite-plugin/dist/esm/plugin.mjs
 @@ -1,10 +1,10 @@
@@ -91,3 +92,24 @@ index 4995003..b1696a2 100644
        platform,
        components: ["tamagui"],
        config: "./src/tamagui.config.ts",
+diff --git a/node_modules/@tamagui/vite-plugin/package.json b/node_modules/@tamagui/vite-plugin/package.json
+index 13ae8df..382a3cf 100644
+--- a/node_modules/@tamagui/vite-plugin/package.json
++++ b/node_modules/@tamagui/vite-plugin/package.json
+@@ -1,6 +1,7 @@
+ {
+   "name": "@tamagui/vite-plugin",
+   "version": "1.92.1",
++  "type": "module",
+   "types": "./types/index.d.ts",
+   "main": "./dist/cjs/index.js",
+   "module": "./dist/esm/index.js",
+@@ -21,7 +22,7 @@
+     ".": {
+       "types": "./types/index.d.ts",
+       "require": "./dist/cjs/index.js",
+-      "import": "./dist/esm/index.js",
++      "import": "./dist/esm/index.mjs",
+       "react-native": "./dist/cjs/index.native.js"
+     }
+   },
