@@ -126,7 +126,7 @@ const ReplyMessage = React.memo<
       ref
     ) => {
       const [searchParms, setSearchParams] = useSearchParams();
-      const isEditing = searchParms.get('edit') === reply.seal.id;
+      const isEditing = searchParms.get('editReply') === reply.seal.id;
       const isEdited = useIsEdited(reply);
       const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
