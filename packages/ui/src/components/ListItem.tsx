@@ -22,6 +22,7 @@ export interface BaseListItemProps<T> {
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   highlighted?: boolean;
+  unreadCount?: number;
 }
 
 export type ListItemProps<T> = BaseListItemProps<T> &
@@ -118,7 +119,6 @@ const ListItemMainContent = styled(YStack, {
 });
 
 const ListItemTitle = styled(SizableText, {
-  // lineHeight: 0,
   alignItems: "baseline",
   color: "$red",
 

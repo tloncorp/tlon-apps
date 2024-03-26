@@ -1,20 +1,16 @@
-import type { ClientTypes as Client } from "@tloncorp/shared";
-import { ListItem, type ListItemProps } from "../ListItem";
-import { useMemo } from "react";
+import type { ClientTypes as Client } from '@tloncorp/shared';
+import { ListItem, type ListItemProps } from '../ListItem';
+import { useMemo } from 'react';
 
 export default function ListItemContent({
   model,
   onPress,
   onLongPress,
+  unreadCount,
   ...props
 }: ListItemProps<Client.Group>) {
-  const unreadCount = useMemo(() => {
-    // return db.getUnreadChannelCount(model);
-    return 4;
-  }, [model]);
-
   const lastPostAt = useMemo(() => {
-    return new Date("2024-01-01 20:38:00");
+    return new Date('2024-01-01 20:38:00');
   }, []);
 
   return (
@@ -42,7 +38,7 @@ export default function ListItemContent({
             {lastPostAt.toLocaleDateString()}
           </ListItem.Time>
         ) : null}
-        {unreadCount > 0 ? (
+        {unreadCount && unreadCount > 0 ? (
           <ListItem.Count>{unreadCount}</ListItem.Count>
         ) : null}
       </ListItem.EndContent>
