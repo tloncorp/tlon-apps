@@ -9,6 +9,7 @@ export function Avatar({
 }: {
   contact: Client.Contact;
 } & ViewProps) {
+  // TODO: is there a better way to do this? Could we modify usage in web to match native?
   // on native, we have to pass height/width for the source prop, on web we want to use other attributes
   // to set those
   const nativeDims = useMemo(

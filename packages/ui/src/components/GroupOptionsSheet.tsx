@@ -16,6 +16,7 @@ export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {
       modal
       dismissOnSnapToBottom
       snapPointsMode="fit"
+      // TODO: Figure out why typescript is complaining about the animation prop
       animation="quick"
     >
       <Sheet.Overlay animation="quick" />
@@ -28,6 +29,7 @@ export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {
           paddingBottom="$4xl"
         >
           <Stack paddingBottom="$m" flexDirection="column">
+            {/* TODO: Convert all of these Text components to SizableText */}
             <Text fontSize="$l" fontWeight="500">
               {group?.title}
             </Text>

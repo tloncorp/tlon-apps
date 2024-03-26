@@ -10,6 +10,7 @@ export const GroupListItem = ({
   unreadCount,
   ...props
 }: ListItemProps<Client.Group>) => {
+  // TODO: Figure out if this is necessary. Why can't we use Tamagui's long press handler?
   const attributes = useLongPress(
     () => {
       onLongPress?.(model);
