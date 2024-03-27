@@ -56,15 +56,15 @@ module.exports = mergeConfig(config, {
 
 function openDrizzleStudio(dbPath) {
   const ps = spawn(
-    'npx',
-    `drizzle-kit studio --config ./drizzle-studio.config.ts`.split(' '),
+    '../../node_modules/.bin/drizzle-kit',
+    `studio --config ./drizzle-studio.config.ts`.split(' '),
     {
       env: { ...process.env, DB_URL: dbPath },
       cwd: projectRoot,
     }
   );
   process.on('exit', function () {
-    ps.kill();
+    ps.kill(9);
   });
   import('open').then(({ default: open }) =>
     open('http://local.drizzle.studio')
