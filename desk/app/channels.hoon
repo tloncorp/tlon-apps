@@ -767,7 +767,7 @@
   ::
   ++  ca-has-sub
     ^-  ?
-    (~(has by wex.bowl) [ca-sub-wire ship.nest dap.bowl])
+    (~(has by wex.bowl) [ca-sub-wire ship.nest server])
   ::
   ++  ca-safe-sub
     |=  delay=?
@@ -1864,6 +1864,17 @@
   ::
   ++  ca-recheck
     |=  sects=(set sect:g)
+    =/  =flag:g  group.perm.perm.channel
+    =/  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    =/  exists-path  (weld groups-prefix /exists/(scot %p p.flag)/[q.flag])
+    =+  .^(exists=? %gx exists-path)
+    ?.  exists  ca-core
+    =/  =path
+      %+  weld
+        groups-prefix
+      /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
+    =+  .^(group=group-ui:g %gx path)
+    ?.  (~(has by channels.group) nest)  ca-core
     ::  if our read permissions restored, re-subscribe
     ?:  (can-read:ca-perms our.bowl)  (ca-safe-sub |)
     ca-core
