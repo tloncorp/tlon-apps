@@ -34,7 +34,7 @@ const IconGraphic = styled(
   RawIconGraphic,
   {},
   {
-    acceptTokens: {
+    accept: {
       color: "color",
       width: "size",
       height: "size",

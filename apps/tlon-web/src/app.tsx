@@ -1,5 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { TamaguiProvider, config } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -156,15 +157,17 @@ const SuspendedDiaryAddNote = (
 );
 
 interface RoutesProps {
-  state: { backgroundLocation?: Location } | null;
-  location: Location;
   isMobile: boolean;
   isSmall: boolean;
 }
 
-function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
+  const location = useLocation();
+  const currentTheme = useLocalState((s) => s.currentTheme);
+
+  const state = location.state as { backgroundLocation?: Location } | null;
 
   useEffect(() => {
     if (loaded) {
@@ -179,7 +182,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   }, [loaded]);
 
   return (
-    <>
+    <TamaguiProvider config={config} defaultTheme={currentTheme}>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
@@ -556,9 +559,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           ) : null}
         </Routes>
       ) : null}
-    </>
+    </TamaguiProvider>
   );
-}
+});
 
 function authRedirect() {
   document.location = `${document.location.protocol}//${document.location.host}`;
@@ -613,7 +616,6 @@ function App() {
   useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
-  const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
 
@@ -637,20 +639,13 @@ function App() {
     })();
   }, [handleError]);
 
-  const state = location.state as { backgroundLocation?: Location } | null;
-
   return (
     <div className="flex h-full w-full flex-col">
       <DisconnectNotice />
       <LeapProvider>
         <ChatInputFocusProvider>
           <DragAndDropProvider>
-            <GroupsRoutes
-              state={state}
-              location={location}
-              isMobile={isMobile}
-              isSmall={isSmall}
-            />
+            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
           </DragAndDropProvider>
         </ChatInputFocusProvider>
         <Leap />

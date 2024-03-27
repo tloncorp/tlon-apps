@@ -45,6 +45,17 @@ def shared(podfile_properties)
   # Flags change depending on the env values.
   flags = get_default_flags()
 
+  # Fixes issue described here: https://github.com/OP-Engineering/op-sqlite/issues/42
+  pre_install do |installer|
+    installer.pod_targets.each do |pod|
+      if pod.name.eql?('op-sqlite')
+        def pod.build_type
+          Pod::BuildType.static_library
+        end
+      end
+    end
+  end
+
   use_react_native!(
     :path => $config[:reactNativePath],
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
