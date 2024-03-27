@@ -1,5 +1,5 @@
-import type { ClientTypes as Client } from "../client";
-import { subscribeChannelUnreads, subscribeDMUnreads } from "./unreadsApi";
+import type { ClientTypes as Client } from '../client';
+import { subscribeChannelUnreads, subscribeDMUnreads } from './unreadsApi';
 
 export const subscribeUnreads = async () => {
   // TODO: Allow caller to pass in a handler

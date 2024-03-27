@@ -5,13 +5,13 @@ import {
   test,
   vi,
   MockedFunction,
-} from "vitest";
-import { syncContacts, syncPinnedItems } from "./sync";
-import { setupDb, resetDb } from "./test/helpers";
-import { scry } from "./api/urbit";
-import { Contact as UrbitContact } from "./urbit/contact";
-import * as db from "./db";
-import rawContactsData from "./test/contacts.json";
+} from 'vitest';
+import { syncContacts, syncPinnedItems } from './sync';
+import { setupDb, resetDb } from './test/helpers';
+import { scry } from './api/urbit';
+import { Contact as UrbitContact } from './urbit/contact';
+import * as db from './db';
+import rawContactsData from './test/contacts.json';
 
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 
@@ -24,27 +24,27 @@ beforeEach(async () => {
 });
 
 const inputData = [
-  "0v4.00000.qd4mk.d4htu.er4b8.eao21",
-  "~solfer-magfed",
-  "~nibset-napwyn/tlon",
+  '0v4.00000.qd4mk.d4htu.er4b8.eao21',
+  '~solfer-magfed',
+  '~nibset-napwyn/tlon',
 ];
 
 const outputData = [
   {
-    type: "club",
+    type: 'club',
     itemId: inputData[0],
   },
   {
-    type: "dm",
+    type: 'dm',
     itemId: inputData[1],
   },
   {
-    type: "group",
+    type: 'group',
     itemId: inputData[2],
   },
 ];
 
-vi.mock("./api/urbit", async () => {
+vi.mock('./api/urbit', async () => {
   return {
     scry: vi.fn(),
   };
@@ -56,17 +56,17 @@ function setScryOutput<T>(output: T) {
   );
 }
 
-test("syncs pins", async () => {
+test('syncs pins', async () => {
   setScryOutput(inputData);
   await syncPinnedItems();
   const savedItems = await db.getPinnedItems({
-    orderBy: "type",
-    direction: "asc",
+    orderBy: 'type',
+    direction: 'asc',
   });
   expect(savedItems).toEqual(outputData);
 });
 
-test("syncs contacts", async () => {
+test('syncs contacts', async () => {
   setScryOutput(contactsData);
   await syncContacts();
   const storedContacts = await db.getContacts();

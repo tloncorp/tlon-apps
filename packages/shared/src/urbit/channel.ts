@@ -462,15 +462,16 @@ export function isCite(s: Block): boolean {
 export function blockContentIsImage(content: Story) {
   return (
     content.length > 0 &&
-    content.filter(c => 'block' in c).length > 0 &&
-    isImage((content.filter(c => 'block' in c)[0] as VerseBlock).block)
+    content.filter((c) => 'block' in c).length > 0 &&
+    isImage((content.filter((c) => 'block' in c)[0] as VerseBlock).block)
   );
 }
 
 export function imageUrlFromContent(content: Story) {
   if (blockContentIsImage(content)) {
-    return ((content.filter(c => 'block' in c)[0] as VerseBlock).block as Image)
-      .image.src;
+    return (
+      (content.filter((c) => 'block' in c)[0] as VerseBlock).block as Image
+    ).image.src;
   }
   return undefined;
 }
@@ -478,16 +479,16 @@ export function imageUrlFromContent(content: Story) {
 export function chatStoryFromStory(story: Story): ChatStory {
   const newCon: ChatStory = {
     inline: [],
-    block: []
+    block: [],
   };
 
   const inlines: Inline[] = story
-    .filter(s => 'inline' in s)
-    .map(s => (s as VerseInline).inline)
+    .filter((s) => 'inline' in s)
+    .map((s) => (s as VerseInline).inline)
     .flat();
   const blocks: ChatBlock[] = story
-    .filter(s => 'block' in s)
-    .map(s => (s as VerseBlock).block as ChatBlock)
+    .filter((s) => 'block' in s)
+    .map((s) => (s as VerseBlock).block as ChatBlock)
     .flat();
 
   newCon.inline = inlines;
@@ -504,7 +505,7 @@ export function storyFromChatStory(chatStory: ChatStory): Story {
 
   newStory.push({ inline: inlines });
 
-  blocks.forEach(b => {
+  blocks.forEach((b) => {
     newStory.push({ block: b });
   });
 
@@ -541,30 +542,30 @@ export const emptyPost: Post = {
     meta: {
       replyCount: 0,
       lastRepliers: [],
-      lastReply: null
-    }
+      lastReply: null,
+    },
   },
   revision: '0',
   essay: {
     author: '',
     content: [],
     sent: 0,
-    'kind-data': { chat: null }
-  }
+    'kind-data': { chat: null },
+  },
 };
 
 export const emptyReply: Reply = {
   seal: {
     id: '',
     'parent-id': '',
-    reacts: {}
+    reacts: {},
   },
   revision: '0',
   memo: {
     author: '',
     content: [],
-    sent: 0
-  }
+    sent: 0,
+  },
 };
 
 export function constructStory(
@@ -582,8 +583,8 @@ export function constructStory(
       'header',
       'rule',
       'cite',
-      codeAsBlock ? 'code' : ''
-    ].some(k => typeof c !== 'string' && k in c);
+      codeAsBlock ? 'code' : '',
+    ].some((k) => typeof c !== 'string' && k in c);
   const postContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
@@ -597,7 +598,7 @@ export function constructStory(
     } else {
       const inline = _.takeWhile(
         _.drop(data, index),
-        d => !isBlock(d)
+        (d) => !isBlock(d)
       ) as Inline[];
       postContent.push({ inline });
       index += inline.length;
@@ -629,7 +630,7 @@ export function newPostTupleArray(
 
   return _.uniqBy(
     data.pages
-      .map(page => {
+      .map((page) => {
         const pagePosts = Object.entries(page.posts).map(
           ([k, v]) => [bigInt(udToDec(k)), v] as PostTuple
         );

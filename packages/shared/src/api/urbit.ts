@@ -1,9 +1,9 @@
-import { deSig } from "@urbit/aura";
-import { Urbit } from "@urbit/http-api";
+import { deSig } from '@urbit/aura';
+import { Urbit } from '@urbit/http-api';
 
 const config = {
-  shipName: "",
-  shipUrl: "",
+  shipName: '',
+  shipUrl: '',
 };
 
 let clientInstance: Urbit | null = null;
@@ -13,7 +13,7 @@ export const client = new Proxy(
   {
     get: function (target, prop, receiver) {
       if (!clientInstance) {
-        throw new Error("Database not set.");
+        throw new Error('Database not set.');
       }
       return Reflect.get(clientInstance, prop, receiver);
     },
@@ -33,12 +33,12 @@ export function configureClient({
   clientInstance.ship = deSig(shipName);
   clientInstance.verbose = true;
 
-  clientInstance.on("status-update", (status) => {
+  clientInstance.on('status-update', (status) => {
     console.log(`client status:`, status);
   });
 
-  clientInstance.on("error", (error) => {
-    console.error("client error:", error);
+  clientInstance.on('error', (error) => {
+    console.error('client error:', error);
   });
 }
 
@@ -61,7 +61,7 @@ export function subscribe<T>(
   handler: (update: T) => void
 ) {
   if (!clientInstance) {
-    throw new Error("Tied to subscribe, but Urbit client is not initialized");
+    throw new Error('Tied to subscribe, but Urbit client is not initialized');
   }
 
   clientInstance.subscribe({
@@ -83,7 +83,7 @@ export function subscribe<T>(
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);
   config.shipUrl = shipUrl;
-  console.debug("Configured new Urbit API for", shipName);
+  console.debug('Configured new Urbit API for', shipName);
 };
 
 export const poke = async ({
@@ -102,12 +102,12 @@ export const poke = async ({
   });
 
 export const scry = async <T>({ app, path }: { app: string; path: string }) => {
-  console.log("Scry", `${config.shipUrl}/~/scry/${app}${path}.json`);
+  console.log('Scry', `${config.shipUrl}/~/scry/${app}${path}.json`);
   return fetch(`${config.shipUrl}/~/scry/${app}${path}.json`, {
     headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
     },
-    credentials: "include",
+    credentials: 'include',
   }).then((res) => res.json()) as Promise<T>;
 };

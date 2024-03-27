@@ -19,7 +19,7 @@ export const UrbitSigil = View.styleable<{
         space: 'none',
         foreground: '#ffffff',
         // typescript thinks theme.darkBackground could be undefined
-        background: theme.darkBackground?.val
+        background: theme.darkBackground?.val,
       }),
     [ship]
   );

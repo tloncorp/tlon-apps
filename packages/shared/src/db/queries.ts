@@ -1,8 +1,8 @@
-import { Column, count, sql, eq, and, gt } from "drizzle-orm";
-import { SQLiteTable, SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
-import { client } from "./client";
-import * as schemas from "./schema";
-import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from "./types";
+import { Column, count, sql, eq, and, gt } from 'drizzle-orm';
+import { SQLiteTable, SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core';
+import { client } from './client';
+import * as schemas from './schema';
+import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from './types';
 
 export const getGroups = async () => {
   return client.query.groups.findMany({
@@ -24,11 +24,11 @@ export const insertGroup = async (group: GroupInsert) => {
         .onConflictDoUpdate({
           target: [schemas.groupRoles.groupId, schemas.groupRoles.id],
           set: conflictUpdateSet(schemas.groupRoles, [
-            "groupId",
-            "iconImage",
-            "coverImage",
-            "title",
-            "description",
+            'groupId',
+            'iconImage',
+            'coverImage',
+            'title',
+            'description',
           ]),
         });
     }
@@ -46,7 +46,7 @@ export const insertGroup = async (group: GroupInsert) => {
           // exist in the group's cabals. Should figure out if this is expected
           // behavior if we should try retain the role.
           if (!validRoleNames?.includes(r.roleId)) {
-            console.warn("discarding invalid role", r.contactId, r.roleId);
+            console.warn('discarding invalid role', r.contactId, r.roleId);
             return [];
           }
           return {
@@ -67,12 +67,12 @@ export const insertGroup = async (group: GroupInsert) => {
         .onConflictDoUpdate({
           target: [schemas.channels.id],
           set: conflictUpdateSet(schemas.channels, [
-            "iconImage",
-            "coverImage",
-            "title",
-            "description",
-            "addedToGroupAt",
-            "currentUserIsMember",
+            'iconImage',
+            'coverImage',
+            'title',
+            'description',
+            'addedToGroupAt',
+            'currentUserIsMember',
           ]),
         });
     }
@@ -85,7 +85,7 @@ export function getGroupRoles(groupId: string) {
   return client.query.groupRoles.findMany();
 }
 
-export async function getUnreadsCount({ type }: { type?: Unread["type"] }) {
+export async function getUnreadsCount({ type }: { type?: Unread['type'] }) {
   const result = await client
     .select({ count: count() })
     .from(schemas.unreads)
@@ -100,8 +100,8 @@ export async function getUnreadsCount({ type }: { type?: Unread["type"] }) {
 
 export async function getAllUnreadsCounts() {
   const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-    getUnreadsCount({ type: "channel" }),
-    getUnreadsCount({ type: "dm" }),
+    getUnreadsCount({ type: 'channel' }),
+    getUnreadsCount({ type: 'dm' }),
   ]);
   return {
     channels: channelUnreadCount ?? 0,
@@ -174,7 +174,7 @@ export const insertContacts = async (contactsData: ContactInsert[]) => {
     .onConflictDoNothing();
 };
 
-export const insertUnreads = async (unreads: Insertable<"unreads">[]) => {
+export const insertUnreads = async (unreads: Insertable<'unreads'>[]) => {
   return client
     .insert(schemas.unreads)
     .values(unreads)
@@ -192,12 +192,12 @@ export const insertPinnedItems = async (pinnedItems: Pin[]) => {
 
 export const getPinnedItems = async (params?: {
   orderBy?: keyof Pin;
-  direction?: "asc" | "desc";
+  direction?: 'asc' | 'desc';
 }) => {
   return client.query.pins.findMany({
     orderBy: params?.orderBy
       ? (pins, { asc, desc }) => [
-          (params.direction === "asc" ? asc : desc)(pins[params.orderBy!]),
+          (params.direction === 'asc' ? asc : desc)(pins[params.orderBy!]),
         ]
       : undefined,
   });
@@ -207,7 +207,7 @@ export const getPinnedItems = async (params?: {
 
 export function conflictUpdateSet<TTable extends SQLiteTable>(
   table: TTable,
-  columns: (keyof TTable["_"]["columns"] & keyof TTable)[]
+  columns: (keyof TTable['_']['columns'] & keyof TTable)[]
 ): SQLiteUpdateSetSource<TTable> {
   return Object.assign(
     {},

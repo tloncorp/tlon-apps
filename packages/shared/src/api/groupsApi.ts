@@ -1,12 +1,12 @@
-import { Pin } from "../db";
-import * as db from "../db";
-import type * as ub from "../urbit/groups";
-import { scry } from "./urbit";
+import { Pin } from '../db';
+import * as db from '../db';
+import type * as ub from '../urbit/groups';
+import { scry } from './urbit';
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
-    app: "groups-ui",
-    path: "/pins",
+    app: 'groups-ui',
+    path: '/pins',
   });
   return toClientPinnedItems(pinnedItems);
 };
@@ -24,13 +24,13 @@ export const toClientPinnedItem = (rawItem: string): Pin => {
 };
 
 export const getPinnedItemType = (rawItem: string) => {
-  if (rawItem.startsWith("~")) {
-    if (rawItem.split("/").length === 2) {
-      return "group";
+  if (rawItem.startsWith('~')) {
+    if (rawItem.split('/').length === 2) {
+      return 'group';
     }
-    return "dm";
+    return 'dm';
   } else {
-    return "club";
+    return 'club';
   }
 };
 
@@ -43,8 +43,8 @@ export const getGroups = async (
     includeMembers: false,
   }
 ) => {
-  const path = includeMembers ? "/groups" : "/groups/light";
-  const groupData = await scry<ub.Groups>({ app: "groups", path });
+  const path = includeMembers ? '/groups' : '/groups/light';
+  const groupData = await scry<ub.Groups>({ app: 'groups', path });
   return toClientGroups(groupData);
 };
 
@@ -73,7 +73,7 @@ export function toClientGroup(id: string, group: ub.Group): db.GroupInsert {
     id,
     ...toClientGroupMetadata(group),
     roles,
-    navSections: group["zone-ord"]
+    navSections: group['zone-ord']
       ?.map((zoneId, i) => {
         const zone = group.zones?.[zoneId];
         if (!zone) {
@@ -162,9 +162,9 @@ function toClientGroupMember(
 }
 
 function omitEmpty(val: string) {
-  return val === "" ? null : val;
+  return val === '' ? null : val;
 }
 
 function isColor(value: string) {
-  return value[0] === "#";
+  return value[0] === '#';
 }

@@ -6,7 +6,7 @@ export function GroupList({
   pinned,
   other,
   onGroupLongPress,
-  onGroupPress
+  onGroupPress,
 }: {
   pinned: ClientTypes.Group[];
   other: ClientTypes.Group[];
@@ -26,7 +26,7 @@ export function GroupList({
             Pinned
           </Text>
         )}
-        {pinned.map(item => (
+        {pinned.map((item) => (
           <GroupListItem
             model={item}
             onPress={() => onGroupPress?.(item)}
@@ -46,7 +46,7 @@ export function GroupList({
             Other
           </Text>
         )}
-        {other.map(item => (
+        {other.map((item) => (
           <GroupListItem
             model={item}
             onPress={() => onGroupPress?.(item)}

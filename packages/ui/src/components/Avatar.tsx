@@ -1,7 +1,7 @@
-import * as db from "@tloncorp/shared/dist/db";
-import { useMemo } from "react";
-import { Image, View, ViewProps, isWeb } from "tamagui";
-import { UrbitSigil } from "./UrbitSigil";
+import * as db from '@tloncorp/shared/dist/db';
+import { useMemo } from 'react';
+import { Image, View, ViewProps, isWeb } from 'tamagui';
+import { UrbitSigil } from './UrbitSigil';
 
 export function Avatar({
   contact,
