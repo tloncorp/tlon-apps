@@ -4,7 +4,7 @@ import polyfill from 'react-native-polyfill-globals';
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
-// Setup custom dev meun items
+// Setup custom dev menu items
 import './src/lib/devMenuItems';
 import { setupDb } from './src/lib/nativeDb';
 import utilities from './tailwind.json';
