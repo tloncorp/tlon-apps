@@ -23,8 +23,9 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
 
   useEffect(() => {
     configureClient(ship ?? '', shipUrl ?? '');
-    sync.syncContacts();
-    sync.syncUnreads();
+    Promise.all([sync.syncContacts(), sync.syncUnreads()]).catch((e) => {
+      console.log('Sync failed', e);
+    });
     subscribeUnreads();
   }, [ship, shipUrl]);
 

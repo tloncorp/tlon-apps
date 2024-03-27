@@ -17,6 +17,9 @@ export function setupDb() {
     return;
   }
   connection = open({ location: 'default', name: 'tlon.sqlite' });
+  connection.updateHook((a) => {
+    console.log('update', a);
+  });
   client = drizzle(connection, {
     schema,
   });

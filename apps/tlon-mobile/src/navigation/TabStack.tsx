@@ -1,4 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { ClientTypes as Client } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
 import {
   Avatar,
@@ -11,17 +13,28 @@ import {
 import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';
-import { fallbackContact } from '../db';
-import { useContact, useUnreadChannelsCount } from '../db/hooks';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
+function fallbackContact(id: string): Client.Contact {
+  return {
+    id,
+    nickname: null,
+    bio: null,
+    status: null,
+    color: null,
+    avatarImage: null,
+    coverImage: null,
+    pinnedGroupIds: [],
+  };
+}
+
 export const TabStack = () => {
   const { ship } = useShip();
-  const unreadCount = useUnreadChannelsCount();
+  const unreadCount = db.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
   }) as ViewStyle;
@@ -60,7 +73,7 @@ export const TabStack = () => {
               type={'Home'}
               activeType={'HomeFilled'}
               isActive={focused}
-              hasUnreads={unreadCount.groups > 0}
+              hasUnreads={(unreadCount?.channels ?? 0) > 0}
             />
           ),
           tabBarShowLabel: false,
@@ -75,7 +88,7 @@ export const TabStack = () => {
               type={'Messages'}
               activeType={'MessagesFilled'}
               isActive={focused}
-              hasUnreads={unreadCount.dms > 0}
+              hasUnreads={(unreadCount?.dms ?? 0) > 0}
             />
           ),
           tabBarShowLabel: false,
@@ -110,7 +123,8 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const contact = useContact(id);
+  const contact = db.useContact(id);
+  console.log('Contact', contact, id);
   return (
     <Avatar
       contact={contact ?? fallbackContact(id)}

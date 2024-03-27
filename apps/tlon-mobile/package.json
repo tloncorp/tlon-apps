@@ -39,7 +39,6 @@
     "@react-navigation/bottom-tabs": "^6.5.12",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
-    "@realm/react": "^0.6.2",
     "@tloncorp/shared": "*",
     "@tloncorp/ui": "*",
     "@urbit/aura": "^1.0.0",
@@ -82,7 +81,6 @@
     "react-native-svg": "^14.1.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-webview": "13.6.4",
-    "realm": "^12.6.0",
     "tailwind-rn": "^4.2.0",
     "text-encoding": "^0.7.0",
     "web-streams-polyfill": "^3.3.3"

@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach, expect, test } from "vitest";
 import { toClientGroups } from "../api/groupsApi";
-import { resetDb, setupDb } from "../test/testHelpers";
+import { resetDb, setupDb } from "../test/helpers";
 import type * as ub from "../urbit/groups";
-import groupsResponse from "./groups.json";
+import groupsResponse from "../test/groups.json";
 import * as queries from "./queries";
 
 const groupsData = toClientGroups(

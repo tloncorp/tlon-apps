@@ -61,7 +61,7 @@ export const unreads = sqliteTable("unreads", {
   channelId: text("channelId")
     .primaryKey()
     .references(() => channels.id),
-  type: text("type"),
+  type: text("type").$type<"channel" | "dm">(),
   totalCount: integer("totalCount"),
 });
 

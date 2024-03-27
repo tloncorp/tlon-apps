@@ -1,8 +1,8 @@
-import { Column, count, sql } from "drizzle-orm";
+import { Column, count, sql, eq, and, gt } from "drizzle-orm";
 import { SQLiteTable, SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import { client } from "./client";
 import * as schemas from "./schema";
-import { ContactInsert, GroupInsert, Insertable, Pin } from "./types";
+import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from "./types";
 
 export const getGroups = async () => {
   return client.query.groups.findMany({
@@ -85,16 +85,29 @@ export function getGroupRoles(groupId: string) {
   return client.query.groupRoles.findMany();
 }
 
-export function conflictUpdateSet<TTable extends SQLiteTable>(
-  table: TTable,
-  columns: (keyof TTable["_"]["columns"] & keyof TTable)[]
-): SQLiteUpdateSetSource<TTable> {
-  return Object.assign(
-    {},
-    ...columns.map((k) => ({
-      [k]: sql.raw(`excluded.${(table[k] as unknown as Column).name}`),
-    }))
-  ) as SQLiteUpdateSetSource<TTable>;
+export async function getUnreadsCount({ type }: { type?: Unread["type"] }) {
+  const result = await client
+    .select({ count: count() })
+    .from(schemas.unreads)
+    .where(() =>
+      and(
+        gt(schemas.unreads.totalCount, 0),
+        type ? eq(schemas.unreads.type, type) : undefined
+      )
+    );
+  return result[0].count;
+}
+
+export async function getAllUnreadsCounts() {
+  const [channelUnreadCount, dmUnreadCount] = await Promise.all([
+    getUnreadsCount({ type: "channel" }),
+    getUnreadsCount({ type: "dm" }),
+  ]);
+  return {
+    channels: channelUnreadCount ?? 0,
+    dms: dmUnreadCount ?? 0,
+    total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
+  };
 }
 
 export const insertGroups = async (groupData: GroupInsert[]) => {
@@ -154,7 +167,11 @@ export const insertContacts = async (contactsData: ContactInsert[]) => {
     .insert(schemas.groups)
     .values(targetGroups)
     .onConflictDoNothing();
-  await client.insert(schemas.contactGroups).values(contactGroups);
+  // TODO: Remove stale pinned groups
+  await client
+    .insert(schemas.contactGroups)
+    .values(contactGroups)
+    .onConflictDoNothing();
 };
 
 export const insertUnreads = async (unreads: Insertable<"unreads">[]) => {
@@ -185,3 +202,17 @@ export const getPinnedItems = async (params?: {
       : undefined,
   });
 };
+
+// Helpers
+
+export function conflictUpdateSet<TTable extends SQLiteTable>(
+  table: TTable,
+  columns: (keyof TTable["_"]["columns"] & keyof TTable)[]
+): SQLiteUpdateSetSource<TTable> {
+  return Object.assign(
+    {},
+    ...columns.map((k) => ({
+      [k]: sql.raw(`excluded.${(table[k] as unknown as Column).name}`),
+    }))
+  ) as SQLiteUpdateSetSource<TTable>;
+}

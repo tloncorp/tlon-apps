@@ -24,5 +24,8 @@
     "better-sqlite3": "^9.4.3",
     "drizzle-kit": "^0.20.14",
     "vitest": "^1.4.0"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
   }
 }

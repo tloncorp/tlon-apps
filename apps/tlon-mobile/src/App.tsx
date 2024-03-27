@@ -18,7 +18,6 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
-import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { useMigrations } from './lib/nativeDb';
@@ -198,20 +197,18 @@ function MigrationCheck({ children }: PropsWithChildren) {
 export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <db.RealmProvider>
-      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-        <ShipProvider>
-          <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-            <BranchProvider>
-              <PostHogProvider client={posthogAsync} autocapture>
-                <MigrationCheck>
-                  <App {...props} />
-                </MigrationCheck>
-              </PostHogProvider>
-            </BranchProvider>
-          </NavigationContainer>
-        </ShipProvider>
-      </TamaguiProvider>
-    </db.RealmProvider>
+    <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+      <ShipProvider>
+        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+          <BranchProvider>
+            <PostHogProvider client={posthogAsync} autocapture>
+              <MigrationCheck>
+                <App {...props} />
+              </MigrationCheck>
+            </PostHogProvider>
+          </BranchProvider>
+        </NavigationContainer>
+      </ShipProvider>
+    </TamaguiProvider>
   );
 }
