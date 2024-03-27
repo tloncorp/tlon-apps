@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
-import * as queries from "./queries";
-import { Contact } from "./types";
+import React, { useState, useEffect } from 'react';
+import * as queries from './queries';
+import { Contact } from './types';
 
 export const useContact = (id: string) => {
   const [contact, setContact] = useState<Contact | null>(null);
   useEffect(() => {
-    if (!id.startsWith("~")) {
+    if (!id.startsWith('~')) {
       console.warn(
-        "malformed contact id passed to useContact:",
+        'malformed contact id passed to useContact:',
         id,
-        "should start with a ~"
+        'should start with a ~'
       );
     }
   }, [id]);

@@ -6,4 +6,4 @@ export {
   ZStack,
   YStack,
   Stack,
-} from "tamagui";
+} from 'tamagui';

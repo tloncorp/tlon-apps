@@ -20,7 +20,7 @@ export const UrbitSigil = View.styleable<{
             space: 'none',
             // TODO: Should correctly set the foreground based on the background
             foreground: '#ffffff',
-            background: theme.darkBackground.val
+            background: theme.darkBackground.val,
           })
         : null,
     [ship]

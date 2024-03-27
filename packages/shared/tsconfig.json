@@ -8,8 +8,5 @@
     "module": "NodeNext",
     "jsx": "react-jsx"
   },
-  "exclude": [
-    "../../node_modules",
-    "public"
-  ]
+  "exclude": ["../../node_modules", "public"]
 }
