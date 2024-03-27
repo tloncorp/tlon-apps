@@ -1,4 +1,5 @@
 import { sync } from '@tloncorp/shared';
+import { subscribeUnreads } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -8,7 +9,6 @@ import { WebviewProvider } from '../contexts/webview/webview';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
-import { subscribeUnreads } from '../lib/subscribe';
 import { TabStack } from '../navigation/TabStack';
 import WebviewOverlay from './WebviewOverlay';
 
