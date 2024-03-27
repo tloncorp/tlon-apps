@@ -42,8 +42,6 @@ window.addEventListener('error', (e) => {
   captureError('window', e.error);
 });
 
-globalThis['global'] = globalThis;
-
 const container = document.getElementById('app') as HTMLElement;
 const root = createRoot(container);
 root.render(
