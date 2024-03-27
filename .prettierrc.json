@@ -9,6 +9,12 @@
   "semi": true,
   "overrides": [
     {
+      "files": ["*.html"],
+      "options": {
+        "htmlWhitespaceSensitivity": "ignore"
+      }
+    },
+    {
       "files": ["*.md"],
       "options": {
         "tabWidth": 4,
