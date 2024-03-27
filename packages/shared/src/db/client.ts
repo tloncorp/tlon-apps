@@ -1,8 +1,11 @@
 import type { QueryResult } from "@op-engineering/op-sqlite";
 import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { SqliteRemoteResult } from "drizzle-orm/sqlite-proxy";
+
 import { Schema } from "./types";
 
+// Should work for OPSQLiteBase, BetterSqlite3Database, and SQLiteRemoteDabase
+// Doesn't work with a union as there are type conflicts in the drizzle internals.
 export type AnySqliteDatabase = BaseSQLiteDatabase<
   "async",
   SqliteRemoteResult | QueryResult,
