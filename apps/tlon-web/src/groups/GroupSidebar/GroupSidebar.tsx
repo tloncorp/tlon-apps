@@ -1,6 +1,12 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import React, { useCallback, useContext, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { foregroundFromBackground } from '@/components/Avatar';
@@ -129,6 +135,12 @@ const GroupSidebar = React.memo(() => {
     () => (group ? getPrivacyFromGroup(group) : undefined),
     [group]
   );
+
+  useEffect(() => {
+    if (realGroup) {
+      lastGroupRef.current = realGroup;
+    }
+  }, [realGroup]);
 
   return (
     <nav className="flex h-full min-w-64 flex-none flex-col bg-white">

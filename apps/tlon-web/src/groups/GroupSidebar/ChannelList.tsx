@@ -139,6 +139,12 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   useEffect(() => {
+    if (realGroup) {
+      lastGroupRef.current = realGroup;
+    }
+  }, [realGroup]);
+
+  useEffect(() => {
     const currentVirtuosoRef = virtuosoRef.current;
     return () => {
       currentVirtuosoRef?.getState((state) => {
