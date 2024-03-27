@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "7ec6581f-c5a3-4782-a71c-a52b5e35d3a3",
+  "id": "c11f54f0-9a34-4c6f-b7ec-bce6936dff82",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -275,21 +275,6 @@
             "contact_id"
           ],
           "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "group_member_roles_group_id_role_id_group_roles_group_id_id_fk": {
-          "name": "group_member_roles_group_id_role_id_group_roles_group_id_id_fk",
-          "tableFrom": "group_member_roles",
-          "tableTo": "group_roles",
-          "columnsFrom": [
-            "group_id",
-            "role_id"
-          ],
-          "columnsTo": [
-            "group_id",
             "id"
           ],
           "onDelete": "no action",

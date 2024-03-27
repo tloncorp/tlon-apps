@@ -3,6 +3,7 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      // Allow sql imports so that we can bundle drizzle migrations.
       [
         'inline-import',
         {

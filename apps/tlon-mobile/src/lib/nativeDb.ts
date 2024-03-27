@@ -44,6 +44,10 @@ export async function purgeDb() {
   console.log('purged sqlite database');
 }
 
+export function getDbPath() {
+  return connection?.getDbPath();
+}
+
 export function useMigrations() {
   const startTime = useRef(Date.now());
   const result = baseUseMigrations(client!, migrations);

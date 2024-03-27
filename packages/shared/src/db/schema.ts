@@ -108,7 +108,7 @@ export const groupRoles = sqliteTable(
 );
 
 export const groupRolesRelations = relations(groupRoles, ({ one, many }) => ({
-  members: many(groupMembers),
+  members: many(groupMemberRoles),
   group: one(groups, {
     fields: [groupRoles.groupId],
     references: [groups.id],
@@ -164,10 +164,6 @@ export const groupMemberRoles = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.contactId, table.roleId],
       }),
-      role: foreignKey({
-        columns: [table.groupId, table.roleId],
-        foreignColumns: [groupRoles.groupId, groupRoles.id],
-      }),
     };
   }
 );
@@ -175,7 +171,11 @@ export const groupMemberRoles = sqliteTable(
 export const groupMemberRolesRelations = relations(
   groupMemberRoles,
   ({ one }) => ({
-    role: one(groupRoles, {
+    groupMember: one(groupMembers, {
+      fields: [groupMemberRoles.groupId, groupMemberRoles.contactId],
+      references: [groupMembers.groupId, groupMembers.contactId],
+    }),
+    groupRole: one(groupRoles, {
       fields: [groupMemberRoles.groupId, groupMemberRoles.roleId],
       references: [groupRoles.groupId, groupRoles.id],
     }),
@@ -214,6 +214,20 @@ export const groupNavSectionChannels = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.groupNavSectionId, table.channelId] }),
+  })
+);
+
+export const groupNavSectionChannelsRelations = relations(
+  groupNavSectionChannels,
+  ({ one }) => ({
+    groupNavSection: one(groupNavSections, {
+      fields: [groupNavSectionChannels.groupNavSectionId],
+      references: [groupNavSections.id],
+    }),
+    channel: one(channels, {
+      fields: [groupNavSectionChannels.channelId],
+      references: [channels.id],
+    }),
   })
 );
 

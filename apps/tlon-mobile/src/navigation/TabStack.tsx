@@ -124,7 +124,6 @@ export const TabStack = () => {
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
   const contact = db.useContact(id);
-  console.log('Contact', contact, id);
   return (
     <Avatar
       contact={contact ?? fallbackContact(id)}
