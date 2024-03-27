@@ -191,7 +191,7 @@ function MigrationCheck({ children }: PropsWithChildren) {
   if (!success && !error) {
     return null;
   }
-  return children;
+  return <>{children}</>;
 }
 
 export default function ConnectedApp(props: Props) {
