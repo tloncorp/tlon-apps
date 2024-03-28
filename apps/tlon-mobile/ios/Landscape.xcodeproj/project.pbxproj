@@ -482,7 +482,7 @@
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
 				70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
-				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */,
+				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */,
 				70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */,
 			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
@@ -1368,7 +1368,7 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */ = {
+		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
@@ -1392,7 +1392,7 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire.git" */ = {
+		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
@@ -1418,7 +1418,7 @@
 		};
 		70D386472A6098F800AFB46E /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */;
+			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */;
 			productName = Alamofire;
 		};
 		70D3866E2A60A3B300AFB46E /* UrsusSigil */ = {
@@ -1433,7 +1433,7 @@
 		};
 		70DBBFE22B7C60B50021EA96 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire.git" */;
+			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */;
 			productName = Alamofire;
 		};
 		70DBBFE42B7C60B50021EA96 /* UrsusSigil */ = {
