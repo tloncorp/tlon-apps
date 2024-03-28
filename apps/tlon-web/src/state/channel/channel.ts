@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Action,
   Channel,
@@ -53,6 +53,10 @@ import {
   LARGE_MESSAGE_FETCH_PAGE_SIZE,
   STANDARD_MESSAGE_FETCH_PAGE_SIZE,
 } from '@/constants';
+// eslint-disable-next-line import/default
+import EventProcessorWorker from '@/eventProcessorWorker?worker';
+// eslint-disable-next-line import/default
+import InfinitePostUpdaterWorker from '@/infinitePostUpdaterWorker?worker';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { isNativeApp } from '@/logic/native';
 import useReactQueryScry from '@/logic/useReactQueryScry';
@@ -87,7 +91,7 @@ async function updatePostInCache(
   queryClient.setQueryData([han, 'posts', flag, variables.postId], updater);
 }
 
-interface PostsInCachePrev {
+export interface PostsInCachePrev {
   pages: PagedPosts[];
   pageParams: PageParam[];
 }
@@ -758,104 +762,131 @@ export function useOrderedPosts(
   };
 }
 
+interface EventData {
+  type: 'post' | 'reply' | 'hiddenPosts';
+  data: (string | ChannelsSubscribeResponse)[];
+  nest?: string;
+}
+
+interface Update {
+  [key: string]: EventData;
+}
+
 export function useChannelsFirehose() {
   const [eventQueue, setEventQueue] = useState<ChannelsSubscribeResponse[]>([]);
-  const eventProcessor = useCallback((events: ChannelsSubscribeResponse[]) => {
-    const hideEvents = events.filter((e) => 'hide' in e).map((e) => e.hide);
-    if (hideEvents.length > 0) {
-      queryClient.setQueryData<HiddenPosts>(
-        ['channels', 'hidden'],
-        (d: HiddenPosts = []) => [...d, ...hideEvents]
-      );
-    }
-
-    const showEvents = events.filter((e) => 'show' in e).map((e) => e.show);
-    if (showEvents.length > 0) {
-      queryClient.setQueryData<HiddenPosts>(
-        ['channels', 'hidden'],
-        (d: HiddenPosts = []) => [...d, ...showEvents]
-      );
-    }
-
-    const postEvents = events.filter(
-      (e) =>
-        'response' in e &&
-        'post' in e.response &&
-        !('reply' in e.response.post['r-post'])
-    );
-    if (postEvents.length > 0) {
-      const channelPostEvents = Object.entries(
-        _.groupBy(postEvents, (event: ChannelsSubscribeResponse) => event.nest)
-      );
-      channelPostEvents.forEach(([nest, es]) => {
-        const key = infinitePostsKey(nest);
-        const existingQueryData = queryClient.getQueryData<
-          PostsInCachePrev | undefined
-        >(key);
-        const newData = es.reduce(
-          (prev, event) => infinitePostUpdater(prev, event),
-          existingQueryData
+  const eventProcessorWorkerRef = useRef<Worker>();
+  const infinitePostUpdaterWorkerRef = useRef<Worker>();
+  const applyUpdates = useCallback((updates: Update) => {
+    Object.entries(updates).forEach(([keyString, { type, data }]) => {
+      const key = keyString.split(',');
+      console.log('applying updates', { key, type, data });
+      if (type === 'hiddenPosts') {
+        queryClient.setQueryData(key, (oldData: HiddenPosts = []) => [
+          ...oldData,
+          ...(data as string[]),
+        ]);
+      } else {
+        const existingQueryData:
+          | PostsInCachePrev
+          | PostDataResponse
+          | undefined = queryClient.getQueryData(key);
+        // const newData = (data as ChannelsSubscribeResponse[]).reduce(
+        // (prevData, event) => {
+        // const updateFunction: (
+        // prev: PostsInCachePrev | PostDataResponse | undefined,
+        // e: ChannelsSubscribeResponse
+        // ) => PostsInCachePrev | PostDataResponse | undefined = (prev, e) =>
+        // type === 'post' &&
+        // ((prev && 'pages' in prev) || prev === undefined)
+        // ? infinitePostUpdater(prev, e)
+        // : (prev && 'seal' in prev) || prev === undefined
+        // ? replyUpdater(prev, e)
+        // : prev;
+        // return updateFunction(prevData, event);
+        // },
+        // existingQueryData
+        // );
+        updatePostInWorker(
+          type,
+          existingQueryData,
+          data[0] as ChannelsResponse,
+          key as QueryKey
         );
-        queryClient.setQueryData(key, newData);
-      });
-    }
-
-    const replyEvents = events.filter(
-      (e) =>
-        'response' in e &&
-        'post' in e.response &&
-        'reply' in e.response.post['r-post']
-    );
-    if (replyEvents.length > 0) {
-      const channelReplyEvents = Object.entries(
-        _.groupBy(replyEvents, (event: ChannelsSubscribeResponse) => {
-          if (!('post' in event.response)) {
-            return undefined;
-          }
-
-          const { nest } = event;
-          const { id } = event.response.post;
-          const time = decToUd(id);
-          return postKey(nest, time).join();
-        })
-      );
-
-      channelReplyEvents.forEach(([, es]) => {
-        const event = es[0];
-        if (!event || !('response' in event) || !('post' in event.response)) {
-          return;
-        }
-
-        const postResponse = event.response.post['r-post'];
-        const { id } = event.response.post;
-        const { nest } = event;
-        const time = decToUd(id);
-        const key = postKey(nest, time);
-        const existingQueryData = queryClient.getQueryData<
-          PostDataResponse | undefined
-        >(key);
-        const newData = es.reduce(
-          (prev, e) => replyUpdater(prev, e),
-          existingQueryData
-        );
-        queryClient.setQueryData(key, newData);
-
-        if (!('reply' in postResponse)) {
-          return;
-        }
-
-        const {
-          reply: { meta },
-        } = postResponse;
-        queryClient.setQueryData<PostsInCachePrev | undefined>(
-          infinitePostsKey(nest),
-          (d) => updateReplyMetaData(d, time, meta)
-        );
-      });
-    }
+        // queryClient.setQueryData(key, newData);
+      }
+    });
 
     setEventQueue([]);
   }, []);
+
+  useEffect(() => {
+    eventProcessorWorkerRef.current = new EventProcessorWorker();
+
+    eventProcessorWorkerRef.current.addEventListener('message', (event) => {
+      const { updates } = event.data;
+
+      applyUpdates(updates);
+    });
+
+    return () => {
+      eventProcessorWorkerRef.current?.terminate();
+    };
+  }, [applyUpdates]);
+
+  useEffect(() => {
+    infinitePostUpdaterWorkerRef.current = new InfinitePostUpdaterWorker();
+
+    infinitePostUpdaterWorkerRef.current.addEventListener(
+      'message',
+      (event) => {
+        const { queryKey, updates, statusData } = event.data;
+
+        console.log('message event received from infinitePostWorker', {
+          queryKey,
+          updates,
+        });
+        queryClient.setQueryData(
+          queryKey,
+          (prev: PostsInCachePrev | undefined) => {
+            if (!prev) {
+              return prev;
+            }
+
+            const existingQueryData = queryClient.getQueryData<
+              PostsInCachePrev | undefined
+            >(queryKey);
+            if (!shouldAddPostToCache(existingQueryData)) {
+              return prev;
+            }
+
+            return updates;
+          }
+        );
+
+        if (statusData) {
+          usePostsStore.getState().updateStatus(statusData, 'delivered');
+        }
+      }
+    );
+
+    return () => {
+      infinitePostUpdaterWorkerRef.current?.terminate();
+    };
+  }, []);
+
+  const updatePostInWorker = (
+    type: 'post' | 'reply',
+    prev: PostsInCachePrev | PostDataResponse | undefined,
+    data: ChannelsResponse,
+    queryKey: QueryKey
+  ) => {
+    infinitePostUpdaterWorkerRef.current?.postMessage({
+      queryKey,
+      prev,
+      data,
+      type,
+    });
+  };
 
   const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
     setEventQueue((prev) => [...prev, event]);
@@ -869,22 +900,13 @@ export function useChannelsFirehose() {
     });
   }, [eventHandler]);
 
-  const processQueue = useRef(
-    _.debounce(
-      (events: ChannelsSubscribeResponse[]) => {
-        eventProcessor(events);
-      },
-      300,
-      { leading: true, trailing: true }
-    )
-  );
-
   useEffect(() => {
     if (eventQueue.length === 0) {
       return;
     }
 
-    processQueue.current(eventQueue);
+    eventProcessorWorkerRef.current?.postMessage({ events: eventQueue });
+    setEventQueue([]);
   }, [eventQueue]);
 }
 

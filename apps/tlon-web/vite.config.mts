@@ -135,6 +135,9 @@ export default ({ mode }: { mode: string }) => {
 
   return defineConfig({
     base: base(mode),
+    worker: {
+      format: 'es',
+    },
     server: {
       host: 'localhost',
       port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
