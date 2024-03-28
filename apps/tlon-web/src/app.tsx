@@ -612,7 +612,7 @@ function Scheduler() {
   return null;
 }
 
-function App() {
+const App = React.memo(() => {
   useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
@@ -652,7 +652,7 @@ function App() {
       </LeapProvider>
     </div>
   );
-}
+});
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;

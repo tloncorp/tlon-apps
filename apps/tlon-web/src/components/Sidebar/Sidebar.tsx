@@ -10,7 +10,6 @@ import React, {
 
 import GroupList from '@/components/Sidebar/GroupList';
 import useGroupSort from '@/logic/useGroupSort';
-import { useIsMobile } from '@/logic/useMedia';
 import {
   useGangsWithClaim,
   useGroupsWithQuery,
@@ -32,7 +31,7 @@ import SidebarSorter from './SidebarSorter';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
 import useActiveTab from './util';
 
-export default function Sidebar() {
+const Sidebar = React.memo(() => {
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
@@ -259,32 +258,36 @@ export default function Sidebar() {
       </div>
     </nav>
   );
-}
+});
 
-function SidebarTopSection({
-  title,
-  noBorder = false,
-  children,
-  empty,
-}: {
-  title?: string;
-  noBorder?: boolean;
-  children?: React.ReactNode;
-  empty: boolean;
-}) {
-  if (empty) return null;
+const SidebarTopSection = React.memo(
+  ({
+    title,
+    noBorder = false,
+    children,
+    empty,
+  }: {
+    title?: string;
+    noBorder?: boolean;
+    children?: React.ReactNode;
+    empty: boolean;
+  }) => {
+    if (empty) return null;
 
-  return (
-    <div
-      className={cn(
-        'mb-4 flex flex-col p-2 pb-1',
-        !noBorder && 'border-t-2 border-gray-50'
-      )}
-    >
-      {title && (
-        <h2 className="p-2 text-sm font-semibold text-gray-400">{title}</h2>
-      )}
-      {children}
-    </div>
-  );
-}
+    return (
+      <div
+        className={cn(
+          'mb-4 flex flex-col p-2 pb-1',
+          !noBorder && 'border-t-2 border-gray-50'
+        )}
+      >
+        {title && (
+          <h2 className="p-2 text-sm font-semibold text-gray-400">{title}</h2>
+        )}
+        {children}
+      </div>
+    );
+  }
+);
+
+export default Sidebar;
