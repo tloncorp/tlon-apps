@@ -9,6 +9,10 @@
     "dev": "npm run build -- --watch",
     "postinstall": "npm run build",
     "test": "vitest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
+    "lint:format": "prettier src/ --write",
+    "lint:all": "npm run lint:format && npm run lint:fix",
     "generate": "npm run generate:migration",
     "generate:migration": "drizzle-kit generate:sqlite",
     "clear-schema-changes": "git checkout -f -- src/db/drizzle"

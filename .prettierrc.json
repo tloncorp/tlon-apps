@@ -5,15 +5,8 @@
   "singleQuote": true,
   "tabWidth": 2,
   "useTabs": false,
-  "trailingComma": "es5",
-  "semi": true,
+  "plugins": ["@trivago/prettier-plugin-sort-imports"],
   "overrides": [
-    {
-      "files": ["*.html"],
-      "options": {
-        "htmlWhitespaceSensitivity": "ignore"
-      }
-    },
     {
       "files": ["*.md"],
       "options": {
@@ -33,5 +26,10 @@
         "singleQuote": false
       }
     }
-  ]
+  ],
+  "semi": true,
+  "trailingComma": "es5",
+  "importOrder": ["<THIRD_PARTY_MODULES>", "^@/(.*)", "^[./]"],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true
 }
