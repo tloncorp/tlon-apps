@@ -7,6 +7,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TamaguiProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
+import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
 import { StatusBar, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,9 +18,9 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { BranchProvider, useBranch } from './contexts/branch';
 import { ShipProvider, useShip } from './contexts/ship';
-import * as db from './db';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
+import { useMigrations } from './lib/nativeDb';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
@@ -185,21 +186,29 @@ const App = ({ wer }: Props) => {
   );
 };
 
+function MigrationCheck({ children }: PropsWithChildren) {
+  const { success, error } = useMigrations();
+  if (!success && !error) {
+    return null;
+  }
+  return <>{children}</>;
+}
+
 export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <db.RealmProvider>
-      <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-        <ShipProvider>
-          <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-            <BranchProvider>
-              <PostHogProvider client={posthogAsync} autocapture>
+    <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+      <ShipProvider>
+        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+          <BranchProvider>
+            <PostHogProvider client={posthogAsync} autocapture>
+              <MigrationCheck>
                 <App {...props} />
-              </PostHogProvider>
-            </BranchProvider>
-          </NavigationContainer>
-        </ShipProvider>
-      </TamaguiProvider>
-    </db.RealmProvider>
+              </MigrationCheck>
+            </PostHogProvider>
+          </BranchProvider>
+        </NavigationContainer>
+      </ShipProvider>
+    </TamaguiProvider>
   );
 }

@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Text, TextInput, View } from 'react-native';
@@ -12,7 +13,6 @@ import {
   DEFAULT_SHIP_LOGIN_URL,
 } from '../constants';
 import { useShip } from '../contexts/ship';
-import { getLandscapeAuthCookie } from '../lib/landscapeApi';
 import type { OnboardingStackParamList } from '../types';
 import { isEulaAgreed } from '../utils/eula';
 import { getShipFromCookie } from '../utils/ship';
