@@ -81,7 +81,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups wannec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups wannec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
