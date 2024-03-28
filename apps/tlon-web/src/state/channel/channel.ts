@@ -2628,38 +2628,34 @@ export function usePostToggler(postId: string) {
   };
 }
 
-export function useMyLastMessage(
-  whom: string,
-  postId?: string
-): Post | Writ | Reply | null {
-  const isDmOrMultiDm = useIsDmOrMultiDm(whom);
-  let nest = '';
+export function useMyLastReply(nest: string, postId?: string): Reply | null {
+  const lastReply = (replies: Replies) => {
+    const myReplies = Object.entries(replies).filter(
+      ([_id, msg]) => msg?.memo.author === window.our
+    );
 
-  if (whom === '') {
-    return null;
-  }
-
-  if (!isDmOrMultiDm) {
-    nest = `chat/${whom}`;
-  }
-
-  const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
-    if (!pages || pages.length === 0) {
+    const lastReplyMessage = last(myReplies);
+    if (!lastReplyMessage) {
       return null;
     }
 
-    if ('writs' in pages[0]) {
-      // @ts-expect-error we already have a type guard
-      const writs = newWritTupleArray({ pages });
-      const myWrits = writs.filter(
-        ([_id, msg]) => msg?.essay.author === window.our
-      );
-      const lastWrit = last(myWrits);
-      if (!lastWrit) {
-        return null;
-      }
+    return lastReplyMessage[1];
+  };
 
-      return lastWrit[1];
+  const postData = postId
+    ? queryClient.getQueryData<PostDataResponse>(postKey(nest, postId))
+    : null;
+  const { replies } = postData?.seal || { replies: {} };
+
+  const memoizedLastReply = useMemo(() => lastReply(replies), [replies]);
+
+  return memoizedLastReply;
+}
+
+export function useMyLastMessage(nest: string): Post | null {
+  const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
+    if (!pages || pages.length === 0) {
+      return null;
     }
 
     if ('posts' in pages[0]) {
@@ -2678,52 +2674,14 @@ export function useMyLastMessage(
     return null;
   };
 
-  const lastReply = (replies: Replies) => {
-    const myReplies = Object.entries(replies).filter(
-      ([_id, msg]) => msg?.memo.author === window.our
-    );
-
-    const lastReplyMessage = last(myReplies);
-    if (!lastReplyMessage) {
-      return null;
-    }
-
-    return lastReplyMessage[1];
-  };
-
-  if (!isDmOrMultiDm) {
-    if (postId) {
-      const data = queryClient.getQueryData<PostDataResponse>(
-        postKey(nest, postId)
-      );
-      if (data && 'seal' in data) {
-        const { seal } = data;
-        return lastReply(seal.replies);
-      }
-    }
-
-    const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
-      infinitePostsKey(nest)
-    );
-    if (data) {
-      const { pages } = data;
-      return lastMessage(pages);
-    }
-
-    return null;
-  }
-
-  const data = queryClient.getQueryData<{ pages: PagedWrits[] }>(
-    ChatQueryKeys.infiniteDmsKey(whom)
+  const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
+    infinitePostsKey(nest)
   );
+  const { pages } = data || { pages: [] };
 
-  if (data) {
-    const { pages } = data;
+  const memoizedLastMessage = useMemo(() => lastMessage(pages), [pages]);
 
-    return lastMessage(pages);
-  }
-
-  return null;
+  return memoizedLastMessage;
 }
 
 export function useIsEdited(message: Post | Writ | Reply) {
