@@ -154,23 +154,20 @@ export default function DiaryAddNote() {
           },
         });
       } else {
-        await asyncCallWithTimeout(
-          addNote({
-            cacheId,
-            tracked: true,
-            essay: {
-              content: noteContent,
-              author: window.our,
-              sent: now,
-              'kind-data': {
-                diary: {
-                  ...values,
-                },
+        await addNote({
+          cacheId,
+          tracked: true,
+          essay: {
+            content: noteContent,
+            author: window.our,
+            sent: now,
+            'kind-data': {
+              diary: {
+                ...values,
               },
             },
-          }),
-          3000
-        );
+          },
+        });
         captureGroupsAnalyticsEvent({
           name: 'post_item',
           groupFlag: flag,
@@ -199,7 +196,9 @@ export default function DiaryAddNote() {
     if (editStatus === 'success') {
       navigate(`/groups/${flag}/channels/diary/${chFlag}`);
     } else if (addStatus === 'success' && returnTime) {
-      navigate(`/groups/${flag}/channels/diary/${chFlag}?new=${returnTime}`);
+      navigate(
+        `/groups/${flag}/channels/diary/${chFlag}?awaiting=${returnTime}`
+      );
     }
   }, [addStatus, chFlag, editStatus, flag, navigate, returnTime]);
 

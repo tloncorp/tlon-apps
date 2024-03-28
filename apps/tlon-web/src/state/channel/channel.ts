@@ -149,6 +149,11 @@ export interface State {
   [key: string]: unknown;
 }
 
+function hasId(ids: CacheId[], id: CacheId) {
+  return ids.some(
+    ({ author, sent }) => author === id.author && sent === id.sent
+  );
+}
 export const usePostsStore = create<State>((set, get) => ({
   trackedPosts: [],
   addTracked: (id) => {
@@ -157,15 +162,32 @@ export const usePostsStore = create<State>((set, get) => ({
     }));
   },
   addSent: (ids) => {
-    set((state) => ({
-      trackedPosts: [
-        ...ids.map((id) => ({ status: 'sent' as PostStatus, cacheId: id })),
-        ...state.trackedPosts,
-      ],
-    }));
+    set((state) => {
+      const newPosts = ids
+        .filter(
+          (i) =>
+            !hasId(
+              state.trackedPosts.map(({ cacheId }) => cacheId),
+              i
+            )
+        )
+        .map((id) => ({ status: 'sent' as PostStatus, cacheId: id }));
+
+      return {
+        trackedPosts: [
+          ...newPosts,
+          ...state.trackedPosts.map((p) => {
+            if (hasId(ids, p.cacheId) && p.status === 'pending') {
+              return { ...p, status: 'sent' as PostStatus };
+            }
+
+            return p;
+          }),
+        ],
+      };
+    });
   },
   updateStatus: (id, s) => {
-    log('setting status', s);
     set((state) => ({
       trackedPosts: state.trackedPosts.map(({ cacheId, status }) => {
         if (_.isEqual(cacheId, id)) {
@@ -252,7 +274,8 @@ export function usePostsOnHost(
 
 const infinitePostUpdater = (
   prev: PostsInCachePrev | undefined,
-  data: ChannelsResponse
+  data: ChannelsResponse,
+  optimistic = false
 ): PostsInCachePrev | undefined => {
   const { nest, response } = data;
 
@@ -343,7 +366,9 @@ const infinitePostUpdater = (
     if (cachedPost && id !== udToDec(unixToDa(post.essay.sent).toString())) {
       // remove cached post if it exists
       delete newFirstpage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+    }
 
+    if (!optimistic) {
       // set delivered now that we have the real post
       usePostsStore
         .getState()
@@ -637,6 +662,8 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
   const pending = usePendingPosts(nest);
 
+  console.log(pending);
+
   useEffect(() => {
     if (!pending) {
       return;
@@ -830,40 +857,6 @@ export function useOrderedPosts(
   };
 }
 
-type PostsUpdater = (
-  prev: PendingMessages['posts']
-) => PendingMessages['posts'];
-type RepliesUpdater = (
-  prev: PendingMessages['replies']
-) => PendingMessages['replies'];
-
-function updatePendingMsgs(
-  nest: Nest,
-  postUpdater: PostsUpdater,
-  repliesUpdater: RepliesUpdater
-) {
-  queryClient.setQueryData<Channels>(channelKey(), (channels?: Channels) => {
-    const channel = channels?.[nest];
-    if (!channel) {
-      return channels;
-    }
-
-    const { pending, ...rest } = channel;
-    const newChannel = {
-      ...rest,
-      pending: {
-        posts: postUpdater(pending.posts),
-        replies: repliesUpdater(pending.replies),
-      },
-    };
-
-    return {
-      ...channels,
-      [nest]: newChannel,
-    };
-  });
-}
-
 export function useChannelsFirehose() {
   const [eventQueue, setEventQueue] = useState<ChannelsSubscribeResponse[]>([]);
   const eventProcessor = useCallback((events: ChannelsSubscribeResponse[]) => {
@@ -925,14 +918,6 @@ export function useChannelsFirehose() {
           }
         });
 
-        // updatePendingMsgs(
-        //   nest,
-        //   (prev) => ({
-        //     ...prev,
-        //     ...newPosts,
-        //   }),
-        //   (prev) => _.merge(prev, newReplies)
-        // );
         queryClient.setQueryData<Channels>(
           channelKey(),
           (channels?: Channels) => {
@@ -1055,22 +1040,26 @@ export function useChannelsFirehose() {
               ...rest,
               pending: {
                 posts: _.fromPairs(
-                  Object.entries(pending.posts).filter(([id]) =>
-                    evs.some((e) => {
-                      if (!('response' in e)) {
+                  Object.entries(pending.posts).filter(
+                    ([id]) =>
+                      // only keep posts that we haven't received updates for
+                      !evs.some((e) => {
+                        if (!('response' in e)) {
+                          return false;
+                        }
+
+                        if (
+                          'post' in e.response &&
+                          'set' in e.response.post['r-post']
+                        ) {
+                          const { set } = e.response.post['r-post'];
+                          return set
+                            ? id === cacheIdToString(set.essay)
+                            : false;
+                        }
+
                         return false;
-                      }
-
-                      if (
-                        'post' in e.response &&
-                        'set' in e.response.post['r-post']
-                      ) {
-                        const { set } = e.response.post['r-post'];
-                        return set ? id === cacheIdToString(set.essay) : false;
-                      }
-
-                      return false;
-                    })
+                      })
                   )
                 ),
                 replies: _.fromPairs(
@@ -1078,27 +1067,29 @@ export function useChannelsFirehose() {
                     return [
                       top,
                       _.fromPairs(
-                        Object.entries(rs).filter(([id]) =>
-                          evs.some((e) => {
-                            if (!('response' in e)) {
+                        Object.entries(rs).filter(
+                          ([id]) =>
+                            // only keep replies that we haven't received updates for
+                            !evs.some((e) => {
+                              if (!('response' in e)) {
+                                return false;
+                              }
+
+                              if (
+                                'post' in e.response &&
+                                'reply' in e.response.post['r-post'] &&
+                                'set' in
+                                  e.response.post['r-post'].reply['r-reply']
+                              ) {
+                                const { set } =
+                                  e.response.post['r-post'].reply['r-reply'];
+                                return set
+                                  ? id === cacheIdToString(set.memo)
+                                  : false;
+                              }
+
                               return false;
-                            }
-
-                            if (
-                              'post' in e.response &&
-                              'reply' in e.response.post['r-post'] &&
-                              'set' in
-                                e.response.post['r-post'].reply['r-reply']
-                            ) {
-                              const { set } =
-                                e.response.post['r-post'].reply['r-reply'];
-                              return set
-                                ? id === cacheIdToString(set.memo)
-                                : false;
-                            }
-
-                            return false;
-                          })
+                            })
                         )
                       ),
                     ];
@@ -1248,6 +1239,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     };
     return [realId, reply] as ReplyTuple;
   });
+
   if (replies === undefined || Object.entries(replies).length === 0) {
     return {
       post: {
@@ -1683,15 +1675,14 @@ export function useAddPostMutation(nest: string) {
               }),
               { app: 'channels', path: `/v1/${nest}` },
               ({ response }) => {
-                if ('post' in response) {
-                  const { id, 'r-post': postResponse } = response.post;
+                if ('pending' in response) {
+                  const { id, pending } = response.pending;
                   if (
-                    'set' in postResponse &&
-                    postResponse.set !== null &&
-                    postResponse.set.essay.author === variables.essay.author &&
-                    postResponse.set.essay.sent === variables.essay.sent
+                    'post' in pending &&
+                    id.author === variables.essay.author &&
+                    id.sent === variables.essay.sent
                   ) {
-                    timePosted = id;
+                    timePosted = id.sent.toString();
                     return true;
                   }
                   return true;
@@ -1708,7 +1699,7 @@ export function useAddPostMutation(nest: string) {
           console.error(e);
         }
       }),
-      15000
+      30000
     );
   };
 
@@ -1742,23 +1733,27 @@ export function useAddPostMutation(nest: string) {
       const existingQueryData = queryClient.getQueryData<
         PostsInCachePrev | undefined
       >(queryKey('infinite'));
-      const newData = infinitePostUpdater(existingQueryData, {
-        nest,
-        response: {
-          post: {
-            id: sent,
-            'r-post': {
-              set: {
-                ...post,
-                seal: {
-                  ...post.seal,
-                  replies: null,
+      const newData = infinitePostUpdater(
+        existingQueryData,
+        {
+          nest,
+          response: {
+            post: {
+              id: sent,
+              'r-post': {
+                set: {
+                  ...post,
+                  seal: {
+                    ...post.seal,
+                    replies: null,
+                  },
                 },
               },
             },
           },
         },
-      });
+        true
+      );
       queryClient.setQueryData(queryKey('infinite'), newData);
     },
     onSuccess: async (_data, variables) => {

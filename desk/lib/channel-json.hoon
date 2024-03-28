@@ -304,6 +304,7 @@
     =/  replies
       %+  roll  ~(tap by pr)
       |=  [[[top=id-post:c cid=client-id:c] mem=memo:c] rs=(map id-post:c (map client-id:c memo:c))]
+      ?.  (~(has by rs) top)  (~(put by rs) top (malt ~[[cid mem]]))
       %+  ~(jab by rs)  top
       |=  mems=(map client-id:c memo:c)
       (~(put by mems) cid mem)
