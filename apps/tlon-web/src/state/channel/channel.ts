@@ -817,6 +817,7 @@ export function useOrderedPosts(
 ) {
   checkNest(nest);
   const { posts } = useInfinitePosts(nest);
+  const trackedPosts = useTrackedPosts();
 
   if (posts.length === 0) {
     return {
@@ -826,33 +827,55 @@ export function useOrderedPosts(
     };
   }
 
+  const thisPostTuple = posts.find(([k, _v]) =>
+    k.eq(bigInt(currentId.toString()))
+  );
   const sortedOutlines = posts
     .filter(([, v]) => v !== null)
     .sort(([a], [b]) => b.compare(a));
   const postId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(postId));
 
-  const nextPost = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
-  if (nextPost) {
-    prefetchPostWithComments({
-      nest,
-      time: udToDec(nextPost[0].toString()),
-    });
+  const nextPostTuple = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
+  const nextPost = nextPostTuple?.[1];
+  if (nextPostTuple && nextPost) {
+    const nextDelivered =
+      trackedPosts.find(
+        ({ cacheId }) =>
+          cacheId.author === nextPost.essay.author &&
+          cacheId.sent === nextPost.essay.sent
+      )?.status === 'delivered';
+    if (nextDelivered) {
+      prefetchPostWithComments({
+        nest,
+        time: udToDec(nextPostTuple[0].toString()),
+      });
+    }
   }
-  const prevPost =
+  const prevPostTuple =
     currentIdx < sortedOutlines.length - 1
       ? sortedOutlines[currentIdx + 1]
       : null;
-  if (prevPost) {
-    prefetchPostWithComments({
-      nest,
-      time: udToDec(prevPost[0].toString()),
-    });
+  const prevPost = prevPostTuple?.[1];
+  if (prevPostTuple && prevPost) {
+    const prevDelivered =
+      trackedPosts.find(
+        ({ cacheId }) =>
+          cacheId.author === prevPost.essay.author &&
+          cacheId.sent === prevPost.essay.sent
+      )?.status === 'delivered';
+    if (prevDelivered) {
+      prefetchPostWithComments({
+        nest,
+        time: udToDec(prevPostTuple[0].toString()),
+      });
+    }
   }
 
   return {
-    nextPost,
-    prevPost,
+    thisPost: thisPostTuple,
+    nextPost: nextPostTuple,
+    prevPost: prevPostTuple,
     sortedOutlines,
   };
 }
