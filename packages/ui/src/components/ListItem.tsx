@@ -1,19 +1,20 @@
 import React, { ComponentProps, PropsWithChildren, ReactElement } from 'react';
-import RemoteSvg from './RemoteSvg';
-import { SizableText } from '../core';
+import { Pressable } from 'react-native';
 import {
-  styled,
-  View,
-  withStaticProperties,
+  Image,
+  NativePlatform,
   Stack,
+  Text,
+  View,
   XStack,
   YStack,
-  Image,
-  Text,
-  NativePlatform,
+  styled,
+  withStaticProperties,
 } from 'tamagui';
+
+import { SizableText } from '../core';
 import { Icon } from './Icon';
-import { Pressable } from 'react-native';
+import RemoteSvg from './RemoteSvg';
 
 export interface BaseListItemProps<T> {
   model: T;

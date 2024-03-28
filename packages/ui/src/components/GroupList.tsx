@@ -1,6 +1,7 @@
 import type { ClientTypes } from '@tloncorp/shared';
+import { Text, YGroup } from 'tamagui';
+
 import { GroupListItem } from './GroupListItem';
-import { YGroup, Text } from 'tamagui';
 
 export function GroupList({
   pinned,

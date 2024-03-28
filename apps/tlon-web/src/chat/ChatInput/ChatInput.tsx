@@ -4,9 +4,12 @@ import {
   Cite,
   Memo,
   Nest,
+  Post,
   PostEssay,
   PostTuple,
+  Reply,
   ReplyTuple,
+  Writ,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import cn from 'classnames';
@@ -73,6 +76,7 @@ interface ChatInputProps {
   autoFocus?: boolean;
   showReply?: boolean;
   className?: string;
+  myLastMessage?: Post | Writ | Reply | null;
   sendDisabled?: boolean;
   sendDm?: (variables: SendMessageVariables) => void;
   sendDmReply?: (variables: SendReplyVariables) => void;
@@ -136,6 +140,7 @@ export default function ChatInput({
   className = '',
   showReply = false,
   sendDisabled = false,
+  myLastMessage,
   sendDm,
   sendDmReply,
   sendChatMessage,
@@ -182,7 +187,6 @@ export default function ChatInput({
   const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
-  const myLastMessage = useMyLastMessage(whom, replying);
   const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
   const lastMessageIdRef = useRef(lastMessageId);
   const isReplyingRef = useRef(!!replying);

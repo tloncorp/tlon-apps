@@ -1,14 +1,15 @@
 import { getSize } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
-import { Text } from '../core';
 import {
-  createStyledContext,
   SizeTokens,
   Stack,
+  createStyledContext,
   styled,
   useTheme,
   withStaticProperties,
 } from 'tamagui';
+
+import { Text } from '../core';
 
 export const ButtonContext = createStyledContext<{ size: SizeTokens }>({
   size: '$m',

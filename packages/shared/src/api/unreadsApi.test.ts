@@ -1,8 +1,8 @@
+import { expect, test } from 'vitest';
+
 import type { ClientTypes as Client } from '../client';
 import type * as ubChan from '../urbit/channel';
 import type * as ubDM from '../urbit/dms';
-import { expect, test } from 'vitest';
-
 import { toClientUnread, toClientUnreads } from './unreadsApi';
 
 const inputUnread: [string, ubChan.Unread, Client.UnreadType] = [

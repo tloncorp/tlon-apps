@@ -18,14 +18,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-  
+
       - name: Install Dependencies
         run: npm ci
-  
+
       - working-directory: ./apps/tlon-web
         run:
           npm run build
-  
+
       - uses: actions/upload-artifact@v4
         with:
           name: 'ui-dist'
@@ -79,7 +79,7 @@ jobs:
       - id: create_moon
         name: Create Moon
         run: |
-          ./.github/helpers/create_moon.sh ephemeral-landscape-apps-moon-host us-central1-a mainnet-tlon-other-2d
+          ./.github/helpers/create_moon.sh ephemeral-tlon-apps-moon-host us-central1-a mainnet-tlon-other-2d
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
@@ -100,7 +100,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups ${{ needs.build_test_images.outputs.moon_name }} us-central1-a mainnet-tlon-other-2d
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups ${{ needs.build_test_images.outputs.moon_name }} us-central1-a mainnet-tlon-other-2d
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}

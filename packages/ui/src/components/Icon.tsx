@@ -2,10 +2,11 @@ import React, { useMemo } from 'react';
 import {
   ColorTokens,
   SizeTokens,
-  styled,
   View,
+  styled,
   withStaticProperties,
 } from 'tamagui';
+
 import * as icons from '../assets/icons';
 
 export type IconType = keyof typeof icons;

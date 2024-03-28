@@ -6,8 +6,9 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
+import { Stack, Sheet as TamSheet, XStack, YStack } from 'tamagui';
+
 import { SizableText } from '../core';
-import { YStack, XStack, Stack, Sheet as TamSheet } from 'tamagui';
 
 const Overlay = styled(YStack, {
   name: 'SheetOverlay',

@@ -1,11 +1,11 @@
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import AddIcon16 from '../icons/Add16Icon';
 import SidebarItem from './SidebarItem';
 
-export default function GroupSidebarItem() {
+const AddGroupSidebarItem = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -59,4 +59,6 @@ export default function GroupSidebarItem() {
       </Dropdown.Content>
     </Dropdown.Root>
   );
-}
+});
+
+export default AddGroupSidebarItem;

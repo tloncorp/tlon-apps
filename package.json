@@ -1,5 +1,6 @@
 {
   "private": true,
+  "name": "tlon-apps",
   "type": "module",
   "workspaces": [
     "apps/*",

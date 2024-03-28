@@ -1,6 +1,7 @@
 import type { ClientTypes as Client } from '@tloncorp/shared';
-import { ListItem, type ListItemProps } from '../ListItem';
 import { useMemo } from 'react';
+
+import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ListItemContent({
   model,
