@@ -1,11 +1,11 @@
 import { getSize } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
 import {
-  createStyledContext,
   SizeTokens,
   Stack,
-  styled,
   Text,
+  createStyledContext,
+  styled,
   useTheme,
   withStaticProperties,
 } from 'tamagui';

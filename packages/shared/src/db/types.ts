@@ -26,10 +26,10 @@ type InsertRelations<T extends TableName> = {
       ? Insertable<SchemaFromDbTableName<TTableName>['tsName']>[]
       : never
     : TableRelations<T>[K] extends One<infer TTableName>
-    ? TTableName extends DbTableNames
-      ? Insertable<SchemaFromDbTableName<TTableName>['tsName']>
-      : never
-    : never;
+      ? TTableName extends DbTableNames
+        ? Insertable<SchemaFromDbTableName<TTableName>['tsName']>
+        : never
+      : never;
 };
 
 export type Insertable<T extends TableName> = InferModelFromColumns<

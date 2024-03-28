@@ -1,6 +1,7 @@
-import { Sheet } from './Sheet';
-import { Stack, View, Text, SizableText } from '../core';
 import { ClientTypes } from '@tloncorp/shared';
+
+import { SizableText, Stack, Text, View } from '../core';
+import { Sheet } from './Sheet';
 
 interface Props {
   open: boolean;

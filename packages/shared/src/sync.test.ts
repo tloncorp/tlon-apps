@@ -1,17 +1,18 @@
 import {
-  beforeEach,
+  MockedFunction,
   beforeAll,
+  beforeEach,
   expect,
   test,
   vi,
-  MockedFunction,
 } from 'vitest';
-import { syncContacts, syncPinnedItems } from './sync';
-import { setupDb, resetDb } from './test/helpers';
+
 import { scry } from './api/urbit';
-import { Contact as UrbitContact } from './urbit/contact';
 import * as db from './db';
+import { syncContacts, syncPinnedItems } from './sync';
 import rawContactsData from './test/contacts.json';
+import { resetDb, setupDb } from './test/helpers';
+import { Contact as UrbitContact } from './urbit/contact';
 
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 

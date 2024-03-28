@@ -3,7 +3,7 @@
 import sigil from '@urbit/sigil-js/dist/core';
 import { useMemo } from 'react';
 import { SvgXml } from 'react-native-svg';
-import { useTheme, View } from 'tamagui';
+import { View, useTheme } from 'tamagui';
 
 export const UrbitSigil = View.styleable<{
   ship: string;
