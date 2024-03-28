@@ -1,7 +1,6 @@
 import type { ClientTypes as Client } from '../client';
 import type * as ubChan from '../urbit/channel';
 import type * as ubDM from '../urbit/dms';
-
 import { scry, subscribe } from './urbit';
 
 export const getChannelUnreads = async () => {

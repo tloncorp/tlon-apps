@@ -1,6 +1,7 @@
 import type { ClientTypes as Client } from '@tloncorp/shared';
-import type { ListItemProps } from '../ListItem';
 import { useCallback } from 'react';
+
+import type { ListItemProps } from '../ListItem';
 import ListItemContent from './ListItemContent';
 
 export const GroupListItem = ({

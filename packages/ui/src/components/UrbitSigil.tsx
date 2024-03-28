@@ -3,7 +3,7 @@
 // The web version uses the default entry point of sigil-js
 import sigil from '@urbit/sigil-js';
 import { useMemo } from 'react';
-import { useTheme, View } from 'tamagui';
+import { View, useTheme } from 'tamagui';
 
 export const UrbitSigil = View.styleable<{
   ship: string;
