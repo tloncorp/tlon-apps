@@ -1,43 +1,43 @@
-import NetInfo from "@react-native-community/netinfo";
+import NetInfo from '@react-native-community/netinfo';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
-} from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { TamaguiProvider } from "@tloncorp/ui";
-import { PostHogProvider } from "posthog-react-native";
-import type { PropsWithChildren } from "react";
-import { useEffect, useState } from "react";
-import { StatusBar, Text, View } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { useTailwind } from "tailwind-rn";
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TamaguiProvider } from '@tloncorp/ui';
+import { PostHogProvider } from 'posthog-react-native';
+import type { PropsWithChildren } from 'react';
+import { useEffect, useState } from 'react';
+import { StatusBar, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useTailwind } from 'tailwind-rn';
 
-import AuthenticatedApp from "./components/AuthenticatedApp";
-import { LoadingSpinner } from "./components/LoadingSpinner";
-import { BranchProvider, useBranch } from "./contexts/branch";
-import { ShipProvider, useShip } from "./contexts/ship";
-import { useIsDarkMode } from "./hooks/useIsDarkMode";
-import { useScreenOptions } from "./hooks/useScreenOptions";
-import { useMigrations } from "./lib/nativeDb";
-import { CheckVerifyScreen } from "./screens/CheckVerifyScreen";
-import { EULAScreen } from "./screens/EULAScreen";
-import { JoinWaitListScreen } from "./screens/JoinWaitListScreen";
-import { RequestPhoneVerifyScreen } from "./screens/RequestPhoneVerifyScreen";
-import { ReserveShipScreen } from "./screens/ReserveShipScreen";
-import { ResetPasswordScreen } from "./screens/ResetPasswordScreen";
-import { SetNicknameScreen } from "./screens/SetNicknameScreen";
-import { SetNotificationsScreen } from "./screens/SetNotificationsScreen";
-import { SetTelemetryScreen } from "./screens/SetTelemetryScreen";
-import { ShipLoginScreen } from "./screens/ShipLoginScreen";
-import { SignUpEmailScreen } from "./screens/SignUpEmailScreen";
-import { SignUpPasswordScreen } from "./screens/SignUpPasswordScreen";
-import { TlonLoginScreen } from "./screens/TlonLoginScreen";
-import { WelcomeScreen } from "./screens/WelcomeScreen";
-import type { OnboardingStackParamList } from "./types";
-import { posthogAsync } from "./utils/posthog";
-import { getPathFromWer } from "./utils/string";
+import AuthenticatedApp from './components/AuthenticatedApp';
+import { LoadingSpinner } from './components/LoadingSpinner';
+import { BranchProvider, useBranch } from './contexts/branch';
+import { ShipProvider, useShip } from './contexts/ship';
+import { useIsDarkMode } from './hooks/useIsDarkMode';
+import { useScreenOptions } from './hooks/useScreenOptions';
+import { useMigrations } from './lib/nativeDb';
+import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
+import { EULAScreen } from './screens/EULAScreen';
+import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
+import { RequestPhoneVerifyScreen } from './screens/RequestPhoneVerifyScreen';
+import { ReserveShipScreen } from './screens/ReserveShipScreen';
+import { ResetPasswordScreen } from './screens/ResetPasswordScreen';
+import { SetNicknameScreen } from './screens/SetNicknameScreen';
+import { SetNotificationsScreen } from './screens/SetNotificationsScreen';
+import { SetTelemetryScreen } from './screens/SetTelemetryScreen';
+import { ShipLoginScreen } from './screens/ShipLoginScreen';
+import { SignUpEmailScreen } from './screens/SignUpEmailScreen';
+import { SignUpPasswordScreen } from './screens/SignUpPasswordScreen';
+import { TlonLoginScreen } from './screens/TlonLoginScreen';
+import { WelcomeScreen } from './screens/WelcomeScreen';
+import type { OnboardingStackParamList } from './types';
+import { posthogAsync } from './utils/posthog';
+import { getPathFromWer } from './utils/string';
 
 type Props = {
   wer?: string;
@@ -59,7 +59,7 @@ const App = ({ wer }: Props) => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
       ({ isConnected }) => {
         setConnected(isConnected ?? true);
-      },
+      }
     );
 
     return () => {
@@ -68,17 +68,17 @@ const App = ({ wer }: Props) => {
   }, []);
 
   return (
-    <GestureHandlerRootView style={tailwind("flex-1")}>
+    <GestureHandlerRootView style={tailwind('flex-1')}>
       <SafeAreaProvider>
-        <View style={tailwind("h-full w-full bg-white dark:bg-black")}>
+        <View style={tailwind('h-full w-full bg-white dark:bg-black')}>
           {connected ? (
             isLoading ? (
-              <View style={tailwind("h-full flex items-center justify-center")}>
+              <View style={tailwind('h-full flex items-center justify-center')}>
                 <LoadingSpinner />
               </View>
             ) : isAuthenticated ? (
               <AuthenticatedApp
-                initialNotificationPath={getPathFromWer(wer ?? "")}
+                initialNotificationPath={getPathFromWer(wer ?? '')}
               />
             ) : (
               <OnboardingStack.Navigator
@@ -95,33 +95,33 @@ const App = ({ wer }: Props) => {
                 <OnboardingStack.Screen
                   name="SignUpEmail"
                   component={SignUpEmailScreen}
-                  options={{ headerTitle: "Sign Up" }}
+                  options={{ headerTitle: 'Sign Up' }}
                   initialParams={{ lure, priorityToken }}
                 />
                 <OnboardingStack.Screen
                   name="EULA"
                   component={EULAScreen}
-                  options={{ headerTitle: "EULA" }}
+                  options={{ headerTitle: 'EULA' }}
                 />
                 <OnboardingStack.Screen
                   name="SignUpPassword"
                   component={SignUpPasswordScreen}
-                  options={{ headerTitle: "Set a Password" }}
+                  options={{ headerTitle: 'Set a Password' }}
                 />
                 <OnboardingStack.Screen
                   name="JoinWaitList"
                   component={JoinWaitListScreen}
-                  options={{ headerTitle: "Join Waitlist" }}
+                  options={{ headerTitle: 'Join Waitlist' }}
                 />
                 <OnboardingStack.Screen
                   name="RequestPhoneVerify"
                   component={RequestPhoneVerifyScreen}
-                  options={{ headerTitle: "Sign Up" }}
+                  options={{ headerTitle: 'Sign Up' }}
                 />
                 <OnboardingStack.Screen
                   name="CheckVerify"
                   component={CheckVerifyScreen}
-                  options={{ headerTitle: "Confirmation" }}
+                  options={{ headerTitle: 'Confirmation' }}
                 />
                 <OnboardingStack.Screen
                   name="ReserveShip"
@@ -132,44 +132,44 @@ const App = ({ wer }: Props) => {
                   name="SetNickname"
                   component={SetNicknameScreen}
                   options={{
-                    headerTitle: "Display Name",
+                    headerTitle: 'Display Name',
                     headerBackVisible: false,
                   }}
                 />
                 <OnboardingStack.Screen
                   name="SetNotifications"
                   component={SetNotificationsScreen}
-                  options={{ headerTitle: "Notifications" }}
+                  options={{ headerTitle: 'Notifications' }}
                 />
                 <OnboardingStack.Screen
                   name="SetTelemetry"
                   component={SetTelemetryScreen}
-                  options={{ headerTitle: "Telemetry" }}
+                  options={{ headerTitle: 'Telemetry' }}
                 />
                 <OnboardingStack.Screen
                   name="TlonLogin"
                   component={TlonLoginScreen}
-                  options={{ headerTitle: "Log In" }}
+                  options={{ headerTitle: 'Log In' }}
                 />
                 <OnboardingStack.Screen
                   name="ShipLogin"
                   component={ShipLoginScreen}
-                  options={{ headerTitle: "Connect Ship" }}
+                  options={{ headerTitle: 'Connect Ship' }}
                 />
                 <OnboardingStack.Screen
                   name="ResetPassword"
                   component={ResetPasswordScreen}
-                  options={{ headerTitle: "Reset Password" }}
+                  options={{ headerTitle: 'Reset Password' }}
                 />
               </OnboardingStack.Navigator>
             )
           ) : (
             <View
-              style={tailwind("h-full p-4 flex items-center justify-center")}
+              style={tailwind('h-full p-4 flex items-center justify-center')}
             >
               <Text
                 style={tailwind(
-                  "text-center text-xl font-semibold text-tlon-black-80 dark:text-white",
+                  'text-center text-xl font-semibold text-tlon-black-80 dark:text-white'
                 )}
               >
                 You are offline. Please connect to the internet and try again.
@@ -177,8 +177,8 @@ const App = ({ wer }: Props) => {
             </View>
           )}
           <StatusBar
-            backgroundColor={isDarkMode ? "black" : "white"}
-            barStyle={isDarkMode ? "light-content" : "dark-content"}
+            backgroundColor={isDarkMode ? 'black' : 'white'}
+            barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           />
         </View>
       </SafeAreaProvider>
@@ -197,7 +197,7 @@ function MigrationCheck({ children }: PropsWithChildren) {
 export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <TamaguiProvider defaultTheme={isDarkMode ? "dark" : "light"}>
+    <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
       <ShipProvider>
         <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
           <BranchProvider>
