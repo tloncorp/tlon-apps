@@ -1,7 +1,7 @@
-import { HeaderButton } from "../components/HeaderButton";
+import { HeaderButton } from '../components/HeaderButton';
 
 export default {
   primary: () => (
-    <HeaderButton title="Button" onPress={() => console.log("press")} />
+    <HeaderButton title="Button" onPress={() => console.log('press')} />
   ),
 };

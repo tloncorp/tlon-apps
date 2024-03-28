@@ -1,4 +1,4 @@
-import { TlonButton } from "../components/TlonButton";
+import { TlonButton } from '../components/TlonButton';
 
 export default {
   primary: () => <TlonButton title="Button" />,

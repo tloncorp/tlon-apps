@@ -1,4 +1,4 @@
-import { Button } from "@tloncorp/ui";
+import { Button } from '@tloncorp/ui';
 
 export default {
   primary: () => (
