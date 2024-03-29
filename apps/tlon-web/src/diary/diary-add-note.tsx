@@ -124,7 +124,7 @@ export default function DiaryAddNote() {
   }, [editor, loadingNote, note, loaded, image, setValue, title]);
 
   const publish = useCallback(async () => {
-    if (!editor?.getText() || watchedTitle === '' || !note) {
+    if (!editor?.getText() || watchedTitle === '' || (id && !note)) {
       return;
     }
 
@@ -139,7 +139,7 @@ export default function DiaryAddNote() {
     };
 
     try {
-      if (id) {
+      if (id && note) {
         await editNote({
           nest: `diary/${chFlag}`,
           time: id,
