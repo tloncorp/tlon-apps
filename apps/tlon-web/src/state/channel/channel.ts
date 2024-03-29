@@ -1166,7 +1166,7 @@ export function useChannels(): Channels {
   const { data, ...rest } = useReactQueryScry<Channels>({
     queryKey: channelKey(),
     app: 'channels',
-    path: '/channels',
+    path: '/v2/channels',
     options: {
       // refetchOnMount: false,
     },
