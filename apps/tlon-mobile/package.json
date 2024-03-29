@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\"",
-    "android": "expo run:android",
+    "android": "expo run:android --variant=productionDebug",
+    "android:preview": "expo run:android --variant=previewDebug",
     "bundler": "expo start",
     "clearcache": "expo start -c",
     "ios": "expo run:ios",
+    "ios:preview": "expo run:ios --scheme=Landscape-preview",
     "generate": "npm run generate:tailwind && npm run generate:ios",
     "generate:ios": "react-native bundle --entry-file='index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
     "generate:tailwind": "tailwindcss --input input.css --output tailwind.css --no-autoprefixer && tailwind-rn",
