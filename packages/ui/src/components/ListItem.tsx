@@ -121,7 +121,7 @@ const ListItemMainContent = styled(YStack, {
 
 const ListItemTitle = styled(SizableText, {
   alignItems: 'baseline',
-  color: '$red',
+  color: '$primaryText',
 
   // numberOfLines: 1,
   // TODO: is there an easy way to do something like this?
