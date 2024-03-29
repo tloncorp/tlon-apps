@@ -657,12 +657,13 @@ export const infinitePostQueryFn =
     };
   };
 
-export function useInfinitePosts(nest: Nest, initialTime?: string) {
-  const [han, flag] = nestToFlag(nest);
-  const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
+export function useInfinitePosts(
+  nest: Nest,
+  initialTime?: string,
+  update = true
+) {
+  const queryKey = useMemo(() => infinitePostsKey(nest), [nest]);
   const pending = usePendingPosts(nest);
-
-  console.log(pending);
 
   useEffect(() => {
     if (!pending) {
@@ -710,6 +711,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     refetchOnMount: true,
     retryOnMount: true,
     retry: false,
+    enabled: update,
   });
 
   const merged = useMemo(() => {
@@ -1234,7 +1236,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     [postId, nest, disabled]
   );
   const pending = usePendingPosts(nest);
-  const { data, ...rest } = useReactQuerySubscription({
+  const { data, ...rest } = useReactQuerySubscription<PostDataResponse>({
     queryKey,
     app: 'channels',
     scry: scryPath,
@@ -1243,8 +1245,8 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
       enabled,
     },
   });
-
-  const post = data as PostDataResponse;
+  const { posts } = useInfinitePosts(nest, undefined, false);
+  const post = data || posts.find(([k]) => k.eq(bigInt(postId)))?.[1];
 
   const replies = post?.seal?.replies;
   const pendingReplies = Object.entries(
@@ -1263,7 +1265,14 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     return [realId, reply] as ReplyTuple;
   });
 
-  if (replies === undefined || Object.entries(replies).length === 0) {
+  if (!post) {
+    return {
+      ...rest,
+      post: undefined,
+    };
+  }
+
+  if (!replies || Object.entries(replies).length === 0) {
     return {
       post: {
         ...post,

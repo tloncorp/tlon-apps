@@ -68,9 +68,9 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
-  const { replies } = note.seal;
+  const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
-  if (replies !== null && idTimeIsNumber) {
+  if (note && replies !== null && idTimeIsNumber) {
     replies.unshift([
       bigInt(idTime!),
       {

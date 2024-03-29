@@ -53,7 +53,7 @@ export default function DiaryAddNote() {
     isLoading: loadingNote,
     fetchStatus,
   } = usePost(nest, id || '0', !id);
-  const { title, image } = getKindDataFromEssay(note.essay);
+  const { title, image } = getKindDataFromEssay(note?.essay);
   const {
     mutateAsync: editNote,
     status: editStatus,
@@ -124,7 +124,7 @@ export default function DiaryAddNote() {
   }, [editor, loadingNote, note, loaded, image, setValue, title]);
 
   const publish = useCallback(async () => {
-    if (!editor?.getText() || watchedTitle === '') {
+    if (!editor?.getText() || watchedTitle === '' || !note) {
       return;
     }
 

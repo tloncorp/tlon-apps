@@ -41,7 +41,7 @@ export default function EditCurioForm() {
   const { post: note, isLoading } = usePost(nest, idTime || '');
   const contentAsChatStory = useMemo(
     () =>
-      isLoading
+      isLoading || !note
         ? { inline: [], block: [] }
         : chatStoryFromStory(note.essay.content),
     [note, isLoading]
@@ -50,7 +50,7 @@ export default function EditCurioForm() {
   const isLinkMode = !isLoading ? isLinkCurio(contentAsChatStory) : false;
   const { isPending, setPending, setReady } = useRequestState();
   const firstInline = !isLoading && contentAsChatStory.inline[0];
-  const { title } = getKindDataFromEssay(note.essay);
+  const { title } = getKindDataFromEssay(note?.essay);
   const { onDelete, isDeleteLoading } = useCurioActions({
     nest,
     time: idTime ?? '',
@@ -79,6 +79,10 @@ export default function EditCurioForm() {
 
   const onSubmit = useCallback(
     async ({ content, title: curioTitle }: EditCurioFormSchema) => {
+      if (!note) {
+        return;
+      }
+
       const editedContent = isLinkMode
         ? [{ link: { href: content, content } }]
         : (JSONToInlines(draftText || {}) as Inline[]);

@@ -50,7 +50,7 @@ export default function HeapDetail({ title }: ViewProps) {
   } = useOrderedPosts(nest, idTime || '');
   const isUndelivered = useIsPostUndelivered(thisPost?.[1] || initialNote);
   const { post: note, isLoading } = usePost(nest, idTime || '', isUndelivered);
-  const { title: curioTitle } = getKindDataFromEssay(note.essay);
+  const { title: curioTitle } = getKindDataFromEssay(note?.essay);
   const { paddingBottom } = useBottomPadding();
   const essay = note?.essay || initialNote?.essay;
 
@@ -70,7 +70,7 @@ export default function HeapDetail({ title }: ViewProps) {
   });
 
   // we have no data at all just show spinner
-  if (!essay && isLoading) {
+  if (!essay) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <LoadingSpinner />
@@ -145,7 +145,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {idTime && !isUndelivered && (
             <HeapDetailComments
               time={idTime}
-              comments={note.seal.replies}
+              comments={note?.seal.replies || null}
               loading={isLoading}
             />
           )}
