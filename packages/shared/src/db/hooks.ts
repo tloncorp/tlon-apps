@@ -1,25 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { GetGroupsOptions } from './queries';
-import { Contact, Group } from './types';
+import { GetGroupsOptions, getContact } from './queries';
+import { createUseQuery } from './query';
+import { Group } from './types';
 import queries from './wrappedQueries';
 
-export const useContact = (id: string) => {
-  const [contact, setContact] = useState<Contact | null>(null);
-  useEffect(() => {
-    if (!id.startsWith('~')) {
-      console.warn(
-        'malformed contact id passed to useContact:',
-        id,
-        'should start with a ~'
-      );
-    }
-  }, [id]);
-  useEffect(() => {
-    queries.getContact(id).then((c) => setContact(c ?? null));
-  }, []);
-  return contact;
-};
+export const useContact = createUseQuery(getContact);
 
 export const useAllUnreadsCounts = () => {
   const [counts, setCounts] = useState<{

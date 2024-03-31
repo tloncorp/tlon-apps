@@ -2,7 +2,6 @@ import {
   AnyColumn,
   Column,
   SQLWrapper,
-  Table,
   and,
   count,
   eq,
@@ -14,6 +13,7 @@ import {
 
 import { createDevLogger } from '../debug';
 import { client } from './client';
+import { createQuery } from './query';
 import {
   channels as $channels,
   contactGroups as $contactGroups,
@@ -30,45 +30,19 @@ import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from './types';
 const logger = createDevLogger('query', true);
 let counter = 0;
 
-const createQuery =
-  <Args extends any[], T>(
-    queryFn: (...args: Args) => Promise<T>,
-    {
-      label = '' + counter++,
-      tableEffects = [],
-      tableDependencies = [],
-      logStart = false,
-      logDuration = true,
-    }: {
-      label?: string;
-      tableEffects?: Table[];
-      tableDependencies?: Table[];
-      logStart?: boolean;
-      logDuration?: boolean;
-    } = {}
-  ) =>
-  async (...args: Args) => {
-    const queryLogger = createDevLogger('query:' + label, true);
-    const startTime = Date.now();
-    const result = await queryFn(...args);
-    queryLogger.log('finished in', Date.now() - startTime, 'ms');
-    return result;
-  };
-
 export interface GetGroupsOptions {
   sort?: 'pinIndex';
   includeUnjoined?: boolean;
 }
 
-export const getGroups = async ({
-  sort,
-  includeUnjoined,
-}: GetGroupsOptions = {}) => {
-  return client.query.groups.findMany({
-    where: includeUnjoined ? undefined : eq($groups.isJoined, true),
-    orderBy: sort === 'pinIndex' ? ascNullsLast($groups.pinIndex) : undefined,
-  });
-};
+export const getGroups = createQuery(
+  async ({ sort, includeUnjoined }: GetGroupsOptions = {}) => {
+    return client.query.groups.findMany({
+      where: includeUnjoined ? undefined : eq($groups.isJoined, true),
+      orderBy: sort === 'pinIndex' ? ascNullsLast($groups.pinIndex) : undefined,
+    });
+  }
+);
 
 export const insertGroup = async (group: GroupInsert) => {
   await client.transaction(async (tx) => {
@@ -216,15 +190,25 @@ export const getContactsCount = createQuery(async () => {
   return result[0].count;
 });
 
-export const getContact = createQuery(async (id: string) => {
-  return client.query.contacts.findFirst({
-    where: (contacts, { eq }) => eq(contacts.id, id),
-  });
-});
+export const getContact = createQuery(
+  async (id: string) => {
+    return client.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, id),
+    });
+  },
+  {
+    tableDependencies: ['contacts'],
+  }
+);
 
-export const insertContact = createQuery(async (contact: ContactInsert) => {
-  return client.insert($contacts).values(contact);
-});
+export const insertContact = createQuery(
+  async (contact: ContactInsert) => {
+    return client.insert($contacts).values(contact);
+  },
+  {
+    tableEffects: ['contacts'],
+  }
+);
 
 export const insertContacts = createQuery(
   async (contactsData: ContactInsert[]) => {

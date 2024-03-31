@@ -113,7 +113,7 @@ export const TabStack = () => {
         component={WebViewStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <AvatarTabIcon id={ship!} focused={focused} />
+            <AvatarTabIcon id={'~' + ship!} focused={focused} />
           ),
           tabBarShowLabel: false,
         }}
@@ -123,7 +123,7 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const contact = db.useContact(id);
+  const { result: contact } = db.useContact(id);
   return (
     <Avatar
       contact={contact ?? fallbackContact(id)}

@@ -10,7 +10,7 @@ import * as schema from './schema';
 export type Schema = typeof schema;
 type SchemaWithRelations = ExtractTablesWithRelations<Schema>;
 type DbTableNames = SchemaWithRelations[keyof SchemaWithRelations]['dbName'];
-type TableName = keyof SchemaWithRelations;
+export type TableName = keyof SchemaWithRelations;
 type TableRelations<T extends TableName> = SchemaWithRelations[T]['relations'];
 
 type SchemaFromDbTableName<T extends DbTableNames> = Extract<
