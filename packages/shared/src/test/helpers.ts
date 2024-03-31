@@ -22,6 +22,6 @@ export function resetDb() {
   const db = drizzle(sqlite, { schema, logger: true });
   setClient(db as unknown as AnySqliteDatabase);
   migrate(db, {
-    migrationsFolder: './public/drizzle',
+    migrationsFolder: __dirname + '/../db/migrations',
   });
 }
