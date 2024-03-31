@@ -1,6 +1,5 @@
 import { relations } from 'drizzle-orm';
 import {
-  foreignKey,
   integer,
   primaryKey,
   sqliteTable,
@@ -65,6 +64,20 @@ export const unreads = sqliteTable('unreads', {
   totalCount: integer('totalCount'),
 });
 
+export const pins = sqliteTable(
+  'pins',
+  {
+    type: text('type').$type<'group' | 'dm' | 'club'>().notNull(),
+    index: integer('index').notNull(),
+    itemId: text('item_id').notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.itemId] }),
+    };
+  }
+);
+
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   iconImage: text('icon_image'),
@@ -74,12 +87,9 @@ export const groups = sqliteTable('groups', {
   title: text('title'),
   description: text('description'),
   isSecret: boolean('is_secret'),
+  isJoined: boolean('is_joined'),
   lastPostAt: timestamp('last_post_at'),
-});
-
-export const pins = sqliteTable('pins', {
-  type: text('type').$type<'group' | 'dm' | 'club'>(),
-  itemId: text('item_id'),
+  pinIndex: integer('pin_index'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({

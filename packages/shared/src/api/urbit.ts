@@ -24,15 +24,16 @@ export function configureClient({
   shipName,
   shipUrl,
   fetchFn,
+  verbose,
 }: {
   shipName: string;
   shipUrl: string;
   fetchFn?: typeof fetch;
+  verbose?: boolean;
 }) {
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
   clientInstance.ship = deSig(shipName);
-  clientInstance.verbose = true;
-
+  clientInstance.verbose = verbose;
   clientInstance.on('status-update', (status) => {
     console.log(`client status:`, status);
   });
@@ -102,7 +103,6 @@ export const poke = async ({
   });
 
 export const scry = async <T>({ app, path }: { app: string; path: string }) => {
-  console.log('Scry', `${config.shipUrl}/~/scry/${app}${path}.json`);
   return fetch(`${config.shipUrl}/~/scry/${app}${path}.json`, {
     headers: {
       'Content-Type': 'application/json',

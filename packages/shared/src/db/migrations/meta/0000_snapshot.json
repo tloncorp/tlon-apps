@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "c11f54f0-9a34-4c6f-b7ec-bce6936dff82",
+  "id": "4dd9f0f1-2c50-431b-a95e-6246287e720a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -627,8 +627,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "is_joined": {
+          "name": "is_joined",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "last_post_at": {
           "name": "last_post_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pin_index": {
+          "name": "pin_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -647,14 +661,21 @@
           "name": "type",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false
         },
         "item_id": {
           "name": "item_id",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false,
+          "primaryKey": true,
+          "notNull": true,
           "autoincrement": false
         }
       },

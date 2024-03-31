@@ -90,12 +90,15 @@ CREATE TABLE `groups` (
 	`title` text,
 	`description` text,
 	`is_secret` integer,
-	`last_post_at` integer
+	`is_joined` integer,
+	`last_post_at` integer,
+	`pin_index` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
-	`type` text,
-	`item_id` text
+	`type` text NOT NULL,
+	`index` integer NOT NULL,
+	`item_id` text PRIMARY KEY NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `posts` (

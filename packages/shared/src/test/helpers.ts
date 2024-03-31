@@ -19,7 +19,7 @@ export function resetDb() {
   }
   dbFile = tmp.fileSync();
   const sqlite = new Database(dbFile.name);
-  const db = drizzle(sqlite, { schema, logger: true });
+  const db = drizzle(sqlite, { schema });
   setClient(db as unknown as AnySqliteDatabase);
   migrate(db, {
     migrationsFolder: __dirname + '/../db/migrations',

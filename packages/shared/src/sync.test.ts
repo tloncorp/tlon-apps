@@ -9,12 +9,15 @@ import {
 
 import { scry } from './api/urbit';
 import * as db from './db';
-import { syncContacts, syncPinnedItems } from './sync';
+import { syncContacts, syncGroups, syncPinnedItems } from './sync';
 import rawContactsData from './test/contacts.json';
+import rawGroupsData from './test/groups.json';
 import { resetDb, setupDb } from './test/helpers';
 import { Contact as UrbitContact } from './urbit/contact';
+import { Group as UrbitGroup } from './urbit/groups';
 
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
+const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 
 beforeAll(() => {
   setupDb();
@@ -33,14 +36,17 @@ const inputData = [
 const outputData = [
   {
     type: 'club',
+    index: 0,
     itemId: inputData[0],
   },
   {
     type: 'dm',
+    index: 1,
     itemId: inputData[1],
   },
   {
     type: 'group',
+    index: 2,
     itemId: inputData[2],
   },
 ];
@@ -79,4 +85,13 @@ test('syncs contacts', async () => {
     expect(original).toBeTruthy();
     expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
   });
+  setScryOutput(contactsData);
+  await syncContacts();
+});
+
+test('sync groups', async () => {
+  setScryOutput(groupsData);
+  await syncGroups();
+  const storedGroups = await db.getGroups();
+  expect(storedGroups.length).toEqual(Object.values(groupsData).length);
 });

@@ -7,7 +7,8 @@ import type * as ub from '../urbit/groups';
 import * as queries from './queries';
 
 const groupsData = toClientGroups(
-  groupsResponse as unknown as Record<string, ub.Group>
+  groupsResponse as unknown as Record<string, ub.Group>,
+  true
 );
 
 beforeAll(() => {
@@ -25,6 +26,7 @@ test('inserts a group', async () => {
   expect(roles.length).toEqual(groupData.roles?.length);
   const result = await queries.getGroup(groupData.id);
   expect(result?.id).toBe(groupData.id);
+  await queries.insertGroup(groupData);
 });
 
 test('inserts all groups', async () => {
