@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts src/urbit/* src/db/index.ts src/api/index.ts --format esm --minify --dts --out-dir dist --public-dir public",
+    "build": "tsup src/index.ts src/urbit/* src/client/index.ts src/db/index.ts src/api/index.ts --format esm --minify --dts --out-dir dist --public-dir public",
     "dev": "npm run build -- --watch",
     "postinstall": "npm run build",
     "test": "vitest",

@@ -1,6 +1,5 @@
-import { Pin } from '../db';
 import * as db from '../db';
-import type * as ub from '../urbit/groups';
+import type * as ub from '../urbit';
 import { scry } from './urbit';
 
 export const getPinnedItems = async () => {
@@ -11,11 +10,11 @@ export const getPinnedItems = async () => {
   return toClientPinnedItems(pinnedItems);
 };
 
-export const toClientPinnedItems = (rawItems: string[]): Pin[] => {
+export const toClientPinnedItems = (rawItems: string[]): db.Pin[] => {
   return rawItems.map(toClientPinnedItem);
 };
 
-export const toClientPinnedItem = (rawItem: string): Pin => {
+export const toClientPinnedItem = (rawItem: string): db.Pin => {
   const type = getPinnedItemType(rawItem);
   return {
     type,

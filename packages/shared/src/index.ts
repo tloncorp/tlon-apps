@@ -9,5 +9,4 @@ export type {
   WebAppCommand,
 } from './types/native';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
-export type { ClientTypes } from './client';
 export * as sync from './sync';
