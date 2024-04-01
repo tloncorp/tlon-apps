@@ -95,6 +95,8 @@ import {
 
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
+import DevLog from './components/DevLog/DevLog';
+import DevLogsView from './components/DevLog/DevLogView';
 import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
@@ -154,15 +156,16 @@ const SuspendedDiaryAddNote = (
 );
 
 interface RoutesProps {
-  state: { backgroundLocation?: Location } | null;
-  location: Location;
   isMobile: boolean;
   isSmall: boolean;
 }
 
-function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
+  const location = useLocation();
+
+  const state = location.state as { backgroundLocation?: Location } | null;
 
   useEffect(() => {
     if (loaded) {
@@ -407,6 +410,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="about"
                 element={<AboutView title={`About • ${groupsTitle}`} />}
               />
+              <Route
+                path="logs"
+                element={
+                  <DevLogsView title={`Developer Logs • ${groupsTitle}`} />
+                }
+              />
             </Route>
           ) : (
             <>
@@ -437,6 +446,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route
                 path="/profile/about"
                 element={<AboutView title={`About • ${groupsTitle}`} />}
+              />
+              <Route
+                path="/profile/logs"
+                element={
+                  <DevLogsView title={`Developer Logs • ${groupsTitle}`} />
+                }
               />
             </>
           )}
@@ -537,16 +552,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
+              <Route path="/update-needed" element={<UpdateNoticeSheet />} />
             </>
           ) : null}
-          {isMobile && (
-            <Route path="/update-needed" element={<UpdateNoticeSheet />} />
-          )}
         </Routes>
       ) : null}
     </>
   );
-}
+});
 
 function authRedirect() {
   document.location = `${document.location.protocol}//${document.location.host}`;
@@ -601,7 +614,6 @@ function App() {
   useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
-  const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
 
@@ -625,20 +637,13 @@ function App() {
     })();
   }, [handleError]);
 
-  const state = location.state as { backgroundLocation?: Location } | null;
-
   return (
     <div className="flex h-full w-full flex-col">
       <DisconnectNotice />
       <LeapProvider>
         <ChatInputFocusProvider>
           <DragAndDropProvider>
-            <GroupsRoutes
-              state={state}
-              location={location}
-              isMobile={isMobile}
-              isSmall={isSmall}
-            />
+            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
           </DragAndDropProvider>
         </ChatInputFocusProvider>
         <Leap />

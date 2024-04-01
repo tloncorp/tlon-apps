@@ -21,6 +21,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
+import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
   useAddReplyMutation,
@@ -48,6 +49,7 @@ export default function ChatThread() {
   }>();
   const isMobile = useIsMobile();
   const { isChatInputFocused } = useChatInputFocus();
+  const isEditing = useIsEditingMessage();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
@@ -73,6 +75,7 @@ export default function ChatThread() {
       bigInt(idTime!),
       {
         memo: note.essay,
+        revision: note.revision,
         seal: {
           id: note.seal.id,
           'parent-id': note.seal.id,
@@ -258,7 +261,7 @@ export default function ChatThread() {
       </div>
       <div
         className={cn(
-          isDragging || isOver || !canWrite
+          isDragging || isOver || !canWrite || (isEditing && isMobile)
             ? ''
             : 'sticky bottom-0 border-t-2 border-gray-50 bg-white p-3 sm:p-4'
         )}

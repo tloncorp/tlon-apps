@@ -423,17 +423,19 @@
         %hide  (~(put in hidden-posts) id-post.toggle)
         %show  (~(del in hidden-posts) id-post.toggle)
       ==
-    (give %fact ~[/] toggle-post+!>(toggle))
+    (give %fact ~[/ /v0 /v1] toggle-post+!>(toggle))
   ::
 ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+    pole  ~|(bad-watch-path+pole !!)
-      ~                          ?>(from-self cor)
-      [%unreads ~]               ?>(from-self cor)
-      [=kind:c ship=@ name=@ ~]  ?>(from-self cor)
-      [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+  =?  pole  !?=([?(%v0 %v1) *] pole)
+    [%v0 pole]
+  ?+    pole  ~|(bad-watch-path+`path`pole !!)
+      [?(%v0 %v1) ~]                        ?>(from-self cor)
+      [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
+      [?(%v0 %v1) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+      [?(%v0 %v1) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
@@ -443,21 +445,21 @@
 ++  watch-said
   |=  [=nest:c =plan:c]
   ?.  (~(has by v-channels) nest)
-    =/  wire  (said-wire nest plan)
-    ((safe-watch wire [ship.nest server] wire) |)
+    =/  =path  (said-path nest plan)
+    ((safe-watch path [ship.nest server] path) |)
   ::TODO  not guaranteed to resolve, we might have partial backlog
   ca-abet:(ca-said:(ca-abed:ca-core nest) plan)
 ::
-++  said-wire
+++  said-path
   |=  [=nest:c =plan:c]
-  ^-  wire
+  ^-  path
   %+  welp
     /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/post/(scot %ud p.plan)
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
   |=  [=nest:c =plan:c =sign:agent:gall]
-  =/  =wire  (said-wire nest plan)
+  =/  =path  (said-path nest plan)
   ^+  cor
   ?+    -.sign  !!
       %watch-ack
@@ -468,11 +470,11 @@
       %kick
     ?:  (~(has by voc) nest plan)
       cor  :: subscription ended politely
-    (give %kick ~[wire] ~)
+    (give %kick ~[path v0+path v1+path] ~)
   ::
       %fact
-    =.  cor  (give %fact ~[wire] cage.sign)
-    =.  cor  (give %kick ~[wire] ~)
+    =.  cor  (give %fact ~[path v0+path v1+path] cage.sign)
+    =.  cor  (give %kick ~[path v0+path v1+path] ~)
     ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
         %channel-said
@@ -564,16 +566,19 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  ?>  ?=(^ pole)
+  =?  +.pole  !?=([?(%v0 %v1) *] +.pole)
+    [%v0 +.pole]
   ?+    pole  [~ ~]
-      [%x %channels ~]   ``channels+!>((uv-channels:utils v-channels))
-      [%x %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
-      [%x %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
-      [%x %unreads ~]  ``channel-unreads+!>(unreads)
-      [%x =kind:c ship=@ name=@ rest=*]
+      [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels:utils v-channels))
+      [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
+      [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
+      [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
+      [%x v=?(%v0 %v1) =kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole)
+    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole v.pole)
   ::
-      [%u =kind:c ship=@ name=@ ~]
+      [%u ?(%v0 %v1) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ==
@@ -598,10 +603,15 @@
   [nest ca-unread:(ca-abed:ca-core nest)]
 ::
 ++  pass-hark
+  |=  =cage
+  ^-  card
+  =/  =wire  /hark
+  =/  =dock  [our.bowl %hark]
+  [%pass wire %agent dock %poke cage]
+++  pass-yarn
   |=  =new-yarn:ha
   ^-  card
-  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
-  [%pass /hark %agent [our.bowl %hark] %poke cage]
+  (pass-hark hark-action-1+!>([%new-yarn new-yarn]))
 ::
 ++  from-self  =(our src):bowl
 ::
@@ -631,7 +641,7 @@
   ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
   ++  ca-sub-wire  (weld ca-area /updates)
   ++  ca-give-unread
-    (give %fact ~[/unreads] channel-unread-update+!>([nest ca-unread]))
+    (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
 ::
   ::
   ::  handle creating a channel
@@ -679,6 +689,28 @@
   ++  ca-a-remark
     |=  =a-remark:c
     ^+  ca-core
+    =?  ca-core  =(%read -.a-remark)
+      %-  emil
+      =/  last-read  last-read.remark.channel
+      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
+      %+  murn
+        ~(tap by cable.carpet)
+      |=  [=rope:ha =thread:ha]
+      ^-  (unit card)
+      ?~  can.rope  ~
+      ?.  =(nest u.can.rope)  ~
+      =/  thread=(pole knot)  ted.rope
+      =/  top-id=(unit id-post:c)
+        ?+  thread  ~
+          [* * * * id=@ rest=*]  `(slav %ui (cat 3 '0i' id.thread))
+        ==
+      ::  look at what post id the notification is coming from, and
+      ::  if it's newer than the last read, mark the notification
+      ::  read as well
+      ?~  top-id  ~
+      ?:  (lth u.top-id last-read.remark.channel)  ~
+      =/  =cage  hark-action-1+!>([%saw-rope rope])
+      `(pass-hark cage)
     =.  remark.channel
       ?-    -.a-remark
           %watch    remark.channel(watching &)
@@ -735,7 +767,7 @@
   ::
   ++  ca-has-sub
     ^-  ?
-    (~(has by wex.bowl) [ca-sub-wire ship.nest dap.bowl])
+    (~(has by wex.bowl) [ca-sub-wire ship.nest server])
   ::
   ++  ca-safe-sub
     |=  delay=?
@@ -1145,12 +1177,12 @@
           ca-core
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin rope cs ~)))
+        (emit (pass-yarn (ca-spin rope cs ~)))
       ::
       ?:  (want-hark %any)
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' sent a message: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin rope cs ~)))
+        (emit (pass-yarn (ca-spin rope cs ~)))
       ca-core
     ::
     ++  on-reply
@@ -1183,7 +1215,7 @@
       =;  cs=(unit (list content:ha))
         ?~  cs  ca-core
         =/  =rope:ha  (ca-rope -.kind-data.post id-post `id.reply)
-        (emit (pass-hark (ca-spin rope u.cs ~)))
+        (emit (pass-yarn (ca-spin rope u.cs ~)))
       ::  notify because we wrote the post the reply responds to
       ::
       ?:  =(author.post our.bowl)
@@ -1281,7 +1313,21 @@
   ++  ca-response
     |=  =r-channel:c
     =/  =r-channels:c  [nest r-channel]
-    (give %fact ~[/ ca-area] channel-response+!>(r-channels))
+    ::TODO  the mark type changing will give us trouble, right?
+    =.  ca-core  (give %fact ~[/v1 v1+ca-area] channel-response-1+!>(r-channels))
+    =;  r-simple=r-channels-simple-post:c
+      (give %fact ~[/ ca-area /v0 v0+ca-area] channel-response+!>(r-simple))
+    :-  nest
+    ?+  r-channel  r-channel
+        [%posts *]
+      r-channel(posts (s-posts:utils posts.r-channel))
+    ::
+        [%post * %set *]
+      r-channel(post.r-post (bind post.r-post.r-channel s-post:utils))
+    ::
+        [%post * %reply * * %set *]
+      r-channel(reply.r-reply.r-post (bind reply.r-reply.r-post.r-channel s-reply:utils))
+    ==
   ::
   ::  produce an up-to-date unread state
   ::
@@ -1327,10 +1373,12 @@
   ::  handle scries
   ::
   ++  ca-peek
-    |=  =(pole knot)
+    |=  [=(pole knot) ver=?(%v0 %v1)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
-        [%posts rest=*]  (ca-peek-posts rest.pole)
+        [%posts rest=*]
+      ?:  =(ver %v0)  (ca-peek-posts-0 rest.pole)
+      (ca-peek-posts-1 rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%hark %rope post=@ ~]
       =/  id  (slav %ud post.pole)
@@ -1379,7 +1427,29 @@
       (slav %p nedl.pole)
     ==
   ::
-  ++  give-posts
+  ++  give-posts-0
+    |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
+    ^-  (unit (unit cage))
+    =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
+    =;  paged-posts=paged-simple-posts:c
+      ``channel-simple-posts+!>(paged-posts)
+    ?:  =(0 (lent ls))  [*simple-posts:c ~ ~ 0]
+    =/  posts=simple-posts:c
+      ?:  =(%post mode)  (suv-posts:utils posts)
+      (suv-posts-without-replies:utils posts)
+    =/  newer=(unit time)
+      =/  more  (tab:on-v-posts:c posts.channel `-:(rear ls) 1)
+      ?~(more ~ `-:(head more))
+    =/  older=(unit time)
+      =/  more  (bat:mo-v-posts:c posts.channel `-:(head ls) 1)
+      ?~(more ~ `-:(head more))
+    :*  posts
+        newer
+        older
+        (wyt:on-v-posts:c posts.channel)
+    ==
+  ::
+  ++  give-posts-1
     |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
     ^-  (unit (unit cage))
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
@@ -1401,7 +1471,7 @@
         (wyt:on-v-posts:c posts.channel)
     ==
   ::
-  ++  ca-peek-posts
+  ++  ca-peek-posts-0
     |=  =(pole knot)
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
@@ -1409,19 +1479,19 @@
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  ls     (top:mo-v-posts:c posts.channel count)
-      (give-posts mode.pole ls)
+      (give-posts-0 mode.pole ls)
     ::
         [%older start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  ls     (bat:mo-v-posts:c posts.channel `start count)
-      (give-posts mode.pole ls)
+      (give-posts-0 mode.pole ls)
     ::
         [%newer start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  ls     (tab:on posts.channel `start count)
-      (give-posts mode.pole ls)
+      (give-posts-0 mode.pole ls)
     ::
         [%around time=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -1432,7 +1502,55 @@
       =/  posts
           ?~  post  (welp older newer)
           (welp (snoc older [time u.post]) newer)
-      (give-posts mode.pole posts)
+      (give-posts-0 mode.pole posts)
+    ::
+        [%post time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =/  post  (get:on posts.channel time)
+      ?~  post  ~
+      ?~  u.post  `~
+      ``channel-simple-post+!>((suv-post:utils u.u.post))
+    ::
+        [%post %id time=@ %replies rest=*]
+      =/  time  (slav %ud time.pole)
+      =/  post  (get:on posts.channel `@da`time)
+      ?~  post  ~
+      ?~  u.post  `~
+      (ca-peek-replies-0 id.u.u.post replies.u.u.post rest.pole)
+    ==
+  ::
+  ++  ca-peek-posts-1
+    |=  =(pole knot)
+    ^-  (unit (unit cage))
+    =*  on   on-v-posts:c
+    ?+    pole  [~ ~]
+        [%newest count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  ls     (top:mo-v-posts:c posts.channel count)
+      (give-posts-1 mode.pole ls)
+    ::
+        [%older start=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  ls     (bat:mo-v-posts:c posts.channel `start count)
+      (give-posts-1 mode.pole ls)
+    ::
+        [%newer start=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  ls     (tab:on posts.channel `start count)
+      (give-posts-1 mode.pole ls)
+    ::
+        [%around time=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  time  (slav %ud time.pole)
+      =/  older  (bat:mo-v-posts:c posts.channel `time count)
+      =/  newer  (tab:on posts.channel `time count)
+      =/  post   (get:on posts.channel time)
+      =/  posts
+          ?~  post  (welp older newer)
+          (welp (snoc older [time u.post]) newer)
+      (give-posts-1 mode.pole posts)
     ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)
@@ -1446,28 +1564,64 @@
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole)
+      (ca-peek-replies-1 id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
-  ++  ca-peek-replies
+  ++  ca-peek-replies-0
     |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
-        [%all ~]  ``channel-replies+!>(replies)
+        [%all ~]
+      ``channel-simple-replies+!>((suv-replies:utils parent-id replies))
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (top:mo-v-replies:c replies count)))
+      =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
+      ``channel-simple-replies+!>((suv-replies:utils parent-id reply-map))
     ::
         [%older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (bat:mo-v-replies:c replies `start count)))
+      =/  reply-map  (gas:on *v-replies:c (bat:mo-v-replies:c replies `start count))
+      ``channel-simple-replies+!>((suv-replies:utils parent-id reply-map))
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-replies+!>((gas:on *v-replies:c (tab:on replies `start count)))
+      =/  reply-map  (gas:on *v-replies:c (tab:on replies `start count))
+      ``channel-simple-replies+!>((suv-replies:utils parent-id reply-map))
+    ::
+        [%reply %id time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =/  reply  (get:on-v-replies:c replies `@da`time)
+      ?~  reply  ~
+      ?~  u.reply  `~
+      ``channel-simple-reply+!>(`simple-reply:c`(suv-reply:utils parent-id u.u.reply))
+    ==
+  ::
+  ++  ca-peek-replies-1
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
+    ^-  (unit (unit cage))
+    =*  on   on-v-replies:c
+    ?+    pole  [~ ~]
+        [%all ~]
+      ``channel-replies+!>((uv-replies:utils parent-id replies))
+        [%newest count=@ ~]
+      =/  count  (slav %ud count.pole)
+      =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
+      ``channel-replies+!>((uv-replies:utils parent-id reply-map))
+    ::
+        [%older start=@ count=@ ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  reply-map  (gas:on *v-replies:c (bat:mo-v-replies:c replies `start count))
+      ``channel-replies+!>((uv-replies:utils parent-id reply-map))
+    ::
+        [%newer start=@ count=@ ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  reply-map  (gas:on *v-replies:c (tab:on replies `start count))
+      ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%reply %id time=@ ~]
       =/  time  (slav %ud time.pole)
@@ -1529,7 +1683,7 @@
         ?~  val.n.posts  scan.s
         ?.  (match u.val.n.posts match-type)  scan.s
         :_  scan.s
-        [%post (uv-post-without-replies:utils u.val.n.posts)]
+        [%post (suv-post-without-replies:utils u.val.n.posts)]
       ::
       =.  scan.s
         ?~  val.n.posts  scan.s
@@ -1543,7 +1697,7 @@
           ?~  val.n.replies  scan.s
           ?.  (match-reply u.val.n.replies match-type)  scan.s
           :_  scan.s
-          [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
+          [%reply id-post (suv-reply:utils id-post u.val.n.replies)]
         ::
         $(replies l.replies)
       ::
@@ -1571,7 +1725,7 @@
         ?.  (match u.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (uv-post-without-replies:utils u.val.n.posts)]
+        =/  res  [%post (suv-post-without-replies:utils u.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
@@ -1593,7 +1747,7 @@
         ?.  (match-reply u.val.n.replies match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
+        =/  res  [%reply id-post (suv-reply:utils id-post u.val.n.replies)]
         s(len (dec len.s), scan [res scan.s])
       ::
       $(replies l.replies)
@@ -1710,6 +1864,17 @@
   ::
   ++  ca-recheck
     |=  sects=(set sect:g)
+    =/  =flag:g  group.perm.perm.channel
+    =/  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    =/  exists-path  (weld groups-prefix /exists/(scot %p p.flag)/[q.flag])
+    =+  .^(exists=? %gx exists-path)
+    ?.  exists  ca-core
+    =/  =path
+      %+  weld
+        groups-prefix
+      /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
+    =+  .^(group=group-ui:g %gx path)
+    ?.  (~(has by channels.group) nest)  ca-core
     ::  if our read permissions restored, re-subscribe
     ?:  (can-read:ca-perms our.bowl)  (ca-safe-sub |)
     ca-core

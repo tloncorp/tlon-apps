@@ -1,15 +1,13 @@
-import * as Dialog from '@radix-ui/react-dialog';
 import { ChatMap } from '@tloncorp/shared/dist/urbit/channel';
 import cn from 'classnames';
-import React, { PropsWithChildren, useCallback } from 'react';
+import React, { PropsWithChildren, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
+import { useOnClickOutside } from 'usehooks-ts';
 
-import useActiveTab from '@/components/Sidebar/util';
 import { useSafeAreaInsets } from '@/logic/native';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { disableDefault } from '@/logic/utils';
 
 import ChatSearchResults from './ChatSearchResults';
 import SearchBar from './SearchBar';
@@ -45,8 +43,8 @@ export default function ChatSearch({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(min-width: 768px) and (max-width: 1099px)');
-  const activeTab = useActiveTab();
   const safeAreaInsets = useSafeAreaInsets();
+  const containerRef = useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<VirtuosoHandle>(null);
   const { selected, rawInput, onChange, onKeyDown } = useChatSearchInput({
     root,
@@ -68,23 +66,7 @@ export default function ChatSearch({
     }, []),
   });
 
-  const preventClose = useCallback((e: Event) => {
-    const target = e.target as HTMLElement;
-    const hasNavAncestor = target.id === 'search' || target.closest('#search');
-
-    if (hasNavAncestor) {
-      e.preventDefault();
-    }
-  }, []);
-
-  const onOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        navigate(root);
-      }
-    },
-    [navigate, root]
-  );
+  useOnClickOutside(containerRef, () => navigate(root));
 
   return (
     <div
@@ -96,6 +78,7 @@ export default function ChatSearch({
           'flex w-full flex-1 items-center justify-between space-x-2',
           isSmall || isMobile ? 'p-3' : 'p-2'
         )}
+        ref={containerRef}
       >
         <div className="max-w-[240px] flex-none">
           {!isMobile && !isSmall ? children : null}
@@ -112,40 +95,30 @@ export default function ChatSearch({
               isSmall={isSmall}
             />
           </label>
-          <Dialog.Root
-            open
-            modal={activeTab === 'messages' ? true : false}
-            onOpenChange={onOpenChange}
-          >
-            <Dialog.Content
-              onInteractOutside={preventClose}
-              onOpenAutoFocus={disableDefault}
-              className="absolute left-0 top-[40px] z-50 w-full outline-none"
+          <div className="absolute left-0 top-[40px] z-50 w-full outline-none">
+            <section
+              tabIndex={0}
+              role="listbox"
+              aria-setsize={scan?.size || 0}
+              id="search-results"
+              className={cn(
+                'default-focus dialog border-2 border-transparent shadow-lg dark:border-gray-50',
+                query ? 'flex h-[60vh] min-h-[480px] flex-col' : 'h-[200px]'
+              )}
             >
-              <section
-                tabIndex={0}
-                role="listbox"
-                aria-setsize={scan?.size || 0}
-                id="search-results"
-                className={cn(
-                  'default-focus dialog border-2 border-transparent shadow-lg dark:border-gray-50',
-                  query ? 'flex h-[60vh] min-h-[480px] flex-col' : 'h-[200px]'
-                )}
-              >
-                <ChatSearchResults
-                  ref={scrollerRef}
-                  whom={whom}
-                  root={root}
-                  scan={scan}
-                  searchDetails={searchDetails}
-                  isLoading={isLoading}
-                  query={query}
-                  selected={selected.index}
-                  endReached={endReached}
-                />
-              </section>
-            </Dialog.Content>
-          </Dialog.Root>
+              <ChatSearchResults
+                ref={scrollerRef}
+                whom={whom}
+                root={root}
+                scan={scan}
+                searchDetails={searchDetails}
+                isLoading={isLoading}
+                query={query}
+                selected={selected.index}
+                endReached={endReached}
+              />
+            </section>
+          </div>
         </div>
         {!isSmall && (
           <Link to={root} className="default-focus secondary-button">
