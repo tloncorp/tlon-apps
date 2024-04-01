@@ -1,10 +1,9 @@
-import type { ClientTypes as Client } from '../client';
-import type * as ubChan from '../urbit/channel';
-import type * as ubDM from '../urbit/dms';
+import type * as client from '../client';
+import type * as ub from '../urbit';
 import { scry, subscribe } from './urbit';
 
 export const getChannelUnreads = async () => {
-  const results = await scry<ubChan.Unreads>({
+  const results = await scry<ub.Unreads>({
     app: 'channels',
     path: '/unreads',
   });
@@ -12,7 +11,7 @@ export const getChannelUnreads = async () => {
 };
 
 export const getDMUnreads = async () => {
-  const results = await scry<ubChan.Unreads>({
+  const results = await scry<ub.Unreads>({
     app: 'chat',
     path: '/unreads',
   });
@@ -20,9 +19,9 @@ export const getDMUnreads = async () => {
 };
 
 export const subscribeChannelUnreads = (
-  handler: (unread: Client.Unread) => Promise<void>
+  handler: (unread: client.Unread) => Promise<void>
 ) => {
-  subscribe<ubChan.UnreadUpdate>(
+  subscribe<ub.UnreadUpdate>(
     { app: 'channels', path: '/unreads' },
     async (update) => {
       const unread = toClientUnread(update.nest, update.unread, 'channel');
@@ -32,9 +31,9 @@ export const subscribeChannelUnreads = (
 };
 
 export const subscribeDMUnreads = (
-  handler: (unread: Client.Unread) => Promise<void>
+  handler: (unread: client.Unread) => Promise<void>
 ) => {
-  subscribe<ubDM.DMUnreadUpdate>(
+  subscribe<ub.DMUnreadUpdate>(
     { app: 'chat', path: '/unreads' },
     async (update) => {
       const unread = toClientUnread(update.whom, update.unread, 'dm');
@@ -44,9 +43,9 @@ export const subscribeDMUnreads = (
 };
 
 export const toClientUnreads = (
-  unreads: ubChan.Unreads,
-  type: Client.UnreadType
-): Client.Unread[] => {
+  unreads: ub.Unreads,
+  type: client.UnreadType
+): client.Unread[] => {
   return Object.entries(unreads).map(([nest, contact]) =>
     toClientUnread(nest, contact, type)
   );
@@ -54,9 +53,9 @@ export const toClientUnreads = (
 
 export const toClientUnread = (
   nestOrWhom: string,
-  unread: ubChan.Unread,
-  type: Client.UnreadType
-): Client.Unread => {
+  unread: ub.Unread,
+  type: client.UnreadType
+): client.Unread => {
   return {
     channelId: nestOrWhom,
     totalCount: unread.count,

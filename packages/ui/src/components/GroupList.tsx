@@ -1,4 +1,4 @@
-import type { ClientTypes } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 import { Text, YGroup } from 'tamagui';
 
 import { GroupListItem } from './GroupListItem';
@@ -9,10 +9,10 @@ export function GroupList({
   onGroupLongPress,
   onGroupPress,
 }: {
-  pinned: ClientTypes.Group[];
-  other: ClientTypes.Group[];
-  onGroupPress?: (group: ClientTypes.Group) => void;
-  onGroupLongPress?: (group: ClientTypes.Group) => void;
+  pinned: client.Group[];
+  other: client.Group[];
+  onGroupPress?: (group: client.Group) => void;
+  onGroupLongPress?: (group: client.Group) => void;
 }) {
   return (
     <YGroup alignSelf="stretch" gap="$s" padding="$l">

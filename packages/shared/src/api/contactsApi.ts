@@ -1,7 +1,7 @@
 import { parseUx } from '@urbit/aura';
 
 import * as db from '../db';
-import type * as ub from '../urbit/contact';
+import * as ub from '../urbit';
 import { scry } from './urbit';
 
 export const getContacts = async () => {

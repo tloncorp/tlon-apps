@@ -5,15 +5,16 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts src/urbit/* src/db/index.ts src/api/index.ts --format esm --minify --dts --out-dir dist --public-dir public",
+    "build": "tsup",
     "dev": "npm run build -- --watch",
+    "dev:migrations": "concurrently \"npm run watch-migrations\" \"npm run dev\"",
     "postinstall": "npm run build",
     "test": "vitest",
     "lint:format": "prettier src/ --write",
     "lint:all": "npm run lint:format",
     "generate": "npm run generate:migration",
-    "generate:migration": "drizzle-kit generate:sqlite",
-    "clear-schema-changes": "git checkout -f -- src/db/drizzle"
+    "generate:migration": "node reset-migrations",
+    "watch-migrations": "npm run generate:migration -- --watch"
   },
   "dependencies": {
     "@urbit/api": "^2.2.0",
