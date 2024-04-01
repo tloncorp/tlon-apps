@@ -1,6 +1,5 @@
-import type { ClientTypes as Client } from '../client';
 import * as db from '../db';
-import type * as ub from '../urbit/channel';
+import type * as ub from '../urbit';
 import { scry } from './urbit';
 
 export const getUnreadChannels = async () => {

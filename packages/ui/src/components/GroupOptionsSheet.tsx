@@ -1,4 +1,4 @@
-import { ClientTypes } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 
 import { SizableText, Stack, Text, View } from '../core';
 import { Sheet } from './Sheet';
@@ -6,7 +6,7 @@ import { Sheet } from './Sheet';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group?: ClientTypes.Group;
+  group?: client.Group;
 }
 
 export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {

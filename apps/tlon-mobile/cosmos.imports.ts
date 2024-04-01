@@ -3,8 +3,9 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
-import * as fixture5 from './src/fixtures/Button.fixture';
-import * as fixture4 from './src/fixtures/Channel.fixture';
+import * as fixture6 from './src/fixtures/Button.fixture';
+import * as fixture5 from './src/fixtures/Channel.fixture';
+import * as fixture4 from './src/fixtures/ChannelSwitcherSheet.fixture';
 import * as fixture3 from './src/fixtures/GroupList.fixture';
 import * as fixture2 from './src/fixtures/HeaderButton.fixture';
 import * as fixture1 from './src/fixtures/TlonButton.fixture';
@@ -20,8 +21,9 @@ const fixtures = {
   'src/fixtures/TlonButton.fixture.tsx': { module: fixture1 },
   'src/fixtures/HeaderButton.fixture.tsx': { module: fixture2 },
   'src/fixtures/GroupList.fixture.tsx': { module: fixture3 },
-  'src/fixtures/Channel.fixture.tsx': { module: fixture4 },
-  'src/fixtures/Button.fixture.tsx': { module: fixture5 },
+  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture4 },
+  'src/fixtures/Channel.fixture.tsx': { module: fixture5 },
+  'src/fixtures/Button.fixture.tsx': { module: fixture6 },
 };
 
 const decorators = {

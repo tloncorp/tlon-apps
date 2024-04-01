@@ -1,16 +1,16 @@
-import type * as client from '@tloncorp/shared/dist/client';
+import type { ClientTypes as Client } from '@tloncorp/shared';
 import { useLongPress } from '@uidotdev/usehooks';
 
 import type { ListItemProps } from '../ListItem';
 import ListItemContent from './ListItemContent';
 
-export const GroupListItem = ({
+export const ChannelListItem = ({
   model,
   onPress,
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<client.Group>) => {
+}: ListItemProps<Client.Channel>) => {
   // TODO: Figure out if this is necessary. Why can't we use Tamagui's long press handler?
   const attributes = useLongPress(
     () => {

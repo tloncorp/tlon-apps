@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { ClientTypes as Client } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
 import {
@@ -19,7 +19,7 @@ import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function fallbackContact(id: string): Client.Contact {
+function fallbackContact(id: string): client.Contact {
   return {
     id,
     nickname: null,
