@@ -10,4 +10,5 @@ export * from './components/Sheet';
 export * from './components/GroupOptionsSheet';
 export * from './components/GroupListItem';
 export * from './components/GroupList';
+export * from './components/ChannelSwitcherSheet';
 export * from './tamagui.config';
