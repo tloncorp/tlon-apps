@@ -207,7 +207,8 @@
       [%post-mention %notify]
       [%reply %notify]
       [%reply-mention %notify]
-      [%flag %default]
+      [%flag-post %default]
+      [%flag-reply %default]
   ==
 ++  notifiable
   |=  =event:a

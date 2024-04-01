@@ -78,9 +78,17 @@
           ship+(ship ship.e)
       ==
     ::
-        %flag
+        %flag-post
       %-  pairs
       :~  key+(msg-key message-key.e)
+          channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+      ==
+    ::
+        %flag-reply
+      %-  pairs
+      :~  parent+(msg-key message-key.e)
+          key+(msg-key target.e)
           channel/s+(nest:enjs:gj channel.e)
           group/s+(flag:enjs:gj group.e)
       ==
@@ -119,6 +127,25 @@
           channel/s+(nest:enjs:gj channel.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
+      ==
+    ::
+        %ask
+      %-  pairs
+      :~  group/s+(flag:enjs:gj group.e)
+          ship+(ship ship.e)
+      ==
+    ::
+        %role
+      %-  pairs
+      :~  group/s+(flag:enjs:gj group.e)
+          ship+(ship ship.e)
+          roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
+      ==
+    ::
+        %group-invite
+      %-  pairs
+      :~  group/s+(flag:enjs:gj group.e)
+          ship+(ship ship.e)
       ==
     ==
   ::

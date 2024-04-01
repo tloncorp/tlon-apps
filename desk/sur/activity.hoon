@@ -31,7 +31,8 @@
       %post-mention
       %reply
       %reply-mention
-      %flag
+      %flag-post
+      %flag-reply
   ==
 +$  flavor-level  ?(%notify %default)
 +$  volume  (map index index-level)
@@ -52,7 +53,8 @@
       [%role group-concern =ship roles=(set sect:g)]
       [%post post-concern content=story:c mention=?]
       [%reply reply-concern content=story:c mention=?]
-      [%flag ?(post-concern reply-concern)]  ::TODO  easier-to-disambiguate type
+      [%flag-post post-concern]
+      [%flag-reply reply-concern]
   ==
 +$  time-event  [=time =event]
 +$  group-concern     group=flag:g

@@ -864,7 +864,8 @@
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
-            [%flag key=?(message-key [message-key message-key]) =nest:c]
+            [%flag-post key=message-key =nest:c]
+            [%flag-reply key=message-key parent=message-key =nest:c]
             [%role =ship roles=(set sect:g)]
             [%ask =ship]
         ==
@@ -875,9 +876,8 @@
       ?-  -.concern
         %join  [%join ^flag ship.concern]
         %kick  [%kick ^flag ship.concern]
-        %flag  ?:  ?=(message-key key.concern)
-                 [%flag key.concern nest.concern ^flag]
-               [%flag -.key.concern +.key.concern nest.concern ^flag]
+        %flag-post  [%flag-post key.concern nest.concern ^flag]
+        %flag-reply  [%flag-reply parent.concern key.concern nest.concern ^flag]
         %role  [%role ^flag [ship roles]:concern]
         %ask   [%ask ^flag ship.concern]
       ==

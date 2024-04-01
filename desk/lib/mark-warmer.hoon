@@ -26,4 +26,5 @@
 /$  clubs       %clubs                %json
 /$  ch-hidden   %hidden-messages      %json
 /$  crew        %chat-club-crew       %json
+/$  full-info   %activity-full        %json
 ~

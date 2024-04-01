@@ -1,3 +1,4 @@
+import { FullActivity } from '@tloncorp/shared/dist/urbit/activity';
 import { GroupsInit } from '@tloncorp/shared/dist/urbit/ui';
 import Urbit from '@urbit/http-api';
 import _ from 'lodash';
@@ -43,6 +44,13 @@ async function startGroups() {
         }),
       emptyGroupsInit
     );
+
+  const full = api.scry<FullActivity>({
+    app: 'activity',
+    path: '/',
+  });
+
+  console.log(full);
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
