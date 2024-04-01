@@ -22,7 +22,7 @@ export default function ShipName({
   const citedName = useMemo(() => (full ? name : cite(name)), [name, full]);
   const calm = useCalm();
 
-  if (!citedName) {
+  if (!citedName || !contact) {
     return null;
   }
 
