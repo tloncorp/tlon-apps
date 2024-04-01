@@ -1,5 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import {
+  Block,
   Story,
   VerseBlock,
   VerseInline,
@@ -18,7 +19,7 @@ import {
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 import { findLastIndex } from 'lodash';
-import { SizableText, YStack } from 'tamagui';
+import { Image, SizableText, View, YStack } from 'tamagui';
 
 import { Button } from '../Button';
 import ShipName from '../ShipName';
@@ -138,6 +139,32 @@ export function InlineContent({ story }: { story: Inline }) {
   );
 }
 
+export function BlockContent({ story }: { story: Block }) {
+  // TODO add support for videos and other embeds
+  if (isImage(story)) {
+    return (
+      <Image
+        source={{
+          uri: story.image.src,
+          width: story.image.height,
+          height: story.image.width,
+        }}
+        alt={story.image.alt}
+        borderRadius="$m"
+        height={200}
+        width={200}
+        resizeMode="contain"
+      />
+    );
+  }
+  console.error(`Unhandled message type: ${JSON.stringify(story)}`);
+  return (
+    <SizableText fontWeight="$l">
+      This content cannot be rendered, unhandled message type.
+    </SizableText>
+  );
+}
+
 export default function ChatContent({ story }: { story: Story }) {
   const storyInlines = (
     story.filter((s) => 'inline' in s) as VerseInline[]
@@ -165,26 +192,13 @@ export default function ChatContent({ story }: { story: Story }) {
   return (
     <YStack>
       {blockLength > 0 ? (
-        <>
+        <YStack>
           {blockContent
             .filter((a) => !!a)
-            .map((storyItem, index) => {
-              /* TODO: implement images/embeds/refs
-            (
-              <div
-                key={`${storyItem.toString()}-${index}`}
-                className="flex flex-col"
-              >
-                <BlockContent
-                  story={storyItem.block}
-                  writId={writId}
-                  blockIndex={index}
-                />
-              </div>
-            )
-          */
+            .map((storyItem) => {
+              return <BlockContent story={storyItem.block} />;
             })}
-        </>
+        </YStack>
       ) : null}
       {inlineLength > 0 ? (
         <>

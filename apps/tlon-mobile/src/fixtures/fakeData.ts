@@ -9,6 +9,20 @@ export const createSimpleContent = (str: string): string => {
   ] as Story);
 };
 
+export const createImageContent = (url: string): string => {
+  return JSON.stringify([
+    {
+      block: {
+        image: {
+          src: url,
+          height: 200,
+          width: 200,
+        },
+      },
+    },
+  ] as Story);
+};
+
 export const emptyContact: client.Contact = {
   id: '',
   nickname: null,
@@ -134,6 +148,13 @@ export const tlonLocalChannel: client.Channel = {
 };
 
 const getRandomFakeContent = () => {
+  // randomly add an image
+  if (Math.random() < 0.2) {
+    return createImageContent(
+      'https://togten.com:9001/finned-palmer/finned-palmer/2024.3.19..21.2.17..5581.0624.dd2f.1a9f-image.png'
+    );
+  }
+
   const keys = Object.keys(fakeContent);
   return fakeContent[keys[Math.floor(Math.random() * keys.length)]];
 };
