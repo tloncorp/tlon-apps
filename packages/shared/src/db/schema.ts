@@ -62,6 +62,7 @@ export const unreads = sqliteTable('unreads', {
     .references(() => channels.id),
   type: text('type').$type<'channel' | 'dm'>(),
   totalCount: integer('totalCount'),
+  updatedAt: timestamp('updatedAt').notNull(),
 });
 
 export const pins = sqliteTable(
@@ -253,7 +254,9 @@ export const channels = sqliteTable('channels', {
   postCount: integer('post_count'),
   unreadCount: integer('unread_count'),
   firstUnreadPostId: text('first_unread_post_id'),
+  lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  syncedAt: timestamp('synced_at'),
 });
 
 export const channelRelations = relations(channels, ({ one, many }) => ({
@@ -292,17 +295,22 @@ export const threadUnreadStateRelations = relations(
 
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey(),
-  authorId: integer('author_id').references(() => contacts.id),
+  authorId: text('author_id').references(() => contacts.id),
+  channelId: text('channel_id').references(() => channels.id),
+  groupId: text('group_id').references(() => groups.id),
+  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>(),
   title: text('title'),
   image: text('image'),
   content: text('content'),
   sentAt: timestamp('sent_at'),
   receivedAt: timestamp('received_at'),
   replyCount: integer('reply_count'),
-  type: text('type'),
-  channelId: integer('channel_id').references(() => channels.id),
-  groupId: text('group_id').references(() => groups.id),
-  text: text('text'),
+  textContent: text('text'),
+  hasAppReference: boolean('has_app_reference'),
+  hasChannelReference: boolean('has_channel_reference'),
+  hasGroupReference: boolean('has_group_reference'),
+  hasLink: boolean('has_link'),
+  hasImage: boolean('has_image'),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
@@ -314,15 +322,37 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.groupId],
     references: [groups.id],
   }),
-  reactions: many(reactions),
+  reactions: many(postReactions),
   author: one(contacts, {
     fields: [posts.authorId],
     references: [contacts.id],
   }),
+  images: many(postImages),
 }));
 
-export const reactions = sqliteTable(
-  'reactions',
+export const postImages = sqliteTable(
+  'post_images',
+  {
+    postId: text('post_id').references(() => posts.id),
+    src: text('src'),
+    alt: text('alt'),
+    width: integer('width'),
+    height: integer('height'),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.postId, table.src] }),
+  })
+);
+
+export const postImageRelations = relations(postImages, ({ one }) => ({
+  post: one(posts, {
+    fields: [postImages.postId],
+    references: [posts.id],
+  }),
+}));
+
+export const postReactions = sqliteTable(
+  'post_reactions',
   {
     contactId: text('contact_id')
       .references(() => contacts.id)
@@ -339,13 +369,13 @@ export const reactions = sqliteTable(
   }
 );
 
-export const reactionsRelations = relations(reactions, ({ one }) => ({
+export const postReactionsRelations = relations(postReactions, ({ one }) => ({
   post: one(posts, {
-    fields: [reactions.postId],
+    fields: [postReactions.postId],
     references: [posts.id],
   }),
   contact: one(contacts, {
-    fields: [reactions.contactId],
+    fields: [postReactions.contactId],
     references: [contacts.id],
   }),
 }));

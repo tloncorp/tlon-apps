@@ -55,6 +55,7 @@ module.exports = mergeConfig(config, {
 });
 
 function openDrizzleStudio(dbPath) {
+  console.log('Opening Drizzle Studio at', dbPath);
   const ps = spawn(
     '../../node_modules/.bin/drizzle-kit',
     `studio --config ./drizzle-studio.config.ts`.split(' '),
@@ -63,6 +64,12 @@ function openDrizzleStudio(dbPath) {
       cwd: projectRoot,
     }
   );
+  ps.stderr.on('data', (data) => {
+    console.error(data.toString());
+  });
+  ps.stdout.on('data', (data) => {
+    console.log(data.toString());
+  });
   process.on('exit', function () {
     ps.kill(9);
   });

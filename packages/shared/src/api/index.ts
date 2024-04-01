@@ -8,3 +8,4 @@ export * from './unreadsApi';
 export * from './userApi';
 export * from './urbit';
 export * from './subscribe';
+export * from './postsApi';

@@ -2,12 +2,17 @@ import {
   AnyColumn,
   Column,
   SQLWrapper,
+  Table,
   and,
   count,
+  desc,
   eq,
+  getTableColumns,
   gt,
   isNull,
+  lt,
   not,
+  or,
   sql,
 } from 'drizzle-orm';
 
@@ -23,9 +28,18 @@ import {
   groupRoles as $groupRoles,
   groups as $groups,
   pins as $pins,
+  posts as $posts,
   unreads as $unreads,
 } from './schema';
-import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from './types';
+import {
+  ChannelInsert,
+  ContactInsert,
+  GroupInsert,
+  Insertable,
+  Pin,
+  PostInsert,
+  Unread,
+} from './types';
 
 const logger = createDevLogger('query', true);
 let counter = 0;
@@ -149,6 +163,21 @@ export const getUnreadsCount = createQuery(
   }
 );
 
+export const getUnreads = createQuery(
+  async ({
+    orderBy = 'updatedAt',
+    includeFullyRead = false,
+  }: { orderBy?: 'updatedAt'; includeFullyRead?: boolean } = {}) => {
+    return client.query.unreads.findMany({
+      where: includeFullyRead ? undefined : gt($unreads.totalCount, 0),
+      orderBy: orderBy === 'updatedAt' ? desc($unreads.updatedAt) : undefined,
+    });
+  },
+  {
+    tableDependencies: ['unreads'],
+  }
+);
+
 export const getAllUnreadsCounts = async () => {
   const [channelUnreadCount, dmUnreadCount] = await Promise.all([
     getUnreadsCount({ type: 'channel' }),
@@ -160,6 +189,70 @@ export const getAllUnreadsCounts = async () => {
     total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
   };
 };
+
+export const getChannel = createQuery(
+  async (id: string) => {
+    return client.query.channels.findFirst({ where: eq($channels.id, id) });
+  },
+  {
+    tableDependencies: ['channels'],
+  }
+);
+
+export const updateChannel = createQuery(
+  (update: ChannelInsert) => {
+    return client
+      .update($channels)
+      .set(update)
+      .where(eq($channels.id, update.id));
+  },
+  {
+    tableEffects: ['channels'],
+  }
+);
+
+export const insertChannelPosts = createQuery(
+  async (channelId: string, posts: PostInsert[]) => {
+    return client.transaction(async (tx) => {
+      const lastPost = posts[posts.length - 1];
+      // Update last post meta for the channel these posts belong to,
+      // Also grab that channels groupId for updating the group's lastPostAt and
+      // associating the posts with the group.
+      const updatedChannels = await tx
+        .update($channels)
+        .set({ lastPostId: lastPost.id, lastPostAt: lastPost.receivedAt })
+        .where(
+          and(
+            eq($channels.id, channelId),
+            or(
+              isNull($channels.lastPostAt),
+              lt($channels.lastPostAt, lastPost.receivedAt ?? 0)
+            )
+          )
+        )
+        .returning({ groupId: $channels.groupId });
+      // Update group if we found one.
+      const groupId = updatedChannels[0]?.groupId;
+      if (groupId) {
+        await tx
+          .update($groups)
+          .set({ lastPostAt: lastPost.receivedAt })
+          .where(eq($groups.id, groupId));
+      }
+      // Actually insert posts, overwriting any existing posts with the same id.
+      await tx
+        .insert($posts)
+        .values(posts.map((p) => ({ ...p, groupId, channelId })))
+        .onConflictDoUpdate({
+          target: $posts.id,
+          set: conflictUpdateSetAll($posts),
+        });
+    });
+  },
+  {
+    tableEffects: ['posts', 'groups', 'channels'],
+  }
+);
 
 export const insertGroups = createQuery(async (groupData: GroupInsert[]) => {
   for (let group of groupData) {
@@ -293,6 +386,11 @@ export const getPinnedItems = createQuery(
 );
 
 // Helpers
+
+export function conflictUpdateSetAll(table: Table) {
+  const columns = getTableColumns(table);
+  return conflictUpdateSet(...Object.values(columns));
+}
 
 export function conflictUpdateSet(...columns: Column[]) {
   return Object.fromEntries(

@@ -1,4 +1,4 @@
-import type * as client from '../client';
+import * as db from '../db';
 import type * as ub from '../urbit';
 import { scry, subscribe } from './urbit';
 
@@ -19,7 +19,7 @@ export const getDMUnreads = async () => {
 };
 
 export const subscribeChannelUnreads = (
-  handler: (unread: client.Unread) => Promise<void>
+  handler: (unread: db.Unread) => Promise<void>
 ) => {
   subscribe<ub.UnreadUpdate>(
     { app: 'channels', path: '/unreads' },
@@ -31,7 +31,7 @@ export const subscribeChannelUnreads = (
 };
 
 export const subscribeDMUnreads = (
-  handler: (unread: client.Unread) => Promise<void>
+  handler: (unread: db.Unread) => Promise<void>
 ) => {
   subscribe<ub.DMUnreadUpdate>(
     { app: 'chat', path: '/unreads' },
@@ -44,8 +44,8 @@ export const subscribeDMUnreads = (
 
 export const toClientUnreads = (
   unreads: ub.Unreads,
-  type: client.UnreadType
-): client.Unread[] => {
+  type: db.Unread['type']
+): db.Unread[] => {
   return Object.entries(unreads).map(([nest, contact]) =>
     toClientUnread(nest, contact, type)
   );
@@ -54,9 +54,10 @@ export const toClientUnreads = (
 export const toClientUnread = (
   nestOrWhom: string,
   unread: ub.Unread,
-  type: client.UnreadType
-): client.Unread => {
+  type: db.Unread['type']
+): db.Unread => {
   return {
+    updatedAt: unread.recency,
     channelId: nestOrWhom,
     totalCount: unread.count,
     type,
