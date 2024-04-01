@@ -73,7 +73,9 @@ export const UrbitSigil = View.styleable<{
       height={20}
       alignItems="center"
       justifyContent="center"
-      backgroundColor="$darkBackground"
+      style={{
+        backgroundColor: adjustedColor,
+      }}
       borderRadius="$2xs"
       {...props}
     />

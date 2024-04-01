@@ -37,18 +37,28 @@ export const danContact: client.Contact = {
   ...emptyContact,
   id: '~solfer-magfed',
   nickname: 'Dan',
+  color: '#FFFF99',
 };
 
 export const hunterContact: client.Contact = {
   ...emptyContact,
   id: '~nocsyx-lassul',
   nickname: '~nocsyx-lassul ⚗️',
+  color: '#5200FF',
 };
 
 export const brianContact: client.Contact = {
   ...emptyContact,
   id: '~latter-bolden',
   nickname: 'brian',
+  avatarImage:
+    'https://d2w9rnfcy7mm78.cloudfront.net/24933700/original_92dc8654172254b5422d0d6249270afe.png?1701105163?bc=0',
+};
+
+export const markContact: client.Contact = {
+  ...emptyContact,
+  id: '~palfun-foslup',
+  color: '#2AA779',
 };
 
 export const initialContacts: Record<string, client.Contact> = {
@@ -57,6 +67,7 @@ export const initialContacts: Record<string, client.Contact> = {
   '~solfer-magfed': danContact,
   '~nocsyx-lassul': hunterContact,
   '~latter-bolden': brianContact,
+  '~palfun-foslup': markContact,
 };
 
 export const group: client.Group = {
