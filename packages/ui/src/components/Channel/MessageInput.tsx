@@ -28,9 +28,8 @@ export default function MessageInput() {
           borderRadius="$xl"
           borderWidth={0}
           fontWeight="$s"
-          color="$tertiaryText"
           backgroundColor="$secondaryBackground"
-          size="$size.s"
+          size="$m"
           height="auto"
           placeholder="Message"
           enterKeyHint="send"
