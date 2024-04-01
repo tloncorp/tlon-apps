@@ -126,13 +126,17 @@ const getRandomFakeContact = () => {
 export const createFakePost = (): ClientTypes.Post => {
   const ship = getRandomFakeContact().id;
   const id = Math.random().toString(36).substring(7);
+  // timestamp on same day
+  const randomSentAtSameDay = new Date(
+    new Date().getTime() - Math.floor(Math.random() * 10000000)
+  ).toISOString();
 
   return {
     id: `${ship}-${id}`,
     author: getRandomFakeContact(),
     channel: tlonLocalChannel,
     content: getRandomFakeContent(),
-    sentAt: '0',
+    sentAt: randomSentAtSameDay,
     replyCount: 0,
     type: 'chat',
     group,
@@ -144,5 +148,11 @@ export const createFakePosts = (count: number): ClientTypes.Post[] => {
   for (let i = 0; i < count; i++) {
     posts.push(createFakePost());
   }
+
+  // sort by timestamp
+  posts.sort((a, b) => {
+    return new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime();
+  });
+
   return posts;
 };
