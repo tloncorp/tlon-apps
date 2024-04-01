@@ -54,12 +54,10 @@ export function Channel({
         keyboardVerticalOffset={70}
         style={{ flex: 1 }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <YStack flex={1}>
-            <ChatScroll posts={posts} />
-            <MessageInput />
-          </YStack>
-        </TouchableWithoutFeedback>
+        <YStack flex={1}>
+          <ChatScroll posts={posts} />
+          <MessageInput />
+        </YStack>
       </KeyboardAvoidingView>
     </YStack>
   );

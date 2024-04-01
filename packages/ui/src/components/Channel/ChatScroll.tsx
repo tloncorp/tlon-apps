@@ -1,5 +1,5 @@
 import { ClientTypes } from '@tloncorp/shared';
-import { FlatList } from 'react-native';
+import { FlatList, Keyboard } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import ChatMessage from '../ChatMessage';
@@ -17,6 +17,7 @@ export default function ChatScroll({ posts }: { posts: ClientTypes.Post[] }) {
         data={posts}
         renderItem={renderItem}
         keyExtractor={(post) => post.id}
+        keyboardDismissMode="on-drag"
       />
     </XStack>
   );
