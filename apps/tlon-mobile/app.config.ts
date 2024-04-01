@@ -10,6 +10,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'groups',
   name: isPreview ? 'Tlon - Preview' : 'Tlon',
   assetBundlePatterns: ['**/*'],
+  userInterfaceStyle: 'automatic',
   extra: {
     eas: {
       projectId,

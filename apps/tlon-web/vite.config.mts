@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
@@ -13,6 +14,7 @@ import {
   loadEnv,
 } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
 import manifest from './src/manifest';
@@ -65,6 +67,13 @@ export default ({ mode }: { mode: string }) => {
       react({
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],
+      svgr({
+        include: '**/*.svg',
+      }) as Plugin,
+      tamaguiPlugin({
+        config: './tamagui.config.ts',
+        platform: 'web',
+      }) as Plugin,
       VitePWA({
         base: '/apps/groups/',
         manifest,

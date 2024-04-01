@@ -185,12 +185,20 @@ export default function ChatInput({
   const myLastMessage = useMyLastMessage(whom, replying);
   const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
   const lastMessageIdRef = useRef(lastMessageId);
+  const isReplyingRef = useRef(!!replying);
 
   useEffect(() => {
     if (lastMessageId && lastMessageId !== lastMessageIdRef.current) {
       lastMessageIdRef.current = lastMessageId;
     }
   }, [lastMessageId]);
+
+  useEffect(() => {
+    if (isReplyingRef.current && !replying) {
+      isReplyingRef.current = false;
+    }
+    isReplyingRef.current = !!replying;
+  }, [replying]);
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -400,9 +408,11 @@ export default function ChatInput({
         !isDmOrMultiDM
       ) {
         setSearchParams(
-          {
-            edit: lastMessageIdRef.current,
-          },
+          isReplyingRef.current
+            ? { editReply: lastMessageIdRef.current }
+            : {
+                edit: lastMessageIdRef.current,
+              },
           { replace: true }
         );
         editor.commands.blur();

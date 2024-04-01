@@ -1,11 +1,11 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import { parseActiveTab } from '@tloncorp/shared';
+import { markChatRead } from '@tloncorp/shared/dist/api';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
 import { useWebViewContext } from '../contexts/webview/webview';
-import { markChatRead } from '../lib/chatApi';
 import { connectNotifications } from '../lib/notifications';
 import type { TabParamList } from '../types';
 import { getPathFromWer } from '../utils/string';

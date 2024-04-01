@@ -23,3 +23,10 @@ declare module 'urbit-ob' {
   function isValidPatp(ship: string): boolean;
   function clan(ship: string): 'galaxy' | 'star' | 'planet' | 'moon' | 'comet';
 }
+
+declare module '*.svg' {
+  const content: React.FC<
+    React.SVGAttributes<SVGElement> & React.RefAttributes
+  >;
+  export default content;
+}
