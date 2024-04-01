@@ -98,6 +98,26 @@ export function InlineContent({ story }: { story: Inline }) {
     );
   }
 
+  if (isBlockCode(story)) {
+    return (
+      <View
+        backgroundColor="$gray100"
+        padding="$m"
+        borderRadius="$xl"
+        marginBottom="$m"
+      >
+        <SizableText
+          fontFamily="$mono"
+          padding="$m"
+          borderRadius="$xl"
+          backgroundColor="$gray100"
+        >
+          {story.code}
+        </SizableText>
+      </View>
+    );
+  }
+
   if (isLink(story)) {
     return (
       <SizableText
@@ -172,8 +192,8 @@ export default function ChatContent({ story }: { story: Story }) {
   const storyBlocks = story.filter((s) => 'block' in s) as VerseBlock[];
   const inlineLength = storyInlines.length;
   const blockLength = storyBlocks.length;
-  const firstBlockCode = storyInlines.findIndex(isBlockCode);
-  const lastBlockCode = findLastIndex(storyInlines, isBlockCode);
+  // const firstBlockCode = storyInlines.findIndex(isBlockCode);
+  // const lastBlockCode = findLastIndex(storyInlines, isBlockCode);
   const blockContent = storyBlocks.sort((a, b) => {
     // Sort images to the end
     if (isImage(a) && !isImage(b)) {
@@ -206,40 +226,42 @@ export default function ChatContent({ story }: { story: Story }) {
             // TODO: figure out if this was necessary
             // if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
             // return (
-            // <div
+            // <YStack
             // key={`${storyItem.toString()}-${index}`}
             // className="rounded bg-gray-100 py-2"
-            // style={{ maxWidth: 'calc(100% - 2rem)' }}
+            // borderRadius="$m"
             // >
             // <InlineContent story={storyItem} />
-            // </div>
+            // </YStack>
             // );
             // }
 
             // if (index === firstBlockCode) {
             // return (
-            // <div
-            // className="rounded bg-gray-100 pt-2"
-            // style={{ maxWidth: 'calc(100% - 2rem)' }}
+            // <YStack
+            // key={`${storyItem.toString()}-${index}`}
+            // className="rounded bg-gray-100 py-2"
+            // borderRadius="$m"
             // >
             // <InlineContent
             // key={`${storyItem.toString()}-${index}`}
             // story={storyItem}
             // />
-            // </div>
+            // </YStack>
             // );
             // }
             // if (index === lastBlockCode) {
             // return (
-            // <div
-            // className="rounded bg-gray-100 pb-2"
-            // style={{ maxWidth: 'calc(100% - 2rem)' }}
+            // <YStack
+            // key={`${storyItem.toString()}-${index}`}
+            // className="rounded bg-gray-100 py-2"
+            // borderRadius="$m"
             // >
             // <InlineContent
             // key={`${storyItem.toString()}-${index}`}
             // story={storyItem}
             // />
-            // </div>
+            // </YStack>
             // );
             // }
             return (

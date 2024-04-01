@@ -23,6 +23,18 @@ export const createImageContent = (url: string): string => {
   ] as Story);
 };
 
+export const createCodeContent = (code: string): string => {
+  return JSON.stringify([
+    {
+      inline: [
+        {
+          code,
+        },
+      ],
+    },
+  ] as Story);
+};
+
 export const emptyContact: client.Contact = {
   id: '',
   nickname: null,
@@ -75,6 +87,13 @@ export const markContact: client.Contact = {
   color: '#2AA779',
 };
 
+export const edContact: client.Contact = {
+  ...emptyContact,
+  id: '~fabled-faster',
+  nickname: 'éd',
+  color: '#C0C3D8',
+};
+
 export const initialContacts: Record<string, client.Contact> = {
   '~ravmel-ropdyl': galenContact,
   '~rilfun-lidlen': jamesContact,
@@ -82,6 +101,7 @@ export const initialContacts: Record<string, client.Contact> = {
   '~nocsyx-lassul': hunterContact,
   '~latter-bolden': brianContact,
   '~palfun-foslup': markContact,
+  '~fabled-faster': edContact,
 };
 
 export const group: client.Group = {
@@ -163,6 +183,11 @@ const getRandomFakeContent = () => {
     return createImageContent(
       'https://togten.com:9001/finned-palmer/finned-palmer/2024.3.19..21.2.17..5581.0624.dd2f.1a9f-image.png'
     );
+  }
+
+  // randomly add code
+  if (Math.random() < 0.2) {
+    return createCodeContent('console.log("hello world");');
   }
 
   const keys = Object.keys(fakeContent);
