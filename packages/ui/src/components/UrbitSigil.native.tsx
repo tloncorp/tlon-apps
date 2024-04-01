@@ -39,10 +39,14 @@ export const UrbitSigil = View.styleable<{
   color?: string;
 }>(({ ship, color, ...props }, ref) => {
   const colorScheme = useColorScheme();
+  const colorIsFullHex = color?.startsWith('#') && color?.length === 7;
   const adjustedColor = useMemo(
     () =>
       themeAdjustColor(
-        utils.normalizeUrbitColor(color ?? '#000000'),
+        utils.normalizeUrbitColor(
+          // TODO: Figure out where '#0' comes from
+          !colorIsFullHex ? '#000000' : color ?? '#000000'
+        ),
         colorScheme ?? 'light'
       ),
     [color, colorScheme]
