@@ -1,10 +1,5 @@
-import type { ClientTypes } from '@tloncorp/shared';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import * as client from '@tloncorp/shared/dist/client';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { useContacts } from '../../contexts';
@@ -21,14 +16,14 @@ export function Channel({
   // TODO: implement gallery and notebook
   type,
 }: {
-  channel: ClientTypes.Channel;
-  posts: ClientTypes.Post[];
+  channel: client.Channel;
+  posts: client.Post[];
   goBack: () => void;
   goToChannels: () => void;
   goToSearch: () => void;
   type?: 'chat' | 'gallery' | 'notebook';
 }) {
-  const generateTitleFromMembers = (members: ClientTypes.GroupMember[]) => {
+  const generateTitleFromMembers = (members: client.GroupMember[]) => {
     const contacts = useContacts();
     return members
       .map((m) => contacts[m.id].nickname || contacts[m.id].id)

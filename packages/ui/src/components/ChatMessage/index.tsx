@@ -1,4 +1,4 @@
-import { ClientTypes } from '@tloncorp/shared';
+import * as client from '@tloncorp/shared/dist/client';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { SizableText, View, YStack } from 'tamagui';
 
@@ -8,7 +8,7 @@ import ChatContent from './ChatContent';
 export default function ChatMessage({
   post,
 }: {
-  post: ClientTypes.Post | null;
+  post: client.Post | null;
 }) {
   if (!post) {
     return null;

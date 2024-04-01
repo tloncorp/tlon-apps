@@ -1,8 +1,8 @@
-import { ClientTypes } from '@tloncorp/shared';
+import * as client from '@tloncorp/shared/dist/client';
 import { createContext, useContext, useState } from 'react';
 
 type Contacts = {
-  [key: string]: ClientTypes.Contact;
+  [key: string]: client.Contact;
 };
 
 type State = {

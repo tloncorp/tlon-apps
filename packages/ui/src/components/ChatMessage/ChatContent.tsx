@@ -1,4 +1,4 @@
-import { ClientTypes, utils } from '@tloncorp/shared';
+import { utils } from '@tloncorp/shared';
 import {
   Story,
   VerseBlock,

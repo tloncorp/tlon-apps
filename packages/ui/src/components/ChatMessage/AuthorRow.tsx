@@ -1,4 +1,5 @@
-import { ClientTypes, utils } from '@tloncorp/shared';
+import { utils } from '@tloncorp/shared';
+import * as client from '@tloncorp/shared/dist/client';
 import { SizableText, View, XStack } from 'tamagui';
 
 import { Avatar } from '../Avatar';
@@ -23,7 +24,7 @@ export default function AuthorRow({
   sent,
   roles,
 }: {
-  author: ClientTypes.Contact;
+  author: client.Contact;
   sent: string;
   roles?: string[];
 }) {

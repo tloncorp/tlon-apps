@@ -1,4 +1,4 @@
-import type { ClientTypes } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 
 export const createSimpleContent = (str: string): string => {
@@ -9,7 +9,7 @@ export const createSimpleContent = (str: string): string => {
   ] as Story);
 };
 
-export const emptyContact: ClientTypes.Contact = {
+export const emptyContact: client.Contact = {
   id: '',
   nickname: null,
   bio: null,
@@ -20,38 +20,38 @@ export const emptyContact: ClientTypes.Contact = {
   pinnedGroupIds: [''],
 };
 
-export const galenContact: ClientTypes.Contact = {
+export const galenContact: client.Contact = {
   ...emptyContact,
   id: '~ravmel-ropdyl',
   nickname: 'galen',
   color: '#CCCCCC',
 };
 
-export const jamesContact: ClientTypes.Contact = {
+export const jamesContact: client.Contact = {
   ...emptyContact,
   id: '~rilfun-lidlen',
   nickname: 'james',
 };
 
-export const danContact: ClientTypes.Contact = {
+export const danContact: client.Contact = {
   ...emptyContact,
   id: '~solfer-magfed',
   nickname: 'Dan',
 };
 
-export const hunterContact: ClientTypes.Contact = {
+export const hunterContact: client.Contact = {
   ...emptyContact,
   id: '~nocsyx-lassul',
   nickname: '~nocsyx-lassul ⚗️',
 };
 
-export const brianContact: ClientTypes.Contact = {
+export const brianContact: client.Contact = {
   ...emptyContact,
   id: '~latter-bolden',
   nickname: 'brian',
 };
 
-export const initialContacts: Record<string, ClientTypes.Contact> = {
+export const initialContacts: Record<string, client.Contact> = {
   '~ravmel-ropdyl': galenContact,
   '~rilfun-lidlen': jamesContact,
   '~solfer-magfed': danContact,
@@ -59,7 +59,7 @@ export const initialContacts: Record<string, ClientTypes.Contact> = {
   '~latter-bolden': brianContact,
 };
 
-export const group: ClientTypes.Group = {
+export const group: client.Group = {
   id: '~nibset-napwyn/tlon',
   title: 'Tlon Local',
   members: [
@@ -92,7 +92,7 @@ export const group: ClientTypes.Group = {
   isSecret: false,
 };
 
-export const fakeContent: Record<string, ClientTypes.Post['content']> = {
+export const fakeContent: Record<string, client.Post['content']> = {
   yo: createSimpleContent('yo'),
   hey: createSimpleContent('hey'),
   lol: createSimpleContent('lol'),
@@ -116,7 +116,7 @@ export const fakeContent: Record<string, ClientTypes.Post['content']> = {
   '😪': createSimpleContent('😪'),
 };
 
-export const tlonLocalChannel: ClientTypes.Channel = {
+export const tlonLocalChannel: client.Channel = {
   id: '~nibset-napwyn/intros',
   title: 'Intros',
   group,
@@ -132,7 +132,7 @@ const getRandomFakeContact = () => {
   return initialContacts[keys[Math.floor(Math.random() * keys.length)]];
 };
 
-export const createFakePost = (): ClientTypes.Post => {
+export const createFakePost = (): client.Post => {
   const ship = getRandomFakeContact().id;
   const id = Math.random().toString(36).substring(7);
   // timestamp on same day
@@ -152,7 +152,7 @@ export const createFakePost = (): ClientTypes.Post => {
   };
 };
 
-export const createFakePosts = (count: number): ClientTypes.Post[] => {
+export const createFakePosts = (count: number): client.Post[] => {
   const posts = [];
   for (let i = 0; i < count; i++) {
     posts.push(createFakePost());
