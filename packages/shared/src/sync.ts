@@ -5,6 +5,7 @@ import {
   getGroups,
   getPinnedItems,
 } from './api';
+import { getPostsForChannel } from './api/postsApi';
 import * as db from './db';
 
 export const syncContacts = async () => {
@@ -37,4 +38,28 @@ export const syncGroups = async () => {
 export const syncPinnedItems = async () => {
   const pinnedGroups = await getPinnedItems();
   db.insertPinnedItems(pinnedGroups);
+};
+
+export const syncPostsForChannel = async ({
+  nest,
+  pageSize,
+  initialTime,
+  olderThanTime,
+  newerThanTime,
+}: {
+  nest: string;
+  pageSize?: number;
+  initialTime?: string;
+  olderThanTime?: string;
+  newerThanTime?: string;
+}) => {
+  const posts = await getPostsForChannel({
+    nest,
+    pageSize,
+    initialTime,
+    olderThanTime,
+    newerThanTime,
+  });
+
+  db.insertPosts(posts);
 };

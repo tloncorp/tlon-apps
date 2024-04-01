@@ -4,6 +4,7 @@ export * from './contactsApi';
 export * from './contactsApi';
 export * from './groupsApi';
 export * from './landscapeApi';
+export * from './postsApi';
 export * from './unreadsApi';
 export * from './userApi';
 export * from './urbit';

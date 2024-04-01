@@ -3,7 +3,14 @@ import { SQLiteTable, SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core';
 
 import { client } from './client';
 import * as schemas from './schema';
-import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from './types';
+import {
+  ContactInsert,
+  GroupInsert,
+  Insertable,
+  Pin,
+  PostInsert,
+  Unread,
+} from './types';
 
 export const getGroups = async () => {
   return client.query.groups.findMany({
@@ -173,6 +180,18 @@ export const insertContacts = async (contactsData: ContactInsert[]) => {
     .insert(schemas.contactGroups)
     .values(contactGroups)
     .onConflictDoNothing();
+};
+
+export const insertPosts = async (postsData: PostInsert[]) => {
+  const postGroups = postsData.flatMap((p) => p.groupId);
+
+  // const targetGroups = postGroups.map(
+  // (p): GroupInsert => ({
+  // id: p,
+  // })
+  // );
+
+  return client.insert(schemas.posts).values(postsData);
 };
 
 export const insertUnreads = async (unreads: Insertable<'unreads'>[]) => {

@@ -6,4 +6,5 @@ export {
   ZStack,
   YStack,
   Stack,
+  setupDev
 } from 'tamagui';

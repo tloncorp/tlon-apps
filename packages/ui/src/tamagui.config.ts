@@ -95,7 +95,8 @@ export const themes = {
     background: '#1A1818',
     secondaryBackground: '#322E2E',
     tertiaryText: '#808080',
-    border: '#333333',
+    // rgba(26, 24, 24, 0.08)
+    border: '#1a181814',
     activeBorder: '#4C4C4C',
     positiveActionText: '#4E91F5',
     positiveBackground: '#143A5E',

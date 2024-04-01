@@ -282,17 +282,17 @@ export const threadUnreadStateRelations = relations(
 
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey(),
-  authorId: integer('author_id').references(() => contacts.id),
+  authorId: text('author_id').references(() => contacts.id),
   title: text('title'),
   image: text('image'),
-  content: text('content'),
-  sentAt: timestamp('sent_at'),
+  content: text('content', { mode: 'json' }),
   receivedAt: timestamp('received_at'),
+  //client-side time
+  sentAt: timestamp('sent_at'),
   replyCount: integer('reply_count'),
   type: text('type'),
-  channelId: integer('channel_id').references(() => channels.id),
+  channelId: text('channel_id').references(() => channels.id),
   groupId: text('group_id').references(() => groups.id),
-  text: text('text'),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
