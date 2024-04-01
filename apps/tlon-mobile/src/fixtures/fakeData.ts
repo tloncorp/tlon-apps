@@ -105,6 +105,10 @@ export const fakeContent: Record<string, ClientTypes.Post['content']> = {
   what: createSimpleContent('what?'),
   where: createSimpleContent('where?'),
   when: createSimpleContent('when?'),
+  how: createSimpleContent('how?'),
+  who: createSimpleContent('who?'),
+  whom: createSimpleContent('whom?'),
+  whose: createSimpleContent('whose?'),
 };
 
 export const tlonLocalChannel: ClientTypes.Channel = {

@@ -2,7 +2,7 @@ import { CalmProvider, Channel, ContactsProvider } from '@tloncorp/ui';
 
 import { createFakePosts, initialContacts, tlonLocalChannel } from './fakeData';
 
-const posts = createFakePosts(20);
+const posts = createFakePosts(100);
 
 const ChannelFixture = () => (
   <CalmProvider

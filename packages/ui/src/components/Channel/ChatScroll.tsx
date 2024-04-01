@@ -18,6 +18,7 @@ export default function ChatScroll({ posts }: { posts: ClientTypes.Post[] }) {
         renderItem={renderItem}
         keyExtractor={(post) => post.id}
         keyboardDismissMode="on-drag"
+        inverted
       />
     </XStack>
   );
