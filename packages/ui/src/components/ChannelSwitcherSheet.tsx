@@ -1,4 +1,4 @@
-import { ClientTypes } from '@tloncorp/shared';
+import * as client from '@tloncorp/shared/dist/client';
 import { YGroup } from 'tamagui';
 
 import { SizableText, View } from '../core';
@@ -8,9 +8,9 @@ import { Sheet } from './Sheet';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group: ClientTypes.Group;
-  channels: ClientTypes.Channel[];
-  onSelect: (channel: ClientTypes.Channel) => void;
+  group: client.Group;
+  channels: client.Channel[];
+  onSelect: (channel: client.Channel) => void;
 }
 
 export function ChannelSwitcherSheet({

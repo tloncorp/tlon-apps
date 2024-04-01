@@ -87,6 +87,16 @@ export const initialContacts: Record<string, client.Contact> = {
 export const group: client.Group = {
   id: '~nibset-napwyn/tlon',
   title: 'Tlon Local',
+  channels: [
+    {
+      id: '~nibset-napwyn/intros',
+      title: 'Intros',
+    },
+    {
+      id: '~nibset-napwyn/commons',
+      title: 'Internet Cafe',
+    },
+  ],
   members: [
     {
       id: '~ravmel-ropdyl',
