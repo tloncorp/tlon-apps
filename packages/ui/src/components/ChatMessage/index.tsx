@@ -1,15 +1,12 @@
 import * as client from '@tloncorp/shared/dist/client';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
-import { SizableText, View, YStack } from 'tamagui';
+import { memo } from 'react';
+import { View, YStack } from 'tamagui';
 
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 
-export default function ChatMessage({
-  post,
-}: {
-  post: client.Post | null;
-}) {
+const ChatMessage = memo(({ post }: { post: client.Post | null }) => {
   if (!post) {
     return null;
   }
@@ -29,4 +26,6 @@ export default function ChatMessage({
       </View>
     </YStack>
   );
-}
+});
+
+export default ChatMessage;
