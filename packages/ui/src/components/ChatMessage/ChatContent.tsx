@@ -42,7 +42,7 @@ export function InlineContent({ story }: { story: Inline }) {
   if (typeof story === 'string') {
     if (utils.isSingleEmoji(story)) {
       return (
-        <SizableText lineHeight={40} size="$xl">
+        <SizableText paddingTop="$xl" size="$xl">
           {story}
         </SizableText>
       );
