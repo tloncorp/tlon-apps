@@ -52,9 +52,10 @@ export function Channel({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={70}
+        style={{ flex: 1 }}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <YStack>
+          <YStack flex={1}>
             <ChatScroll posts={posts} />
             <MessageInput />
           </YStack>

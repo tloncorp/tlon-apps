@@ -12,8 +12,12 @@ const renderItem = ({ item: post }: { item: ClientTypes.Post }) => (
 
 export default function ChatScroll({ posts }: { posts: ClientTypes.Post[] }) {
   return (
-    <XStack padding="$l">
-      <FlatList data={posts} renderItem={renderItem} />
+    <XStack flex={1} padding="$l">
+      <FlatList
+        data={posts}
+        renderItem={renderItem}
+        keyExtractor={(post) => post.id}
+      />
     </XStack>
   );
 }
