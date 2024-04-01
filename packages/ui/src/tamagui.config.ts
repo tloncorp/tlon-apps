@@ -129,17 +129,22 @@ export const systemFont = createFont({
     "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
   size: {
     s: 14,
-    m: 17,
-    true: 17,
+    m: 16,
+    true: 16,
     l: 17,
-    xl: 17,
+    // xl is used for emoji-only messages
+    xl: 36,
   },
   lineHeight: {
     s: 22,
+    m: 24,
+    true: 24,
   },
   weight: {
     s: '400',
-    m: '500',
+    m: 'regular',
+    true: 'regular',
+    l: 'medium',
   },
   letterSpacing: {
     s: 0,

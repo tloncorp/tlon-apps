@@ -44,5 +44,11 @@ export function Avatar({
     );
   }
 
-  return <UrbitSigil ship={contact?.id} {...props} />;
+  return (
+    <UrbitSigil
+      color={contact.color ?? undefined}
+      ship={contact?.id}
+      {...props}
+    />
+  );
 }

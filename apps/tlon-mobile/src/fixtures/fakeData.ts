@@ -24,6 +24,7 @@ export const galenContact: ClientTypes.Contact = {
   ...emptyContact,
   id: '~ravmel-ropdyl',
   nickname: 'galen',
+  color: '#CCCCCC',
 };
 
 export const jamesContact: ClientTypes.Contact = {
@@ -69,12 +70,12 @@ export const group: ClientTypes.Group = {
     },
     {
       id: '~rilfun-lidlen',
-      roles: ['admin'],
+      roles: [''],
       joinedAt: 0,
     },
     {
       id: '~solfer-magfed',
-      roles: ['admin'],
+      roles: [''],
       joinedAt: 0,
     },
     {
@@ -84,7 +85,7 @@ export const group: ClientTypes.Group = {
     },
     {
       id: '~latter-bolden',
-      roles: ['admin'],
+      roles: [''],
       joinedAt: 0,
     },
   ],
@@ -109,6 +110,10 @@ export const fakeContent: Record<string, ClientTypes.Post['content']> = {
   who: createSimpleContent('who?'),
   whom: createSimpleContent('whom?'),
   whose: createSimpleContent('whose?'),
+  '😧': createSimpleContent('😧'),
+  '😨': createSimpleContent('😨'),
+  '😩': createSimpleContent('😩'),
+  '😪': createSimpleContent('😪'),
 };
 
 export const tlonLocalChannel: ClientTypes.Channel = {

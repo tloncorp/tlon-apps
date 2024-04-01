@@ -41,14 +41,22 @@ function ShipMention({ ship }: { ship: string }) {
 export function InlineContent({ story }: { story: Inline }) {
   if (typeof story === 'string') {
     if (utils.isSingleEmoji(story)) {
-      return <SizableText size="$xl">{story}</SizableText>;
+      return (
+        <SizableText lineHeight={40} size="$xl">
+          {story}
+        </SizableText>
+      );
     }
-    return <SizableText size="$m">{story}</SizableText>;
+    return (
+      <SizableText color="$primaryText" size="$m">
+        {story}
+      </SizableText>
+    );
   }
 
   if (isBold(story)) {
     return (
-      <SizableText fontWeight="bold">
+      <SizableText fontWeight="$l">
         {story.bold.map((s, k) => (
           <InlineContent key={k} story={s} />
         ))}
@@ -91,7 +99,10 @@ export function InlineContent({ story }: { story: Inline }) {
 
   if (isLink(story)) {
     return (
-      <SizableText onPress={() => window.open(story.link.href, '_blank')}>
+      <SizableText
+        color="$blue"
+        onPress={() => window.open(story.link.href, '_blank')}
+      >
         {story.link.content}
       </SizableText>
     );
@@ -121,7 +132,7 @@ export function InlineContent({ story }: { story: Inline }) {
   }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
   return (
-    <SizableText fontWeight="bold">
+    <SizableText color="$primaryText" fontWeight="$l">
       This content cannot be rendered, unhandled message type.
     </SizableText>
   );

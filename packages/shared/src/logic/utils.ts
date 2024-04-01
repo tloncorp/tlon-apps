@@ -93,3 +93,14 @@ export function isSingleEmoji(input: string): boolean {
     false
   );
 }
+
+export function normalizeUrbitColor(color: string): string {
+  if (color.startsWith('#')) {
+    return color;
+  }
+
+  const colorString = color.slice(2).replace('.', '').toUpperCase();
+  const lengthAdjustedColor = _.padStart(colorString, 6, '0');
+  return `#${lengthAdjustedColor}`;
+}
+
