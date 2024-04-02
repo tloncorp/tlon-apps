@@ -100,15 +100,23 @@ export const createQuery = <Args extends any[], T>(
 export const createUseQuery =
   <Args extends any[], T>(query: WrappedQuery<Args, T>) =>
   (...args: Args) => {
+    const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<T | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const runQuery = useCallback(async () => {
+      // TODO: This could cause missed updates if the query is run multiple
+      // times in rapid succession, but ensures load state stays correct.
+      if (isLoading) return;
+      setIsLoading(true);
       query(...args)
         .then((result) => {
           setResult(result);
         })
         .catch((error) => {
           setError(error);
+        })
+        .finally(() => {
+          setIsLoading(false);
         });
     }, [...args]);
 
@@ -124,5 +132,5 @@ export const createUseQuery =
         tableEvents.off(query.meta.tableDependencies ?? [], runQuery);
       };
     }, [query]);
-    return { result, error };
+    return { result, error, isLoading };
   };
