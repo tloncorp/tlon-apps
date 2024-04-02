@@ -94,17 +94,12 @@ function DiaryChannel({ title }: ViewProps) {
           ({ response }) => {
             if ('post' in response) {
               const { 'r-post': postResponse } = response.post;
-              if (
+              return (
                 'set' in postResponse &&
                 postResponse.set !== null &&
                 postResponse.set.essay.author === window.our &&
                 postResponse.set.essay.sent === parseInt(awaitingNote, 10)
-              ) {
-                const { essay } = postResponse.set;
-                return essay.sent === parseInt(awaitingNote, 10);
-              }
-
-              return false;
+              );
             }
 
             return false;
