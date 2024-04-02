@@ -1,4 +1,4 @@
-import * as client from 'client-types';
+import * as client from '@tloncorp/shared/dist/client';
 import { FlatList, Keyboard } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 

@@ -1,4 +1,4 @@
-import * as client from 'client-types';
+import * as client from '@tloncorp/shared/dist/client';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { memo } from 'react';
 import { View, YStack } from 'tamagui';

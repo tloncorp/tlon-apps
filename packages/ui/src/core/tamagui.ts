@@ -4,10 +4,11 @@ export {
   useTheme,
   useStyle,
   View,
-  ViewProps,
   isWeb,
   ZStack,
   YStack,
   Stack,
-  setupDev
+  setupDev,
 } from 'tamagui';
+
+export type { ViewProps } from 'tamagui';

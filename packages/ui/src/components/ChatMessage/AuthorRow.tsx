@@ -1,5 +1,5 @@
 import { utils } from '@tloncorp/shared';
-import * as client from 'client-types';
+import * as client from '@tloncorp/shared/dist/client';
 import { SizableText, View, XStack } from 'tamagui';
 
 import { Avatar } from '../Avatar';
@@ -35,7 +35,7 @@ export default function AuthorRow({
   return (
     <XStack gap="$space.l">
       <Avatar height="$2xl" width="$2xl" contact={author} />
-      <ShipName showAlias name={author.id} fontWeight="$l" />
+      <ShipName showAlias name={author.id} />
       <SizableText fontWeight="$s" color="$secondaryText" size="$s">
         {timeDisplay.time}
       </SizableText>

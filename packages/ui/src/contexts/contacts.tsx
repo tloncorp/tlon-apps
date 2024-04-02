@@ -1,4 +1,4 @@
-import * as client from 'client-types';
+import * as client from '@tloncorp/shared/dist/client';
 import { createContext, useContext, useState } from 'react';
 
 type Contacts = {

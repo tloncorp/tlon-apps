@@ -1,6 +1,6 @@
 import { cite } from '@urbit/aura';
 import { useMemo } from 'react';
-import { FontSizeTokens, FontWeightTokens, SizableText } from 'tamagui';
+import { FontSizeTokens, SizableText } from 'tamagui';
 
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';
@@ -15,7 +15,6 @@ export default function ShipName({
   full?: boolean;
   showAlias?: boolean;
   size?: FontSizeTokens;
-  fontWeight?: FontWeightTokens;
 }) {
   const contact = useContact(name);
   const separator = /([_^-])/;
@@ -35,7 +34,7 @@ export default function ShipName({
         calm.disableNicknames && contact.nickname ? contact.nickname : undefined
       }
       size={props.size}
-      fontWeight={props.fontWeight}
+      fontWeight="$l"
     >
       {contact.nickname && !calm.disableNicknames && showAlias ? (
         <SizableText accessibilityHint={citedName}>

@@ -1,4 +1,4 @@
-import * as client from 'client-types';
+import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 import { Image, View, ViewProps, isWeb } from '../core';
 
@@ -8,7 +8,7 @@ export function Avatar({
   contact,
   ...props
 }: {
-  contact: client.Contact;
+  contact: db.Contact;
 } & ViewProps) {
   // TODO: is there a better way to do this? Could we modify usage in web to match native?
   // on native, we have to pass height/width for the source prop, on web we want to use other attributes
