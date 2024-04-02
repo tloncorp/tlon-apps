@@ -1167,9 +1167,6 @@ export function useChannels(): Channels {
     queryKey: channelKey(),
     app: 'channels',
     path: '/v2/channels',
-    options: {
-      // refetchOnMount: false,
-    },
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -1468,16 +1465,6 @@ const emptyPending: PendingMessages = {
 export function usePendingPosts(nest: Nest) {
   const channel = useChannel(nest);
   return channel?.pending || emptyPending;
-}
-
-export function useIsSentPost(nest: Nest, cacheId: CacheId) {
-  const pending = usePendingPosts(nest);
-  return pending.posts[cacheIdToString(cacheId)] !== undefined;
-}
-
-export function useIsSentReply(nest: Nest, parent: string, cacheId: CacheId) {
-  const pending = usePendingPosts(nest);
-  return pending.replies[parent]?.[cacheIdToString(cacheId)] !== undefined;
 }
 
 export function useRemotePost(

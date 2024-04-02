@@ -83,7 +83,6 @@ function DiaryChannel({ title }: ViewProps) {
   useEffect(() => {
     let timeout: any;
 
-    console.log(nest, awaitingNote, location);
     if (awaitingNote) {
       timeout = setTimeout(() => {
         navigate(location.pathname, { replace: true });
@@ -102,10 +101,7 @@ function DiaryChannel({ title }: ViewProps) {
                 postResponse.set.essay.sent === parseInt(awaitingNote, 10)
               ) {
                 const { essay } = postResponse.set;
-                return (
-                  essay.author === window.our &&
-                  essay.sent === parseInt(awaitingNote, 10)
-                );
+                return essay.sent === parseInt(awaitingNote, 10);
               }
 
               return false;
