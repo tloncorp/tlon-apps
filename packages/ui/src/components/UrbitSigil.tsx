@@ -1,12 +1,35 @@
-// Note: the import statement for sigil is different in the native version
-// The native version uses the core entry point of sigil-js
-// The web version uses the default entry point of sigil-js
 import { utils } from '@tloncorp/shared';
-import sigil from '@urbit/sigil-js';
 import { darken, lighten, parseToHsla } from 'color2k';
-import { useMemo } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
-import { View, useTheme } from 'tamagui';
+import { View, isWeb, useTheme } from 'tamagui';
+
+import { UrbitSigilNative } from './UrbitSigilNative';
+
+const UrbitSigilWeb = React.lazy(() => import('./UrbitSigilWeb'));
+
+const SuspendedUrbitSigilWeb = ({
+  ref,
+  ship,
+  foregroundColor,
+  adjustedColor,
+  ...props
+}: {
+  ref: any;
+  ship: string;
+  foregroundColor: 'black' | 'white';
+  adjustedColor: string;
+}) => (
+  <Suspense fallback={<View />}>
+    <UrbitSigilWeb
+      ref={ref}
+      ship={ship}
+      adjustedColor={adjustedColor}
+      foregroundColor={foregroundColor}
+      {...props}
+    />
+  </Suspense>
+);
 
 function foregroundFromBackground(background: string): 'black' | 'white' {
   const rgb = {
@@ -38,13 +61,16 @@ export const UrbitSigil = View.styleable<{
   ship: string;
   color?: string;
 }>(({ ship, color, ...props }, ref) => {
-  const validShip = ship.length <= 14; // planet or larger
   const colorScheme = useColorScheme();
+  const colorIsFullHex = color?.startsWith('#') && color?.length === 7;
 
   const adjustedColor = useMemo(
     () =>
       themeAdjustColor(
-        utils.normalizeUrbitColor(color ?? '#000000'),
+        utils.normalizeUrbitColor(
+          // TODO: Figure out where '#0' comes from
+          !colorIsFullHex ? '#000000' : color ?? '#000000'
+        ),
         colorScheme ?? 'light'
       ),
     [color, colorScheme]
@@ -54,29 +80,27 @@ export const UrbitSigil = View.styleable<{
     () => foregroundFromBackground(adjustedColor),
     [adjustedColor]
   );
-  const sigilXml = useMemo(
-    () =>
-      sigil({
-        point: ship,
-        detail: 'none',
-        size: 12,
-        space: 'none',
-        foreground: foregroundColor,
-        background: adjustedColor,
-      }),
-    [ship]
-  );
+
+  if (isWeb) {
+    // we need to do this so that we only import the web version of the sigil
+    // if we're on the web
+    return (
+      <SuspendedUrbitSigilWeb
+        ref={ref}
+        ship={ship}
+        foregroundColor={foregroundColor}
+        adjustedColor={adjustedColor}
+        {...props}
+      />
+    );
+  }
+
   return (
-    <View
+    <UrbitSigilNative
       ref={ref}
-      width={20}
-      height={20}
-      alignItems="center"
-      justifyContent="center"
-      style={{
-        backgroundColor: adjustedColor,
-      }}
-      borderRadius="$2xs"
+      ship={ship}
+      foregroundColor={foregroundColor}
+      adjustedColor={adjustedColor}
       {...props}
     />
   );
