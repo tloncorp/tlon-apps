@@ -19,6 +19,7 @@ const expectedChannelUnread = {
   channelId: 'chat/~nibset-napwyn/commons',
   type: 'channel',
   totalCount: 0,
+  updatedAt: 1684342021902,
 };
 
 test('converts a channel unread from server to client format', () => {
@@ -46,6 +47,7 @@ const expectedDMUnread = {
   channelId: 'dm/~pondus-latter',
   type: 'dm',
   totalCount: 0,
+  updatedAt: 1684342021902,
 };
 
 test('converts a channel unread from server to client format', () => {

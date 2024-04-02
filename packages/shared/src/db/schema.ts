@@ -1,6 +1,5 @@
 import { relations } from 'drizzle-orm';
 import {
-  foreignKey,
   integer,
   primaryKey,
   sqliteTable,
@@ -63,7 +62,22 @@ export const unreads = sqliteTable('unreads', {
     .references(() => channels.id),
   type: text('type').$type<'channel' | 'dm'>(),
   totalCount: integer('totalCount'),
+  updatedAt: timestamp('updatedAt').notNull(),
 });
+
+export const pins = sqliteTable(
+  'pins',
+  {
+    type: text('type').$type<'group' | 'dm' | 'club'>().notNull(),
+    index: integer('index').notNull(),
+    itemId: text('item_id').notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.itemId] }),
+    };
+  }
+);
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
@@ -74,12 +88,9 @@ export const groups = sqliteTable('groups', {
   title: text('title'),
   description: text('description'),
   isSecret: boolean('is_secret'),
+  isJoined: boolean('is_joined'),
   lastPostAt: timestamp('last_post_at'),
-});
-
-export const pins = sqliteTable('pins', {
-  type: text('type').$type<'group' | 'dm' | 'club'>(),
-  itemId: text('item_id'),
+  pinIndex: integer('pin_index'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -243,7 +254,17 @@ export const channels = sqliteTable('channels', {
   postCount: integer('post_count'),
   unreadCount: integer('unread_count'),
   firstUnreadPostId: text('first_unread_post_id'),
+  lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  /**
+   * Last time we ran a sync, in local time
+   */
+  syncedAt: timestamp('synced_at'),
+  /**
+   * Remote time that this channel was last updated.
+   * From `recency` on unreads on the Urbit side
+   */
+  remoteUpdatedAt: timestamp('remote_updated_at'),
 });
 
 export const channelRelations = relations(channels, ({ one, many }) => ({
@@ -283,6 +304,9 @@ export const threadUnreadStateRelations = relations(
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey(),
   authorId: text('author_id').references(() => contacts.id),
+  channelId: text('channel_id').references(() => channels.id),
+  groupId: text('group_id').references(() => groups.id),
+  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>(),
   title: text('title'),
   image: text('image'),
   content: text('content', { mode: 'json' }),
@@ -290,9 +314,12 @@ export const posts = sqliteTable('posts', {
   // client-side time
   sentAt: timestamp('sent_at'),
   replyCount: integer('reply_count'),
-  type: text('type'),
-  channelId: text('channel_id').references(() => channels.id),
-  groupId: text('group_id').references(() => groups.id),
+  textContent: text('text'),
+  hasAppReference: boolean('has_app_reference'),
+  hasChannelReference: boolean('has_channel_reference'),
+  hasGroupReference: boolean('has_group_reference'),
+  hasLink: boolean('has_link'),
+  hasImage: boolean('has_image'),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
@@ -304,15 +331,37 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.groupId],
     references: [groups.id],
   }),
-  reactions: many(reactions),
+  reactions: many(postReactions),
   author: one(contacts, {
     fields: [posts.authorId],
     references: [contacts.id],
   }),
+  images: many(postImages),
 }));
 
-export const reactions = sqliteTable(
-  'reactions',
+export const postImages = sqliteTable(
+  'post_images',
+  {
+    postId: text('post_id').references(() => posts.id),
+    src: text('src'),
+    alt: text('alt'),
+    width: integer('width'),
+    height: integer('height'),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.postId, table.src] }),
+  })
+);
+
+export const postImageRelations = relations(postImages, ({ one }) => ({
+  post: one(posts, {
+    fields: [postImages.postId],
+    references: [posts.id],
+  }),
+}));
+
+export const postReactions = sqliteTable(
+  'post_reactions',
   {
     contactId: text('contact_id')
       .references(() => contacts.id)
@@ -329,13 +378,13 @@ export const reactions = sqliteTable(
   }
 );
 
-export const reactionsRelations = relations(reactions, ({ one }) => ({
+export const postReactionsRelations = relations(postReactions, ({ one }) => ({
   post: one(posts, {
-    fields: [reactions.postId],
+    fields: [postReactions.postId],
     references: [posts.id],
   }),
   contact: one(contacts, {
-    fields: [reactions.contactId],
+    fields: [postReactions.contactId],
     references: [contacts.id],
   }),
 }));

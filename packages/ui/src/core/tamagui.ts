@@ -9,6 +9,8 @@ export {
   YStack,
   Stack,
   setupDev,
+  ScrollView,
+  YGroup,
 } from 'tamagui';
 
 export type { ViewProps } from 'tamagui';

@@ -10,7 +10,7 @@ import * as schema from './schema';
 export type Schema = typeof schema;
 type SchemaWithRelations = ExtractTablesWithRelations<Schema>;
 type DbTableNames = SchemaWithRelations[keyof SchemaWithRelations]['dbName'];
-type TableName = keyof SchemaWithRelations;
+export type TableName = keyof SchemaWithRelations;
 type TableRelations<T extends TableName> = SchemaWithRelations[T]['relations'];
 
 type SchemaFromDbTableName<T extends DbTableNames> = Extract<
@@ -41,7 +41,7 @@ export type Insertable<T extends TableName> = InferModelFromColumns<
 export type Contact = typeof schema.contacts.$inferSelect;
 export type ContactInsert = Insertable<'contacts'>;
 export type Unread = typeof schema.unreads.$inferSelect;
-export type UnreadInsert = typeof schema.unreads.$inferInsert;
+export type UnreadInsert = Insertable<'unreads'>;
 export type GroupsTable = typeof schema.groups;
 export type Group = typeof schema.groups.$inferSelect;
 export type GroupInsert = Insertable<'groups'>;
@@ -63,8 +63,20 @@ export type ThreadUnreadState = typeof schema.threadUnreadStates.$inferSelect;
 export type ThreadUnreadStateInsert =
   typeof schema.threadUnreadStates.$inferInsert;
 export type Post = typeof schema.posts.$inferSelect;
-export type PostInsert = typeof schema.posts.$inferInsert;
-export type Reaction = typeof schema.reactions.$inferSelect;
-export type ReactionInsert = typeof schema.reactions.$inferInsert;
+export type PostType = Post['type'];
+export type PostFlags = Pick<
+  Post,
+  | 'hasAppReference'
+  | 'hasGroupReference'
+  | 'hasChannelReference'
+  | 'hasImage'
+  | 'hasLink'
+>;
+export type PostMetadata = Partial<Pick<Post, 'title' | 'image'>>;
+export type PostInsert = Insertable<'posts'>;
+export type PostImage = typeof schema.postImages.$inferSelect;
+export type PostReaction = typeof schema.postReactions.$inferSelect;
+export type Reaction = typeof schema.postReactions.$inferSelect;
+export type ReactionInsert = typeof schema.postReactions.$inferInsert;
 export type Pin = typeof schema.pins.$inferSelect;
 export type PinInsert = typeof schema.pins.$inferInsert;
