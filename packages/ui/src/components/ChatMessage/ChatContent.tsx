@@ -215,8 +215,8 @@ export default function ChatContent({ story }: { story: Story }) {
         <YStack>
           {blockContent
             .filter((a) => !!a)
-            .map((storyItem) => {
-              return <BlockContent story={storyItem.block} />;
+            .map((storyItem, key) => {
+              return <BlockContent key={key} story={storyItem.block} />;
             })}
         </YStack>
       ) : null}
