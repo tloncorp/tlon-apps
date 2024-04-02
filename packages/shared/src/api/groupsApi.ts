@@ -11,13 +11,15 @@ export const getPinnedItems = async () => {
 };
 
 export const toClientPinnedItems = (rawItems: string[]): db.Pin[] => {
-  return rawItems.map(toClientPinnedItem);
+  const items = rawItems.map(toClientPinnedItem);
+  return items.reverse();
 };
 
-export const toClientPinnedItem = (rawItem: string): db.Pin => {
+export const toClientPinnedItem = (rawItem: string, index: number): db.Pin => {
   const type = getPinnedItemType(rawItem);
   return {
     type,
+    index,
     itemId: rawItem,
   };
 };
@@ -44,16 +46,23 @@ export const getGroups = async (
 ) => {
   const path = includeMembers ? '/groups' : '/groups/light';
   const groupData = await scry<ub.Groups>({ app: 'groups', path });
-  return toClientGroups(groupData);
+  return toClientGroups(groupData, true);
 };
 
-export function toClientGroups(groups: Record<string, ub.Group>) {
+export function toClientGroups(
+  groups: Record<string, ub.Group>,
+  isJoined: boolean
+) {
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroup(id, group);
+    return toClientGroup(id, group, isJoined);
   });
 }
 
-export function toClientGroup(id: string, group: ub.Group): db.GroupInsert {
+export function toClientGroup(
+  id: string,
+  group: ub.Group,
+  isJoined: boolean
+): db.GroupInsert {
   const rolesById: Record<string, db.GroupRoleInsert> = {};
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
     const data: db.GroupRole = {
@@ -67,9 +76,9 @@ export function toClientGroup(id: string, group: ub.Group): db.GroupInsert {
     rolesById[roleId] = data;
     return data;
   });
-
   return {
     id,
+    isJoined,
     ...toClientGroupMetadata(group),
     roles,
     navSections: group['zone-ord']
@@ -91,9 +100,16 @@ export function toClientGroup(id: string, group: ub.Group): db.GroupInsert {
       })
       .filter((s): s is db.GroupNavSection => !!s),
     members: Object.entries(group.fleet).map(([userId, vessel]) => {
-      return toClientGroupMember(id, userId, vessel, rolesById);
+      return toClientGroupMember({
+        groupId: id,
+        contactId: userId,
+        vessel: vessel,
+        groupRoles: rolesById,
+      });
     }),
-    channels: group.channels ? toClientChannels(group.channels) : [],
+    channels: group.channels
+      ? toClientChannels({ channels: group.channels, groupId: id })
+      : [],
   };
 }
 
@@ -119,21 +135,30 @@ function toClientGroupMetadata(group: ub.Group | ub.GroupPreview) {
   };
 }
 
-function toClientChannels(
-  channels: Record<string, ub.GroupChannel>,
-  group?: ub.Group
-): db.ChannelInsert[] {
+function toClientChannels({
+  channels,
+  groupId,
+}: {
+  channels: Record<string, ub.GroupChannel>;
+  groupId: string;
+}): db.ChannelInsert[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel(id, channel)
+    toClientChannel({ id, channel, groupId })
   );
 }
 
-function toClientChannel(
-  id: string,
-  channel: ub.GroupChannel
-): db.ChannelInsert {
+function toClientChannel({
+  id,
+  channel,
+  groupId,
+}: {
+  id: string;
+  channel: ub.GroupChannel;
+  groupId: string;
+}): db.ChannelInsert {
   return {
     id,
+    groupId,
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
@@ -142,12 +167,17 @@ function toClientChannel(
   };
 }
 
-function toClientGroupMember(
-  groupId: string,
-  contactId: string,
-  vessel: { sects: string[]; joined: number },
-  groupRoles: Record<string, db.GroupRoleInsert>
-): db.GroupMemberInsert {
+function toClientGroupMember({
+  groupId,
+  contactId,
+  vessel,
+  groupRoles,
+}: {
+  groupId: string;
+  contactId: string;
+  vessel: { sects: string[]; joined: number };
+  groupRoles: Record<string, db.GroupRoleInsert>;
+}): db.GroupMemberInsert {
   return {
     contactId,
     groupId,

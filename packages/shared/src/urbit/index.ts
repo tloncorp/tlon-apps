@@ -18,6 +18,7 @@ export * from './channel';
 export * from './contact';
 export * from './dms';
 export * from './groups';
+export * from './content';
 export * from './hark';
 export * from './negotiation';
 export * from './sigil';

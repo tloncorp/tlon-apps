@@ -1,44 +1,123 @@
-import { Column, and, count, eq, gt, sql } from 'drizzle-orm';
-import { SQLiteTable, SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core';
+import {
+  AnyColumn,
+  Column,
+  SQLWrapper,
+  Table,
+  and,
+  count,
+  desc,
+  eq,
+  getTableColumns,
+  gt,
+  isNull,
+  lt,
+  not,
+  or,
+  sql,
+} from 'drizzle-orm';
 
 import { client } from './client';
-import * as schemas from './schema';
-import { ContactInsert, GroupInsert, Insertable, Pin, Unread } from './types';
+import { createReadQuery, createWriteQuery } from './query';
+import {
+  channels as $channels,
+  contactGroups as $contactGroups,
+  contacts as $contacts,
+  groupMemberRoles as $groupMemberRoles,
+  groupMembers as $groupMembers,
+  groupRoles as $groupRoles,
+  groups as $groups,
+  pins as $pins,
+  posts as $posts,
+  unreads as $unreads,
+} from './schema';
+import {
+  ChannelInsert,
+  ContactInsert,
+  GroupInsert,
+  Insertable,
+  Pin,
+  PostInsert,
+  Unread,
+} from './types';
 
-export const getGroups = async () => {
-  return client.query.groups.findMany({
-    with: {
-      roles: true,
-      members: true,
-      channels: true,
-    },
-  });
-};
+export interface GetGroupsOptions {
+  sort?: 'pinIndex';
+  includeUnjoined?: boolean;
+}
 
-export const insertGroup = async (group: GroupInsert) => {
+export const getGroups = createReadQuery(
+  'getGroups',
+  async ({ sort, includeUnjoined }: GetGroupsOptions = {}) => {
+    return client.query.groups.findMany({
+      where: includeUnjoined ? undefined : eq($groups.isJoined, true),
+      orderBy: sort === 'pinIndex' ? ascNullsLast($groups.pinIndex) : undefined,
+    });
+  },
+  ['groups', 'pins']
+);
+
+export const insertGroups = createWriteQuery(
+  'insertGroups',
+  async (groupData: GroupInsert[]) => {
+    for (let group of groupData) {
+      await insertGroup(group);
+    }
+  },
+  [
+    'groups',
+    'groupRoles',
+    'contacts',
+    'groupMembers',
+    'groupMemberRoles',
+    'channels',
+    'pins',
+  ]
+);
+
+// Note that this is not exported or wrapped in a write query -- it's used only by
+// insertGroups, and wrapping this in a write query would cause it to trigger
+// events for each group record inserted.
+// TODO: figure out a way to trigger only one set of events per batch.
+const insertGroup = async (group: GroupInsert) => {
   await client.transaction(async (tx) => {
-    await tx.insert(schemas.groups).values(group).onConflictDoNothing();
+    await tx
+      .insert($groups)
+      .values(group)
+      .onConflictDoUpdate({
+        target: $groups.id,
+        set: conflictUpdateSet(
+          $groups.iconImage,
+          $groups.coverImage,
+          $groups.title,
+          $groups.description,
+          $groups.isSecret,
+          $groups.isJoined
+        ),
+      });
     if (group.roles) {
       await client
-        .insert(schemas.groupRoles)
+        .insert($groupRoles)
         .values(group.roles)
         .onConflictDoUpdate({
-          target: [schemas.groupRoles.groupId, schemas.groupRoles.id],
-          set: conflictUpdateSet(schemas.groupRoles, [
-            'groupId',
-            'iconImage',
-            'coverImage',
-            'title',
-            'description',
-          ]),
+          target: [$groupRoles.groupId, $groupRoles.id],
+          set: conflictUpdateSet(
+            $groupRoles.groupId,
+            $groupRoles.iconImage,
+            $groupRoles.coverImage,
+            $groupRoles.title,
+            $groupRoles.description
+          ),
         });
     }
     if (group.members) {
       await client
-        .insert(schemas.contacts)
+        .insert($contacts)
         .values(group.members.map((m) => ({ id: m.contactId })))
         .onConflictDoNothing();
-      await client.insert(schemas.groupMembers).values(group.members);
+      await client
+        .insert($groupMembers)
+        .values(group.members)
+        .onConflictDoNothing();
       const validRoleNames = group.roles?.map((r) => r.id);
       const memberRoles = group.members.flatMap((m) => {
         return (m.roles ?? []).flatMap((r) => {
@@ -58,23 +137,26 @@ export const insertGroup = async (group: GroupInsert) => {
         });
       });
       if (memberRoles.length) {
-        await client.insert(schemas.groupMemberRoles).values(memberRoles);
+        await client
+          .insert($groupMemberRoles)
+          .values(memberRoles)
+          .onConflictDoNothing();
       }
     }
     if (group.channels?.length) {
       await client
-        .insert(schemas.channels)
+        .insert($channels)
         .values(group.channels)
         .onConflictDoUpdate({
-          target: [schemas.channels.id],
-          set: conflictUpdateSet(schemas.channels, [
-            'iconImage',
-            'coverImage',
-            'title',
-            'description',
-            'addedToGroupAt',
-            'currentUserIsMember',
-          ]),
+          target: [$channels.id],
+          set: conflictUpdateSet(
+            $channels.iconImage,
+            $channels.coverImage,
+            $channels.title,
+            $channels.description,
+            $channels.addedToGroupAt,
+            $channels.currentUserIsMember
+          ),
         });
     }
     if (group.posts) {
@@ -82,138 +164,292 @@ export const insertGroup = async (group: GroupInsert) => {
   });
 };
 
-export function getGroupRoles(groupId: string) {
-  return client.query.groupRoles.findMany();
-}
+export const getGroupRoles = createReadQuery(
+  'getGroupRoles',
+  async (groupId: string) => {
+    return client.query.groupRoles.findMany();
+  },
+  ['groupRoles']
+);
 
-export async function getUnreadsCount({ type }: { type?: Unread['type'] }) {
-  const result = await client
-    .select({ count: count() })
-    .from(schemas.unreads)
-    .where(() =>
-      and(
-        gt(schemas.unreads.totalCount, 0),
-        type ? eq(schemas.unreads.type, type) : undefined
-      )
-    );
-  return result[0].count;
-}
+export const getUnreadsCount = createReadQuery(
+  'getUnreadsCount',
+  async ({ type }: { type?: Unread['type'] }) => {
+    const result = await client
+      .select({ count: count() })
+      .from($unreads)
+      .where(() =>
+        and(
+          gt($unreads.totalCount, 0),
+          type ? eq($unreads.type, type) : undefined
+        )
+      );
+    return result[0].count;
+  },
+  ['unreads']
+);
 
-export async function getAllUnreadsCounts() {
-  const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-    getUnreadsCount({ type: 'channel' }),
-    getUnreadsCount({ type: 'dm' }),
-  ]);
-  return {
-    channels: channelUnreadCount ?? 0,
-    dms: dmUnreadCount ?? 0,
-    total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
-  };
-}
+export const getUnreads = createReadQuery(
+  'getUnreads',
+  async ({
+    orderBy = 'updatedAt',
+    includeFullyRead = true,
+    type,
+  }: {
+    orderBy?: 'updatedAt';
+    includeFullyRead?: boolean;
+    type?: Unread['type'];
+  } = {}) => {
+    return client.query.unreads.findMany({
+      where: and(
+        type ? eq($unreads.type, type) : undefined,
+        includeFullyRead ? undefined : gt($unreads.totalCount, 0)
+      ),
+      orderBy: orderBy === 'updatedAt' ? desc($unreads.updatedAt) : undefined,
+    });
+  },
+  ['unreads']
+);
 
-export const insertGroups = async (groupData: GroupInsert[]) => {
-  for (let group of groupData) {
-    await insertGroup(group);
-  }
-};
+export const getAllUnreadsCounts = createReadQuery(
+  'getAllUnreadCounts',
+  async () => {
+    const [channelUnreadCount, dmUnreadCount] = await Promise.all([
+      getUnreadsCount({ type: 'channel' }),
+      getUnreadsCount({ type: 'dm' }),
+    ]);
+    return {
+      channels: channelUnreadCount ?? 0,
+      dms: dmUnreadCount ?? 0,
+      total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
+    };
+  },
+  ['unreads']
+);
 
-export const getGroup = async (id: string) => {
-  return client.query.groups.findFirst({
-    where: (groups, { eq }) => eq(groups.id, id),
-  });
-};
+export const getChannel = createReadQuery(
+  'getChannel',
+  async (id: string) => {
+    return client.query.channels.findFirst({ where: eq($channels.id, id) });
+  },
+  ['channels']
+);
 
-export const getContacts = async () => {
-  return client.query.contacts.findMany({
-    with: {
-      pinnedGroups: {
-        with: {
-          group: true,
+export const updateChannel = createWriteQuery(
+  'updateChannel',
+  (update: ChannelInsert) => {
+    return client
+      .update($channels)
+      .set(update)
+      .where(eq($channels.id, update.id));
+  },
+  ['channels']
+);
+
+export const insertChannelPosts = createWriteQuery(
+  'insertChannelPosts',
+  async (channelId: string, posts: PostInsert[]) => {
+    return client.transaction(async (tx) => {
+      const lastPost = posts[posts.length - 1];
+      // Update last post meta for the channel these posts belong to,
+      // Also grab that channels groupId for updating the group's lastPostAt and
+      // associating the posts with the group.
+      const updatedChannels = await tx
+        .update($channels)
+        .set({ lastPostId: lastPost.id, lastPostAt: lastPost.receivedAt })
+        .where(
+          and(
+            eq($channels.id, channelId),
+            or(
+              isNull($channels.lastPostAt),
+              lt($channels.lastPostAt, lastPost.receivedAt ?? 0)
+            )
+          )
+        )
+        .returning({ groupId: $channels.groupId });
+      // Update group if we found one.
+      const groupId = updatedChannels[0]?.groupId;
+      if (groupId) {
+        await tx
+          .update($groups)
+          .set({ lastPostAt: lastPost.receivedAt })
+          .where(eq($groups.id, groupId));
+      }
+      // Actually insert posts, overwriting any existing posts with the same id.
+      await tx
+        .insert($posts)
+        .values(posts.map((p) => ({ ...p, groupId, channelId })))
+        .onConflictDoUpdate({
+          target: $posts.id,
+          set: conflictUpdateSetAll($posts),
+        });
+    });
+  },
+  ['posts', 'channels', 'groups']
+);
+
+export const getGroup = createReadQuery(
+  'getGroup',
+  async (id: string) => {
+    return client.query.groups.findFirst({
+      where: (groups, { eq }) => eq(groups.id, id),
+    });
+  },
+  ['groups']
+);
+
+export const getContacts = createReadQuery(
+  'getContacts',
+  async () => {
+    return client.query.contacts.findMany({
+      with: {
+        pinnedGroups: {
+          with: {
+            group: true,
+          },
         },
       },
-    },
-  });
-};
-
-export const getContactsCount = async () => {
-  const result = await client.select({ count: count() }).from(schemas.contacts);
-  return result[0].count;
-};
-
-export const getContact = async (id: string) => {
-  return client.query.contacts.findFirst({
-    where: (contacts, { eq }) => eq(contacts.id, id),
-  });
-};
-
-export const insertContact = async (id: string, contact: ContactInsert) => {
-  return client.insert(schemas.contacts).values(contact);
-};
-
-export const insertContacts = async (contactsData: ContactInsert[]) => {
-  const contactGroups = contactsData.flatMap(
-    (contact) => contact.pinnedGroups || []
-  );
-  const targetGroups = contactGroups.map(
-    (g): GroupInsert => ({
-      id: g.groupId,
-      isSecret: false,
-    })
-  );
-  await client
-    .insert(schemas.contacts)
-    .values(contactsData)
-    .onConflictDoNothing();
-  await client
-    .insert(schemas.groups)
-    .values(targetGroups)
-    .onConflictDoNothing();
-  // TODO: Remove stale pinned groups
-  await client
-    .insert(schemas.contactGroups)
-    .values(contactGroups)
-    .onConflictDoNothing();
-};
-
-export const insertUnreads = async (unreads: Insertable<'unreads'>[]) => {
-  return client
-    .insert(schemas.unreads)
-    .values(unreads)
-    .onConflictDoUpdate({
-      target: [schemas.unreads.channelId],
-      set: {
-        totalCount: sql.raw(`excluded.totalCount + unreads.totalCount`),
-      },
     });
-};
+  },
+  ['contacts']
+);
 
-export const insertPinnedItems = async (pinnedItems: Pin[]) => {
-  return client.insert(schemas.pins).values(pinnedItems);
-};
+export const getContactsCount = createReadQuery(
+  'getContactsCount',
+  async () => {
+    const result = await client.select({ count: count() }).from($contacts);
+    return result[0].count;
+  },
+  ['contacts']
+);
 
-export const getPinnedItems = async (params?: {
-  orderBy?: keyof Pin;
-  direction?: 'asc' | 'desc';
-}) => {
-  return client.query.pins.findMany({
-    orderBy: params?.orderBy
-      ? (pins, { asc, desc }) => [
-          (params.direction === 'asc' ? asc : desc)(pins[params.orderBy!]),
-        ]
-      : undefined,
-  });
-};
+export const getContact = createReadQuery(
+  'getContact',
+  async (id: string) => {
+    return client.query.contacts.findFirst({
+      where: (contacts, { eq }) => eq(contacts.id, id),
+    });
+  },
+  ['contacts']
+);
+
+export const insertContact = createWriteQuery(
+  'insertContact',
+  async (contact: ContactInsert) => {
+    return client.insert($contacts).values(contact);
+  },
+  ['contacts']
+);
+
+export const insertContacts = createWriteQuery(
+  'insertContacts',
+  async (contactsData: ContactInsert[]) => {
+    const contactGroups = contactsData.flatMap(
+      (contact) => contact.pinnedGroups || []
+    );
+    const targetGroups = contactGroups.map(
+      (g): GroupInsert => ({
+        id: g.groupId,
+        isSecret: false,
+      })
+    );
+    await client.insert($contacts).values(contactsData).onConflictDoNothing();
+    await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    // TODO: Remove stale pinned groups
+    await client
+      .insert($contactGroups)
+      .values(contactGroups)
+      .onConflictDoNothing();
+  },
+  ['contacts', 'groups', 'contactGroups']
+);
+
+export const insertUnreads = createWriteQuery(
+  'insertUnreads',
+  async (unreads: Insertable<'unreads'>[]) => {
+    return client.transaction(() => {
+      return client
+        .insert($unreads)
+        .values(unreads)
+        .onConflictDoUpdate({
+          target: [$unreads.channelId],
+          set: {
+            totalCount: sql.raw(`excluded.totalCount + unreads.totalCount`),
+          },
+        });
+    });
+  },
+  ['unreads']
+);
+
+export const insertPinnedItems = createWriteQuery(
+  'insertPinnedItems',
+  async (pinnedItems: Pin[]) => {
+    return client.transaction(async (tx) => {
+      await Promise.all([
+        tx.delete($pins),
+        tx
+          .update($groups)
+          .set({ pinIndex: null })
+          .where(not(isNull($groups.pinIndex))),
+      ]);
+      await tx.insert($pins).values(pinnedItems);
+      const groups: GroupInsert[] = pinnedItems.flatMap((p) => {
+        if (!p.itemId) {
+          return [];
+        }
+        return [
+          {
+            id: p.itemId,
+            pinIndex: p.index,
+          },
+        ];
+      });
+      await tx
+        .insert($groups)
+        .values(groups)
+        .onConflictDoUpdate({
+          target: [$groups.id],
+          set: {
+            pinIndex: sql`excluded.pin_index`,
+          },
+        });
+    });
+  },
+  ['pins', 'groups']
+);
+
+export const getPinnedItems = createReadQuery(
+  'getPinnedItems',
+  async (params?: { orderBy?: keyof Pin; direction?: 'asc' | 'desc' }) => {
+    return client.query.pins.findMany({
+      orderBy: params?.orderBy
+        ? (pins, { asc, desc }) => [
+            (params.direction === 'asc' ? asc : desc)(pins[params.orderBy!]),
+          ]
+        : undefined,
+    });
+  },
+  ['pins']
+);
 
 // Helpers
 
-export function conflictUpdateSet<TTable extends SQLiteTable>(
-  table: TTable,
-  columns: (keyof TTable['_']['columns'] & keyof TTable)[]
-): SQLiteUpdateSetSource<TTable> {
-  return Object.assign(
-    {},
-    ...columns.map((k) => ({
-      [k]: sql.raw(`excluded.${(table[k] as unknown as Column).name}`),
-    }))
-  ) as SQLiteUpdateSetSource<TTable>;
+export function conflictUpdateSetAll(table: Table) {
+  const columns = getTableColumns(table);
+  return conflictUpdateSet(...Object.values(columns));
+}
+
+export function conflictUpdateSet(...columns: Column[]) {
+  return Object.fromEntries(
+    columns.map((c) => [toCamelCase(c.name), sql.raw(`excluded.${c.name}`)])
+  );
+}
+
+export function ascNullsLast(column: SQLWrapper | AnyColumn) {
+  return sql`${column} ASC NULLS LAST`;
+}
+
+function toCamelCase(str: string) {
+  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }

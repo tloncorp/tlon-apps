@@ -1,4 +1,4 @@
-import type * as client from '@tloncorp/shared/dist/client';
+import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
 import { ListItem, type ListItemProps } from '../ListItem';
@@ -9,7 +9,7 @@ export default function ListItemContent({
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<client.Group>) {
+}: ListItemProps<db.Group>) {
   const lastPostAt = useMemo(() => {
     return new Date('2024-01-01 20:38:00');
   }, []);
@@ -22,8 +22,8 @@ export default function ListItemContent({
     >
       <ListItem.Icon
         fallbackText={model.title?.[0]}
-        backgroundColor={model.iconImageColor}
-        imageUrl={model.iconImage}
+        backgroundColor={model.iconImageColor ?? undefined}
+        imageUrl={model.iconImage ?? undefined}
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>

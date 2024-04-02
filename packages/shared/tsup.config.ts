@@ -11,6 +11,7 @@ export default defineConfig({
   ],
   format: ['esm'],
   dts: true,
+  minify: false,
   external: ['react'],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {

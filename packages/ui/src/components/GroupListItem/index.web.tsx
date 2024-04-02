@@ -1,4 +1,4 @@
-import type * as client from '@tloncorp/shared/dist/client';
+import type * as db from '@tloncorp/shared/dist/db';
 import { useLongPress } from '@uidotdev/usehooks';
 
 import type { ListItemProps } from '../ListItem';
@@ -10,7 +10,7 @@ export const GroupListItem = ({
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<client.Group>) => {
+}: ListItemProps<db.Group>) => {
   // TODO: Figure out if this is necessary. Why can't we use Tamagui's long press handler?
   const attributes = useLongPress(
     () => {

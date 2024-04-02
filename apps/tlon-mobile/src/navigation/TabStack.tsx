@@ -33,8 +33,8 @@ function fallbackContact(id: string): client.Contact {
 }
 
 export const TabStack = () => {
-  const { ship } = useShip();
-  const unreadCount = db.useAllUnreadsCounts();
+  const { contactId } = useShip();
+  const { result: unreadCount } = db.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
   }) as ViewStyle;
@@ -113,7 +113,7 @@ export const TabStack = () => {
         component={WebViewStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <AvatarTabIcon id={ship!} focused={focused} />
+            <AvatarTabIcon id={contactId!} focused={focused} />
           ),
           tabBarShowLabel: false,
         }}
@@ -123,7 +123,7 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const contact = db.useContact(id);
+  const { result: contact } = db.useContact(id);
   return (
     <Avatar
       contact={contact ?? fallbackContact(id)}

@@ -1,5 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type * as client from '@tloncorp/shared/dist/client';
+import * as db from '@tloncorp/shared/dist/db';
 import { GroupList, GroupOptionsSheet, Icon, View } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 
@@ -11,21 +11,9 @@ type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
 export const HomeStack = ({ navigation }: Props) => {
   const { setVisibility } = useWebviewPositionContext();
   const [longPressedGroup, setLongPressedGroup] =
-    React.useState<client.Group | null>(null);
+    React.useState<db.Group | null>(null);
 
-  // TODO: fetch groups from the API
-  const pinnedGroups: client.Group[] = [];
-  const otherGroups: client.Group[] = [
-    {
-      id: 'test',
-      description: 'This is a test group',
-      members: [],
-      title: 'Test Group',
-      isSecret: false,
-      iconImage:
-        'https://storage.googleapis.com/assets.tlon.io/tlon-co-group-icon.svg',
-    },
-  ];
+  const { pinnedGroups, unpinnedGroups } = db.useGroupsForList() ?? {};
 
   useEffect(() => {
     navigation.setOptions({
@@ -52,8 +40,8 @@ export const HomeStack = ({ navigation }: Props) => {
   return (
     <View backgroundColor="$background" flex={1}>
       <GroupList
-        pinned={Array.from(pinnedGroups)}
-        other={Array.from(otherGroups)}
+        pinned={Array.from(pinnedGroups ?? [])}
+        other={Array.from(unpinnedGroups ?? [])}
         onGroupLongPress={setLongPressedGroup}
       />
       <GroupOptionsSheet

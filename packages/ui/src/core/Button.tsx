@@ -9,7 +9,7 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { Text } from '../core';
+import { Text } from './Text';
 
 export const ButtonContext = createStyledContext<{ size: SizeTokens }>({
   size: '$m',
