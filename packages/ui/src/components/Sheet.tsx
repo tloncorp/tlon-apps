@@ -1,47 +1,48 @@
-import React from "react";
+import React from 'react';
 import {
   StackProps,
   TamaguiElement,
   createSheet,
   styled,
   withStaticProperties,
-} from "tamagui";
-import { SizableText } from "../core";
-import { YStack, XStack, Stack, Sheet as TamSheet } from "tamagui";
+} from 'tamagui';
+import { Stack, Sheet as TamSheet, XStack, YStack } from 'tamagui';
+
+import { SizableText } from '../core';
 
 const Overlay = styled(YStack, {
-  name: "SheetOverlay",
+  name: 'SheetOverlay',
   enterStyle: { opacity: 0 },
   exitStyle: { opacity: 0 },
-  backgroundColor: "$translucentBlack",
+  backgroundColor: '$translucentBlack',
   fullscreen: true,
-  position: "absolute",
+  position: 'absolute',
   zIndex: 100_000 - 1,
-  pointerEvents: "auto",
+  pointerEvents: 'auto',
   variants: {
     open: {
       true: {
         opacity: 1,
-        pointerEvents: "auto",
+        pointerEvents: 'auto',
       },
       false: {
         opacity: 0,
-        pointerEvents: "none",
+        pointerEvents: 'none',
       },
     },
   } as const,
 });
 
 const Frame = styled(YStack, {
-  name: "SheetFrame",
-  borderTopLeftRadius: "$3xl",
-  borderTopRightRadius: "$3xl",
-  backgroundColor: "$background",
+  name: 'SheetFrame',
+  borderTopLeftRadius: '$3xl',
+  borderTopRightRadius: '$3xl',
+  backgroundColor: '$background',
 });
 
 const HandleIndicator = styled(YStack, {
-  name: "HandleIndicator",
-  backgroundColor: "$border",
+  name: 'HandleIndicator',
+  backgroundColor: '$border',
   height: 5,
   width: 32,
   borderRadius: 100,
@@ -52,16 +53,16 @@ const HandleBase = React.forwardRef<TamaguiElement>(function (
   ref
 ) {
   return (
-    <Stack width={"100%"} alignItems="center" padding="$m" ref={ref} {...props}>
+    <Stack width={'100%'} alignItems="center" padding="$m" ref={ref} {...props}>
       <HandleIndicator />
     </Stack>
   );
 });
 
-HandleBase.displayName = "HandleBase";
+HandleBase.displayName = 'HandleBase';
 
 const Handle = styled(HandleBase, {
-  name: "StyledHandle",
+  name: 'StyledHandle',
 });
 
 // Something weird going on with typing here? This works when sheet components
@@ -75,9 +76,9 @@ export const Sheet = createSheet({
 const HeaderFrame = styled(XStack, {});
 
 const HeaderTitleFrame = styled(XStack, {
-  padding: "$xs",
-  alignItems: "center",
-  justifyContent: "center",
+  padding: '$xs',
+  alignItems: 'center',
+  justifyContent: 'center',
   flexGrow: 0,
 });
 
@@ -85,28 +86,28 @@ const HeaderTitleText = styled(SizableText, {});
 
 const HeaderControls = styled(XStack, {
   flexBasis: 0,
-  padding: "$s",
-  alignItems: "center",
+  padding: '$s',
+  alignItems: 'center',
   flexGrow: 1,
 });
 
 const HeaderLeftControls = styled(HeaderControls, {
-  justifyContent: "flex-start",
+  justifyContent: 'flex-start',
 });
 
 const HeaderRightControls = styled(HeaderControls, {
-  justifyContent: "flex-end",
+  justifyContent: 'flex-end',
 });
 
 const HeaderButton = styled(XStack, {
-  padding: "$s",
-  pressStyle: { backgroundColor: "$secondaryBackground" },
-  paddingHorizontal: "$s",
-  borderRadius: "$l",
+  padding: '$s',
+  pressStyle: { backgroundColor: '$secondaryBackground' },
+  paddingHorizontal: '$s',
+  borderRadius: '$l',
 });
 
 const HeaderButtonText = styled(SizableText, {
-  color: "$secondaryText",
+  color: '$secondaryText',
 });
 
 export const SheetHeader = withStaticProperties(HeaderFrame, {

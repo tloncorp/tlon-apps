@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\"",
-    "android": "expo run:android",
+    "android": "expo run:android --variant=productionDebug",
+    "android:preview": "expo run:android --variant=previewDebug",
     "bundler": "expo start",
     "clearcache": "expo start -c",
     "ios": "expo run:ios",
+    "ios:preview": "expo run:ios --scheme=Landscape-preview",
     "generate": "npm run generate:tailwind && npm run generate:ios",
     "generate:ios": "react-native bundle --entry-file='index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
     "generate:tailwind": "tailwindcss --input input.css --output tailwind.css --no-autoprefixer && tailwind-rn",
@@ -19,7 +21,8 @@
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
     "postinstall": "npm run generate",
-    "eas-build-post-install": "./post-install"
+    "eas-build-post-install": "./post-install",
+    "cosmos": "cosmos-native"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
@@ -108,6 +111,8 @@
     "postcss": "^8.4.26",
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.4",
+    "react-cosmos": "^6.1.1",
+    "react-cosmos-native": "^6.1.1",
     "react-native-svg-transformer": "^1.3.0",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.1.3",

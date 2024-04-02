@@ -1,17 +1,18 @@
-import type { ClientTypes } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
+import { Text, YGroup } from 'tamagui';
+
 import { GroupListItem } from './GroupListItem';
-import { YGroup, Text } from 'tamagui';
 
 export function GroupList({
   pinned,
   other,
   onGroupLongPress,
-  onGroupPress
+  onGroupPress,
 }: {
-  pinned: ClientTypes.Group[];
-  other: ClientTypes.Group[];
-  onGroupPress?: (group: ClientTypes.Group) => void;
-  onGroupLongPress?: (group: ClientTypes.Group) => void;
+  pinned: client.Group[];
+  other: client.Group[];
+  onGroupPress?: (group: client.Group) => void;
+  onGroupLongPress?: (group: client.Group) => void;
 }) {
   return (
     <YGroup alignSelf="stretch" gap="$s" padding="$l">
@@ -26,7 +27,7 @@ export function GroupList({
             Pinned
           </Text>
         )}
-        {pinned.map(item => (
+        {pinned.map((item) => (
           <GroupListItem
             model={item}
             onPress={() => onGroupPress?.(item)}
@@ -46,7 +47,7 @@ export function GroupList({
             Other
           </Text>
         )}
-        {other.map(item => (
+        {other.map((item) => (
           <GroupListItem
             model={item}
             onPress={() => onGroupPress?.(item)}

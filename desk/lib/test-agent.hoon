@@ -200,7 +200,7 @@
 ::
 ++  do-load
   =+  scry-warn=&
-  |=  =agent
+  |=  [=agent vase=(unit vase)]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  old-scry=scry  bind:m  |=(s=state &+[scry.s s])
@@ -210,7 +210,8 @@
                                ['scrying during +on-load... careful!' p]
                              (old-scry p)
   ;<  c=(list card)  bind:m  %-  do  |=  s=state
-                             (~(on-load agent bowl.s) ~(on-save agent.s bowl.s))
+                             %-  ~(on-load agent bowl.s)
+                             (fall vase ~(on-save agent.s bowl.s))
   ;<  ~              bind:m  (set-scry-gate old-scry)
   (pure:m c)
 ::
@@ -300,7 +301,7 @@
 ::  bowl modification
 ::
 ++  jab-bowl
-  |=  f=$-(bowl:gall bowl)
+  |=  f=$-(bowl bowl)
   =/  m  (mare ,~)
   ^-  form:m
   |=  s=state
@@ -409,6 +410,7 @@
 ++  ex-arvo
   |=  [=wire note=note-arvo]
   (ex-card %pass wire %arvo note)
+::
 ++  ex-scry-result
   |=  [=path =vase]
   =/  m  (mare ,~)

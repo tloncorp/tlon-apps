@@ -3,7 +3,7 @@
 // The web version uses the default entry point of sigil-js
 import sigil from '@urbit/sigil-js';
 import { useMemo } from 'react';
-import { useTheme, View } from 'tamagui';
+import { View, useTheme } from 'tamagui';
 
 export const UrbitSigil = View.styleable<{
   ship: string;
@@ -19,7 +19,7 @@ export const UrbitSigil = View.styleable<{
         space: 'none',
         foreground: '#ffffff',
         // typescript thinks theme.darkBackground could be undefined
-        background: theme.darkBackground?.val
+        background: theme.darkBackground?.val,
       }),
     [ship]
   );

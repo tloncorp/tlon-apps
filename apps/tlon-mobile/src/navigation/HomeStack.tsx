@@ -1,5 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { ClientTypes as Client } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 import { GroupList, GroupOptionsSheet, Icon, View } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 
@@ -11,11 +11,11 @@ type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
 export const HomeStack = ({ navigation }: Props) => {
   const { setVisibility } = useWebviewPositionContext();
   const [longPressedGroup, setLongPressedGroup] =
-    React.useState<Client.Group | null>(null);
+    React.useState<client.Group | null>(null);
 
   // TODO: fetch groups from the API
-  const pinnedGroups: Client.Group[] = [];
-  const otherGroups: Client.Group[] = [
+  const pinnedGroups: client.Group[] = [];
+  const otherGroups: client.Group[] = [
     {
       id: 'test',
       description: 'This is a test group',

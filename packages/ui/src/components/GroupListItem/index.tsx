@@ -1,6 +1,7 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import type { ListItemProps } from '../ListItem';
+import type * as client from '@tloncorp/shared/dist/client';
 import { useCallback } from 'react';
+
+import type { ListItemProps } from '../ListItem';
 import ListItemContent from './ListItemContent';
 
 export const GroupListItem = ({
@@ -9,7 +10,7 @@ export const GroupListItem = ({
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<Client.Group>) => {
+}: ListItemProps<client.Group>) => {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [onPress, model]);

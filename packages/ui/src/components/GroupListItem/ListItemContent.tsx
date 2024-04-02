@@ -1,6 +1,7 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import { ListItem, type ListItemProps } from '../ListItem';
+import type * as client from '@tloncorp/shared/dist/client';
 import { useMemo } from 'react';
+
+import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ListItemContent({
   model,
@@ -8,7 +9,7 @@ export default function ListItemContent({
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<Client.Group>) {
+}: ListItemProps<client.Group>) {
   const lastPostAt = useMemo(() => {
     return new Date('2024-01-01 20:38:00');
   }, []);
