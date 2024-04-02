@@ -82,6 +82,12 @@ npm run ios:preview
 npm run android:preview
 ```
 
+If your Metro bundler is running the `io.tlon.groups` package instead, you can explicity set the URI scheme:
+
+```sh
+npx expo start --dev-client --scheme io.tlon.groups.preview
+```
+
 ## Debugging
 
 ### Dev tools
