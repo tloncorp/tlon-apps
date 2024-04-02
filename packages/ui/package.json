@@ -13,7 +13,8 @@
     "build": "npx tamagui-build --skip-types && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/",
     "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/esm/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/ && tamagui-build --watch --skip-types",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format"
+    "lint:all": "npm run lint:format",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@tamagui/animations-moti": "1.93.2",
