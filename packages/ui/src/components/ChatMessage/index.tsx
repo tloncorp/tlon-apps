@@ -1,6 +1,6 @@
 import * as client from '@tloncorp/shared/dist/client';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { View, YStack } from 'tamagui';
 
 import AuthorRow from './AuthorRow';
@@ -11,10 +11,14 @@ const ChatMessage = memo(({ post }: { post: client.Post | null }) => {
     return null;
   }
 
-  const content = JSON.parse(post.content) as Story;
-  const roles = post.group?.members?.find(
-    (m) => m.id === post.author.id
-  )?.roles;
+  const content = useMemo(
+    () => JSON.parse(post.content) as Story,
+    [post.content]
+  );
+  const roles = useMemo(
+    () => post.group?.members?.find((m) => m.id === post.author.id)?.roles,
+    [post.group, post.author]
+  );
 
   return (
     <YStack key={post.id} gap="$l">
