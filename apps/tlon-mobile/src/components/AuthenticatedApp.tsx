@@ -1,5 +1,4 @@
 import { sync } from '@tloncorp/shared';
-import { subscribeUnreads } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -23,10 +22,9 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
 
   useEffect(() => {
     configureClient(ship ?? '', shipUrl ?? '');
-    sync.syncAll().catch((e) => {
+    sync.start().catch((e) => {
       console.warn('Sync failed', e);
     });
-    subscribeUnreads();
   }, [ship, shipUrl]);
 
   return (

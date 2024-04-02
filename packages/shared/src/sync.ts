@@ -2,7 +2,7 @@ import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 export const syncContacts = async () => {
   const contacts = await api.getContacts();
@@ -26,6 +26,12 @@ export const syncUnreads = async () => {
   ]);
   await db.insertUnreads([...channelUnreads, ...dmUnreads]);
 };
+
+async function handleUnreadUpdate(unread: db.Unread) {
+  logger.log('received new unread', unread.channelId);
+  await db.insertUnreads([unread]);
+  await syncChannel(unread.channelId, unread.updatedAt);
+}
 
 export const syncPosts = async () => {
   const unreads = await db.getUnreads({ type: 'channel' });
@@ -90,7 +96,7 @@ async function persistPagedPostData(
   await db.insertChannelPosts(channelId, data.posts);
 }
 
-export const syncAll = async () => {
+export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
     ['contacts', syncContacts],
     ['groups', syncGroups],
@@ -98,6 +104,8 @@ export const syncAll = async () => {
     ['unreads', syncUnreads],
     ['posts', syncPosts],
   ];
+
+  api.subscribeUnreads(handleUnreadUpdate);
 
   for (const [name, fn] of enabledOperations) {
     try {

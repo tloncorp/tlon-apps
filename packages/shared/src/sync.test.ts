@@ -7,12 +7,15 @@ import {
   vi,
 } from 'vitest';
 
+import { toClientGroup, toPagedPostsData } from './api';
 import { scry } from './api/urbit';
 import * as db from './db';
-import { syncContacts, syncGroups, syncPinnedItems } from './sync';
+import { syncChannel, syncContacts, syncGroups, syncPinnedItems } from './sync';
+import rawChannelPostsData from './test/channelPosts.json';
 import rawContactsData from './test/contacts.json';
 import rawGroupsData from './test/groups.json';
 import { resetDb, setupDb } from './test/helpers';
+import { PagedPosts } from './urbit';
 import { Contact as UrbitContact } from './urbit/contact';
 import { Group as UrbitGroup } from './urbit/groups';
 
@@ -92,6 +95,51 @@ test('syncs contacts', async () => {
 test('sync groups', async () => {
   setScryOutput(groupsData);
   await syncGroups();
-  const storedGroups = await db.getGroups();
+  const pins = Object.keys(groupsData).slice(0, 3);
+  setScryOutput(pins);
+  await syncPinnedItems();
+  const storedGroups = await db.getGroups({ sort: 'pinIndex' });
   expect(storedGroups.length).toEqual(Object.values(groupsData).length);
+  expect(storedGroups[0].pinIndex).toEqual(0);
+  expect(storedGroups[1].pinIndex).toEqual(1);
+  expect(storedGroups[2].pinIndex).toEqual(2);
+});
+
+test('sync posts', async () => {
+  const groupId = 'test-group';
+  const channelId = 'test-channel';
+  const groupData = toClientGroup(
+    groupId,
+    Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
+    true
+  );
+  const unreadTime = 1712091148002;
+  groupData.channels = [{ id: channelId, groupId }];
+  await db.insertGroups([groupData]);
+  console.log('inserted group');
+  const insertedChannel = await db.getChannel(channelId);
+  expect(insertedChannel).toBeTruthy();
+
+  setScryOutput(rawChannelPostsData);
+  await syncChannel(channelId, unreadTime);
+
+  const convertedPosts = toPagedPostsData(
+    channelId,
+    rawChannelPostsData as unknown as PagedPosts
+  );
+  const lastPost = convertedPosts.posts[convertedPosts.posts.length - 1]!;
+  const channel = await db.getChannel(channelId);
+  expect(channel?.remoteUpdatedAt).toEqual(unreadTime);
+  expect(channel?.lastPostAt).toEqual(lastPost.receivedAt);
+  expect(channel?.lastPostId).toEqual(lastPost.id);
+
+  const posts = await db.getPosts();
+  expect(posts.length).toEqual(convertedPosts.posts.length);
+
+  const groups = await db.getGroups();
+  expect(groups[0].id).toEqual(groupId);
+  expect(groups[0].lastPostAt).toEqual(lastPost.receivedAt);
+  expect(groups[0].lastPostId).toEqual(lastPost.id);
+  expect(groups[0].lastPost?.id).toEqual(groups[0].lastPostId);
+  expect(groups[0].lastPost?.textContent).toEqual(lastPost.textContent);
 });

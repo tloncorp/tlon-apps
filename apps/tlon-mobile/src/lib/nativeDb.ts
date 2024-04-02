@@ -1,5 +1,6 @@
 import type { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
+import { createDevLogger } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/dist/db';
 import { schema, setClient } from '@tloncorp/shared/dist/db';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
@@ -11,6 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 let connection: OPSQLiteConnection | null = null;
 let client: OPSQLiteDatabase<Schema> | null = null;
 
+const logger = createDevLogger('drizzle', false);
+
 export function setupDb() {
   if (connection || client) {
     console.warn('setupDb called multiple times, ignoring');
@@ -19,6 +22,11 @@ export function setupDb() {
   connection = open({ location: 'default', name: 'tlon.sqlite' });
   client = drizzle(connection, {
     schema,
+    logger: {
+      logQuery(query, params) {
+        logger.log(query, params);
+      },
+    },
   });
   setClient(client);
   console.log('SQLite database opened at', connection.getDbPath());

@@ -34,10 +34,10 @@ import {
   ChannelInsert,
   ContactInsert,
   GroupInsert,
-  Insertable,
   Pin,
   PostInsert,
   Unread,
+  UnreadInsert,
 } from './types';
 
 export interface GetGroupsOptions {
@@ -48,12 +48,31 @@ export interface GetGroupsOptions {
 export const getGroups = createReadQuery(
   'getGroups',
   async ({ sort, includeUnjoined }: GetGroupsOptions = {}) => {
-    return client.query.groups.findMany({
-      where: includeUnjoined ? undefined : eq($groups.isJoined, true),
-      orderBy: sort === 'pinIndex' ? ascNullsLast($groups.pinIndex) : undefined,
-    });
+    const unreadCounts = client
+      .select({
+        groupId: $channels.groupId,
+        count: count().as('count'),
+      })
+      .from($channels)
+      .rightJoin($unreads, eq($channels.id, $unreads.channelId))
+      .groupBy($channels.groupId)
+      .having(gt($unreads.totalCount, 0))
+      .as('unreadCounts');
+    const query = client
+      .select({
+        ...getTableColumns($groups),
+        unreadCount: unreadCounts.count,
+        lastPost: getTableColumns($posts),
+      })
+      .from($groups)
+      .where(includeUnjoined ? undefined : eq($groups.isJoined, true))
+      .leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId))
+      .leftJoin($posts, eq($groups.lastPostId, $posts.id));
+    return sort === 'pinIndex'
+      ? query.orderBy(ascNullsLast($groups.pinIndex), desc($groups.lastPostAt))
+      : query;
   },
-  ['groups', 'pins']
+  ['groups', 'pins', 'unreads', 'posts']
 );
 
 export const insertGroups = createWriteQuery(
@@ -286,8 +305,16 @@ export const insertChannelPosts = createWriteQuery(
       if (groupId) {
         await tx
           .update($groups)
-          .set({ lastPostAt: lastPost.receivedAt })
-          .where(eq($groups.id, groupId));
+          .set({ lastPostId: lastPost.id, lastPostAt: lastPost.receivedAt })
+          .where(
+            and(
+              eq($groups.id, groupId),
+              or(
+                isNull($groups.lastPostAt),
+                lt($groups.lastPostAt, lastPost.receivedAt ?? 0)
+              )
+            )
+          );
       }
       // Actually insert posts, overwriting any existing posts with the same id.
       await tx
@@ -300,6 +327,14 @@ export const insertChannelPosts = createWriteQuery(
     });
   },
   ['posts', 'channels', 'groups']
+);
+
+export const getPosts = createReadQuery(
+  'getPosts',
+  () => {
+    return client.select().from($posts);
+  },
+  ['posts']
 );
 
 export const getGroup = createReadQuery(
@@ -385,16 +420,14 @@ export const insertContacts = createWriteQuery(
 
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
-  async (unreads: Insertable<'unreads'>[]) => {
+  async (unreads: UnreadInsert[]) => {
     return client.transaction(() => {
       return client
         .insert($unreads)
         .values(unreads)
         .onConflictDoUpdate({
           target: [$unreads.channelId],
-          set: {
-            totalCount: sql.raw(`excluded.totalCount + unreads.totalCount`),
-          },
+          set: conflictUpdateSetAll($unreads),
         });
     });
   },
@@ -454,18 +487,18 @@ export const getPinnedItems = createReadQuery(
 
 // Helpers
 
-export function conflictUpdateSetAll(table: Table) {
+function conflictUpdateSetAll(table: Table) {
   const columns = getTableColumns(table);
   return conflictUpdateSet(...Object.values(columns));
 }
 
-export function conflictUpdateSet(...columns: Column[]) {
+function conflictUpdateSet(...columns: Column[]) {
   return Object.fromEntries(
     columns.map((c) => [toCamelCase(c.name), sql.raw(`excluded.${c.name}`)])
   );
 }
 
-export function ascNullsLast(column: SQLWrapper | AnyColumn) {
+function ascNullsLast(column: SQLWrapper | AnyColumn) {
   return sql`${column} ASC NULLS LAST`;
 }
 

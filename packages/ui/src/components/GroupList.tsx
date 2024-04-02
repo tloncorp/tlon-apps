@@ -3,16 +3,21 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ScrollView, Text, YGroup } from '../core';
 import { GroupListItem } from './GroupListItem';
 
+interface GroupWithUnreadCount extends db.Group {
+  unreadCount?: number | null;
+  latestPost?: db.Post;
+}
+
 export function GroupList({
   pinned,
   other,
   onGroupLongPress,
   onGroupPress,
 }: {
-  pinned: db.Group[];
-  other: db.Group[];
-  onGroupPress?: (group: db.Group) => void;
-  onGroupLongPress?: (group: db.Group) => void;
+  pinned: GroupWithUnreadCount[];
+  other: GroupWithUnreadCount[];
+  onGroupPress?: (group: GroupWithUnreadCount) => void;
+  onGroupLongPress?: (group: GroupWithUnreadCount) => void;
 }) {
   return (
     <ScrollView>
@@ -31,6 +36,7 @@ export function GroupList({
           {pinned.map((item) => (
             <GroupListItem
               model={item}
+              unreadCount={item.unreadCount ?? 0}
               onPress={() => onGroupPress?.(item)}
               onLongPress={() => onGroupLongPress?.(item)}
               key={item.id}
@@ -51,6 +57,7 @@ export function GroupList({
           {other.map((item) => (
             <GroupListItem
               model={item}
+              unreadCount={item.unreadCount ?? 0}
               onPress={() => onGroupPress?.(item)}
               onLongPress={() => onGroupLongPress?.(item)}
               key={item.id}

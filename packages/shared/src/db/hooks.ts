@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import * as queries from './queries';
 import { getContact } from './queries';
@@ -16,10 +16,16 @@ export const useGroups = createUseQuery(queries.getGroups);
 export const useGroup = createUseQuery(queries.getGroup);
 
 export const useGroupsForList = (): {
-  pinnedGroups?: Group[];
-  unpinnedGroups?: Group[];
+  pinnedGroups?: Group[] & { unreadCount?: number | null };
+  unpinnedGroups?: Group[] & { unreadCount?: number | null };
 } | null => {
-  const { result: allGroups } = useGroups({ sort: 'pinIndex' });
+  const { result: allGroups, error } = useGroups({ sort: 'pinIndex' });
+
+  useEffect(() => {
+    if (error) {
+      console.error(error);
+    }
+  }, [error]);
 
   return useMemo(() => {
     // If we don't have groups yet, return null

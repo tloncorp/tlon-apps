@@ -82,7 +82,6 @@ export function toPostsData(
   posts: ub.Posts
 ): db.PostInsert[] {
   return Object.entries(posts)
-    .filter(([, post]) => post !== null)
     .map(([id, post]) => {
       return toPostData(id, channelId, post);
     })
