@@ -4,8 +4,12 @@ import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import { Inline } from './content';
-import { Saga } from './groups';
 import { Flag } from './hark';
+
+export interface CacheId {
+  author: string;
+  sent: number;
+}
 
 export interface Writ {
   seal: WritSeal;
@@ -319,11 +323,17 @@ export type DisplayMode = 'list' | 'grid';
 
 export type SortMode = 'alpha' | 'time' | 'arranged';
 
+export interface PendingMessages {
+  posts: Record<string, PostEssay>;
+  replies: Record<string, Record<string, Memo>>;
+}
+
 export interface Channel {
   perms: Perm;
   view: DisplayMode;
   order: string[];
   sort: SortMode;
+  pending: PendingMessages;
 }
 
 export interface Channels {
@@ -427,9 +437,28 @@ export interface ChannelPostResponse {
   };
 }
 
+
+export type PendingResponse =
+  | { post: PostEssay }
+  | {
+      reply: {
+        top: string;
+        meta: ReplyMeta;
+        memo: Memo;
+      }
+    }
+
+export interface ChannelPendingResponse {
+  pending: {
+    id: CacheId;
+    pending: PendingResponse;
+  }
+}
+
 export type Response =
   | { posts: Posts }
   | ChannelPostResponse
+  | ChannelPendingResponse
   | { order: string[] }
   | { view: DisplayMode }
   | { sort: SortMode }

@@ -39,7 +39,7 @@ async function startGroups() {
       () =>
         api.scry<GroupsInit>({
           app: 'groups-ui',
-          path: '/init',
+          path: '/v1/init',
         }),
       emptyGroupsInit
     );

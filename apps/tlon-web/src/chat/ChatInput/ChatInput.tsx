@@ -1,6 +1,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Editor } from '@tiptap/react';
 import {
+  CacheId,
   Cite,
   Memo,
   Nest,
@@ -59,7 +60,7 @@ import {
   useIsDmOrMultiDm,
   useThreadParentId,
 } from '@/logic/utils';
-import { CacheId, useMyLastMessage } from '@/state/channel/channel';
+import { useMyLastMessage } from '@/state/channel/channel';
 import {
   SendMessageVariables,
   SendReplyVariables,

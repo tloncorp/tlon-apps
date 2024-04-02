@@ -9,7 +9,21 @@
 ::  or just don't care about details like edit status.
 ::  +suv-* functions do both, sequentially.
 ::
-++  uv-channels
+++  uv-channels-1
+  |=  =v-channels:c
+  ^-  channels-0:c
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel-0:c
+  %*  .  *channel-0:c
+    posts  *posts:c
+    perm   +.perm.channel
+    view   +.view.channel
+    sort   +.sort.channel
+    order  +.order.channel
+  ==
+::
+++  uv-channels-2
   |=  =v-channels:c
   ^-  channels:c
   %-  ~(run by v-channels)
@@ -21,7 +35,9 @@
     view   +.view.channel
     sort   +.sort.channel
     order  +.order.channel
+    pending  pending.channel
   ==
+::
 ++  uv-posts
   |=  =v-posts:c
   ^-  posts:c
@@ -245,7 +261,7 @@
   |=  post=v-post:c
   ^-  reply-meta:c
   :*  (get-non-null-reply-count replies.post)
-      (get-last-repliers post)
+      (get-last-repliers post ~)
       (biff (ram:on-v-replies:c replies.post) |=([=time *] `time))
   ==
 ::
@@ -262,9 +278,9 @@
   $(entries +.entries, count +(count))
 ::
 ++  get-last-repliers
-  |=  post=v-post:c  ::TODO  could just take =v-replies
+  |=  [post=v-post:c pending=(unit ship)]  ::TODO  could just take =v-replies
   ^-  (set ship)
-  =|  replyers=(set ship)
+  =/  replyers=(set ship)  ?~(pending ~ (sy u.pending ~))
   =/  entries=(list [time (unit v-reply:c)])  (bap:on-v-replies:c replies.post)
   |-
   ?:  |(=(~ entries) =(3 ~(wyt in replyers)))
