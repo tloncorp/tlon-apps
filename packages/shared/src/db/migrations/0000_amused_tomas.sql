@@ -13,6 +13,7 @@ CREATE TABLE `channels` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`synced_at` integer,
+	`remote_updated_at` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint

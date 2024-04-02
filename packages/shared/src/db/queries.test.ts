@@ -21,12 +21,12 @@ beforeEach(async () => {
 
 test('inserts a group', async () => {
   const groupData = groupsData[3];
-  await queries.insertGroup(groupData);
+  await queries.insertGroups([groupData]);
   const roles = await queries.getGroupRoles(groupData.id);
   expect(roles.length).toEqual(groupData.roles?.length);
   const result = await queries.getGroup(groupData.id);
   expect(result?.id).toBe(groupData.id);
-  await queries.insertGroup(groupData);
+  await queries.insertGroups([groupData]);
 });
 
 test('inserts all groups', async () => {

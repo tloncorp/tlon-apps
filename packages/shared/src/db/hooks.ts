@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { GetGroupsOptions, getContact } from './queries';
+import * as queries from './queries';
+import { getContact } from './queries';
 import { createUseQuery } from './query';
 import { Group } from './types';
-import queries from './wrappedQueries';
 
 export const useContact = createUseQuery(getContact);
 
@@ -19,21 +19,14 @@ export const useAllUnreadsCounts = () => {
   return counts;
 };
 
-export const useGroups = ({ includeUnjoined }: GetGroupsOptions) => {
-  const [groups, setGroups] = useState<Group[] | null>(null);
-  useEffect(() => {
-    queries
-      .getGroups({ sort: 'pinIndex', includeUnjoined })
-      .then((c) => setGroups(c ?? null));
-  }, [includeUnjoined]);
-  return groups;
-};
+export const useGroups = createUseQuery(queries.getGroups);
 
-export const usePinnedGroups = (): null | {
+export const usePinnedGroups = (): {
   pinnedGroups?: Group[];
   unpinnedGroups?: Group[];
-} => {
-  const allGroups = useGroups({ sort: 'pinIndex' });
+} | null => {
+  const { result: allGroups } = useGroups({ sort: 'pinIndex' });
+
   return useMemo(() => {
     // If we don't have groups yet, return null
     if (!allGroups) {

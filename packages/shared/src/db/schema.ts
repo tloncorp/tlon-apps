@@ -256,7 +256,15 @@ export const channels = sqliteTable('channels', {
   firstUnreadPostId: text('first_unread_post_id'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  /**
+   * Last time we ran a sync, in local time
+   */
   syncedAt: timestamp('synced_at'),
+  /**
+   * Remote time that this channel was last updated.
+   * From `recency` on unreads on the Urbit side
+   */
+  remoteUpdatedAt: timestamp('remote_updated_at'),
 });
 
 export const channelRelations = relations(channels, ({ one, many }) => ({

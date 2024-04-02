@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "4966c347-80aa-41d3-b927-cb1243df38cf",
+  "id": "e752a78c-94ab-4ade-9ed6-6bbb5206b813",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -100,6 +100,13 @@
         },
         "synced_at": {
           "name": "synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "remote_updated_at": {
+          "name": "remote_updated_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

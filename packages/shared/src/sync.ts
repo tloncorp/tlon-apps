@@ -1,105 +1,53 @@
-import {
-  PagedPostsData,
-  getChannelPosts,
-  getChannelUnreads,
-  getContacts,
-  getDMUnreads,
-  getGroups,
-  getPinnedItems,
-} from './api';
+import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
 
-// TODO: This is too complicated, clean up.
+const logger = createDevLogger('sync', false);
 
-type Operation<T = unknown> = {
-  load: () => Promise<T>;
-  store: (params: T) => Promise<unknown>;
+export const syncContacts = async () => {
+  const contacts = await api.getContacts();
+  await db.insertContacts(contacts);
 };
 
-type OperationMap<T> = {
-  [K in keyof T]: T[K] extends Operation<infer V> ? Operation<V> : never;
+export const syncPinnedItems = async () => {
+  const pinnedItems = await api.getPinnedItems();
+  await db.insertPinnedItems(pinnedItems);
 };
 
-function makeOperations<T extends { [K: string]: Operation<any> }>(
-  input: T
-): OperationMap<T> {
-  return input as unknown as OperationMap<T>;
-}
+export const syncGroups = async () => {
+  const groups = await api.getGroups();
+  await db.insertGroups(groups);
+};
 
-const operations = makeOperations({
-  contacts: {
-    load: getContacts,
-    store: db.insertContacts,
-  },
-  unreads: {
-    load: async () => {
-      const [channelUnreads, dmUnreads] = await Promise.all([
-        getChannelUnreads(),
-        getDMUnreads(),
-      ]);
-      return [...channelUnreads, ...dmUnreads];
-    },
-    store: db.insertUnreads,
-  },
-  groups: {
-    load: getGroups,
-    store: db.insertGroups,
-  },
-  pinnedItems: {
-    load: getPinnedItems,
-    store: db.insertPinnedItems,
-  },
-  // TODO: This is wacky, but I'm going to restructure.
-  posts: {
-    load: async () => {
-      const unreads = await db.getUnreads();
-      for (let unread of unreads) {
-        try {
-          await syncChannel(unread.channelId, unread.updatedAt);
-        } catch (e) {
-          console.log('Sync failed', unread.channelId);
-        }
-      }
-      return [];
-    },
-    store: async (posts: []) => {},
-  },
-});
+export const syncUnreads = async () => {
+  const [channelUnreads, dmUnreads] = await Promise.all([
+    api.getChannelUnreads(),
+    api.getDMUnreads(),
+  ]);
+  await db.insertUnreads([...channelUnreads, ...dmUnreads]);
+};
 
-type OperationName = keyof typeof operations;
+export const syncPosts = async () => {
+  const unreads = await db.getUnreads({ type: 'channel' });
 
-const logger = createDevLogger('sync', true);
-
-export const syncGroups = () => runOperation('groups');
-export const syncContacts = () => runOperation('contacts');
-export const syncUnreads = () => runOperation('unreads');
-export const syncPinnedItems = () => runOperation('pinnedItems');
-export const syncPosts = () => runOperation('posts');
-
-export const syncAll = async () =>
-  measureDuration('initial sync', async () => {
-    const enabledOperations: OperationName[] = [
-      'contacts',
-      'groups',
-      'pinnedItems',
-      'unreads',
-      'posts',
-    ];
-    for (const name of enabledOperations) {
-      try {
-        await runOperation(name);
-      } catch (e) {
-        console.log(e);
-      }
+  for (let unread of unreads) {
+    try {
+      await syncChannel(unread.channelId, unread.updatedAt);
+    } catch (e) {
+      logger.log(
+        'sync failed for channel id',
+        unread.channelId,
+        e instanceof Error ? e.message : ''
+      );
     }
-  });
+  }
+};
 
 export async function syncPostsBefore(post: db.Post) {
   if (!post.channelId) {
     throw new Error("post is missing channel, can't sync");
   }
-  const postsResponse = await getChannelPosts(post.channelId, {
+  const postsResponse = await api.getChannelPosts(post.channelId, {
     count: 50,
     direction: 'older',
     cursor: post.id,
@@ -108,83 +56,60 @@ export async function syncPostsBefore(post: db.Post) {
   persistPagedPostData(post.channelId, postsResponse);
 }
 
-const MAX_PAGES = 1;
-
-export async function syncChannel(id: string, updatedAt: number) {
+export async function syncChannel(id: string, remoteUpdatedAt: number) {
+  const startTime = Date.now();
   const channel = await db.getChannel(id);
   if (!channel) {
-    throw new Error('Unknown channel: ' + id);
+    throw new Error('no local channel for' + id);
   }
-  const isStale = (channel.syncedAt ?? 0) < updatedAt;
-  if (!isStale) {
-    return;
-  }
-  logger.log('Sync channel', id);
   // If we don't have any posts, start loading backward from the current time
-  if (!channel.lastPostId) {
-    logger.log('No posts, loading newest');
-    let nextOlderPageParams: { date: Date } | { cursor: string } | null = {
-      // We want to load anything older than now (which should give us newest).
-      // We offset the time into the future to allow for clock skew.
+  if ((channel.remoteUpdatedAt ?? 0) < remoteUpdatedAt) {
+    logger.log('loading posts for channel', id);
+    const postsResponse: api.PagedPostsData = await api.getChannelPosts(id, {
+      direction: 'older',
       date: new Date(Date.now() + 60000),
-    };
-    for (let i = 0; i < MAX_PAGES; ++i) {
-      const postsResponse: PagedPostsData = await getChannelPosts(id, {
-        direction: 'older',
-        ...nextOlderPageParams,
-        includeReplies: false,
-      });
-      persistPagedPostData(channel.id, postsResponse);
-      nextOlderPageParams = postsResponse.older
-        ? { cursor: postsResponse.older }
-        : null;
-      if (!nextOlderPageParams) {
-        break;
-      }
-    }
-  } else {
-    // TODO: fix so this doesn't leave gaps. Should probably also start loading from newest.
-    if ((channel.lastPostAt ?? 0) < updatedAt) {
-      const postsResponse = await getChannelPosts(id, {
-        direction: 'newer',
-        cursor: channel.lastPostId,
-        includeReplies: false,
-      });
-      persistPagedPostData(channel.id, postsResponse);
-    }
+      includeReplies: false,
+    });
+    persistPagedPostData(channel.id, postsResponse);
+    logger.log(
+      'loaded',
+      postsResponse.posts.length,
+      `posts for channel ${id} in `,
+      Date.now() - startTime + 'ms'
+    );
   }
-  await db.updateChannel({ id, syncedAt: Date.now() });
+  await db.updateChannel({ id, remoteUpdatedAt, syncedAt: Date.now() });
 }
 
-async function persistPagedPostData(channelId: string, data: PagedPostsData) {
+async function persistPagedPostData(
+  channelId: string,
+  data: api.PagedPostsData
+) {
   db.updateChannel({ id: channelId, postCount: data.totalPosts });
   db.insertChannelPosts(channelId, data.posts);
 }
 
-async function runOperation(name: OperationName) {
-  const startTime = Date.now();
-  logger.log('starting', name);
-  const operation = operations[name] as Operation;
-  const result = await operation.load();
-  const loadTime = Date.now() - startTime;
-  await operation.store(result);
-  const storeTime = Date.now() - startTime - loadTime;
-  logger.log(
-    'synced',
-    name,
-    'in',
-    loadTime + 'ms (load) +',
-    storeTime + 'ms (store)'
-  );
-}
+export const syncAll = async () => {
+  const enabledOperations: [string, () => Promise<void>][] = [
+    ['contacts', syncContacts],
+    ['groups', syncGroups],
+    ['pinnedItems', syncPinnedItems],
+    ['unreads', syncUnreads],
+    ['posts', syncPosts],
+  ];
 
-async function measureDuration<T>(label: string, fn: () => Promise<T>) {
-  const startTime = Date.now();
-  try {
-    return await fn();
-  } catch (e) {
-    logger.warn(label, 'failed', e, fn);
-  } finally {
-    logger.log(label, 'finished in', Date.now() - startTime, 'ms');
+  for (const [name, fn] of enabledOperations) {
+    try {
+      await runOperation(name, fn);
+    } catch (e) {
+      console.log(e);
+    }
   }
+};
+
+async function runOperation(name: string, fn: () => Promise<void>) {
+  const startTime = Date.now();
+  logger.log('starting', name, Date.now());
+  await fn();
+  logger.log('synced', name, 'in', Date.now() - startTime + 'ms');
 }
