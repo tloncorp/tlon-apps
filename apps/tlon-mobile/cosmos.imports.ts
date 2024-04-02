@@ -12,7 +12,7 @@ import * as fixture1 from './src/fixtures/TlonButton.fixture';
 import * as decorator0 from './src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
-  playgroundUrl: 'http://localhost:5000',
+  playgroundUrl: 'http://localhost:5001',
   rendererUrl: null,
 };
 

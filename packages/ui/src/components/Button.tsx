@@ -4,15 +4,19 @@ import {
   SizeTokens,
   Stack,
   Text,
+  Variable,
   createStyledContext,
   styled,
   useTheme,
   withStaticProperties,
-  Variable
 } from 'tamagui';
 
-export const ButtonContext = createStyledContext<{ size: SizeTokens }>({
+export const ButtonContext = createStyledContext<{
+  size: SizeTokens;
+  minimal: boolean;
+}>({
   size: '$m',
+  minimal: false,
 });
 
 export const ButtonFrame = styled(Stack, {
@@ -47,11 +51,19 @@ export const ButtonFrame = styled(Stack, {
         };
       },
     },
-  } as const,
-
-  defaultVariants: {
-    size: '$m',
+    minimal: {
+      true: {
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        paddingVertical: 0,
+        paddingHorizontal: 0,
+      },
+    } as const,
   },
+
+  // defaultVariants: {
+  //   size: '$m',
+  // },
 });
 
 export const ButtonText = styled(Text, {
@@ -65,6 +77,13 @@ export const ButtonText = styled(Text, {
       '...fontSize': (name) => ({
         fontSize: name,
       }),
+    },
+    minimal: {
+      true: {
+        pressStyle: {
+          color: '$positiveActionText',
+        },
+      },
     },
   } as const,
 });
