@@ -1,6 +1,5 @@
-import { SizeTokens } from '../core';
-
 import { Button } from '../components/Button';
+import { SizeTokens } from '../core';
 
 export function IconButton({
   children,

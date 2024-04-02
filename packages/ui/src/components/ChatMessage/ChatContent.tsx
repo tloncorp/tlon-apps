@@ -22,7 +22,7 @@ import { findLastIndex } from 'lodash';
 
 import { Image, SizableText, View, YStack } from '../../core';
 import { Button } from '../Button';
-import ShipName from '../ShipName';
+import ContactName from '../ContactName';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
@@ -34,7 +34,7 @@ function ShipMention({ ship }: { ship: string }) {
       paddingVertical={0}
       borderRadius="$xl"
     >
-      <ShipName name={ship} showAlias />
+      <ContactName name={ship} showAlias />
     </Button>
   );
 }

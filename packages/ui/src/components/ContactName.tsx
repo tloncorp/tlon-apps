@@ -5,7 +5,7 @@ import { FontSizeTokens, SizableText } from '../core';
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';
 
-export default function ShipName({
+export default function ContactName({
   name,
   full = false,
   showAlias = false,

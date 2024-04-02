@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
-import ShipName from '../ShipName';
+import ContactName from '../ContactName';
 
 const RoleBadge = ({ role }: { role: string }) => {
   return (
@@ -39,7 +39,7 @@ export default function AuthorRow({
   return (
     <XStack gap="$l" alignItems="center">
       <Avatar height="$2xl" width="$2xl" contact={author} />
-      <ShipName showAlias name={author.id} />
+      <ContactName showAlias name={author.id} />
       <SizableText color="$secondaryText" size="$s">
         {timeDisplay.time}
       </SizableText>
