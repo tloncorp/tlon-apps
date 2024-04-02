@@ -37,7 +37,7 @@ export default function AuthorRow({
   const firstRole = roles?.[0];
 
   return (
-    <XStack gap="$space.l">
+    <XStack gap="$l">
       <Avatar height="$2xl" width="$2xl" contact={author} />
       <ShipName showAlias name={author.id} />
       <SizableText fontWeight="$s" color="$secondaryText" size="$s">
