@@ -1,5 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as client from '@tloncorp/shared/dist/client';
+import { useMemo } from 'react';
 import { SizableText, View, XStack } from 'tamagui';
 
 import { Avatar } from '../Avatar';
@@ -29,7 +30,10 @@ export default function AuthorRow({
   roles?: string[];
 }) {
   const date = new Date(sent);
-  const timeDisplay = utils.makePrettyDayAndDateAndTime(date);
+  const timeDisplay = useMemo(
+    () => utils.makePrettyDayAndDateAndTime(date),
+    [date]
+  );
   const firstRole = roles?.[0];
 
   return (
