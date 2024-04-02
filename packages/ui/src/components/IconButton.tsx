@@ -11,7 +11,12 @@ export function IconButton({
   size?: SizeTokens;
 }) {
   return (
-    <Button size={size} onPress={onPress} borderWidth="unset">
+    <Button
+      size={size}
+      onPress={onPress}
+      // borderWidth="unset" because otherwise it would be set to 1px
+      // and we don't want that for an icon button
+      borderWidth="unset">
       <Button.Icon>{children}</Button.Icon>
     </Button>
   );
