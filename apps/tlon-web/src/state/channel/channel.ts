@@ -720,27 +720,38 @@ export function useInfinitePosts(
     }
 
     const pendingPosts = _.fromPairs(
-      Object.entries(pending?.posts ?? {}).map(([id, essay]) => {
-        const { sent } = cacheIdFromString(id);
-        const synthId = unixToDa(sent).toString();
-        return [
-          decToUd(synthId),
-          {
-            seal: {
-              id: synthId,
-              reacts: {},
-              replies: [],
-              meta: {
-                replyCount: 0,
-                lastRepliers: [],
-                lastReply: null,
+      Object.entries(pending?.posts ?? {})
+        .filter(([, essay]) => {
+          const clientIds = Object.entries<Post | null>(
+            data.pages[0]?.posts || {}
+          ).map(([, post]) =>
+            post ? `${post.essay.author}:${post.essay.sent}` : ''
+          );
+          return !clientIds.some(
+            (id) => id === `${essay.author}:${essay.sent}`
+          );
+        })
+        .map(([id, essay]) => {
+          const { sent } = cacheIdFromString(id);
+          const synthId = unixToDa(sent).toString();
+          return [
+            decToUd(synthId),
+            {
+              seal: {
+                id: synthId,
+                reacts: {},
+                replies: [],
+                meta: {
+                  replyCount: 0,
+                  lastRepliers: [],
+                  lastReply: null,
+                },
               },
-            },
-            essay,
-            revision: '0',
-          } as Post,
-        ];
-      })
+              essay,
+              revision: '0',
+            } as Post,
+          ];
+        })
     );
 
     return {
