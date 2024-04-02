@@ -149,7 +149,6 @@ export function toPostContent(
   return [convertedContent, flags];
 }
 
-// TODO: This doesn't handle bait cites, does it need to?
 export function toContentReference(cite: ub.Cite): ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
