@@ -1,4 +1,4 @@
-import { TextArea, XStack } from 'tamagui';
+import { TextArea, XStack } from '../../core';
 
 import { Attachment, Camera, ChannelGalleries } from '../../assets/icons';
 import { IconButton } from '../IconButton';

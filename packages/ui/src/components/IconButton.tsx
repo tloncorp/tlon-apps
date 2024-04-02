@@ -1,4 +1,4 @@
-import { SizeTokens } from 'tamagui';
+import { SizeTokens } from '../core';
 
 import { Button } from '../components/Button';
 

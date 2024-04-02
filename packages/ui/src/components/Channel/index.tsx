@@ -1,7 +1,7 @@
 import * as client from '@tloncorp/shared/dist/client';
 import { useCallback, useMemo } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
-import { YStack } from 'tamagui';
+import { YStack } from '../../core';
 
 import { useContacts } from '../../contexts';
 import { ChannelHeader } from './ChannelHeader';

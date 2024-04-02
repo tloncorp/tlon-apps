@@ -1,4 +1,4 @@
-import { SizableText, XStack } from 'tamagui';
+import { SizableText, XStack } from '../../core';
 
 import {
   Channel as ChannelIcon,

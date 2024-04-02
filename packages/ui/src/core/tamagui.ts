@@ -7,10 +7,13 @@ export {
   isWeb,
   ZStack,
   YStack,
+  XStack,
   Stack,
   setupDev,
   ScrollView,
   YGroup,
+  SizableText,
+  TextArea,
 } from 'tamagui';
 
-export type { ViewProps } from 'tamagui';
+export type { ViewProps, SizeTokens, FontSizeTokens } from 'tamagui';

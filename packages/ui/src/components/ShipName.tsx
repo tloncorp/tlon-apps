@@ -1,6 +1,6 @@
 import { cite } from '@urbit/aura';
 import { useMemo } from 'react';
-import { FontSizeTokens, SizableText } from 'tamagui';
+import { FontSizeTokens, SizableText } from '../core';
 
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';

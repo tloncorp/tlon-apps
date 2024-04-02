@@ -1,7 +1,7 @@
 import * as client from '@tloncorp/shared/dist/client';
-import { FlatList, Keyboard } from 'react-native';
-import { XStack, YStack } from 'tamagui';
+import { FlatList } from 'react-native';
 
+import { XStack, YStack } from '../../core';
 import ChatMessage from '../ChatMessage';
 
 const renderItem = ({ item: post }: { item: client.Post }) => (

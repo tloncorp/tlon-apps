@@ -1,7 +1,7 @@
 import { utils } from '@tloncorp/shared';
 import * as client from '@tloncorp/shared/dist/client';
 import { useMemo } from 'react';
-import { SizableText, View, XStack } from 'tamagui';
+import { SizableText, View, XStack } from '../../core';
 
 import { Avatar } from '../Avatar';
 import ShipName from '../ShipName';
