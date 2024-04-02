@@ -1,4 +1,4 @@
-import type { ClientTypes as Client } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 
 import { Icon } from '../..';
 import { ListItem, type ListItemProps } from '../ListItem';
@@ -9,7 +9,7 @@ export default function ListItemContent({
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<Client.Channel>) {
+}: ListItemProps<client.Channel>) {
   return (
     <ListItem
       {...props}
