@@ -1,4 +1,5 @@
 import * as client from '@tloncorp/shared/dist/client';
+import { useCallback, useMemo } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
@@ -23,18 +24,25 @@ export function Channel({
   goToSearch: () => void;
   type?: 'chat' | 'gallery' | 'notebook';
 }) {
-  const generateTitleFromMembers = (members: client.GroupMember[]) => {
-    const contacts = useContacts();
-    return members
-      .map((m) => contacts[m.id].nickname || contacts[m.id].id)
-      .join(', ');
-  };
+  const generateTitleFromMembers = useCallback(
+    (members: client.GroupMember[]) => {
+      const contacts = useContacts();
+      return members
+        .map((m) => contacts[m.id].nickname || contacts[m.id].id)
+        .join(', ');
+    },
+    []
+  );
 
-  const title = channel.title
-    ? channel.title
-    : channel.group && channel.group.members
-      ? generateTitleFromMembers(channel.group.members)
-      : 'Channel';
+  const title = useMemo(
+    () =>
+      channel.title
+        ? channel.title
+        : channel.group && channel.group.members
+          ? generateTitleFromMembers(channel.group.members)
+          : 'Channel',
+    [channel]
+  );
 
   return (
     <YStack justifyContent="space-between" width="100%" height="100%">
