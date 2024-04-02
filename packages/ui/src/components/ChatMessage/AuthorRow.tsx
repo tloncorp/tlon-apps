@@ -1,5 +1,5 @@
 import { utils } from '@tloncorp/shared';
-import * as client from '@tloncorp/shared/dist/client';
+import * as client from 'client-types';
 import { SizableText, View, XStack } from 'tamagui';
 
 import { Avatar } from '../Avatar';

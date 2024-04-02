@@ -1,6 +1,6 @@
-import * as client from '@tloncorp/shared/dist/client';
+import * as client from 'client-types';
 import { useMemo } from 'react';
-import { Image, View, ViewProps, isWeb } from 'tamagui';
+import { Image, View, ViewProps, isWeb } from '../core';
 
 import { UrbitSigil } from './UrbitSigil';
 

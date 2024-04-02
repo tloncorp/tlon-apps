@@ -1,4 +1,4 @@
-import * as client from '@tloncorp/shared/dist/client';
+import * as client from 'client-types';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 

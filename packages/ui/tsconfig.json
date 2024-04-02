@@ -23,7 +23,12 @@
     "strictNullChecks": true,
     "target": "es2020",
     "types": ["node", "react"],
-    "lib": ["dom", "esnext"]
+    "lib": ["dom", "esnext"],
+    "paths": {
+      "client-types": ["../../node_modules/@tloncorp/shared/dist/client"],
+      "db-types": ["../../node_modules/@tloncorp/shared/dist/db"]
+    },
+    "outDir": "./dist"
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules/**/*"],
