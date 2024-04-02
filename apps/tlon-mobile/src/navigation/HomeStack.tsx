@@ -13,7 +13,7 @@ export const HomeStack = ({ navigation }: Props) => {
   const [longPressedGroup, setLongPressedGroup] =
     React.useState<db.Group | null>(null);
 
-  const { pinnedGroups, unpinnedGroups } = db.usePinnedGroups() ?? {};
+  const { pinnedGroups, unpinnedGroups } = db.useGroupsForList() ?? {};
 
   useEffect(() => {
     navigation.setOptions({

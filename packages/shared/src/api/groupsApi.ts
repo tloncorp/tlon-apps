@@ -100,9 +100,16 @@ export function toClientGroup(
       })
       .filter((s): s is db.GroupNavSection => !!s),
     members: Object.entries(group.fleet).map(([userId, vessel]) => {
-      return toClientGroupMember(id, userId, vessel, rolesById);
+      return toClientGroupMember({
+        groupId: id,
+        contactId: userId,
+        vessel: vessel,
+        groupRoles: rolesById,
+      });
     }),
-    channels: group.channels ? toClientChannels(group.channels, id) : [],
+    channels: group.channels
+      ? toClientChannels({ channels: group.channels, groupId: id })
+      : [],
   };
 }
 
@@ -128,20 +135,27 @@ function toClientGroupMetadata(group: ub.Group | ub.GroupPreview) {
   };
 }
 
-function toClientChannels(
-  channels: Record<string, ub.GroupChannel>,
-  groupId: string
-): db.ChannelInsert[] {
+function toClientChannels({
+  channels,
+  groupId,
+}: {
+  channels: Record<string, ub.GroupChannel>;
+  groupId: string;
+}): db.ChannelInsert[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel(id, channel, groupId)
+    toClientChannel({ id, channel, groupId })
   );
 }
 
-function toClientChannel(
-  id: string,
-  channel: ub.GroupChannel,
-  groupId: string
-): db.ChannelInsert {
+function toClientChannel({
+  id,
+  channel,
+  groupId,
+}: {
+  id: string;
+  channel: ub.GroupChannel;
+  groupId: string;
+}): db.ChannelInsert {
   return {
     id,
     groupId,
@@ -153,12 +167,17 @@ function toClientChannel(
   };
 }
 
-function toClientGroupMember(
-  groupId: string,
-  contactId: string,
-  vessel: { sects: string[]; joined: number },
-  groupRoles: Record<string, db.GroupRoleInsert>
-): db.GroupMemberInsert {
+function toClientGroupMember({
+  groupId,
+  contactId,
+  vessel,
+  groupRoles,
+}: {
+  groupId: string;
+  contactId: string;
+  vessel: { sects: string[]; joined: number };
+  groupRoles: Record<string, db.GroupRoleInsert>;
+}): db.GroupMemberInsert {
   return {
     contactId,
     groupId,

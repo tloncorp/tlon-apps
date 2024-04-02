@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import * as queries from './queries';
 import { getContact } from './queries';
@@ -7,21 +7,11 @@ import { Group } from './types';
 
 export const useContact = createUseQuery(getContact);
 
-export const useAllUnreadsCounts = () => {
-  const [counts, setCounts] = useState<{
-    channels: number;
-    dms: number;
-    total: number;
-  } | null>(null);
-  useEffect(() => {
-    queries.getAllUnreadsCounts().then((c) => setCounts(c ?? null));
-  }, []);
-  return counts;
-};
+export const useAllUnreadsCounts = createUseQuery(queries.getAllUnreadsCounts);
 
 export const useGroups = createUseQuery(queries.getGroups);
 
-export const usePinnedGroups = (): {
+export const useGroupsForList = (): {
   pinnedGroups?: Group[];
   unpinnedGroups?: Group[];
 } | null => {
@@ -32,7 +22,6 @@ export const usePinnedGroups = (): {
     if (!allGroups) {
       return null;
     }
-
     // Groups are sorted by pinIndex, with those missing pinIndex at the end, so
     // we just find the first group without a pinIndex and split there.
     for (let i = 0; i < allGroups?.length; ++i) {

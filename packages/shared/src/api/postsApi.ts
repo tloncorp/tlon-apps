@@ -3,6 +3,7 @@ import { formatUd as baseFormatUd, parseUd, unixToDa } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
+import { KindData, KindDataChat } from '../urbit';
 import { scry } from './urbit';
 
 export const getChannelPosts = async (
@@ -27,7 +28,7 @@ export const getChannelPosts = async (
   if (!cursor && !date) {
     throw new Error('Must specify either cursor or date');
   }
-  let finalCursor = cursor ? cursor : formatDateParam(date!);
+  const finalCursor = cursor ? cursor : formatDateParam(date!);
   const mode = includeReplies ? 'post' : 'outline';
   const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
   const result = await scry<ub.PagedPosts>({ app: 'channels', path });
@@ -270,7 +271,17 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
 }
 
 function isNotice(post: ub.Post | null) {
-  return 'notice' in (post?.essay['kind-data'] ?? {});
+  const kindData = post?.essay['kind-data'];
+  return (
+    kindData &&
+    isChatData(kindData) &&
+    kindData.chat &&
+    'notice' in kindData.chat
+  );
+}
+
+function isChatData(data: KindData): data is KindDataChat {
+  return 'chat' in (data ?? {});
 }
 
 function getPostImages(post: ub.Post | null) {
