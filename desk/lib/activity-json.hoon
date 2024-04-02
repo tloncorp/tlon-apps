@@ -27,9 +27,15 @@
     :~  id/s+(msg-id id.k)
         time+(time time.k)
     ==
+  ::
   ++  msg-id
     |=  id=message-id:a
     (rap 3 (scot %p p.id) '/' (scot %ud q.id) ~)
+  ::
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
+  ::
   +|  %basics
   ::
   ++  index
@@ -66,6 +72,32 @@
         floor+(time reply-floor.p)
     ==
   ::
+  ++  unread
+    |=  sum=unread-summary:a
+    %-  pairs
+    :~  newest+(time newest.sum)
+        count+(numb count.sum)
+        :-  %unread
+        ?~  unread.sum  ~
+        %-  pairs
+        :~  id/s+(msg-id id.u.unread.sum)
+            time+(time time.u.unread.sum)
+            count/(numb count.u.unread.sum)
+        ==
+        :-  %threads
+        %-  pairs
+        %+  turn
+          ~(tap by threads.sum)
+        |=  [top=message-key:a last=message-key:a count=@ud]
+        :-  (msg-id id.top)
+        %-  pairs
+        :~  parent-time/(time-id time.top)
+            id/s/(msg-id id.last)
+            time/(time-id time.last)
+            count+(numb count)
+        ==
+    ==
+  ::
   ++  event
     |=  e=event:a
     %+  frond  -.e
@@ -87,8 +119,8 @@
     ::
         %flag-reply
       %-  pairs
-      :~  parent+(msg-key message-key.e)
-          key+(msg-key target.e)
+      :~  parent+(msg-key parent.e)
+          key+(msg-key message-key.e)
           channel/s+(nest:enjs:gj channel.e)
           group/s+(flag:enjs:gj group.e)
       ==
@@ -103,8 +135,8 @@
     ::
         %dm-reply
       %-  pairs
-      :~  parent+(msg-key message-key.e)
-          key+(msg-key target.e)
+      :~  parent+(msg-key parent.e)
+          key+(msg-key message-key.e)
           whom+(whom whom.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
@@ -121,8 +153,8 @@
     ::
         %reply
       %-  pairs
-      :~  parent+(msg-key message-key.e)
-          key+(msg-key target.e)
+      :~  parent+(msg-key parent.e)
+          key+(msg-key message-key.e)
           group/s+(flag:enjs:gj group.e)
           channel/s+(nest:enjs:gj channel.e)
           content+(story:enjs:cj content.e)
@@ -174,20 +206,7 @@
     %-  pairs
     %+  turn  ~(tap by us)
     |=  [i=index:a sum=unread-summary:a]
-    :-  (index i)
-    %-  pairs
-    :~  newest+(time newest.sum)
-        count+(numb count.sum)
-        :-  %threads
-        :-  %a
-        %+  turn
-          threads.sum
-        |=  [oldest=time:z count=@ud]
-        %-  pairs
-        :~  oldest+(time oldest)
-            count+(numb count)
-        ==
-    ==
+    [(index i) (unread sum)]
   ::
   ++  full-info
     |=  fi=full-info:a
@@ -197,6 +216,13 @@
         unreads+(unreads unreads.fi)
     ==
   ::
+  +|  %subscription-facts
+  ++  index-unreads
+    |=  [i=index:a u=unread-summary:a]
+    %-  pairs
+    :~  index/s/(index i)
+        unreads+(unread u)
+    ==
   --
 ::
 ++  dejs

@@ -1,4 +1,4 @@
-import { Story } from "./channel";
+import { Story, UnreadPoint } from "./channel";
 
 export type Whom = { ship: string } | { club: string };
 
@@ -99,14 +99,15 @@ export interface Index {
 }
 
 export interface ThreadUnread {
-  oldest: string;
+  last: string;
   count: number;
 }
 
 export interface Unread {
-  newest: string;
+  recency: number;
   count: number;
-  threads: ThreadUnread[];
+  unread: UnreadPoint | null;
+  threads: Record<string, UnreadPoint>;
 }
 
 export type Unreads = Record<string, Unread>;

@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
+import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Action,
   Channel,
@@ -30,7 +31,6 @@ import {
   SortMode,
   TogglePost,
   UnreadUpdate,
-  Unreads,
   newChatMap,
   newPostTupleArray,
 } from '@tloncorp/shared/dist/urbit/channel';

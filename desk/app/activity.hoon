@@ -399,31 +399,32 @@
   ^-  unread-summary:a
   =/  newest=(unit time)  ~
   =/  count  0
-  =/  threads=(map message-id:a [oldest-unread=time count=@ud])  ~
+  =|  last=(unit message-key:a)
+  =/  threads=unread-threads:a  ~
   ::  for each event
   ::  update count and newest
   ::  if reply, update thread state
   |-
   ?~  stream
-    :+  (fall newest now.bowl)  count
-    %+  turn  ~(val by threads)
-    |=  [oldest-unread=time count=@ud]
-    [oldest-unread count]
+    =/  unread  ?~(last ~ `[u.last count])
+    [(fall newest now.bowl) count unread threads]
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
+  ?>  ?=(?(%dm-post %post %reply) -.event)
   =.  count  +(count)
-  =.  newest
-    ?>  ?=(?(%dm-post %post %reply) -.event)
-    ::REVIEW  should we take timestamp of parent post if reply??
-    ::        (in which case we would need to do (max newest time.mk.e))
-    `time.message-key.event
+  =.  newest  `time.message-key.event
+  =.  last
+    ?:  ?=(%reply -.event)  last
+    ?~  last  `message-key.event
+    ?:  (gte time.message-key.event time.u.last)  last
+    `message-key.event
   =?  threads  ?=(%reply -.event)
     =/  old
-      %+  ~(gut by threads)  id.target.event
-      [oldest-unread=time.message-key.event count=0]
-    %+  ~(put by threads)  id.target.event
+      %+  ~(gut by threads)  parent.event
+      [message-key.event count=0]
+    %+  ~(put by threads)  parent.event
     ::  we don't need to update the timestamp, because we always process the
     ::  oldest message first
     ::
-    [oldest-unread.old +(count.old)]
+    [[id.old time.old] +(count.old)]
   $(stream rest)
 --

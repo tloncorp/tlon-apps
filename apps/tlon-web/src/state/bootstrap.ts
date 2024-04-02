@@ -45,17 +45,15 @@ async function startGroups() {
       emptyGroupsInit
     );
 
-  const full = api.scry<FullActivity>({
+  const full = await api.scry<FullActivity>({
     app: 'activity',
     path: '/',
   });
 
-  console.log(full);
-
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['channels'], channels);
-  queryClient.setQueryData(['unreads'], unreads);
+  queryClient.setQueryData(['unreads'], full.unreads);
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
 

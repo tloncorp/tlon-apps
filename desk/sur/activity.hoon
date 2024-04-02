@@ -61,9 +61,9 @@
 +$  channel-concern   [channel=nest:c group=flag:g]
 +$  dm-concern        =whom
 +$  dm-post-concern   [=message-key =whom]
-+$  dm-reply-concern  [=message-key target=message-key =whom]
++$  dm-reply-concern  [=message-key parent=message-key =whom]
 +$  post-concern      [=message-key channel=nest:c group=flag:g]
-+$  reply-concern     [=message-key target=message-key channel=nest:c group=flag:g]
++$  reply-concern     [=message-key parent=message-key channel=nest:c group=flag:g]
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club:ch]
@@ -76,10 +76,12 @@
       [%read =index =read-action]
       [%adjust =index =index-level]
   ==
++$  unread-threads  (map message-key [message-key count=@ud])
 +$  unread-summary
   $:  newest=time
       count=@ud
-      threads=(list [oldest-unread=time count=@ud])
+      unread=(unit [message-key count=@ud])
+      threads=unread-threads
   ==
 +$  read-action
   $%  [%thread id=time-id]  ::  mark a whole thread as read
