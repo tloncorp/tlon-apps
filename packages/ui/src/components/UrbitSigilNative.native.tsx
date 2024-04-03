@@ -3,13 +3,14 @@
 import sigil from '@urbit/sigil-js/dist/core';
 import { useMemo } from 'react';
 import { SvgXml } from 'react-native-svg';
-import { View, useTheme } from 'tamagui';
+import { View } from 'tamagui';
 
-export const UrbitSigil = View.styleable<{
+const UrbitSigilNative = View.styleable<{
   ship: string;
-}>(({ ship, ...props }, ref) => {
+  foregroundColor: string;
+  adjustedColor: string;
+}>(({ ship, foregroundColor, adjustedColor, ...props }, ref) => {
   const validShip = ship.length <= 14; // planet or larger
-  const theme = useTheme();
   const sigilXml = useMemo(
     () =>
       validShip
@@ -18,9 +19,8 @@ export const UrbitSigil = View.styleable<{
             detail: 'none',
             size: 12,
             space: 'none',
-            // TODO: Should correctly set the foreground based on the background
-            foreground: '#ffffff',
-            background: theme.darkBackground.val,
+            foreground: foregroundColor,
+            background: adjustedColor,
           })
         : null,
     [ship]
@@ -33,7 +33,9 @@ export const UrbitSigil = View.styleable<{
       height={20}
       alignItems="center"
       justifyContent="center"
-      backgroundColor="$darkBackground"
+      style={{
+        backgroundColor: adjustedColor,
+      }}
       borderRadius="$2xs"
       {...props}
     >
@@ -41,3 +43,5 @@ export const UrbitSigil = View.styleable<{
     </View>
   );
 });
+
+export default UrbitSigilNative;

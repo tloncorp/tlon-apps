@@ -246,6 +246,20 @@ export const updateChannel = createWriteQuery(
   ['channels']
 );
 
+export const getChannelPosts = createReadQuery(
+  'getChannelPosts',
+  async (channelId: string) => {
+    return client.query.posts.findMany({
+      where: eq($posts.channelId, channelId),
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+  },
+  ['posts', 'channels']
+);
+
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
   async (channelId: string, posts: PostInsert[]) => {
@@ -293,6 +307,11 @@ export const getGroup = createReadQuery(
   async (id: string) => {
     return client.query.groups.findFirst({
       where: (groups, { eq }) => eq(groups.id, id),
+      with: {
+        channels: true,
+        roles: true,
+        members: true,
+      },
     });
   },
   ['groups']

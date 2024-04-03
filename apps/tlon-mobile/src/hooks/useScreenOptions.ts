@@ -5,6 +5,7 @@ import { useIsDarkMode } from './useIsDarkMode';
 export const useScreenOptions = (): NativeStackNavigationOptions => {
   const isDarkMode = useIsDarkMode();
   return {
+    headerShown: false,
     headerTitle: '',
     headerBackTitleVisible: false,
     headerShadowVisible: false,

@@ -303,15 +303,16 @@ export const threadUnreadStateRelations = relations(
 
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey(),
-  authorId: text('author_id').references(() => contacts.id),
+  authorId: text('author_id').references(() => contacts.id).notNull(),
   channelId: text('channel_id').references(() => channels.id),
   groupId: text('group_id').references(() => groups.id),
   type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>(),
   title: text('title'),
   image: text('image'),
-  content: text('content'),
-  sentAt: timestamp('sent_at'),
+  content: text('content', { mode: 'json' }),
   receivedAt: timestamp('received_at'),
+  // client-side time
+  sentAt: timestamp('sent_at'),
   replyCount: integer('reply_count'),
   textContent: text('text'),
   hasAppReference: boolean('has_app_reference'),

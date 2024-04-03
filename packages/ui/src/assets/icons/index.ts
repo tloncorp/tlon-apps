@@ -43,3 +43,4 @@ export { default as Settings } from './Settings.svg';
 export { default as HomeFilled } from './HomeFilled.svg';
 export { default as MessagesFilled } from './MessagesFilled.svg';
 export { default as NotificationsFilled } from './NotificationsFilled.svg';
+export { default as ArrowDown } from './ArrowDown.svg';

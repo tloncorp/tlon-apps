@@ -75,6 +75,20 @@ export type Channel = {
   lastPostAt?: number;
 };
 
+export type Post = {
+  id: string;
+  author: Contact;
+  title?: string;
+  image?: string;
+  content: string;
+  sentAt: string;
+  replyCount: number;
+  type: 'chat' | 'heap' | 'diary';
+
+  channel: Channel;
+  group: Group;
+};
+
 export type ThreadUnreadState = {
   threadId: string;
   firstUnreadId?: string;

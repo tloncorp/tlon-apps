@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
@@ -103,6 +103,7 @@ export const createUseQuery =
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<T | null>(null);
     const [error, setError] = useState<Error | null>(null);
+    const currentParams = useMemo(() => args, [JSON.stringify(args)]);
     const runQuery = useCallback(async () => {
       // TODO: This could cause missed updates if the query is run multiple
       // times in rapid succession, but ensures load state stays correct.
@@ -118,12 +119,12 @@ export const createUseQuery =
         .finally(() => {
           setIsLoading(false);
         });
-    }, [...args]);
+    }, [currentParams]);
 
     // Run query on mount
     useEffect(() => {
       runQuery();
-    }, []);
+    }, [currentParams]);
 
     // Run query when table dependencies change
     useEffect(() => {
@@ -131,6 +132,6 @@ export const createUseQuery =
       return () => {
         tableEvents.off(query.meta.tableDependencies ?? [], runQuery);
       };
-    }, [query]);
+    }, [currentParams]);
     return { result, error, isLoading };
   };

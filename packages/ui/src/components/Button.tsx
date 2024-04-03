@@ -1,4 +1,4 @@
-import { getSize } from '@tamagui/get-token';
+import { getSize, getSpace } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
 import {
   SizeTokens,
@@ -8,6 +8,7 @@ import {
   styled,
   useTheme,
   withStaticProperties,
+  Variable
 } from 'tamagui';
 
 export const ButtonContext = createStyledContext<{ size: SizeTokens }>({
@@ -28,6 +29,29 @@ export const ButtonFrame = styled(Stack, {
   borderRadius: '$m',
   paddingVertical: '$s',
   paddingHorizontal: '$l',
+  variants: {
+    size: {
+      '...size': (name, { tokens }) => {
+        return {
+          // @ts-ignore
+          height: tokens.size[name],
+          // borderRadius: tokens.radius[name],
+          // note the getSpace and getSize helpers will let you shift down/up token sizes
+          // whereas with gap we just multiply by 0.2
+          // this is a stylistic choice, and depends on your design system values
+          // @ts-ignore
+          gap: (tokens.space[name] as Variable).val * 0.2,
+          paddingHorizontal: getSpace(name, {
+            shift: -1,
+          }),
+        };
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    size: '$m',
+  },
 });
 
 export const ButtonText = styled(Text, {
@@ -53,7 +77,7 @@ const ButtonIcon = (props: { children: any }) => {
   const theme = useTheme();
   return cloneElement(props.children, {
     size: smaller.val * 0.5,
-    color: theme.primaryText.get(),
+    color: theme.primaryText?.get(),
   });
 };
 

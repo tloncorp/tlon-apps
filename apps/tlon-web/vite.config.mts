@@ -98,7 +98,8 @@ export default ({ mode }: { mode: string }) => {
     external:
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
-        : [],
+        : // TODO: find workaround for issues with @tamagui/react-native-svg
+          ['@urbit/sigil-js/dist/core', 'react-native-svg'],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
