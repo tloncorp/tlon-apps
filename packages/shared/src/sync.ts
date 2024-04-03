@@ -85,8 +85,9 @@ async function persistPagedPostData(
   channelId: string,
   data: api.PagedPostsData
 ) {
-  db.updateChannel({ id: channelId, postCount: data.totalPosts });
-  db.insertChannelPosts(channelId, data.posts);
+  await db.updateChannel({ id: channelId, postCount: data.totalPosts });
+
+  await db.insertChannelPosts(channelId, data.posts);
 }
 
 export const syncAll = async () => {

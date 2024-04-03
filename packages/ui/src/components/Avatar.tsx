@@ -5,9 +5,11 @@ import { Image, View, ViewProps, isWeb } from '../core';
 import { UrbitSigil } from './UrbitSigil';
 
 export function Avatar({
+  contactId,
   contact,
   ...props
 }: {
+  contactId: string;
   contact: db.Contact;
 } & ViewProps) {
   // TODO: is there a better way to do this? Could we modify usage in web to match native?
@@ -46,8 +48,8 @@ export function Avatar({
 
   return (
     <UrbitSigil
-      color={contact.color ?? undefined}
-      ship={contact?.id}
+      color={contact?.color ?? undefined}
+      ship={contactId}
       {...props}
     />
   );

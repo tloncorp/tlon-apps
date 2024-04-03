@@ -1,19 +1,15 @@
-import * as client from '@tloncorp/shared/dist/client';
+import * as db from '@tloncorp/shared/dist/db';
 import { createContext, useContext, useState } from 'react';
 
-type Contacts = {
-  [key: string]: client.Contact;
-};
-
 type State = {
-  contacts: Contacts;
+  contacts: db.Contact[];
 };
 
 type ContextValue = State & {
-  setContacts: (contacts: Contacts) => void;
+  setContacts: (contacts: db.Contact[]) => void;
 };
 
-const defaultContacts: Contacts = {};
+const defaultContacts: db.Contact[] = [];
 
 const defaultState: State = {
   contacts: defaultContacts,
@@ -38,24 +34,29 @@ export const useContacts = () => {
 
 export const useContact = (ship: string) => {
   const contacts = useContacts();
-  return contacts[ship];
+  return contacts?.find((contact) => contact.id === ship) || undefined;
 };
 
 export const ContactsProvider = ({
   children,
-  initialContacts = defaultContacts,
+  initialContacts,
 }: {
   children: React.ReactNode;
-  initialContacts: Contacts;
+  initialContacts: db.Contact[];
 }) => {
-  const [state, setState] = useState<Contacts>(initialContacts);
+  const [state, setState] = useState<db.Contact[]>(initialContacts);
 
-  const setContacts = (contacts: Contacts) => {
+  const setContacts = (contacts: db.Contact[]) => {
     setState(contacts);
   };
 
+  console.log({
+    contacts: [...state],
+    initialContacts,
+  });
+
   return (
-    <Context.Provider value={{ contacts: { ...state }, setContacts }}>
+    <Context.Provider value={{ contacts: [...initialContacts], setContacts }}>
       {children}
     </Context.Provider>
   );

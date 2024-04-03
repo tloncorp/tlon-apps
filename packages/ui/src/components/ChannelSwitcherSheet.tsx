@@ -1,4 +1,4 @@
-import * as client from '@tloncorp/shared/dist/client';
+import * as db from '@tloncorp/shared/dist/db';
 import { YGroup } from 'tamagui';
 
 import { SizableText, View } from '../core';
@@ -8,9 +8,9 @@ import { Sheet } from './Sheet';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group: client.Group;
-  channels: client.Channel[];
-  onSelect: (channel: client.Channel) => void;
+  group: db.Group;
+  channels: db.Channel[];
+  onSelect: (channel: db.Channel) => void;
 }
 
 export function ChannelSwitcherSheet({

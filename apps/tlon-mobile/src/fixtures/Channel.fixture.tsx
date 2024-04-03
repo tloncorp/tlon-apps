@@ -1,9 +1,4 @@
-import {
-  CalmProvider,
-  Channel,
-  ChannelSwitcherSheet,
-  ContactsProvider,
-} from '@tloncorp/ui';
+import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import { useState } from 'react';
 
 import {
@@ -18,33 +13,38 @@ const posts = createFakePosts(100);
 const ChannelFixture = () => {
   const [open, setOpen] = useState(false);
 
+  const tlonLocalChannelWithUnreads = {
+    ...tlonLocalChannel,
+    unreadCount: 40,
+    firstUnreadPostId: posts[10].id,
+  };
+
   return (
-    <CalmProvider
-      initialCalm={{
-        disableAppTileUnreads: false,
-        disableAvatars: false,
-        disableNicknames: false,
-        disableRemoteContent: false,
-        disableSpellcheck: false,
-      }}
-    >
-      <ContactsProvider initialContacts={initialContacts}>
-        <Channel
-          posts={posts}
-          channel={tlonLocalChannel}
-          goBack={() => {}}
-          goToSearch={() => {}}
-          goToChannels={() => setOpen(true)}
-        />
-        <ChannelSwitcherSheet
-          open={open}
-          onOpenChange={(open) => setOpen(open)}
-          group={group}
-          channels={group.channels || []}
-          onSelect={() => {}}
-        />
-      </ContactsProvider>
-    </CalmProvider>
+    <View backgroundColor="$background" flex={1}>
+      <Channel
+        posts={posts}
+        channel={tlonLocalChannelWithUnreads}
+        contacts={initialContacts}
+        group={group}
+        calmSettings={{
+          disableAppTileUnreads: false,
+          disableAvatars: false,
+          disableNicknames: false,
+          disableRemoteContent: false,
+          disableSpellcheck: false,
+        }}
+        goBack={() => {}}
+        goToSearch={() => {}}
+        goToChannels={() => setOpen(true)}
+      />
+      <ChannelSwitcherSheet
+        open={open}
+        onOpenChange={(open) => setOpen(open)}
+        group={group}
+        channels={group.channels || []}
+        onSelect={() => {}}
+      />
+    </View>
   );
 };
 

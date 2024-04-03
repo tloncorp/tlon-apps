@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useState } from 'react';
 
-type State = {
+export type CalmState = {
   disableAppTileUnreads: boolean;
   disableAvatars: boolean;
   disableRemoteContent: boolean;
@@ -8,7 +8,7 @@ type State = {
   disableNicknames: boolean;
 };
 
-type ContextValue = State & {
+type ContextValue = CalmState & {
   setDisableAppTileUnreads: (disableAppTileUnreads: boolean) => void;
   setDisableAvatars: (disableAvatars: boolean) => void;
   setDisableRemoteContent: (disableRemoteContent: boolean) => void;
@@ -16,7 +16,7 @@ type ContextValue = State & {
   setDisableNicknames: (disableNicknames: boolean) => void;
 };
 
-const defaultState: State = {
+const defaultState: CalmState = {
   disableAppTileUnreads: false,
   disableAvatars: false,
   disableRemoteContent: false,
@@ -48,11 +48,11 @@ export const CalmProvider = ({
   initialCalm = defaultState,
 }: {
   children: ReactNode;
-  initialCalm: State;
+  initialCalm: CalmState;
 }) => {
-  const [state, setState] = useState<State>(initialCalm);
+  const [state, setState] = useState<CalmState>(initialCalm);
 
-  const updateState = (key: keyof State, value: boolean) => {
+  const updateState = (key: keyof CalmState, value: boolean) => {
     setState((prev) => ({ ...prev, [key]: value }));
   };
 

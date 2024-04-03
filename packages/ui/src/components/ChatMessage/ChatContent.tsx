@@ -39,7 +39,10 @@ function ShipMention({ ship }: { ship: string }) {
   );
 }
 
-export function InlineContent({ story }: { story: Inline }) {
+export function InlineContent({ story }: { story: Inline | null }) {
+  if (story === null) {
+    return null;
+  }
   if (typeof story === 'string') {
     if (utils.isSingleEmoji(story)) {
       return (
@@ -130,7 +133,7 @@ export function InlineContent({ story }: { story: Inline }) {
   }
 
   if (isBreak(story)) {
-    return <br />;
+    return <InlineContent story={null} />;
   }
   if (isShip(story)) {
     return <ShipMention ship={story.ship} />;

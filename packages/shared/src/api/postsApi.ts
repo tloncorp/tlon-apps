@@ -81,9 +81,14 @@ export function toPostsData(
   channelId: string,
   posts: ub.Posts
 ): db.PostInsert[] {
-  return Object.entries(posts).map(([id, post]) => {
-    return toPostData(id, channelId, post);
-  });
+  return Object.entries(posts)
+    .filter(([, post]) => post !== null)
+    .map(([id, post]) => {
+      return toPostData(id, channelId, post);
+    })
+    .sort((a, b) => {
+      return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
+    });
 }
 
 export function toPostData(
@@ -97,16 +102,37 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
+  if (post === null) {
+    return {
+      id,
+      type,
+      title: '',
+      image: '',
+      authorId: '',
+      content: '',
+      textContent: '',
+      sentAt: 0,
+      receivedAt: udToDate(id),
+      replyCount: 0,
+      images: [],
+      reactions: [],
+      channel: {
+        id: channelId,
+      },
+      ...flags,
+    };
+  }
+
   return {
     id,
     type,
     // Kind data will override
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
-    authorId: post?.essay.author,
+    authorId: post.essay.author,
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
-    sentAt: post?.essay.sent,
+    sentAt: post.essay.sent,
     receivedAt: udToDate(id),
     replyCount: post?.seal.meta.replyCount,
     images: getPostImages(post),

@@ -15,7 +15,6 @@ import type { ViewStyle } from 'react-native';
 import { useShip } from '../contexts/ship';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
-import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -67,7 +66,7 @@ export const TabStack = () => {
         name="Groups"
         component={HomeStack}
         options={{
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               type={'Home'}
@@ -81,7 +80,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Messages"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -96,7 +95,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Activity"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -110,7 +109,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Profile"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <AvatarTabIcon id={contactId!} focused={focused} />
@@ -126,6 +125,7 @@ function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
   const { result: contact } = db.useContact(id);
   return (
     <Avatar
+      contactId={id}
       contact={contact ?? fallbackContact(id)}
       opacity={focused ? 1 : 0.6}
     />

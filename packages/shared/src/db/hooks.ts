@@ -7,9 +7,13 @@ import { Group } from './types';
 
 export const useContact = createUseQuery(getContact);
 
+export const useContacts = createUseQuery(queries.getContacts);
+
 export const useAllUnreadsCounts = createUseQuery(queries.getAllUnreadsCounts);
 
 export const useGroups = createUseQuery(queries.getGroups);
+
+export const useGroup = createUseQuery(queries.getGroup);
 
 export const useGroupsForList = (): {
   pinnedGroups?: Group[];
@@ -38,3 +42,5 @@ export const useGroupsForList = (): {
     };
   }, [allGroups]);
 };
+
+export const useChannelPosts = createUseQuery(queries.getChannelPosts);

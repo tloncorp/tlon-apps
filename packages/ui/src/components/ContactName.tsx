@@ -1,9 +1,9 @@
 import { cite } from '@urbit/aura';
 import { useMemo } from 'react';
-import { FontSizeTokens, SizableText } from '../core';
 
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';
+import { FontSizeTokens, SizableText } from '../core';
 
 export default function ContactName({
   name,
@@ -21,7 +21,7 @@ export default function ContactName({
   const citedName = useMemo(() => (full ? name : cite(name)), [name, full]);
   const calm = useCalm();
 
-  if (!citedName || !contact) {
+  if (!citedName) {
     return null;
   }
 
@@ -31,12 +31,14 @@ export default function ContactName({
   return (
     <SizableText
       accessibilityHint={
-        calm.disableNicknames && contact.nickname ? contact.nickname : undefined
+        !calm.disableNicknames && contact?.nickname
+          ? contact.nickname
+          : undefined
       }
       size={props.size}
       fontWeight="$l"
     >
-      {contact.nickname && !calm.disableNicknames && showAlias ? (
+      {contact?.nickname && !calm.disableNicknames && showAlias ? (
         <SizableText accessibilityHint={citedName}>
           {contact.nickname}
         </SizableText>

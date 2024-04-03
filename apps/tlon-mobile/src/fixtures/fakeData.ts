@@ -1,4 +1,4 @@
-import type * as client from '@tloncorp/shared/dist/client';
+import type * as db from '@tloncorp/shared/dist/db';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 
 export const createSimpleContent = (str: string): string => {
@@ -35,7 +35,7 @@ export const createCodeContent = (code: string): string => {
   ] as Story);
 };
 
-export const emptyContact: client.Contact = {
+export const emptyContact: db.Contact = {
   id: '',
   nickname: null,
   bio: null,
@@ -43,37 +43,36 @@ export const emptyContact: client.Contact = {
   avatarImage: null,
   status: null,
   coverImage: null,
-  pinnedGroupIds: [''],
 };
 
-export const galenContact: client.Contact = {
+export const galenContact: db.Contact = {
   ...emptyContact,
   id: '~ravmel-ropdyl',
   nickname: 'galen',
   color: '#CCCCCC',
 };
 
-export const jamesContact: client.Contact = {
+export const jamesContact: db.Contact = {
   ...emptyContact,
   id: '~rilfun-lidlen',
   nickname: 'james',
 };
 
-export const danContact: client.Contact = {
+export const danContact: db.Contact = {
   ...emptyContact,
   id: '~solfer-magfed',
   nickname: 'Dan',
   color: '#FFFF99',
 };
 
-export const hunterContact: client.Contact = {
+export const hunterContact: db.Contact = {
   ...emptyContact,
   id: '~nocsyx-lassul',
   nickname: '~nocsyx-lassul ⚗️',
   color: '#5200FF',
 };
 
-export const brianContact: client.Contact = {
+export const brianContact: db.Contact = {
   ...emptyContact,
   id: '~latter-bolden',
   nickname: 'brian',
@@ -81,73 +80,102 @@ export const brianContact: client.Contact = {
     'https://d2w9rnfcy7mm78.cloudfront.net/24933700/original_92dc8654172254b5422d0d6249270afe.png?1701105163?bc=0',
 };
 
-export const markContact: client.Contact = {
+export const markContact: db.Contact = {
   ...emptyContact,
   id: '~palfun-foslup',
   color: '#2AA779',
 };
 
-export const edContact: client.Contact = {
+export const edContact: db.Contact = {
   ...emptyContact,
   id: '~fabled-faster',
   nickname: 'éd',
   color: '#C0C3D8',
 };
 
-export const initialContacts: Record<string, client.Contact> = {
-  '~ravmel-ropdyl': galenContact,
-  '~rilfun-lidlen': jamesContact,
-  '~solfer-magfed': danContact,
-  '~nocsyx-lassul': hunterContact,
-  '~latter-bolden': brianContact,
-  '~palfun-foslup': markContact,
-  '~fabled-faster': edContact,
+export const initialContacts: db.Contact[] = [
+  galenContact,
+  jamesContact,
+  danContact,
+  hunterContact,
+  brianContact,
+  markContact,
+  edContact,
+];
+
+export const roles: db.GroupRole[] = [
+  {
+    id: 'admin',
+    coverImage: null,
+    groupId: '~nibset-napwyn/tlon',
+    title: 'Admin',
+    description: 'Admins can do anything',
+    iconImage: null,
+  },
+];
+
+export const tlonLocalChannel: db.Channel = {
+  id: '~nibset-napwyn/intros',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Intros',
+  description: 'Introduce yourself to the group',
+  iconImage: null,
+  coverImage: null,
+  currentUserIsMember: true,
+  addedToGroupAt: null,
+  lastPostAt: null,
+  lastPostId: null,
+  postCount: null,
+  unreadCount: null,
+  firstUnreadPostId: null,
+  syncedAt: null,
+  remoteUpdatedAt: null,
 };
 
-export const group: client.Group = {
+export const group: db.GroupWithRelations = {
   id: '~nibset-napwyn/tlon',
   title: 'Tlon Local',
-  channels: [
-    {
-      id: '~nibset-napwyn/intros',
-      title: 'Intros',
-    },
-    {
-      id: '~nibset-napwyn/commons',
-      title: 'Internet Cafe',
-    },
-  ],
+  channels: [tlonLocalChannel],
+  roles,
+  pinIndex: 0,
+  coverImage: null,
+  coverImageColor: '#000000',
+  iconImage: null,
+  iconImageColor: '#FFFFFF',
+  isJoined: true,
+  lastPostAt: null,
+  description: 'Tlon Local',
   members: [
     {
-      id: '~ravmel-ropdyl',
-      roles: ['admin'],
+      contactId: '~ravmel-ropdyl',
       joinedAt: 0,
+      groupId: '~nibset-napwyn/tlon',
     },
     {
-      id: '~rilfun-lidlen',
-      roles: [''],
+      contactId: '~rilfun-lidlen',
       joinedAt: 0,
+      groupId: '~nibset-napwyn/tlon',
     },
     {
-      id: '~solfer-magfed',
-      roles: [''],
+      contactId: '~solfer-magfed',
       joinedAt: 0,
+      groupId: '~nibset-napwyn/tlon',
     },
     {
-      id: '~nocsyx-lassul',
-      roles: ['admin'],
+      contactId: '~nocsyx-lassul',
       joinedAt: 0,
+      groupId: '~nibset-napwyn/tlon',
     },
     {
-      id: '~latter-bolden',
-      roles: [''],
+      contactId: '~latter-bolden',
       joinedAt: 0,
+      groupId: '~nibset-napwyn/tlon',
     },
   ],
   isSecret: false,
 };
 
-export const fakeContent: Record<string, client.Post['content']> = {
+export const fakeContent: Record<string, db.Post['content']> = {
   yo: createSimpleContent('yo'),
   hey: createSimpleContent('hey'),
   lol: createSimpleContent('lol'),
@@ -171,12 +199,6 @@ export const fakeContent: Record<string, client.Post['content']> = {
   '😪': createSimpleContent('😪'),
 };
 
-export const tlonLocalChannel: client.Channel = {
-  id: '~nibset-napwyn/intros',
-  title: 'Intros',
-  group,
-};
-
 const getRandomFakeContent = () => {
   // randomly add an image
   if (Math.random() < 0.2) {
@@ -196,30 +218,42 @@ const getRandomFakeContent = () => {
 
 const getRandomFakeContact = () => {
   const keys = Object.keys(initialContacts);
-  return initialContacts[keys[Math.floor(Math.random() * keys.length)]];
+  return initialContacts[Math.floor(Math.random() * keys.length)];
 };
 
-export const createFakePost = (): client.Post => {
-  const ship = getRandomFakeContact().id;
+export const createFakePost = (): db.PostWithRelations => {
+  const fakeContact = getRandomFakeContact();
+  const ship = fakeContact.id;
   const id = Math.random().toString(36).substring(7);
   // timestamp on same day
   const randomSentAtSameDay = new Date(
     new Date().getTime() - Math.floor(Math.random() * 10000000)
-  ).toISOString();
+  ).getTime();
 
   return {
     id: `${ship}-${id}`,
-    author: getRandomFakeContact(),
-    channel: tlonLocalChannel,
+    authorId: ship,
+    author: fakeContact,
     content: getRandomFakeContent(),
     sentAt: randomSentAtSameDay,
     replyCount: 0,
     type: 'chat',
-    group,
+    groupId: group.id,
+    channelId: tlonLocalChannel.id,
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: randomSentAtSameDay,
+    textContent: null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+    reactions: null,
   };
 };
 
-export const createFakePosts = (count: number): client.Post[] => {
+export const createFakePosts = (count: number): db.PostWithRelations[] => {
   const posts = [];
   for (let i = 0; i < count; i++) {
     posts.push(createFakePost());
@@ -227,7 +261,7 @@ export const createFakePosts = (count: number): client.Post[] => {
 
   // sort by timestamp
   posts.sort((a, b) => {
-    return new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime();
+    return b.sentAt! - a.sentAt!;
   });
 
   return posts;

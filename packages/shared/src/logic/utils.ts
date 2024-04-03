@@ -6,6 +6,18 @@ export function makePrettyTime(date: Date) {
   return format(date, 'HH:mm');
 }
 
+export function makePrettyDay(date: Date) {
+  const diff = differenceInDays(endOfToday(), date);
+  switch (diff) {
+    case 0:
+      return 'Today';
+    case 1:
+      return 'Yesterday';
+    default:
+      return `${format(date, 'LLLL')} ${format(date, 'do')}`;
+  }
+}
+
 export interface DayTimeDisplay {
   original: Date;
   diff: number;

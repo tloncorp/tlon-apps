@@ -303,7 +303,7 @@ export const threadUnreadStateRelations = relations(
 
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey(),
-  authorId: text('author_id').references(() => contacts.id),
+  authorId: text('author_id').references(() => contacts.id).notNull(),
   channelId: text('channel_id').references(() => channels.id),
   groupId: text('group_id').references(() => groups.id),
   type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>(),
