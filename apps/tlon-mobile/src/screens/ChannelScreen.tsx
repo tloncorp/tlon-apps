@@ -55,7 +55,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
-        group={groupWithChannels}
+        group={groupWithChannels ?? []}
         contacts={contacts ?? []}
         posts={posts}
         goBack={props.navigation.goBack}

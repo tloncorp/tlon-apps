@@ -34,7 +34,7 @@ export const useGroups = () => {
 
 export const useGroup = (id: string) => {
   const groups = useGroups();
-  return groups.find((group) => group.id === id);
+  return groups?.find((group) => group.id === id);
 };
 
 export const GroupsProvider = ({
@@ -51,7 +51,7 @@ export const GroupsProvider = ({
   };
 
   return (
-    <Context.Provider value={{ groups: { ...initialGroups }, setGroups }}>
+    <Context.Provider value={{ groups: [...initialGroups], setGroups }}>
       {children}
     </Context.Provider>
   );

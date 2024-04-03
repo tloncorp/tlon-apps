@@ -34,7 +34,7 @@ export const useContacts = () => {
 
 export const useContact = (ship: string) => {
   const contacts = useContacts();
-  return contacts?.find((contact) => contact.id === ship) || undefined;
+  return contacts?.find((contact) => contact.id === ship);
 };
 
 export const ContactsProvider = ({
@@ -49,11 +49,6 @@ export const ContactsProvider = ({
   const setContacts = (contacts: db.Contact[]) => {
     setState(contacts);
   };
-
-  console.log({
-    contacts: [...state],
-    initialContacts,
-  });
 
   return (
     <Context.Provider value={{ contacts: [...initialContacts], setContacts }}>

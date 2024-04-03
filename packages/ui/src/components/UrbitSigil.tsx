@@ -4,9 +4,8 @@ import React, { Suspense, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { View, isWeb, useTheme } from 'tamagui';
 
-import { UrbitSigilNative } from './UrbitSigilNative';
-
 const UrbitSigilWeb = React.lazy(() => import('./UrbitSigilWeb'));
+const UrbitSigilNative = React.lazy(() => import('./UrbitSigilNative'));
 
 const SuspendedUrbitSigilWeb = ({
   ref,
@@ -22,6 +21,29 @@ const SuspendedUrbitSigilWeb = ({
 }) => (
   <Suspense fallback={<View />}>
     <UrbitSigilWeb
+      ref={ref}
+      ship={ship}
+      adjustedColor={adjustedColor}
+      foregroundColor={foregroundColor}
+      {...props}
+    />
+  </Suspense>
+);
+
+const SuspendedUrbitSigilNative = ({
+  ref,
+  ship,
+  foregroundColor,
+  adjustedColor,
+  ...props
+}: {
+  ref: any;
+  ship: string;
+  foregroundColor: 'black' | 'white';
+  adjustedColor: string;
+}) => (
+  <Suspense fallback={<View />}>
+    <UrbitSigilNative
       ref={ref}
       ship={ship}
       adjustedColor={adjustedColor}
@@ -96,7 +118,7 @@ export const UrbitSigil = View.styleable<{
   }
 
   return (
-    <UrbitSigilNative
+    <SuspendedUrbitSigilNative
       ref={ref}
       ship={ship}
       foregroundColor={foregroundColor}

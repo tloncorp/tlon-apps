@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { SvgXml } from 'react-native-svg';
 import { View } from 'tamagui';
 
-export const UrbitSigilNative = View.styleable<{
+const UrbitSigilNative = View.styleable<{
   ship: string;
   foregroundColor: string;
   adjustedColor: string;
@@ -43,3 +43,5 @@ export const UrbitSigilNative = View.styleable<{
     </View>
   );
 });
+
+export default UrbitSigilNative;
