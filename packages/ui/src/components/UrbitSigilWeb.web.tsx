@@ -3,7 +3,7 @@
 // The web version uses the default entry point of sigil-js
 import sigil from '@urbit/sigil-js';
 import { useMemo } from 'react';
-import { SvgXml } from 'react-native-svg';
+// import { SvgXml } from 'react-native-svg';
 import { View } from 'tamagui';
 
 const UrbitSigilWeb = View.styleable<{
@@ -40,7 +40,10 @@ const UrbitSigilWeb = View.styleable<{
       borderRadius="$2xs"
       {...props}
     >
-      {sigilXml && <SvgXml xml={sigilXml} />}
+      {/* TODO: get the svg to render on web
+       including this now breaks the vite build
+      sigilXml && <SvgXml xml={sigilXml} />
+      */}
     </View>
   );
 });

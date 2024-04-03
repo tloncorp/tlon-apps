@@ -4,8 +4,8 @@ import React, { Suspense, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { View, isWeb, useTheme } from 'tamagui';
 
-const UrbitSigilWeb = React.lazy(() => import('./UrbitSigilWeb'));
-const UrbitSigilNative = React.lazy(() => import('./UrbitSigilNative'));
+const UrbitSigilWeb = React.lazy(() => import('./UrbitSigilWeb.web'));
+const UrbitSigilNative = React.lazy(() => import('./UrbitSigilNative.native'));
 
 const SuspendedUrbitSigilWeb = ({
   ref,
