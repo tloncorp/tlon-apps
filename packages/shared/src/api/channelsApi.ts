@@ -1,7 +1,11 @@
-import { decToUd, stringToTa } from '@urbit/api';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { decToUd } from '@urbit/api';
+import { useMemo } from 'react';
 
 import * as db from '../db';
+import { stringToTa } from '../logic/utils';
 import type * as ub from '../urbit';
+import { toPostData } from './postsApi';
 import { scry } from './urbit';
 
 export const getUnreadChannels = async () => {
@@ -12,10 +16,10 @@ export const getUnreadChannels = async () => {
   return toUnreadsData(response);
 };
 
-export const searchChatChannel = async (params: {
+const searchChatChannel = async (params: {
   channelId: string;
   query: string;
-  page?: string | null;
+  cursor?: string;
 }) => {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const encodedQuery = stringToTa(params.query);
@@ -23,12 +27,48 @@ export const searchChatChannel = async (params: {
   const response = await scry<ub.ChannelScam>({
     app: 'channels',
     path: `/${params.channelId}/search/bounded/text/${
-      params.page ? decToUd(params.page.toString()) : ''
+      params.cursor ? decToUd(params.cursor.toString()) : ''
     }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
   });
 
   return response;
 };
+
+export function useInfiniteChannelSearch(channelId: string, query: string) {
+  const { data, ...rest } = useInfiniteQuery({
+    queryKey: ['channel', channelId, 'search', query],
+    enabled: query !== '',
+    queryFn: async ({ pageParam }) => {
+      const response = await searchChatChannel({
+        channelId,
+        query,
+        cursor: pageParam,
+      });
+      const posts = response.scan
+        .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
+        .map((scanItem) => (scanItem as { post: ub.Post }).post)
+        .map((post) => toPostData(post.seal.id, channelId, post));
+      const cursor = response.last;
+
+      return { posts, cursor };
+    },
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => {
+      if (lastPage.cursor === null) return undefined;
+      return lastPage.cursor;
+    },
+  });
+
+  const results = useMemo(
+    () => data?.pages.flatMap((page) => page.posts) ?? [],
+    [data]
+  );
+
+  return {
+    ...rest,
+    results,
+  };
+}
 
 type ChannelUnreadData = {
   id: string;

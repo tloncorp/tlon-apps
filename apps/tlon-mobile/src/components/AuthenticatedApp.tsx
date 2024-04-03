@@ -1,5 +1,6 @@
 import { sync } from '@tloncorp/shared';
 import { subscribeUnreads } from '@tloncorp/shared/dist/api';
+import { QueryClient, QueryClientProvider } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -15,6 +16,8 @@ import WebviewOverlay from './WebviewOverlay';
 export interface AuthenticatedAppProps {
   initialNotificationPath?: string;
 }
+
+const queryClient = new QueryClient();
 
 function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
@@ -41,10 +44,12 @@ export default function ConnectedAuthenticatedApp(
   props: AuthenticatedAppProps
 ) {
   return (
-    <WebviewPositionProvider>
-      <WebviewProvider>
-        <AuthenticatedApp {...props} />
-      </WebviewProvider>
-    </WebviewPositionProvider>
+    <QueryClientProvider client={queryClient}>
+      <WebviewPositionProvider>
+        <WebviewProvider>
+          <AuthenticatedApp {...props} />
+        </WebviewProvider>
+      </WebviewPositionProvider>
+    </QueryClientProvider>
   );
 }
