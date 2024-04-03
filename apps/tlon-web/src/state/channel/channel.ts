@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Action,
+  CacheId,
   Channel,
   ChannelScam,
   ChannelScan,
@@ -16,6 +17,7 @@ import {
   Memo,
   Nest,
   PagedPosts,
+  PendingMessages,
   Perm,
   Post,
   PostAction,
@@ -59,6 +61,8 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import {
+  cacheIdFromString,
+  cacheIdToString,
   checkNest,
   log,
   nestToFlag,
@@ -136,19 +140,20 @@ export interface TrackedPost {
   status: PostStatus;
 }
 
-export interface CacheId {
-  author: string;
-  sent: number;
-}
-
 export interface State {
   trackedPosts: TrackedPost[];
   addTracked: (id: CacheId) => void;
+  addSent: (ids: CacheId[]) => void;
   updateStatus: (id: CacheId, status: PostStatus) => void;
   getStatus: (id: CacheId) => PostStatus;
   [key: string]: unknown;
 }
 
+function hasId(ids: CacheId[], id: CacheId) {
+  return ids.some(
+    ({ author, sent }) => author === id.author && sent === id.sent
+  );
+}
 export const usePostsStore = create<State>((set, get) => ({
   trackedPosts: [],
   addTracked: (id) => {
@@ -156,8 +161,33 @@ export const usePostsStore = create<State>((set, get) => ({
       trackedPosts: [{ status: 'pending', cacheId: id }, ...state.trackedPosts],
     }));
   },
+  addSent: (ids) => {
+    set((state) => {
+      const newPosts = ids
+        .filter(
+          (i) =>
+            !hasId(
+              state.trackedPosts.map(({ cacheId }) => cacheId),
+              i
+            )
+        )
+        .map((id) => ({ status: 'sent' as PostStatus, cacheId: id }));
+
+      return {
+        trackedPosts: [
+          ...newPosts,
+          ...state.trackedPosts.map((p) => {
+            if (hasId(ids, p.cacheId) && p.status === 'pending') {
+              return { ...p, status: 'sent' as PostStatus };
+            }
+
+            return p;
+          }),
+        ],
+      };
+    });
+  },
   updateStatus: (id, s) => {
-    log('setting status', s);
     set((state) => ({
       trackedPosts: state.trackedPosts.map(({ cacheId, status }) => {
         if (_.isEqual(cacheId, id)) {
@@ -244,7 +274,8 @@ export function usePostsOnHost(
 
 const infinitePostUpdater = (
   prev: PostsInCachePrev | undefined,
-  data: ChannelsResponse
+  data: ChannelsResponse,
+  optimistic = false
 ): PostsInCachePrev | undefined => {
   const { nest, response } = data;
 
@@ -335,7 +366,9 @@ const infinitePostUpdater = (
     if (cachedPost && id !== udToDec(unixToDa(post.essay.sent).toString())) {
       // remove cached post if it exists
       delete newFirstpage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+    }
 
+    if (!optimistic) {
       // set delivered now that we have the real post
       usePostsStore
         .getState()
@@ -624,9 +657,29 @@ export const infinitePostQueryFn =
     };
   };
 
-export function useInfinitePosts(nest: Nest, initialTime?: string) {
-  const [han, flag] = nestToFlag(nest);
-  const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
+export function useInfinitePosts(
+  nest: Nest,
+  initialTime?: string,
+  update = true
+) {
+  const queryKey = useMemo(() => infinitePostsKey(nest), [nest]);
+  const pending = usePendingPosts(nest);
+
+  useEffect(() => {
+    if (!pending) {
+      return;
+    }
+
+    const { posts, replies } = pending;
+    const postIds: CacheId[] = Object.keys(posts).map(cacheIdFromString);
+    const replyIds: CacheId[] = Object.entries(replies).reduce(
+      (entries, [, rs]) => {
+        return [...entries, ...Object.keys(rs).map(cacheIdFromString)];
+      },
+      [] as CacheId[]
+    );
+    usePostsStore.getState().addSent([...postIds, ...replyIds]);
+  }, [pending]);
 
   const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
@@ -658,9 +711,68 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     refetchOnMount: true,
     retryOnMount: true,
     retry: false,
+    enabled: update,
   });
 
-  const posts = newPostTupleArray(data);
+  const merged = useMemo(() => {
+    if (!data) {
+      return undefined;
+    }
+
+    const pendingPosts = _.fromPairs(
+      Object.entries(pending?.posts ?? {})
+        .filter(([, essay]) => {
+          const clientIds = Object.entries<Post | null>(
+            data.pages[0]?.posts || {}
+          ).map(([, post]) =>
+            post ? `${post.essay.author}:${post.essay.sent}` : ''
+          );
+          return !clientIds.some(
+            (id) => id === `${essay.author}:${essay.sent}`
+          );
+        })
+        .map(([id, essay]) => {
+          const { sent } = cacheIdFromString(id);
+          const synthId = unixToDa(sent).toString();
+          return [
+            decToUd(synthId),
+            {
+              seal: {
+                id: synthId,
+                reacts: {},
+                replies: [],
+                meta: {
+                  replyCount: 0,
+                  lastRepliers: [],
+                  lastReply: null,
+                },
+              },
+              essay,
+              revision: '0',
+            } as Post,
+          ];
+        })
+    );
+
+    return {
+      ...data,
+      pages: data.pages.map((page, index) => {
+        if (index !== 0) {
+          return page;
+        }
+
+        return {
+          ...page,
+          posts: {
+            ...page.posts,
+            ...pendingPosts,
+          },
+        };
+      }),
+    };
+  }, [data, pending]);
+
+  const posts = newPostTupleArray(merged);
 
   return {
     data,
@@ -718,6 +830,7 @@ export function useOrderedPosts(
 ) {
   checkNest(nest);
   const { posts } = useInfinitePosts(nest);
+  const trackedPosts = useTrackedPosts();
 
   if (posts.length === 0) {
     return {
@@ -727,33 +840,55 @@ export function useOrderedPosts(
     };
   }
 
+  const thisPostTuple = posts.find(([k, _v]) =>
+    k.eq(bigInt(currentId.toString()))
+  );
   const sortedOutlines = posts
     .filter(([, v]) => v !== null)
     .sort(([a], [b]) => b.compare(a));
   const postId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(postId));
 
-  const nextPost = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
-  if (nextPost) {
-    prefetchPostWithComments({
-      nest,
-      time: udToDec(nextPost[0].toString()),
-    });
+  const nextPostTuple = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
+  const nextPost = nextPostTuple?.[1];
+  if (nextPostTuple && nextPost) {
+    const nextDelivered =
+      trackedPosts.find(
+        ({ cacheId }) =>
+          cacheId.author === nextPost.essay.author &&
+          cacheId.sent === nextPost.essay.sent
+      )?.status === 'delivered';
+    if (nextDelivered) {
+      prefetchPostWithComments({
+        nest,
+        time: udToDec(nextPostTuple[0].toString()),
+      });
+    }
   }
-  const prevPost =
+  const prevPostTuple =
     currentIdx < sortedOutlines.length - 1
       ? sortedOutlines[currentIdx + 1]
       : null;
-  if (prevPost) {
-    prefetchPostWithComments({
-      nest,
-      time: udToDec(prevPost[0].toString()),
-    });
+  const prevPost = prevPostTuple?.[1];
+  if (prevPostTuple && prevPost) {
+    const prevDelivered =
+      trackedPosts.find(
+        ({ cacheId }) =>
+          cacheId.author === prevPost.essay.author &&
+          cacheId.sent === prevPost.essay.sent
+      )?.status === 'delivered';
+    if (prevDelivered) {
+      prefetchPostWithComments({
+        nest,
+        time: udToDec(prevPostTuple[0].toString()),
+      });
+    }
   }
 
   return {
-    nextPost,
-    prevPost,
+    thisPost: thisPostTuple,
+    nextPost: nextPostTuple,
+    prevPost: prevPostTuple,
     sortedOutlines,
   };
 }
@@ -775,6 +910,77 @@ export function useChannelsFirehose() {
         ['channels', 'hidden'],
         (d: HiddenPosts = []) => [...d, ...showEvents]
       );
+    }
+
+    const pendingEvents = events.filter(
+      (e) => 'response' in e && 'pending' in e.response
+    ) as ChannelsResponse[];
+    const channelPendingEvents = Object.entries(
+      _.groupBy(pendingEvents, 'nest')
+    );
+    if (pendingEvents.length > 0) {
+      const { trackedPosts } = usePostsStore.getState();
+      const newPosts: PendingMessages['posts'] = {};
+      const newReplies: PendingMessages['replies'] = {};
+      channelPendingEvents.forEach(([nest, es]) => {
+        es.forEach((event) => {
+          const { response } = event;
+          if (!('pending' in response)) {
+            return;
+          }
+
+          const cacheId = response.pending.id;
+          const isPending = trackedPosts.some(
+            (p) =>
+              p.status === 'pending' &&
+              p.cacheId.author === cacheId.author &&
+              p.cacheId.sent === cacheId.sent
+          );
+          if (isPending) {
+            usePostsStore.getState().updateStatus(cacheId, 'sent');
+          }
+
+          if ('post' in response.pending.pending) {
+            newPosts[cacheIdToString(cacheId)] = response.pending.pending.post;
+          }
+
+          if ('reply' in response.pending.pending) {
+            const { top } = response.pending.pending.reply;
+            const replies = newReplies[top] || {};
+            newReplies[top] = {
+              ...replies,
+              [cacheIdToString(cacheId)]: response.pending.pending.reply.memo,
+            };
+          }
+        });
+
+        queryClient.setQueryData<Channels>(
+          channelKey(),
+          (channels?: Channels) => {
+            const channel = channels?.[nest];
+            if (!channel) {
+              return channels;
+            }
+
+            const { pending, ...rest } = channel;
+            const newChannel = {
+              ...rest,
+              pending: {
+                posts: {
+                  ...pending.posts,
+                  ...newPosts,
+                },
+                replies: _.merge(pending.replies, newReplies),
+              },
+            };
+
+            return {
+              ...channels,
+              [nest]: newChannel,
+            };
+          }
+        );
+      });
     }
 
     const postEvents = events.filter(
@@ -854,6 +1060,84 @@ export function useChannelsFirehose() {
       });
     }
 
+    const groupedEvents = _.groupBy([...postEvents, ...replyEvents], 'nest');
+    queryClient.setQueryData<Channels>(channelKey(), (channels?: Channels) => {
+      if (!channels) {
+        return channels;
+      }
+
+      return _.fromPairs(
+        Object.entries(channels).map(([nest, channel]) => {
+          const { pending, ...rest } = channel;
+          const evs = groupedEvents[nest] || [];
+          return [
+            nest,
+            {
+              ...rest,
+              pending: {
+                posts: _.fromPairs(
+                  Object.entries(pending.posts).filter(
+                    ([id]) =>
+                      // only keep posts that we haven't received updates for
+                      !evs.some((e) => {
+                        if (!('response' in e)) {
+                          return false;
+                        }
+
+                        if (
+                          'post' in e.response &&
+                          'set' in e.response.post['r-post']
+                        ) {
+                          const { set } = e.response.post['r-post'];
+                          return set
+                            ? id === cacheIdToString(set.essay)
+                            : false;
+                        }
+
+                        return false;
+                      })
+                  )
+                ),
+                replies: _.fromPairs(
+                  Object.entries(pending.replies).map(([top, rs]) => {
+                    return [
+                      top,
+                      _.fromPairs(
+                        Object.entries(rs).filter(
+                          ([id]) =>
+                            // only keep replies that we haven't received updates for
+                            !evs.some((e) => {
+                              if (!('response' in e)) {
+                                return false;
+                              }
+
+                              if (
+                                'post' in e.response &&
+                                'reply' in e.response.post['r-post'] &&
+                                'set' in
+                                  e.response.post['r-post'].reply['r-reply']
+                              ) {
+                                const { set } =
+                                  e.response.post['r-post'].reply['r-reply'];
+                                return set
+                                  ? id === cacheIdToString(set.memo)
+                                  : false;
+                              }
+
+                              return false;
+                            })
+                        )
+                      ),
+                    ];
+                  })
+                ),
+              },
+            },
+          ];
+        })
+      );
+    });
+
     setEventQueue([]);
   }, []);
 
@@ -893,10 +1177,7 @@ export function useChannels(): Channels {
   const { data, ...rest } = useReactQueryScry<Channels>({
     queryKey: channelKey(),
     app: 'channels',
-    path: '/channels',
-    options: {
-      refetchOnMount: false,
-    },
+    path: '/v2/channels',
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -962,7 +1243,8 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     () => postId !== '0' && postId !== '' && nest !== '' && !disabled,
     [postId, nest, disabled]
   );
-  const { data, ...rest } = useReactQuerySubscription({
+  const pending = usePendingPosts(nest);
+  const { data, ...rest } = useReactQuerySubscription<PostDataResponse>({
     queryKey,
     app: 'channels',
     scry: scryPath,
@@ -971,18 +1253,40 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
       enabled,
     },
   });
-
-  const post = data as PostDataResponse;
+  const { posts } = useInfinitePosts(nest, undefined, false);
+  const post = data || posts.find(([k]) => k.eq(bigInt(postId)))?.[1];
 
   const replies = post?.seal?.replies;
+  const pendingReplies = Object.entries(
+    (pending.replies ? pending.replies[postId] : undefined) || {}
+  ).map(([id, memo]) => {
+    const { sent } = cacheIdFromString(id);
+    const realId = unixToDa(sent);
+    const reply: Reply = {
+      seal: {
+        id: realId.toString(),
+        reacts: {},
+        'parent-id': postId,
+      },
+      memo,
+    };
+    return [realId, reply] as ReplyTuple;
+  });
 
-  if (replies === undefined || Object.entries(replies).length === 0) {
+  if (!post) {
+    return {
+      ...rest,
+      post: undefined,
+    };
+  }
+
+  if (!replies || Object.entries(replies).length === 0) {
     return {
       post: {
         ...post,
         seal: {
           ...post?.seal,
-          replies: [] as ReplyTuple[],
+          replies: [...pendingReplies] as ReplyTuple[],
           lastReply: null,
         },
       },
@@ -999,7 +1303,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     ...post,
     seal: {
       ...post?.seal,
-      replies: diff,
+      replies: [...diff, ...pendingReplies],
     },
   };
 
@@ -1163,6 +1467,15 @@ export function useSortMode(nest: string): SortMode {
   checkNest(nest);
   const channel = useChannel(nest);
   return channel?.sort ?? 'time';
+}
+
+const emptyPending: PendingMessages = {
+  posts: {},
+  replies: {},
+};
+export function usePendingPosts(nest: Nest) {
+  const channel = useChannel(nest);
+  return channel?.pending || emptyPending;
 }
 
 export function useRemotePost(
@@ -1392,15 +1705,14 @@ export function useAddPostMutation(nest: string) {
               }),
               { app: 'channels', path: `/v1/${nest}` },
               ({ response }) => {
-                if ('post' in response) {
-                  const { id, 'r-post': postResponse } = response.post;
+                if ('pending' in response) {
+                  const { id, pending } = response.pending;
                   if (
-                    'set' in postResponse &&
-                    postResponse.set !== null &&
-                    postResponse.set.essay.author === variables.essay.author &&
-                    postResponse.set.essay.sent === variables.essay.sent
+                    'post' in pending &&
+                    id.author === variables.essay.author &&
+                    id.sent === variables.essay.sent
                   ) {
-                    timePosted = id;
+                    timePosted = id.sent.toString();
                     return true;
                   }
                   return true;
@@ -1417,7 +1729,7 @@ export function useAddPostMutation(nest: string) {
           console.error(e);
         }
       }),
-      15000
+      30000
     );
   };
 
@@ -1451,30 +1763,30 @@ export function useAddPostMutation(nest: string) {
       const existingQueryData = queryClient.getQueryData<
         PostsInCachePrev | undefined
       >(queryKey('infinite'));
-      const newData = infinitePostUpdater(existingQueryData, {
-        nest,
-        response: {
-          post: {
-            id: sent,
-            'r-post': {
-              set: {
-                ...post,
-                seal: {
-                  ...post.seal,
-                  replies: null,
+      const newData = infinitePostUpdater(
+        existingQueryData,
+        {
+          nest,
+          response: {
+            post: {
+              id: sent,
+              'r-post': {
+                set: {
+                  ...post,
+                  seal: {
+                    ...post.seal,
+                    replies: null,
+                  },
                 },
               },
             },
           },
         },
-      });
+        true
+      );
       queryClient.setQueryData(queryKey('infinite'), newData);
     },
     onSuccess: async (_data, variables) => {
-      const status = usePostsStore.getState().getStatus(variables.cacheId);
-      if (status === 'pending') {
-        usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
-      }
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
     onError: async (_error, variables) => {
@@ -1737,6 +2049,7 @@ export function useCreateMutation() {
             view: 'list',
             order: [],
             sort: 'time',
+            pending: emptyPending,
           },
         });
       }
@@ -2628,38 +2941,34 @@ export function usePostToggler(postId: string) {
   };
 }
 
-export function useMyLastMessage(
-  whom: string,
-  postId?: string
-): Post | Writ | Reply | null {
-  const isDmOrMultiDm = useIsDmOrMultiDm(whom);
-  let nest = '';
+export function useMyLastReply(nest: string, postId?: string): Reply | null {
+  const lastReply = (replies: Replies) => {
+    const myReplies = Object.entries(replies).filter(
+      ([_id, msg]) => msg?.memo.author === window.our
+    );
 
-  if (whom === '') {
-    return null;
-  }
-
-  if (!isDmOrMultiDm) {
-    nest = `chat/${whom}`;
-  }
-
-  const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
-    if (!pages || pages.length === 0) {
+    const lastReplyMessage = last(myReplies);
+    if (!lastReplyMessage) {
       return null;
     }
 
-    if ('writs' in pages[0]) {
-      // @ts-expect-error we already have a type guard
-      const writs = newWritTupleArray({ pages });
-      const myWrits = writs.filter(
-        ([_id, msg]) => msg?.essay.author === window.our
-      );
-      const lastWrit = last(myWrits);
-      if (!lastWrit) {
-        return null;
-      }
+    return lastReplyMessage[1];
+  };
 
-      return lastWrit[1];
+  const postData = postId
+    ? queryClient.getQueryData<PostDataResponse>(postKey(nest, postId))
+    : null;
+  const { replies } = postData?.seal || { replies: {} };
+
+  const memoizedLastReply = useMemo(() => lastReply(replies), [replies]);
+
+  return memoizedLastReply;
+}
+
+export function useMyLastMessage(nest: string): Post | null {
+  const lastMessage = (pages: PagedPosts[] | PagedWrits[]) => {
+    if (!pages || pages.length === 0) {
+      return null;
     }
 
     if ('posts' in pages[0]) {
@@ -2678,52 +2987,14 @@ export function useMyLastMessage(
     return null;
   };
 
-  const lastReply = (replies: Replies) => {
-    const myReplies = Object.entries(replies).filter(
-      ([_id, msg]) => msg?.memo.author === window.our
-    );
-
-    const lastReplyMessage = last(myReplies);
-    if (!lastReplyMessage) {
-      return null;
-    }
-
-    return lastReplyMessage[1];
-  };
-
-  if (!isDmOrMultiDm) {
-    if (postId) {
-      const data = queryClient.getQueryData<PostDataResponse>(
-        postKey(nest, postId)
-      );
-      if (data && 'seal' in data) {
-        const { seal } = data;
-        return lastReply(seal.replies);
-      }
-    }
-
-    const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
-      infinitePostsKey(nest)
-    );
-    if (data) {
-      const { pages } = data;
-      return lastMessage(pages);
-    }
-
-    return null;
-  }
-
-  const data = queryClient.getQueryData<{ pages: PagedWrits[] }>(
-    ChatQueryKeys.infiniteDmsKey(whom)
+  const data = queryClient.getQueryData<{ pages: PagedPosts[] }>(
+    infinitePostsKey(nest)
   );
+  const { pages } = data || { pages: [] };
 
-  if (data) {
-    const { pages } = data;
+  const memoizedLastMessage = useMemo(() => lastMessage(pages), [pages]);
 
-    return lastMessage(pages);
-  }
-
-  return null;
+  return memoizedLastMessage;
 }
 
 export function useIsEdited(message: Post | Writ | Reply) {

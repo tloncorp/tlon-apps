@@ -229,11 +229,17 @@ function TopBar({
 
 interface BottomBarProps {
   post: Post;
+  isUndelivered: boolean;
   asRef?: boolean;
   asMobileNotification?: boolean;
 }
 
-function BottomBar({ post, asRef, asMobileNotification }: BottomBarProps) {
+function BottomBar({
+  post,
+  isUndelivered,
+  asRef,
+  asMobileNotification,
+}: BottomBarProps) {
   if (asRef || asMobileNotification) {
     return <div />;
   }
@@ -254,13 +260,21 @@ function BottomBar({ post, asRef, asMobileNotification }: BottomBarProps) {
     >
       <Avatar ship={post.essay.author} size="xs" />
       <div className="hidden w-full justify-between align-middle group-hover:flex">
-        <span className="truncate font-semibold">{prettySent} ago</span>
-        {replyCount > 0 ? (
-          <div className="flex space-x-1 align-middle font-semibold">
-            <ChatSmallIcon className="h-4 w-4" />
-            <span>{replyCount}</span>
-          </div>
-        ) : null}
+        {isUndelivered ? (
+          <span className="truncate font-semibold">
+            Saved, awaiting host confirmation
+          </span>
+        ) : (
+          <>
+            <span className="truncate font-semibold">{prettySent} ago</span>
+            {replyCount > 0 ? (
+              <div className="flex space-x-1 align-middle font-semibold">
+                <ChatSmallIcon className="h-4 w-4" />
+                <span>{replyCount}</span>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
@@ -386,8 +400,16 @@ export default function HeapBlock({
     longPress,
     citeNest,
     author: post.essay.author,
+    canEdit,
+    isUndelivered,
   };
-  const botBar = { post, asRef, asMobileNotification, longPress };
+  const botBar = {
+    post,
+    asRef,
+    asMobileNotification,
+    longPress,
+    isUndelivered,
+  };
 
   if (isHidden) {
     return (
@@ -398,12 +420,7 @@ export default function HeapBlock({
         isHidden={isHidden}
       >
         <div className={cnm()}>
-          <TopBar
-            hasIcon
-            canEdit={canEdit}
-            isUndelivered={isUndelivered}
-            {...topBar}
-          />
+          <TopBar hasIcon {...topBar} />
           <HeapContent
             className={cn('mx-3 my-2 leading-6', asRef ? 'line-clamp-9' : '')}
             leading-6
@@ -427,12 +444,7 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar
-            hasIcon
-            canEdit={canEdit}
-            isUndelivered={isUndelivered}
-            {...topBar}
-          />
+          <TopBar hasIcon {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
             <HeapContent
               className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
@@ -454,12 +466,7 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar
-            hasIcon
-            canEdit={canEdit}
-            isUndelivered={isUndelivered}
-            {...topBar}
-          />
+          <TopBar hasIcon {...topBar} />
           <HeapContent
             className={cn('mx-3 my-2 leading-6', asRef ? 'line-clamp-9' : '')}
             leading-6
@@ -491,7 +498,7 @@ export default function HeapBlock({
             borderRadius: asMobileNotification ? '6px' : undefined,
           }}
         >
-          <TopBar canEdit={canEdit} isUndelivered={isUndelivered} {...topBar} />
+          <TopBar {...topBar} />
           <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
@@ -507,12 +514,7 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar
-            hasIcon
-            canEdit={canEdit}
-            isUndelivered={isUndelivered}
-            {...topBar}
-          />
+          <TopBar hasIcon {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
             <MusicLargeIcon className="h-16 w-16 text-gray-300" />
           </div>
@@ -541,11 +543,7 @@ export default function HeapBlock({
               backgroundImage: `url(${thumbnail})`,
             }}
           >
-            <TopBar
-              canEdit={canEdit}
-              isUndelivered={isUndelivered}
-              {...topBar}
-            />
+            <TopBar {...topBar} />
             <BottomBar {...botBar} />
           </div>
         </HeapBlockWrapper>
@@ -563,12 +561,7 @@ export default function HeapBlock({
           setLongPress={setLongPress}
         >
           <div className={cnm()}>
-            <TopBar
-              isTwitter
-              canEdit={canEdit}
-              isUndelivered={isUndelivered}
-              {...topBar}
-            />
+            <TopBar isTwitter {...topBar} />
             <div className="flex grow flex-col items-center justify-center space-y-2">
               <img
                 className="h-[46px] w-[46px] rounded-full"
@@ -591,12 +584,7 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar
-            hasIcon
-            canEdit={canEdit}
-            isUndelivered={isUndelivered}
-            {...topBar}
-          />
+          <TopBar hasIcon {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
             <LinkIcon className="h-16 w-16 text-gray-300" />
           </div>
@@ -614,12 +602,7 @@ export default function HeapBlock({
       setLongPress={setLongPress}
     >
       <div className={cnm()}>
-        <TopBar
-          hasIcon
-          canEdit={canEdit}
-          isUndelivered={isUndelivered}
-          {...topBar}
-        />
+        <TopBar hasIcon {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
           <div className="text-underline m-3 block break-all rounded bg-gray-50 p-2 text-center font-semibold">

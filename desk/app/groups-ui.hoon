@@ -106,7 +106,22 @@
   ?+    pole  [~ ~]
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
-    =+  .^([=unreads:d =channels:d] (scry %gx %channels /init/noun))
+    =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
+    =+  .^(=chat:u (scry %gx %chat /init/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  =init-0:u
+      :*  groups-ui
+          gangs
+          channels
+          unreads
+          pins
+          chat
+          profile
+      ==
+    ``ui-init+!>(init)
+      [%x %v1 %init ~]
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=unreads:d =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(=chat:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  =init:u
@@ -118,7 +133,7 @@
           chat
           profile
       ==
-    ``ui-init+!>(init)
+    ``ui-init-1+!>(init)
   ::
       [%x %pins ~]
     ``ui-pins+!>(pins)

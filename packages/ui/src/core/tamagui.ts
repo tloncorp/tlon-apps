@@ -6,4 +6,6 @@ export {
   ZStack,
   YStack,
   Stack,
-} from "tamagui";
+  ScrollView,
+  YGroup,
+} from 'tamagui';

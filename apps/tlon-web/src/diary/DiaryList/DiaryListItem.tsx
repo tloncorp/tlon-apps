@@ -30,7 +30,7 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
     <div
       className={cn('card border border-gray-100', {
         'cursor-pointer': !isHidden,
-        'bg-gray-100': isPending,
+        'bg-gray-100': isPending || isUndelivered,
       })}
       role="link"
       tabIndex={0}

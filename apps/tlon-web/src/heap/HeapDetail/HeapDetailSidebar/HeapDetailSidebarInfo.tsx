@@ -29,9 +29,14 @@ export default function HeapDetailSidebarInfo({
         {!title && !isURL ? textPreview : null}
       </h2>
 
-      <time className="text-base font-semibold text-gray-400">
-        {makePrettyDay(unixDate)}
-      </time>
+      <div className="flex">
+        <time className="text-base font-semibold text-gray-400">
+          {makePrettyDay(unixDate)}
+        </time>
+        <span className="ml-auto text-sm font-semibold text-gray-400">
+          Saved, awaiting host confirmation
+        </span>
+      </div>
 
       <Author ship={author} />
     </div>

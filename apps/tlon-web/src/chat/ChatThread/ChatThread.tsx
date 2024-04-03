@@ -26,6 +26,7 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
   useAddReplyMutation,
   useMarkReadMutation,
+  useMyLastReply,
   usePerms,
   usePost,
   useReply,
@@ -53,6 +54,7 @@ export default function ChatThread() {
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
+  const lastReply = useMyLastReply(nest);
   const groupFlag = useRouteGroup();
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
@@ -68,9 +70,9 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
-  const { replies } = note.seal;
+  const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
-  if (replies !== null && idTimeIsNumber) {
+  if (note && replies !== null && idTimeIsNumber) {
     replies.unshift([
       bigInt(idTime!),
       {
@@ -272,6 +274,7 @@ export default function ChatThread() {
             replying={idTime}
             replyingWrit={replyingWrit}
             sendReply={sendMessage}
+            myLastMessage={lastReply}
             showReply
             autoFocus
             dropZoneId={dropZoneId}

@@ -73,101 +73,100 @@ interface GroupListProps {
 
 let virtuosoState: StateSnapshot | undefined;
 
-export default function GroupList({
-  groups,
-  children,
-  isScrolling,
-  atTopChange,
-}: GroupListProps) {
-  const isMobile = useIsMobile();
-  const thresholds = {
-    atBottomThreshold: 125,
-    atTopThreshold: 125,
-    overscan: isMobile
-      ? { main: 200, reverse: 200 }
-      : { main: 400, reverse: 400 },
-  };
+const GroupList = React.memo(
+  ({ groups, children, isScrolling, atTopChange }: GroupListProps) => {
+    const isMobile = useIsMobile();
+    const thresholds = {
+      atBottomThreshold: 125,
+      atTopThreshold: 125,
+      overscan: isMobile
+        ? { main: 200, reverse: 200 }
+        : { main: 400, reverse: 400 },
+    };
 
-  const headerHeightRef = useRef<number>(0);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const header = useMemo(
-    // Re: min-h below: if virtuoso ever encounters a 0-height element, its
-    // whole render will fail. This min height ensures that no matter what's
-    // passed, it'll have at least 1px of height.
-    () =>
-      children ? (
-        <div className="min-h-[1px]" ref={headerRef}>
-          {children}
-        </div>
-      ) : null,
-    [children]
-  );
+    const headerHeightRef = useRef<number>(0);
+    const headerRef = useRef<HTMLDivElement>(null);
+    const header = useMemo(
+      // Re: min-h below: if virtuoso ever encounters a 0-height element, its
+      // whole render will fail. This min height ensures that no matter what's
+      // passed, it'll have at least 1px of height.
+      () =>
+        children ? (
+          <div className="min-h-[1px]" ref={headerRef}>
+            {children}
+          </div>
+        ) : null,
+      [children]
+    );
 
-  const listItems: AnyListItem[] = useMemo(() => {
-    const top: TopContentListItem[] = header
-      ? [{ type: 'top', component: header }]
-      : [];
-    return [
-      ...top,
-      ...groups.map<GroupListItem | SearchListItem>((g) =>
-        isGroupSearchRecord(g)
-          ? { type: 'search', data: g }
-          : {
-              type: 'group',
-              data: g,
-            }
-      ),
-    ];
-  }, [groups, header]);
+    const listItems: AnyListItem[] = useMemo(() => {
+      const top: TopContentListItem[] = header
+        ? [{ type: 'top', component: header }]
+        : [];
+      return [
+        ...top,
+        ...groups.map<GroupListItem | SearchListItem>((g) =>
+          isGroupSearchRecord(g)
+            ? { type: 'search', data: g }
+            : {
+                type: 'group',
+                data: g,
+              }
+        ),
+      ];
+    }, [groups, header]);
 
-  useEffect(() => {
-    if (!headerRef.current) {
+    useEffect(() => {
+      if (!headerRef.current) {
+        return () => {
+          // do nothing
+        };
+      }
+
+      const resizeObserver = new ResizeObserver(() => {
+        headerHeightRef.current =
+          headerRef.current?.offsetHeight ?? headerHeightRef.current;
+      });
+
+      resizeObserver.observe(headerRef.current);
+      return () => resizeObserver.disconnect();
+    }, []);
+
+    const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+    useEffect(() => {
+      const currentVirtuosoRef = virtuosoRef.current;
+
       return () => {
-        // do nothing
+        currentVirtuosoRef?.getState((state) => {
+          virtuosoState = {
+            ...state,
+            // Virtuoso contains a bug where `scrollTop` includes the Header's size,
+            // though it's treated relatively to the List component when applied.
+            scrollTop: state.scrollTop - (headerHeightRef.current ?? 0),
+          };
+        });
       };
+    }, []);
+
+    if (!groups) {
+      return <GroupListPlaceholder count={5} />;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      headerHeightRef.current =
-        headerRef.current?.offsetHeight ?? headerHeightRef.current;
-    });
-
-    resizeObserver.observe(headerRef.current);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-
-  useEffect(() => {
-    const currentVirtuosoRef = virtuosoRef.current;
-
-    return () => {
-      currentVirtuosoRef?.getState((state) => {
-        virtuosoState = {
-          ...state,
-          // Virtuoso contains a bug where `scrollTop` includes the Header's size,
-          // though it's treated relatively to the List component when applied.
-          scrollTop: state.scrollTop - (headerHeightRef.current ?? 0),
-        };
-      });
-    };
-  }, []);
-
-  if (!groups) {
-    return <GroupListPlaceholder count={5} />;
+    return (
+      <Virtuoso
+        {...thresholds}
+        ref={virtuosoRef}
+        data={listItems}
+        computeItemKey={computeItemKey}
+        itemContent={itemContent}
+        restoreStateFrom={virtuosoState}
+        className="border-top-none h-full w-full list-none overflow-x-hidden"
+        isScrolling={isScrolling}
+        atTopStateChange={atTopChange}
+      />
+    );
   }
+);
 
-  return (
-    <Virtuoso
-      {...thresholds}
-      ref={virtuosoRef}
-      data={listItems}
-      computeItemKey={computeItemKey}
-      itemContent={itemContent}
-      restoreStateFrom={virtuosoState}
-      className="border-top-none h-full w-full list-none overflow-x-hidden"
-      isScrolling={isScrolling}
-      atTopStateChange={atTopChange}
-    />
-  );
-}
+export default GroupList;

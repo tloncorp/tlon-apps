@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { ClientTypes as Client } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
 import {
@@ -19,7 +19,7 @@ import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function fallbackContact(id: string): Client.Contact {
+function fallbackContact(id: string): client.Contact {
   return {
     id,
     nickname: null,
@@ -33,8 +33,8 @@ function fallbackContact(id: string): Client.Contact {
 }
 
 export const TabStack = () => {
-  const { ship } = useShip();
-  const unreadCount = db.useAllUnreadsCounts();
+  const { contactId } = useShip();
+  const { result: unreadCount } = db.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
   }) as ViewStyle;
@@ -113,7 +113,7 @@ export const TabStack = () => {
         component={WebViewStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <AvatarTabIcon id={ship!} focused={focused} />
+            <AvatarTabIcon id={contactId!} focused={focused} />
           ),
           tabBarShowLabel: false,
         }}
@@ -123,7 +123,7 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const contact = db.useContact(id);
+  const { result: contact } = db.useContact(id);
   return (
     <Avatar
       contact={contact ?? fallbackContact(id)}

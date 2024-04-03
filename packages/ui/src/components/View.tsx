@@ -1,1 +1,1 @@
-export { View } from "tamagui";
+export { View } from 'tamagui';

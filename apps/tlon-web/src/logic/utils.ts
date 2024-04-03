@@ -1,4 +1,5 @@
 import {
+  CacheId,
   ChatStory,
   Cite,
   Listing,
@@ -1282,4 +1283,16 @@ export function useThreadParentId(whom: string) {
   }
 
   return idTime;
+}
+
+export function cacheIdToString(id: CacheId) {
+  return `${id.author}/${id.sent}`;
+}
+
+export function cacheIdFromString(str: string): CacheId {
+  const [author, sentStr] = str.split('/');
+  return {
+    author,
+    sent: parseInt(udToDec(sentStr), 10),
+  };
 }
