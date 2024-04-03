@@ -1,3 +1,5 @@
+import { decToUd, stringToTa } from '@urbit/api';
+
 import * as db from '../db';
 import type * as ub from '../urbit';
 import { scry } from './urbit';
@@ -8,6 +10,24 @@ export const getUnreadChannels = async () => {
     path: '/unreads',
   });
   return toUnreadsData(response);
+};
+
+export const searchChatChannel = async (params: {
+  channelId: string;
+  query: string;
+  page?: string | null;
+}) => {
+  const SINGLE_PAGE_SEARCH_DEPTH = 500;
+  const encodedQuery = stringToTa(params.query);
+
+  const response = await scry<ub.ChannelScam>({
+    app: 'channels',
+    path: `/${params.channelId}/search/bounded/text/${
+      params.page ? decToUd(params.page.toString()) : ''
+    }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
+  });
+
+  return response;
 };
 
 type ChannelUnreadData = {

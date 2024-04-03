@@ -1,61 +1,80 @@
-import { getSize } from '@tamagui/get-token';
-import { cloneElement, useContext } from 'react';
 import {
+  FontSizeTokens,
   SizeTokens,
-  Stack,
-  Text,
+  XGroup,
+  XStack,
   createStyledContext,
   styled,
-  useTheme,
   withStaticProperties,
 } from 'tamagui';
 
+import { Input as CInput, View } from '../core';
+
 export const InputContext = createStyledContext<{ size: SizeTokens }>({
-  size: '$m',
+  size: '$true',
 });
 
-export const InputFrame = styled(Stack, {
-  name: 'Input',
+const InputContainerFrame = styled(XStack, {
   context: InputContext,
-  backgroundColor: '$background',
-  alignItems: 'center',
-  flexDirection: 'row',
-  borderColor: '$border',
-  borderWidth: 1,
-  borderRadius: '$m',
-  paddingVertical: '$s',
-  paddingHorizontal: '$l',
-});
-
-export const ButtonText = styled(Text, {
-  name: 'ButtonText',
-  context: InputContext,
-  color: '$primaryText',
-  userSelect: 'none',
+  flex: 1,
+  justifyContent: 'space-between',
 
   variants: {
     size: {
-      '...fontSize': (name) => ({
-        fontSize: name,
+      '...size': (val, { tokens }) => ({
+        gap: tokens.space[val].val * 0.3,
       }),
+    },
+  } as const,
+
+  defaultVariants: {
+    size: '$true',
+  },
+});
+
+const InputFrame = styled(CInput, {
+  unstyled: true,
+  context: InputContext,
+  fontFamily: '$body',
+  fontSize: '$true',
+  color: '$primaryText',
+});
+
+const InputImpl = InputFrame.styleable((props, ref) => {
+  const { size } = InputContext.useStyledContext();
+  return (
+    <XStack flex={1}>
+      <InputFrame ref={ref} size={size} {...props} />
+    </XStack>
+  );
+});
+
+const InputIconFrame = styled(View, {
+  context: InputContext,
+  justifyContent: 'center',
+  alignItems: 'center',
+
+  variants: {
+    size: {
+      '...size': (val, { tokens }) => {
+        return {
+          paddingHorizontal: tokens.space[val],
+        };
+      },
     },
   } as const,
 });
 
-const ButtonIcon = (props: { children: any }) => {
-  const { size } = useContext(InputContext.context);
-  const smaller = getSize(size, {
-    shift: -2,
-  });
-  const theme = useTheme();
-  return cloneElement(props.children, {
-    size: smaller.val * 0.5,
-    color: theme.primaryText.get(),
-  });
-};
+const InputIconImpl = InputIconFrame.styleable((props, ref) => {
+  const { children, ...rest } = props;
+  return (
+    <InputIconFrame ref={ref} {...rest}>
+      {children}
+    </InputIconFrame>
+  );
+});
 
-export const Button = withStaticProperties(InputFrame, {
-  Props: InputContext.Provider,
-  Text: ButtonText,
-  Icon: ButtonIcon,
+export const Input = withStaticProperties(InputContainerFrame, {
+  Area: InputImpl,
+  Icon: InputIconImpl,
 });

@@ -1,7 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { SearchBar } from '@tloncorp/ui';
+import { ScrollView, SearchBar, XStack, YStack } from '@tloncorp/ui';
 import { useLayoutEffect } from 'react';
-import { SafeAreaView } from 'react-native';
+import { Keyboard, SafeAreaView } from 'react-native';
 
 import type { TabParamList } from '../types';
 
@@ -18,6 +18,11 @@ export const ChannelSearch = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <SearchBar />
+
+      <YStack flex={1} onTouchStart={Keyboard.dismiss}>
+        <XStack justifyContent="space-between"></XStack>
+        <ScrollView flex={1}></ScrollView>
+      </YStack>
     </SafeAreaView>
   );
 };
