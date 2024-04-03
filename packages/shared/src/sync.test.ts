@@ -136,7 +136,7 @@ test('sync posts', async () => {
   const posts = await db.getPosts();
   expect(posts.length).toEqual(convertedPosts.posts.length);
 
-  const groups = await db.getGroups();
+  const groups = await db.getGroups({ includeLastPost: true });
   expect(groups[0].id).toEqual(groupId);
   expect(groups[0].lastPostAt).toEqual(lastPost.receivedAt);
   expect(groups[0].lastPostId).toEqual(lastPost.id);

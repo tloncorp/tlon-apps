@@ -19,7 +19,11 @@ export const useGroupsForList = (): {
   pinnedGroups?: Group[] & { unreadCount?: number | null };
   unpinnedGroups?: Group[] & { unreadCount?: number | null };
 } | null => {
-  const { result: allGroups, error } = useGroups({ sort: 'pinIndex' });
+  const { result: allGroups, error } = useGroups({
+    sort: 'pinIndex',
+    includeUnreads: true,
+    includeLastPost: true,
+  });
 
   useEffect(() => {
     if (error) {

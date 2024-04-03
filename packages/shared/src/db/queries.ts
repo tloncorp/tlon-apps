@@ -36,6 +36,7 @@ import {
   GroupInsert,
   Pin,
   PostInsert,
+  TableName,
   Unread,
   UnreadInsert,
 } from './types';
@@ -43,11 +44,18 @@ import {
 export interface GetGroupsOptions {
   sort?: 'pinIndex';
   includeUnjoined?: boolean;
+  includeUnreads?: boolean;
+  includeLastPost?: boolean;
 }
 
 export const getGroups = createReadQuery(
   'getGroups',
-  async ({ sort, includeUnjoined }: GetGroupsOptions = {}) => {
+  async ({
+    sort,
+    includeUnjoined,
+    includeLastPost,
+    includeUnreads,
+  }: GetGroupsOptions = {}) => {
     const unreadCounts = client
       .select({
         groupId: $channels.groupId,
@@ -61,18 +69,31 @@ export const getGroups = createReadQuery(
     const query = client
       .select({
         ...getTableColumns($groups),
-        unreadCount: unreadCounts.count,
-        lastPost: getTableColumns($posts),
+        ...(includeUnreads ? { unreadCount: unreadCounts.count } : undefined),
+        ...(includeLastPost
+          ? { lastPost: getTableColumns($posts) }
+          : undefined),
       })
       .from($groups)
-      .where(includeUnjoined ? undefined : eq($groups.isJoined, true))
-      .leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId))
-      .leftJoin($posts, eq($groups.lastPostId, $posts.id));
-    return sort === 'pinIndex'
-      ? query.orderBy(ascNullsLast($groups.pinIndex), desc($groups.lastPostAt))
-      : query;
+      .where(includeUnjoined ? undefined : eq($groups.isJoined, true));
+    includeLastPost &&
+      query.leftJoin($posts, eq($groups.lastPostId, $posts.id));
+    includeUnreads &&
+      query.leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId));
+    sort === 'pinIndex' &&
+      query.orderBy(ascNullsLast($groups.pinIndex), desc($groups.lastPostAt));
+    return query;
   },
-  ['groups', 'pins', 'unreads', 'posts']
+  ({
+    includeLastPost,
+    includeUnreads,
+    sort,
+  }: GetGroupsOptions): TableName[] => [
+    'groups',
+    ...(sort === 'pinIndex' ? (['pins'] as TableName[]) : []),
+    ...(includeLastPost ? (['posts'] as TableName[]) : []),
+    ...(includeUnreads ? (['unreads'] as TableName[]) : []),
+  ]
 );
 
 export const insertGroups = createWriteQuery(

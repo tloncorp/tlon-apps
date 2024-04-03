@@ -31,7 +31,7 @@ const tableEvents = {
   },
 };
 
-export interface QueryMeta {
+export interface QueryMeta<Args extends any[]> {
   /**
    * Used to label logs.
    */
@@ -39,23 +39,27 @@ export interface QueryMeta {
   /**
    * Tables which should be considered changed after this query is executed.
    */
-  tableEffects: TableName[];
+  tableEffects: TableParam<Args>;
   /**
    * Tables where changes cause this query to become stale. (If it's a live
    * query, changes to these tables should trigger a re-fetch)
    */
-  tableDependencies: TableName[];
+  tableDependencies: TableParam<Args>;
 }
 
 export interface WrappedQuery<Args extends any[], T> {
   (...args: Args): Promise<T>;
-  meta: QueryMeta;
+  meta: QueryMeta<Args>;
 }
+
+type TableParam<Args extends any[]> =
+  | TableName[]
+  | ((...args: Args) => TableName[]);
 
 export const createReadQuery = <Args extends any[], T>(
   label: string,
   queryFn: (...args: Args) => Promise<T>,
-  tableDependencies: TableName[]
+  tableDependencies: TableParam<Args>
 ): WrappedQuery<Args, T> => {
   return createQuery(queryFn, {
     label,
@@ -78,7 +82,7 @@ export const createWriteQuery = <Args extends any[], T>(
 
 export const createQuery = <Args extends any[], T>(
   queryFn: (...args: Args) => Promise<T>,
-  meta: QueryMeta
+  meta: QueryMeta<Args>
 ): WrappedQuery<Args, T> => {
   // Wrap query function to trigger table events
   const wrappedQuery = async (...args: Args) => {
@@ -88,7 +92,11 @@ export const createQuery = <Args extends any[], T>(
     logger.log(meta.label + ':', Date.now() - startTime + 'ms');
     // Trigger table effects if necessary.
     if (meta?.tableEffects?.length) {
-      tableEvents.trigger(meta.tableEffects);
+      tableEvents.trigger(
+        typeof meta.tableEffects === 'function'
+          ? meta.tableEffects(...args)
+          : meta.tableEffects
+      );
     }
     return result;
   };
@@ -127,11 +135,17 @@ export const createUseQuery =
       runQuery();
     }, [currentParams]);
 
+    const deps = useMemo(() => {
+      return typeof query.meta.tableDependencies === 'function'
+        ? query.meta.tableDependencies(...args)
+        : query.meta.tableDependencies;
+    }, [...args]);
+
     // Run query when table dependencies change
     useEffect(() => {
-      tableEvents.on(query.meta.tableDependencies ?? [], runQuery);
+      tableEvents.on(deps, runQuery);
       return () => {
-        tableEvents.off(query.meta.tableDependencies ?? [], runQuery);
+        tableEvents.off(deps, runQuery);
       };
     }, [currentParams]);
     return { result, error, isLoading };
