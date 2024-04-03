@@ -19,6 +19,10 @@ const mockStash: Channels = {
     view: 'grid',
     order: [],
     sort: 'time',
+    pending: {
+      posts: {},
+      replies: {},
+    },
   },
 };
 

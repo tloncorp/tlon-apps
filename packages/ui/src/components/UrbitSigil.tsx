@@ -1,7 +1,9 @@
-import sigil from "@urbit/sigil-js/dist/core";
-import { useMemo } from "react";
-import { SvgXml } from "react-native-svg";
-import { useTheme, View } from "tamagui";
+// Note: the import statement for sigil is different in the native version
+// The native version uses the core entry point of sigil-js
+// The web version uses the default entry point of sigil-js
+import sigil from '@urbit/sigil-js';
+import { useMemo } from 'react';
+import { View, useTheme } from 'tamagui';
 
 export const UrbitSigil = View.styleable<{
   ship: string;
@@ -12,11 +14,12 @@ export const UrbitSigil = View.styleable<{
     () =>
       sigil({
         point: ship,
-        detail: "none",
+        detail: 'none',
         size: 12,
-        space: "none",
-        foreground: "#ffffff",
-        background: theme.darkBackground.val,
+        space: 'none',
+        foreground: '#ffffff',
+        // typescript thinks theme.darkBackground could be undefined
+        background: theme.darkBackground?.val,
       }),
     [ship]
   );
@@ -30,8 +33,6 @@ export const UrbitSigil = View.styleable<{
       backgroundColor="$darkBackground"
       borderRadius="$2xs"
       {...props}
-    >
-      {validShip && <SvgXml xml={sigilXml} />}
-    </View>
+    />
   );
 });

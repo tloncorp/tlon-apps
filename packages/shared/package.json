@@ -5,12 +5,31 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts src/urbit/* --format esm --minify --dts --out-dir dist",
+    "build": "tsup",
     "dev": "npm run build -- --watch",
-    "postinstall": "npm run build"
+    "dev:migrations": "concurrently \"npm run watch-migrations\" \"npm run dev\"",
+    "postinstall": "npm run build",
+    "test": "vitest",
+    "lint:format": "prettier src/ --write",
+    "lint:all": "npm run lint:format",
+    "generate": "npm run generate:migration",
+    "generate:migration": "node reset-migrations",
+    "watch-migrations": "npm run generate:migration -- --watch"
   },
   "dependencies": {
+    "@urbit/api": "^2.2.0",
     "big-integer": "^1.6.52",
+    "drizzle-orm": "^0.30.4",
     "sorted-btree": "^1.8.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "better-sqlite3": "^9.4.3",
+    "drizzle-kit": "^0.20.14",
+    "tsup": "^8.0.1",
+    "vitest": "^1.4.0"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
   }
 }

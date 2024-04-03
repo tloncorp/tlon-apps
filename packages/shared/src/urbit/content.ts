@@ -1,3 +1,15 @@
+import {
+  Block,
+  Code,
+  Header,
+  List,
+  ListItem,
+  Listing,
+  ListingBlock,
+  Verse,
+  VerseBlock,
+} from './channel';
+
 export type JSONContent = {
   type?: string;
   attrs?: Record<string, any>;
@@ -98,6 +110,10 @@ export type InlineKey =
   | 'link'
   | 'break';
 
+export function isBlock(verse: Verse): verse is VerseBlock {
+  return 'block' in verse;
+}
+
 export function isBold(item: unknown): item is Bold {
   return typeof item === 'object' && item !== null && 'bold' in item;
 }
@@ -132,4 +148,36 @@ export function isBreak(item: unknown): item is Break {
 
 export function isShip(item: unknown): item is Ship {
   return typeof item === 'object' && item !== null && 'ship' in item;
+}
+
+export function isHeader(block: Block): block is Header {
+  return 'header' in block;
+}
+
+export function isCode(block: Block): block is Code {
+  return 'code' in block;
+}
+
+export function isListing(block: Block): block is ListingBlock {
+  return 'listing' in block;
+}
+
+export function isListItem(listing: Listing): listing is ListItem {
+  return 'item' in listing;
+}
+
+export function isList(listing: Listing): listing is List {
+  return 'list' in listing;
+}
+
+export function isTag(item: unknown): item is Tag {
+  return typeof item === 'object' && item !== null && 'tag' in item;
+}
+
+export function isBlockReference(item: unknown): item is BlockReference {
+  return typeof item === 'object' && item !== null && 'block' in item;
+}
+
+export function isTask(item: unknown): item is Task {
+  return typeof item === 'object' && item !== null && 'task' in item;
 }

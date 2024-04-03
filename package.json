@@ -1,5 +1,6 @@
 {
   "private": true,
+  "name": "tlon-apps",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -17,6 +18,7 @@
     "postinstall": "npx patch-package"
   },
   "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "concurrently": "^8.2.2",
     "husky": "^9.0.10",
     "patch-package": "^6.4.7",
@@ -26,5 +28,6 @@
   "engines": {
     "node": ">=18.18.0",
     "npm": ">=9.8.1"
-  }
+  },
+  "packageManager": "npm@10.2.4+sha256.36b548120f75f26408d04ff163cd4a699916f1c4b72ebeeab0bbaf054009eb5b"
 }

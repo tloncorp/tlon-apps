@@ -173,7 +173,7 @@ export default function ReplyMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const edit = useCallback(() => {
-    setSearchParams({ edit: seal.id }, { replace: true });
+    setSearchParams({ editReply: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
   const setReplyParam = useCallback(() => {

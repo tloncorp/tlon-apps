@@ -75,7 +75,7 @@ export default function NewChannelForm() {
         }
 
         if (type === 'heap') {
-          return channels[`heap/ ${tempNewChannelFlag}`];
+          return channels[`heap/${tempNewChannelFlag}`];
         }
 
         return false;

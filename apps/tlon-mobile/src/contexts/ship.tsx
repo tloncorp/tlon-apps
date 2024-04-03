@@ -1,10 +1,11 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { configureApi } from '@tloncorp/shared/dist/api';
+import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
 import { useContext, useEffect, useState } from 'react';
 import { createContext } from 'react';
 import { NativeModules } from 'react-native';
 
-import { configureApi } from '../lib/api';
 import storage from '../lib/storage';
 import { transformShipURL } from '../utils/string';
 
@@ -16,6 +17,7 @@ type ShipInfo = {
 };
 
 type State = ShipInfo & {
+  contactId: string | undefined;
   isLoading: boolean;
   isAuthenticated: boolean;
 };
@@ -128,8 +130,13 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!ship && !!shipUrl,
         ship,
         shipUrl,
+        contactId: ship ? preSig(ship) : undefined,
         setShip,
-        clearShip: () => setShip({ ship: undefined, shipUrl: undefined }),
+        clearShip: () =>
+          setShip({
+            ship: undefined,
+            shipUrl: undefined,
+          }),
       }}
     >
       {children}
