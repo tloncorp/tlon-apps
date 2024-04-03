@@ -10,7 +10,7 @@
         "APP_VARIANT": "preview"
       },
       "android": {
-        "gradleCommand": ":app:bundlePreviewRelease",
+        "gradleCommand": ":app:assemblePreviewRelease",
         "buildType": "apk"
       },
       "ios": {
