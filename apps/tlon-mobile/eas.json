@@ -10,8 +10,7 @@
         "APP_VARIANT": "preview"
       },
       "android": {
-        "gradleCommand": ":app:assemblePreviewRelease",
-        "buildType": "apk"
+        "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
         "scheme": "Landscape-preview"
