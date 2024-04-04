@@ -14,6 +14,7 @@ export const useAllUnreadsCounts = createUseQuery(queries.getAllUnreadsCounts);
 export const useGroups = createUseQuery(queries.getGroups);
 
 export const useGroup = createUseQuery(queries.getGroup);
+export const useGroupByChannel = createUseQuery(queries.getGroupByChannel);
 
 export const useGroupsForList = (): {
   pinnedGroups?: Group[];
@@ -44,6 +45,9 @@ export const useGroupsForList = (): {
 };
 
 export const useChannelPosts = createUseQuery(queries.getChannelPosts);
+export const useChannelPostsAround = createUseQuery(
+  queries.getChannelPostsAround
+);
 export const useChannelSearchResults = createUseQuery(
   queries.getChannelSearchResults
 );

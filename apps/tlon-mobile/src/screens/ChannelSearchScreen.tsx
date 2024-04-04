@@ -1,9 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 // import { useInfiniteChannelSearch } from '@tloncorp/shared/dist/api';
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 import {
-  Button,
   SearchBar,
   SizableText,
   Stack,
@@ -13,6 +12,7 @@ import {
 } from '@tloncorp/ui';
 import AuthorRow from '@tloncorp/ui/src/components/ChatMessage/AuthorRow';
 import ChatContent from '@tloncorp/ui/src/components/ChatMessage/ChatContent';
+import { Button } from '@tloncorp/ui/src/index';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ export default function ChannelSearch({
   navigation,
 }: ChannelSearchProps) {
   const { channel } = route.params;
+  const group = db.useGroupByChannel(channel.id);
   const [query, setQuery] = useState('');
   const { posts, loading, hasMore, loadMore, searchedThroughDate } =
     useChatSearch(channel.id, query);
@@ -42,17 +43,30 @@ export default function ChannelSearch({
     });
   }, [navigation]);
 
+  const navigateToPost = useCallback(
+    (post: db.PostWithRelations) => {
+      navigation.navigate('Channel', {
+        group: group.result!, // something is wrong here?
+        channel,
+        selectedPost: post,
+      });
+    },
+    [channel, group.result, navigation]
+  );
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1 }}>
       <YStack flex={1} paddingHorizontal="$l">
-        <XStack gap="$xl" justifyContent="center">
+        <XStack gap="$l">
           <SearchBar
             onChangeQuery={setQuery}
             placeholder={`Search ${channel.title}`}
           />
-          <Button size="$m" minimal onPress={() => navigation.pop()}>
-            <Button.Text>Cancel</Button.Text>
-          </Button>
+          <View alignItems="center" justifyContent="center">
+            <Button minimal onPress={() => navigation.pop()}>
+              <Button.Text>Cancel</Button.Text>
+            </Button>
+          </View>
         </XStack>
 
         <SearchResults
@@ -61,6 +75,7 @@ export default function ChannelSearch({
           loading={loading}
           hasMore={hasMore}
           loadMore={loadMore}
+          navigateToPost={navigateToPost}
           searchDetails={{
             query,
             searchComplete: !loading && !hasMore,
@@ -78,6 +93,7 @@ function SearchResults({
   loading,
   hasMore,
   loadMore,
+  navigateToPost,
   searchDetails,
 }: {
   posts: db.PostWithRelations[];
@@ -86,6 +102,7 @@ function SearchResults({
   hasMore: boolean;
   searchDetails: SearchDetails;
   loadMore: () => void;
+  navigateToPost: (post: db.PostWithRelations) => void;
 }) {
   const postsForDisplay = useMemo(() => {
     return posts?.map((post) => ({
@@ -161,6 +178,9 @@ function SearchResults({
                     borderRadius="$m"
                     padding="$m"
                     marginBottom="$m"
+                    onPress={() =>
+                      navigateToPost(post as unknown as db.PostWithRelations)
+                    }
                   >
                     <AuthorRow
                       author={post.author}

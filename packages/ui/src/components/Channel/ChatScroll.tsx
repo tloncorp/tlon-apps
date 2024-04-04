@@ -29,12 +29,14 @@ export default function ChatScroll({
   posts,
   unreadCount,
   firstUnread,
+  selectedPost,
 }: {
   posts: db.PostWithRelations[];
   unreadCount?: number;
   firstUnread?: string;
+  selectedPost?: string;
 }) {
-  console.log({ unreadCount, firstUnread });
+  console.log({ unreadCount, firstUnread, selectedPost });
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
   const lastPost = posts[posts.length - 1];
@@ -58,6 +60,19 @@ export default function ChatScroll({
       });
     }
   }, [firstUnread]);
+
+  useEffect(() => {
+    if (selectedPost && flatListRef.current) {
+      const scrollToIndex = posts.findIndex((post) => post.id === selectedPost);
+      console.log('scrolling to SELECTED POST', selectedPost, scrollToIndex);
+      if (scrollToIndex > -1) {
+        flatListRef.current.scrollToIndex({
+          index: scrollToIndex,
+          animated: true,
+        });
+      }
+    }
+  }, [selectedPost, posts]);
 
   return (
     <XStack position="relative" flex={1}>

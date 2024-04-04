@@ -4,6 +4,7 @@ import {
   SQLWrapper,
   Table,
   and,
+  asc,
   count,
   desc,
   eq,
@@ -261,6 +262,54 @@ export const getChannelPosts = createReadQuery(
   ['posts', 'channels']
 );
 
+export const getChannelPostsAround = createReadQuery(
+  'getChannelPosts',
+  async (channelId: string, postId: string) => {
+    if (!postId) return [];
+
+    // Get desired post
+    const referencePost = await client.query.posts.findFirst({
+      where: eq($posts.id, postId),
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+
+    if (!referencePost) {
+      throw new Error('Reference post not found');
+    }
+
+    const sentAt = referencePost.sentAt;
+
+    // Get before posts
+    const beforePosts = await client.query.posts.findMany({
+      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      orderBy: [desc($posts.sentAt)],
+      limit: 25,
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+
+    // Get after posts
+    const afterPosts = await client.query.posts.findMany({
+      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      orderBy: [asc($posts.sentAt)],
+      limit: 25,
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+
+    // Return all posts in order
+    return [...beforePosts.reverse(), referencePost, ...afterPosts];
+  },
+  ['posts', 'channels']
+);
+
 export const getChannelSearchResults = createReadQuery(
   'getChannelSearchResults',
   async (channelId: string, postIds: string[]) => {
@@ -331,6 +380,28 @@ export const getGroup = createReadQuery(
     });
   },
   ['groups']
+);
+
+// hustling, there's probably a more relational way to do this
+export const getGroupByChannel = createReadQuery(
+  'getGroupByChannel',
+  async (channelId: string) => {
+    const channel = await client.query.channels.findFirst({
+      where: (channels, { eq }) => eq(channels.id, channelId),
+    });
+
+    if (!channel || !channel.groupId) return null;
+
+    return client.query.groups.findFirst({
+      where: (groups, { eq }) => eq(groups.id, channel.groupId!),
+      with: {
+        channels: true,
+        roles: true,
+        members: true,
+      },
+    });
+  },
+  ['channels', 'groups']
 );
 
 export const getContacts = createReadQuery(

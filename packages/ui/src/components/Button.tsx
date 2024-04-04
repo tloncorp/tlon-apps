@@ -5,6 +5,7 @@ import {
   Stack,
   Text,
   Variable,
+  View,
   createStyledContext,
   styled,
   useTheme,
@@ -38,13 +39,13 @@ export const ButtonFrame = styled(Stack, {
       '...size': (name, { tokens }) => {
         return {
           // @ts-ignore
-          height: tokens.size[name],
+          // height: tokens.size[name],
           // borderRadius: tokens.radius[name],
           // note the getSpace and getSize helpers will let you shift down/up token sizes
           // whereas with gap we just multiply by 0.2
           // this is a stylistic choice, and depends on your design system values
           // @ts-ignore
-          gap: (tokens.space[name] as Variable).val * 0.2,
+          // gap: (tokens.space[name] as Variable).val * 0.2,
           paddingHorizontal: getSpace(name, {
             shift: -1,
           }),
@@ -55,15 +56,12 @@ export const ButtonFrame = styled(Stack, {
       true: {
         backgroundColor: 'transparent',
         borderColor: 'transparent',
-        paddingVertical: 0,
-        paddingHorizontal: 0,
+        pressStyle: {
+          backgroundColor: 'transparent',
+        },
       },
     } as const,
   },
-
-  // defaultVariants: {
-  //   size: '$m',
-  // },
 });
 
 export const ButtonText = styled(Text, {
@@ -81,7 +79,7 @@ export const ButtonText = styled(Text, {
     minimal: {
       true: {
         pressStyle: {
-          color: '$positiveActionText',
+          color: '$secondaryText',
         },
       },
     },

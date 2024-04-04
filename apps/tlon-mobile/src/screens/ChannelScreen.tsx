@@ -12,13 +12,18 @@ type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 export default function ChannelScreen(props: ChannelScreenProps) {
   const [open, setOpen] = React.useState(false);
   const [currentChannel, setCurrentChannel] = React.useState<db.Channel | null>(
-    null
+    props.route.params.channel ?? null
   );
   const { group } = props.route.params;
   const { result: groupWithChannels, isLoading, error } = db.useGroup(group.id);
   const { result: posts } = db.useChannelPosts(currentChannel?.id ?? '');
+  const { result: aroundPosts } = db.useChannelPostsAround(
+    currentChannel?.id ?? '',
+    props.route.params.selectedPost?.id ?? ''
+  );
   const { result: contacts } = db.useContacts();
   const { top } = useSafeAreaInsets();
+  const hasSelectedPost = !!props.route.params.selectedPost;
 
   useEffect(() => {
     if (groupWithChannels) {
@@ -33,12 +38,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [error]);
 
   useEffect(() => {
-    const syncChannel = async (id: string) => sync.syncChannel(id, Date.now());
+    const syncChannel = async (id: string) => {
+      if (props.route.params.selectedPost) {
+        sync.syncPostsAround(props.route.params.selectedPost);
+      } else {
+        sync.syncChannel(id, Date.now());
+      }
+    };
 
     if (currentChannel) {
       syncChannel(currentChannel.id);
     }
-  }, [currentChannel]);
+  }, [currentChannel, props.route.params.selectedPost]);
 
   if (isLoading || !groupWithChannels || !currentChannel) {
     return null;
@@ -57,7 +68,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }}
         group={groupWithChannels ?? []}
         contacts={contacts ?? []}
-        posts={posts}
+        posts={hasSelectedPost ? aroundPosts : posts}
+        selectedPost={props.route.params.selectedPost?.id}
         goBack={props.navigation.goBack}
         goToChannels={() => setOpen(true)}
         goToSearch={() =>
