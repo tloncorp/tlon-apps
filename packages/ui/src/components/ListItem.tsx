@@ -1,19 +1,20 @@
-import React, { ComponentProps, PropsWithChildren, ReactElement } from "react";
-import RemoteSvg from "./RemoteSvg";
-import { SizableText } from "../core";
+import React, { ComponentProps, PropsWithChildren, ReactElement } from 'react';
+import { Pressable } from 'react-native';
 import {
-  styled,
-  View,
-  withStaticProperties,
+  Image,
+  NativePlatform,
   Stack,
+  Text,
+  View,
   XStack,
   YStack,
-  Image,
-  Text,
-  NativePlatform,
-} from "tamagui";
-import { Icon } from "./Icon";
-import { Pressable } from "react-native";
+  styled,
+  withStaticProperties,
+} from 'tamagui';
+
+import { SizableText } from '../core';
+import { Icon } from './Icon';
+import RemoteSvg from './RemoteSvg';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -29,19 +30,19 @@ export type ListItemProps<T> = BaseListItemProps<T> &
   Omit<ComponentProps<typeof ListItemFrame>, keyof BaseListItemProps<T>>;
 
 export const ListItemFrame = styled(XStack, {
-  name: "ListItemFrame",
-  padding: "$l",
-  borderRadius: "$xl",
-  flexDirection: "row",
+  name: 'ListItemFrame',
+  padding: '$l',
+  borderRadius: '$xl',
+  flexDirection: 'row',
   flexShrink: 1,
-  gap: "$l",
-  justifyContent: "space-between",
-  alignItems: "stretch",
+  gap: '$l',
+  justifyContent: 'space-between',
+  alignItems: 'stretch',
   variants: {
     pressable: {
       true: {
         pressStyle: {
-          backgroundColor: "$secondaryBackground",
+          backgroundColor: '$secondaryBackground',
         },
       },
     },
@@ -64,10 +65,10 @@ function ListItemIcon({
    */
   fallbackText?: string;
 }>) {
-  const resolvedBackgroundColor = backgroundColor ?? "$secondaryBackground";
-  const size = "$4xl";
+  const resolvedBackgroundColor = backgroundColor ?? '$secondaryBackground';
+  const size = '$4xl';
   return imageUrl ? (
-    imageUrl.includes(".svg") ? (
+    imageUrl.includes('.svg') ? (
       <View
         width={size}
         height={size}
@@ -113,14 +114,14 @@ function ListItemIcon({
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
-  justifyContent: "center",
-  height: "$4xl",
-  paddingVertical: "$xs",
+  justifyContent: 'center',
+  height: '$4xl',
+  paddingVertical: '$xs',
 });
 
 const ListItemTitle = styled(SizableText, {
-  alignItems: "baseline",
-  color: "$red",
+  alignItems: 'baseline',
+  color: '$primaryText',
 
   // numberOfLines: 1,
   // TODO: is there an easy way to do something like this?
@@ -136,9 +137,9 @@ const ListItemTitle = styled(SizableText, {
 });
 
 const ListItemTitleRow = styled(XStack, {
-  gap: "$s",
-  alignItems: "center",
-  overflow: "hidden",
+  gap: '$s',
+  alignItems: 'center',
+  overflow: 'hidden',
 });
 
 function ListItemTitleAttribute({ children }: PropsWithChildren) {
@@ -161,15 +162,15 @@ function ListItemTitleAttribute({ children }: PropsWithChildren) {
 
 const ListItemSubtitle = styled(SizableText, {
   numberOfLines: 1,
-  size: "$s",
+  size: '$s',
   // lineHeight: 0,
-  color: "$secondaryText",
+  color: '$secondaryText',
 });
 
 const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
-  color: "$secondaryText",
-  size: "$s",
+  color: '$secondaryText',
+  size: '$s',
 });
 
 const ListItemCount = ({ children }: PropsWithChildren) => {
@@ -216,12 +217,12 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  paddingTop: "$s",
-  height: "$4xl",
-  paddingVertical: "$xs",
-  gap: "$s",
-  justifyContent: "space-between",
-  alignItems: "flex-end",
+  paddingTop: '$s',
+  height: '$4xl',
+  paddingVertical: '$xs',
+  gap: '$s',
+  justifyContent: 'space-between',
+  alignItems: 'flex-end',
 });
 
 export type ListItem = typeof ListItemComponent;

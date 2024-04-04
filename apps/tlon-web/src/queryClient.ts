@@ -7,6 +7,10 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
+    mutations: {
+      // because of urbit's single threaded nature, we don't want to retry mutations since it might just be busy
+      retry: false,
+    },
   },
 });
 

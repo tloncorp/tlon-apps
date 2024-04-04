@@ -60,7 +60,7 @@ export default function DiaryNote({ title }: ViewProps) {
   }, [location.search]);
   const isPending = useIsPostPending({
     author: window.our,
-    sent: note?.essay?.sent,
+    sent: note?.essay?.sent || 0,
   });
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
@@ -129,7 +129,7 @@ export default function DiaryNote({ title }: ViewProps) {
     channelType: 'diary',
   });
 
-  if (!note.essay || status === 'loading') {
+  if (!note || !note.essay) {
     return (
       <Layout
         style={{

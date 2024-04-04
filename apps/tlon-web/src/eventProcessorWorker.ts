@@ -1,11 +1,14 @@
 /// <reference lib="webworker" />
 
 /* eslint-disable no-restricted-globals */
-import { ChannelsSubscribeResponse } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  ChannelsResponse,
+  ChannelsSubscribeResponse,
+} from '@tloncorp/shared/dist/urbit/channel';
 import { decToUd, udToDec } from '@urbit/api';
 
 interface EventData {
-  type: 'post' | 'reply' | 'hiddenPosts';
+  type: 'post' | 'reply' | 'hiddenPosts' | 'pending';
   data: (string | ChannelsSubscribeResponse)[];
   nest?: string;
 }
@@ -62,23 +65,40 @@ function processEvents(events: ChannelsSubscribeResponse[]): Update {
         },
       };
     }
-    if ('response' in event && 'post' in (event as any).response) {
-      const { post } = (event as any).response;
-      const isReply = 'reply' in post['r-post'];
-      const nestKey = isReply
-        ? postKey((event as any).nest, decToUd(post.id)).join()
-        : infinitePostsKey((event as any).nest).join();
-      return {
-        ...accumulator,
-        [nestKey]: {
-          type: isReply ? 'reply' : 'post',
-          data: [
-            ...(accumulator[nestKey] ? accumulator[nestKey].data : []),
-            event,
-          ],
-          nest: (event as any).nest,
-        },
-      };
+    const channelEvent = event as ChannelsResponse;
+    if ('response' in channelEvent) {
+      if ('pending' in channelEvent.response) {
+        const nestKey = infinitePostsKey(channelEvent.nest).join();
+        return {
+          ...accumulator,
+          [nestKey]: {
+            type: 'pending',
+            data: [
+              ...(accumulator[nestKey] ? accumulator[nestKey].data : []),
+              event,
+            ],
+            nest: channelEvent.nest,
+          },
+        };
+      }
+      if ('post' in channelEvent.response) {
+        const { post } = channelEvent.response;
+        const isReply = 'reply' in post['r-post'];
+        const nestKey = isReply
+          ? postKey(channelEvent.nest, decToUd(post.id)).join()
+          : infinitePostsKey(channelEvent.nest).join();
+        return {
+          ...accumulator,
+          [nestKey]: {
+            type: isReply ? 'reply' : 'post',
+            data: [
+              ...(accumulator[nestKey] ? accumulator[nestKey].data : []),
+              event,
+            ],
+            nest: channelEvent.nest,
+          },
+        };
+      }
     }
     return accumulator;
   }, {});

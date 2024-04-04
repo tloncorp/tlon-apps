@@ -1,11 +1,12 @@
+import type * as db from '@tloncorp/shared/dist/db';
+
+import { Stack, Text, View } from '../core';
 import { Sheet } from './Sheet';
-import { Stack, View, Text, SizableText } from '../core';
-import { ClientTypes } from '@tloncorp/shared';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group?: ClientTypes.Group;
+  group?: db.Group;
 }
 
 export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {

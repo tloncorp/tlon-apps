@@ -1,60 +1,63 @@
-import type { ClientTypes } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/dist/db';
+
+import { ScrollView, Text, YGroup } from '../core';
 import { GroupListItem } from './GroupListItem';
-import { YGroup, Text } from 'tamagui';
 
 export function GroupList({
   pinned,
   other,
   onGroupLongPress,
-  onGroupPress
+  onGroupPress,
 }: {
-  pinned: ClientTypes.Group[];
-  other: ClientTypes.Group[];
-  onGroupPress?: (group: ClientTypes.Group) => void;
-  onGroupLongPress?: (group: ClientTypes.Group) => void;
+  pinned: db.Group[];
+  other: db.Group[];
+  onGroupPress?: (group: db.Group) => void;
+  onGroupLongPress?: (group: db.Group) => void;
 }) {
   return (
-    <YGroup alignSelf="stretch" gap="$s" padding="$l">
-      <YGroup.Item>
-        {pinned.length > 0 && (
-          <Text
-            paddingHorizontal="$l"
-            paddingVertical="$xl"
-            fontSize="$s"
-            color="$secondaryText"
-          >
-            Pinned
-          </Text>
-        )}
-        {pinned.map(item => (
-          <GroupListItem
-            model={item}
-            onPress={() => onGroupPress?.(item)}
-            onLongPress={() => onGroupLongPress?.(item)}
-            key={item.id}
-          />
-        ))}
-      </YGroup.Item>
-      <YGroup.Item>
-        {other.length > 0 && (
-          <Text
-            paddingHorizontal="$l"
-            paddingVertical="$xl"
-            fontSize="$s"
-            color="$secondaryText"
-          >
-            Other
-          </Text>
-        )}
-        {other.map(item => (
-          <GroupListItem
-            model={item}
-            onPress={() => onGroupPress?.(item)}
-            onLongPress={() => onGroupLongPress?.(item)}
-            key={item.id}
-          />
-        ))}
-      </YGroup.Item>
-    </YGroup>
+    <ScrollView>
+      <YGroup alignSelf="stretch" gap="$s" padding="$l">
+        <YGroup.Item>
+          {pinned.length > 0 && (
+            <Text
+              paddingHorizontal="$l"
+              paddingVertical="$xl"
+              fontSize="$s"
+              color="$secondaryText"
+            >
+              Pinned
+            </Text>
+          )}
+          {pinned.map((item) => (
+            <GroupListItem
+              model={item}
+              onPress={() => onGroupPress?.(item)}
+              onLongPress={() => onGroupLongPress?.(item)}
+              key={item.id}
+            />
+          ))}
+        </YGroup.Item>
+        <YGroup.Item>
+          {other.length > 0 && pinned.length > 0 && (
+            <Text
+              paddingHorizontal="$l"
+              paddingVertical="$xl"
+              fontSize="$s"
+              color="$secondaryText"
+            >
+              Other
+            </Text>
+          )}
+          {other.map((item) => (
+            <GroupListItem
+              model={item}
+              onPress={() => onGroupPress?.(item)}
+              onLongPress={() => onGroupLongPress?.(item)}
+              key={item.id}
+            />
+          ))}
+        </YGroup.Item>
+      </YGroup>
+    </ScrollView>
   );
 }

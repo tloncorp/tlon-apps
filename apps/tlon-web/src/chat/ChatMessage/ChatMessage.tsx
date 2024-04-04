@@ -218,14 +218,12 @@ const ChatMessage = React.memo<
         ),
       });
 
-      const msgStatus = useTrackedMessageStatus({
+      const cacheId = {
         author: window.our,
         sent: essay.sent,
-      });
-      const trackedPostStatus = useTrackedPostStatus({
-        author: window.our,
-        sent: essay.sent,
-      });
+      };
+      const msgStatus = useTrackedMessageStatus(cacheId);
+      const trackedPostStatus = useTrackedPostStatus(cacheId);
 
       const isDelivered =
         msgStatus === 'delivered' && trackedPostStatus === 'delivered';

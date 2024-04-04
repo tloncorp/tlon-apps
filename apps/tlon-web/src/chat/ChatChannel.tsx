@@ -24,6 +24,7 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
   useAddPostMutation,
   useLeaveMutation,
+  useMyLastMessage,
   useReplyPost,
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -46,6 +47,7 @@ const ChatChannel = React.memo(({ title }: ViewProps) => {
   const groupFlag = useRouteGroup();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
+  const myLastMessage = useMyLastMessage(nest);
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const inThread = !!idTime;
@@ -162,6 +164,7 @@ const ChatChannel = React.memo(({ title }: ViewProps) => {
                 dropZoneId={dropZoneId}
                 replyingWrit={replyingWrit || undefined}
                 isScrolling={isScrolling}
+                myLastMessage={myLastMessage}
               />
             ) : !canWrite && compatible ? null : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">

@@ -1,4 +1,4 @@
-export type { GroupMeta } from "./types/groups";
+export type { GroupMeta } from './types/groups';
 export type {
   NativeWebViewOptions,
   NativeCommand,
@@ -7,7 +7,7 @@ export type {
   ActiveTabChange,
   WebAppAction,
   WebAppCommand,
-} from "./types/native";
-export { parseActiveTab, trimFullPath } from "./logic/navigation";
-export type { ClientTypes } from "./client";
-export * as sync from "./sync";
+} from './types/native';
+export { parseActiveTab, trimFullPath } from './logic/navigation';
+export * as sync from './sync';
+export * as utils from './logic/utils';

@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { ClientTypes as Client } from '@tloncorp/shared';
+import type * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
 import {
@@ -15,11 +15,10 @@ import type { ViewStyle } from 'react-native';
 import { useShip } from '../contexts/ship';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
-import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function fallbackContact(id: string): Client.Contact {
+function fallbackContact(id: string): client.Contact {
   return {
     id,
     nickname: null,
@@ -33,8 +32,8 @@ function fallbackContact(id: string): Client.Contact {
 }
 
 export const TabStack = () => {
-  const { ship } = useShip();
-  const unreadCount = db.useAllUnreadsCounts();
+  const { contactId } = useShip();
+  const { result: unreadCount } = db.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
   }) as ViewStyle;
@@ -67,7 +66,7 @@ export const TabStack = () => {
         name="Groups"
         component={HomeStack}
         options={{
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               type={'Home'}
@@ -81,7 +80,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Messages"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -96,7 +95,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Activity"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -110,10 +109,10 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Profile"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
-            <AvatarTabIcon id={ship!} focused={focused} />
+            <AvatarTabIcon id={contactId!} focused={focused} />
           ),
           tabBarShowLabel: false,
         }}
@@ -123,9 +122,10 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const contact = db.useContact(id);
+  const { result: contact } = db.useContact(id);
   return (
     <Avatar
+      contactId={id}
       contact={contact ?? fallbackContact(id)}
       opacity={focused ? 1 : 0.6}
     />

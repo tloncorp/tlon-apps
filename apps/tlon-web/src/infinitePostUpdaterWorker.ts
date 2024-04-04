@@ -4,8 +4,12 @@
 
 /* eslint-disable no-case-declarations */
 import {
+  CacheId,
+  ChannelPendingResponse,
+  Channels,
   ChannelsResponse,
   PagedPosts,
+  PendingMessages,
   PostDataResponse,
   Reply,
 } from '@tloncorp/shared/dist/urbit/channel';
@@ -23,17 +27,45 @@ interface PostsInCachePrev {
   pageParams: PageParam[];
 }
 
+function cacheIdToString(id: CacheId) {
+  return `${id.author}/${id.sent}`;
+}
+
 self.addEventListener('message', (event) => {
   console.log(
     'infinitePostUpdaterWorker.ts: message event received.',
     event.data
   );
   try {
-    const { prev, data, queryKey, type } = event.data;
+    const {
+      prev,
+      data,
+      queryKey,
+      type,
+      optimistic = false,
+    }: {
+      prev: PostsInCachePrev | PostDataResponse | Channels | undefined;
+      data: ChannelsResponse | ChannelsResponse[];
+      queryKey: unknown[];
+      type: 'pending' | 'reply' | 'post';
+      optimistic?: boolean;
+    } = event.data;
 
     switch (type) {
+      case 'pending':
+        const prevPending = prev as Channels | undefined;
+        const pendingData = data as ChannelsResponse[];
+        const pendingUpdates = pendingUpdater(prevPending, pendingData);
+        self.postMessage({
+          queryKey,
+          updates: pendingUpdates,
+          optimistic,
+        });
+        break;
       case 'reply':
-        const replyUpdates = replyUpdater(prev, data);
+        const postDataResponse = prev as PostDataResponse | undefined;
+        const replyData = data as ChannelsResponse;
+        const replyUpdates = replyUpdater(postDataResponse, replyData);
         const lastReply = Object.values(replyUpdates?.seal.replies ?? {}).pop();
         const replyStatusData = {
           author: lastReply?.memo.author,
@@ -44,6 +76,7 @@ self.addEventListener('message', (event) => {
           queryKey,
           updates: replyUpdates,
           statusData: replyStatusData,
+          optimistic,
         });
         console.log('infinitePostUpdaterWorker.ts: replyUpdates:', {
           replyUpdates,
@@ -51,7 +84,9 @@ self.addEventListener('message', (event) => {
         });
         break;
       case 'post':
-        const infiniteUpdates = infinitePostUpdater(prev, data);
+        const prevPostsInCache = prev as PostsInCachePrev | undefined;
+        const postData = data as ChannelsResponse;
+        const infiniteUpdates = infinitePostUpdater(prevPostsInCache, postData);
         const lastPost = Object.values(
           infiniteUpdates?.pages[0].posts ?? {}
         ).pop();
@@ -64,6 +99,7 @@ self.addEventListener('message', (event) => {
           queryKey,
           updates: infiniteUpdates,
           statusData: postStatusData,
+          optimistic,
         });
         console.log(
           'infinitePostUpdaterWorker.ts: infiniteUpdates:',
@@ -384,4 +420,67 @@ function infinitePostUpdater(
   }
 
   return prev;
+}
+
+function pendingUpdater(
+  prev: Channels | undefined,
+  data: ChannelsResponse[]
+): Channels | undefined {
+  const newPosts: PendingMessages['posts'] = {};
+  const newReplies: PendingMessages['replies'] = {};
+  const channels = prev ?? {};
+
+  // const { trackedPosts } = usePostsStore.getState();
+  data.forEach((channelsResponse) => {
+    if (!('pending' in channelsResponse.response)) {
+      return;
+    }
+    const response = channelsResponse.response as ChannelPendingResponse;
+    const { nest } = channelsResponse;
+    const cacheId = response.pending.id;
+    // const isPending = trackedPosts.some(
+    // (p) =>
+    // p.status === 'pending' &&
+    // p.cacheId.author === cacheId.author &&
+    // p.cacheId.sent === cacheId.sent
+    // );
+
+    // if (isPending) {
+    // usePostsStore.getState().updateStatus(cacheId, 'sent');
+    // }
+
+    if ('post' in response.pending.pending) {
+      newPosts[cacheIdToString(cacheId)] = response.pending.pending.post;
+    }
+
+    if ('reply' in response.pending.pending) {
+      const { top } = response.pending.pending.reply;
+      const replies = newReplies[top] || {};
+      newReplies[top] = {
+        ...replies,
+        [cacheIdToString(cacheId)]: response.pending.pending.reply.memo,
+      };
+    }
+
+    const channel = prev?.[nest];
+    if (!channel) {
+      return;
+    }
+
+    const { pending, ...rest } = channel;
+    const newChannel = {
+      ...rest,
+      pending: {
+        posts: {
+          ...pending.posts,
+          ...newPosts,
+        },
+        replies: _.merge(pending.replies, newReplies),
+      },
+    };
+
+    channels[nest] = newChannel;
+  });
+
+  return channels;
 }

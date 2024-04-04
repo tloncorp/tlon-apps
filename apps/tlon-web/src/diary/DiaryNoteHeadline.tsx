@@ -121,7 +121,14 @@ export default function DiaryNoteHeadline({
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            {isInList || isInGrid || isUndelivered ? (
+            {isUndelivered ? (
+              <span
+                role="link"
+                onClick={() => navigate(`note/${time.toString()}`)}
+              >
+                Saved, waiting on host.
+              </span>
+            ) : isInList || isInGrid ? (
               <>
                 <span
                   role="link"

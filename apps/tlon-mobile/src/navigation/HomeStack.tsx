@@ -1,31 +1,20 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { ClientTypes as Client } from '@tloncorp/shared';
-import { GroupList, GroupOptionsSheet, Icon, View } from '@tloncorp/ui';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Icon } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 
 import { useWebviewPositionContext } from '../contexts/webview/position';
-import type { TabParamList } from '../types';
+import { useScreenOptions } from '../hooks/useScreenOptions';
+import ChannelScreen from '../screens/ChannelScreen';
+import GroupsListScreen from '../screens/GroupsListScreen';
+import type { HomeStackParamList, TabParamList } from '../types';
 
 type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
+const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 export const HomeStack = ({ navigation }: Props) => {
   const { setVisibility } = useWebviewPositionContext();
-  const [longPressedGroup, setLongPressedGroup] =
-    React.useState<Client.Group | null>(null);
-
-  // TODO: fetch groups from the API
-  const pinnedGroups: Client.Group[] = [];
-  const otherGroups: Client.Group[] = [
-    {
-      id: 'test',
-      description: 'This is a test group',
-      members: [],
-      title: 'Test Group',
-      isSecret: false,
-      iconImage:
-        'https://storage.googleapis.com/assets.tlon.io/tlon-co-group-icon.svg',
-    },
-  ];
+  const screenOptions = useScreenOptions();
 
   useEffect(() => {
     navigation.setOptions({
@@ -50,17 +39,12 @@ export const HomeStack = ({ navigation }: Props) => {
   }, [navigation, setVisibility]);
 
   return (
-    <View backgroundColor="$background" flex={1}>
-      <GroupList
-        pinned={Array.from(pinnedGroups)}
-        other={Array.from(otherGroups)}
-        onGroupLongPress={setLongPressedGroup}
-      />
-      <GroupOptionsSheet
-        open={longPressedGroup !== null}
-        onOpenChange={(open) => (!open ? setLongPressedGroup(null) : 'noop')}
-        group={longPressedGroup ?? undefined}
-      />
-    </View>
+    <Stack.Navigator
+      initialRouteName="GroupsList"
+      screenOptions={screenOptions}
+    >
+      <Stack.Screen name="GroupsList" component={GroupsListScreen} />
+      <Stack.Screen name="Channel" component={ChannelScreen} />
+    </Stack.Navigator>
   );
 };
