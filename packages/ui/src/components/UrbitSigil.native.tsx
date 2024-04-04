@@ -1,11 +1,10 @@
-// Note: the import statement for sigil is different in the native version
-// The native version uses the core entry point of sigil-js
-// The web version uses the default entry point of sigil-js
+// Note: we must import sigil from @urbit/sigil-js/dist/core
+// because core was built as a separate entry point for non-browser environments
 import { utils } from '@tloncorp/shared';
-import sigil from '@urbit/sigil-js';
+import sigil from '@urbit/sigil-js/dist/core';
 import { useMemo } from 'react';
 import { useColorScheme } from 'react-native';
-// import { SvgXml } from 'react-native-svg';
+import { SvgXml } from 'react-native-svg';
 import { View } from 'tamagui';
 
 import {
@@ -14,7 +13,7 @@ import {
   themeAdjustColor,
 } from './UrbitSigilBase';
 
-const UrbitSigilWeb = View.styleable<{
+const UrbitSigil = View.styleable<{
   ship: string;
   color?: string;
 }>(({ ship, color, ...props }, ref) => {
@@ -54,12 +53,9 @@ const UrbitSigilWeb = View.styleable<{
   );
   return (
     <UrbitSigilBase ship={ship} adjustedColor={adjustedColor}>
-      {/* TODO: get the svg to render on web
-       including this now breaks the vite build
-      sigilXml && <SvgXml xml={sigilXml} />
-      */}
+      {sigilXml && <SvgXml xml={sigilXml} />}
     </UrbitSigilBase>
   );
 });
 
-export default UrbitSigilWeb;
+export default UrbitSigil;

@@ -1,1 +1,1 @@
-export { Text, SizableText } from 'tamagui';
+export { Text, SizableText } from '../core/tamagui';
