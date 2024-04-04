@@ -14,6 +14,7 @@ export {
   YGroup,
   SizableText,
   TextArea,
+  Text,
 } from 'tamagui';
 
 export type { ViewProps, SizeTokens, FontSizeTokens } from 'tamagui';
