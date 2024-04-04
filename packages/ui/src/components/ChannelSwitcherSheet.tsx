@@ -1,14 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { YGroup } from 'tamagui';
 
 import { SizableText, View } from '../core';
-import { ChannelListItem } from './ChannelListItem';
+import ChannelNavSections from './ChannelNavSections';
 import { Sheet } from './Sheet';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group: db.Group;
+  group: db.GroupWithRelations;
   channels: db.Channel[];
   onSelect: (channel: db.Channel) => void;
 }
@@ -52,25 +51,11 @@ export function ChannelSwitcherSheet({
           >
             {group?.title}
           </SizableText>
-          <YGroup alignSelf="stretch" gap="$s">
-            <YGroup.Item>
-              <SizableText
-                paddingHorizontal="$l"
-                paddingVertical="$xl"
-                fontSize="$s"
-                color="$secondaryText"
-              >
-                All Channels
-              </SizableText>
-              {channels.map((item) => (
-                <ChannelListItem
-                  key={item.id}
-                  model={item}
-                  onPress={onSelect}
-                />
-              ))}
-            </YGroup.Item>
-          </YGroup>
+          <ChannelNavSections
+            group={group}
+            channels={channels}
+            onSelect={onSelect}
+          />
         </View>
       </Sheet.Frame>
     </Sheet>

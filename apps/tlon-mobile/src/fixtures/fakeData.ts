@@ -196,10 +196,77 @@ const tlonLocalChannels: db.Channel[] = [
   tlonLocalCommunityCatalog,
 ];
 
+const tlonLocalNavSections: db.GroupnavSectionWithRelations[] = [
+  {
+    index: 0,
+    id: 'welcome-zone-id',
+    groupId: '~nibset-napwyn/tlon',
+    title: 'Welcome',
+    coverImage: null,
+    iconImage: null,
+    description: 'Welcome to Tlon Local',
+    channels: [
+      {
+        channelId: tlonLocalIntros.id,
+        index: 1,
+        groupNavSectionId: 'welcome-zone-id',
+      },
+      {
+        channelId: tlonLocalGettingStarted.id,
+        index: 0,
+        groupNavSectionId: 'welcome-zone-id',
+      },
+    ],
+  },
+  {
+    index: 1,
+    id: 'discuss-zone-id',
+    groupId: '~nibset-napwyn/tlon',
+    title: 'Discuss',
+    coverImage: null,
+    iconImage: null,
+    description: 'Discuss things',
+    channels: [
+      {
+        channelId: tlonLocalWaterCooler.id,
+        index: 0,
+        groupNavSectionId: 'discuss-zone-id',
+      },
+      {
+        channelId: tlonLocalSupport.id,
+        index: 1,
+        groupNavSectionId: 'discuss-zone-id',
+      },
+    ],
+  },
+  {
+    index: 2,
+    id: 'catalog-zone-id',
+    groupId: '~nibset-napwyn/tlon',
+    title: 'Catalog',
+    coverImage: null,
+    iconImage: null,
+    description: 'Find cool stuff',
+    channels: [
+      {
+        channelId: tlonLocalBulletinBoard.id,
+        index: 0,
+        groupNavSectionId: 'catalog-zone-id',
+      },
+      {
+        channelId: tlonLocalCommunityCatalog.id,
+        index: 1,
+        groupNavSectionId: 'catalog-zone-id',
+      },
+    ],
+  },
+];
+
 export const group: db.GroupWithRelations = {
   id: '~nibset-napwyn/tlon',
   title: 'Tlon Local',
   channels: tlonLocalChannels,
+  navSections: tlonLocalNavSections,
   roles,
   pinIndex: 0,
   coverImage: null,

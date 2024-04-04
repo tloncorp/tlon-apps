@@ -48,6 +48,7 @@ export type GroupWithRelations = Group & {
   members: GroupMember[];
   roles: GroupRole[];
   channels: Channel[];
+  navSections: GroupnavSectionWithRelations[];
 };
 export type GroupWithMembersAndRoles = Group & { members: GroupMember[], roles: GroupRole[] };
 export type GroupInsert = Insertable<'groups'>;
@@ -59,6 +60,9 @@ export type GroupMemberRole = typeof schema.groupMemberRoles.$inferSelect;
 export type GroupMemberRoleInsert = typeof schema.groupMemberRoles.$inferInsert;
 export type GroupNavSection = typeof schema.groupNavSections.$inferSelect;
 export type GroupNavSectionInsert = typeof schema.groupNavSections.$inferInsert;
+export type GroupnavSectionWithRelations = GroupNavSection & {
+  channels: GroupNavSectionChannel[];
+};
 export type GroupNavSectionChannel =
   typeof schema.groupNavSectionChannels.$inferSelect;
 export type GroupNavSectionChannelInsert =

@@ -217,10 +217,10 @@ export const groupNavSectionRelations = relations(
 export const groupNavSectionChannels = sqliteTable(
   'group_nav_section_channels',
   {
-    groupNavSectionId: integer('group_nav_section_id').references(
+    groupNavSectionId: text('group_nav_section_id').references(
       () => groupNavSections.id
     ),
-    channelId: integer('channel_id').references(() => channels.id),
+    channelId: text('channel_id').references(() => channels.id),
     index: integer('index'),
   },
   (table) => ({

@@ -311,6 +311,11 @@ export const getGroup = createReadQuery(
         channels: true,
         roles: true,
         members: true,
+        navSections: {
+          with: {
+            channels: true,
+          },
+        },
       },
     });
   },
