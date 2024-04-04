@@ -57,13 +57,15 @@ export function useRecentSort() {
         whomIsDm(aNest) || whomIsMultiDm(aNest)
           ? processedUnreads.dmUnreads
           : processedUnreads.channelUnreads;
-      const aLast = aUnreads[aNest];
+      // if the nest is not in the unreads, default to negative infinity
+      const aLast = aUnreads[aNest] ?? Number.NEGATIVE_INFINITY;
 
       const bUnreads =
         whomIsDm(bNest) || whomIsMultiDm(bNest)
           ? processedUnreads.dmUnreads
           : processedUnreads.channelUnreads;
-      const bLast = bUnreads[bNest];
+      // if the nest is not in the unreads, default to negative infinity
+      const bLast = bUnreads[bNest] ?? Number.NEGATIVE_INFINITY;
 
       return Math.sign(aLast - bLast);
     },
