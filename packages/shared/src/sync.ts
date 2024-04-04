@@ -2,7 +2,7 @@ import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
 
-const logger = createDevLogger('sync', true);
+const logger = createDevLogger('sync', false);
 
 export const syncContacts = async () => {
   const contacts = await api.getContacts();
@@ -76,7 +76,7 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       date: new Date(Date.now() + 60000),
       includeReplies: false,
     });
-    persistPagedPostData(channel.id, postsResponse);
+    await persistPagedPostData(channel.id, postsResponse);
     logger.log(
       'loaded',
       postsResponse.posts.length,
@@ -92,7 +92,6 @@ async function persistPagedPostData(
   data: api.PagedPostsData
 ) {
   await db.updateChannel({ id: channelId, postCount: data.totalPosts });
-
   await db.insertChannelPosts(channelId, data.posts);
 }
 
