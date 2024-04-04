@@ -1,18 +1,7 @@
-import React, { ComponentProps, PropsWithChildren, ReactElement } from 'react';
-import { Pressable } from 'react-native';
-import {
-  Image,
-  NativePlatform,
-  Stack,
-  Text,
-  View,
-  XStack,
-  YStack,
-  styled,
-  withStaticProperties,
-} from 'tamagui';
+import { ComponentProps, PropsWithChildren, ReactElement } from 'react';
+import { styled, withStaticProperties } from 'tamagui';
 
-import { SizableText } from '../core';
+import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
 import { Icon } from './Icon';
 import RemoteSvg from './RemoteSvg';
 
