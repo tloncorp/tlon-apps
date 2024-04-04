@@ -1,3 +1,4 @@
+import { getSpace } from '@tamagui/get-token';
 import {
   FontSizeTokens,
   SizeTokens,
@@ -16,14 +17,21 @@ export const InputContext = createStyledContext<{ size: SizeTokens }>({
 
 const InputContainerFrame = styled(XStack, {
   context: InputContext,
-  flex: 1,
   justifyContent: 'space-between',
 
   variants: {
     size: {
       '...size': (val, { tokens }) => ({
-        gap: tokens.space[val].val * 0.3,
+        padding: getSpace(val, {
+          shift: -3,
+        }),
       }),
+    },
+    search: {
+      true: {
+        backgroundColor: '$color.gray100',
+        borderRadius: '$m',
+      },
     },
   } as const,
 
@@ -36,16 +44,15 @@ const InputFrame = styled(CInput, {
   unstyled: true,
   context: InputContext,
   fontFamily: '$body',
-  fontSize: '$true',
   color: '$primaryText',
 });
 
 const InputImpl = InputFrame.styleable((props, ref) => {
   const { size } = InputContext.useStyledContext();
   return (
-    <XStack flex={1}>
-      <InputFrame ref={ref} size={size} {...props} />
-    </XStack>
+    <View flex={1}>
+      <InputFrame flex={1} height="100%" ref={ref} size={size} {...props} />
+    </View>
   );
 });
 
@@ -58,7 +65,7 @@ const InputIconFrame = styled(View, {
     size: {
       '...size': (val, { tokens }) => {
         return {
-          paddingHorizontal: tokens.space[val],
+          paddingHorizontal: getSpace(val, { shift: -2 }),
         };
       },
     },

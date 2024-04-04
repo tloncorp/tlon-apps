@@ -9,6 +9,7 @@ import {
   eq,
   getTableColumns,
   gt,
+  inArray,
   isNull,
   lt,
   not,
@@ -258,6 +259,20 @@ export const getChannelPosts = createReadQuery(
     });
   },
   ['posts', 'channels']
+);
+
+export const getChannelSearchResults = createReadQuery(
+  'getChannelSearchResults',
+  async (channelId: string, postIds: string[]) => {
+    return client.query.posts.findMany({
+      where: and(eq($posts.channelId, channelId), inArray($posts.id, postIds)),
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+  },
+  [] // probably don't need to watch for search?
 );
 
 export const insertChannelPosts = createWriteQuery(

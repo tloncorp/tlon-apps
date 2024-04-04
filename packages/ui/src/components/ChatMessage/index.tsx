@@ -42,8 +42,8 @@ const ChatMessage = memo(
     // );
 
     // const prettyDay = useMemo(() => {
-      // const date = new Date(post.sentAt ?? '');
-      // return utils.makePrettyDay(date);
+    // const date = new Date(post.sentAt ?? '');
+    // return utils.makePrettyDay(date);
     // }, [post.sentAt]);
 
     return (

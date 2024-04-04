@@ -13,7 +13,6 @@ import {
 import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';
-import { ChannelSearch } from '../screens/ChannelSearch';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 
@@ -65,7 +64,7 @@ export const TabStack = () => {
     >
       <Tab.Screen
         name="Groups"
-        component={ChannelSearch}
+        component={HomeStack}
         options={{
           headerShown: false,
           tabBarIcon: ({ focused }) => (

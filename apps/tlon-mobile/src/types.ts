@@ -23,6 +23,9 @@ export type HomeStackParamList = {
   Channel: {
     group: db.Group;
   };
+  ChannelSearch: {
+    channel: db.Channel;
+  };
 };
 
 export type TabParamList = {

@@ -6,6 +6,7 @@ import React, { useEffect } from 'react';
 import { useWebviewPositionContext } from '../contexts/webview/position';
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import ChannelScreen from '../screens/ChannelScreen';
+import ChannelSearch from '../screens/ChannelSearchScreen';
 import GroupsListScreen from '../screens/GroupsListScreen';
 import type { HomeStackParamList, TabParamList } from '../types';
 
@@ -45,6 +46,7 @@ export const HomeStack = ({ navigation }: Props) => {
     >
       <Stack.Screen name="GroupsList" component={GroupsListScreen} />
       <Stack.Screen name="Channel" component={ChannelScreen} />
+      <Stack.Screen name="ChannelSearch" component={ChannelSearch} />
     </Stack.Navigator>
   );
 };

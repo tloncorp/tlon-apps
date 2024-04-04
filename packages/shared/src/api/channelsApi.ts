@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import * as db from '../db';
 import { stringToTa } from '../logic/utils';
+import { persistScanPosts } from '../sync';
 import type * as ub from '../urbit';
 import { toPostData } from './postsApi';
 import { scry } from './urbit';
@@ -31,7 +32,17 @@ const searchChatChannel = async (params: {
     }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
   });
 
-  return response;
+  const posts = response.scan
+    .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
+    .map((scanItem) => (scanItem as { post: ub.Post }).post)
+    .map((post) => toPostData(post.seal.id, params.channelId, post));
+  const cursor = response.last;
+
+  await persistScanPosts(params.channelId, posts);
+
+  return { posts, cursor };
+
+  // return response;
 };
 
 export function useInfiniteChannelSearch(channelId: string, query: string) {
@@ -44,13 +55,15 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
         query,
         cursor: pageParam,
       });
-      const posts = response.scan
-        .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
-        .map((scanItem) => (scanItem as { post: ub.Post }).post)
-        .map((post) => toPostData(post.seal.id, channelId, post));
-      const cursor = response.last;
 
-      return { posts, cursor };
+      return response;
+      // const posts = response.scan
+      //   .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
+      //   .map((scanItem) => (scanItem as { post: ub.Post }).post)
+      //   .map((post) => toPostData(post.seal.id, channelId, post));
+      // const cursor = response.last;
+
+      // return { posts, cursor };
     },
     initialPageParam: '',
     getNextPageParam: (lastPage) => {

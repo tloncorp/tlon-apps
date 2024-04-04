@@ -90,6 +90,14 @@ async function persistPagedPostData(
   await db.insertChannelPosts(channelId, data.posts);
 }
 
+export async function persistScanPosts(
+  channelId: string,
+  data: db.PostInsert[]
+) {
+  await db.updateChannel({ id: channelId, postCount: data.length });
+  await db.insertChannelPosts(channelId, data);
+}
+
 export const syncAll = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
     ['contacts', syncContacts],

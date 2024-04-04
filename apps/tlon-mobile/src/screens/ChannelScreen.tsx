@@ -60,7 +60,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         posts={posts}
         goBack={props.navigation.goBack}
         goToChannels={() => setOpen(true)}
-        goToSearch={() => {}}
+        goToSearch={() =>
+          props.navigation.push('ChannelSearch', { channel: currentChannel })
+        }
       />
       <ChannelSwitcherSheet
         open={open}

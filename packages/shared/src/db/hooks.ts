@@ -44,3 +44,6 @@ export const useGroupsForList = (): {
 };
 
 export const useChannelPosts = createUseQuery(queries.getChannelPosts);
+export const useChannelSearchResults = createUseQuery(
+  queries.getChannelSearchResults
+);

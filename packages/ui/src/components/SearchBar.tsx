@@ -1,44 +1,60 @@
-import { ComponentProps, useCallback, useState } from 'react';
-import { SizeTokens, Text, View, XStack } from 'tamagui';
+import { debounce } from 'lodash';
+import { useCallback, useState } from 'react';
+import { SizeTokens, View } from 'tamagui';
 
-import { Button } from './Button';
 import { Icon } from './Icon';
 import { Input } from './Input';
 
 export function SearchBar({
+  placeholder,
   size,
   onChangeQuery,
 }: {
+  placeholder?: string;
   size?: SizeTokens;
   onChangeQuery: (query: string) => void;
 }) {
   const [value, setValue] = useState('');
+  const debouncedOnChangeQuery = useCallback(
+    debounce(
+      (text: string) => {
+        onChangeQuery(text);
+      },
+      300,
+      { leading: false, trailing: true }
+    ),
+    []
+  );
 
   const onTextChange = useCallback((text: string) => {
+    // we update the input display immediately, but debounce for consumers
+    // of the search bar
     setValue(text);
-    onChangeQuery(text);
+    debouncedOnChangeQuery(text);
   }, []);
 
   return (
-    <XStack paddingHorizontal="$l" gap="$l">
-      <Input size={size} borderRadius="$m" backgroundColor="$color.gray100">
+    <View
+      flex={1}
+      flexDirection="column"
+      justifyContent="center"
+      alignItems="center"
+    >
+      <Input size="$m" search>
         <Input.Icon>
-          <Icon type="Search" size="$m" color="$secondaryText" />
+          <Icon type="Search" color="$secondaryText" />
         </Input.Icon>
 
         <Input.Area
-          placeholder="Search Internet Cafe"
+          placeholder={placeholder ?? 'Search...'}
+          value={value}
           onChangeText={onTextChange}
         />
 
-        <Input.Icon>
-          <Icon type="Close" size="$s" color="$secondaryText" />
+        <Input.Icon onPress={() => setValue('')}>
+          <Icon size="$s" type="Close" color="$secondaryText" />
         </Input.Icon>
       </Input>
-
-      <Button minimal>
-        <Button.Text>Cancel</Button.Text>
-      </Button>
-    </XStack>
+    </View>
   );
 }
