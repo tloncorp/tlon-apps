@@ -64,7 +64,7 @@ export async function syncPostsBefore(post: db.Post) {
 
 export async function syncChannel(id: string, remoteUpdatedAt: number) {
   const startTime = Date.now();
-  const channel = await db.getChannel(id);
+  const channel = await db.getChannel({ id });
   if (!channel) {
     throw new Error('no local channel for' + id);
   }
@@ -102,11 +102,11 @@ async function persistPagedPostData(
 
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    ['groups', syncGroups],
-    ['pinnedItems', syncPinnedItems],
-    ['unreads', syncUnreads],
-    ['contacts', syncContacts],
-    ['posts', syncPosts],
+    // ['groups', syncGroups],
+    // ['pinnedItems', syncPinnedItems],
+    // ['unreads', syncUnreads],
+    // ['contacts', syncContacts],
+    // ['posts', syncPosts],
   ];
 
   api.subscribeUnreads(handleUnreadUpdate);

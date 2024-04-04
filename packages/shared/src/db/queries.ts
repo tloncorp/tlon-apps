@@ -207,7 +207,7 @@ const insertGroup = async (group: GroupInsert) => {
 
 export const getGroupRoles = createReadQuery(
   'getGroupRoles',
-  async (groupId: string) => {
+  async () => {
     return client.query.groupRoles.findMany();
   },
   ['groupRoles']
@@ -270,7 +270,7 @@ export const getAllUnreadsCounts = createReadQuery(
 
 export const getChannel = createReadQuery(
   'getChannel',
-  async (id: string) => {
+  async ({ id }: { id: string }) => {
     return client.query.channels.findFirst({ where: eq($channels.id, id) });
   },
   ['channels']
@@ -289,7 +289,7 @@ export const updateChannel = createWriteQuery(
 
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
-  async (channelId: string) => {
+  async ({ channelId }: { channelId: string }) => {
     return client.query.posts.findMany({
       where: eq($posts.channelId, channelId),
       with: {
@@ -369,7 +369,7 @@ export const getPosts = createReadQuery(
 
 export const getGroup = createReadQuery(
   'getGroup',
-  async (id: string) => {
+  async ({ id }: { id: string }) => {
     return client.query.groups.findFirst({
       where: (groups, { eq }) => eq(groups.id, id),
       with: {
@@ -409,7 +409,7 @@ export const getContactsCount = createReadQuery(
 
 export const getContact = createReadQuery(
   'getContact',
-  async (id: string) => {
+  async ({ id }: { id: string }) => {
     return client.query.contacts.findFirst({
       where: (contacts, { eq }) => eq(contacts.id, id),
     });

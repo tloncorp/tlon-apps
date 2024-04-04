@@ -117,7 +117,7 @@ test('sync posts', async () => {
   groupData.channels = [{ id: channelId, groupId }];
   await db.insertGroups([groupData]);
   console.log('inserted group');
-  const insertedChannel = await db.getChannel(channelId);
+  const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
 
   setScryOutput(rawChannelPostsData);
@@ -128,7 +128,7 @@ test('sync posts', async () => {
     rawChannelPostsData as unknown as PagedPosts
   );
   const lastPost = convertedPosts.posts[convertedPosts.posts.length - 1]!;
-  const channel = await db.getChannel(channelId);
+  const channel = await db.getChannel({ id: channelId });
   expect(channel?.remoteUpdatedAt).toEqual(unreadTime);
   expect(channel?.lastPostAt).toEqual(lastPost.receivedAt);
   expect(channel?.lastPostId).toEqual(lastPost.id);
@@ -155,7 +155,7 @@ test('deletes removed posts', async () => {
   const unreadTime = 1712091148002;
   groupData.channels = [{ id: channelId, groupId }];
   await db.insertGroups([groupData]);
-  const insertedChannel = await db.getChannel(channelId);
+  const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
   const deletedPosts = Object.fromEntries(
     Object.entries(rawChannelPostsData.posts).map(([id, post]) => [id, null])

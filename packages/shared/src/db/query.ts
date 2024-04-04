@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
@@ -112,7 +112,7 @@ export const createUseQuery =
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<T | null>(null);
     const [error, setError] = useState<Error | null>(null);
-    const currentParams = useMemo(() => args, [JSON.stringify(args)]);
+    const currentParams = useShallowEachObjectMemo(args);
     const runQuery = useCallback(async () => {
       // TODO: This could cause missed updates if the query is run multiple
       // times in rapid succession, but ensures load state stays correct.
@@ -139,7 +139,7 @@ export const createUseQuery =
       return typeof query.meta.tableDependencies === 'function'
         ? query.meta.tableDependencies(...args)
         : query.meta.tableDependencies;
-    }, [...args]);
+    }, [currentParams]);
 
     // Run query when table dependencies change
     useEffect(() => {
@@ -150,3 +150,21 @@ export const createUseQuery =
     }, [currentParams]);
     return { result, error, isLoading };
   };
+
+function useShallowEachObjectMemo<T>(objs: T[]) {
+  const ref = useRef(objs);
+  if (objs.some((obj, i) => !isShallowEqual(obj, ref.current[i]))) {
+    ref.current = objs;
+  }
+  return ref.current;
+}
+
+function isShallowEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Object.keys(a).length !== Object.keys(b).length) return false;
+  for (let key in a) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}

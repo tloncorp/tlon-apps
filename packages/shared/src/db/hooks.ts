@@ -1,11 +1,10 @@
 import { useEffect, useMemo } from 'react';
 
 import * as queries from './queries';
-import { getContact } from './queries';
 import { createUseQuery } from './query';
 import { Group } from './types';
 
-export const useContact = createUseQuery(getContact);
+export const useContact = createUseQuery(queries.getContact);
 
 export const useContacts = createUseQuery(queries.getContacts);
 
