@@ -3,21 +3,16 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ScrollView, Text, YGroup } from '../core';
 import { GroupListItem } from './GroupListItem';
 
-interface GroupWithUnreadCount extends db.Group {
-  unreadCount?: number | null;
-  latestPost?: db.Post;
-}
-
 export function GroupList({
   pinned,
   other,
   onGroupLongPress,
   onGroupPress,
 }: {
-  pinned: GroupWithUnreadCount[];
-  other: GroupWithUnreadCount[];
-  onGroupPress?: (group: GroupWithUnreadCount) => void;
-  onGroupLongPress?: (group: GroupWithUnreadCount) => void;
+  pinned: db.GroupSummary[];
+  other: db.GroupSummary[];
+  onGroupPress?: (group: db.GroupSummary) => void;
+  onGroupLongPress?: (group: db.GroupSummary) => void;
 }) {
   return (
     <ScrollView>

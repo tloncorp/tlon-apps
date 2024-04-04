@@ -31,6 +31,7 @@ import {
   posts as $posts,
   unreads as $unreads,
 } from './schema';
+import { GroupSummary } from './types';
 import {
   ChannelInsert,
   ContactInsert,
@@ -56,7 +57,7 @@ export const getGroups = createReadQuery(
     includeUnjoined,
     includeLastPost,
     includeUnreads,
-  }: GetGroupsOptions = {}) => {
+  }: GetGroupsOptions = {}): Promise<GroupSummary[]> => {
     const unreadCounts = client
       .select({
         groupId: $channels.groupId,
