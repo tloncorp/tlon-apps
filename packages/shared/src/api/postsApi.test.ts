@@ -16,10 +16,11 @@ beforeEach(async () => {
 
 test('toPostData', async () => {
   const postsData = rawChannelPostsData as unknown as PagedPosts;
-  const result = toPostsData('testChannielId', postsData.posts);
-  const oldestPost = result.reduce<PostInsert>((acc, post) => {
+  const { posts } = toPostsData('testChannielId', postsData.posts);
+  const oldestPost = posts.reduce<PostInsert>((acc, post) => {
     const time = post.receivedAt ?? 0;
     return time < (acc.receivedAt ?? 0) ? post : acc;
-  }, result[0]);
-  expect(oldestPost.id).toEqual(result[0].id);
+  }, posts[0]);
+  console.log(posts);
+  expect(oldestPost.id).toEqual(posts[0].id);
 });

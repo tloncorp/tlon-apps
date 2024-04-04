@@ -39,7 +39,13 @@ export interface PagedPostsData {
   older: string | null;
   newer: string | null;
   posts: db.PostInsert[];
+  deletedPosts: string[];
   totalPosts: number;
+}
+
+export interface DeletedPost {
+  id: string;
+  channelId: string;
 }
 
 export interface ChannelReference {
@@ -72,28 +78,37 @@ export function toPagedPostsData(
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
-    posts: toPostsData(channelId, data.posts),
     totalPosts: data.total,
+    ...toPostsData(channelId, data.posts),
   };
 }
 
-export function toPostsData(
-  channelId: string,
-  posts: ub.Posts
-): db.PostInsert[] {
-  return Object.entries(posts)
-    .map(([id, post]) => {
-      return toPostData(id, channelId, post);
-    })
-    .sort((a, b) => {
+export function toPostsData(channelId: string, posts: ub.Posts) {
+  const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
+    [string[], db.PostInsert[]]
+  >(
+    (memo, [id, post]) => {
+      if (post === null) {
+        memo[0].push(id);
+      } else {
+        memo[1].push(toPostData(id, channelId, post));
+      }
+      return memo;
+    },
+    [[], []]
+  );
+  return {
+    posts: otherPosts.sort((a, b) => {
       return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
-    });
+    }),
+    deletedPosts,
+  };
 }
 
 export function toPostData(
   id: string,
   channelId: string,
-  post: ub.Post | null
+  post: ub.Post
 ): db.PostInsert {
   const type = isNotice(post)
     ? 'notice'
@@ -101,29 +116,10 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
-  if (post === null) {
-    return {
-      id,
-      type,
-      title: '',
-      image: '',
-      authorId: '',
-      content: '',
-      textContent: '',
-      sentAt: 0,
-      receivedAt: udToDate(id),
-      replyCount: 0,
-      images: [],
-      reactions: [],
-      channel: {
-        id: channelId,
-      },
-      ...flags,
-    };
-  }
 
   return {
     id,
+    channelId,
     type,
     // Kind data will override
     title: metadata?.title ?? '',

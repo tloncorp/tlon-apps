@@ -307,17 +307,17 @@ export const threadUnreadStateRelations = relations(
 );
 
 export const posts = sqliteTable('posts', {
-  id: text('id').primaryKey(),
-  authorId: text('author_id'),
-  channelId: text('channel_id'),
+  id: text('id').primaryKey().notNull(),
+  authorId: text('author_id').notNull(),
+  channelId: text('channel_id').notNull(),
   groupId: text('group_id'),
-  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>(),
+  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>().notNull(),
   title: text('title'),
   image: text('image'),
   content: text('content', { mode: 'json' }),
-  receivedAt: timestamp('received_at'),
+  receivedAt: timestamp('received_at').notNull(),
+  sentAt: timestamp('sent_at').notNull(),
   // client-side time
-  sentAt: timestamp('sent_at'),
   replyCount: integer('reply_count'),
   textContent: text('text_content'),
   hasAppReference: boolean('has_app_reference'),

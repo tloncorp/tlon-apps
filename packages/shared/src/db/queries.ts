@@ -9,6 +9,7 @@ import {
   eq,
   getTableColumns,
   gt,
+  inArray,
   isNull,
   lt,
   not,
@@ -348,6 +349,14 @@ export const insertChannelPosts = createWriteQuery(
     });
   },
   ['posts', 'channels', 'groups']
+);
+
+export const deletePosts = createWriteQuery(
+  'deletePosts',
+  async (ids: string[]) => {
+    return client.delete($posts).where(inArray($posts.id, ids));
+  },
+  ['posts']
 );
 
 export const getPosts = createReadQuery(

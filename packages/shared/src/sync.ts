@@ -92,15 +92,20 @@ async function persistPagedPostData(
   data: api.PagedPostsData
 ) {
   await db.updateChannel({ id: channelId, postCount: data.totalPosts });
-  await db.insertChannelPosts(channelId, data.posts);
+  if (data.posts.length) {
+    await db.insertChannelPosts(channelId, data.posts);
+  }
+  if (data.deletedPosts.length) {
+    await db.deletePosts(data.deletedPosts);
+  }
 }
 
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    ['contacts', syncContacts],
     ['groups', syncGroups],
     ['pinnedItems', syncPinnedItems],
     ['unreads', syncUnreads],
+    ['contacts', syncContacts],
     ['posts', syncPosts],
   ];
 

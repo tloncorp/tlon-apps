@@ -143,3 +143,26 @@ test('sync posts', async () => {
   expect(groups[0].lastPost?.id).toEqual(groups[0].lastPostId);
   expect(groups[0].lastPost?.textContent).toEqual(lastPost.textContent);
 });
+
+test('deletes removed posts', async () => {
+  const groupId = 'test-group';
+  const channelId = 'test-channel';
+  const groupData = toClientGroup(
+    groupId,
+    Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
+    true
+  );
+  const unreadTime = 1712091148002;
+  groupData.channels = [{ id: channelId, groupId }];
+  await db.insertGroups([groupData]);
+  const insertedChannel = await db.getChannel(channelId);
+  expect(insertedChannel).toBeTruthy();
+  const deletedPosts = Object.fromEntries(
+    Object.entries(rawChannelPostsData.posts).map(([id, post]) => [id, null])
+  );
+  const deleteResponse = { ...rawChannelPostsData, posts: deletedPosts };
+  setScryOutput(deleteResponse as PagedPosts);
+  await syncChannel(channelId, unreadTime);
+  const posts = await db.getPosts();
+  expect(posts.length).toEqual(0);
+});
