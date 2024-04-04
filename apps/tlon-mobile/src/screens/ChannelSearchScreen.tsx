@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useInfiniteChannelSearch } from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
+// import { useInfiniteChannelSearch } from '@tloncorp/shared/dist/api';
+import type * as db from '@tloncorp/shared/dist/db';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 import {
   Button,
@@ -17,6 +17,8 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import useChatSearch from '../hooks/useChatSearch';
 import type { HomeStackParamList } from '../types';
 
 type ChannelSearchProps = NativeStackScreenProps<
@@ -30,26 +32,8 @@ export default function ChannelSearch({
 }: ChannelSearchProps) {
   const { channel } = route.params;
   const [query, setQuery] = useState('');
-  const {
-    results,
-    isLoading: searchLoading,
-    hasNextPage,
-    fetchNextPage,
-  } = useInfiniteChannelSearch(channel.id, query);
-
-  const resultIds = useMemo(
-    () => results.map((result) => result.id),
-    [results]
-  );
-  const { result: posts, isLoading: readLoading } = db.useChannelSearchResults(
-    channel.id ?? '',
-    resultIds
-  );
-
-  const loading = useMemo(
-    () => searchLoading || readLoading,
-    [searchLoading, readLoading]
-  );
+  const { posts, loading, hasMore, loadMore, searchedThroughDate } =
+    useChatSearch(channel.id, query);
 
   useLayoutEffect(() => {
     navigation.getParent()?.setOptions({
@@ -75,8 +59,14 @@ export default function ChannelSearch({
           posts={posts ?? []}
           query={query}
           loading={loading}
-          hasMore={hasNextPage}
-          loadMore={fetchNextPage}
+          hasMore={hasMore}
+          loadMore={loadMore}
+          searchDetails={{
+            query,
+            searchComplete: !loading && !hasMore,
+            numResults: posts?.length ?? 0,
+            searchedThroughDate,
+          }}
         />
       </YStack>
     </SafeAreaView>
@@ -85,15 +75,16 @@ export default function ChannelSearch({
 
 function SearchResults({
   posts,
-  query,
   loading,
   hasMore,
   loadMore,
+  searchDetails,
 }: {
   posts: db.PostWithRelations[];
   query: string;
   loading: boolean;
   hasMore: boolean;
+  searchDetails: SearchDetails;
   loadMore: () => void;
 }) {
   const postsForDisplay = useMemo(() => {
@@ -112,7 +103,7 @@ function SearchResults({
     }
   }, [loading, hasMore, loadMore]);
 
-  const isInitial = query === '';
+  const isInitial = searchDetails.query === '';
 
   return (
     <YStack marginTop="$true" flex={1} onTouchStart={Keyboard.dismiss}>
@@ -126,6 +117,9 @@ function SearchResults({
 
       {!isInitial && (
         <>
+          {posts.length === 0 && !searchDetails.searchComplete && (
+            <SearchStatus details={searchDetails} />
+          )}
           {posts.length > 0 && (
             <>
               <XStack justifyContent="space-between" marginBottom="$xl">
@@ -137,7 +131,7 @@ function SearchResults({
                       fontWeight="500"
                       color="$primaryText"
                     >
-                      {query}
+                      {searchDetails.query}
                     </SizableText>
                     "
                   </SizableText>
@@ -178,11 +172,48 @@ function SearchResults({
                     </View>
                   </View>
                 )}
+                ListFooterComponent={<SearchStatus details={searchDetails} />}
               />
             </>
           )}
         </>
       )}
+    </YStack>
+  );
+}
+
+interface SearchDetails {
+  query: string;
+  searchComplete: boolean;
+  numResults: number;
+  searchedThroughDate: Date | null;
+}
+
+function SearchStatus({ details }: { details: SearchDetails }) {
+  const { searchComplete, numResults, searchedThroughDate } = details;
+
+  console.log(`search details`, JSON.stringify(details, null, 2));
+
+  return (
+    <YStack>
+      <XStack>{!searchComplete && <LoadingSpinner height={16} />}</XStack>
+      <XStack>
+        {numResults > 0 && (
+          <SizableText size="$s" color="$secondaryBackground">
+            {`${numResults} results found · `}
+          </SizableText>
+        )}
+        {searchedThroughDate && (
+          <SizableText size="$s" color="$secondaryBackground">
+            Searched through{' '}
+            <SizableText size="$s">
+              {searchComplete
+                ? 'all channel history'
+                : searchedThroughDate.toDateString()}
+            </SizableText>
+          </SizableText>
+        )}
+      </XStack>
     </YStack>
   );
 }

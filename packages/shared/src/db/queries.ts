@@ -264,6 +264,7 @@ export const getChannelPosts = createReadQuery(
 export const getChannelSearchResults = createReadQuery(
   'getChannelSearchResults',
   async (channelId: string, postIds: string[]) => {
+    if (postIds.length === 0) return [];
     return client.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), inArray($posts.id, postIds)),
       with: {
@@ -272,7 +273,7 @@ export const getChannelSearchResults = createReadQuery(
       },
     });
   },
-  [] // probably don't need to watch for search?
+  []
 );
 
 export const insertChannelPosts = createWriteQuery(

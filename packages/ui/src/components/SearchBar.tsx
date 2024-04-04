@@ -51,7 +51,7 @@ export function SearchBar({
           onChangeText={onTextChange}
         />
 
-        <Input.Icon onPress={() => setValue('')}>
+        <Input.Icon onPress={() => onTextChange('')}>
           <Icon size="$s" type="Close" color="$secondaryText" />
         </Input.Icon>
       </Input>

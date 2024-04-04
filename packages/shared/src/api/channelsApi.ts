@@ -1,5 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { decToUd } from '@urbit/api';
+import { daToUnix, decToUd } from '@urbit/api';
+import bigInt from 'big-integer';
+import _ from 'lodash';
 import { useMemo } from 'react';
 
 import * as db from '../db';
@@ -25,6 +27,7 @@ const searchChatChannel = async (params: {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const encodedQuery = stringToTa(params.query);
 
+  console.log(`SEARCH SCRY ${params.query}, cursor: ${params.cursor}`);
   const response = await scry<ub.ChannelScam>({
     app: 'channels',
     path: `/${params.channelId}/search/bounded/text/${
@@ -38,7 +41,13 @@ const searchChatChannel = async (params: {
     .map((post) => toPostData(post.seal.id, params.channelId, post));
   const cursor = response.last;
 
-  await persistScanPosts(params.channelId, posts);
+  if (posts.length) {
+    try {
+      await persistScanPosts(params.channelId, posts);
+    } catch (e) {
+      console.error('api: writing search result posts failed', e);
+    }
+  }
 
   return { posts, cursor };
 
@@ -66,7 +75,7 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
       // return { posts, cursor };
     },
     initialPageParam: '',
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage, allPages) => {
       if (lastPage.cursor === null) return undefined;
       return lastPage.cursor;
     },
@@ -77,9 +86,19 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
     [data]
   );
 
+  const searchedThroughDate = useMemo(() => {
+    const params = data?.pages ?? [];
+    const lastValidCursor = _.findLast(
+      params,
+      (page) => page.cursor !== null
+    )?.cursor;
+    return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
+  }, [data]);
+
   return {
     ...rest,
     results,
+    searchedThroughDate,
   };
 }
 

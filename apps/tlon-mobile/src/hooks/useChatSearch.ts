@@ -1,60 +1,45 @@
 // import type { ChannelScam } from '@tloncorp/shared/dist/urbit/channel';
 import * as api from '@tloncorp/shared/dist/api';
-import _ from 'lodash';
-import { useCallback, useEffect, useState } from 'react';
+import * as db from '@tloncorp/shared/dist/db';
+import { useEffect, useMemo } from 'react';
 
-export default function useChatSearch(channelId: string, query?: string) {
-  const [fetchState, setFetchState] = useState<Promise<void> | null>(null);
-  const [searchState, setSearchState] = useState<{
-    cursor: string | null;
-    pageNum: number;
-    results: unknown[];
-  }>({
-    cursor: 'init',
-    pageNum: 0,
-    results: [],
-  });
+const PLACEHOLDER_CHANNEL_ID = 'chat/~nibset-napwyn/commons';
+const MIN_RESULT_LOAD_THRESHOLD = 20;
 
-  useEffect(() => {
-    setSearchState({ cursor: 'init', results: [], pageNum: 0 });
-  }, [query]);
+export default function useChatSearch(channelId: string, query: string) {
+  const {
+    results,
+    searchedThroughDate,
+    isLoading: apiLoading,
+    hasNextPage,
+    fetchNextPage,
+  } = api.useInfiniteChannelSearch(channelId ?? PLACEHOLDER_CHANNEL_ID, query);
 
-  const fetchResults = useCallback(async () => {
-    if (!query) return;
-    const response = await api.searchChatChannel({
-      channelId,
-      query,
-      page: searchState.cursor === 'init' ? undefined : searchState.cursor,
-    });
-    return response;
-    // if (response) {
-    //   setSearchState({
-    //     cursor: response.last,
-    //     pageNum: searchState.pageNum + 1,
-    //     results: searchState.results.concat(response.scan),
-    //   });
-    // }
-  }, [
-    channelId,
-    query,
-    searchState.cursor,
-    searchState.pageNum,
-    searchState.results,
-  ]);
+  const resultIds = useMemo(
+    () => results.map((result) => result.id),
+    [results]
+  );
+
+  const { result: posts, isLoading: dbLoading } = db.useChannelSearchResults(
+    channelId ?? PLACEHOLDER_CHANNEL_ID,
+    resultIds
+  );
 
   useEffect(() => {
-    if (!fetchState && searchState.cursor === 'init') {
-      const fetchPage = fetchResults();
-      setFetchState(fetchPage);
+    if (
+      results.length < MIN_RESULT_LOAD_THRESHOLD &&
+      hasNextPage &&
+      !apiLoading
+    ) {
+      fetchNextPage();
     }
-  }, [fetchState, searchState]);
+  }, [results, hasNextPage, apiLoading, fetchNextPage]);
 
-  if (!query) {
-    return {
-      results: [],
-      loading: false,
-      hasNextPage: false,
-      fetchNextPage: _.noop,
-    };
-  }
+  return {
+    posts,
+    searchedThroughDate,
+    loading: apiLoading || dbLoading,
+    hasMore: hasNextPage,
+    loadMore: fetchNextPage,
+  };
 }
