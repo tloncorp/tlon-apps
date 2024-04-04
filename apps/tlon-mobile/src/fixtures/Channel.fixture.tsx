@@ -5,7 +5,7 @@ import {
   createFakePosts,
   group,
   initialContacts,
-  tlonLocalChannel,
+  tlonLocalIntros,
 } from './fakeData';
 
 const posts = createFakePosts(100);
@@ -14,7 +14,7 @@ const ChannelFixture = () => {
   const [open, setOpen] = useState(false);
 
   const tlonLocalChannelWithUnreads = {
-    ...tlonLocalChannel,
+    ...tlonLocalIntros,
     unreadCount: 40,
     firstUnreadPostId: posts[10].id,
   };

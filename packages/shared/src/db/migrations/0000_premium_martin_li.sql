@@ -1,5 +1,6 @@
 CREATE TABLE `channels` (
 	`id` text PRIMARY KEY NOT NULL,
+	`type` text,
 	`group_id` text,
 	`icon_image` text,
 	`cover_image` text,
@@ -125,15 +126,15 @@ CREATE TABLE `post_reactions` (
 --> statement-breakpoint
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
-	`author_id` text,
+	`author_id` text NOT NULL,
 	`channel_id` text,
 	`group_id` text,
 	`type` text,
 	`title` text,
 	`image` text,
 	`content` text,
-	`sent_at` integer,
 	`received_at` integer,
+	`sent_at` integer,
 	`reply_count` integer,
 	`text` text,
 	`has_app_reference` integer,

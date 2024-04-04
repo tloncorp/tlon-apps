@@ -114,11 +114,12 @@ export const roles: db.GroupRole[] = [
   },
 ];
 
-export const tlonLocalChannel: db.Channel = {
-  id: '~nibset-napwyn/intros',
-  groupId: '~nibset-napwyn/tlon',
-  title: 'Intros',
-  description: 'Introduce yourself to the group',
+const emptyChannel: db.Channel = {
+  id: '',
+  groupId: '',
+  type: 'chat',
+  title: '',
+  description: '',
   iconImage: null,
   coverImage: null,
   currentUserIsMember: true,
@@ -132,10 +133,73 @@ export const tlonLocalChannel: db.Channel = {
   remoteUpdatedAt: null,
 };
 
+export const tlonLocalIntros: db.Channel = {
+  ...emptyChannel,
+  id: '~nibset-napwyn/intros',
+  type: 'chat',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Intros',
+  description: 'Introduce yourself to the group',
+};
+
+export const tlonLocalWaterCooler: db.Channel = {
+  ...emptyChannel,
+  id: '~nibset-napwyn/water-cooler',
+  type: 'chat',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Internet Cafe',
+  description: 'General chat',
+};
+
+export const tlonLocalSupport: db.Channel = {
+  ...emptyChannel,
+  id: '~nibset-napwyn/support',
+  type: 'chat',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Support',
+  description: 'Get help with Tlon',
+};
+
+export const tlonLocalBulletinBoard: db.Channel = {
+  ...emptyChannel,
+  id: '~nibset-napwyn/bulletin-board',
+  type: 'gallery',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Bulletin Board',
+  description: 'Important announcements',
+};
+
+export const tlonLocalCommunityCatalog: db.Channel = {
+  ...emptyChannel,
+  id: '~nibset-napwyn/community-catalog',
+  type: 'gallery',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Community Catalog',
+  description: 'Find other groups',
+};
+
+export const tlonLocalGettingStarted: db.Channel = {
+  ...emptyChannel,
+  id: '~nibset-napwyn/getting-started',
+  type: 'notebook',
+  groupId: '~nibset-napwyn/tlon',
+  title: 'Getting Started',
+  description: 'Get started with Tlon',
+};
+
+const tlonLocalChannels: db.Channel[] = [
+  tlonLocalIntros,
+  tlonLocalWaterCooler,
+  tlonLocalSupport,
+  tlonLocalGettingStarted,
+  tlonLocalBulletinBoard,
+  tlonLocalCommunityCatalog,
+];
+
 export const group: db.GroupWithRelations = {
   id: '~nibset-napwyn/tlon',
   title: 'Tlon Local',
-  channels: [tlonLocalChannel],
+  channels: tlonLocalChannels,
   roles,
   pinIndex: 0,
   coverImage: null,
@@ -239,7 +303,7 @@ export const createFakePost = (): db.PostWithRelations => {
     replyCount: 0,
     type: 'chat',
     groupId: group.id,
-    channelId: tlonLocalChannel.id,
+    channelId: tlonLocalIntros.id,
     title: null,
     hasImage: null,
     image: null,
