@@ -1,2 +1,2 @@
 export * from './SearchStatus';
-export * from './SearchResult';
+export * from './SearchResults';

@@ -1,12 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SizableText, Stack, View, XStack, YStack } from '../../core';
-import AuthorRow from '../ChatMessage/AuthorRow';
-import ChatContent from '../ChatMessage/ChatContent';
+import ChatMessage from '../ChatMessage';
 import { SearchStatus } from './SearchStatus';
 import { SearchState } from './types';
 
@@ -82,7 +80,14 @@ export function SearchResults({
                 data={posts}
                 onEndReached={onEndReached}
                 renderItem={({ item: post }) => (
-                  <SearchResult post={post} navigateToPost={navigateToPost} />
+                  <View
+                    marginBottom="$m"
+                    onPress={() =>
+                      navigateToPost(post as unknown as db.PostWithRelations)
+                    }
+                  >
+                    <ChatMessage post={post} />
+                  </View>
                 )}
                 ListFooterComponent={
                   <View marginBottom={insets.bottom}>
@@ -95,39 +100,5 @@ export function SearchResults({
         </>
       )}
     </YStack>
-  );
-}
-
-export function SearchResult({
-  post,
-  navigateToPost,
-}: {
-  post: db.PostWithRelations;
-  navigateToPost: (post: db.PostWithRelations) => void;
-}) {
-  const story = useMemo(
-    () => JSON.parse(post.content as string) as urbit.Story,
-    [post.content]
-  );
-
-  return (
-    <View
-      key={post.id}
-      borderWidth={1}
-      borderColor="$activeBorder"
-      borderRadius="$m"
-      padding="$m"
-      marginBottom="$m"
-      onPress={() => navigateToPost(post as unknown as db.PostWithRelations)}
-    >
-      <AuthorRow
-        author={post.author}
-        authorId={post.authorId}
-        sent={post.sentAt ?? 0}
-      />
-      <View marginTop="$s">
-        <ChatContent story={story} key={post.id} />
-      </View>
-    </View>
   );
 }
