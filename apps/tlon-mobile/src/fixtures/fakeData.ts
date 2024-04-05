@@ -142,6 +142,7 @@ export const tlonLocalIntros: db.ChannelWithLastPost = {
   title: 'Intros',
   description: 'Introduce yourself to the group',
   lastPostId: '1',
+  unreadCount: 40,
   lastPost: {
     id: '1',
     authorId: '~ravmel-ropdyl',
@@ -172,6 +173,7 @@ export const tlonLocalWaterCooler: db.ChannelWithLastPost = {
   title: 'Internet Cafe',
   description: 'General chat',
   lastPostId: '2',
+  unreadCount: 31,
   lastPost: {
     id: '2',
     authorId: '~rilfun-lidlen',
@@ -201,6 +203,7 @@ export const tlonLocalSupport: db.ChannelWithLastPost = {
   title: 'Support',
   description: 'Get help with Tlon',
   lastPostId: '3',
+  unreadCount: 27,
   lastPost: {
     id: '3',
     authorId: '~solfer-magfed',
@@ -230,6 +233,7 @@ export const tlonLocalBulletinBoard: db.ChannelWithLastPost = {
   title: 'Bulletin Board',
   description: 'Important announcements',
   lastPostId: '4',
+  unreadCount: 0,
   lastPost: {
     id: '4',
     authorId: '~nocsyx-lassul',

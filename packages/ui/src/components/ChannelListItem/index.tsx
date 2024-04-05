@@ -1,4 +1,6 @@
+import { utils } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
+import { useMemo } from 'react';
 
 import { Icon, IconType, XStack, YStack } from '../..';
 import ContactName from '../ContactName';
@@ -9,9 +11,14 @@ export default function ChannelListItem({
   icon,
   onPress,
   onLongPress,
-  unreadCount,
   ...props
 }: { icon?: IconType } & ListItemProps<db.ChannelWithLastPost>) {
+  const date = new Date(model.lastPost?.sentAt ?? 0);
+  const timeDisplay = useMemo(
+    () => utils.makePrettyDayAndDateAndTime(date),
+    [date]
+  );
+
   return (
     <ListItem
       {...props}
@@ -28,7 +35,7 @@ export default function ChannelListItem({
       <ListItem.MainContent>
         <XStack alignItems="center" space="$m">
           {!model.iconImage && <Icon type={icon ?? 'ChannelTalk'} />}
-          <YStack space="$s">
+          <YStack space="$l">
             <ListItem.Title>{model.title}</ListItem.Title>
             {model.lastPost && (
               <ListItem.Subtitle color="$primaryText">
@@ -40,7 +47,16 @@ export default function ChannelListItem({
         </XStack>
       </ListItem.MainContent>
       <ListItem.EndContent position="relative" top={3}>
-        <Icon type="ChevronRight" />
+        <YStack space="$m">
+          {model.lastPost && (
+            <ListItem.Time color="$primaryText">
+              {timeDisplay.time}
+            </ListItem.Time>
+          )}
+          {model.unreadCount && model.unreadCount > 0 ? (
+            <ListItem.Count>{model.unreadCount}</ListItem.Count>
+          ) : null}
+        </YStack>
       </ListItem.EndContent>
     </ListItem>
   );
