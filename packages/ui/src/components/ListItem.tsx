@@ -57,31 +57,17 @@ function ListItemIcon({
   const resolvedBackgroundColor = backgroundColor ?? '$secondaryBackground';
   const size = '$4xl';
   return imageUrl ? (
-    imageUrl.includes('.svg') ? (
-      <View
-        width={size}
-        height={size}
-        borderRadius="$s"
-        //@ts-ignore This is an arbitrary, user-set color
-        backgroundColor={resolvedBackgroundColor}
-        overflow="hidden"
-        {...props}
-      >
-        <RemoteSvg width="100%" height="100%" uri={imageUrl} />
-      </View>
-    ) : (
-      <Image
-        width={size}
-        height={size}
-        borderRadius="$s"
-        //@ts-ignore This is an arbitrary, user-set color
-        backgroundColor={resolvedBackgroundColor}
-        {...props}
-        source={{
-          uri: imageUrl,
-        }}
-      />
-    )
+    <Image
+      width={size}
+      height={size}
+      borderRadius="$s"
+      //@ts-ignore This is an arbitrary, user-set color
+      backgroundColor={resolvedBackgroundColor}
+      {...props}
+      source={{
+        uri: imageUrl,
+      }}
+    />
   ) : (
     <Stack
       //@ts-ignore This is an arbitrary, user-set color

@@ -18,7 +18,12 @@ export const Image = React.forwardRef(function (
         ? props.source?.uri
         : undefined;
   }, [props.source]);
-  if (url && url.endsWith('svg')) {
+
+  const isSvg = useMemo(() => {
+    return url && new URL(url).pathname.endsWith('svg');
+  }, [url]);
+
+  if (url && isSvg) {
     return <StyledSvgUri {...props} uri={url} ref={ref} />;
   }
   return <StyledFastImage {...props} ref={ref} />;
