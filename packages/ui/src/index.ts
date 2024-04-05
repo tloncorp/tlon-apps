@@ -14,5 +14,7 @@ export * from './components/GroupList';
 export * from './components/ChannelSwitcherSheet';
 export * from './components/SearchBar';
 export * from './components/Button';
+export * from './components/ChannelSearch';
+export * from './components/LoadingSpinner';
 export * from './tamagui.config';
 export * from './contexts';

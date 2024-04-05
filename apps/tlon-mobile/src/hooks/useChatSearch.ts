@@ -11,6 +11,7 @@ export default function useChatSearch(channelId: string, query: string) {
     results,
     searchedThroughDate,
     isLoading: apiLoading,
+    isError: apiError,
     hasNextPage,
     fetchNextPage,
   } = api.useInfiniteChannelSearch(channelId ?? PLACEHOLDER_CHANNEL_ID, query);
@@ -39,6 +40,7 @@ export default function useChatSearch(channelId: string, query: string) {
     posts,
     searchedThroughDate,
     loading: apiLoading || dbLoading,
+    errored: apiError,
     hasMore: hasNextPage,
     loadMore: fetchNextPage,
   };

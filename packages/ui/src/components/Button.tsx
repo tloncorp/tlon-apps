@@ -15,6 +15,7 @@ import {
 export const ButtonContext = createStyledContext<{
   size: SizeTokens;
   minimal: boolean;
+  onPress?: () => void;
 }>({
   size: '$m',
   minimal: false,
@@ -39,8 +40,11 @@ export const ButtonFrame = styled(Stack, {
       '...size': (name, { tokens }) => {
         return {
           // @ts-ignore
+          // TODO: do we need to set the hight explicitly here? is text size + padding enough? Seems
+          // to cause layout issues
           // height: tokens.size[name],
           // borderRadius: tokens.radius[name],
+
           // note the getSpace and getSize helpers will let you shift down/up token sizes
           // whereas with gap we just multiply by 0.2
           // this is a stylistic choice, and depends on your design system values
@@ -76,13 +80,16 @@ export const ButtonText = styled(Text, {
         fontSize: name,
       }),
     },
-    minimal: {
-      true: {
-        pressStyle: {
-          color: '$secondaryText',
-        },
-      },
-    },
+
+    // TODO: adding this seems to make the text itself pressable and swallow the press
+    // of the button frame itself
+    // minimal: {
+    //   true: {
+    //     pressStyle: {
+    //       color: '$secondaryText',
+    //     },
+    //   },
+    // },
   } as const,
 });
 

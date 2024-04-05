@@ -2,6 +2,7 @@ import { debounce } from 'lodash';
 import { useCallback, useState } from 'react';
 import { SizeTokens, View } from 'tamagui';
 
+import { Circle } from '../core';
 import { Icon } from './Icon';
 import { Input } from './Input';
 
@@ -30,7 +31,7 @@ export function SearchBar({
     // we update the input display immediately, but debounce for consumers
     // of the search bar
     setValue(text);
-    debouncedOnChangeQuery(text);
+    debouncedOnChangeQuery(text.trim());
   }, []);
 
   return (
@@ -51,8 +52,19 @@ export function SearchBar({
           onChangeText={onTextChange}
         />
 
-        <Input.Icon onPress={() => onTextChange('')}>
-          <Icon size="$s" type="Close" color="$secondaryText" />
+        <Input.Icon
+          onPress={() => onTextChange('')}
+          disabled={value === ''}
+          opacity={value === '' ? 0 : undefined}
+        >
+          <Circle
+            justifyContent="center"
+            alignItems="center"
+            size="$xl"
+            backgroundColor="$color.gray500"
+          >
+            <Icon size="$s" type="Close" color="$color.gray100" />
+          </Circle>
         </Input.Icon>
       </Input>
     </View>

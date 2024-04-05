@@ -5,19 +5,25 @@ import {
   XGroup,
   XStack,
   createStyledContext,
+  getFontSize,
   styled,
   withStaticProperties,
 } from 'tamagui';
 
 import { Input as CInput, View } from '../core';
 
-export const InputContext = createStyledContext<{ size: SizeTokens }>({
-  size: '$true',
+type InputSize = '$s' | '$m' | '$l';
+
+export const InputContext = createStyledContext<{ size: InputSize }>({
+  size: '$m',
 });
 
 const InputContainerFrame = styled(XStack, {
   context: InputContext,
   justifyContent: 'space-between',
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$m',
 
   variants: {
     size: {
@@ -31,6 +37,7 @@ const InputContainerFrame = styled(XStack, {
       true: {
         backgroundColor: '$color.gray100',
         borderRadius: '$m',
+        // TODO: need tint & animation on press for native search feel
       },
     },
   } as const,
@@ -45,6 +52,8 @@ const InputFrame = styled(CInput, {
   context: InputContext,
   fontFamily: '$body',
   color: '$primaryText',
+
+  // borderWidth: 1,
 });
 
 const InputImpl = InputFrame.styleable((props, ref) => {
@@ -83,5 +92,5 @@ const InputIconImpl = InputIconFrame.styleable((props, ref) => {
 
 export const Input = withStaticProperties(InputContainerFrame, {
   Area: InputImpl,
-  Icon: InputIconImpl,
+  Icon: InputIconFrame,
 });
