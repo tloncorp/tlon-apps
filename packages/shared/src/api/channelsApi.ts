@@ -4,9 +4,9 @@ import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
 import * as db from '../db';
-import { stringToTa } from '../logic/utils';
 import { persistScanPosts } from '../sync';
 import type * as ub from '../urbit';
+import { stringToTa } from '../urbit/utils';
 import { toPostData } from './postsApi';
 import { scry } from './urbit';
 
