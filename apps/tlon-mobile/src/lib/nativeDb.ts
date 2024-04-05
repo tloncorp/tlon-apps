@@ -1,5 +1,6 @@
 import type { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
+import { createDevLogger } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/dist/db';
 import { schema, setClient } from '@tloncorp/shared/dist/db';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
@@ -11,30 +12,37 @@ import { useEffect, useMemo, useState } from 'react';
 let connection: OPSQLiteConnection | null = null;
 let client: OPSQLiteDatabase<Schema> | null = null;
 
+const logger = createDevLogger('db', false);
+
 export function setupDb() {
   if (connection || client) {
-    console.warn('setupDb called multiple times, ignoring');
+    logger.warn('setupDb called multiple times, ignoring');
     return;
   }
   connection = open({ location: 'default', name: 'tlon.sqlite' });
   client = drizzle(connection, {
     schema,
+    logger: {
+      logQuery(query, params) {
+        logger.log(query, params);
+      },
+    },
   });
   setClient(client);
-  console.log('SQLite database opened at', connection.getDbPath());
+  logger.log('SQLite database opened at', connection.getDbPath());
 }
 
 export async function purgeDb() {
   if (!connection) {
-    console.warn('purgeDb called before setupDb, ignoring');
+    logger.warn('purgeDb called before setupDb, ignoring');
     return;
   }
-  console.log('purging sqlite database');
+  logger.log('purging sqlite database');
   connection.close();
   connection.delete();
   connection = null;
   client = null;
-  console.log('purged sqlite database, recreating');
+  logger.log('purged sqlite database, recreating');
   setupDb();
 }
 
@@ -47,16 +55,16 @@ export function useMigrations() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log('running migrations');
+    logger.log('running migrations');
     const startTime = Date.now();
     runMigrations()
       .then(() => setHasSucceeded(true))
       .catch((e) => {
-        console.log('failed to migrate database', e);
+        logger.log('failed to migrate database', e);
         setError(e);
       })
       .finally(() =>
-        console.log('migrations complete in', Date.now() - startTime + 'ms')
+        logger.log('migrations complete in', Date.now() - startTime + 'ms')
       );
   }, []);
 
@@ -74,9 +82,9 @@ async function runMigrations() {
     await migrate(client!, migrations);
     return;
   } catch (e) {
-    console.log('migrations failed, purging db and retrying', e);
+    logger.log('migrations failed, purging db and retrying', e);
   }
   await purgeDb();
   await migrate(client!, migrations);
-  console.log("migrations succeeded after purge, shouldn't happen often");
+  logger.log("migrations succeeded after purge, shouldn't happen often");
 }

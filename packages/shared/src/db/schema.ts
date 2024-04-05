@@ -89,6 +89,7 @@ export const groups = sqliteTable('groups', {
   description: text('description'),
   isSecret: boolean('is_secret'),
   isJoined: boolean('is_joined'),
+  lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
   pinIndex: integer('pin_index'),
 });
@@ -99,6 +100,10 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   navSections: many(groupNavSections),
   channels: many(channels),
   posts: many(posts),
+  lastPost: one(posts, {
+    fields: [groups.lastPostId],
+    references: [posts.id],
+  }),
 }));
 
 export const groupRoles = sqliteTable(
@@ -302,19 +307,19 @@ export const threadUnreadStateRelations = relations(
 );
 
 export const posts = sqliteTable('posts', {
-  id: text('id').primaryKey(),
-  authorId: text('author_id').references(() => contacts.id).notNull(),
-  channelId: text('channel_id').references(() => channels.id),
-  groupId: text('group_id').references(() => groups.id),
-  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>(),
+  id: text('id').primaryKey().notNull(),
+  authorId: text('author_id').notNull(),
+  channelId: text('channel_id').notNull(),
+  groupId: text('group_id'),
+  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>().notNull(),
   title: text('title'),
   image: text('image'),
   content: text('content', { mode: 'json' }),
-  receivedAt: timestamp('received_at'),
+  receivedAt: timestamp('received_at').notNull(),
+  sentAt: timestamp('sent_at').notNull(),
   // client-side time
-  sentAt: timestamp('sent_at'),
   replyCount: integer('reply_count'),
-  textContent: text('text'),
+  textContent: text('text_content'),
   hasAppReference: boolean('has_app_reference'),
   hasChannelReference: boolean('has_channel_reference'),
   hasGroupReference: boolean('has_group_reference'),

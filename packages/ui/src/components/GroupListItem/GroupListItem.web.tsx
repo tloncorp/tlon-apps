@@ -2,7 +2,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import { useLongPress } from '@uidotdev/usehooks';
 
 import type { ListItemProps } from '../ListItem';
-import ListItemContent from './ListItemContent';
+import GroupListItemContent from './GroupListItemContent';
 
 export const GroupListItem = ({
   model,
@@ -21,7 +21,7 @@ export const GroupListItem = ({
 
   return (
     <div {...attributes}>
-      <ListItemContent
+      <GroupListItemContent
         model={model}
         onPress={onPress}
         unreadCount={unreadCount}
