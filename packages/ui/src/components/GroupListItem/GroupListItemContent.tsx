@@ -1,19 +1,14 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
 
 import { ListItem, type ListItemProps } from '../ListItem';
 
-export default function ListItemContent({
+export default function GroupListItemContent({
   model,
   onPress,
   onLongPress,
   unreadCount,
   ...props
-}: ListItemProps<db.Group>) {
-  const lastPostAt = useMemo(() => {
-    return new Date('2024-01-01 20:38:00');
-  }, []);
-
+}: ListItemProps<db.GroupInsert>) {
   return (
     <ListItem
       {...props}
@@ -27,16 +22,16 @@ export default function ListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {/* <ListItem.Subtitle>{model.latestPost?.text}</ListItem.Subtitle> */}
         <ListItem.Subtitle>
-          Here's some content, it's a message
+          {model.lastPost?.textContent ?? ''}
         </ListItem.Subtitle>
       </ListItem.MainContent>
       <ListItem.EndContent position="relative" bottom={6}>
         {true ? (
           <ListItem.Time>
-            {/* {new Date(model.lastPostAt).toLocaleDateString()} */}
-            {lastPostAt.toLocaleDateString()}
+            {model.lastPostAt
+              ? new Date(model.lastPostAt).toLocaleDateString()
+              : null}
           </ListItem.Time>
         ) : null}
         {unreadCount && unreadCount > 0 ? (

@@ -15,8 +15,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     null
   );
   const { group } = props.route.params;
-  const { result: groupWithChannels, isLoading, error } = db.useGroup(group.id);
-  const { result: posts } = db.useChannelPosts(currentChannel?.id ?? '');
+  const {
+    result: groupWithChannels,
+    isLoading,
+    error,
+  } = db.useGroup({ id: group.id });
+  const { result: posts } = db.useChannelPosts({
+    channelId: currentChannel?.id ?? '',
+  });
   const { result: contacts } = db.useContacts();
   const { top } = useSafeAreaInsets();
 

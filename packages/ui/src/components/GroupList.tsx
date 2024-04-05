@@ -9,10 +9,10 @@ export function GroupList({
   onGroupLongPress,
   onGroupPress,
 }: {
-  pinned: db.Group[];
-  other: db.Group[];
-  onGroupPress?: (group: db.Group) => void;
-  onGroupLongPress?: (group: db.Group) => void;
+  pinned: db.GroupSummary[];
+  other: db.GroupSummary[];
+  onGroupPress?: (group: db.GroupSummary) => void;
+  onGroupLongPress?: (group: db.GroupSummary) => void;
 }) {
   return (
     <ScrollView>
@@ -31,6 +31,7 @@ export function GroupList({
           {pinned.map((item) => (
             <GroupListItem
               model={item}
+              unreadCount={item.unreadCount ?? 0}
               onPress={() => onGroupPress?.(item)}
               onLongPress={() => onGroupLongPress?.(item)}
               key={item.id}
@@ -51,6 +52,7 @@ export function GroupList({
           {other.map((item) => (
             <GroupListItem
               model={item}
+              unreadCount={item.unreadCount ?? 0}
               onPress={() => onGroupPress?.(item)}
               onLongPress={() => onGroupLongPress?.(item)}
               key={item.id}

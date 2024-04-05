@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "e752a78c-94ab-4ade-9ed6-6bbb5206b813",
+  "id": "8add183a-7a36-42a3-80d3-5da3ebc126df",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -655,6 +655,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "last_post_id": {
+          "name": "last_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "last_post_at": {
           "name": "last_post_at",
           "type": "integer",
@@ -916,8 +923,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "text": {
-          "name": "text",
+        "text_content": {
+          "name": "text_content",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -960,47 +967,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "posts_author_id_contacts_id_fk": {
-          "name": "posts_author_id_contacts_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "author_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "posts_channel_id_channels_id_fk": {
-          "name": "posts_channel_id_channels_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "posts_group_id_groups_id_fk": {
-          "name": "posts_group_id_groups_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },

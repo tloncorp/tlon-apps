@@ -32,3 +32,4 @@ export const DEFAULT_TLON_LOGIN_PASSWORD = extra.defaultTlonLoginPassword ?? '';
 export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
   extra.defaultShipLoginAccessCode ?? '';
+export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
