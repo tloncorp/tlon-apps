@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useChannelSearch } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { XStack, YStack } from '@tloncorp/ui';
 // TODO: update references to dist
@@ -7,7 +8,6 @@ import { useCallback, useLayoutEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import useChatSearch from '../hooks/useChatSearch';
 import type { HomeStackParamList } from '../types';
 
 type ChannelSearchProps = NativeStackScreenProps<
@@ -23,7 +23,7 @@ export default function ChannelSearch({
   const group = db.useGroupByChannel(channel.id);
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
-    useChatSearch(channel.id, query);
+    useChannelSearch(channel.id, query);
 
   // handle full screen view without bottom nav, resets on dismout
   useLayoutEffect(() => {

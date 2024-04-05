@@ -14,7 +14,7 @@ const ChatMessage = memo(
     firstUnread,
     unreadCount,
   }: {
-    post: db.PostWithRelations;
+    post: db.PostWithRelations | db.PostInsertWithAuthor;
     firstUnread?: string;
     unreadCount?: number;
   }) => {

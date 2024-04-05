@@ -83,6 +83,11 @@ export type PostWithRelations = Post & {
   reactions: Reaction[] | null;
   author: Contact;
 };
+
+export type PostInsertWithAuthor = PostInsert & {
+  author: Contact;
+};
+
 export type PostType = Post['type'];
 export type PostFlags = Pick<
   Post,

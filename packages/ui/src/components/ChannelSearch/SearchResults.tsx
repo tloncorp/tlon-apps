@@ -13,7 +13,7 @@ export function SearchResults({
   navigateToPost,
   search,
 }: {
-  posts: db.PostWithRelations[];
+  posts: db.PostInsertWithAuthor[];
   navigateToPost: (post: db.PostWithRelations) => void;
   search: SearchState;
 }) {

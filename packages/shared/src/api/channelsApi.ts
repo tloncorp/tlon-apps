@@ -4,7 +4,6 @@ import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
 import * as db from '../db';
-import { persistScanPosts } from '../sync';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
 import { toPostData } from './postsApi';
@@ -40,14 +39,6 @@ const searchChatChannel = async (params: {
     .map((post) => toPostData(post.seal.id, params.channelId, post));
   const cursor = response.last;
 
-  if (posts.length) {
-    try {
-      await persistScanPosts(params.channelId, posts);
-    } catch (e) {
-      console.error('api: writing search result posts failed', e);
-    }
-  }
-
   return { posts, cursor };
 };
 
@@ -65,7 +56,7 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
       return response;
     },
     initialPageParam: '',
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (lastPage) => {
       if (lastPage.cursor === null) return undefined;
       return lastPage.cursor;
     },

@@ -10,6 +10,7 @@ export type {
 } from './types/native';
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic/utils';
+export * from './hooks';
 export * as sync from './sync';
 export * as utils from './logic/utils';
 export * from './debug';
