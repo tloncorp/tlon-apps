@@ -1,9 +1,7 @@
-// import type { ChannelScam } from '@tloncorp/shared/dist/urbit/channel';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useEffect, useMemo } from 'react';
 
-const PLACEHOLDER_CHANNEL_ID = 'chat/~nibset-napwyn/commons';
 const MIN_RESULT_LOAD_THRESHOLD = 20;
 
 export default function useChatSearch(channelId: string, query: string) {
@@ -14,7 +12,7 @@ export default function useChatSearch(channelId: string, query: string) {
     isError: apiError,
     hasNextPage,
     fetchNextPage,
-  } = api.useInfiniteChannelSearch(channelId ?? PLACEHOLDER_CHANNEL_ID, query);
+  } = api.useInfiniteChannelSearch(channelId, query);
 
   const resultIds = useMemo(
     () => results.map((result) => result.id),
@@ -22,7 +20,7 @@ export default function useChatSearch(channelId: string, query: string) {
   );
 
   const { result: posts, isLoading: dbLoading } = db.useChannelSearchResults(
-    channelId ?? PLACEHOLDER_CHANNEL_ID,
+    channelId,
     resultIds
   );
 

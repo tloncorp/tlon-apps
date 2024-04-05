@@ -27,7 +27,7 @@ const searchChatChannel = async (params: {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const encodedQuery = stringToTa(params.query);
 
-  console.log(`SEARCH SCRY ${params.query}, cursor: ${params.cursor}`);
+  console.log(`search scry for ${params.query}, cursor: ${params.cursor}`);
   const response = await scry<ub.ChannelScam>({
     app: 'channels',
     path: `/${params.channelId}/search/bounded/text/${
@@ -50,8 +50,6 @@ const searchChatChannel = async (params: {
   }
 
   return { posts, cursor };
-
-  // return response;
 };
 
 export function useInfiniteChannelSearch(channelId: string, query: string) {
@@ -66,13 +64,6 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
       });
 
       return response;
-      // const posts = response.scan
-      //   .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
-      //   .map((scanItem) => (scanItem as { post: ub.Post }).post)
-      //   .map((post) => toPostData(post.seal.id, channelId, post));
-      // const cursor = response.last;
-
-      // return { posts, cursor };
     },
     initialPageParam: '',
     getNextPageParam: (lastPage, allPages) => {

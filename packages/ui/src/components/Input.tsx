@@ -52,8 +52,6 @@ const InputFrame = styled(CInput, {
   context: InputContext,
   fontFamily: '$body',
   color: '$primaryText',
-
-  // borderWidth: 1,
 });
 
 const InputImpl = InputFrame.styleable((props, ref) => {
@@ -79,15 +77,6 @@ const InputIconFrame = styled(View, {
       },
     },
   } as const,
-});
-
-const InputIconImpl = InputIconFrame.styleable((props, ref) => {
-  const { children, ...rest } = props;
-  return (
-    <InputIconFrame ref={ref} {...rest}>
-      {children}
-    </InputIconFrame>
-  );
 });
 
 export const Input = withStaticProperties(InputContainerFrame, {
