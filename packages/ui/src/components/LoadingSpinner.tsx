@@ -9,13 +9,27 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
+import { ColorTokens } from 'tamagui';
+
+import { Spinner } from '../core';
 
 type Props = {
   height?: number;
   durationMs?: number;
 };
 
-export const LoadingSpinner = ({ height = 24, durationMs = 1000 }: Props) => {
+export function LoadingSpinner({
+  size,
+  color,
+}: {
+  size?: 'large' | 'small';
+  color?: ColorTokens;
+}) {
+  return <Spinner size={size} color={color ?? '$color.gray700'} />;
+}
+
+// Do not use this, here for reference only
+const LegacySpinner = ({ height = 24, durationMs = 1000 }: Props) => {
   const rotationDegree = useRef(new Animated.Value(0)).current;
   const tailwind = useTailwind();
   const isDarkMode = useColorScheme() === 'dark';

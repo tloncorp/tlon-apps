@@ -24,7 +24,7 @@ export function SearchStatus({
         <>
           {!searchComplete && (
             <View marginRight="$s">
-              <LoadingSpinner height={14} />
+              <LoadingSpinner />
             </View>
           )}
           {numResults > 0 && (
