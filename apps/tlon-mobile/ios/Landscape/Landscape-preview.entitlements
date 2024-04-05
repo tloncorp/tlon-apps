@@ -6,8 +6,8 @@
 	<string>development</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:sa96e-alternate.app.link</string>
-		<string>applinks:join.tlon.io</string>
+		<string>applinks:sa96e.test-app.link</string>
+		<string>applinks:sa96e-alternate.test-app.link</string>
 	</array>
 	<key>com.apple.developer.usernotifications.communication</key>
 	<true/>

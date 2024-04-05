@@ -11,3 +11,4 @@ export type {
 export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * as sync from './sync';
 export * as utils from './logic/utils';
+export * from './debug';

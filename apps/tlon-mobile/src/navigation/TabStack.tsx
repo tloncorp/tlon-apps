@@ -122,7 +122,7 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const { result: contact } = db.useContact(id);
+  const { result: contact } = db.useContact({ id });
   return (
     <Avatar
       contactId={id}

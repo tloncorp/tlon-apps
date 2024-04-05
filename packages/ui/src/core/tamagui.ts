@@ -1,6 +1,5 @@
 export {
   Circle,
-  Image,
   useTheme,
   useStyle,
   View,

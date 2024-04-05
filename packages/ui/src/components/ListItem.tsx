@@ -1,18 +1,7 @@
-import React, { ComponentProps, PropsWithChildren, ReactElement } from 'react';
-import { Pressable } from 'react-native';
-import {
-  Image,
-  NativePlatform,
-  Stack,
-  Text,
-  View,
-  XStack,
-  YStack,
-  styled,
-  withStaticProperties,
-} from 'tamagui';
+import { ComponentProps, PropsWithChildren, ReactElement } from 'react';
+import { styled, withStaticProperties } from 'tamagui';
 
-import { SizableText } from '../core';
+import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
 import { Icon } from './Icon';
 import RemoteSvg from './RemoteSvg';
 
@@ -68,31 +57,17 @@ function ListItemIcon({
   const resolvedBackgroundColor = backgroundColor ?? '$secondaryBackground';
   const size = '$4xl';
   return imageUrl ? (
-    imageUrl.includes('.svg') ? (
-      <View
-        width={size}
-        height={size}
-        borderRadius="$s"
-        //@ts-ignore This is an arbitrary, user-set color
-        backgroundColor={resolvedBackgroundColor}
-        overflow="hidden"
-        {...props}
-      >
-        <RemoteSvg width="100%" height="100%" uri={imageUrl} />
-      </View>
-    ) : (
-      <Image
-        width={size}
-        height={size}
-        borderRadius="$s"
-        //@ts-ignore This is an arbitrary, user-set color
-        backgroundColor={resolvedBackgroundColor}
-        {...props}
-        source={{
-          uri: imageUrl,
-        }}
-      />
-    )
+    <Image
+      width={size}
+      height={size}
+      borderRadius="$s"
+      //@ts-ignore This is an arbitrary, user-set color
+      backgroundColor={resolvedBackgroundColor}
+      {...props}
+      source={{
+        uri: imageUrl,
+      }}
+    />
   ) : (
     <Stack
       //@ts-ignore This is an arbitrary, user-set color

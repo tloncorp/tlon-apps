@@ -50,15 +50,15 @@ beforeEach(async () => {
 test('inserts a group', async () => {
   const groupData = groupsData[3];
   await queries.insertGroups([groupData]);
-  const roles = await queries.getGroupRoles(groupData.id);
+  const roles = await queries.getGroupRoles();
   expect(roles.length).toEqual(groupData.roles?.length);
-  const result = await queries.getGroup(groupData.id);
+  const result = await queries.getGroup({ id: groupData.id });
   expect(result?.id).toBe(groupData.id);
   await queries.insertGroups([groupData]);
 });
 
 test('inserts all groups', async () => {
   await queries.insertGroups(groupsData);
-  const groups = await queries.getGroups();
+  const groups = await queries.getGroups({});
   expect(groups.length).toEqual(groupsData.length);
 });

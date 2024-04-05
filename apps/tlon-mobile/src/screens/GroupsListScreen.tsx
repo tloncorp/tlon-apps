@@ -13,7 +13,7 @@ type GroupsListScreenProps = NativeStackScreenProps<
 
 export default function GroupsListScreen(props: GroupsListScreenProps) {
   const [longPressedGroup, setLongPressedGroup] =
-    React.useState<db.Group | null>(null);
+    React.useState<db.GroupSummary | null>(null);
   const { pinnedGroups, unpinnedGroups } = db.useGroupsForList() ?? {};
   const { top } = useSafeAreaInsets();
 

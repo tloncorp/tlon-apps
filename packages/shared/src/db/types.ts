@@ -44,13 +44,22 @@ export type Unread = typeof schema.unreads.$inferSelect;
 export type UnreadInsert = Insertable<'unreads'>;
 export type GroupsTable = typeof schema.groups;
 export type Group = typeof schema.groups.$inferSelect;
+
+export type GroupSummary = Group & {
+  unreadCount?: number | null;
+  lastPost?: Post | null;
+};
+
 export type GroupWithRelations = Group & {
   members: GroupMember[];
   roles: GroupRole[];
   channels: Channel[];
   navSections: GroupNavSectionWithRelations[];
 };
-export type GroupWithMembersAndRoles = Group & { members: GroupMember[], roles: GroupRole[] };
+export type GroupWithMembersAndRoles = Group & {
+  members: GroupMember[];
+  roles: GroupRole[];
+};
 export type GroupInsert = Insertable<'groups'>;
 export type GroupRole = typeof schema.groupRoles.$inferSelect;
 export type GroupRoleInsert = typeof schema.groupRoles.$inferInsert;

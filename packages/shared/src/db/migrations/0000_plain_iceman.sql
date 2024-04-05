@@ -1,6 +1,6 @@
 CREATE TABLE `channels` (
 	`id` text PRIMARY KEY NOT NULL,
-	`type` text,
+	`type` text NOT NULL,
 	`group_id` text,
 	`icon_image` text,
 	`cover_image` text,
@@ -55,8 +55,8 @@ CREATE TABLE `group_members` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (
-	`group_nav_section_id` integer,
-	`channel_id` integer,
+	`group_nav_section_id` text,
+	`channel_id` text,
 	`index` integer,
 	PRIMARY KEY(`channel_id`, `group_nav_section_id`),
 	FOREIGN KEY (`group_nav_section_id`) REFERENCES `group_nav_sections`(`id`) ON UPDATE no action ON DELETE no action,
@@ -95,6 +95,7 @@ CREATE TABLE `groups` (
 	`description` text,
 	`is_secret` integer,
 	`is_joined` integer,
+	`last_post_id` text,
 	`last_post_at` integer,
 	`pin_index` integer
 );
@@ -127,24 +128,21 @@ CREATE TABLE `post_reactions` (
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`author_id` text NOT NULL,
-	`channel_id` text,
+	`channel_id` text NOT NULL,
 	`group_id` text,
-	`type` text,
+	`type` text NOT NULL,
 	`title` text,
 	`image` text,
 	`content` text,
-	`received_at` integer,
-	`sent_at` integer,
+	`received_at` integer NOT NULL,
+	`sent_at` integer NOT NULL,
 	`reply_count` integer,
-	`text` text,
+	`text_content` text,
 	`has_app_reference` integer,
 	`has_channel_reference` integer,
 	`has_group_reference` integer,
 	`has_link` integer,
-	`has_image` integer,
-	FOREIGN KEY (`author_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	`has_image` integer
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unread_states` (
