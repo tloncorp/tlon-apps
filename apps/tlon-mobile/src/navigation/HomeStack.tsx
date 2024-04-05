@@ -14,7 +14,11 @@ const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 export const HomeStack = ({ navigation }: Props) => {
   const { setVisibility } = useWebviewPositionContext();
-  const screenOptions = useScreenOptions();
+  const screenOptions = useScreenOptions({
+    overrides: {
+      headerShown: false,
+    },
+  });
 
   useEffect(() => {
     navigation.setOptions({
