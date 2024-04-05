@@ -244,7 +244,7 @@ export const groupNavSectionChannelsRelations = relations(
 
 export const channels = sqliteTable('channels', {
   id: text('id').primaryKey(),
-  type: text('type').$type<'chat' | 'notebook' | 'gallery'>(),
+  type: text('type').$type<'chat' | 'notebook' | 'gallery'>().notNull(),
   groupId: text('group_id').references(() => groups.id),
   iconImage: text('icon_image'),
   coverImage: text('cover_image'),

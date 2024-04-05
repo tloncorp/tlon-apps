@@ -15,16 +15,25 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     null
   );
   const { group } = props.route.params;
-  const { result: groupWithChannels, isLoading, error } = db.useGroup(group.id);
+  const {
+    result: groupWithRelations,
+    isLoading,
+    error,
+  } = db.useGroup(group.id);
   const { result: posts } = db.useChannelPosts(currentChannel?.id ?? '');
   const { result: contacts } = db.useContacts();
   const { top } = useSafeAreaInsets();
 
   useEffect(() => {
-    if (groupWithChannels) {
-      setCurrentChannel(groupWithChannels.channels[0]);
+    if (groupWithRelations) {
+      const firstChatChannel = groupWithRelations.channels.find(
+        (c) => c.type === 'chat'
+      );
+      if (firstChatChannel) {
+        setCurrentChannel(firstChatChannel);
+      }
     }
-  }, [groupWithChannels]);
+  }, [groupWithRelations]);
 
   useEffect(() => {
     if (error) {
@@ -40,7 +49,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [currentChannel]);
 
-  if (isLoading || !groupWithChannels || !currentChannel) {
+  if (isLoading || !groupWithRelations || !currentChannel) {
     return null;
   }
 
@@ -55,7 +64,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
-        group={groupWithChannels ?? []}
+        group={groupWithRelations ?? []}
         contacts={contacts ?? []}
         posts={posts}
         goBack={props.navigation.goBack}
@@ -65,8 +74,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       <ChannelSwitcherSheet
         open={open}
         onOpenChange={(open) => setOpen(open)}
-        group={group}
-        channels={groupWithChannels.channels || []}
+        group={groupWithRelations}
+        channels={groupWithRelations.channels || []}
         onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);

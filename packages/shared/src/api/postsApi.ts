@@ -3,7 +3,7 @@ import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
-import { KindData, KindDataChat } from '../urbit';
+import { getChannelType, KindData, KindDataChat } from '../urbit';
 import { scry } from './urbit';
 
 export const getChannelPosts = async (
@@ -102,6 +102,7 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
+  const channelType = getChannelType(channelId);
   if (post === null) {
     return {
       id,
@@ -118,6 +119,7 @@ export function toPostData(
       reactions: [],
       channel: {
         id: channelId,
+        type: channelType,
       },
       ...flags,
     };
@@ -139,6 +141,7 @@ export function toPostData(
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
     channel: {
       id: channelId,
+      type: channelType,
     },
     ...flags,
   };

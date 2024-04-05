@@ -10,7 +10,7 @@ export default function ChannelNavSection({
   channels,
   onSelect,
 }: {
-  section: db.GroupnavSectionWithRelations;
+  section: db.GroupNavSectionWithRelations;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
 }) {

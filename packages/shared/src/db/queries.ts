@@ -24,6 +24,8 @@ import {
   contacts as $contacts,
   groupMemberRoles as $groupMemberRoles,
   groupMembers as $groupMembers,
+  groupNavSectionChannels as $groupNavSectionChannels,
+  groupNavSections as $groupNavSections,
   groupRoles as $groupRoles,
   groups as $groups,
   pins as $pins,
@@ -94,6 +96,47 @@ const insertGroup = async (group: GroupInsert) => {
           $groups.isJoined
         ),
       });
+    if (group.navSections) {
+      const navSectionChannels = group.navSections.flatMap((s) => s.channels);
+      await tx
+        .insert($groupNavSections)
+        .values(
+          group.navSections.map((s) => ({
+            id: s.id,
+            groupId: group.id,
+            title: s.title,
+            description: s.description,
+            index: s.index,
+            channels: s.channels?.map((c) => ({
+              groupNavSectionId: s.id,
+              channelId: c.channelId,
+              index: s.index,
+            })),
+          }))
+        )
+        .onConflictDoUpdate({
+          target: $groupNavSections.id,
+          set: conflictUpdateSet(
+            $groupNavSections.iconImage,
+            $groupNavSections.coverImage,
+            $groupNavSections.title,
+            $groupNavSections.description
+          ),
+        });
+
+      if (navSectionChannels.length) {
+        await tx
+          .insert($groupNavSectionChannels)
+          .values(
+            navSectionChannels.map((s) => ({
+              index: s?.index,
+              groupNavSectionId: s?.groupNavSectionId,
+              channelId: s?.channelId,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+    }
     if (group.roles) {
       await client
         .insert($groupRoles)
@@ -155,7 +198,8 @@ const insertGroup = async (group: GroupInsert) => {
             $channels.title,
             $channels.description,
             $channels.addedToGroupAt,
-            $channels.currentUserIsMember
+            $channels.currentUserIsMember,
+            $channels.type
           ),
         });
     }
@@ -308,7 +352,9 @@ export const getGroup = createReadQuery(
     return client.query.groups.findFirst({
       where: (groups, { eq }) => eq(groups.id, id),
       with: {
-        channels: true,
+        channels: {
+          where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+        },
         roles: true,
         members: true,
         navSections: {

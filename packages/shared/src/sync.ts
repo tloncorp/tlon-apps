@@ -1,6 +1,7 @@
 import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
+import { getChannelType, nestToFlag } from './urbit';
 
 const logger = createDevLogger('sync', false);
 
@@ -15,7 +16,8 @@ export const syncPinnedItems = async () => {
 };
 
 export const syncGroups = async () => {
-  const groups = await api.getGroups();
+  const unreads = await api.getChannelUnreads();
+  const groups = await api.getGroups({ unreads, includeMembers: false });
   await db.insertGroups(groups);
 };
 
@@ -78,14 +80,18 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       Date.now() - startTime + 'ms'
     );
   }
-  await db.updateChannel({ id, remoteUpdatedAt, syncedAt: Date.now() });
+  const type = getChannelType(id);
+
+  await db.updateChannel({ id, type, remoteUpdatedAt, syncedAt: Date.now() });
 }
 
 async function persistPagedPostData(
   channelId: string,
   data: api.PagedPostsData
 ) {
-  await db.updateChannel({ id: channelId, postCount: data.totalPosts });
+  const type = getChannelType(channelId);
+
+  await db.updateChannel({ id: channelId, type, postCount: data.totalPosts });
 
   await db.insertChannelPosts(channelId, data.posts);
 }

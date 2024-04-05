@@ -196,7 +196,7 @@ const tlonLocalChannels: db.Channel[] = [
   tlonLocalCommunityCatalog,
 ];
 
-const tlonLocalNavSections: db.GroupnavSectionWithRelations[] = [
+const tlonLocalNavSections: db.GroupNavSectionWithRelations[] = [
   {
     index: 0,
     id: 'welcome-zone-id',

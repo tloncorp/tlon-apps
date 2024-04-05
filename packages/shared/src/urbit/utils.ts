@@ -13,3 +13,16 @@ export function nestToFlag(nest: string): [App, string] {
   return [app as App, rest.join('/')];
 }
 
+export function getChannelType(channelId: string) {
+  const [app] = nestToFlag(channelId);
+
+  if (app === 'chat') {
+    return 'chat';
+  } else if (app === 'heap') {
+    return 'gallery';
+  } else if (app === 'diary') {
+    return 'notebook';
+  } else {
+    return 'chat';
+  }
+}
