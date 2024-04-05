@@ -183,6 +183,18 @@ PODS:
     - hermes-engine/Pre-built (= 0.73.4)
   - hermes-engine/Pre-built (0.73.4)
   - libevent (2.1.12)
+  - libwebp (1.3.2):
+    - libwebp/demux (= 1.3.2)
+    - libwebp/mux (= 1.3.2)
+    - libwebp/sharpyuv (= 1.3.2)
+    - libwebp/webp (= 1.3.2)
+  - libwebp/demux (1.3.2):
+    - libwebp/webp
+  - libwebp/mux (1.3.2):
+    - libwebp/demux
+  - libwebp/sharpyuv (1.3.2)
+  - libwebp/webp (1.3.2):
+    - libwebp/sharpyuv
   - nanopb (2.30909.1):
     - nanopb/decode (= 2.30909.1)
     - nanopb/encode (= 2.30909.1)
@@ -1257,6 +1269,10 @@ PODS:
     - React-Core
   - RNDeviceInfo (10.12.0):
     - React-Core
+  - RNFastImage (8.6.3):
+    - React-Core
+    - SDWebImage (~> 5.11.1)
+    - SDWebImageWebPCoder (~> 0.8.4)
   - RNFBApp (18.8.0):
     - Firebase/CoreOnly (= 10.20.0)
     - React-Core
@@ -1280,6 +1296,12 @@ PODS:
     - React-Core
   - RNSVG (14.1.0):
     - React-Core
+  - SDWebImage (5.11.1):
+    - SDWebImage/Core (= 5.11.1)
+  - SDWebImage/Core (5.11.1)
+  - SDWebImageWebPCoder (0.8.5):
+    - libwebp (~> 1.0)
+    - SDWebImage/Core (~> 5.10)
   - SocketRocket (0.6.1)
   - sqlite3 (3.42.0):
     - sqlite3/common (= 3.42.0)
@@ -1371,6 +1393,7 @@ DEPENDENCIES:
   - "recaptcha-enterprise-react-native (from `../../../node_modules/@google-cloud/recaptcha-enterprise-react-native`)"
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
+  - RNFastImage (from `../../../node_modules/react-native-fast-image`)
   - "RNFBApp (from `../../../node_modules/@react-native-firebase/app`)"
   - "RNFBCrashlytics (from `../../../node_modules/@react-native-firebase/crashlytics`)"
   - RNGestureHandler (from `../../../node_modules/react-native-gesture-handler`)
@@ -1394,12 +1417,15 @@ SPEC REPOS:
     - GoogleDataTransport
     - GoogleUtilities
     - libevent
+    - libwebp
     - nanopb
     - PromisesObjC
     - PromisesSwift
     - ReachabilitySwift
     - RecaptchaEnterprise
     - RecaptchaInterop
+    - SDWebImage
+    - SDWebImageWebPCoder
     - SocketRocket
     - sqlite3
 
@@ -1565,6 +1591,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-async-storage/async-storage"
   RNDeviceInfo:
     :path: "../../../node_modules/react-native-device-info"
+  RNFastImage:
+    :path: "../../../node_modules/react-native-fast-image"
   RNFBApp:
     :path: "../../../node_modules/@react-native-firebase/app"
   RNFBCrashlytics:
@@ -1625,6 +1653,7 @@ SPEC CHECKSUMS:
   GoogleUtilities: 0759d1a57ebb953965c2dfe0ba4c82e95ccc2e34
   hermes-engine: b2669ce35fc4ac14f523b307aff8896799829fe2
   libevent: 4049cae6c81cdb3654a443be001fb9bdceff7913
+  libwebp: 1786c9f4ff8a279e4dac1e8f385004d5fc253009
   nanopb: d4d75c12cd1316f4a64e3c6963f879ecd4b5e0d5
   op-sqlite: af2411e57364db634729dbd4d4b24d0a9d973ab7
   PromisesObjC: c50d2056b5253dadbd6c2bea79b0674bd5a52fa4
@@ -1681,12 +1710,15 @@ SPEC CHECKSUMS:
   RecaptchaInterop: 7d1a4a01a6b2cb1610a47ef3f85f0c411434cb21
   RNCAsyncStorage: 618d03a5f52fbccb3d7010076bc54712844c18ef
   RNDeviceInfo: db5c64a060e66e5db3102d041ebe3ef307a85120
+  RNFastImage: 5c9c9fed9c076e521b3f509fe79e790418a544e8
   RNFBApp: 5810d39f89d38272f29d9908cb19ef641922c081
   RNFBCrashlytics: 56e4773cf2d3710dd1e42d2f38d3667589d743f5
   RNGestureHandler: 28bdf9a766c081e603120f79e925b72817c751c6
   RNReanimated: 1873432b0b86d0224bbe19aacea7ad8eef4e7518
   RNScreens: 2b73f5eb2ac5d94fbd61fa4be0bfebd345716825
   RNSVG: ba3e7232f45e34b7b47e74472386cf4e1a676d0a
+  SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
+  SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   SocketRocket: f32cd54efbe0f095c4d7594881e52619cfe80b17
   sqlite3: f163dbbb7aa3339ad8fc622782c2d9d7b72f7e9c
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
