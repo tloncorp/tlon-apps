@@ -1,7 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { daToUnix, decToUd } from '@urbit/api';
 import bigInt from 'big-integer';
-import _ from 'lodash';
 import { useMemo } from 'react';
 
 import * as db from '../db';
@@ -79,8 +78,7 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
 
   const searchedThroughDate = useMemo(() => {
     const params = data?.pages ?? [];
-    const lastValidCursor = _.findLast(
-      params,
+    const lastValidCursor = params.findLast(
       (page) => page.cursor !== null
     )?.cursor;
     return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
