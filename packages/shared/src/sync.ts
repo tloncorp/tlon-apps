@@ -96,17 +96,17 @@ async function persistPagedPostData(
     await db.insertChannelPosts(channelId, data.posts);
   }
   if (data.deletedPosts.length) {
-    await db.deletePosts(data.deletedPosts);
+    await db.deletePosts({ ids: data.deletedPosts });
   }
 }
 
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    // ['groups', syncGroups],
-    // ['pinnedItems', syncPinnedItems],
-    // ['unreads', syncUnreads],
-    // ['contacts', syncContacts],
-    // ['posts', syncPosts],
+    ['groups', syncGroups],
+    ['pinnedItems', syncPinnedItems],
+    ['unreads', syncUnreads],
+    ['contacts', syncContacts],
+    ['posts', syncPosts],
   ];
 
   api.subscribeUnreads(handleUnreadUpdate);

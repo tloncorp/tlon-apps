@@ -78,12 +78,15 @@ export const getGroups = createReadQuery(
       })
       .from($groups)
       .where(includeUnjoined ? undefined : eq($groups.isJoined, true));
-    includeLastPost &&
+    if (includeLastPost) {
       query.leftJoin($posts, eq($groups.lastPostId, $posts.id));
-    includeUnreads &&
+    }
+    if (includeUnreads) {
       query.leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId));
-    sort === 'pinIndex' &&
+    }
+    if (sort === 'pinIndex') {
       query.orderBy(ascNullsLast($groups.pinIndex), desc($groups.lastPostAt));
+    }
     return query;
   },
   ({
@@ -354,7 +357,7 @@ export const insertChannelPosts = createWriteQuery(
 
 export const deletePosts = createWriteQuery(
   'deletePosts',
-  async (ids: string[]) => {
+  async ({ ids }: { ids: string[] }) => {
     return client.delete($posts).where(inArray($posts.id, ids));
   },
   ['posts']
