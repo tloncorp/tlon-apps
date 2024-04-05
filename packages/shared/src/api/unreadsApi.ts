@@ -19,7 +19,7 @@ export const getDMUnreads = async () => {
 };
 
 export const subscribeChannelUnreads = (
-  handler: (unread: db.Unread) => Promise<void>
+  handler: (unread: db.Unread) => void
 ) => {
   subscribe<ub.UnreadUpdate>(
     { app: 'channels', path: '/unreads' },
@@ -30,9 +30,7 @@ export const subscribeChannelUnreads = (
   );
 };
 
-export const subscribeDMUnreads = (
-  handler: (unread: db.Unread) => Promise<void>
-) => {
+export const subscribeDMUnreads = (handler: (unread: db.Unread) => void) => {
   subscribe<ub.DMUnreadUpdate>(
     { app: 'chat', path: '/unreads' },
     async (update) => {
@@ -40,6 +38,22 @@ export const subscribeDMUnreads = (
       handler(unread);
     }
   );
+};
+
+export const subscribeUnreads = async (
+  handler: (unread: db.Unread) => void,
+  {
+    type,
+  }: {
+    type?: 'dm' | 'channel';
+  } = {}
+) => {
+  if (!type || type === 'dm') {
+    subscribeDMUnreads(handler);
+  }
+  if (!type || type === 'channel') {
+    subscribeChannelUnreads(handler);
+  }
 };
 
 export const toClientUnreads = (

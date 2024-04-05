@@ -144,6 +144,7 @@ export const group: db.GroupWithRelations = {
   iconImageColor: '#FFFFFF',
   isJoined: true,
   lastPostAt: null,
+  lastPostId: null,
   description: 'Tlon Local',
   members: [
     {

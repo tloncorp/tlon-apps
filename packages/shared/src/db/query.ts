@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
@@ -31,7 +31,7 @@ const tableEvents = {
   },
 };
 
-export interface QueryMeta {
+export interface QueryMeta<Args extends any[]> {
   /**
    * Used to label logs.
    */
@@ -39,23 +39,27 @@ export interface QueryMeta {
   /**
    * Tables which should be considered changed after this query is executed.
    */
-  tableEffects: TableName[];
+  tableEffects: TableParam<Args>;
   /**
    * Tables where changes cause this query to become stale. (If it's a live
    * query, changes to these tables should trigger a re-fetch)
    */
-  tableDependencies: TableName[];
+  tableDependencies: TableParam<Args>;
 }
 
 export interface WrappedQuery<Args extends any[], T> {
   (...args: Args): Promise<T>;
-  meta: QueryMeta;
+  meta: QueryMeta<Args>;
 }
+
+type TableParam<Args extends any[]> =
+  | TableName[]
+  | ((...args: Args) => TableName[]);
 
 export const createReadQuery = <Args extends any[], T>(
   label: string,
   queryFn: (...args: Args) => Promise<T>,
-  tableDependencies: TableName[]
+  tableDependencies: TableParam<Args>
 ): WrappedQuery<Args, T> => {
   return createQuery(queryFn, {
     label,
@@ -78,16 +82,21 @@ export const createWriteQuery = <Args extends any[], T>(
 
 export const createQuery = <Args extends any[], T>(
   queryFn: (...args: Args) => Promise<T>,
-  meta: QueryMeta
+  meta: QueryMeta<Args>
 ): WrappedQuery<Args, T> => {
   // Wrap query function to trigger table events
   const wrappedQuery = async (...args: Args) => {
     const startTime = Date.now();
+    logger.log(meta.label + ':', 'start');
     const result = await queryFn(...args);
     logger.log(meta.label + ':', Date.now() - startTime + 'ms');
     // Trigger table effects if necessary.
     if (meta?.tableEffects?.length) {
-      tableEvents.trigger(meta.tableEffects);
+      tableEvents.trigger(
+        typeof meta.tableEffects === 'function'
+          ? meta.tableEffects(...args)
+          : meta.tableEffects
+      );
     }
     return result;
   };
@@ -103,7 +112,7 @@ export const createUseQuery =
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<T | null>(null);
     const [error, setError] = useState<Error | null>(null);
-    const currentParams = useMemo(() => args, [JSON.stringify(args)]);
+    const currentParams = useShallowEachObjectMemo(args);
     const runQuery = useCallback(async () => {
       // TODO: This could cause missed updates if the query is run multiple
       // times in rapid succession, but ensures load state stays correct.
@@ -126,12 +135,36 @@ export const createUseQuery =
       runQuery();
     }, [currentParams]);
 
+    const deps = useMemo(() => {
+      return typeof query.meta.tableDependencies === 'function'
+        ? query.meta.tableDependencies(...args)
+        : query.meta.tableDependencies;
+    }, [currentParams]);
+
     // Run query when table dependencies change
     useEffect(() => {
-      tableEvents.on(query.meta.tableDependencies ?? [], runQuery);
+      tableEvents.on(deps, runQuery);
       return () => {
-        tableEvents.off(query.meta.tableDependencies ?? [], runQuery);
+        tableEvents.off(deps, runQuery);
       };
     }, [currentParams]);
     return { result, error, isLoading };
   };
+
+function useShallowEachObjectMemo<T>(objs: T[]) {
+  const ref = useRef(objs);
+  if (objs.some((obj, i) => !isShallowEqual(obj, ref.current[i]))) {
+    ref.current = objs;
+  }
+  return ref.current;
+}
+
+function isShallowEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Object.keys(a).length !== Object.keys(b).length) return false;
+  for (let key in a) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}

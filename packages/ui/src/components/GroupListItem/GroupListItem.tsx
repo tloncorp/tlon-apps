@@ -2,7 +2,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 
 import type { ListItemProps } from '../ListItem';
-import ListItemContent from './ListItemContent';
+import GroupListItemContent from './GroupListItemContent';
 
 export const GroupListItem = ({
   model,
@@ -20,7 +20,7 @@ export const GroupListItem = ({
   }, [onLongPress, model]);
 
   return (
-    <ListItemContent
+    <GroupListItemContent
       model={model}
       onPress={handlePress}
       onLongPress={handleLongPress}

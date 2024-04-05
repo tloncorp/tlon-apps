@@ -27,6 +27,12 @@ export const syncUnreads = async () => {
   await db.insertUnreads([...channelUnreads, ...dmUnreads]);
 };
 
+async function handleUnreadUpdate(unread: db.Unread) {
+  logger.log('received new unread', unread.channelId);
+  await db.insertUnreads([unread]);
+  await syncChannel(unread.channelId, unread.updatedAt);
+}
+
 export const syncPosts = async () => {
   const unreads = await db.getUnreads({ type: 'channel' });
 
@@ -71,7 +77,7 @@ export async function syncPostsAround(post: db.Post) {
 
 export async function syncChannel(id: string, remoteUpdatedAt: number) {
   const startTime = Date.now();
-  const channel = await db.getChannel(id);
+  const channel = await db.getChannel({ id });
   if (!channel) {
     throw new Error('no local channel for' + id);
   }
@@ -83,7 +89,7 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       date: new Date(Date.now() + 60000),
       includeReplies: false,
     });
-    persistPagedPostData(channel.id, postsResponse);
+    await persistPagedPostData(channel.id, postsResponse);
     logger.log(
       'loaded',
       postsResponse.posts.length,
@@ -99,8 +105,12 @@ async function persistPagedPostData(
   data: api.PagedPostsData
 ) {
   await db.updateChannel({ id: channelId, postCount: data.totalPosts });
-
-  await db.insertChannelPosts(channelId, data.posts);
+  if (data.posts.length) {
+    await db.insertChannelPosts(channelId, data.posts);
+  }
+  if (data.deletedPosts.length) {
+    await db.deletePosts({ ids: data.deletedPosts });
+  }
 }
 
 export async function persistScanPosts(
@@ -111,14 +121,16 @@ export async function persistScanPosts(
   await db.insertChannelPosts(channelId, data);
 }
 
-export const syncAll = async () => {
+export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    ['contacts', syncContacts],
     ['groups', syncGroups],
     ['pinnedItems', syncPinnedItems],
     ['unreads', syncUnreads],
+    ['contacts', syncContacts],
     ['posts', syncPosts],
   ];
+
+  api.subscribeUnreads(handleUnreadUpdate);
 
   for (const [name, fn] of enabledOperations) {
     try {
