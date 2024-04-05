@@ -43,6 +43,7 @@ const ChannelFixture = () => {
         group={group}
         channels={group.channels || []}
         onSelect={() => {}}
+        contacts={initialContacts}
       />
     </View>
   );

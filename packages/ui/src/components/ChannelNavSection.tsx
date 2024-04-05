@@ -11,7 +11,7 @@ export default function ChannelNavSection({
   onSelect,
 }: {
   section: db.GroupNavSectionWithRelations;
-  channels: db.Channel[];
+  channels: db.ChannelWithLastPost[];
   onSelect: (channel: any) => void;
 }) {
   const sectionChannels = useMemo(

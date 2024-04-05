@@ -78,6 +78,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onOpenChange={(open) => setOpen(open)}
         group={groupWithRelations}
         channels={groupWithRelations.channels || []}
+        contacts={contacts ?? []}
         onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);

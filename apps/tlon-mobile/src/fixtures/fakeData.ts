@@ -1,4 +1,5 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import { getTextContent } from '@tloncorp/shared/dist/urbit';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
 
 export const createSimpleContent = (str: string): string => {
@@ -133,61 +134,182 @@ const emptyChannel: db.Channel = {
   remoteUpdatedAt: null,
 };
 
-export const tlonLocalIntros: db.Channel = {
+export const tlonLocalIntros: db.ChannelWithLastPost = {
   ...emptyChannel,
   id: '~nibset-napwyn/intros',
   type: 'chat',
   groupId: '~nibset-napwyn/tlon',
   title: 'Intros',
   description: 'Introduce yourself to the group',
+  lastPostId: '1',
+  lastPost: {
+    id: '1',
+    authorId: '~ravmel-ropdyl',
+    content: createSimpleContent('hello'),
+    sentAt: 0,
+    replyCount: 0,
+    type: 'chat',
+    groupId: '~nibset-napwyn/tlon',
+    channelId: '~nibset-napwyn/intros',
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: 0,
+    textContent:
+      getTextContent(JSON.parse(createSimpleContent('hello'))) ?? null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+  },
 };
 
-export const tlonLocalWaterCooler: db.Channel = {
+export const tlonLocalWaterCooler: db.ChannelWithLastPost = {
   ...emptyChannel,
   id: '~nibset-napwyn/water-cooler',
   type: 'chat',
   groupId: '~nibset-napwyn/tlon',
   title: 'Internet Cafe',
   description: 'General chat',
+  lastPostId: '2',
+  lastPost: {
+    id: '2',
+    authorId: '~rilfun-lidlen',
+    content: createSimpleContent('hey'),
+    sentAt: 0,
+    replyCount: 0,
+    type: 'chat',
+    groupId: '~nibset-napwyn/tlon',
+    channelId: '~nibset-napwyn/water-cooler',
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: 0,
+    textContent: getTextContent(JSON.parse(createSimpleContent('hey'))) ?? null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+  },
 };
 
-export const tlonLocalSupport: db.Channel = {
+export const tlonLocalSupport: db.ChannelWithLastPost = {
   ...emptyChannel,
   id: '~nibset-napwyn/support',
   type: 'chat',
   groupId: '~nibset-napwyn/tlon',
   title: 'Support',
   description: 'Get help with Tlon',
+  lastPostId: '3',
+  lastPost: {
+    id: '3',
+    authorId: '~solfer-magfed',
+    content: createSimpleContent('sup'),
+    sentAt: 0,
+    replyCount: 0,
+    type: 'chat',
+    groupId: '~nibset-napwyn/tlon',
+    channelId: '~nibset-napwyn/support',
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: 0,
+    textContent: getTextContent(JSON.parse(createSimpleContent('sup'))) ?? null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+  },
 };
 
-export const tlonLocalBulletinBoard: db.Channel = {
+export const tlonLocalBulletinBoard: db.ChannelWithLastPost = {
   ...emptyChannel,
   id: '~nibset-napwyn/bulletin-board',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Bulletin Board',
   description: 'Important announcements',
+  lastPostId: '4',
+  lastPost: {
+    id: '4',
+    authorId: '~nocsyx-lassul',
+    content: createSimpleContent('yo'),
+    sentAt: 0,
+    replyCount: 0,
+    type: 'chat',
+    groupId: '~nibset-napwyn/tlon',
+    channelId: '~nibset-napwyn/bulletin-board',
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: 0,
+    textContent: getTextContent(JSON.parse(createSimpleContent('yo'))) ?? null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+  },
 };
 
-export const tlonLocalCommunityCatalog: db.Channel = {
+export const tlonLocalCommunityCatalog: db.ChannelWithLastPost = {
   ...emptyChannel,
   id: '~nibset-napwyn/community-catalog',
   type: 'gallery',
   groupId: '~nibset-napwyn/tlon',
   title: 'Community Catalog',
   description: 'Find other groups',
+  lastPostId: '5',
+  lastPost: {
+    id: '5',
+    authorId: '~latter-bolden',
+    content: createSimpleContent('lol'),
+    sentAt: 0,
+    replyCount: 0,
+    type: 'chat',
+    groupId: '~nibset-napwyn/tlon',
+    channelId: '~nibset-napwyn/community-catalog',
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: 0,
+    textContent: getTextContent(JSON.parse(createSimpleContent('lol'))) ?? null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+  },
 };
 
-export const tlonLocalGettingStarted: db.Channel = {
+export const tlonLocalGettingStarted: db.ChannelWithLastPost = {
   ...emptyChannel,
   id: '~nibset-napwyn/getting-started',
   type: 'notebook',
   groupId: '~nibset-napwyn/tlon',
   title: 'Getting Started',
   description: 'Get started with Tlon',
+  lastPostId: '6',
+  lastPost: {
+    id: '6',
+    authorId: '~ravmel-ropdyl',
+    content: createSimpleContent('hi'),
+    sentAt: 0,
+    replyCount: 0,
+    type: 'chat',
+    groupId: '~nibset-napwyn/tlon',
+    channelId: '~nibset-napwyn/getting-started',
+    title: null,
+    hasImage: null,
+    image: null,
+    receivedAt: 0,
+    textContent: getTextContent(JSON.parse(createSimpleContent('hi'))) ?? null,
+    hasAppReference: null,
+    hasChannelReference: null,
+    hasGroupReference: null,
+    hasLink: null,
+  },
 };
 
-const tlonLocalChannels: db.Channel[] = [
+const tlonLocalChannels: db.ChannelWithLastPost[] = [
   tlonLocalIntros,
   tlonLocalWaterCooler,
   tlonLocalSupport,
@@ -362,11 +484,13 @@ export const createFakePost = (): db.PostWithRelations => {
     new Date().getTime() - Math.floor(Math.random() * 10000000)
   ).getTime();
 
+  const content = getRandomFakeContent() as unknown as string;
+
   return {
     id: `${ship}-${id}`,
     authorId: ship,
     author: fakeContact,
-    content: getRandomFakeContent(),
+    content,
     sentAt: randomSentAtSameDay,
     replyCount: 0,
     type: 'chat',
@@ -376,7 +500,7 @@ export const createFakePost = (): db.PostWithRelations => {
     hasImage: null,
     image: null,
     receivedAt: randomSentAtSameDay,
-    textContent: null,
+    textContent: getTextContent(JSON.parse(content)) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,

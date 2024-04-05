@@ -1,6 +1,7 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
-import { Icon, IconType, XStack } from '../..';
+import { Icon, IconType, XStack, YStack } from '../..';
+import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ChannelListItem({
@@ -10,7 +11,7 @@ export default function ChannelListItem({
   onLongPress,
   unreadCount,
   ...props
-}: { icon?: IconType } & ListItemProps<db.Channel>) {
+}: { icon?: IconType } & ListItemProps<db.ChannelWithLastPost>) {
   return (
     <ListItem
       {...props}
@@ -27,7 +28,15 @@ export default function ChannelListItem({
       <ListItem.MainContent>
         <XStack alignItems="center" space="$m">
           {!model.iconImage && <Icon type={icon ?? 'ChannelTalk'} />}
-          <ListItem.Title>{model.title}</ListItem.Title>
+          <YStack space="$s">
+            <ListItem.Title>{model.title}</ListItem.Title>
+            {model.lastPost && (
+              <ListItem.Subtitle color="$primaryText">
+                <ContactName showAlias name={model.lastPost.authorId} />:{' '}
+                {model.lastPost.textContent ?? ''}
+              </ListItem.Subtitle>
+            )}
+          </YStack>
         </XStack>
       </ListItem.MainContent>
       <ListItem.EndContent position="relative" top={3}>

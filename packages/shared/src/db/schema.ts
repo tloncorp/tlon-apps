@@ -279,6 +279,10 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
     references: [groups.id],
   }),
   posts: many(posts),
+  lastPost: one(posts, {
+    fields: [channels.lastPostId],
+    references: [posts.id],
+  }),
   threadUnreadStates: many(threadUnreadStates),
 }));
 

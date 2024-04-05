@@ -423,6 +423,9 @@ export const getGroup = createReadQuery(
       with: {
         channels: {
           where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+          with: {
+            lastPost: true,
+          },
         },
         roles: true,
         members: true,

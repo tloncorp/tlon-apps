@@ -11,7 +11,7 @@ export default function ChannelNavSections({
   onSelect,
 }: {
   group: db.GroupWithRelations;
-  channels: db.Channel[];
+  channels: db.ChannelWithLastPost[];
   onSelect: (channel: any) => void;
 }) {
   const hasSomeUnGroupedChannels = useMemo(
