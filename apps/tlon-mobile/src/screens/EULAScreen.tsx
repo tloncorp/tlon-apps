@@ -46,28 +46,7 @@ export const EULAScreen = ({
   }, [navigation]);
 
   return (
-    <ScrollView style={tailwind('h-full bg-white dark:bg-black mt-10')}>
-      <HeaderButton
-        title="I Agree"
-        onPress={() => {
-          setEulaAgreed();
-
-          if ('email' in routeParams) {
-            // User is in sign up flow
-            navigation.navigate('SignUpPassword', routeParams);
-          } else {
-            // User is in login flow
-            const { shipId, shipUrl, authCookie } = routeParams;
-            setShip(
-              {
-                ship: shipId,
-                shipUrl,
-              },
-              authCookie
-            );
-          }
-        }}
-      />
+    <ScrollView style={tailwind('h-full bg-white dark:bg-black')}>
       <Text
         style={tailwind(
           'px-6 pb-12 h-full text-base text-tlon-black-80 dark:text-white'
