@@ -18,7 +18,6 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
-import { findLastIndex } from 'lodash';
 
 import { Image, SizableText, View, YStack } from '../../core';
 import { Button } from '../Button';
