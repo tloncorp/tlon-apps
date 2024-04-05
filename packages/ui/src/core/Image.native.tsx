@@ -1,12 +1,13 @@
 import React, { ComponentProps, useMemo } from 'react';
 import FastImage from 'react-native-fast-image';
 import { SvgUri } from 'react-native-svg';
-import { styled } from 'tamagui';
+import { TamaguiElement, styled } from 'tamagui';
+
+import { View } from './tamagui';
 
 const StyledFastImage = styled(FastImage, { name: 'FastImage' });
-const StyledSvgUri = styled(SvgUri, { name: 'Svg' });
 
-export const Image = React.forwardRef(function (
+export const Image = React.forwardRef<TamaguiElement>(function (
   // TODO: Add support for fallback and onLoad, props are only slightly different
   props: Omit<ComponentProps<typeof StyledFastImage>, 'fallback' | 'onLoad'>,
   ref
@@ -24,7 +25,11 @@ export const Image = React.forwardRef(function (
   }, [url]);
 
   if (url && isSvg) {
-    return <StyledSvgUri {...props} uri={url} ref={ref} />;
+    return (
+      <View {...props} ref={ref}>
+        <SvgUri uri={url} width={'100%'} height={'100%'} />
+      </View>
+    );
   }
   return <StyledFastImage {...props} ref={ref} />;
 });
