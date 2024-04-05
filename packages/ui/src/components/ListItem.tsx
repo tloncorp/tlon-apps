@@ -3,7 +3,6 @@ import { styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
 import { Icon } from './Icon';
-import RemoteSvg from './RemoteSvg';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -61,6 +60,7 @@ function ListItemIcon({
       width={size}
       height={size}
       borderRadius="$s"
+      overflow={'hidden'}
       //@ts-ignore This is an arbitrary, user-set color
       backgroundColor={resolvedBackgroundColor}
       {...props}
@@ -75,6 +75,7 @@ function ListItemIcon({
       borderRadius="$s"
       alignItems="center"
       justifyContent="center"
+      overflow="hidden"
       width={size}
       height={size}
     >
