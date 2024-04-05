@@ -308,7 +308,7 @@ export const getChannelPosts = createReadQuery(
 
 export const getChannelPostsAround = createReadQuery(
   'getChannelPosts',
-  async (channelId: string, postId: string) => {
+  async ({ channelId, postId }: { channelId: string; postId: string }) => {
     if (!postId) return [];
 
     // Get desired post

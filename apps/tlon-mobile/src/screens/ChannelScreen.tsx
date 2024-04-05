@@ -24,10 +24,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const { result: posts } = db.useChannelPosts({
     channelId: currentChannel?.id ?? '',
   });
-  const { result: aroundPosts } = db.useChannelPostsAround(
-    currentChannel?.id ?? '',
-    props.route.params.selectedPost?.id ?? ''
-  );
+  const { result: aroundPosts } = db.useChannelPostsAround({
+    channelId: currentChannel?.id ?? '',
+    postId: props.route.params.selectedPost?.id ?? '',
+  });
 
   const { result: contacts } = db.useContacts();
   const { top } = useSafeAreaInsets();
