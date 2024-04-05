@@ -316,6 +316,7 @@ export const getChannelSearchResults = createReadQuery(
     if (postIds.length === 0) return [];
     return client.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), inArray($posts.id, postIds)),
+      orderBy: [desc($posts.sentAt)],
       with: {
         author: true,
         reactions: true,

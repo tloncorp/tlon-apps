@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo } from 'react';
 import { FlatList, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import AuthorRow from '../ChatMessage/AuthorRow';
@@ -18,6 +19,8 @@ export function SearchResults({
   navigateToPost: (post: db.PostWithRelations) => void;
   search: SearchState;
 }) {
+  const insets = useSafeAreaInsets();
+
   const onEndReached = useCallback(() => {
     if (!search.loading && search.hasMore) {
       search.loadMore();
@@ -81,7 +84,11 @@ export function SearchResults({
                 renderItem={({ item: post }) => (
                   <SearchResult post={post} navigateToPost={navigateToPost} />
                 )}
-                ListFooterComponent={<SearchStatus search={search} />}
+                ListFooterComponent={
+                  <View marginBottom={insets.bottom}>
+                    <SearchStatus search={search} />
+                  </View>
+                }
               />
             </>
           )}
