@@ -1,5 +1,15 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
-import { PostTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import * as ub from '@tloncorp/shared/dist/urbit';
+import {
+  Block,
+  Code,
+  Image,
+  PostTuple,
+  ReplyTuple,
+  VerseBlock,
+  VerseInline,
+} from '@tloncorp/shared/dist/urbit/channel';
+import { Inline } from '@tloncorp/shared/dist/urbit/content';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
 import React, {
@@ -158,7 +168,7 @@ type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
 
 const thresholds = {
   atEndThreshold: 2000,
-  overscan: 6,
+  overscan: 20,
 };
 
 const loaderPadding = {
@@ -287,6 +297,49 @@ export default function ChatScroller({
     logger
   );
 
+  const estimateHeight = useCallback(
+    (index: number) => {
+      const defaultHeight = 100;
+      const item = messageEntries[index];
+      if (item.type === 'custom') {
+        return defaultHeight;
+      }
+      if (item.type === 'message') {
+        const message = item.writ;
+        if ('essay' in message) {
+          const hasBlocks = message.essay.content.filter(
+            (c) => 'block' in c
+          ).length;
+
+          if (hasBlocks) {
+            const blocks: Block[] = message.essay.content
+              .filter((c) => 'block' in c)
+              .map((c) => (c as VerseBlock).block);
+            const imageBlocks: Block[] = blocks.filter((b) => 'image' in b);
+            const imageBlockHeights = imageBlocks.map(
+              (b) => (b as Image).image.height
+            );
+
+            const totalImageHeight = imageBlockHeights.reduce(
+              (acc, h) => acc + h,
+              0
+            );
+
+            if (totalImageHeight > 0) {
+              return totalImageHeight;
+            }
+
+            return defaultHeight;
+          }
+
+          return defaultHeight;
+        }
+      }
+      return defaultHeight;
+    },
+    [messageEntries]
+  );
+
   const virtualizerRef = useRef<DivVirtualizer>();
 
   /**
@@ -385,7 +438,10 @@ export default function ChatScroller({
     // required after rendering.
     // TODO: This is a comically bad estimate. Making this a little better will
     // further reduce jank / reflow necessity.
-    estimateSize: useCallback((index: number) => 100, []),
+    estimateSize: useCallback(
+      (index: number) => estimateHeight(index),
+      [estimateHeight]
+    ),
     getItemKey: useCallback(
       (index: number) => messageKeys[transformIndex(index)].toString(),
       [messageKeys, transformIndex]
@@ -521,6 +577,8 @@ export default function ChatScroller({
   // On first run, virtualizerRef will be empty, so contentHeight will be undefined.
   // TODO: Distentangle virtualizer init to avoid this.
   const finalHeight = contentHeight ?? virtualizer.getTotalSize();
+
+  // virtualizer.measurementsCache = [];
 
   return (
     <>
