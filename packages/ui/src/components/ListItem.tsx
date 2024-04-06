@@ -1,4 +1,10 @@
-import { ComponentProps, PropsWithChildren, ReactElement } from 'react';
+import { utils } from '@tloncorp/shared';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  ReactElement,
+  useMemo,
+} from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
@@ -26,6 +32,7 @@ export const ListItemFrame = styled(XStack, {
   gap: '$l',
   justifyContent: 'space-between',
   alignItems: 'stretch',
+  backgroundColor: '$background',
   variants: {
     pressable: {
       true: {
@@ -90,16 +97,15 @@ function ListItemIcon({
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
-  justifyContent: 'center',
+  justifyContent: 'space-between',
   height: '$4xl',
-  paddingVertical: '$xs',
 });
 
 const ListItemTitle = styled(SizableText, {
   alignItems: 'baseline',
   color: '$primaryText',
+  numberOfLines: 1,
 
-  // numberOfLines: 1,
   // TODO: is there an easy way to do something like this?
   // $native: {
   //   numberOfLines: 1,
@@ -110,12 +116,6 @@ const ListItemTitle = styled(SizableText, {
   //   overflow: "hidden",
   //   textOverflow: "ellipsis",
   // },
-});
-
-const ListItemTitleRow = styled(XStack, {
-  gap: '$s',
-  alignItems: 'center',
-  overflow: 'hidden',
 });
 
 function ListItemTitleAttribute({ children }: PropsWithChildren) {
@@ -139,7 +139,6 @@ function ListItemTitleAttribute({ children }: PropsWithChildren) {
 const ListItemSubtitle = styled(SizableText, {
   numberOfLines: 1,
   size: '$s',
-  // lineHeight: 0,
   color: '$secondaryText',
 });
 
@@ -147,18 +146,48 @@ const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
   color: '$secondaryText',
   size: '$s',
+  // Tiny tweak to try to align with the baseline of the title
+  position: 'relative',
+  top: 1,
+});
+
+const ListItemTime = ListItemTimeText.styleable<{
+  time?: Date | number | null;
+}>(({ time, ...props }, ref) => {
+  const formattedTime = useMemo(() => {
+    if (!time) {
+      return null;
+    }
+    const date = new Date(time);
+    const meta = utils.makePrettyDayAndDateAndTime(date);
+    if (meta.diff > 7) {
+      return utils.makeShortDate(new Date(time));
+    } else if (meta.diff > 0) {
+      return meta.day;
+    } else {
+      return meta.time;
+    }
+  }, [time]);
+  return <ListItemTimeText {...props}>{formattedTime ?? ''}</ListItemTimeText>;
 });
 
 const ListItemCount = ({ children }: PropsWithChildren) => {
   return (
     <Stack
-      padding={0}
-      backgroundColor="$white"
-      borderWidth={1}
-      borderColor="$primaryText"
+      padding="$2xs"
+      paddingHorizontal={'$m'}
+      backgroundColor="$secondaryBackground"
       borderRadius="$l"
+      // Tiny tweak to try to align with the baseline of the title
+      position="relative"
+      top={-2}
     >
-      <SizableText fontSize="$s" color="$primaryText" textAlign="center">
+      <SizableText
+        size="$s"
+        lineHeight={0}
+        color="$secondaryText"
+        textAlign="center"
+      >
         {children}
       </SizableText>
     </Stack>
@@ -194,9 +223,6 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  paddingTop: '$s',
-  height: '$4xl',
-  paddingVertical: '$xs',
   gap: '$s',
   justifyContent: 'space-between',
   alignItems: 'flex-end',
@@ -209,10 +235,9 @@ export const ListItem = withStaticProperties(ListItemComponent, {
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,
-  TitleRow: ListItemTitleRow,
   Title: ListItemTitle,
   TitleAttribute: ListItemTitleAttribute,
   Subtitle: ListItemSubtitle,
   EndContent: ListItemEndContent,
-  Time: ListItemTimeText,
+  Time: ListItemTime,
 });

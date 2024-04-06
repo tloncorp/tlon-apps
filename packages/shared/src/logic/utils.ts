@@ -22,6 +22,10 @@ export function makePrettyShortDate(date: Date) {
   return format(date, 'MMM dd, yyyy');
 }
 
+export function makeShortDate(date: Date) {
+  return format(date, 'MM/dd/yyyy');
+}
+
 export interface DayTimeDisplay {
   original: Date;
   diff: number;

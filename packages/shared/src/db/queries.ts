@@ -357,7 +357,7 @@ export const insertChannels = createWriteQuery(
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: ChannelInsert) => {
+  (update: Partial<ChannelInsert> & { id: string }) => {
     return client
       .update($channels)
       .set(update)
