@@ -1,7 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 
-import { ScrollView, Text, YGroup } from '../core';
+import { ScrollView, YStack } from '../core';
 import { GroupListItem } from './GroupListItem';
+import { ListSectionHeader } from './ListSectionHeader';
 
 export function GroupList({
   pinned,
@@ -16,50 +17,30 @@ export function GroupList({
 }) {
   return (
     <ScrollView>
-      <YGroup alignSelf="stretch" gap="$s" padding="$l">
-        <YGroup.Item>
-          {pinned.length > 0 && (
-            <Text
-              paddingHorizontal="$l"
-              paddingVertical="$xl"
-              fontSize="$s"
-              color="$secondaryText"
-            >
-              Pinned
-            </Text>
-          )}
-          {pinned.map((item) => (
-            <GroupListItem
-              model={item}
-              unreadCount={item.unreadCount ?? 0}
-              onPress={() => onGroupPress?.(item)}
-              onLongPress={() => onGroupLongPress?.(item)}
-              key={item.id}
-            />
-          ))}
-        </YGroup.Item>
-        <YGroup.Item>
-          {other.length > 0 && pinned.length > 0 && (
-            <Text
-              paddingHorizontal="$l"
-              paddingVertical="$xl"
-              fontSize="$s"
-              color="$secondaryText"
-            >
-              Other
-            </Text>
-          )}
-          {other.map((item) => (
-            <GroupListItem
-              model={item}
-              unreadCount={item.unreadCount ?? 0}
-              onPress={() => onGroupPress?.(item)}
-              onLongPress={() => onGroupLongPress?.(item)}
-              key={item.id}
-            />
-          ))}
-        </YGroup.Item>
-      </YGroup>
+      <YStack gap="$s" paddingHorizontal="$l">
+        {pinned.length > 0 && <ListSectionHeader>Pinned</ListSectionHeader>}
+        {pinned.map((item) => (
+          <GroupListItem
+            model={item}
+            unreadCount={item.unreadCount ?? 0}
+            onPress={() => onGroupPress?.(item)}
+            onLongPress={() => onGroupLongPress?.(item)}
+            key={item.id}
+          />
+        ))}
+        {other.length > 0 && pinned.length > 0 && (
+          <ListSectionHeader>Other</ListSectionHeader>
+        )}
+        {other.map((item) => (
+          <GroupListItem
+            model={item}
+            unreadCount={item.unreadCount ?? 0}
+            onPress={() => onGroupPress?.(item)}
+            onLongPress={() => onGroupLongPress?.(item)}
+            key={item.id}
+          />
+        ))}
+      </YStack>
     </ScrollView>
   );
 }

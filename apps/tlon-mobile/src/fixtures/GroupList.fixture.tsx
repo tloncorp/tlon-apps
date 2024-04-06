@@ -1,32 +1,49 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { GroupList } from '@tloncorp/ui';
 
+import { FixtureWrapper } from './FixtureWrapper';
+import {
+  groupWithColorAndNoImage,
+  groupWithImage,
+  groupWithLongTitle,
+  groupWithNoColorOrImage,
+  groupWithSvgImage,
+} from './fakeData';
+
 export default {
   basic: (
-    <GroupList
-      pinned={
-        [
-          { id: '1', title: 'Pinned Group 1', isSecret: false },
-          { id: '2', title: 'Pinned Group 2', isSecret: true },
-        ] as db.Group[]
-      }
-      other={
-        [
-          { id: '3', title: 'Other Group 1', isSecret: false },
-          { id: '4', title: 'Other Group 2', isSecret: true },
-        ] as db.Group[]
-      }
-    />
+    <FixtureWrapper fillWidth>
+      <GroupList
+        pinned={[groupWithLongTitle, groupWithImage] as db.Group[]}
+        other={
+          [
+            groupWithColorAndNoImage,
+            groupWithImage,
+            groupWithSvgImage,
+            groupWithNoColorOrImage,
+          ] as db.Group[]
+        }
+      />
+    </FixtureWrapper>
   ),
   emptyPinned: (
-    <GroupList
-      pinned={[]}
-      other={
-        [
-          { id: '3', title: 'Other Group, no pinned groups', isSecret: false },
-        ] as db.Group[]
-      }
-    />
+    <FixtureWrapper fillWidth>
+      <GroupList
+        pinned={[]}
+        other={
+          [
+            groupWithColorAndNoImage,
+            groupWithImage,
+            groupWithSvgImage,
+            groupWithNoColorOrImage,
+          ] as db.Group[]
+        }
+      />
+    </FixtureWrapper>
   ),
-  loading: <GroupList pinned={[]} other={[]} />,
+  loading: (
+    <FixtureWrapper fillWidth>
+      <GroupList pinned={[]} other={[]} />
+    </FixtureWrapper>
+  ),
 };
