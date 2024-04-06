@@ -109,7 +109,6 @@ const ChatWindow = React.memo(
         latestMessageIndex - scrollToIndex > 30,
       [scrollToIndex, latestMessageIndex]
     );
-
     const goToLatest = useCallback(async () => {
       if (idTime) {
         navigate(root);

@@ -207,10 +207,13 @@ class API {
     });
   }
 
-  private async track<R>(
-    subscription: SubscriptionId,
-    hook: (event: R) => boolean
-  ) {
+  /**
+   * A function to track a subscription for a specific event
+   *
+   * @param subscription Subscription to listen to
+   * @param hook Function to call to check if the event is the one we're waiting for
+   */
+  async track<R>(subscription: SubscriptionId, hook: (event: R) => boolean) {
     const path = subPath(subscription);
     return new Promise((resolve, reject) => {
       const subWatchers = this.watchers[path] || new Map();

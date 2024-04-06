@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import {
+  CacheId,
   PostEssay,
   Replies,
   Reply,
@@ -307,7 +308,7 @@ export function createMessage(
   replying?: string
 ): {
   id: string;
-  cacheId: { author: string; sent: number };
+  cacheId: CacheId;
   delta: WritDeltaAdd | ReplyDelta;
 } {
   const { id, sent } = makeId();

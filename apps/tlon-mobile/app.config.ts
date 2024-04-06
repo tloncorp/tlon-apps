@@ -10,6 +10,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'groups',
   name: isPreview ? 'Tlon - Preview' : 'Tlon',
   assetBundlePatterns: ['**/*'],
+  userInterfaceStyle: 'automatic',
   extra: {
     eas: {
       projectId,
@@ -29,6 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     defaultShipLoginAccessCode: process.env.DEFAULT_SHIP_LOGIN_ACCESS_CODE,
     recaptchaSiteKeyAndroid: process.env.RECAPTCHA_SITE_KEY_ANDROID,
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
+    enabledLoggers: process.env.ENABLED_LOGGERS,
   },
   ios: {
     runtimeVersion: '4.0.0',

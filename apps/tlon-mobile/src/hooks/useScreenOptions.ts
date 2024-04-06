@@ -2,7 +2,13 @@ import type { NativeStackNavigationOptions } from '@react-navigation/native-stac
 
 import { useIsDarkMode } from './useIsDarkMode';
 
-export const useScreenOptions = (): NativeStackNavigationOptions => {
+type Props = {
+  overrides?: NativeStackNavigationOptions;
+};
+
+export const useScreenOptions = (
+  props?: Props
+): NativeStackNavigationOptions => {
   const isDarkMode = useIsDarkMode();
   return {
     headerTitle: '',
@@ -12,5 +18,6 @@ export const useScreenOptions = (): NativeStackNavigationOptions => {
       backgroundColor: isDarkMode ? '#000' : '#fff',
     },
     headerTintColor: isDarkMode ? '#fff' : '#333',
+    ...props?.overrides,
   };
 };
