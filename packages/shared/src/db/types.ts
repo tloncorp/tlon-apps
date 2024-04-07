@@ -83,11 +83,12 @@ export type ChannelWithRelations = Channel & {
   lastPost: Post | null;
   threadUnreadStates: ThreadUnreadState[];
 };
+export type ChannelMember = typeof schema.channelMembers.$inferSelect;
 export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
 export type ChannelWithLastPost = Channel & {
   lastPost: Post | null;
 };
-export type ChannelInsert = typeof schema.channels.$inferInsert;
+export type ChannelInsert = Insertable<'channels'>;
 export type ThreadUnreadState = typeof schema.threadUnreadStates.$inferSelect;
 export type ThreadUnreadStateInsert =
   typeof schema.threadUnreadStates.$inferInsert;

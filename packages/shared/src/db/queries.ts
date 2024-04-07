@@ -20,6 +20,7 @@ import {
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
+  channelMembers as $channelMembers,
   channels as $channels,
   contactGroups as $contactGroups,
   contacts as $contacts,
@@ -318,8 +319,37 @@ export const getAllUnreadsCounts = createReadQuery(
 
 export const getChannel = createReadQuery(
   'getChannel',
-  async ({ id }: { id: string }) => {
-    return client.query.channels.findFirst({ where: eq($channels.id, id) });
+  async ({ id, includeMembers }: { id: string; includeMembers?: boolean }) => {
+    return client.query.channels.findFirst({
+      where: eq($channels.id, id),
+      with: {
+        ...(includeMembers ? { members: { with: { contact: true } } } : {}),
+      },
+    });
+  },
+  ['channels']
+);
+
+export const insertChannels = createWriteQuery(
+  'insertChannels',
+  async (channels: ChannelInsert[]) => {
+    return client.transaction(async (tx) => {
+      await client
+        .insert($channels)
+        .values(channels)
+        .onConflictDoUpdate({
+          target: $channels.id,
+          set: conflictUpdateSetAll($posts),
+        });
+      for (let channel of channels) {
+        if (channel.members) {
+          await client
+            .delete($channelMembers)
+            .where(eq($channelMembers.channelId, channel.id));
+          await client.insert($channelMembers).values(channel.members);
+        }
+      }
+    });
   },
   ['channels']
 );

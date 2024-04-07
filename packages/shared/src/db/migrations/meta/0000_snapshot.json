@@ -1,9 +1,54 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "2452573b-0d28-44b4-9660-9c687b9d26b7",
+  "id": "6837c7bc-8043-4929-aa01-38536ad318f3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "channel_members": {
+      "name": "channel_members",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "channel_members_channel_id_channels_id_fk": {
+          "name": "channel_members_channel_id_channels_id_fk",
+          "tableFrom": "channel_members",
+          "tableTo": "channels",
+          "columnsFrom": [
+            "channel_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "channel_members_channel_id_contact_id_pk": {
+          "columns": [
+            "channel_id",
+            "contact_id"
+          ],
+          "name": "channel_members_channel_id_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "channels": {
       "name": "channels",
       "columns": {
@@ -35,8 +80,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "icon_image_color": {
+          "name": "icon_image_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "cover_image": {
           "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image_color": {
+          "name": "cover_image_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -475,8 +534,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "icon_image_color": {
+          "name": "icon_image_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "cover_image": {
           "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image_color": {
+          "name": "cover_image_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -540,8 +613,29 @@
           "notNull": false,
           "autoincrement": false
         },
-        "image": {
-          "name": "image",
+        "icon_image": {
+          "name": "icon_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "icon_image_color": {
+          "name": "icon_image_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image": {
+          "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image_color": {
+          "name": "cover_image_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -549,13 +643,6 @@
         },
         "title": {
           "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "cover": {
-          "name": "cover",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

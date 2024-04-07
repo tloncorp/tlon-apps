@@ -10,7 +10,13 @@ import {
 import { toClientGroup, toPagedPostsData } from './api';
 import { scry } from './api/urbit';
 import * as db from './db';
-import { syncChannel, syncContacts, syncGroups, syncPinnedItems } from './sync';
+import {
+  syncChannel,
+  syncContacts,
+  syncDms,
+  syncGroups,
+  syncPinnedItems,
+} from './sync';
 import rawChannelPostsData from './test/channelPosts.json';
 import rawContactsData from './test/contacts.json';
 import rawGroupsData from './test/groups.json';
@@ -66,6 +72,12 @@ function setScryOutput<T>(output: T) {
   );
 }
 
+function setScryOutputs<T>(outputs: T[]) {
+  (scry as MockedFunction<() => Promise<T>>).mockImplementation(
+    async () => outputs.shift()!
+  );
+}
+
 test('syncs pins', async () => {
   setScryOutput(inputData);
   await syncPinnedItems();
@@ -103,6 +115,122 @@ test('sync groups', async () => {
   expect(storedGroups[0].pinIndex).toEqual(0);
   expect(storedGroups[1].pinIndex).toEqual(1);
   expect(storedGroups[2].pinIndex).toEqual(2);
+});
+
+test('syncs dms', async () => {
+  const groupDmId = '0v4.00000.qd4p2.it253.qs53q.s53qs';
+  setScryOutputs([
+    ['~solfer-magfed'],
+    {
+      [groupDmId]: {
+        net: 'done',
+        hive: ['~latter-bolden'],
+        team: [
+          '~nocsyx-lassul',
+          '~rilfun-lidlen',
+          '~pondus-watbel',
+          '~solfer-magfed',
+          '~finned-palmer',
+          '~palfun-foslup',
+        ],
+        meta: {
+          image: '#f0ebbd',
+          title: 'Pensacola 2024-04',
+          cover: '',
+          description: '',
+        },
+      },
+    },
+  ]);
+  await syncDms();
+
+  const singleChannel = await db.getChannel({
+    id: '~solfer-magfed',
+    includeMembers: true,
+  });
+  expect(singleChannel).toEqual({
+    id: '~solfer-magfed',
+    type: 'dm',
+    groupId: null,
+    iconImage: null,
+    iconImageColor: null,
+    coverImage: null,
+    coverImageColor: null,
+    title: '',
+    description: '',
+    addedToGroupAt: null,
+    currentUserIsMember: null,
+    postCount: null,
+    unreadCount: null,
+    firstUnreadPostId: null,
+    lastPostId: null,
+    lastPostAt: null,
+    syncedAt: null,
+    remoteUpdatedAt: null,
+    members: [
+      {
+        channelId: '~solfer-magfed',
+        contactId: '~solfer-magfed',
+        contact: null,
+      },
+    ],
+  });
+  const groupDmChannel = await db.getChannel({
+    id: groupDmId,
+    includeMembers: true,
+  });
+  expect(groupDmChannel).toEqual({
+    id: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+    type: 'groupDm',
+    groupId: null,
+    iconImage: null,
+    iconImageColor: '#f0ebbd',
+    coverImage: null,
+    coverImageColor: null,
+    title: 'Pensacola 2024-04',
+    description: '',
+    addedToGroupAt: null,
+    currentUserIsMember: null,
+    postCount: null,
+    unreadCount: null,
+    firstUnreadPostId: null,
+    lastPostId: null,
+    lastPostAt: null,
+    syncedAt: null,
+    remoteUpdatedAt: null,
+    members: [
+      {
+        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contactId: '~finned-palmer',
+        contact: null,
+      },
+      {
+        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contactId: '~nocsyx-lassul',
+        contact: null,
+      },
+      {
+        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contactId: '~palfun-foslup',
+        contact: null,
+      },
+      {
+        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contactId: '~pondus-watbel',
+        contact: null,
+      },
+      {
+        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contactId: '~rilfun-lidlen',
+        contact: null,
+      },
+      {
+        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contactId: '~solfer-magfed',
+        contact: null,
+      },
+    ],
+  });
 });
 
 const groupId = 'test-group';

@@ -19,6 +19,11 @@ export const syncGroups = async () => {
   await db.insertGroups(groups);
 };
 
+export const syncDms = async () => {
+  const [dms, groupDms] = await Promise.all([api.getDms(), api.getGroupDms()]);
+  await db.insertChannels([...dms, ...groupDms]);
+};
+
 export const syncUnreads = async () => {
   const [channelUnreads, dmUnreads] = await Promise.all([
     api.getChannelUnreads(),
@@ -39,8 +44,8 @@ async function handleUnreadUpdate(unread: db.Unread) {
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
-export const syncPosts = async () => {
-  const unreads = await db.getUnreads({ type: 'channel' });
+export const syncPosts = async ({ type }: { type?: 'channel' | 'dm' } = {}) => {
+  const unreads = await db.getUnreads({ type });
 
   for (let unread of unreads) {
     try {
