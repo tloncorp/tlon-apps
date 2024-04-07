@@ -1,9 +1,6 @@
 import * as db from '../db';
-import { getUnreads, useAllUnreadsCounts, useUnreads } from '../db';
-import { createUseQuery } from '../db/query';
 import type * as ub from '../urbit';
-import { getChannelType, nestToFlag } from '../urbit';
-import { getChannelUnreads } from './unreadsApi';
+import { getChannelType } from '../urbit';
 import { scry } from './urbit';
 
 export const getPinnedItems = async () => {
@@ -42,37 +39,32 @@ export const getPinnedItemType = (rawItem: string) => {
 export const getGroups = async (
   {
     includeMembers,
-    unreads,
   }: {
     includeMembers: boolean;
-    unreads: db.Unread[];
   } = {
     includeMembers: false,
-    unreads: [],
   }
 ) => {
   const path = includeMembers ? '/groups' : '/groups/light';
   const groupData = await scry<ub.Groups>({ app: 'groups', path });
-  return toClientGroups(groupData, unreads, true);
+  return toClientGroups(groupData, true);
 };
 
 export function toClientGroups(
   groups: Record<string, ub.Group>,
-  unreads: db.Unread[],
   isJoined: boolean
 ) {
   if (!groups) {
     return [];
   }
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroup(id, group, unreads, isJoined);
+    return toClientGroup(id, group, isJoined);
   });
 }
 
 export function toClientGroup(
   id: string,
   group: ub.Group,
-  unreads: db.Unread[],
   isJoined: boolean
 ): db.GroupInsert {
   const rolesById: Record<string, db.GroupRoleInsert> = {};
@@ -124,11 +116,10 @@ export function toClientGroup(
         groupId: id,
         contactId: userId,
         vessel: vessel,
-        groupRoles: rolesById,
       });
     }),
     channels: group.channels
-      ? toClientChannels({ channels: group.channels, groupId: id, unreads })
+      ? toClientChannels({ channels: group.channels, groupId: id })
       : [],
   };
 }
@@ -157,31 +148,25 @@ function toClientGroupMetadata(group: ub.Group | ub.GroupPreview) {
 
 function toClientChannels({
   channels,
-  unreads,
   groupId,
 }: {
   channels: Record<string, ub.GroupChannel>;
-  unreads: db.Unread[];
   groupId: string;
 }): db.ChannelInsert[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel({ id, channel, groupId, unreads })
+    toClientChannel({ id, channel, groupId })
   );
 }
 
 function toClientChannel({
   id,
   channel,
-  unreads,
   groupId,
 }: {
   id: string;
   channel: ub.GroupChannel;
-  unreads: db.Unread[];
   groupId: string;
 }): db.ChannelInsert {
-  const isJoined = unreads.some((u) => u.channelId === id);
-
   return {
     id,
     groupId,
@@ -190,7 +175,6 @@ function toClientChannel({
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
     description: omitEmpty(channel.meta.description),
-    currentUserIsMember: isJoined,
   };
 }
 
@@ -198,12 +182,10 @@ function toClientGroupMember({
   groupId,
   contactId,
   vessel,
-  groupRoles,
 }: {
   groupId: string;
   contactId: string;
   vessel: { sects: string[]; joined: number };
-  groupRoles: Record<string, db.GroupRoleInsert>;
 }): db.GroupMemberInsert {
   return {
     contactId,

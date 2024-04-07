@@ -105,24 +105,32 @@ test('sync groups', async () => {
   expect(storedGroups[2].pinIndex).toEqual(2);
 });
 
-test('sync posts', async () => {
-  const groupId = 'test-group';
-  const channelId = 'test-channel';
-  const groupData = toClientGroup(
+const groupId = 'test-group';
+const channelId = 'test-channel';
+const unreadTime = 1712091148002;
+
+const testGroupData: db.GroupInsert = {
+  ...toClientGroup(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
     true
-  );
-  const unreadTime = 1712091148002;
-  groupData.channels = [{ id: channelId, groupId }];
-  await db.insertGroups([groupData]);
-  console.log('inserted group');
+  ),
+  navSections: [
+    {
+      id: 'abc',
+      groupId,
+      channels: [{ index: 0, channelId, groupNavSectionId: 'abc' }],
+    },
+  ],
+  channels: [{ id: channelId, groupId, type: 'chat' }],
+};
+
+test('sync posts', async () => {
+  await db.insertGroups([testGroupData]);
   const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
-
   setScryOutput(rawChannelPostsData);
   await syncChannel(channelId, unreadTime);
-
   const convertedPosts = toPagedPostsData(
     channelId,
     rawChannelPostsData as unknown as PagedPosts
@@ -145,16 +153,7 @@ test('sync posts', async () => {
 });
 
 test('deletes removed posts', async () => {
-  const groupId = 'test-group';
-  const channelId = 'test-channel';
-  const groupData = toClientGroup(
-    groupId,
-    Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
-    true
-  );
-  const unreadTime = 1712091148002;
-  groupData.channels = [{ id: channelId, groupId }];
-  await db.insertGroups([groupData]);
+  await db.insertGroups([testGroupData]);
   const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
   const deletedPosts = Object.fromEntries(

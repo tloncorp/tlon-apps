@@ -1,7 +1,6 @@
 import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
-import { getChannelType, nestToFlag } from './urbit';
 
 const logger = createDevLogger('sync', false);
 
@@ -16,8 +15,7 @@ export const syncPinnedItems = async () => {
 };
 
 export const syncGroups = async () => {
-  const unreads = await api.getChannelUnreads();
-  const groups = await api.getGroups({ unreads, includeMembers: false });
+  const groups = await api.getGroups({ includeMembers: false });
   await db.insertGroups(groups);
 };
 
@@ -26,7 +24,13 @@ export const syncUnreads = async () => {
     api.getChannelUnreads(),
     api.getDMUnreads(),
   ]);
-  await db.insertUnreads([...channelUnreads, ...dmUnreads]);
+  const unreads = [...channelUnreads, ...dmUnreads];
+  await db.insertUnreads(unreads);
+  await db.setJoinedChannels({
+    channelIds: unreads
+      .filter((u) => u.type === 'channel')
+      .map((u) => u.channelId),
+  });
 };
 
 async function handleUnreadUpdate(unread: db.Unread) {
@@ -86,21 +90,16 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       Date.now() - startTime + 'ms'
     );
   }
-  const type = getChannelType(id);
 
-  await db.updateChannel({ id, type, remoteUpdatedAt, syncedAt: Date.now() });
+  await db.updateChannel({ id, remoteUpdatedAt, syncedAt: Date.now() });
 }
 
 async function persistPagedPostData(
   channelId: string,
   data: api.PagedPostsData
 ) {
-  const type = getChannelType(channelId);
-
-  await db.updateChannel({ id: channelId, type, postCount: data.totalPosts });
-
   await db.insertChannelPosts(channelId, data.posts);
-  await db.updateChannel({ id: channelId, postCount: data.totalPosts, type });
+  await db.updateChannel({ id: channelId, postCount: data.totalPosts });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
   }

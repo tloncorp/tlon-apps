@@ -1,4 +1,5 @@
-import * as ub from './index';
+import * as ub from './channel';
+import * as ubc from './content';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -35,7 +36,7 @@ export function getTextContent(story?: ub.Story | undefined) {
   }
   return story
     .map((verse) => {
-      if (ub.isBlock(verse)) {
+      if (ubc.isBlock(verse)) {
         return getBlockContent(verse.block);
       } else {
         return getInlinesContent(verse.inline);
@@ -51,54 +52,54 @@ export function getBlockContent(block: ub.Block) {
     return '[image]';
   } else if (ub.isCite(block)) {
     return '[ref]';
-  } else if (ub.isHeader(block)) {
+  } else if (ubc.isHeader(block)) {
     return block.header.content.map(getInlineContent);
-  } else if (ub.isCode(block)) {
+  } else if (ubc.isCode(block)) {
     return block.code.code;
-  } else if (ub.isListing(block)) {
+  } else if (ubc.isListing(block)) {
     return getListingContent(block.listing);
   }
 }
 
 export function getListingContent(listing: ub.Listing): string {
-  if (ub.isListItem(listing)) {
+  if (ubc.isListItem(listing)) {
     return listing.item.map(getInlineContent).join(' ');
   } else {
     return listing.list.items.map(getListingContent).join(' ');
   }
 }
 
-export function getInlinesContent(inlines: ub.Inline[]): string {
+export function getInlinesContent(inlines: ubc.Inline[]): string {
   return inlines
     .map(getInlineContent)
     .filter((v) => v && v !== '')
     .join(' ');
 }
 
-export function getInlineContent(inline: ub.Inline): string {
-  if (ub.isBold(inline)) {
+export function getInlineContent(inline: ubc.Inline): string {
+  if (ubc.isBold(inline)) {
     return inline.bold.map(getInlineContent).join(' ');
-  } else if (ub.isItalics(inline)) {
+  } else if (ubc.isItalics(inline)) {
     return inline.italics.map(getInlineContent).join(' ');
-  } else if (ub.isLink(inline)) {
+  } else if (ubc.isLink(inline)) {
     return inline.link.content;
-  } else if (ub.isStrikethrough(inline)) {
+  } else if (ubc.isStrikethrough(inline)) {
     return inline.strike.map(getInlineContent).join(' ');
-  } else if (ub.isBlockquote(inline)) {
+  } else if (ubc.isBlockquote(inline)) {
     return inline.blockquote.map(getInlineContent).join(' ');
-  } else if (ub.isInlineCode(inline)) {
+  } else if (ubc.isInlineCode(inline)) {
     return inline['inline-code'];
-  } else if (ub.isBlockCode(inline)) {
+  } else if (ubc.isBlockCode(inline)) {
     return inline.code;
-  } else if (ub.isBreak(inline)) {
+  } else if (ubc.isBreak(inline)) {
     return '';
-  } else if (ub.isShip(inline)) {
+  } else if (ubc.isShip(inline)) {
     return inline.ship;
-  } else if (ub.isTag(inline)) {
+  } else if (ubc.isTag(inline)) {
     return inline.tag;
-  } else if (ub.isBlockReference(inline)) {
+  } else if (ubc.isBlockReference(inline)) {
     return inline.block.text;
-  } else if (ub.isTask(inline)) {
+  } else if (ubc.isTask(inline)) {
     return inline.task.content.map(getInlineContent).join(' ');
   } else {
     return inline;

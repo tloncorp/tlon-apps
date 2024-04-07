@@ -108,10 +108,12 @@ export const roles: db.GroupRole[] = [
   {
     id: 'admin',
     coverImage: null,
+    coverImageColor: null,
     groupId: '~nibset-napwyn/tlon',
     title: 'Admin',
     description: 'Admins can do anything',
     iconImage: null,
+    iconImageColor: null,
   },
 ];
 
@@ -122,7 +124,9 @@ const emptyChannel: db.Channel = {
   title: '',
   description: '',
   iconImage: null,
+  iconImageColor: null,
   coverImage: null,
+  coverImageColor: null,
   currentUserIsMember: true,
   addedToGroupAt: null,
   lastPostAt: null,
@@ -329,7 +333,9 @@ const tlonLocalNavSections: db.GroupNavSectionWithRelations[] = [
     groupId: '~nibset-napwyn/tlon',
     title: 'Welcome',
     coverImage: null,
+    coverImageColor: null,
     iconImage: null,
+    iconImageColor: null,
     description: 'Welcome to Tlon Local',
     channels: [
       {
@@ -350,7 +356,9 @@ const tlonLocalNavSections: db.GroupNavSectionWithRelations[] = [
     groupId: '~nibset-napwyn/tlon',
     title: 'Discuss',
     coverImage: null,
+    coverImageColor: null,
     iconImage: null,
+    iconImageColor: null,
     description: 'Discuss things',
     channels: [
       {
@@ -371,7 +379,9 @@ const tlonLocalNavSections: db.GroupNavSectionWithRelations[] = [
     groupId: '~nibset-napwyn/tlon',
     title: 'Catalog',
     coverImage: null,
+    coverImageColor: null,
     iconImage: null,
+    iconImageColor: null,
     description: 'Find cool stuff',
     channels: [
       {

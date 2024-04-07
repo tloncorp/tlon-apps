@@ -141,6 +141,23 @@ const insertGroup = async (group: GroupInsert) => {
           $groups.isJoined
         ),
       });
+    if (group.channels?.length) {
+      await client
+        .insert($channels)
+        .values(group.channels)
+        .onConflictDoUpdate({
+          target: [$channels.id],
+          set: conflictUpdateSet(
+            $channels.iconImage,
+            $channels.coverImage,
+            $channels.title,
+            $channels.description,
+            $channels.addedToGroupAt,
+            $channels.currentUserIsMember,
+            $channels.type
+          ),
+        });
+    }
     if (group.navSections) {
       const navSectionChannels = group.navSections.flatMap((s) => s.channels);
       await tx
@@ -231,23 +248,6 @@ const insertGroup = async (group: GroupInsert) => {
           .onConflictDoNothing();
       }
     }
-    if (group.channels?.length) {
-      await client
-        .insert($channels)
-        .values(group.channels)
-        .onConflictDoUpdate({
-          target: [$channels.id],
-          set: conflictUpdateSet(
-            $channels.iconImage,
-            $channels.coverImage,
-            $channels.title,
-            $channels.description,
-            $channels.addedToGroupAt,
-            $channels.currentUserIsMember,
-            $channels.type
-          ),
-        });
-    }
     if (group.posts) {
     }
   });
@@ -335,6 +335,16 @@ export const updateChannel = createWriteQuery(
   ['channels']
 );
 
+export const setJoinedChannels = createWriteQuery(
+  'setJoinedChannels',
+  ({ channelIds }: { channelIds: string[] }) => {
+    return client
+      .update($channels)
+      .set({ currentUserIsMember: inArray($channels.id, channelIds) });
+  },
+  ['channels']
+);
+
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
   async ({ channelId }: { channelId: string }) => {
@@ -352,6 +362,9 @@ export const getChannelPosts = createReadQuery(
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
   async (channelId: string, posts: PostInsert[]) => {
+    if (!posts.length) {
+      return;
+    }
     return client.transaction(async (tx) => {
       const lastPost = posts[posts.length - 1];
       // Update last post meta for the channel these posts belong to,
