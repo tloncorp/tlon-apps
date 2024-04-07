@@ -142,6 +142,7 @@ async function persistPagedPostData(
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
     ['groups', syncGroups],
+    ['dms', syncDms],
     ['pinnedItems', syncPinnedItems],
     ['unreads', syncUnreads],
     ['contacts', syncContacts],

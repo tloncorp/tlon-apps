@@ -1,9 +1,12 @@
-import { daToUnix, decToUd, unixToDa } from '@urbit/api';
-import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
-
 import * as db from '../db';
 import * as ub from '../urbit';
-import { getChannelType, KindData, KindDataChat, getTextContent } from '../urbit';
+import {
+  KindData,
+  KindDataChat,
+  getChannelType,
+  getTextContent,
+} from '../urbit';
+import { formatDateParam, formatUd, udToDate } from './converters';
 import { scry } from './urbit';
 
 export const getChannelPosts = async (
@@ -251,24 +254,4 @@ function toReactionsData(
       value: reaction,
     };
   });
-}
-
-// Utilities
-
-function formatUd(ud: string) {
-  //@ts-ignore string will get converted internally, so doesn't actually have to
-  //be a bigint
-  return baseFormatUd(ud);
-}
-
-function udToDate(da: string) {
-  return daToUnix(parseUd(da));
-}
-
-function formatDateParam(date: Date) {
-  return baseFormatUd(unixToDa(date!.getTime()));
-}
-
-export function formatPostIdParam(sealId: string) {
-  return decToUd(sealId);
 }

@@ -1,14 +1,6 @@
-import {
-  MockedFunction,
-  beforeAll,
-  beforeEach,
-  expect,
-  test,
-  vi,
-} from 'vitest';
+import { beforeAll, beforeEach, expect, test, vi } from 'vitest';
 
 import { toClientGroup, toPagedPostsData } from './api';
-import { scry } from './api/urbit';
 import * as db from './db';
 import {
   syncChannel,
@@ -21,6 +13,7 @@ import rawChannelPostsData from './test/channelPosts.json';
 import rawContactsData from './test/contacts.json';
 import rawGroupsData from './test/groups.json';
 import { resetDb, setupDb } from './test/helpers';
+import { setScryOutput, setScryOutputs } from './test/helpers';
 import { PagedPosts } from './urbit';
 import { Contact as UrbitContact } from './urbit/contact';
 import { Group as UrbitGroup } from './urbit/groups';
@@ -44,7 +37,7 @@ const inputData = [
 
 const outputData = [
   {
-    type: 'club',
+    type: 'groupDm',
     index: 0,
     itemId: inputData[0],
   },
@@ -60,29 +53,11 @@ const outputData = [
   },
 ];
 
-vi.mock('./api/urbit', async () => {
-  return {
-    scry: vi.fn(),
-  };
-});
-
-function setScryOutput<T>(output: T) {
-  (scry as MockedFunction<() => Promise<T>>).mockImplementationOnce(
-    async () => output
-  );
-}
-
-function setScryOutputs<T>(outputs: T[]) {
-  (scry as MockedFunction<() => Promise<T>>).mockImplementation(
-    async () => outputs.shift()!
-  );
-}
-
 test('syncs pins', async () => {
   setScryOutput(inputData);
   await syncPinnedItems();
   const savedItems = await db.getPinnedItems({
-    orderBy: 'type',
+    orderBy: 'index',
     direction: 'asc',
   });
   expect(savedItems).toEqual(outputData);

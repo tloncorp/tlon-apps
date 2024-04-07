@@ -89,9 +89,8 @@ export type ChannelWithLastPost = Channel & {
   lastPost: Post | null;
 };
 export type ChannelInsert = Insertable<'channels'>;
-export type ThreadUnreadState = typeof schema.threadUnreadStates.$inferSelect;
-export type ThreadUnreadStateInsert =
-  typeof schema.threadUnreadStates.$inferInsert;
+export type ThreadUnreadState = typeof schema.threadUnreads.$inferSelect;
+export type ThreadUnreadStateInsert = typeof schema.threadUnreads.$inferInsert;
 export type Post = typeof schema.posts.$inferSelect;
 export type PostWithRelations = Post & {
   reactions: Reaction[] | null;

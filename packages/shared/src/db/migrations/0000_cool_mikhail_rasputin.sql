@@ -158,19 +158,21 @@ CREATE TABLE `posts` (
 	`has_image` integer
 );
 --> statement-breakpoint
-CREATE TABLE `thread_unread_states` (
-	`channel_id` integer,
+CREATE TABLE `thread_unreads` (
+	`channel_id` text,
 	`thread_id` text,
 	`count` integer,
 	`first_unread_post_id` text,
-	PRIMARY KEY(`channel_id`, `thread_id`),
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+	`first_unread_post_received_at` integer,
+	PRIMARY KEY(`channel_id`, `thread_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `unreads` (
-	`channelId` text PRIMARY KEY NOT NULL,
-	`type` text,
-	`totalCount` integer,
-	`updatedAt` integer NOT NULL,
-	FOREIGN KEY (`channelId`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
+	`count` integer NOT NULL,
+	`count_without_threads` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`first_unread_post_id` text,
+	`first_unread_post_received_at` integer
 );

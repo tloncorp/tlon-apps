@@ -11,6 +11,7 @@ import {
   getTableColumns,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lt,
   not,
@@ -70,7 +71,7 @@ export const getGroups = createReadQuery(
       .from($channels)
       .rightJoin($unreads, eq($channels.id, $unreads.channelId))
       .groupBy($channels.groupId)
-      .having(gt($unreads.totalCount, 0))
+      .having(gt($unreads.count, 0))
       .as('unreadCounts');
     const query = client
       .select({
@@ -103,6 +104,57 @@ export const getGroups = createReadQuery(
     ...(includeLastPost ? (['posts'] as TableName[]) : []),
     ...(includeUnreads ? (['unreads'] as TableName[]) : []),
   ]
+);
+
+export const getChats = createReadQuery(
+  'getChats',
+  async () => {
+    const partitionedGroupsQuery = client
+      .select({
+        ...getTableColumns($channels),
+        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY ${$channels.lastPostAt} DESC)`.as(
+          'rn'
+        ),
+      })
+      .from($channels)
+      .where(and(isNotNull($channels.groupId)))
+      .as('q');
+
+    const groupChannels = client
+      .select()
+      .from(partitionedGroupsQuery)
+      .where(eq(partitionedGroupsQuery.rn, 1));
+
+    const allChannels = client
+      .select({
+        ...getTableColumns($channels),
+        rn: sql`0`.as('rn'),
+      })
+      .from($channels)
+      .where(isNull($channels.groupId))
+      .union(groupChannels)
+      .as('ac');
+
+    return client
+      .select({
+        id: allChannels.id,
+        group: getTableColumns($groups),
+        unread: getTableColumns($unreads),
+        pin: getTableColumns($pins),
+      })
+      .from(allChannels)
+      .leftJoin($groups, eq($groups.id, allChannels.groupId))
+      .leftJoin($unreads, eq($unreads.channelId, allChannels.id))
+      .leftJoin(
+        $pins,
+        or(
+          eq(allChannels.groupId, $pins.itemId),
+          eq(allChannels.id, $pins.itemId)
+        )
+      )
+      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+  },
+  ['groups', 'channels']
 );
 
 export const insertGroups = createWriteQuery(
@@ -270,10 +322,7 @@ export const getUnreadsCount = createReadQuery(
       .select({ count: count() })
       .from($unreads)
       .where(() =>
-        and(
-          gt($unreads.totalCount, 0),
-          type ? eq($unreads.type, type) : undefined
-        )
+        and(gt($unreads.count, 0), type ? eq($unreads.type, type) : undefined)
       );
     return result[0].count;
   },
@@ -294,7 +343,7 @@ export const getUnreads = createReadQuery(
     return client.query.unreads.findMany({
       where: and(
         type ? eq($unreads.type, type) : undefined,
-        includeFullyRead ? undefined : gt($unreads.totalCount, 0)
+        includeFullyRead ? undefined : gt($unreads.count, 0)
       ),
       orderBy: orderBy === 'updatedAt' ? desc($unreads.updatedAt) : undefined,
     });
@@ -635,7 +684,9 @@ export const insertContacts = createWriteQuery(
       })
     );
     await client.insert($contacts).values(contactsData).onConflictDoNothing();
-    await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    if (targetGroups.length) {
+      await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    }
     // TODO: Remove stale pinned groups
     await client
       .insert($contactGroups)
