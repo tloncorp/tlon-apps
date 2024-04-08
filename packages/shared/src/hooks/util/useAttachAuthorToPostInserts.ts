@@ -29,10 +29,9 @@ export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
   };
 
   const getMissingAuthors = async (missingAuthors: string[]) => {
-    const contactPromises = missingAuthors.map((authorId) =>
-      db.getContact({ id: authorId })
-    );
-    const newContacts = await Promise.all(contactPromises);
+    const newContacts = await db.getContactsBatch({
+      contactIds: missingAuthors,
+    });
     newContacts.forEach((newContact) =>
       newContact ? addAuthorToCache(newContact) : null
     );

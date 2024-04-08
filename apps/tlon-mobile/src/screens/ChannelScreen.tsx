@@ -77,7 +77,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         group={groupWithChannels ?? []}
         contacts={contacts ?? []}
         posts={hasSelectedPost ? aroundPosts : posts}
-        selectedPost={props.route.params.selectedPost?.id}
+        selectedPost={
+          hasSelectedPost && aroundPosts?.length
+            ? props.route.params.selectedPost?.id
+            : undefined
+        }
         goBack={props.navigation.goBack}
         goToChannels={() => setOpen(true)}
         goToSearch={() =>

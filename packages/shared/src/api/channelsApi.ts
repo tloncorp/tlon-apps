@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import * as db from '../db';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { toPostData } from './postsApi';
+import { formatPostIdParam, toPostData } from './postsApi';
 import { scry } from './urbit';
 
 export const getUnreadChannels = async () => {
@@ -36,7 +36,9 @@ const searchChatChannel = async (params: {
   const posts = response.scan
     .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
     .map((scanItem) => (scanItem as { post: ub.Post }).post)
-    .map((post) => toPostData(post.seal.id, params.channelId, post));
+    .map((post) =>
+      toPostData(formatPostIdParam(post.seal.id), params.channelId, post)
+    );
   const cursor = response.last;
 
   return { posts, cursor };

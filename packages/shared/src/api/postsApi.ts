@@ -1,4 +1,4 @@
-import { daToUnix, unixToDa } from '@urbit/api';
+import { daToUnix, decToUd, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
 import * as db from '../db';
@@ -341,4 +341,8 @@ function udToDate(da: string) {
 
 function formatDateParam(date: Date) {
   return baseFormatUd(unixToDa(date!.getTime()));
+}
+
+export function formatPostIdParam(sealId: string) {
+  return decToUd(sealId);
 }

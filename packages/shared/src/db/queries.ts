@@ -489,6 +489,16 @@ export const getContacts = createReadQuery(
   ['contacts']
 );
 
+export const getContactsBatch = createReadQuery(
+  'getContactsBatch',
+  async ({ contactIds }: { contactIds: string[] }) => {
+    return client.query.contacts.findMany({
+      where: (contacts, { inArray }) => inArray(contacts.id, contactIds),
+    });
+  },
+  ['contacts']
+);
+
 export const getContactsCount = createReadQuery(
   'getContactsCount',
   async () => {
