@@ -16,7 +16,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   );
   const { group } = props.route.params;
   const {
-    result: groupWithChannels,
+    result: groupWithRelations,
     isLoading,
     error,
   } = db.useGroup({ id: group.id });
@@ -24,13 +24,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     channelId: currentChannel?.id ?? '',
   });
   const { result: contacts } = db.useContacts();
-  const { top } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   useEffect(() => {
-    if (groupWithChannels) {
-      setCurrentChannel(groupWithChannels.channels[0]);
+    if (groupWithRelations) {
+      const firstChatChannel = groupWithRelations.channels.find(
+        (c) => c.type === 'chat'
+      );
+      if (firstChatChannel) {
+        setCurrentChannel(firstChatChannel);
+      }
     }
-  }, [groupWithChannels]);
+  }, [groupWithRelations]);
 
   useEffect(() => {
     if (error) {
@@ -46,7 +51,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [currentChannel]);
 
-  if (isLoading || !groupWithChannels || !currentChannel) {
+  if (isLoading || !groupWithRelations || !currentChannel) {
     return null;
   }
 
@@ -61,7 +66,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
-        group={groupWithChannels ?? []}
+        group={groupWithRelations ?? []}
         contacts={contacts ?? []}
         posts={posts}
         goBack={props.navigation.goBack}
@@ -71,8 +76,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       <ChannelSwitcherSheet
         open={open}
         onOpenChange={(open) => setOpen(open)}
-        group={group}
-        channels={groupWithChannels.channels || []}
+        group={groupWithRelations}
+        channels={groupWithRelations.channels || []}
+        contacts={contacts ?? []}
+        paddingBottom={bottom}
         onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);

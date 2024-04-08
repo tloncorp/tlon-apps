@@ -1,6 +1,7 @@
 import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
+import { getChannelType } from './urbit';
 
 const logger = createDevLogger('sync', false);
 
@@ -15,8 +16,13 @@ export const syncPinnedItems = async () => {
 };
 
 export const syncGroups = async () => {
-  const groups = await api.getGroups();
+  const groups = await api.getGroups({ includeMembers: false });
   await db.insertGroups(groups);
+};
+
+export const syncDms = async () => {
+  const [dms, groupDms] = await Promise.all([api.getDms(), api.getGroupDms()]);
+  await db.insertChannels([...dms, ...groupDms]);
 };
 
 export const syncUnreads = async () => {
@@ -24,7 +30,13 @@ export const syncUnreads = async () => {
     api.getChannelUnreads(),
     api.getDMUnreads(),
   ]);
-  await db.insertUnreads([...channelUnreads, ...dmUnreads]);
+  const unreads = [...channelUnreads, ...dmUnreads];
+  await db.insertUnreads(unreads);
+  await db.setJoinedChannels({
+    channelIds: unreads
+      .filter((u) => u.type === 'channel')
+      .map((u) => u.channelId),
+  });
 };
 
 async function handleUnreadUpdate(unread: db.Unread) {
@@ -33,8 +45,8 @@ async function handleUnreadUpdate(unread: db.Unread) {
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
-export const syncPosts = async () => {
-  const unreads = await db.getUnreads({ type: 'channel' });
+export const syncPosts = async ({ type }: { type?: 'channel' | 'dm' } = {}) => {
+  const unreads = await db.getUnreads({ type });
 
   for (let unread of unreads) {
     try {
@@ -84,14 +96,28 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       Date.now() - startTime + 'ms'
     );
   }
-  await db.updateChannel({ id, remoteUpdatedAt, syncedAt: Date.now() });
+
+  const channelType = getChannelType(id);
+
+  await db.updateChannel({
+    id,
+    remoteUpdatedAt,
+    syncedAt: Date.now(),
+    type: channelType,
+  });
 }
 
 async function persistPagedPostData(
   channelId: string,
   data: api.PagedPostsData
 ) {
-  await db.updateChannel({ id: channelId, postCount: data.totalPosts });
+  const channelType = getChannelType(channelId);
+  await db.insertChannelPosts(channelId, data.posts);
+  await db.updateChannel({
+    id: channelId,
+    postCount: data.totalPosts,
+    type: channelType,
+  });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
   }

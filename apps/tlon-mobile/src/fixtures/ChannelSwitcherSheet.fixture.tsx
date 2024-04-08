@@ -1,6 +1,6 @@
 import { ChannelSwitcherSheet } from '@tloncorp/ui';
 
-import { group } from './fakeData';
+import { group, initialContacts } from './fakeData';
 
 export default {
   basic: (
@@ -9,6 +9,7 @@ export default {
       onOpenChange={() => {}}
       group={group}
       channels={group.channels}
+      contacts={initialContacts}
       onSelect={(channel) => console.debug(`Selected ${channel.title}`)}
     />
   ),

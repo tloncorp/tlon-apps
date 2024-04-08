@@ -10,6 +10,8 @@ export const useContacts = createUseQuery(queries.getContacts);
 
 export const useAllUnreadsCounts = createUseQuery(queries.getAllUnreadsCounts);
 
+export const useUnreads = createUseQuery(queries.getUnreads);
+
 export const useGroups = createUseQuery(queries.getGroups);
 
 export const useGroup = createUseQuery(queries.getGroup);
