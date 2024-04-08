@@ -24,7 +24,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     channelId: currentChannel?.id ?? '',
   });
   const { result: contacts } = db.useContacts();
-  const { top } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   useEffect(() => {
     if (groupWithRelations) {
@@ -79,6 +79,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         group={groupWithRelations}
         channels={groupWithRelations.channels || []}
         contacts={contacts ?? []}
+        paddingBottom={bottom}
         onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);

@@ -12,6 +12,7 @@ interface Props {
   channels: db.ChannelWithLastPost[];
   contacts: db.Contact[];
   onSelect: (channel: db.Channel) => void;
+  paddingBottom?: number;
 }
 
 export function ChannelSwitcherSheet({
@@ -21,6 +22,7 @@ export function ChannelSwitcherSheet({
   channels,
   onSelect,
   contacts,
+  paddingBottom,
 }: Props) {
   return (
     <ContactsProvider initialContacts={contacts}>
@@ -29,7 +31,8 @@ export function ChannelSwitcherSheet({
         onOpenChange={onOpenChange}
         modal
         dismissOnSnapToBottom
-        snapPointsMode="fit"
+        snapPointsMode="percent"
+        snapPoints={[90]}
         // TODO: Figure out why typescript is complaining about the animation prop
         // @ts-ignore - animation prop is not recognized
         animation="quick"
@@ -41,11 +44,10 @@ export function ChannelSwitcherSheet({
         />
         <Sheet.Frame>
           <Sheet.Handle paddingTop="$xl" />
-          <View
+          <Sheet.ScrollView
             gap="$xl"
             paddingHorizontal="$xl"
             paddingTop="$xl"
-            paddingBottom="$4xl"
           >
             <SizableText
               fontSize="$l"
@@ -59,8 +61,9 @@ export function ChannelSwitcherSheet({
               group={group}
               channels={channels}
               onSelect={onSelect}
+              paddingBottom={paddingBottom}
             />
-          </View>
+          </Sheet.ScrollView>
         </Sheet.Frame>
       </Sheet>
     </ContactsProvider>

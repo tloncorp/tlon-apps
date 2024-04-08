@@ -9,10 +9,12 @@ export default function ChannelNavSections({
   group,
   channels,
   onSelect,
+  paddingBottom,
 }: {
   group: db.GroupWithRelations;
   channels: db.ChannelWithLastPost[];
   onSelect: (channel: any) => void;
+  paddingBottom?: number;
 }) {
   const hasSomeUnGroupedChannels = useMemo(
     () =>
@@ -53,7 +55,7 @@ export default function ChannelNavSections({
   );
 
   return (
-    <YGroup alignSelf="stretch" gap="$s">
+    <YGroup paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
       {group.navSections.map((section) => (
         <ChannelNavSection
           key={section.id}
