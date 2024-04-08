@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 
 import * as db from '../../db';
+import { getFallbackContact } from '../../db/fallback';
 
 export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
   const [postsWithAuthor, setPostsWithAuthor] = useState<
@@ -32,9 +33,22 @@ export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
     const newContacts = await db.getContactsBatch({
       contactIds: missingAuthors,
     });
-    newContacts.forEach((newContact) =>
-      newContact ? addAuthorToCache(newContact) : null
-    );
+
+    const foundContacts = new Set();
+    newContacts.forEach((newContact) => {
+      if (newContact) {
+        addAuthorToCache(newContact);
+        foundContacts.add(newContact.id);
+      }
+    });
+
+    // even if we don't have a contact for a particular author, we still want to
+    // display the search result, so we use a fallback
+    missingAuthors.forEach((authorId) => {
+      if (!foundContacts.has(authorId)) {
+        addAuthorToCache(getFallbackContact(authorId));
+      }
+    });
   };
 
   useEffect(() => {

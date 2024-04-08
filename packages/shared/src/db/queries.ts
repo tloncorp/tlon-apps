@@ -548,7 +548,6 @@ export const getGroup = createReadQuery(
   ['groups']
 );
 
-// hustling, there's probably a more relational way to do this
 export const getGroupByChannel = createReadQuery(
   'getGroupByChannel',
   async (channelId: string) => {
