@@ -139,14 +139,6 @@ async function persistPagedPostData(
   }
 }
 
-export async function persistScanPosts(
-  channelId: string,
-  data: db.PostInsert[]
-) {
-  await db.updateChannel({ id: channelId, postCount: data.length });
-  await db.insertChannelPosts(channelId, data);
-}
-
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
     ['groups', syncGroups],
