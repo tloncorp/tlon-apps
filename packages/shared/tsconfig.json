@@ -9,7 +9,7 @@
     "jsx": "react-jsx",
     "declaration": true,
     "declarationMap": true,
-    // "emitDeclarationOnly": true,
+    "emitDeclarationOnly": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "rootDir": "./src",
