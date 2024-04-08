@@ -19,7 +19,8 @@
       "vite/client",
       "vitest/globals",
       "@testing-library/jest-dom",
-      "vite-plugin-pwa/react"
+      "vite-plugin-pwa/react",
+      "../../packages/ui/src/tamagui.d.ts"
     ],
     "paths": {
       "@/*": ["./src/*"]
