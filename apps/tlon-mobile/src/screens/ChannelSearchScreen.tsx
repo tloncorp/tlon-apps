@@ -5,7 +5,6 @@ import { XStack, YStack } from '@tloncorp/ui';
 // TODO: update references to dist
 import { Button, SearchBar, SearchResults } from '@tloncorp/ui/src/index';
 import { useCallback, useLayoutEffect, useState } from 'react';
-import { Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { HomeStackParamList } from '../types';
@@ -58,12 +57,9 @@ export default function ChannelSearch({
             onChangeQuery={setQuery}
             placeholder={`Search ${channel.title}`}
           />
-          {/* TODO: fix button? */}
-          <Pressable>
-            <Button minimal onPress={() => navigation.pop()}>
-              <Button.Text>Cancel</Button.Text>
-            </Button>
-          </Pressable>
+          <Button minimal onPress={() => navigation.pop()}>
+            <Button.Text>Cancel</Button.Text>
+          </Button>
         </XStack>
 
         <SearchResults

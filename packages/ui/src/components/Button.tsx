@@ -68,6 +68,11 @@ export const ButtonFrame = styled(Stack, {
   },
 });
 
+export const ButtonFrameImpl = ButtonFrame.styleable((props, ref) => {
+  // adding group to the styledc component itself seems to breaking typing for variants
+  return <ButtonFrame group="button" {...props} ref={ref} />;
+});
+
 export const ButtonText = styled(Text, {
   name: 'ButtonText',
   context: ButtonContext,
@@ -81,15 +86,13 @@ export const ButtonText = styled(Text, {
       }),
     },
 
-    // TODO: adding this seems to make the text itself pressable and swallow the press
-    // of the button frame itself
-    // minimal: {
-    //   true: {
-    //     pressStyle: {
-    //       color: '$secondaryText',
-    //     },
-    //   },
-    // },
+    minimal: {
+      true: {
+        '$group-button-press': {
+          color: '$secondaryText',
+        },
+      },
+    },
   } as const,
 });
 
@@ -105,7 +108,7 @@ const ButtonIcon = (props: { children: any }) => {
   });
 };
 
-export const Button = withStaticProperties(ButtonFrame, {
+export const Button = withStaticProperties(ButtonFrameImpl, {
   Props: ButtonContext.Provider,
   Text: ButtonText,
   Icon: ButtonIcon,
