@@ -2,6 +2,8 @@ import {
   AnyColumn,
   Column,
   SQLWrapper,
+  Subquery,
+  SubqueryConfig,
   Table,
   and,
   asc,
@@ -36,11 +38,14 @@ import {
   posts as $posts,
   unreads as $unreads,
 } from './schema';
-import { GroupSummary } from './types';
 import {
   ChannelInsert,
+  ChannelMember,
+  ChannelSummary,
+  Contact,
   ContactInsert,
   GroupInsert,
+  GroupSummary,
   Pin,
   PostInsert,
   TableName,
@@ -108,7 +113,7 @@ export const getGroups = createReadQuery(
 
 export const getChats = createReadQuery(
   'getChats',
-  async () => {
+  async (): Promise<ChannelSummary[]> => {
     const partitionedGroupsQuery = client
       .select({
         ...getTableColumns($channels),
@@ -135,12 +140,17 @@ export const getChats = createReadQuery(
       .union(groupChannels)
       .as('ac');
 
-    return client
+    const result = await client
       .select({
-        id: allChannels.id,
+        ...allQueryColumns(allChannels),
         group: getTableColumns($groups),
         unread: getTableColumns($unreads),
         pin: getTableColumns($pins),
+        lastPost: getTableColumns($posts),
+        member: {
+          ...getTableColumns($channelMembers),
+        },
+        contact: getTableColumns($contacts),
       })
       .from(allChannels)
       .leftJoin($groups, eq($groups.id, allChannels.groupId))
@@ -152,10 +162,48 @@ export const getChats = createReadQuery(
           eq(allChannels.id, $pins.itemId)
         )
       )
+      .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
+      .leftJoin($channelMembers, eq($channelMembers.channelId, allChannels.id))
+      .leftJoin($contacts, eq($contacts.id, $channelMembers.contactId))
       .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+    const [channelMembers, filteredChannels] = result.reduce<
+      [
+        Record<string, (ChannelMember & { contact: Contact | null })[]>,
+        typeof result,
+      ]
+    >(
+      ([members, filteredChannels], channel) => {
+        if (!channel.member || !members[channel.id]) {
+          filteredChannels.push(channel);
+        }
+        if (channel.member) {
+          members[channel.id] ||= [];
+          members[channel.id].push({
+            ...channel.member,
+            contact: channel.contact ?? null,
+          });
+        }
+        return [members, filteredChannels];
+      },
+      [{}, [] as typeof result]
+    );
+
+    return filteredChannels.map((c) => {
+      return {
+        ...c,
+        members: channelMembers[c.id] ?? null,
+      };
+    });
   },
   ['groups', 'channels']
 );
+
+const allQueryColumns = <T extends Subquery>(
+  subquery: T
+): T['_']['selectedFields'] => {
+  return (subquery as any)[SubqueryConfig]
+    .selection as T['_']['selectedFields'];
+};
 
 export const insertGroups = createWriteQuery(
   'insertGroups',

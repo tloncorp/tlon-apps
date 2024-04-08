@@ -14,7 +14,6 @@ type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 export const HomeStack = ({ navigation }: Props) => {
-  const { setVisibility } = useWebviewPositionContext();
   const screenOptions = useScreenOptions({
     overrides: {
       headerShown: false,
@@ -34,14 +33,7 @@ export const HomeStack = ({ navigation }: Props) => {
         />
       ),
     });
-
-    const unsubscribe = navigation.addListener('tabPress', () => {
-      // hide the webview from other tabs
-      setVisibility(false);
-    });
-
-    return unsubscribe;
-  }, [navigation, setVisibility]);
+  }, [navigation]);
 
   return (
     <Stack.Navigator

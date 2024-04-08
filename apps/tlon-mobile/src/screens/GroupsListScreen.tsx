@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
-import { GroupList, GroupOptionsSheet, View } from '@tloncorp/ui';
+import { ChatList, ChatOptionsSheet, View } from '@tloncorp/ui';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,25 +12,26 @@ type GroupsListScreenProps = NativeStackScreenProps<
 >;
 
 export default function GroupsListScreen(props: GroupsListScreenProps) {
-  const [longPressedGroup, setLongPressedGroup] =
-    React.useState<db.GroupSummary | null>(null);
-  const { pinnedGroups, unpinnedGroups } = db.useGroupsForList() ?? {};
+  const [longPressedItem, setLongPressedItem] = React.useState<db.Chat | null>(
+    null
+  );
+  const { pinned, unpinned } = db.useCurrentChats() ?? {};
   const { top } = useSafeAreaInsets();
 
   return (
     <View paddingTop={top} backgroundColor="$background" flex={1}>
-      <GroupList
-        pinned={Array.from(pinnedGroups ?? [])}
-        other={Array.from(unpinnedGroups ?? [])}
-        onGroupLongPress={setLongPressedGroup}
-        onGroupPress={(group) => {
-          props.navigation.navigate('Channel', { group });
+      <ChatList
+        pinned={Array.from(pinned ?? [])}
+        unpinned={Array.from(unpinned ?? [])}
+        onLongPressItem={setLongPressedItem}
+        onPressItem={(channel) => {
+          props.navigation.navigate('Channel', { channel });
         }}
       />
-      <GroupOptionsSheet
-        open={longPressedGroup !== null}
-        onOpenChange={(open) => (!open ? setLongPressedGroup(null) : 'noop')}
-        group={longPressedGroup ?? undefined}
+      <ChatOptionsSheet
+        open={longPressedItem !== null}
+        onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
+        channel={longPressedItem ?? undefined}
       />
     </View>
   );

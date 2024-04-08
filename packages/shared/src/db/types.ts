@@ -56,10 +56,12 @@ export type GroupWithRelations = Group & {
   channels: ChannelWithLastPost[];
   navSections: GroupNavSectionWithRelations[];
 };
+
 export type GroupWithMembersAndRoles = Group & {
   members: GroupMember[];
   roles: GroupRole[];
 };
+
 export type GroupInsert = Insertable<'groups'>;
 export type GroupRole = typeof schema.groupRoles.$inferSelect;
 export type GroupRoleInsert = typeof schema.groupRoles.$inferInsert;
@@ -88,6 +90,15 @@ export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
 export type ChannelWithLastPost = Channel & {
   lastPost: Post | null;
 };
+
+export type ChannelSummary = Channel & {
+  group?: Group | null;
+  unread?: Unread | null;
+  lastPost?: Post | null;
+  pin?: Pin | null;
+  members?: (ChannelMember & { contact: Contact | null })[] | null;
+};
+
 export type ChannelInsert = Insertable<'channels'>;
 export type ThreadUnreadState = typeof schema.threadUnreads.$inferSelect;
 export type ThreadUnreadStateInsert = typeof schema.threadUnreads.$inferInsert;

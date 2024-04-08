@@ -1,5 +1,5 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { GroupList } from '@tloncorp/ui';
+import { ChatList } from '@tloncorp/ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -13,7 +13,7 @@ import {
 export default {
   basic: (
     <FixtureWrapper fillWidth>
-      <GroupList
+      <ChatList
         pinned={[groupWithLongTitle, groupWithImage] as db.Group[]}
         other={
           [
@@ -28,9 +28,9 @@ export default {
   ),
   emptyPinned: (
     <FixtureWrapper fillWidth>
-      <GroupList
+      <ChatList
         pinned={[]}
-        other={
+        unpinned={
           [
             groupWithColorAndNoImage,
             groupWithImage,
@@ -43,7 +43,7 @@ export default {
   ),
   loading: (
     <FixtureWrapper fillWidth>
-      <GroupList pinned={[]} other={[]} />
+      <ChatList pinned={[]} unpinned={[]} />
     </FixtureWrapper>
   ),
 };

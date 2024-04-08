@@ -6,10 +6,10 @@ import { Sheet } from './Sheet';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group?: db.Group;
+  channel?: db.ChannelSummary;
 }
 
-export function GroupOptionsSheet({ open, onOpenChange, group }: Props) {
+export function ChatOptionsSheet({ open, onOpenChange, group }: Props) {
   return (
     <Sheet
       open={open}
