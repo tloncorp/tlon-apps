@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo } from 'react';
 
-import { SizableText, YGroup } from '../core';
+import { SizableText, YGroup, YStack } from '../core';
 import ChannelListItem from './ChannelListItem';
 import { IconType } from './Icon';
 
@@ -49,7 +49,7 @@ export default function ChannelNavSection({
   );
 
   return (
-    <YGroup.Item key={section.id}>
+    <YStack key={section.id}>
       <SizableText
         paddingHorizontal="$l"
         paddingVertical="$xl"
@@ -66,6 +66,6 @@ export default function ChannelNavSection({
           onPress={onSelect}
         />
       ))}
-    </YGroup.Item>
+    </YStack>
   );
 }

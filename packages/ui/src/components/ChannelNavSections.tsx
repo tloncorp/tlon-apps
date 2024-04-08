@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo } from 'react';
 
-import { SizableText, YGroup } from '../core';
+import { SizableText, YGroup, YStack } from '../core';
 import ChannelListItem from './ChannelListItem';
 import ChannelNavSection from './ChannelNavSection';
 
@@ -16,16 +16,6 @@ export default function ChannelNavSections({
   onSelect: (channel: any) => void;
   paddingBottom?: number;
 }) {
-  const hasSomeUnGroupedChannels = useMemo(
-    () =>
-      channels.some(
-        (c) =>
-          !group.navSections.some((s) =>
-            s.channels.some((sc) => sc.channelId === c.id)
-          )
-      ),
-    [channels, group.navSections]
-  );
   const unGroupedChannels = useMemo(
     () =>
       channels.filter(
@@ -35,6 +25,11 @@ export default function ChannelNavSections({
           )
       ),
     [channels, group.navSections]
+  );
+
+  const hasSomeUnGroupedChannels = useMemo(
+    () => unGroupedChannels.length > 0,
+    [unGroupedChannels]
   );
 
   const getChannelIcon = useCallback(
@@ -55,7 +50,7 @@ export default function ChannelNavSections({
   );
 
   return (
-    <YGroup paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
+    <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
       {group.navSections.map((section) => (
         <ChannelNavSection
           key={section.id}
@@ -65,7 +60,7 @@ export default function ChannelNavSections({
         />
       ))}
       {hasSomeUnGroupedChannels && (
-        <YGroup.Item>
+        <YStack>
           <SizableText
             paddingHorizontal="$l"
             paddingVertical="$xl"
@@ -82,8 +77,8 @@ export default function ChannelNavSections({
               onPress={onSelect}
             />
           ))}
-        </YGroup.Item>
+        </YStack>
       )}
-    </YGroup>
+    </YStack>
   );
 }
