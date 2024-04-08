@@ -1,6 +1,7 @@
 import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
+import { getChannelType } from './urbit';
 
 const logger = createDevLogger('sync', false);
 
@@ -96,15 +97,27 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
     );
   }
 
-  await db.updateChannel({ id, remoteUpdatedAt, syncedAt: Date.now() });
+  const channelType = getChannelType(id);
+
+  await db.updateChannel({
+    id,
+    remoteUpdatedAt,
+    syncedAt: Date.now(),
+    type: channelType,
+  });
 }
 
 async function persistPagedPostData(
   channelId: string,
   data: api.PagedPostsData
 ) {
+  const channelType = getChannelType(channelId);
   await db.insertChannelPosts(channelId, data.posts);
-  await db.updateChannel({ id: channelId, postCount: data.totalPosts });
+  await db.updateChannel({
+    id: channelId,
+    postCount: data.totalPosts,
+    type: channelType,
+  });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
   }
