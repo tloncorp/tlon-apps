@@ -14,6 +14,15 @@ const timestamp = (name: string) => {
   return integer(name);
 };
 
+const metaFields = {
+  iconImage: text('icon_image'),
+  iconImageColor: text('icon_image_color'),
+  coverImage: text('cover_image'),
+  coverImageColor: text('cover_image_color'),
+  title: text('title'),
+  description: text('description'),
+};
+
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
   nickname: text('nickname'),
@@ -81,12 +90,7 @@ export const pins = sqliteTable(
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
-  iconImage: text('icon_image'),
-  iconImageColor: text('icon_image_color'),
-  coverImage: text('cover_image'),
-  coverImageColor: text('cover_image_color'),
-  title: text('title'),
-  description: text('description'),
+  ...metaFields,
   isSecret: boolean('is_secret'),
   isJoined: boolean('is_joined'),
   lastPostId: text('last_post_id'),
@@ -111,10 +115,7 @@ export const groupRoles = sqliteTable(
   {
     id: text('id'),
     groupId: text('group_id').references(() => groups.id),
-    iconImage: text('image'),
-    title: text('title'),
-    coverImage: text('cover'),
-    description: text('description'),
+    ...metaFields,
   },
   (table) => {
     return {
@@ -201,10 +202,7 @@ export const groupMemberRolesRelations = relations(
 export const groupNavSections = sqliteTable('group_nav_sections', {
   id: text('id').primaryKey(),
   groupId: text('group_id').references(() => groups.id),
-  iconImage: text('icon_image'),
-  coverImage: text('cover_image'),
-  title: text('title'),
-  description: text('description'),
+  ...metaFields,
   index: integer('index'),
 });
 
@@ -222,10 +220,10 @@ export const groupNavSectionRelations = relations(
 export const groupNavSectionChannels = sqliteTable(
   'group_nav_section_channels',
   {
-    groupNavSectionId: integer('group_nav_section_id').references(
+    groupNavSectionId: text('group_nav_section_id').references(
       () => groupNavSections.id
     ),
-    channelId: integer('channel_id').references(() => channels.id),
+    channelId: text('channel_id').references(() => channels.id),
     index: integer('index'),
   },
   (table) => ({
@@ -249,11 +247,11 @@ export const groupNavSectionChannelsRelations = relations(
 
 export const channels = sqliteTable('channels', {
   id: text('id').primaryKey(),
+  type: text('type')
+    .$type<'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm'>()
+    .notNull(),
   groupId: text('group_id').references(() => groups.id),
-  iconImage: text('icon_image'),
-  coverImage: text('cover_image'),
-  title: text('title'),
-  description: text('description'),
+  ...metaFields,
   addedToGroupAt: timestamp('added_to_group_at'),
   currentUserIsMember: boolean('current_user_is_member'),
   postCount: integer('post_count'),
@@ -278,7 +276,36 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
     references: [groups.id],
   }),
   posts: many(posts),
+  lastPost: one(posts, {
+    fields: [channels.lastPostId],
+    references: [posts.id],
+  }),
   threadUnreadStates: many(threadUnreadStates),
+  members: many(channelMembers),
+}));
+
+export const channelMembers = sqliteTable(
+  'channel_members',
+  {
+    channelId: text('channel_id').references(() => channels.id),
+    contactId: text('contact_id'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.channelId, table.contactId] }),
+    };
+  }
+);
+
+export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
+  channel: one(channels, {
+    fields: [channelMembers.channelId],
+    references: [channels.id],
+  }),
+  contact: one(contacts, {
+    fields: [channelMembers.contactId],
+    references: [contacts.id],
+  }),
 }));
 
 export const threadUnreadStates = sqliteTable(

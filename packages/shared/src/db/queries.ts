@@ -21,11 +21,14 @@ import {
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
+  channelMembers as $channelMembers,
   channels as $channels,
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupMemberRoles as $groupMemberRoles,
   groupMembers as $groupMembers,
+  groupNavSectionChannels as $groupNavSectionChannels,
+  groupNavSections as $groupNavSections,
   groupRoles as $groupRoles,
   groups as $groups,
   pins as $pins,
@@ -140,6 +143,64 @@ const insertGroup = async (group: GroupInsert) => {
           $groups.isJoined
         ),
       });
+    if (group.channels?.length) {
+      await client
+        .insert($channels)
+        .values(group.channels)
+        .onConflictDoUpdate({
+          target: [$channels.id],
+          set: conflictUpdateSet(
+            $channels.iconImage,
+            $channels.coverImage,
+            $channels.title,
+            $channels.description,
+            $channels.addedToGroupAt,
+            $channels.currentUserIsMember,
+            $channels.type
+          ),
+        });
+    }
+    if (group.navSections) {
+      const navSectionChannels = group.navSections.flatMap((s) => s.channels);
+      await tx
+        .insert($groupNavSections)
+        .values(
+          group.navSections.map((s) => ({
+            id: s.id,
+            groupId: group.id,
+            title: s.title,
+            description: s.description,
+            index: s.index,
+            channels: s.channels?.map((c) => ({
+              groupNavSectionId: s.id,
+              channelId: c.channelId,
+              index: s.index,
+            })),
+          }))
+        )
+        .onConflictDoUpdate({
+          target: $groupNavSections.id,
+          set: conflictUpdateSet(
+            $groupNavSections.iconImage,
+            $groupNavSections.coverImage,
+            $groupNavSections.title,
+            $groupNavSections.description
+          ),
+        });
+
+      if (navSectionChannels.length) {
+        await tx
+          .insert($groupNavSectionChannels)
+          .values(
+            navSectionChannels.map((s) => ({
+              index: s?.index,
+              groupNavSectionId: s?.groupNavSectionId,
+              channelId: s?.channelId,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+    }
     if (group.roles) {
       await client
         .insert($groupRoles)
@@ -188,22 +249,6 @@ const insertGroup = async (group: GroupInsert) => {
           .values(memberRoles)
           .onConflictDoNothing();
       }
-    }
-    if (group.channels?.length) {
-      await client
-        .insert($channels)
-        .values(group.channels)
-        .onConflictDoUpdate({
-          target: [$channels.id],
-          set: conflictUpdateSet(
-            $channels.iconImage,
-            $channels.coverImage,
-            $channels.title,
-            $channels.description,
-            $channels.addedToGroupAt,
-            $channels.currentUserIsMember
-          ),
-        });
     }
     if (group.posts) {
     }
@@ -275,8 +320,37 @@ export const getAllUnreadsCounts = createReadQuery(
 
 export const getChannel = createReadQuery(
   'getChannel',
-  async ({ id }: { id: string }) => {
-    return client.query.channels.findFirst({ where: eq($channels.id, id) });
+  async ({ id, includeMembers }: { id: string; includeMembers?: boolean }) => {
+    return client.query.channels.findFirst({
+      where: eq($channels.id, id),
+      with: {
+        ...(includeMembers ? { members: { with: { contact: true } } } : {}),
+      },
+    });
+  },
+  ['channels']
+);
+
+export const insertChannels = createWriteQuery(
+  'insertChannels',
+  async (channels: ChannelInsert[]) => {
+    return client.transaction(async (tx) => {
+      await client
+        .insert($channels)
+        .values(channels)
+        .onConflictDoUpdate({
+          target: $channels.id,
+          set: conflictUpdateSetAll($posts),
+        });
+      for (let channel of channels) {
+        if (channel.members) {
+          await client
+            .delete($channelMembers)
+            .where(eq($channelMembers.channelId, channel.id));
+          await client.insert($channelMembers).values(channel.members);
+        }
+      }
+    });
   },
   ['channels']
 );
@@ -288,6 +362,16 @@ export const updateChannel = createWriteQuery(
       .update($channels)
       .set(update)
       .where(eq($channels.id, update.id));
+  },
+  ['channels']
+);
+
+export const setJoinedChannels = createWriteQuery(
+  'setJoinedChannels',
+  ({ channelIds }: { channelIds: string[] }) => {
+    return client
+      .update($channels)
+      .set({ currentUserIsMember: inArray($channels.id, channelIds) });
   },
   ['channels']
 );
@@ -373,6 +457,9 @@ export const getChannelSearchResults = createReadQuery(
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
   async (channelId: string, posts: PostInsert[]) => {
+    if (!posts.length) {
+      return;
+    }
     return client.transaction(async (tx) => {
       const lastPost = posts[posts.length - 1];
       // Update last post meta for the channel these posts belong to,
@@ -442,9 +529,19 @@ export const getGroup = createReadQuery(
     return client.query.groups.findFirst({
       where: (groups, { eq }) => eq(groups.id, id),
       with: {
-        channels: true,
+        channels: {
+          where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+          with: {
+            lastPost: true,
+          },
+        },
         roles: true,
         members: true,
+        navSections: {
+          with: {
+            channels: true,
+          },
+        },
       },
     });
   },

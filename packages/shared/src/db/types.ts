@@ -53,7 +53,8 @@ export type GroupSummary = Group & {
 export type GroupWithRelations = Group & {
   members: GroupMember[];
   roles: GroupRole[];
-  channels: Channel[];
+  channels: ChannelWithLastPost[];
+  navSections: GroupNavSectionWithRelations[];
 };
 export type GroupWithMembersAndRoles = Group & {
   members: GroupMember[];
@@ -68,13 +69,26 @@ export type GroupMemberRole = typeof schema.groupMemberRoles.$inferSelect;
 export type GroupMemberRoleInsert = typeof schema.groupMemberRoles.$inferInsert;
 export type GroupNavSection = typeof schema.groupNavSections.$inferSelect;
 export type GroupNavSectionInsert = typeof schema.groupNavSections.$inferInsert;
+export type GroupNavSectionWithRelations = GroupNavSection & {
+  channels: GroupNavSectionChannel[];
+};
 export type GroupNavSectionChannel =
   typeof schema.groupNavSectionChannels.$inferSelect;
 export type GroupNavSectionChannelInsert =
   typeof schema.groupNavSectionChannels.$inferInsert;
 export type Channel = typeof schema.channels.$inferSelect;
+export type ChannelWithRelations = Channel & {
+  group: GroupWithRelations;
+  posts: Post[];
+  lastPost: Post | null;
+  threadUnreadStates: ThreadUnreadState[];
+};
+export type ChannelMember = typeof schema.channelMembers.$inferSelect;
 export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
-export type ChannelInsert = typeof schema.channels.$inferInsert;
+export type ChannelWithLastPost = Channel & {
+  lastPost: Post | null;
+};
+export type ChannelInsert = Insertable<'channels'>;
 export type ThreadUnreadState = typeof schema.threadUnreadStates.$inferSelect;
 export type ThreadUnreadStateInsert =
   typeof schema.threadUnreadStates.$inferInsert;

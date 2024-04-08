@@ -152,12 +152,13 @@ const ListItemTimeText = styled(SizableText, {
 const ListItemCount = ({ children }: PropsWithChildren) => {
   return (
     <Stack
-      paddingHorizontal="$m"
-      paddingVertical="$xs"
-      backgroundColor="$secondaryBackground"
-      borderRadius="$xl"
+      padding={0}
+      backgroundColor="$white"
+      borderWidth={1}
+      borderColor="$primaryText"
+      borderRadius="$l"
     >
-      <SizableText fontSize="$s" color="$secondaryText" textAlign="center">
+      <SizableText fontSize="$s" color="$primaryText" textAlign="center">
         {children}
       </SizableText>
     </Stack>

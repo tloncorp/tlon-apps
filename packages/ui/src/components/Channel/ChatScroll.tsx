@@ -36,7 +36,6 @@ export default function ChatScroll({
   firstUnread?: string;
   selectedPost?: string;
 }) {
-  console.log({ unreadCount, firstUnread, selectedPost, posts: posts.length });
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
   const lastPost = posts[posts.length - 1];

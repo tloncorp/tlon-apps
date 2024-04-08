@@ -3,7 +3,7 @@ import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
-import { KindData, KindDataChat } from '../urbit';
+import { getChannelType, KindData, KindDataChat, getTextContent } from '../urbit';
 import { scry } from './urbit';
 
 export const getChannelPosts = async (
@@ -116,6 +116,7 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
+  const channelType = getChannelType(channelId);
 
   return {
     id,
@@ -134,6 +135,7 @@ export function toPostData(
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
     channel: {
       id: channelId,
+      type: channelType,
     },
     ...flags,
   };
@@ -200,82 +202,6 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
     return { type: 'reference', referenceType: 'app', userId, appId };
   }
   return null;
-}
-
-function getTextContent(story?: ub.Story | undefined) {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (ub.isBlock(verse)) {
-        return getBlockContent(verse.block);
-      } else {
-        return getInlinesContent(verse.inline);
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
-}
-
-function getBlockContent(block: ub.Block) {
-  if (ub.isImage(block)) {
-    return '[image]';
-  } else if (ub.isCite(block)) {
-    return '[ref]';
-  } else if (ub.isHeader(block)) {
-    return block.header.content.map(getInlineContent);
-  } else if (ub.isCode(block)) {
-    return block.code.code;
-  } else if (ub.isListing(block)) {
-    return getListingContent(block.listing);
-  }
-}
-
-function getListingContent(listing: ub.Listing): string {
-  if (ub.isListItem(listing)) {
-    return listing.item.map(getInlineContent).join(' ');
-  } else {
-    return listing.list.items.map(getListingContent).join(' ');
-  }
-}
-
-function getInlinesContent(inlines: ub.Inline[]): string {
-  return inlines
-    .map(getInlineContent)
-    .filter((v) => v && v !== '')
-    .join(' ');
-}
-
-function getInlineContent(inline: ub.Inline): string {
-  if (ub.isBold(inline)) {
-    return inline.bold.map(getInlineContent).join(' ');
-  } else if (ub.isItalics(inline)) {
-    return inline.italics.map(getInlineContent).join(' ');
-  } else if (ub.isLink(inline)) {
-    return inline.link.content;
-  } else if (ub.isStrikethrough(inline)) {
-    return inline.strike.map(getInlineContent).join(' ');
-  } else if (ub.isBlockquote(inline)) {
-    return inline.blockquote.map(getInlineContent).join(' ');
-  } else if (ub.isInlineCode(inline)) {
-    return inline['inline-code'];
-  } else if (ub.isBlockCode(inline)) {
-    return inline.code;
-  } else if (ub.isBreak(inline)) {
-    return '';
-  } else if (ub.isShip(inline)) {
-    return inline.ship;
-  } else if (ub.isTag(inline)) {
-    return inline.tag;
-  } else if (ub.isBlockReference(inline)) {
-    return inline.block.text;
-  } else if (ub.isTask(inline)) {
-    return inline.task.content.map(getInlineContent).join(' ');
-  } else {
-    return inline;
-  }
 }
 
 function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {

@@ -1,8 +1,18 @@
+CREATE TABLE `channel_members` (
+	`channel_id` text,
+	`contact_id` text,
+	PRIMARY KEY(`channel_id`, `contact_id`),
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `channels` (
 	`id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
 	`group_id` text,
 	`icon_image` text,
+	`icon_image_color` text,
 	`cover_image` text,
+	`cover_image_color` text,
 	`title` text,
 	`description` text,
 	`added_to_group_at` integer,
@@ -54,8 +64,8 @@ CREATE TABLE `group_members` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (
-	`group_nav_section_id` integer,
-	`channel_id` integer,
+	`group_nav_section_id` text,
+	`channel_id` text,
 	`index` integer,
 	PRIMARY KEY(`channel_id`, `group_nav_section_id`),
 	FOREIGN KEY (`group_nav_section_id`) REFERENCES `group_nav_sections`(`id`) ON UPDATE no action ON DELETE no action,
@@ -66,7 +76,9 @@ CREATE TABLE `group_nav_sections` (
 	`id` text PRIMARY KEY NOT NULL,
 	`group_id` text,
 	`icon_image` text,
+	`icon_image_color` text,
 	`cover_image` text,
+	`cover_image_color` text,
 	`title` text,
 	`description` text,
 	`index` integer,
@@ -76,9 +88,11 @@ CREATE TABLE `group_nav_sections` (
 CREATE TABLE `group_roles` (
 	`id` text,
 	`group_id` text,
-	`image` text,
+	`icon_image` text,
+	`icon_image_color` text,
+	`cover_image` text,
+	`cover_image_color` text,
 	`title` text,
-	`cover` text,
 	`description` text,
 	PRIMARY KEY(`group_id`, `id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
@@ -126,15 +140,15 @@ CREATE TABLE `post_reactions` (
 --> statement-breakpoint
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
-	`author_id` text,
-	`channel_id` text,
+	`author_id` text NOT NULL,
+	`channel_id` text NOT NULL,
 	`group_id` text,
-	`type` text,
+	`type` text NOT NULL,
 	`title` text,
 	`image` text,
 	`content` text,
-	`sent_at` integer,
-	`received_at` integer,
+	`received_at` integer NOT NULL,
+	`sent_at` integer NOT NULL,
 	`reply_count` integer,
 	`text_content` text,
 	`has_app_reference` integer,
