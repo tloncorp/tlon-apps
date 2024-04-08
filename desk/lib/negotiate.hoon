@@ -680,7 +680,7 @@
         ?:  ?=(?(~ [~ ~]) dat)  ~
         (fall ((soft (list mass)) q.q.u.u.dat) ~)
       ?:  =(/x/dbug/state path)
-        ``noun+(slop on-save:og !>(negotiate=state))
+        ``noun+!>((slop on-save:og !>(negotiate=state)))
       ?.  ?=([@ %~.~ %negotiate *] path)
         (on-peek:og path)
       !:
