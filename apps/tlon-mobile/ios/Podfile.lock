@@ -1306,6 +1306,10 @@ PODS:
   - sqlite3 (3.42.0):
     - sqlite3/common (= 3.42.0)
   - sqlite3/common (3.42.0)
+  - tentap (0.4.55):
+    - glog
+    - RCT-Folly (= 2022.05.16.00)
+    - React-Core
   - UMAppLoader (4.5.0)
   - Yoga (1.14.0)
 
@@ -1400,6 +1404,7 @@ DEPENDENCIES:
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - RNSVG (from `../../../node_modules/react-native-svg`)
+  - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -1605,6 +1610,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-screens"
   RNSVG:
     :path: "../../../node_modules/react-native-svg"
+  tentap:
+    :path: "../../../node_modules/@10play/tentap-editor"
   UMAppLoader:
     :path: "../../../node_modules/unimodules-app-loader/ios"
   Yoga:
@@ -1721,6 +1728,7 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   SocketRocket: f32cd54efbe0f095c4d7594881e52619cfe80b17
   sqlite3: f163dbbb7aa3339ad8fc622782c2d9d7b72f7e9c
+  tentap: 61bd1f665af146d1a1ac926f70cff8ee95d0f806
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
   Yoga: 1b901a6d6eeba4e8a2e8f308f708691cdb5db312
 

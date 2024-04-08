@@ -33,6 +33,7 @@
     ]
   },
   "dependencies": {
+    "@10play/tentap-editor": "^0.4.55",
     "@google-cloud/recaptcha-enterprise-react-native": "^18.3.0",
     "@gorhom/bottom-sheet": "^4.5.1",
     "@op-engineering/op-sqlite": "^3.0.7",
