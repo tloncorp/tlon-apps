@@ -1,6 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 
-export default function getChannelTitle(channel: db.ChannelSummary) {
+export default function getChannelTitle(
+  channel: db.ChannelWithLastPostAndMembers
+) {
   if (channel.type === 'dm') {
     const member = channel.members?.[0];
     if (!member) {

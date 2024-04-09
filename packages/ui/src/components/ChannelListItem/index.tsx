@@ -12,9 +12,10 @@ export default function ChannelListItem({
   onPress,
   onLongPress,
   ...props
-}: { useTypeIcon?: boolean } & ListItemProps<db.ChannelSummary>) {
+}: {
+  useTypeIcon?: boolean;
+} & ListItemProps<db.ChannelWithLastPostAndMembers>) {
   const title = getChannelTitle(model);
-  console.log(model.id, model.type);
   return (
     <ListItem
       {...props}
@@ -54,7 +55,7 @@ function ChannelListItemIcon({
   model,
   useTypeIcon,
 }: {
-  model: db.ChannelSummary;
+  model: db.ChannelWithLastPostAndMembers;
   useTypeIcon?: boolean;
 }) {
   const backgroundColor = model.iconImageColor as ColorProp;

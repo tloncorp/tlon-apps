@@ -13,23 +13,22 @@ type ChatListScreenProps = NativeStackScreenProps<
 
 export default function ChatListScreen(props: ChatListScreenProps) {
   const [longPressedItem, setLongPressedItem] =
-    React.useState<db.ChannelSummary | null>(null);
-  const { pinned, unpinned } = db.useCurrentChats() ?? {
-    pinned: [],
-    unpinned: [],
-  };
+    React.useState<db.Channel | null>(null);
+  const { result: chats } = db.useCurrentChats();
   const insets = useSafeAreaInsets();
 
   return (
     <View paddingTop={insets.top} backgroundColor="$background" flex={1}>
-      <ChatList
-        pinned={pinned}
-        unpinned={unpinned}
-        onLongPressItem={setLongPressedItem}
-        onPressItem={(channel) => {
-          props.navigation.navigate('Channel', { channel });
-        }}
-      />
+      {chats && (
+        <ChatList
+          pinned={chats.pinned ?? []}
+          unpinned={chats.unpinned ?? []}
+          onLongPressItem={setLongPressedItem}
+          onPressItem={(channel) => {
+            props.navigation.navigate('Channel', { channel });
+          }}
+        />
+      )}
       <ChatOptionsSheet
         open={longPressedItem !== null}
         onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}

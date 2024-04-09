@@ -21,7 +21,7 @@ export type WebViewStackParamList = {
 export type HomeStackParamList = {
   ChatList: undefined;
   Channel: {
-    channel: db.ChannelSummary;
+    channel: db.Channel;
     selectedPost?: db.Post;
   };
   ChannelSearch: {

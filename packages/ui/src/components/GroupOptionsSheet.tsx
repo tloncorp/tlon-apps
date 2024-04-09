@@ -1,15 +1,16 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
 import { Stack, Text, View } from '../core';
+import getChannelTitle from '../hooks/useChannelTitle';
 import { Sheet } from './Sheet';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  channel?: db.ChannelSummary;
+  channel?: db.Channel;
 }
 
-export function ChatOptionsSheet({ open, onOpenChange, group }: Props) {
+export function ChatOptionsSheet({ open, onOpenChange, channel }: Props) {
   return (
     <Sheet
       open={open}
@@ -35,9 +36,9 @@ export function ChatOptionsSheet({ open, onOpenChange, group }: Props) {
           paddingBottom="$4xl"
         >
           <Stack paddingBottom="$m" flexDirection="column">
-            {/* TODO: Convert all of these Text components to SizableText */}
             <Text fontSize="$l" fontWeight="500">
-              {group?.title}
+              {/* TODO: Handle titles of group dms + dms */}
+              {channel?.title}
             </Text>
             <Text fontSize="$l" color="$secondaryText">
               Quick actions
@@ -86,7 +87,9 @@ export function ChatOptionsSheet({ open, onOpenChange, group }: Props) {
             borderColor="rgb(229, 229, 229)"
             borderRadius="$l"
           >
-            <Stack
+            {
+              // TODO: channel pin state
+              /* <Stack
               padding="$l"
               borderBottomWidth={1}
               borderBottomColor="rgb(229, 229, 229)"
@@ -99,7 +102,8 @@ export function ChatOptionsSheet({ open, onOpenChange, group }: Props) {
                 {group?.pinIndex !== null ? 'from' : 'to'} the top of your
                 Groups list
               </Text>
-            </Stack>
+            </Stack> */
+            }
 
             <Stack
               padding="$l"

@@ -138,7 +138,7 @@ const emptyChannel: db.Channel = {
   remoteUpdatedAt: null,
 };
 
-export const tlonLocalIntros: db.ChannelWithLastPost = {
+export const tlonLocalIntros: db.ChannelWithLastPostAndMembers = {
   ...emptyChannel,
   id: '~nibset-napwyn/intros',
   type: 'chat',
@@ -169,7 +169,7 @@ export const tlonLocalIntros: db.ChannelWithLastPost = {
   },
 };
 
-export const tlonLocalWaterCooler: db.ChannelWithLastPost = {
+export const tlonLocalWaterCooler: db.ChannelWithLastPostAndMembers = {
   ...emptyChannel,
   id: '~nibset-napwyn/water-cooler',
   type: 'chat',
@@ -199,7 +199,7 @@ export const tlonLocalWaterCooler: db.ChannelWithLastPost = {
   },
 };
 
-export const tlonLocalSupport: db.ChannelWithLastPost = {
+export const tlonLocalSupport: db.ChannelWithLastPostAndMembers = {
   ...emptyChannel,
   id: '~nibset-napwyn/support',
   type: 'chat',
@@ -229,7 +229,7 @@ export const tlonLocalSupport: db.ChannelWithLastPost = {
   },
 };
 
-export const tlonLocalBulletinBoard: db.ChannelWithLastPost = {
+export const tlonLocalBulletinBoard: db.ChannelWithLastPostAndMembers = {
   ...emptyChannel,
   id: '~nibset-napwyn/bulletin-board',
   type: 'gallery',
@@ -259,7 +259,7 @@ export const tlonLocalBulletinBoard: db.ChannelWithLastPost = {
   },
 };
 
-export const tlonLocalCommunityCatalog: db.ChannelWithLastPost = {
+export const tlonLocalCommunityCatalog: db.ChannelWithLastPostAndMembers = {
   ...emptyChannel,
   id: '~nibset-napwyn/community-catalog',
   type: 'gallery',
@@ -288,7 +288,7 @@ export const tlonLocalCommunityCatalog: db.ChannelWithLastPost = {
   },
 };
 
-export const tlonLocalGettingStarted: db.ChannelWithLastPost = {
+export const tlonLocalGettingStarted: db.ChannelWithLastPostAndMembers = {
   ...emptyChannel,
   id: '~nibset-napwyn/getting-started',
   type: 'notebook',
@@ -317,7 +317,7 @@ export const tlonLocalGettingStarted: db.ChannelWithLastPost = {
   },
 };
 
-const tlonLocalChannels: db.ChannelWithLastPost[] = [
+const tlonLocalChannels: db.ChannelWithLastPostAndMembers[] = [
   tlonLocalIntros,
   tlonLocalWaterCooler,
   tlonLocalSupport,

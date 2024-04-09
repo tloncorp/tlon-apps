@@ -1,23 +1,14 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 
 type State = {
-  contacts: db.Contact[];
+  contacts: db.Contact[] | null;
 };
 
-type ContextValue = State & {
-  setContacts: (contacts: db.Contact[]) => void;
-};
-
-const defaultContacts: db.Contact[] = [];
-
-const defaultState: State = {
-  contacts: defaultContacts,
-};
+type ContextValue = State;
 
 const Context = createContext<ContextValue>({
-  ...defaultState,
-  setContacts: () => {},
+  contacts: null,
 });
 
 export const useContacts = () => {
@@ -39,20 +30,11 @@ export const useContact = (ship: string) => {
 
 export const ContactsProvider = ({
   children,
-  initialContacts,
+  contacts,
 }: {
   children: React.ReactNode;
-  initialContacts: db.Contact[];
+  contacts: db.Contact[] | null;
 }) => {
-  const [state, setState] = useState<db.Contact[]>(initialContacts);
-
-  const setContacts = (contacts: db.Contact[]) => {
-    setState(contacts);
-  };
-
-  return (
-    <Context.Provider value={{ contacts: [...initialContacts], setContacts }}>
-      {children}
-    </Context.Provider>
-  );
+  const value = useMemo(() => ({ contacts }), [contacts]);
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 };

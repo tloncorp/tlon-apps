@@ -42,6 +42,7 @@ import {
   ChannelInsert,
   ChannelMember,
   ChannelSummary,
+  ChannelWithLastPostAndMembers,
   Contact,
   ContactInsert,
   GroupInsert,
@@ -428,6 +429,34 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+export const getChannelWithLastPostAndMembers = createReadQuery(
+  'getChannelWithMembers',
+  async ({
+    id,
+  }: {
+    id: string;
+  }): Promise<ChannelWithLastPostAndMembers | undefined> => {
+    return await client.query.channels.findFirst({
+      where: eq($channels.id, id),
+      with: {
+        lastPost: true,
+        members: {
+          with: {
+            contact: true,
+          },
+        },
+      },
+    });
+  },
+  ['channels']
+);
+
+export const getChannelSummary = createReadQuery(
+  'getChannelSummary',
+  async () => {},
+  ['channels']
+);
+
 export const getStaleChannels = createReadQuery(
   'getStaleChannels',
   async () => {
@@ -650,6 +679,7 @@ export const getGroup = createReadQuery(
           where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
           with: {
             lastPost: true,
+            unread: true,
           },
         },
         roles: true,

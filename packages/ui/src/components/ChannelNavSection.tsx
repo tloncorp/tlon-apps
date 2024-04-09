@@ -1,9 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo } from 'react';
 
-import { SizableText, YGroup, YStack } from '../core';
+import { SizableText, YStack } from '../core';
 import ChannelListItem from './ChannelListItem';
-import { IconType } from './Icon';
 
 export default function ChannelNavSection({
   section,
@@ -11,7 +10,7 @@ export default function ChannelNavSection({
   onSelect,
 }: {
   section: db.GroupNavSectionWithRelations;
-  channels: db.ChannelWithLastPost[];
+  channels: db.ChannelWithLastPostAndMembers[];
   onSelect: (channel: any) => void;
 }) {
   const sectionChannels = useMemo(

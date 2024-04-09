@@ -10,24 +10,24 @@ type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   const [open, setOpen] = React.useState(false);
-  const [currentChannel, setCurrentChannel] = React.useState<db.Channel | null>(
-    props.route.params.channel ?? null
+  const [currentChannelId, setCurrentChannelId] = React.useState(
+    props.route.params.channel.id
   );
-  const {
-    result: groupWithRelations,
-    isLoading,
-    error,
-  } = db.useGroup({ id: currentChannel?.groupId ?? '' });
-
+  const { result: channel } = db.useChannelWithLastPostAndMembers({
+    id: currentChannelId,
+  });
+  const { result: group, error } = db.useGroup({
+    id: channel?.groupId ?? '',
+  });
   const { result: posts } = db.useChannelPosts({
-    channelId: currentChannel?.id ?? '',
+    channelId: currentChannelId,
   });
   const { result: aroundPosts } = db.useChannelPostsAround({
-    channelId: currentChannel?.id ?? '',
+    channelId: currentChannelId,
     postId: props.route.params.selectedPost?.id ?? '',
   });
-
   const { result: contacts } = db.useContacts();
+
   const { top, bottom } = useSafeAreaInsets();
   const hasSelectedPost = !!props.route.params.selectedPost;
 
@@ -51,14 +51,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   //   }
   // }, [currentChannel, props.route.params.selectedPost]);
 
-  if (isLoading || !currentChannel) {
+  if (!channel) {
     return null;
   }
 
   return (
     <View paddingTop={top} backgroundColor="$background" flex={1}>
       <Channel
-        channel={currentChannel}
+        channel={channel}
         calmSettings={{
           disableAppTileUnreads: false,
           disableAvatars: false,
@@ -66,8 +66,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
-        group={groupWithRelations}
-        contacts={contacts ?? []}
+        group={group ?? null}
+        contacts={contacts ?? null}
         posts={hasSelectedPost ? aroundPosts : posts}
         selectedPost={
           hasSelectedPost && aroundPosts?.length
@@ -76,20 +76,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
         goBack={props.navigation.goBack}
         goToChannels={() => setOpen(true)}
-        goToSearch={() =>
-          props.navigation.push('ChannelSearch', { channel: currentChannel })
-        }
+        goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
       />
-      {groupWithRelations && (
+      {group && (
         <ChannelSwitcherSheet
           open={open}
           onOpenChange={(open) => setOpen(open)}
-          group={groupWithRelations}
-          channels={groupWithRelations?.channels || []}
+          group={group}
+          channels={group?.channels || []}
           contacts={contacts ?? []}
           paddingBottom={bottom}
           onSelect={(channel: db.Channel) => {
-            setCurrentChannel(channel);
+            setCurrentChannelId(channel.id);
             setOpen(false);
           }}
         />

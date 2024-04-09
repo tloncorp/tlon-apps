@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 
-import { SizableText, YGroup, YStack } from '../core';
+import { SizableText, YStack } from '../core';
 import ChannelListItem from './ChannelListItem';
 import ChannelNavSection from './ChannelNavSection';
 
@@ -12,7 +12,7 @@ export default function ChannelNavSections({
   paddingBottom,
 }: {
   group: db.GroupWithRelations;
-  channels: db.ChannelWithLastPost[];
+  channels: db.ChannelWithLastPostAndMembers[];
   onSelect: (channel: any) => void;
   paddingBottom?: number;
 }) {

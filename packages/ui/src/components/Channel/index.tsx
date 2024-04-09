@@ -27,11 +27,11 @@ export function Channel({
   // TODO: implement gallery and notebook
   type,
 }: {
-  channel: db.Channel;
-  posts: db.PostWithRelations[] | null;
+  channel: db.ChannelWithLastPostAndMembers;
   selectedPost?: string;
-  contacts: db.Contact[];
-  group?: db.GroupWithRelations | null;
+  posts: db.PostWithRelations[] | null;
+  contacts: db.Contact[] | null;
+  group: db.GroupWithRelations | null;
   calmSettings: CalmState;
   goBack: () => void;
   goToChannels: () => void;
@@ -41,8 +41,8 @@ export function Channel({
   const title = getChannelTitle(channel);
   return (
     <CalmProvider initialCalm={calmSettings}>
-      <GroupsProvider initialGroups={group ? [group] : []}>
-        <ContactsProvider initialContacts={contacts}>
+      <GroupsProvider groups={group ? [group] : null}>
+        <ContactsProvider contacts={contacts ?? null}>
           <YStack justifyContent="space-between" width="100%" height="100%">
             <ChannelHeader
               title={title}
@@ -57,7 +57,7 @@ export function Channel({
               style={{ flex: 1 }}
             >
               <YStack flex={1}>
-                {posts === null ? (
+                {!posts || !contacts ? (
                   <View flex={1} alignItems="center" justifyContent="center">
                     <Spinner />
                   </View>

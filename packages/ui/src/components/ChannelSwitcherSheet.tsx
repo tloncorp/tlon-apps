@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 
 import { ContactsProvider } from '../contexts';
-import { SizableText, View } from '../core';
+import { SizableText } from '../core';
 import ChannelNavSections from './ChannelNavSections';
 import { Sheet } from './Sheet';
 
@@ -9,7 +9,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   group: db.GroupWithRelations;
-  channels: db.ChannelWithLastPost[];
+  channels: db.ChannelWithLastPostAndMembers[];
   contacts: db.Contact[];
   onSelect: (channel: db.Channel) => void;
   paddingBottom?: number;
@@ -25,7 +25,7 @@ export function ChannelSwitcherSheet({
   paddingBottom,
 }: Props) {
   return (
-    <ContactsProvider initialContacts={contacts}>
+    <ContactsProvider contacts={contacts}>
       <Sheet
         open={open}
         onOpenChange={onOpenChange}
@@ -44,11 +44,7 @@ export function ChannelSwitcherSheet({
         />
         <Sheet.Frame>
           <Sheet.Handle paddingTop="$xl" />
-          <Sheet.ScrollView
-            gap="$xl"
-            paddingHorizontal="$xl"
-            paddingTop="$xl"
-          >
+          <Sheet.ScrollView gap="$xl" paddingHorizontal="$xl" paddingTop="$xl">
             <SizableText
               fontSize="$l"
               fontWeight="500"

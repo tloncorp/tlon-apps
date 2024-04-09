@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 
 import { ChannelSummary } from '../db';
 import * as queries from './queries';
+import type { UseQueryResult } from './query';
 import { createUseQuery } from './query';
 
 export const useContact = createUseQuery(queries.getContact);
@@ -24,15 +25,15 @@ export interface CurrentChats {
   unpinned: ChannelSummary[];
 }
 
-export const useCurrentChats = (): CurrentChats | null => {
-  const { result: allChats, error } = useChats();
+export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
+  const { result: allChats, error, isLoading } = useChats();
   useEffect(() => {
     if (error) {
       console.error(error);
     }
   }, [error]);
 
-  return useMemo(() => {
+  const result = useMemo(() => {
     // If we don't have groups yet, return null
     if (!allChats) {
       return null;
@@ -53,6 +54,11 @@ export const useCurrentChats = (): CurrentChats | null => {
       unpinned: [],
     };
   }, [allChats]);
+
+  return useMemo(
+    () => ({ result, isLoading, error }),
+    [result, isLoading, error]
+  );
 };
 
 export const useChannelPosts = createUseQuery(queries.getChannelPosts);
@@ -61,4 +67,7 @@ export const useChannelPostsAround = createUseQuery(
 );
 export const useChannelSearchResults = createUseQuery(
   queries.getChannelSearchResults
+);
+export const useChannelWithLastPostAndMembers = createUseQuery(
+  queries.getChannelWithLastPostAndMembers
 );

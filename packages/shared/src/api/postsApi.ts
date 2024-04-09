@@ -48,7 +48,7 @@ export const getChannelPosts = async (
       path,
     });
     return toPagedPostsData(channelId, response);
-  } else if (isGroupChannelId(channelId)) {
+  } else {
     const mode = includeReplies ? 'post' : 'outline';
     const path = `/channels/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
     const response = await scry<ub.PagedPosts>({
@@ -56,8 +56,6 @@ export const getChannelPosts = async (
       path,
     });
     return toPagedPostsData(channelId, response);
-  } else {
-    throw new Error('Invalid channel ID');
   }
 };
 

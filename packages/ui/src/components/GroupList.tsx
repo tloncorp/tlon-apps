@@ -53,9 +53,16 @@ export function ChatList({
     []
   );
 
-  const renderSectionHeader = useCallback(({ section }) => {
-    return <ListSectionHeader>{section.title}</ListSectionHeader>;
-  }, []);
+  const renderSectionHeader = useCallback(
+    ({
+      section,
+    }: {
+      section: SectionListData<db.ChannelSummary, { title: string }>;
+    }) => {
+      return <ListSectionHeader>{section.title}</ListSectionHeader>;
+    },
+    []
+  );
 
   return (
     <SectionList
@@ -108,7 +115,14 @@ const ChatListItem = React.memo(
     }, [onLongPress]);
 
     if (model.type === 'dm' || model.type === 'groupDm') {
-      return <ChannelListItem model={model} />;
+      return (
+        <ChannelListItem
+          model={model}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          {...props}
+        />
+      );
     } else if (model.group) {
       return (
         <GroupListItem
@@ -123,6 +137,7 @@ const ChatListItem = React.memo(
         />
       );
     } else {
+      console.warn('unable to render chat list item', model.id);
       return null;
     }
   }

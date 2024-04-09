@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannelSearch } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
+import type * as db from '@tloncorp/shared/dist/db';
 import { XStack, YStack } from '@tloncorp/ui';
 import { Button, SearchBar, SearchResults } from '@tloncorp/ui';
 import { useCallback, useLayoutEffect, useState } from 'react';
@@ -18,7 +18,6 @@ export default function ChannelSearch({
   navigation,
 }: ChannelSearchProps) {
   const { channel } = route.params;
-  const { result: group } = db.useGroupByChannel(channel.id);
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channel.id, query);
@@ -40,12 +39,11 @@ export default function ChannelSearch({
   const navigateToPost = useCallback(
     (post: db.PostWithRelations) => {
       navigation.navigate('Channel', {
-        group: group!,
         channel,
         selectedPost: post,
       });
     },
-    [channel, group, navigation]
+    [channel, navigation]
   );
 
   return (

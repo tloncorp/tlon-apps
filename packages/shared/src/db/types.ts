@@ -53,7 +53,7 @@ export type GroupSummary = Group & {
 export type GroupWithRelations = Group & {
   members: GroupMember[];
   roles: GroupRole[];
-  channels: ChannelWithLastPost[];
+  channels: ChannelWithLastPostAndMembers[];
   navSections: GroupNavSectionWithRelations[];
 };
 
@@ -87,8 +87,9 @@ export type ChannelWithRelations = Channel & {
 };
 export type ChannelMember = typeof schema.channelMembers.$inferSelect;
 export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
-export type ChannelWithLastPost = Channel & {
+export type ChannelWithLastPostAndMembers = Channel & {
   lastPost: Post | null;
+  members?: (ChannelMember & { contact: Contact | null })[] | null;
 };
 
 export type ChannelSummary = Channel & {
