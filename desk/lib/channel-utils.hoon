@@ -306,7 +306,6 @@
     ;:  weld
         /gx
         groups-scry
-        /channel/[kind.nest]/(scot %p ship.nest)/[name.nest]
         /fleet/(scot %p her)/is-bloc/loob
     ==  ==
   ::
