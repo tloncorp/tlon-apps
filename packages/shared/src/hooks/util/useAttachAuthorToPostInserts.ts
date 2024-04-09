@@ -71,7 +71,7 @@ export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
         .filter((post) => authorsCache[post.authorId] !== undefined)
         .map((post) => ({
           ...post,
-          author: authorsCache[post.authorId] ?? undefined,
+          author: authorsCache[post.authorId],
         }));
       setPostsWithAuthor(updatedPostsWithAuthor);
     }

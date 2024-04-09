@@ -23,11 +23,11 @@ type InsertRelations<T extends TableName> = {
     infer TTableName
   >
     ? TTableName extends DbTableNames
-      ? Insertable<SchemaFromDbTableName<TTableName>['tsName']>[]
+      ? Insertable<SchemaFromDbTableName<TTableName>['tsName']>[] | null
       : never
     : TableRelations<T>[K] extends One<infer TTableName>
       ? TTableName extends DbTableNames
-        ? Insertable<SchemaFromDbTableName<TTableName>['tsName']>
+        ? Insertable<SchemaFromDbTableName<TTableName>['tsName']> | null
         : never
       : never;
 };
@@ -95,11 +95,11 @@ export type ThreadUnreadStateInsert =
 export type Post = typeof schema.posts.$inferSelect;
 export type PostWithRelations = Post & {
   reactions: Reaction[] | null;
-  author: Contact | undefined;
+  author: Contact | null;
 };
 
 export type PostInsertWithAuthor = PostInsert & {
-  author: Contact | undefined;
+  author: Contact | null;
 };
 
 export type PostType = Post['type'];
