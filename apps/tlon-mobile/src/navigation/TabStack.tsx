@@ -110,10 +110,7 @@ export const TabStack = () => {
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
   const { result: contact } = db.useContact({ id });
   return (
-    <Avatar
-      contact={contact ?? db.getFallbackContact(id)}
-      opacity={focused ? 1 : 0.6}
-    />
+    <Avatar contact={contact} contactId={id} opacity={focused ? 1 : 0.6} />
   );
 }
 

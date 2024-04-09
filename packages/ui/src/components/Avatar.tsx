@@ -6,9 +6,11 @@ import UrbitSigil from './UrbitSigil';
 
 export function Avatar({
   contact,
+  contactId,
   ...props
 }: {
-  contact: db.Contact;
+  contact?: db.Contact | null;
+  contactId: string;
 } & ViewProps) {
   // TODO: is there a better way to do this? Could we modify usage in web to match native?
   // on native, we have to pass height/width for the source prop, on web we want to use other attributes
@@ -47,7 +49,7 @@ export function Avatar({
   return (
     <UrbitSigil
       color={contact?.color ?? undefined}
-      ship={contact.id}
+      ship={contactId}
       {...props}
     />
   );
