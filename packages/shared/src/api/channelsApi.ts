@@ -25,7 +25,6 @@ const searchChatChannel = async (params: {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const encodedQuery = stringToTa(params.query);
 
-  console.log(`search scry for ${params.query}, cursor: ${params.cursor}`);
   const response = await scry<ub.ChannelScam>({
     app: 'channels',
     path: `/${params.channelId}/search/bounded/text/${

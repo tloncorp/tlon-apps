@@ -49,31 +49,19 @@ export function SearchResults({
           {posts.length > 0 && (
             <>
               <XStack justifyContent="space-between" marginBottom="$xl">
-                <View>
-                  <SizableText size="$s" color="$secondaryText">
-                    Results for "
-                    <SizableText
-                      size="$s"
-                      fontWeight="500"
-                      color="$primaryText"
-                    >
-                      {search.query}
-                    </SizableText>
-                    "
+                <SizableText size="$s" color="$secondaryText">
+                  Results for "
+                  <SizableText size="$s" fontWeight="500" color="$primaryText">
+                    {search.query}
                   </SizableText>
-                </View>
-                <View>
-                  <SizableText size="$s" color="$secondaryText">
-                    Sorted by:{' '}
-                    <SizableText
-                      size="$s"
-                      fontWeight="500"
-                      color="$primaryText"
-                    >
-                      most recent
-                    </SizableText>
+                  "
+                </SizableText>
+                <SizableText size="$s" color="$secondaryText">
+                  Sorted by:{' '}
+                  <SizableText size="$s" fontWeight="500" color="$primaryText">
+                    most recent
                   </SizableText>
-                </View>
+                </SizableText>
               </XStack>
 
               <FlatList
