@@ -1,7 +1,6 @@
 import * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import { KeyboardAvoidingView, Platform } from 'react-native';
-import { Spinner } from 'tamagui';
 
 import {
   CalmProvider,
@@ -9,8 +8,8 @@ import {
   ContactsProvider,
   GroupsProvider,
 } from '../../contexts';
-import { YStack } from '../../core';
-import useChannelTitle from '../../hooks/useChannelTitle';
+import { Spinner, View, YStack } from '../../core';
+import getChannelTitle from '../../hooks/useChannelTitle';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
 import MessageInput from './MessageInput';
@@ -32,17 +31,17 @@ export function Channel({
   posts: db.PostWithRelations[] | null;
   selectedPost?: string;
   contacts: db.Contact[];
-  group: db.GroupWithRelations;
+  group?: db.GroupWithRelations | null;
   calmSettings: CalmState;
   goBack: () => void;
   goToChannels: () => void;
   goToSearch: () => void;
   type?: 'chat' | 'gallery' | 'notebook';
 }) {
-  const title = useChannelTitle(channel);
+  const title = getChannelTitle(channel);
   return (
     <CalmProvider initialCalm={calmSettings}>
-      <GroupsProvider initialGroups={[group]}>
+      <GroupsProvider initialGroups={group ? [group] : []}>
         <ContactsProvider initialContacts={contacts}>
           <YStack justifyContent="space-between" width="100%" height="100%">
             <ChannelHeader
@@ -50,6 +49,7 @@ export function Channel({
               goBack={goBack}
               goToChannels={goToChannels}
               goToSearch={goToSearch}
+              showPickerButton={!!group}
             />
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -58,7 +58,9 @@ export function Channel({
             >
               <YStack flex={1}>
                 {posts === null ? (
-                  <Spinner />
+                  <View flex={1} alignItems="center" justifyContent="center">
+                    <Spinner />
+                  </View>
                 ) : (
                   <ChatScroll
                     unreadCount={channel.unreadCount ?? undefined}

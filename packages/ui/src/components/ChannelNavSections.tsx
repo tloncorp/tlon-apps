@@ -32,23 +32,6 @@ export default function ChannelNavSections({
     [unGroupedChannels]
   );
 
-  const getChannelIcon = useCallback(
-    (channelId: string | null) => {
-      const channel = channels.find((c) => c.id === channelId);
-      switch (channel?.type) {
-        case 'chat':
-          return 'ChannelTalk';
-        case 'notebook':
-          return 'ChannelNotebooks';
-        case 'gallery':
-          return 'ChannelGalleries';
-        default:
-          return 'ChannelTalk';
-      }
-    },
-    [channels]
-  );
-
   return (
     <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
       {group.navSections.map((section) => (
@@ -70,12 +53,7 @@ export default function ChannelNavSections({
             All Channels
           </SizableText>
           {unGroupedChannels.map((item) => (
-            <ChannelListItem
-              key={item.id}
-              model={item}
-              icon={getChannelIcon(item.id)}
-              onPress={onSelect}
-            />
+            <ChannelListItem key={item.id} model={item} onPress={onSelect} />
           ))}
         </YStack>
       )}

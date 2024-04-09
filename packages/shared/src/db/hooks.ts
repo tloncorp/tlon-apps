@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-import { Channel, Group, Pin, Post, Unread } from '../db';
+import { ChannelSummary } from '../db';
 import * as queries from './queries';
 import { createUseQuery } from './query';
 
@@ -19,16 +19,9 @@ export const useGroups = createUseQuery(queries.getGroups);
 export const useGroup = createUseQuery(queries.getGroup);
 export const useGroupByChannel = createUseQuery(queries.getGroupByChannel);
 
-export type Chat = Channel & {
-  group?: Group | null;
-  unread?: Unread | null;
-  pin?: Pin | null;
-  lastPost?: Post | null;
-};
-
 export interface CurrentChats {
-  pinned: Chat[];
-  unpinned: Chat[];
+  pinned: ChannelSummary[];
+  unpinned: ChannelSummary[];
 }
 
 export const useCurrentChats = (): CurrentChats | null => {

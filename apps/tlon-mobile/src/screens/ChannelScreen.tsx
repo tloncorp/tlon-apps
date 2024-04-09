@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
@@ -14,12 +13,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [currentChannel, setCurrentChannel] = React.useState<db.Channel | null>(
     props.route.params.channel ?? null
   );
-  const { group } = props.route.params;
   const {
     result: groupWithRelations,
     isLoading,
     error,
-  } = db.useGroup({ id: group.id });
+  } = db.useGroup({ id: currentChannel?.groupId ?? '' });
 
   const { result: posts } = db.useChannelPosts({
     channelId: currentChannel?.id ?? '',
@@ -34,37 +32,26 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const hasSelectedPost = !!props.route.params.selectedPost;
 
   useEffect(() => {
-    if (groupWithRelations) {
-      const firstChatChannel = groupWithRelations.channels.find(
-        (c) => c.type === 'chat'
-      );
-      if (firstChatChannel) {
-        setCurrentChannel(firstChatChannel);
-      }
-    }
-  }, [groupWithRelations]);
-
-  useEffect(() => {
     if (error) {
       console.error(error);
     }
   }, [error]);
 
-  useEffect(() => {
-    const syncChannel = async (id: string) => {
-      if (props.route.params.selectedPost) {
-        sync.syncPostsAround(props.route.params.selectedPost);
-      } else {
-        sync.syncChannel(id, Date.now());
-      }
-    };
+  // useEffect(() => {
+  //   const syncChannel = async (id: string) => {
+  //     if (props.route.params.selectedPost) {
+  //       sync.syncPostsAround(props.route.params.selectedPost);
+  //     } else {
+  //       sync.syncChannel(id, Date.now());
+  //     }
+  //   };
 
-    if (currentChannel) {
-      syncChannel(currentChannel.id);
-    }
-  }, [currentChannel, props.route.params.selectedPost]);
+  //   if (currentChannel) {
+  //     syncChannel(currentChannel.id);
+  //   }
+  // }, [currentChannel, props.route.params.selectedPost]);
 
-  if (isLoading || !groupWithRelations || !currentChannel) {
+  if (isLoading || !currentChannel) {
     return null;
   }
 
@@ -79,7 +66,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
-        group={groupWithRelations ?? []}
+        group={groupWithRelations}
         contacts={contacts ?? []}
         posts={hasSelectedPost ? aroundPosts : posts}
         selectedPost={
@@ -93,18 +80,20 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           props.navigation.push('ChannelSearch', { channel: currentChannel })
         }
       />
-      <ChannelSwitcherSheet
-        open={open}
-        onOpenChange={(open) => setOpen(open)}
-        group={groupWithRelations}
-        channels={groupWithRelations.channels || []}
-        contacts={contacts ?? []}
-        paddingBottom={bottom}
-        onSelect={(channel: db.Channel) => {
-          setCurrentChannel(channel);
-          setOpen(false);
-        }}
-      />
+      {groupWithRelations && (
+        <ChannelSwitcherSheet
+          open={open}
+          onOpenChange={(open) => setOpen(open)}
+          group={groupWithRelations}
+          channels={groupWithRelations?.channels || []}
+          contacts={contacts ?? []}
+          paddingBottom={bottom}
+          onSelect={(channel: db.Channel) => {
+            setCurrentChannel(channel);
+            setOpen(false);
+          }}
+        />
+      )}
     </View>
   );
 }

@@ -40,8 +40,6 @@ export const UrbitSigilBase = View.styleable<{
     <View
       ref={ref}
       // TODO: Should be variables/props, not hardcoded values
-      width={20}
-      height={20}
       alignItems="center"
       justifyContent="center"
       style={{

@@ -92,11 +92,11 @@ export type ChannelWithLastPost = Channel & {
 };
 
 export type ChannelSummary = Channel & {
-  group?: Group | null;
-  unread?: Unread | null;
-  lastPost?: Post | null;
+  unread: Unread | null;
+  lastPost: Post | null;
+  group: Group | null;
+  members: (ChannelMember & { contact: Contact | null })[] | null;
   pin?: Pin | null;
-  members?: (ChannelMember & { contact: Contact | null })[] | null;
 };
 
 export type ChannelInsert = Insertable<'channels'>;

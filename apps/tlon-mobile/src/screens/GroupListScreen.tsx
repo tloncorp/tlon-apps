@@ -6,23 +6,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HomeStackParamList } from '../types';
 
-type GroupsListScreenProps = NativeStackScreenProps<
+type ChatListScreenProps = NativeStackScreenProps<
   HomeStackParamList,
-  'GroupsList'
+  'ChatList'
 >;
 
-export default function GroupsListScreen(props: GroupsListScreenProps) {
-  const [longPressedItem, setLongPressedItem] = React.useState<db.Chat | null>(
-    null
-  );
-  const { pinned, unpinned } = db.useCurrentChats() ?? {};
-  const { top } = useSafeAreaInsets();
+export default function ChatListScreen(props: ChatListScreenProps) {
+  const [longPressedItem, setLongPressedItem] =
+    React.useState<db.ChannelSummary | null>(null);
+  const { pinned, unpinned } = db.useCurrentChats() ?? {
+    pinned: [],
+    unpinned: [],
+  };
+  const insets = useSafeAreaInsets();
 
   return (
-    <View paddingTop={top} backgroundColor="$background" flex={1}>
+    <View paddingTop={insets.top} backgroundColor="$background" flex={1}>
       <ChatList
-        pinned={Array.from(pinned ?? [])}
-        unpinned={Array.from(unpinned ?? [])}
+        pinned={pinned}
+        unpinned={unpinned}
         onLongPressItem={setLongPressedItem}
         onPressItem={(channel) => {
           props.navigation.navigate('Channel', { channel });

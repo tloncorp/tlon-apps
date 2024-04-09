@@ -23,7 +23,7 @@ export function makePrettyShortDate(date: Date) {
 }
 
 export function makeShortDate(date: Date) {
-  return format(date, 'MM/dd/yyyy');
+  return format(date, 'M/d/yy');
 }
 
 export interface DayTimeDisplay {

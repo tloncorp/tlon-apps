@@ -8,7 +8,7 @@ export * from './components/TamaguiProvider';
 export * from './components/UrbitSigil';
 export * from './components/View';
 export * from './components/Sheet';
-export * from './components/ChatOptionsSheet';
+export * from './components/GroupOptionsSheet';
 export * from './components/GroupListItem';
 export * from './components/GroupList';
 export * from './components/ChannelSwitcherSheet';

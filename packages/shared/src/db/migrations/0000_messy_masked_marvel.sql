@@ -1,6 +1,6 @@
 CREATE TABLE `channel_members` (
-	`channel_id` text,
-	`contact_id` text,
+	`channel_id` text NOT NULL,
+	`contact_id` text NOT NULL,
 	PRIMARY KEY(`channel_id`, `contact_id`),
 	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
 );

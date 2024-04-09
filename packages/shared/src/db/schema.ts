@@ -1,4 +1,4 @@
-import { relations, sql } from 'drizzle-orm';
+import { relations } from 'drizzle-orm';
 import {
   integer,
   primaryKey,
@@ -323,8 +323,10 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
 export const channelMembers = sqliteTable(
   'channel_members',
   {
-    channelId: text('channel_id').references(() => channels.id),
-    contactId: text('contact_id'),
+    channelId: text('channel_id')
+      .references(() => channels.id)
+      .notNull(),
+    contactId: text('contact_id').notNull(),
   },
   (table) => {
     return {

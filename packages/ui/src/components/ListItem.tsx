@@ -1,14 +1,16 @@
 import { utils } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/dist/db';
 import {
   ComponentProps,
   PropsWithChildren,
   ReactElement,
   useMemo,
 } from 'react';
-import { styled, withStaticProperties } from 'tamagui';
+import { ColorProp, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
-import { Icon } from './Icon';
+import { Avatar } from './Avatar';
+import { Icon, IconType } from './Icon';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -49,55 +51,146 @@ export const ListItemFrame = styled(XStack, {
 
 function ListItemIcon({
   imageUrl,
+  icon,
+  contactId,
+  contact,
   backgroundColor,
   fallbackText,
-  ...props
-}: PropsWithChildren<{
+}: {
   imageUrl?: string;
-  backgroundColor?: string;
+  icon?: IconType;
+  contactId?: string | null;
+  contact?: db.Contact | null;
+  backgroundColor?: ColorProp;
   /**
    * Text to display when there's no image set. Should be a single character.
    */
   fallbackText?: string;
-}>) {
-  const resolvedBackgroundColor = backgroundColor ?? '$secondaryBackground';
-  const size = '$4xl';
-  return imageUrl ? (
-    <Image
-      width={size}
-      height={size}
-      borderRadius="$s"
-      overflow={'hidden'}
-      //@ts-ignore This is an arbitrary, user-set color
-      backgroundColor={resolvedBackgroundColor}
-      {...props}
-      source={{
-        uri: imageUrl,
-      }}
-    />
-  ) : (
-    <Stack
-      //@ts-ignore This is an arbitrary, user-set color
-      backgroundColor={resolvedBackgroundColor}
-      borderRadius="$s"
-      alignItems="center"
-      justifyContent="center"
-      overflow="hidden"
-      width={size}
-      height={size}
-    >
-      {fallbackText ? (
-        <Text fontSize={16} color="$primaryText">
-          {fallbackText.toUpperCase()}
-        </Text>
-      ) : null}
-    </Stack>
-  );
+}) {
+  if (imageUrl) {
+    return (
+      <ListItemImageIcon
+        imageUrl={imageUrl}
+        backgroundColor={backgroundColor}
+      />
+    );
+  } else if (icon) {
+    return <ListItemTypeIcon icon={icon} backgroundColor={backgroundColor} />;
+  } else if (contactId) {
+    return (
+      <ListItemAvatarIcon
+        contactId={contactId}
+        contact={contact ?? undefined}
+        backgroundColor={backgroundColor}
+      />
+    );
+  } else {
+    return (
+      <ListItemTextIcon
+        backgroundColor={backgroundColor}
+        fallbackText={fallbackText ?? ''}
+      />
+    );
+  }
 }
+
+const ListItemImageIcon = ({
+  imageUrl,
+  backgroundColor,
+}: {
+  imageUrl: string;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor}>
+      <Image
+        width={'100%'}
+        height={'100%'}
+        source={{
+          uri: imageUrl,
+        }}
+      />
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemTextIcon = ({
+  fallbackText,
+  backgroundColor,
+}: {
+  fallbackText: string;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor}>
+      <View flex={1} alignItems="center" justifyContent="center">
+        <Text fontSize={16} color="$primaryText">
+          {fallbackText.slice(0, 1).toUpperCase()}
+        </Text>
+      </View>
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemAvatarIcon = ({
+  contactId,
+  contact,
+  backgroundColor,
+}: {
+  contactId: string;
+  contact?: db.Contact | null;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor}>
+      <Avatar
+        width="$4xl"
+        height="$4xl"
+        contactId={contactId}
+        contact={contact}
+      />
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemTypeIcon = ({
+  icon,
+  backgroundColor,
+}: {
+  icon?: IconType;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor ?? 'transparent'}>
+      <Icon type={icon || 'Channel'} width="$4xl" height="$4xl" />
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemIconContainer = ({
+  backgroundColor,
+  children,
+}: PropsWithChildren<{
+  backgroundColor: ColorProp;
+}>) => {
+  return (
+    <View
+      width="$4xl"
+      height="$4xl"
+      borderRadius="$s"
+      overflow="hidden"
+      flex={0}
+      // @ts-expect-error
+      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+    >
+      {children}
+    </View>
+  );
+};
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
-  justifyContent: 'space-between',
+  justifyContent: 'space-evenly',
   height: '$4xl',
 });
 
@@ -232,6 +325,10 @@ export type ListItem = typeof ListItemComponent;
 
 export const ListItem = withStaticProperties(ListItemComponent, {
   Icon: ListItemIcon,
+  ImageIcon: ListItemImageIcon,
+  AvatarIcon: ListItemAvatarIcon,
+  SystemIcon: ListItemTypeIcon,
+  TextIcon: ListItemTextIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,

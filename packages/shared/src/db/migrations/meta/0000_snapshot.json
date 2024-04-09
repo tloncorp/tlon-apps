@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "d87a8a57-e206-4361-89b7-59090535e692",
+  "id": "d76f91c2-1d0e-441d-99a7-a8f5242c59a7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_members": {
@@ -11,14 +11,14 @@
           "name": "channel_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "contact_id": {
           "name": "contact_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },

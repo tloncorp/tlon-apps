@@ -31,23 +31,6 @@ export default function ChannelNavSection({
     [channels]
   );
 
-  const getChannelIcon = useCallback(
-    (channelId: string | null): IconType => {
-      const channel = getChannel(channelId);
-      switch (channel?.type) {
-        case 'chat':
-          return 'ChannelTalk';
-        case 'notebook':
-          return 'ChannelNotebooks';
-        case 'gallery':
-          return 'ChannelGalleries';
-        default:
-          return 'ChannelTalk';
-      }
-    },
-    [getChannel]
-  );
-
   return (
     <YStack key={section.id}>
       <SizableText
@@ -62,7 +45,7 @@ export default function ChannelNavSection({
         <ChannelListItem
           key={item.channelId}
           model={getChannel(item.channelId)!}
-          icon={getChannelIcon(item.channelId)}
+          useTypeIcon={true}
           onPress={onSelect}
         />
       ))}

@@ -32,13 +32,36 @@ export const getChannelPosts = async (
     throw new Error('Must specify either cursor or date');
   }
   const finalCursor = cursor ? cursor : formatDateParam(date!);
-  const mode = includeReplies ? 'post' : 'outline';
-  const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-  const result = await scry<ub.PagedPosts>({ app: 'channels', path });
-  return toPagedPostsData(channelId, result);
+  if (isDmChannelId(channelId)) {
+    const mode = includeReplies ? 'heavy' : 'light';
+    const path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedWrits>({
+      app: 'chat',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else if (isGroupDmChannelId(channelId)) {
+    const mode = includeReplies ? 'heavy' : 'light';
+    const path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedWrits>({
+      app: 'chat',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else if (isGroupChannelId(channelId)) {
+    const mode = includeReplies ? 'post' : 'outline';
+    const path = `/channels/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedPosts>({
+      app: 'channels',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else {
+    throw new Error('Invalid channel ID');
+  }
 };
 
-export interface PagedPostsData {
+export interface GetChannelPostsResponse {
   older: string | null;
   newer: string | null;
   posts: db.PostInsert[];
@@ -76,13 +99,14 @@ export type ContentReference = ChannelReference | GroupReference | AppReference;
 
 export function toPagedPostsData(
   channelId: string,
-  data: ub.PagedPosts
-): PagedPostsData {
+  data: ub.PagedPosts | ub.PagedWrits
+): GetChannelPostsResponse {
+  const posts = 'writs' in data ? data.writs : data.posts;
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
     totalPosts: data.total,
-    ...toPostsData(channelId, data.posts),
+    ...toPostsData(channelId, posts),
   };
 }
 
@@ -254,4 +278,20 @@ function toReactionsData(
       value: reaction,
     };
   });
+}
+
+function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
+}
+
+function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
+}
+
+function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
 }

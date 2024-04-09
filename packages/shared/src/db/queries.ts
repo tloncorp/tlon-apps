@@ -428,6 +428,26 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+export const getStaleChannels = createReadQuery(
+  'getStaleChannels',
+  async () => {
+    return client
+      .select({
+        ...getTableColumns($channels),
+        unread: getTableColumns($unreads),
+      })
+      .from($channels)
+      .innerJoin($unreads, eq($unreads.channelId, $channels.id))
+      .where(
+        or(
+          isNull($channels.lastPostAt),
+          lt($channels.remoteUpdatedAt, $unreads.updatedAt)
+        )
+      );
+  },
+  ['channels']
+);
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: ChannelInsert[]) => {

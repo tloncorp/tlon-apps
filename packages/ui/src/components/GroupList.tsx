@@ -1,9 +1,17 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import {
+  SectionList,
+  SectionListData,
+  SectionListRenderItemInfo,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 
-import { ScrollView, YStack } from '../core';
+import { useStyle } from '../core';
+import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
-import { ListItem, ListItemProps } from './ListItem';
+import { ListItemProps } from './ListItem';
 import { ListSectionHeader } from './ListSectionHeader';
 
 export function ChatList({
@@ -12,123 +20,110 @@ export function ChatList({
   onLongPressItem,
   onPressItem,
 }: db.CurrentChats & {
-  onPressItem?: (chat: db.Chat) => void;
-  onLongPressItem?: (chat: db.Chat) => void;
+  onPressItem?: (chat: db.ChannelSummary) => void;
+  onLongPressItem?: (chat: db.ChannelSummary) => void;
 }) {
-  return (
-    <ScrollView>
-      <YStack gap="$s" paddingHorizontal="$l">
-        {pinned.length > 0 && (
-          <ListSectionHeader key="pinned-header">Pinned</ListSectionHeader>
-        )}
-        {pinned.map((item) => (
-          <ChatListItem
-            model={item}
-            key={item.id}
-            onPress={onPressItem}
-            onLongPress={onLongPressItem}
-          />
-        ))}
-        {unpinned.length > 0 && pinned.length > 0 && (
-          <ListSectionHeader key={'all-header'}>All</ListSectionHeader>
-        )}
-        {unpinned.map((item) => (
-          <ChatListItem
-            model={item}
-            key={item.id}
-            onPress={onPressItem}
-            onLongPress={onLongPressItem}
-          />
-        ))}
-      </YStack>
-    </ScrollView>
-  );
-}
+  const data = useMemo(() => {
+    return [
+      { title: 'Pinned', data: pinned },
+      { title: 'All', data: unpinned },
+    ];
+  }, [pinned, unpinned]);
 
-function ChatListItem({
-  model,
-  onPress,
-  onLongPress,
-  ...props
-}: ListItemProps<db.ChannelSummary>) {
-  const handlePress = useCallback(() => {
-    onPress?.(model);
-  }, [onPress]);
+  const contentContainerStyle = useStyle(
+    {
+      gap: '$s',
+      paddingHorizontal: '$l',
+    },
+    { resolveValues: 'value' }
+  ) as StyleProp<ViewStyle>;
 
-  const handleLongPress = useCallback(() => {
-    onLongPress?.(model);
-  }, [onLongPress]);
-
-  if (model.group) {
-    return (
-      <GroupListItem
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        model={{
-          ...model.group,
-          unreadCount: model.unread?.count,
-          lastPost: model.lastPost,
-        }}
-        {...props}
-      />
-    );
-  } else if (model.type === 'dm') {
-    return (
-      <ListItem
-        {...props}
-        onPress={() => onPress?.(model)}
-        onLongPress={() => onLongPress?.(model)}
-      >
-        <ListItem.Icon
-          fallbackText={model.title?.[0]}
-          backgroundColor={model.iconImageColor ?? undefined}
-          imageUrl={model.iconImage ?? undefined}
+  const renderItem = useCallback(
+    ({
+      item,
+    }: SectionListRenderItemInfo<db.ChannelSummary, { title: string }>) => {
+      return (
+        <ChatListItem
+          model={item}
+          onPress={onPressItem}
+          onLongPress={onLongPressItem}
         />
-        <ListItem.MainContent>
-          <ListItem.Title>
-            {model.title
-              ? model.title
-              : model.members?.[0].contact?.nickname
-                ? model.members[0].contact.nickname
-                : model.members?.[0].contactId}
-          </ListItem.Title>
-          <ListItem.Subtitle>
-            {model.lastPost?.textContent ?? ''}
-          </ListItem.Subtitle>
-        </ListItem.MainContent>
-        <ListItem.EndContent>
-          {true ? <ListItem.Time time={model.lastPostAt} /> : null}
-          {model.unreadCount && model.unreadCount > 0 ? (
-            <ListItem.Count>{model.unread?.count}</ListItem.Count>
-          ) : null}
-        </ListItem.EndContent>
-      </ListItem>
-    );
-  }
+      );
+    },
+    []
+  );
+
+  const renderSectionHeader = useCallback(({ section }) => {
+    return <ListSectionHeader>{section.title}</ListSectionHeader>;
+  }, []);
 
   return (
-    <ListItem
-      {...props}
-      onPress={() => onPress?.(model)}
-      onLongPress={() => onLongPress?.(model)}
-    >
-      <ListItem.Icon
-        fallbackText={model.title?.[0]}
-        backgroundColor={model.iconImageColor ?? undefined}
-        imageUrl={model.iconImage ?? undefined}
-      />
-      <ListItem.MainContent>
-        <ListItem.Title>{model.title}</ListItem.Title>
-        <ListItem.Subtitle>
-          {model.lastPost?.textContent ?? ''}
-        </ListItem.Subtitle>
-      </ListItem.MainContent>
-      <ListItem.EndContent>
-        {true ? <ListItem.Time time={model.lastPostAt} /> : null}
-        {model.unreadCount && model.unreadCount > 0 ? (
-          <ListItem.Count>{model.unread?.count}</ListItem.Count>
-        ) : null}
-      </ListItem.EndContent>
-    </ListItem>
+    <SectionList
+      sections={data}
+      contentContainerStyle={contentContainerStyle}
+      keyExtractor={getChannelKey}
+      stickySectionHeadersEnabled={false}
+      renderItem={renderItem}
+      getItemLayout={getItemLayout}
+      maxToRenderPerBatch={11}
+      initialNumToRender={11}
+      windowSize={2}
+      viewabilityConfig={{
+        minimumViewTime: 1000,
+        itemVisiblePercentThreshold: 50,
+      }}
+      renderSectionHeader={renderSectionHeader}
+    />
   );
 }
+
+function getItemLayout(
+  data: SectionListData<db.ChannelSummary, { title: string }>[] | null,
+  index: number
+) {
+  return {
+    length: 72,
+    offset: 72 * index,
+    index,
+  };
+}
+
+function getChannelKey(channel: db.ChannelSummary) {
+  return channel.id;
+}
+
+const ChatListItem = React.memo(
+  ({
+    model,
+    onPress,
+    onLongPress,
+    ...props
+  }: ListItemProps<db.ChannelSummary>) => {
+    const handlePress = useCallback(() => {
+      onPress?.(model);
+    }, [onPress]);
+
+    const handleLongPress = useCallback(() => {
+      onLongPress?.(model);
+    }, [onLongPress]);
+
+    if (model.type === 'dm' || model.type === 'groupDm') {
+      return <ChannelListItem model={model} />;
+    } else if (model.group) {
+      return (
+        <GroupListItem
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          model={{
+            ...model.group,
+            unreadCount: model.unread?.count,
+            lastPost: model.lastPost,
+          }}
+          {...props}
+        />
+      );
+    } else {
+      return null;
+    }
+  }
+);

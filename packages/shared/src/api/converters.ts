@@ -1,4 +1,4 @@
-import { daToUnix, unixToDa } from '@urbit/api';
+import { daToUnix, decToUd, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
 import type * as ub from '../urbit';
@@ -25,15 +25,22 @@ export function toClientMeta(meta: ub.GroupMeta) {
     coverImageColor: coverImageData.coverImageColor ?? null,
     description: meta.description,
   };
-} // Utilities
+}
+
 export function formatUd(ud: string) {
   //@ts-ignore string will get converted internally, so doesn't actually have to
   //be a bigint
   return baseFormatUd(ud);
 }
+
 export function udToDate(da: string) {
   return daToUnix(parseUd(da));
 }
+
 export function formatDateParam(date: Date) {
   return baseFormatUd(unixToDa(date!.getTime()));
+}
+
+export function formatPostIdParam(sealId: string) {
+  return decToUd(sealId);
 }

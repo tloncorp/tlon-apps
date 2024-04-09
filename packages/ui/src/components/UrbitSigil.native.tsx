@@ -5,7 +5,7 @@ import sigil from '@urbit/sigil-js/dist/core';
 import { useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { View } from 'tamagui';
+import { View, useStyle } from 'tamagui';
 
 import {
   UrbitSigilBase,
@@ -36,6 +36,11 @@ const UrbitSigil = View.styleable<{
     [adjustedColor]
   );
 
+  const styles = useStyle(props, {
+    resolveValues: 'value',
+  });
+  const size = typeof styles.width === 'number' ? styles.width / 2 : 12;
+
   const validShip = ship.length <= 14; // planet or larger
   const sigilXml = useMemo(
     () =>
@@ -43,7 +48,7 @@ const UrbitSigil = View.styleable<{
         ? sigil({
             point: ship,
             detail: 'none',
-            size: 12,
+            size: size,
             space: 'none',
             foreground: foregroundColor,
             background: adjustedColor,
@@ -52,8 +57,8 @@ const UrbitSigil = View.styleable<{
     [ship]
   );
   return (
-    <UrbitSigilBase ship={ship} adjustedColor={adjustedColor}>
-      {sigilXml && <SvgXml xml={sigilXml} />}
+    <UrbitSigilBase ship={ship} adjustedColor={adjustedColor} {...props}>
+      {sigilXml && <SvgXml shouldRasterizeIOS={true} xml={sigilXml} />}
     </UrbitSigilBase>
   );
 });
