@@ -95,11 +95,11 @@ export type ThreadUnreadStateInsert =
 export type Post = typeof schema.posts.$inferSelect;
 export type PostWithRelations = Post & {
   reactions: Reaction[] | null;
-  author: Contact;
+  author: Contact | undefined;
 };
 
 export type PostInsertWithAuthor = PostInsert & {
-  author: Contact;
+  author: Contact | undefined;
 };
 
 export type PostType = Post['type'];

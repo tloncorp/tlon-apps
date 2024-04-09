@@ -22,12 +22,10 @@ const RoleBadge = ({ role }: { role: string }) => {
 
 export default function AuthorRow({
   author,
-  authorId,
   sent,
   roles,
 }: {
   author: db.Contact;
-  authorId: string;
   sent: number;
   roles?: string[];
 }) {
@@ -40,13 +38,8 @@ export default function AuthorRow({
 
   return (
     <XStack gap="$l" alignItems="center">
-      <Avatar
-        height="$2xl"
-        width="$2xl"
-        contactId={authorId}
-        contact={author}
-      />
-      <ContactName showAlias name={authorId} />
+      <Avatar height="$2xl" width="$2xl" contact={author} />
+      <ContactName showAlias name={author.id} />
       <SizableText color="$secondaryText" size="$s">
         {timeDisplay.time}
       </SizableText>

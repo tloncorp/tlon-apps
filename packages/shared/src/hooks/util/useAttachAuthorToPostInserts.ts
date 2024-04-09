@@ -8,9 +8,9 @@ export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
   const [postsWithAuthor, setPostsWithAuthor] = useState<
     db.PostInsertWithAuthor[]
   >([]);
-  const [authorsCache, setAuthorsCache] = useState<Record<string, db.Contact>>(
-    {}
-  );
+  const [authorsCache, setAuthorsCache] = useState<
+    Record<string, db.Contact | null>
+  >({});
   const missingAuthors = useMemo(
     () =>
       _.uniq(posts.map((post) => post.authorId)).filter(
@@ -23,30 +23,29 @@ export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
     [postsWithAuthor]
   );
 
-  const addAuthorToCache = (author: db.Contact) => {
-    if (!authorsCache[author.id]) {
-      setAuthorsCache((prev) => ({ ...prev, [author.id]: author }));
+  const addAuthorToCache = (authorId: string, contact: db.Contact | null) => {
+    if (authorsCache[authorId] === undefined) {
+      setAuthorsCache((prev) => ({ ...prev, [authorId]: contact }));
     }
   };
 
   const getMissingAuthors = async (missingAuthors: string[]) => {
-    const newContacts = await db.getContactsBatch({
+    const contactsBatch = await db.getContactsBatch({
       contactIds: missingAuthors,
     });
 
-    const foundContacts = new Set();
-    newContacts.forEach((newContact) => {
-      if (newContact) {
-        addAuthorToCache(newContact);
-        foundContacts.add(newContact.id);
+    const contactsMap = new Map();
+    contactsBatch.forEach((contact) => {
+      if (contact) {
+        contactsMap.set(contact.id, contact); // Assuming each contact has an id
+        addAuthorToCache(contact.id, contact);
       }
     });
 
-    // even if we don't have a contact for a particular author, we still want to
-    // display the search result, so we use a fallback
+    // if no contact found, mark them as null so we know we've already looked them up
     missingAuthors.forEach((authorId) => {
-      if (!foundContacts.has(authorId)) {
-        addAuthorToCache(getFallbackContact(authorId));
+      if (!contactsMap.has(authorId)) {
+        addAuthorToCache(authorId, null);
       }
     });
   };
@@ -63,15 +62,18 @@ export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
     const shouldUpdate =
       posts.filter(
         (post) =>
-          authorsCache[post.authorId] && !appendedPostIds.includes(post.id)
+          authorsCache[post.authorId] !== undefined &&
+          !appendedPostIds.includes(post.id)
       ).length > 0;
 
     if ((incomplete && shouldUpdate) || maybeReset) {
-      setPostsWithAuthor(
-        posts
-          .filter((post) => authorsCache[post.authorId])
-          .map((post) => ({ ...post, author: authorsCache[post.authorId] }))
-      );
+      const updatedPostsWithAuthor = posts
+        .filter((post) => authorsCache[post.authorId] !== undefined)
+        .map((post) => ({
+          ...post,
+          author: authorsCache[post.authorId] ?? undefined,
+        }));
+      setPostsWithAuthor(updatedPostsWithAuthor);
     }
   }, [posts, authorsCache, postsWithAuthor, missingAuthors, appendedPostIds]);
 

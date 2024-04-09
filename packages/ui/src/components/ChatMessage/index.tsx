@@ -57,8 +57,7 @@ const ChatMessage = memo(
         </YStack>
         <View paddingLeft="$l">
           <AuthorRow
-            authorId={post.authorId}
-            author={post.author}
+            author={post.author ?? db.getFallbackContact(post.authorId)}
             sent={post.sentAt ?? 0}
             // roles={roles}
           />
