@@ -14,7 +14,7 @@ const ChatMessage = memo(
     firstUnread,
     unreadCount,
   }: {
-    post: db.PostWithRelations;
+    post: db.PostWithRelations | db.PostInsertWithAuthor;
     firstUnread?: string;
     unreadCount?: number;
   }) => {
@@ -42,8 +42,8 @@ const ChatMessage = memo(
     // );
 
     // const prettyDay = useMemo(() => {
-      // const date = new Date(post.sentAt ?? '');
-      // return utils.makePrettyDay(date);
+    // const date = new Date(post.sentAt ?? '');
+    // return utils.makePrettyDay(date);
     // }, [post.sentAt]);
 
     return (
@@ -57,8 +57,8 @@ const ChatMessage = memo(
         </YStack>
         <View paddingLeft="$l">
           <AuthorRow
-            authorId={post.authorId}
             author={post.author}
+            authorId={post.authorId}
             sent={post.sentAt ?? 0}
             // roles={roles}
           />

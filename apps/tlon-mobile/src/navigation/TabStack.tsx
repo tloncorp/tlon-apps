@@ -1,5 +1,4 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
 import {
@@ -17,19 +16,6 @@ import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
-
-function fallbackContact(id: string): client.Contact {
-  return {
-    id,
-    nickname: null,
-    bio: null,
-    status: null,
-    color: null,
-    avatarImage: null,
-    coverImage: null,
-    pinnedGroupIds: [],
-  };
-}
 
 export const TabStack = () => {
   const { contactId } = useShip();
@@ -124,11 +110,7 @@ export const TabStack = () => {
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
   const { result: contact } = db.useContact({ id });
   return (
-    <Avatar
-      contactId={id}
-      contact={contact ?? fallbackContact(id)}
-      opacity={focused ? 1 : 0.6}
-    />
+    <Avatar contact={contact} contactId={id} opacity={focused ? 1 : 0.6} />
   );
 }
 

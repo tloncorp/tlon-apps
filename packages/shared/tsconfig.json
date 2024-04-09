@@ -15,17 +15,9 @@
     "rootDir": "./src",
     "outDir": "dist",
     "composite": true,
-    "allowJs": true,
+    "allowJs": true
   },
-  "files": [
-    "./src/index.ts",
-  ],
-  "include": [
-    "src/**/*",
-    "src/**/*.json",
-    "src/**/*.sql"
-  ],
-  "exclude": [
-    "src/**/*.test.ts",
-  ]
+  "files": ["./src/index.ts"],
+  "include": ["src/**/*", "src/**/*.json", "src/**/*.sql"],
+  "exclude": ["src/**/*.test.ts"]
 }

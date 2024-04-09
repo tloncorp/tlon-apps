@@ -18,6 +18,7 @@ import MessageInput from './MessageInput';
 export function Channel({
   channel,
   posts,
+  selectedPost,
   contacts,
   group,
   calmSettings,
@@ -29,6 +30,7 @@ export function Channel({
 }: {
   channel: db.Channel;
   posts: db.PostWithRelations[] | null;
+  selectedPost?: string;
   contacts: db.Contact[];
   group: db.GroupWithRelations;
   calmSettings: CalmState;
@@ -60,6 +62,7 @@ export function Channel({
                 ) : (
                   <ChatScroll
                     unreadCount={channel.unreadCount ?? undefined}
+                    selectedPost={selectedPost}
                     firstUnread={channel.firstUnreadPostId ?? undefined}
                     posts={posts}
                   />

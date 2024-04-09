@@ -18,6 +18,10 @@ export function makePrettyDay(date: Date) {
   }
 }
 
+export function makePrettyShortDate(date: Date) {
+  return format(date, 'MMM dd, yyyy');
+}
+
 export interface DayTimeDisplay {
   original: Date;
   diff: number;
@@ -100,4 +104,3 @@ export function normalizeUrbitColor(color: string): string {
   const lengthAdjustedColor = _.padStart(colorString, 6, '0');
   return `#${lengthAdjustedColor}`;
 }
-

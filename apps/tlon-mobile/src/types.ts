@@ -22,6 +22,11 @@ export type HomeStackParamList = {
   GroupsList: undefined;
   Channel: {
     group: db.Group;
+    channel?: db.Channel;
+    selectedPost?: db.PostWithRelations;
+  };
+  ChannelSearch: {
+    channel: db.Channel;
   };
 };
 

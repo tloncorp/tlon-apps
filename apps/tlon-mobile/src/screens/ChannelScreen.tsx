@@ -12,7 +12,7 @@ type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 export default function ChannelScreen(props: ChannelScreenProps) {
   const [open, setOpen] = React.useState(false);
   const [currentChannel, setCurrentChannel] = React.useState<db.Channel | null>(
-    null
+    props.route.params.channel ?? null
   );
   const { group } = props.route.params;
   const {
@@ -20,11 +20,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     isLoading,
     error,
   } = db.useGroup({ id: group.id });
+
   const { result: posts } = db.useChannelPosts({
     channelId: currentChannel?.id ?? '',
   });
+  const { result: aroundPosts } = db.useChannelPostsAround({
+    channelId: currentChannel?.id ?? '',
+    postId: props.route.params.selectedPost?.id ?? '',
+  });
+
   const { result: contacts } = db.useContacts();
   const { top, bottom } = useSafeAreaInsets();
+  const hasSelectedPost = !!props.route.params.selectedPost;
 
   useEffect(() => {
     if (groupWithRelations) {
@@ -44,12 +51,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [error]);
 
   useEffect(() => {
-    const syncChannel = async (id: string) => sync.syncChannel(id, Date.now());
+    const syncChannel = async (id: string) => {
+      if (props.route.params.selectedPost) {
+        sync.syncPostsAround(props.route.params.selectedPost);
+      } else {
+        sync.syncChannel(id, Date.now());
+      }
+    };
 
     if (currentChannel) {
       syncChannel(currentChannel.id);
     }
-  }, [currentChannel]);
+  }, [currentChannel, props.route.params.selectedPost]);
 
   if (isLoading || !groupWithRelations || !currentChannel) {
     return null;
@@ -68,10 +81,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }}
         group={groupWithRelations ?? []}
         contacts={contacts ?? []}
-        posts={posts}
+        posts={hasSelectedPost ? aroundPosts : posts}
+        selectedPost={
+          hasSelectedPost && aroundPosts?.length
+            ? props.route.params.selectedPost?.id
+            : undefined
+        }
         goBack={props.navigation.goBack}
         goToChannels={() => setOpen(true)}
-        goToSearch={() => {}}
+        goToSearch={() =>
+          props.navigation.push('ChannelSearch', { channel: currentChannel })
+        }
       />
       <ChannelSwitcherSheet
         open={open}

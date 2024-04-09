@@ -4,15 +4,21 @@ import {
   SizeTokens,
   Stack,
   Text,
+  Variable,
+  View,
   createStyledContext,
   styled,
   useTheme,
   withStaticProperties,
-  Variable
 } from 'tamagui';
 
-export const ButtonContext = createStyledContext<{ size: SizeTokens }>({
+export const ButtonContext = createStyledContext<{
+  size: SizeTokens;
+  minimal: boolean;
+  onPress?: () => void;
+}>({
   size: '$m',
+  minimal: false,
 });
 
 export const ButtonFrame = styled(Stack, {
@@ -34,24 +40,37 @@ export const ButtonFrame = styled(Stack, {
       '...size': (name, { tokens }) => {
         return {
           // @ts-ignore
-          height: tokens.size[name],
+          // TODO: do we need to set the hight explicitly here? is text size + padding enough? Seems
+          // to cause layout issues
+          // height: tokens.size[name],
           // borderRadius: tokens.radius[name],
+
           // note the getSpace and getSize helpers will let you shift down/up token sizes
           // whereas with gap we just multiply by 0.2
           // this is a stylistic choice, and depends on your design system values
           // @ts-ignore
-          gap: (tokens.space[name] as Variable).val * 0.2,
+          // gap: (tokens.space[name] as Variable).val * 0.2,
           paddingHorizontal: getSpace(name, {
             shift: -1,
           }),
         };
       },
     },
-  } as const,
-
-  defaultVariants: {
-    size: '$m',
+    minimal: {
+      true: {
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        pressStyle: {
+          backgroundColor: 'transparent',
+        },
+      },
+    } as const,
   },
+});
+
+export const ButtonFrameImpl = ButtonFrame.styleable((props, ref) => {
+  // adding group to the styled component itself seems to break typing for variants
+  return <ButtonFrame group="button" {...props} ref={ref} />;
 });
 
 export const ButtonText = styled(Text, {
@@ -65,6 +84,14 @@ export const ButtonText = styled(Text, {
       '...fontSize': (name) => ({
         fontSize: name,
       }),
+    },
+
+    minimal: {
+      true: {
+        '$group-button-press': {
+          color: '$secondaryText',
+        },
+      },
     },
   } as const,
 });
@@ -81,7 +108,7 @@ const ButtonIcon = (props: { children: any }) => {
   });
 };
 
-export const Button = withStaticProperties(ButtonFrame, {
+export const Button = withStaticProperties(ButtonFrameImpl, {
   Props: ButtonContext.Provider,
   Text: ButtonText,
   Icon: ButtonIcon,
