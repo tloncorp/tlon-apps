@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
+import { syncChannel, syncPostsAround } from '@tloncorp/shared/dist/sync';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,19 +38,19 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [error]);
 
-  // useEffect(() => {
-  //   const syncChannel = async (id: string) => {
-  //     if (props.route.params.selectedPost) {
-  //       sync.syncPostsAround(props.route.params.selectedPost);
-  //     } else {
-  //       sync.syncChannel(id, Date.now());
-  //     }
-  //   };
+  useEffect(() => {
+    const runSyncChannel = async (id: string) => {
+      if (props.route.params.selectedPost) {
+        syncPostsAround(props.route.params.selectedPost);
+      } else {
+        syncChannel(id, Date.now());
+      }
+    };
 
-  //   if (currentChannel) {
-  //     syncChannel(currentChannel.id);
-  //   }
-  // }, [currentChannel, props.route.params.selectedPost]);
+    if (currentChannelId) {
+      runSyncChannel(currentChannelId);
+    }
+  }, [currentChannelId, props.route.params.selectedPost]);
 
   if (!channel) {
     return null;
