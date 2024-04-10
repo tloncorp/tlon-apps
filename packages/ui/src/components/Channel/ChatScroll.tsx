@@ -4,8 +4,9 @@ import { Dimensions, FlatList } from 'react-native';
 import { Button } from 'tamagui';
 
 import { ArrowDown } from '../../assets/icons';
-import { SizableText, XStack, YStack, ZStack } from '../../core';
+import { Dialog, SizableText, View, XStack, YStack } from '../../core';
 import ChatMessage from '../ChatMessage';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
 
 const renderItem = ({
   post,
@@ -108,9 +109,17 @@ export default function ChatScroll({
         <FlatList
           ref={flatListRef}
           data={posts}
-          renderItem={({ item }) =>
-            renderItem({ post: item, firstUnread, unreadCount })
-          }
+          renderItem={({ item }) => (
+            <YStack paddingVertical="$m">
+              <MessageSelectContainer>
+                <ChatMessage
+                  post={item}
+                  firstUnread={firstUnread}
+                  unreadCount={unreadCount}
+                />
+              </MessageSelectContainer>
+            </YStack>
+          )}
           keyExtractor={(post) => post.id}
           keyboardDismissMode="on-drag"
           inverted
@@ -131,6 +140,19 @@ export default function ChatScroll({
           }}
         />
       </XStack>
+      {posts.length > 0 && (
+        <Dialog open={true}>
+          <Dialog.Portal>
+            <ChatMessageActions post={posts[0]} />
+          </Dialog.Portal>
+        </Dialog>
+      )}
     </XStack>
+  );
+}
+
+function MessageSelectContainer({ children }: { children: React.ReactNode }) {
+  return (
+    <View onLongPress={() => console.log('long pressed!')}>{children}</View>
   );
 }
