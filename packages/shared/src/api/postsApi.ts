@@ -1,10 +1,70 @@
+import type { JSONContent } from '@tiptap/core';
 import { daToUnix, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
+import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { JSONToInlines } from '../logic/tiptap';
 import * as ub from '../urbit';
-import { getChannelType, KindData, KindDataChat, getTextContent } from '../urbit';
-import { scry } from './urbit';
+import {
+  KindData,
+  KindDataChat,
+  checkNest,
+  constructStory,
+  createMessage,
+  getChannelType,
+  getTextContent,
+} from '../urbit';
+import { poke, scry } from './urbit';
+
+export function channelAction(
+  nest: ub.Nest,
+  action: ub.Action
+): Poke<ub.ChannelsAction> {
+  checkNest(nest);
+  return {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest,
+        action,
+      },
+    },
+  };
+}
+
+export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+  checkNest(nest);
+
+  return channelAction(nest, {
+    post: action,
+  });
+}
+
+export const sendPost = async (
+  channelId: string,
+  content: JSONContent,
+  author: string
+) => {
+  const inlines = JSONToInlines(content);
+  const story = constructStory(inlines);
+
+  const essay: ub.PostEssay = {
+    content: story,
+    sent: Date.now(),
+    'kind-data': {
+      chat: null,
+    },
+    author,
+  };
+
+  await poke(
+    channelPostAction(channelId, {
+      add: essay,
+    })
+  );
+};
 
 export const getChannelPosts = async (
   channelId: string,

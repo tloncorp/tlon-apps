@@ -1,5 +1,8 @@
+import { formatUd, unixToDa } from '@urbit/aura';
+
 import * as ub from './channel';
 import * as ubc from './content';
+import * as ubd from './dms';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -183,4 +186,56 @@ export function getInlineContent(inline: ubc.Inline): string {
   } else {
     return inline;
   }
+}
+
+function makeId(our: string) {
+  const sent = Date.now();
+  return {
+    id: `${our}/${formatUd(unixToDa(sent))}`,
+    sent,
+  };
+}
+
+export function createMessage(
+  our: string,
+  mem: ub.PostEssay,
+  replying?: string
+): {
+  id: string;
+  cacheId: ub.CacheId;
+  delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
+} {
+  const { id, sent } = makeId(our);
+  const cacheId = { author: mem.author, sent };
+  const memo: Omit<ub.PostEssay, 'kind-data'> = {
+    content: mem.content,
+    author: mem.author,
+    sent,
+  };
+
+  let delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
+  if (!replying) {
+    delta = {
+      add: {
+        memo,
+        kind: null,
+        time: null,
+      },
+    };
+  } else {
+    delta = {
+      reply: {
+        id,
+        meta: null,
+        delta: {
+          add: {
+            memo,
+            time: null,
+          },
+        },
+      },
+    };
+  }
+
+  return { id, cacheId, delta };
 }

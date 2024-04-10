@@ -4,6 +4,7 @@ import {
   SQLWrapper,
   Table,
   and,
+  asc,
   count,
   desc,
   eq,

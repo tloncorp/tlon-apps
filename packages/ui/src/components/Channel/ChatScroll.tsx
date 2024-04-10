@@ -29,14 +29,19 @@ export default function ChatScroll({
   posts,
   unreadCount,
   firstUnread,
+  setInputShouldBlur,
 }: {
   posts: db.PostWithRelations[];
   unreadCount?: number;
   firstUnread?: string;
+  setInputShouldBlur: (shouldBlur: boolean) => void;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
   const lastPost = posts[posts.length - 1];
+  const sortedPosts = posts.sort((a, b) => {
+    return b.receivedAt - a.receivedAt;
+  });
   const pressedGoToBottom = () => {
     setHasPressedGoToBottom(true);
     if (flatListRef.current) {
@@ -59,7 +64,11 @@ export default function ChatScroll({
   }, [firstUnread]);
 
   return (
-    <XStack position="relative" flex={1}>
+    <XStack
+      onPress={() => setInputShouldBlur(true)}
+      position="relative"
+      flex={1}
+    >
       {unreadCount && !hasPressedGoToBottom && (
         <XStack
           position="absolute"
@@ -93,7 +102,7 @@ export default function ChatScroll({
       <XStack flex={1} paddingHorizontal="$m">
         <FlatList
           ref={flatListRef}
-          data={posts}
+          data={sortedPosts}
           renderItem={({ item }) =>
             renderItem({ post: item, firstUnread, unreadCount })
           }

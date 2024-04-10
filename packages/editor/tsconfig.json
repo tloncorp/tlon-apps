@@ -6,7 +6,7 @@
     "module": "esnext",
     "paths": {
       "@10play/tentap-editor": [
-        "../node_modules/@10play/tentap-editor/lib-web/typescript/webEditorUtils/index.d.ts"
+        "../../node_modules/@10play/tentap-editor/lib-web/typescript/webEditorUtils/index.d.ts"
       ]
     },
     "moduleResolution": "node",
@@ -21,6 +21,7 @@
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "composite": true
   }
 }

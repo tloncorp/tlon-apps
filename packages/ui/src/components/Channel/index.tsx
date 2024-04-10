@@ -1,5 +1,6 @@
-import * as client from '@tloncorp/shared/dist/client';
+import { JSONContent } from '@tiptap/core';
 import * as db from '@tloncorp/shared/dist/db';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { Spinner } from 'tamagui';
 
@@ -11,9 +12,9 @@ import {
 } from '../../contexts';
 import { YStack } from '../../core';
 import useChannelTitle from '../../hooks/useChannelTitle';
+import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
-import MessageInput from './MessageInput';
 
 export function Channel({
   channel,
@@ -24,6 +25,7 @@ export function Channel({
   goBack,
   goToChannels,
   goToSearch,
+  messageSender,
   // TODO: implement gallery and notebook
   type,
 }: {
@@ -35,8 +37,10 @@ export function Channel({
   goBack: () => void;
   goToChannels: () => void;
   goToSearch: () => void;
+  messageSender: (content: JSONContent, channelId: string) => void;
   type?: 'chat' | 'gallery' | 'notebook';
 }) {
+  const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = useChannelTitle(channel);
   return (
     <CalmProvider initialCalm={calmSettings}>
@@ -62,9 +66,17 @@ export function Channel({
                     unreadCount={channel.unreadCount ?? undefined}
                     firstUnread={channel.firstUnreadPostId ?? undefined}
                     posts={posts}
+                    setInputShouldBlur={setInputShouldBlur}
                   />
                 )}
-                <MessageInput />
+                <MessageInput
+                  shouldBlur={inputShouldBlur}
+                  setShouldBlur={setInputShouldBlur}
+                  contacts={contacts}
+                  group={group}
+                  send={messageSender}
+                  channelId={channel.id}
+                />
               </YStack>
             </KeyboardAvoidingView>
           </YStack>
