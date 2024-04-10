@@ -18,6 +18,7 @@
     "watch-migrations": "npm run generate:migration -- --watch"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.28.14",
     "@urbit/api": "^2.2.0",
     "big-integer": "^1.6.52",
     "drizzle-orm": "^0.30.4",

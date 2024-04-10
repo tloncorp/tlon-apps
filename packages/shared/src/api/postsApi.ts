@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
-import { daToUnix, unixToDa } from '@urbit/api';
+import { daToUnix, decToUd, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 
@@ -327,4 +327,8 @@ function udToDate(da: string) {
 
 function formatDateParam(date: Date) {
   return baseFormatUd(unixToDa(date!.getTime()));
+}
+
+export function formatPostIdParam(sealId: string) {
+  return decToUd(sealId);
 }

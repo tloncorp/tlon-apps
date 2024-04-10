@@ -6,4 +6,9 @@ export default {
       <Button.Text>Primary</Button.Text>
     </Button>
   ),
+  text: () => (
+    <Button minimal>
+      <Button.Text>Text Button</Button.Text>
+    </Button>
+  ),
 };

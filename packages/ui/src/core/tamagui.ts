@@ -12,6 +12,7 @@ export {
   ScrollView,
   YGroup,
   SizableText,
+  Spinner,
   TextArea,
   Text,
 } from 'tamagui';

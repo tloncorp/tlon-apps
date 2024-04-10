@@ -30,11 +30,13 @@ export default function ChatScroll({
   unreadCount,
   firstUnread,
   setInputShouldBlur,
+  selectedPost,
 }: {
   posts: db.PostWithRelations[];
   unreadCount?: number;
   firstUnread?: string;
   setInputShouldBlur: (shouldBlur: boolean) => void;
+  selectedPost?: string;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
@@ -62,6 +64,18 @@ export default function ChatScroll({
       });
     }
   }, [firstUnread]);
+
+  useEffect(() => {
+    if (selectedPost && flatListRef.current) {
+      const scrollToIndex = posts.findIndex((post) => post.id === selectedPost);
+      if (scrollToIndex > -1) {
+        flatListRef.current.scrollToIndex({
+          index: scrollToIndex,
+          animated: true,
+        });
+      }
+    }
+  }, [selectedPost]);
 
   return (
     <XStack

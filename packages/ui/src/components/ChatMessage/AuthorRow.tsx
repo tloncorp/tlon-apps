@@ -26,7 +26,7 @@ export default function AuthorRow({
   sent,
   roles,
 }: {
-  author: db.Contact;
+  author?: db.Contact | null;
   authorId: string;
   sent: number;
   roles?: string[];
@@ -43,8 +43,8 @@ export default function AuthorRow({
       <Avatar
         height="$2xl"
         width="$2xl"
-        contactId={authorId}
         contact={author}
+        contactId={authorId}
       />
       <ContactName showAlias name={authorId} />
       <SizableText color="$secondaryText" size="$s">

@@ -74,6 +74,19 @@ export async function syncPostsBefore(post: db.Post) {
   persistPagedPostData(post.channelId, postsResponse);
 }
 
+export async function syncPostsAround(post: db.Post) {
+  if (!post.channelId) {
+    throw new Error("post is missing channel, can't sync");
+  }
+  const postsResponse = await api.getChannelPosts(post.channelId, {
+    count: 50,
+    direction: 'around',
+    cursor: post.id,
+    includeReplies: false,
+  });
+  persistPagedPostData(post.channelId, postsResponse);
+}
+
 export async function syncChannel(id: string, remoteUpdatedAt: number) {
   const startTime = Date.now();
   const channel = await db.getChannel({ id });
