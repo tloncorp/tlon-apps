@@ -316,6 +316,22 @@ export default function ChatInput({
 
   const onUpdate = useRef(
     debounce(({ editor }: HandlerParams) => {
+      const editorJson = editor.getJSON();
+      // if the only content is an empty mention, clear the draft
+      // this is a workaround for a bug where the editor doesn't clear
+      // the mention after sending a reply
+      const isEmtpyMention =
+        editorJson?.content?.length === 1 &&
+        editorJson?.content[0].content?.length === 2 &&
+        editorJson?.content[0].content[0].type === 'mention' &&
+        editorJson?.content[0].content[1].type === 'text' &&
+        editorJson?.content[0].content[1].text === ': ';
+
+      if (isEmtpyMention) {
+        setDraft(inlinesToJSON(['']));
+        return;
+      }
+
       setDraft(editor.getJSON());
     }, 300)
   );
