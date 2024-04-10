@@ -121,7 +121,6 @@ async function persistPagedPostData(
   channelId: string,
   data: api.GetChannelPostsResponse
 ) {
-  await db.insertChannelPosts(channelId, data.posts);
   await db.updateChannel({
     id: channelId,
     postCount: data.totalPosts,
