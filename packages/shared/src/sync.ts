@@ -1,7 +1,6 @@
 import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
-import { getChannelType } from './urbit';
 
 const logger = createDevLogger('sync', false);
 
@@ -122,12 +121,10 @@ async function persistPagedPostData(
   channelId: string,
   data: api.GetChannelPostsResponse
 ) {
-  const channelType = getChannelType(channelId);
   await db.insertChannelPosts(channelId, data.posts);
   await db.updateChannel({
     id: channelId,
     postCount: data.totalPosts,
-    type: channelType,
   });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
@@ -139,11 +136,11 @@ async function persistPagedPostData(
 
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    // ['groups', syncGroups],
+    ['pinnedItems', syncPinnedItems],
+    ['contacts', syncContacts],
+    ['groups', syncGroups],
     ['dms', syncDms],
-    // ['pinnedItems', syncPinnedItems],
-    // ['unreads', syncUnreads],
-    // ['contacts', syncContacts],
+    ['unreads', syncUnreads],
     ['posts', syncPosts],
   ];
 

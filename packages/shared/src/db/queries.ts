@@ -472,7 +472,8 @@ export const getStaleChannels = createReadQuery(
           isNull($channels.lastPostAt),
           lt($channels.remoteUpdatedAt, $unreads.updatedAt)
         )
-      );
+      )
+      .orderBy(desc($unreads.updatedAt));
   },
   ['channels']
 );
@@ -504,6 +505,9 @@ export const insertChannels = createWriteQuery(
 export const updateChannel = createWriteQuery(
   'updateChannel',
   (update: Partial<ChannelInsert> & { id: string }) => {
+    if (update.type) {
+      console.log('update channel type', update.id, update.type);
+    }
     return client
       .update($channels)
       .set(update)
@@ -764,7 +768,13 @@ export const getContact = createReadQuery(
 export const insertContact = createWriteQuery(
   'insertContact',
   async (contact: ContactInsert) => {
-    return client.insert($contacts).values(contact);
+    return client
+      .insert($contacts)
+      .values(contact)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSetAll($contacts),
+      });
   },
   ['contacts']
 );
@@ -781,7 +791,13 @@ export const insertContacts = createWriteQuery(
         isSecret: false,
       })
     );
-    await client.insert($contacts).values(contactsData).onConflictDoNothing();
+    await client
+      .insert($contacts)
+      .values(contactsData)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSetAll($contacts),
+      });
     if (targetGroups.length) {
       await client.insert($groups).values(targetGroups).onConflictDoNothing();
     }

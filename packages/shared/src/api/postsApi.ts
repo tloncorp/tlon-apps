@@ -50,7 +50,7 @@ export const getChannelPosts = async (
     return toPagedPostsData(channelId, response);
   } else {
     const mode = includeReplies ? 'post' : 'outline';
-    const path = `/channels/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
     const response = await scry<ub.PagedPosts>({
       app: 'channels',
       path,
@@ -141,7 +141,6 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
-  const channelType = getChannelType(channelId);
 
   return {
     id,
@@ -158,10 +157,6 @@ export function toPostData(
     replyCount: post?.seal.meta.replyCount,
     images: getPostImages(post),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
-    channel: {
-      id: channelId,
-      type: channelType,
-    },
     ...flags,
   };
 }
