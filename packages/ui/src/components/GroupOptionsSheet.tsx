@@ -1,7 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
 import { Stack, Text, View } from '../core';
-import getChannelTitle from '../hooks/useChannelTitle';
 import { Sheet } from './Sheet';
 
 interface Props {

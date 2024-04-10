@@ -1,8 +1,7 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { ColorProp } from 'tamagui';
 
-import { IconType } from '../..';
-import getChannelTitle from '../../hooks/useChannelTitle';
+import * as utils from '../../utils';
 import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
@@ -15,7 +14,7 @@ export default function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.ChannelWithLastPostAndMembers>) {
-  const title = getChannelTitle(model);
+  const title = utils.getChannelTitle(model);
   return (
     <ListItem
       {...props}
@@ -60,7 +59,7 @@ function ChannelListItemIcon({
 }) {
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
-    const icon = getChannelIcon(model.type);
+    const icon = utils.getChannelTypeIcon(model.type);
     return (
       <ListItem.SystemIcon icon={icon} backgroundColor={backgroundColor} />
     );
@@ -83,27 +82,10 @@ function ChannelListItemIcon({
     } else {
       return (
         <ListItem.TextIcon
-          fallbackText={getChannelTitle(model)}
+          fallbackText={utils.getChannelTitle(model)}
           backgroundColor={backgroundColor}
         />
       );
     }
   }
 }
-
-const getChannelIcon = (type: db.Channel['type']): IconType => {
-  switch (type) {
-    case 'dm':
-      return 'Face';
-    case 'groupDm':
-      return 'Face';
-    case 'chat':
-      return 'ChannelTalk';
-    case 'notebook':
-      return 'ChannelNotebooks';
-    case 'gallery':
-      return 'ChannelGalleries';
-    default:
-      return 'ChannelTalk';
-  }
-};

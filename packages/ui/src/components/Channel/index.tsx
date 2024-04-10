@@ -1,4 +1,3 @@
-import * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -9,7 +8,7 @@ import {
   GroupsProvider,
 } from '../../contexts';
 import { Spinner, View, YStack } from '../../core';
-import getChannelTitle from '../../hooks/useChannelTitle';
+import * as utils from '../../utils';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
 import MessageInput from './MessageInput';
@@ -38,7 +37,7 @@ export function Channel({
   goToSearch: () => void;
   type?: 'chat' | 'gallery' | 'notebook';
 }) {
-  const title = getChannelTitle(channel);
+  const title = utils.getChannelTitle(channel);
   return (
     <CalmProvider initialCalm={calmSettings}>
       <GroupsProvider groups={group ? [group] : null}>
