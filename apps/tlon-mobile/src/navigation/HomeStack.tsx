@@ -6,7 +6,7 @@ import React, { useEffect } from 'react';
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
-import ChatListScreen from '../screens/GroupListScreen';
+import ChatListScreen from '../screens/ChatListScreen';
 import type { HomeStackParamList, TabParamList } from '../types';
 
 type Props = BottomTabScreenProps<TabParamList, 'Groups'>;

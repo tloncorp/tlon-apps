@@ -71,7 +71,6 @@ export function ChatList({
       keyExtractor={getChannelKey}
       stickySectionHeadersEnabled={false}
       renderItem={renderItem}
-      getItemLayout={getItemLayout}
       maxToRenderPerBatch={11}
       initialNumToRender={11}
       windowSize={2}
@@ -82,17 +81,6 @@ export function ChatList({
       renderSectionHeader={renderSectionHeader}
     />
   );
-}
-
-function getItemLayout(
-  data: SectionListData<db.ChannelSummary, { title: string }>[] | null,
-  index: number
-) {
-  return {
-    length: 72,
-    offset: 72 * index,
-    index,
-  };
 }
 
 function getChannelKey(channel: db.ChannelSummary) {

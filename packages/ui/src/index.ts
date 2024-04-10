@@ -10,7 +10,7 @@ export * from './components/View';
 export * from './components/Sheet';
 export * from './components/GroupOptionsSheet';
 export * from './components/GroupListItem';
-export * from './components/GroupList';
+export * from './components/ChatList';
 export * from './components/ChannelSwitcherSheet';
 export * from './components/SearchBar';
 export * from './components/ChannelSearch';
