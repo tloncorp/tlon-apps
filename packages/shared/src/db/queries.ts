@@ -451,12 +451,6 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
   ['channels']
 );
 
-export const getChannelSummary = createReadQuery(
-  'getChannelSummary',
-  async () => {},
-  ['channels']
-);
-
 export const getStaleChannels = createReadQuery(
   'getStaleChannels',
   async () => {
