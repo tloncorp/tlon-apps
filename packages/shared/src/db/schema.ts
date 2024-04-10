@@ -131,7 +131,6 @@ export const groups = sqliteTable('groups', {
   isJoined: boolean('is_joined'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
-  pinIndex: integer('pin_index'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({

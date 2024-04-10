@@ -55,7 +55,6 @@ import {
 } from './types';
 
 export interface GetGroupsOptions {
-  sort?: 'pinIndex';
   includeUnjoined?: boolean;
   includeUnreads?: boolean;
   includeLastPost?: boolean;
@@ -64,7 +63,6 @@ export interface GetGroupsOptions {
 export const getGroups = createReadQuery(
   'getGroups',
   async ({
-    sort,
     includeUnjoined,
     includeLastPost,
     includeUnreads,
@@ -95,18 +93,10 @@ export const getGroups = createReadQuery(
     if (includeUnreads) {
       query.leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId));
     }
-    if (sort === 'pinIndex') {
-      query.orderBy(ascNullsLast($groups.pinIndex), desc($groups.lastPostAt));
-    }
     return query;
   },
-  ({
-    includeLastPost,
-    includeUnreads,
-    sort,
-  }: GetGroupsOptions): TableName[] => [
+  ({ includeLastPost, includeUnreads }: GetGroupsOptions): TableName[] => [
     'groups',
-    ...(sort === 'pinIndex' ? (['pins'] as TableName[]) : []),
     ...(includeLastPost ? (['posts'] as TableName[]) : []),
     ...(includeUnreads ? (['unreads'] as TableName[]) : []),
   ]
@@ -824,34 +814,8 @@ export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
   async (pinnedItems: Pin[]) => {
     return client.transaction(async (tx) => {
-      await Promise.all([
-        tx.delete($pins),
-        tx
-          .update($groups)
-          .set({ pinIndex: null })
-          .where(not(isNull($groups.pinIndex))),
-      ]);
+      await tx.delete($pins);
       await tx.insert($pins).values(pinnedItems);
-      const groups: GroupInsert[] = pinnedItems.flatMap((p) => {
-        if (!p.itemId) {
-          return [];
-        }
-        return [
-          {
-            id: p.itemId,
-            pinIndex: p.index,
-          },
-        ];
-      });
-      await tx
-        .insert($groups)
-        .values(groups)
-        .onConflictDoUpdate({
-          target: [$groups.id],
-          set: {
-            pinIndex: sql`excluded.pin_index`,
-          },
-        });
     });
   },
   ['pins', 'groups']

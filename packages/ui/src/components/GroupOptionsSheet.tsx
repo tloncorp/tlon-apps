@@ -94,11 +94,11 @@ export function ChatOptionsSheet({ open, onOpenChange, channel }: Props) {
               borderBottomColor="rgb(229, 229, 229)"
             >
               <Text fontSize="$l" fontWeight="500">
-                {group?.pinIndex !== null ? 'Unpin' : 'Pin'}
+                {group?.pin ? 'Unpin' : 'Pin'}
               </Text>
               <Text color="$secondaryText" fontSize="$s">
-                {group?.pinIndex !== null ? 'Unpin' : 'Pin'} this group{' '}
-                {group?.pinIndex !== null ? 'from' : 'to'} the top of your
+                {group?.pin ? 'Unpin' : 'Pin'} this group{' '}
+                {group?.pin ? 'from' : 'to'} the top of your
                 Groups list
               </Text>
             </Stack> */

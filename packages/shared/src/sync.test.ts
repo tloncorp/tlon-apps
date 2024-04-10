@@ -85,11 +85,8 @@ test('sync groups', async () => {
   const pins = Object.keys(groupsData).slice(0, 3);
   setScryOutput(pins);
   await syncPinnedItems();
-  const storedGroups = await db.getGroups({ sort: 'pinIndex' });
+  const storedGroups = await db.getGroups({});
   expect(storedGroups.length).toEqual(Object.values(groupsData).length);
-  expect(storedGroups[0].pinIndex).toEqual(0);
-  expect(storedGroups[1].pinIndex).toEqual(1);
-  expect(storedGroups[2].pinIndex).toEqual(2);
 });
 
 test('syncs dms', async () => {

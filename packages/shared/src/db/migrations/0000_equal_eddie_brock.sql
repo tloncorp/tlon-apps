@@ -109,8 +109,7 @@ CREATE TABLE `groups` (
 	`is_secret` integer,
 	`is_joined` integer,
 	`last_post_id` text,
-	`last_post_at` integer,
-	`pin_index` integer
+	`last_post_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (

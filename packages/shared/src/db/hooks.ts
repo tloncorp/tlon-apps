@@ -38,8 +38,8 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
     if (!allChats) {
       return null;
     }
-    // Groups are sorted by pinIndex, with those missing pinIndex at the end, so
-    // we just find the first group without a pinIndex and split there.
+    // Chats are sorted by pin index, with those not pinned at the end, so
+    // we just find the first group without a pin and split there.
     for (let i = 0; i < allChats?.length; ++i) {
       if (allChats[i] && typeof allChats[i].pin?.index !== 'number') {
         return {

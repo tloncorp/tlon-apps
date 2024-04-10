@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
 
-const logger = createDevLogger('query', false);
+const logger = createDevLogger('query', true);
 const tableEventsLogger = createDevLogger('tableEvents', false);
 
 export type TableEventListener = (names: TableName[]) => void;

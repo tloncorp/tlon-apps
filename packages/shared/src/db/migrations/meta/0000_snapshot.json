@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "d76f91c2-1d0e-441d-99a7-a8f5242c59a7",
+  "id": "05041379-6dbd-46ba-ad24-789dda223058",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_members": {
@@ -758,13 +758,6 @@
         },
         "last_post_at": {
           "name": "last_post_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "pin_index": {
-          "name": "pin_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

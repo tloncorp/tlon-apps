@@ -404,7 +404,6 @@ export const group: db.GroupWithRelations = {
   channels: tlonLocalChannels,
   navSections: tlonLocalNavSections,
   roles,
-  pinIndex: 0,
   coverImage: null,
   coverImageColor: '#000000',
   iconImage: null,
@@ -548,7 +547,6 @@ const dates = {
 export const groupWithColorAndNoImage: db.GroupSummary = {
   id: '1',
   title: 'Test Group',
-  pinIndex: 0,
   isSecret: false,
   unreadCount: 1,
   iconImage: null,
