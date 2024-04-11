@@ -1,5 +1,7 @@
 import * as db from '../db';
+import { threadUnreads } from '../db/schema';
 import type * as ub from '../urbit';
+import { udToDate } from './converters';
 import { scry, subscribe } from './urbit';
 
 export const getChannelUnreads = async () => {
@@ -59,21 +61,36 @@ export const subscribeUnreads = async (
 export const toClientUnreads = (
   unreads: ub.Unreads,
   type: db.Unread['type']
-): db.Unread[] => {
-  return Object.entries(unreads).map(([nest, contact]) =>
-    toClientUnread(nest, contact, type)
+): (db.Unread & { threadUnreads: db.ThreadUnreadState[] })[] => {
+  return Object.entries(unreads).map(([id, contact]) =>
+    toClientUnread(id, contact, type)
   );
 };
 
 export const toClientUnread = (
-  nestOrWhom: string,
+  channelId: string,
   unread: ub.Unread,
   type: db.Unread['type']
-): db.Unread => {
+): db.Unread & { threadUnreads: db.ThreadUnreadState[] } => {
   return {
-    updatedAt: unread.recency,
-    channelId: nestOrWhom,
-    totalCount: unread.count,
+    channelId,
     type,
+    updatedAt: unread.recency,
+    count: unread.count,
+    countWithoutThreads: unread.unread?.count ?? 0,
+    firstUnreadPostId: unread.unread?.id ?? null,
+    firstUnreadPostReceivedAt: unread.unread?.id
+      ? udToDate(unread.unread?.id)
+      : null,
+    threadUnreads: Object.entries(unread.threads ?? {}).map(
+      ([threadId, thread]) =>
+        ({
+          channelId,
+          threadId,
+          count: thread.count,
+          firstUnreadPostId: thread.id ?? null,
+          firstUnreadPostReceivedAt: thread.id ? udToDate(thread.id) : null,
+        }) as const
+    ),
   };
 };

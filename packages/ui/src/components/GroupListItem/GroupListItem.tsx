@@ -8,9 +8,8 @@ export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
-  unreadCount,
   ...props
-}: ListItemProps<db.Group>) => {
+}: ListItemProps<db.GroupSummary>) => {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [onPress, model]);
@@ -24,7 +23,6 @@ export const GroupListItem = ({
       model={model}
       onPress={handlePress}
       onLongPress={handleLongPress}
-      unreadCount={unreadCount}
       {...props}
     />
   );

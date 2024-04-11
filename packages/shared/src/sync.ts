@@ -1,7 +1,6 @@
 import * as api from './api';
 import * as db from './db';
 import { createDevLogger } from './debug';
-import { getChannelType } from './urbit';
 
 const logger = createDevLogger('sync', false);
 
@@ -46,15 +45,15 @@ async function handleUnreadUpdate(unread: db.Unread) {
 }
 
 export const syncPosts = async ({ type }: { type?: 'channel' | 'dm' } = {}) => {
-  const unreads = await db.getUnreads({ type });
+  const staleChannels = await db.getStaleChannels();
 
-  for (let unread of unreads) {
+  for (let channel of staleChannels) {
     try {
-      await syncChannel(unread.channelId, unread.updatedAt);
+      await syncChannel(channel.id, channel.unread.updatedAt);
     } catch (e) {
       logger.log(
         'sync failed for channel id',
-        unread.channelId,
+        channel.id,
         e instanceof Error ? e.message : ''
       );
     }
@@ -96,9 +95,10 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   // If we don't have any posts, start loading backward from the current time
   if ((channel.remoteUpdatedAt ?? 0) < remoteUpdatedAt) {
     logger.log('loading posts for channel', id);
-    const postsResponse: api.PagedPostsData = await api.getChannelPosts(id, {
-      direction: 'older',
-      date: new Date(Date.now() + 60000),
+    const postsResponse = await api.getChannelPosts(id, {
+      ...(channel.lastPostId
+        ? { direction: 'newer', cursor: channel.lastPostId }
+        : { direction: 'older', date: new Date() }),
       includeReplies: false,
     });
     await persistPagedPostData(channel.id, postsResponse);
@@ -108,28 +108,22 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       `posts for channel ${id} in `,
       Date.now() - startTime + 'ms'
     );
+
+    await db.updateChannel({
+      id,
+      remoteUpdatedAt,
+      syncedAt: Date.now(),
+    });
   }
-
-  const channelType = getChannelType(id);
-
-  await db.updateChannel({
-    id,
-    remoteUpdatedAt,
-    syncedAt: Date.now(),
-    type: channelType,
-  });
 }
 
 async function persistPagedPostData(
   channelId: string,
-  data: api.PagedPostsData
+  data: api.GetChannelPostsResponse
 ) {
-  const channelType = getChannelType(channelId);
-  await db.insertChannelPosts(channelId, data.posts);
   await db.updateChannel({
     id: channelId,
     postCount: data.totalPosts,
-    type: channelType,
   });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
@@ -141,10 +135,11 @@ async function persistPagedPostData(
 
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    ['groups', syncGroups],
     ['pinnedItems', syncPinnedItems],
-    ['unreads', syncUnreads],
     ['contacts', syncContacts],
+    ['groups', syncGroups],
+    ['dms', syncDms],
+    ['unreads', syncUnreads],
     ['posts', syncPosts],
   ];
 

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "6837c7bc-8043-4929-aa01-38536ad318f3",
+  "id": "05041379-6dbd-46ba-ad24-789dda223058",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_members": {
@@ -11,14 +11,14 @@
           "name": "channel_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "contact_id": {
           "name": "contact_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
@@ -762,13 +762,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "pin_index": {
-          "name": "pin_index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {},
@@ -1065,12 +1058,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "thread_unread_states": {
-      "name": "thread_unread_states",
+    "thread_unreads": {
+      "name": "thread_unreads",
       "columns": {
         "channel_id": {
           "name": "channel_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1095,31 +1088,24 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "first_unread_post_received_at": {
+          "name": "first_unread_post_received_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "thread_unread_states_channel_id_channels_id_fk": {
-          "name": "thread_unread_states_channel_id_channels_id_fk",
-          "tableFrom": "thread_unread_states",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
-        "thread_unread_states_channel_id_thread_id_pk": {
+        "thread_unreads_channel_id_thread_id_pk": {
           "columns": [
             "channel_id",
             "thread_id"
           ],
-          "name": "thread_unread_states_channel_id_thread_id_pk"
+          "name": "thread_unreads_channel_id_thread_id_pk"
         }
       },
       "uniqueConstraints": {}
@@ -1127,8 +1113,8 @@
     "unreads": {
       "name": "unreads",
       "columns": {
-        "channelId": {
-          "name": "channelId",
+        "channel_id": {
+          "name": "channel_id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
@@ -1138,40 +1124,47 @@
           "name": "type",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
-        "totalCount": {
-          "name": "totalCount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updatedAt": {
-          "name": "updatedAt",
+        "count": {
+          "name": "count",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "count_without_threads": {
+          "name": "count_without_threads",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "first_unread_post_id": {
+          "name": "first_unread_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "first_unread_post_received_at": {
+          "name": "first_unread_post_received_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "unreads_channelId_channels_id_fk": {
-          "name": "unreads_channelId_channels_id_fk",
-          "tableFrom": "unreads",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channelId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     }

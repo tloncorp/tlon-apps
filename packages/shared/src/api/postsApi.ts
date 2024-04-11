@@ -1,9 +1,12 @@
-import { daToUnix, decToUd, unixToDa } from '@urbit/api';
-import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
-
 import * as db from '../db';
 import * as ub from '../urbit';
-import { getChannelType, KindData, KindDataChat, getTextContent } from '../urbit';
+import {
+  KindData,
+  KindDataChat,
+  getChannelType,
+  getTextContent,
+} from '../urbit';
+import { formatDateParam, formatUd, udToDate } from './converters';
 import { scry } from './urbit';
 
 export const getChannelPosts = async (
@@ -29,13 +32,34 @@ export const getChannelPosts = async (
     throw new Error('Must specify either cursor or date');
   }
   const finalCursor = cursor ? cursor : formatDateParam(date!);
-  const mode = includeReplies ? 'post' : 'outline';
-  const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-  const result = await scry<ub.PagedPosts>({ app: 'channels', path });
-  return toPagedPostsData(channelId, result);
+  if (isDmChannelId(channelId)) {
+    const mode = includeReplies ? 'heavy' : 'light';
+    const path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedWrits>({
+      app: 'chat',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else if (isGroupDmChannelId(channelId)) {
+    const mode = includeReplies ? 'heavy' : 'light';
+    const path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedWrits>({
+      app: 'chat',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else {
+    const mode = includeReplies ? 'post' : 'outline';
+    const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedPosts>({
+      app: 'channels',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  }
 };
 
-export interface PagedPostsData {
+export interface GetChannelPostsResponse {
   older: string | null;
   newer: string | null;
   posts: db.PostInsert[];
@@ -73,13 +97,14 @@ export type ContentReference = ChannelReference | GroupReference | AppReference;
 
 export function toPagedPostsData(
   channelId: string,
-  data: ub.PagedPosts
-): PagedPostsData {
+  data: ub.PagedPosts | ub.PagedWrits
+): GetChannelPostsResponse {
+  const posts = 'writs' in data ? data.writs : data.posts;
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
     totalPosts: data.total,
-    ...toPostsData(channelId, data.posts),
+    ...toPostsData(channelId, posts),
   };
 }
 
@@ -116,7 +141,6 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
-  const channelType = getChannelType(channelId);
 
   return {
     id,
@@ -133,10 +157,6 @@ export function toPostData(
     replyCount: post?.seal.meta.replyCount,
     images: getPostImages(post),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
-    channel: {
-      id: channelId,
-      type: channelType,
-    },
     ...flags,
   };
 }
@@ -253,22 +273,18 @@ function toReactionsData(
   });
 }
 
-// Utilities
-
-function formatUd(ud: string) {
-  //@ts-ignore string will get converted internally, so doesn't actually have to
-  //be a bigint
-  return baseFormatUd(ud);
+function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
 }
 
-function udToDate(da: string) {
-  return daToUnix(parseUd(da));
+function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
 }
 
-function formatDateParam(date: Date) {
-  return baseFormatUd(unixToDa(date!.getTime()));
-}
-
-export function formatPostIdParam(sealId: string) {
-  return decToUd(sealId);
+function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
 }

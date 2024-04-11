@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';
-import { FontSizeTokens, SizableText } from '../core';
+import { FontSizeTokens, SizableText, Text } from '../core';
 
 export default function ContactName({
   name,
@@ -36,25 +36,22 @@ export default function ContactName({
           : undefined
       }
       size={props.size}
-      fontWeight="$l"
     >
       {contact?.nickname && !calm.disableNicknames && showAlias ? (
-        <SizableText accessibilityHint={citedName}>
-          {contact.nickname}
-        </SizableText>
+        <Text accessibilityHint={citedName}>{contact.nickname}</Text>
       ) : (
         <>
-          <SizableText aria-hidden>~</SizableText>
-          <SizableText>{first}</SizableText>
+          <Text aria-hidden>~</Text>
+          <Text>{first}</Text>
           {parts.length > 1 && (
             <>
               {parts.map((piece, index) => (
-                <SizableText
+                <Text
                   key={`${piece}-${index}`}
                   aria-hidden={separator.test(piece)}
                 >
                   {piece}
-                </SizableText>
+                </Text>
               ))}
             </>
           )}

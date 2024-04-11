@@ -19,11 +19,10 @@ export type WebViewStackParamList = {
 };
 
 export type HomeStackParamList = {
-  GroupsList: undefined;
+  ChatList: undefined;
   Channel: {
-    group: db.Group;
-    channel?: db.Channel;
-    selectedPost?: db.PostWithRelations;
+    channel: db.Channel;
+    selectedPost?: db.Post;
   };
   ChannelSearch: {
     channel: db.Channel;

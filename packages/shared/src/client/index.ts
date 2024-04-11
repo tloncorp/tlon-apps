@@ -29,7 +29,6 @@ export type Group = {
   description?: string;
   isSecret: boolean;
   isPreview?: boolean;
-  pinIndex?: number | null;
   lastPostAt?: number | null;
 
   // Linked objects

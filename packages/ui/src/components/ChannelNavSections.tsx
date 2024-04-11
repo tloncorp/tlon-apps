@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 
-import { SizableText, YGroup, YStack } from '../core';
+import { SizableText, YStack } from '../core';
 import ChannelListItem from './ChannelListItem';
 import ChannelNavSection from './ChannelNavSection';
 
@@ -12,7 +12,7 @@ export default function ChannelNavSections({
   paddingBottom,
 }: {
   group: db.GroupWithRelations;
-  channels: db.ChannelWithLastPost[];
+  channels: db.ChannelWithLastPostAndMembers[];
   onSelect: (channel: any) => void;
   paddingBottom?: number;
 }) {
@@ -30,23 +30,6 @@ export default function ChannelNavSections({
   const hasSomeUnGroupedChannels = useMemo(
     () => unGroupedChannels.length > 0,
     [unGroupedChannels]
-  );
-
-  const getChannelIcon = useCallback(
-    (channelId: string | null) => {
-      const channel = channels.find((c) => c.id === channelId);
-      switch (channel?.type) {
-        case 'chat':
-          return 'ChannelTalk';
-        case 'notebook':
-          return 'ChannelNotebooks';
-        case 'gallery':
-          return 'ChannelGalleries';
-        default:
-          return 'ChannelTalk';
-      }
-    },
-    [channels]
   );
 
   return (
@@ -70,12 +53,7 @@ export default function ChannelNavSections({
             All Channels
           </SizableText>
           {unGroupedChannels.map((item) => (
-            <ChannelListItem
-              key={item.id}
-              model={item}
-              icon={getChannelIcon(item.id)}
-              onPress={onSelect}
-            />
+            <ChannelListItem key={item.id} model={item} onPress={onSelect} />
           ))}
         </YStack>
       )}

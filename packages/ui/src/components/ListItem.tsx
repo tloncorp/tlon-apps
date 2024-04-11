@@ -1,8 +1,16 @@
-import { ComponentProps, PropsWithChildren, ReactElement } from 'react';
-import { styled, withStaticProperties } from 'tamagui';
+import { utils } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/dist/db';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  ReactElement,
+  useMemo,
+} from 'react';
+import { ColorProp, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
-import { Icon } from './Icon';
+import { Avatar } from './Avatar';
+import { Icon, IconType } from './Icon';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -26,6 +34,7 @@ export const ListItemFrame = styled(XStack, {
   gap: '$l',
   justifyContent: 'space-between',
   alignItems: 'stretch',
+  backgroundColor: '$background',
   variants: {
     pressable: {
       true: {
@@ -42,64 +51,154 @@ export const ListItemFrame = styled(XStack, {
 
 function ListItemIcon({
   imageUrl,
+  icon,
+  contactId,
+  contact,
   backgroundColor,
   fallbackText,
-  ...props
-}: PropsWithChildren<{
+}: {
   imageUrl?: string;
-  backgroundColor?: string;
+  icon?: IconType;
+  contactId?: string | null;
+  contact?: db.Contact | null;
+  backgroundColor?: ColorProp;
   /**
    * Text to display when there's no image set. Should be a single character.
    */
   fallbackText?: string;
-}>) {
-  const resolvedBackgroundColor = backgroundColor ?? '$secondaryBackground';
-  const size = '$4xl';
-  return imageUrl ? (
-    <Image
-      width={size}
-      height={size}
-      borderRadius="$s"
-      overflow={'hidden'}
-      //@ts-ignore This is an arbitrary, user-set color
-      backgroundColor={resolvedBackgroundColor}
-      {...props}
-      source={{
-        uri: imageUrl,
-      }}
-    />
-  ) : (
-    <Stack
-      //@ts-ignore This is an arbitrary, user-set color
-      backgroundColor={resolvedBackgroundColor}
-      borderRadius="$s"
-      alignItems="center"
-      justifyContent="center"
-      overflow="hidden"
-      width={size}
-      height={size}
-    >
-      {fallbackText ? (
-        <Text fontSize={16} color="$primaryText">
-          {fallbackText.toUpperCase()}
-        </Text>
-      ) : null}
-    </Stack>
-  );
+}) {
+  if (imageUrl) {
+    return (
+      <ListItemImageIcon
+        imageUrl={imageUrl}
+        backgroundColor={backgroundColor}
+      />
+    );
+  } else if (icon) {
+    return <ListItemTypeIcon icon={icon} backgroundColor={backgroundColor} />;
+  } else if (contactId) {
+    return (
+      <ListItemAvatarIcon
+        contactId={contactId}
+        contact={contact ?? undefined}
+        backgroundColor={backgroundColor}
+      />
+    );
+  } else {
+    return (
+      <ListItemTextIcon
+        backgroundColor={backgroundColor}
+        fallbackText={fallbackText ?? ''}
+      />
+    );
+  }
 }
+
+const ListItemImageIcon = ({
+  imageUrl,
+  backgroundColor,
+}: {
+  imageUrl: string;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor}>
+      <Image
+        width={'100%'}
+        height={'100%'}
+        source={{
+          uri: imageUrl,
+        }}
+      />
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemTextIcon = ({
+  fallbackText,
+  backgroundColor,
+}: {
+  fallbackText: string;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor}>
+      <View flex={1} alignItems="center" justifyContent="center">
+        <Text fontSize={16} color="$primaryText">
+          {fallbackText.slice(0, 1).toUpperCase()}
+        </Text>
+      </View>
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemAvatarIcon = ({
+  contactId,
+  contact,
+  backgroundColor,
+}: {
+  contactId: string;
+  contact?: db.Contact | null;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor}>
+      <Avatar
+        width="$4xl"
+        height="$4xl"
+        contactId={contactId}
+        contact={contact}
+      />
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemTypeIcon = ({
+  icon,
+  backgroundColor,
+}: {
+  icon?: IconType;
+  backgroundColor?: ColorProp;
+}) => {
+  return (
+    <ListItemIconContainer backgroundColor={backgroundColor ?? 'transparent'}>
+      <Icon type={icon || 'Channel'} width="$4xl" height="$4xl" />
+    </ListItemIconContainer>
+  );
+};
+
+const ListItemIconContainer = ({
+  backgroundColor,
+  children,
+}: PropsWithChildren<{
+  backgroundColor: ColorProp;
+}>) => {
+  return (
+    <View
+      width="$4xl"
+      height="$4xl"
+      borderRadius="$s"
+      overflow="hidden"
+      flex={0}
+      // @ts-expect-error
+      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+    >
+      {children}
+    </View>
+  );
+};
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
-  justifyContent: 'center',
+  justifyContent: 'space-evenly',
   height: '$4xl',
-  paddingVertical: '$xs',
 });
 
 const ListItemTitle = styled(SizableText, {
   alignItems: 'baseline',
   color: '$primaryText',
+  numberOfLines: 1,
 
-  // numberOfLines: 1,
   // TODO: is there an easy way to do something like this?
   // $native: {
   //   numberOfLines: 1,
@@ -110,12 +209,6 @@ const ListItemTitle = styled(SizableText, {
   //   overflow: "hidden",
   //   textOverflow: "ellipsis",
   // },
-});
-
-const ListItemTitleRow = styled(XStack, {
-  gap: '$s',
-  alignItems: 'center',
-  overflow: 'hidden',
 });
 
 function ListItemTitleAttribute({ children }: PropsWithChildren) {
@@ -139,7 +232,6 @@ function ListItemTitleAttribute({ children }: PropsWithChildren) {
 const ListItemSubtitle = styled(SizableText, {
   numberOfLines: 1,
   size: '$s',
-  // lineHeight: 0,
   color: '$secondaryText',
 });
 
@@ -147,18 +239,48 @@ const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
   color: '$secondaryText',
   size: '$s',
+  // Tiny tweak to try to align with the baseline of the title
+  position: 'relative',
+  top: 1,
+});
+
+const ListItemTime = ListItemTimeText.styleable<{
+  time?: Date | number | null;
+}>(({ time, ...props }, ref) => {
+  const formattedTime = useMemo(() => {
+    if (!time) {
+      return null;
+    }
+    const date = new Date(time);
+    const meta = utils.makePrettyDayAndDateAndTime(date);
+    if (meta.diff > 7) {
+      return utils.makeShortDate(new Date(time));
+    } else if (meta.diff > 0) {
+      return meta.day;
+    } else {
+      return meta.time;
+    }
+  }, [time]);
+  return <ListItemTimeText {...props}>{formattedTime ?? ''}</ListItemTimeText>;
 });
 
 const ListItemCount = ({ children }: PropsWithChildren) => {
   return (
     <Stack
-      padding={0}
-      backgroundColor="$white"
-      borderWidth={1}
-      borderColor="$primaryText"
+      padding="$2xs"
+      paddingHorizontal={'$m'}
+      backgroundColor="$secondaryBackground"
       borderRadius="$l"
+      // Tiny tweak to try to align with the baseline of the title
+      position="relative"
+      top={-2}
     >
-      <SizableText fontSize="$s" color="$primaryText" textAlign="center">
+      <SizableText
+        size="$s"
+        lineHeight={0}
+        color="$secondaryText"
+        textAlign="center"
+      >
         {children}
       </SizableText>
     </Stack>
@@ -194,9 +316,6 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  paddingTop: '$s',
-  height: '$4xl',
-  paddingVertical: '$xs',
   gap: '$s',
   justifyContent: 'space-between',
   alignItems: 'flex-end',
@@ -206,13 +325,16 @@ export type ListItem = typeof ListItemComponent;
 
 export const ListItem = withStaticProperties(ListItemComponent, {
   Icon: ListItemIcon,
+  ImageIcon: ListItemImageIcon,
+  AvatarIcon: ListItemAvatarIcon,
+  SystemIcon: ListItemTypeIcon,
+  TextIcon: ListItemTextIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,
-  TitleRow: ListItemTitleRow,
   Title: ListItemTitle,
   TitleAttribute: ListItemTitleAttribute,
   Subtitle: ListItemSubtitle,
   EndContent: ListItemEndContent,
-  Time: ListItemTimeText,
+  Time: ListItemTime,
 });
