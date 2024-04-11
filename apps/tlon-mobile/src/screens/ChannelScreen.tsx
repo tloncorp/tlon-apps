@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import { syncChannel, syncPostsAround } from '@tloncorp/shared/dist/sync';
-import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
+import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui/src';
 import React, { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
