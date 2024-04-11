@@ -8,12 +8,12 @@
     "dev-message-input": "vite",
     "dev-notebook": "vite --mode notebook",
     "build": "npm run build-message-input && npm run build-notebook",
-    "build-message-input": "vite build && npm run post-build",
+    "build-message-input": "vite build && npm run post-build-message-input",
     "build-notebook": "vite build --mode notebook && npm run post-build-notebook",
     "post-build-notebook": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist-notebook/index.html",
     "post-build-message-input": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html",
     "post-build": "npm run post-build-message-input && npm run post-build-notebook",
-    "postinstall": "npm run build && npm run build-notebook"
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@tiptap/core": "^2.0.3",
