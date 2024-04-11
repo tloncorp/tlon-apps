@@ -1,5 +1,12 @@
-import { AdvancedEditor } from './AdvancedEditor';
+import { MessageInputEditor } from './MessageInputEditor';
+import { NotebookEditor } from './NotebookEditor';
 
 export default function App() {
-  return <AdvancedEditor />;
+  const mode = import.meta.env.MODE;
+
+  if (mode === 'notebook') {
+    return <NotebookEditor />;
+  }
+
+  return <MessageInputEditor />;
 }

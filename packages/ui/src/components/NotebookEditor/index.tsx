@@ -6,21 +6,18 @@ import {
   useEditorBridge,
 } from '@10play/tentap-editor';
 import { JSONContent } from '@tiptap/core';
-import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
+import { editorHtml } from '@tloncorp/editor/dist-notebook/editorHtml';
+import { tiptap } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
+import { constructStory } from '@tloncorp/shared/dist/urbit/channel';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
 
 import { Attachment, Camera, ChannelGalleries, Send } from '../../assets/icons';
-import { XStack } from '../../core';
+import { TextArea, XStack, YStack } from '../../core';
 import { IconButton } from '../IconButton';
 
-// This function and the one below it are taken from RichText.tsx
-// in the tentap-editor package.
-// We need this because we're overriding the injectedJavaScript prop
-// in the RichText component, and we need to make sure that the
-// bridge extension CSS is injected into the WebView.
 export const getStyleSheetCSS = (css: string, styleSheetTag: string) => {
   return `
     cssContent = \`${css}\`;
@@ -49,7 +46,7 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
   return injectJS;
 };
 
-export function MessageInput({
+export function NotebookEditor({
   shouldBlur,
   setShouldBlur,
   contacts,
@@ -64,7 +61,6 @@ export function MessageInput({
   send: (content: JSONContent, channelId: string) => Promise<void>;
   channelId: string;
 }) {
-  const [conatinerHeight, setContainerHeight] = useState(0);
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
@@ -77,21 +73,6 @@ export function MessageInput({
       setShouldBlur(false);
     }
   }, [shouldBlur, editor, editorState]);
-
-  editor._onContentUpdate = () => {
-    editor.getText().then((text) => {
-      if (text.length < 25) {
-        setContainerHeight(48);
-        return;
-      }
-
-      // set the height of the container based on the text length.
-      // every 36 characters, add 16px to the height
-      // TODO: do this a better way
-      const height = Math.max(64, 64 + Math.floor(text.length / 25) * 16);
-      setContainerHeight(height);
-    });
-  };
 
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
@@ -130,58 +111,14 @@ export function MessageInput({
   );
 
   return (
-    <XStack
-      paddingHorizontal="$m"
-      paddingVertical="$s"
-      gap="$l"
-      alignItems="center"
-    >
-      <XStack gap="$l">
-        <IconButton onPress={() => {}}>
-          <Camera />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <Attachment />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <ChannelGalleries />
-        </IconButton>
-      </XStack>
-      <XStack flex={1} gap="$l" alignItems="center">
-        <XStack
-          borderRadius="$xl"
-          minHeight="$4xl"
-          height={conatinerHeight}
-          backgroundColor="$secondaryBackground"
-          paddingHorizontal="$l"
-          flex={1}
-        >
-          <RichText
-            style={{
-              padding: 8,
-              backgroundColor: '$secondaryBackground',
-            }}
-            editor={editor}
-            onMessage={handleMessage}
-            injectedJavaScript={`
-              ${tentapInjectedJs}
-
-              window.addEventListener('keydown', (e) => {
-
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  window.ReactNativeWebView.postMessage('enter');
-                  return;
-                }
-
-              });
-            `}
-          />
-        </XStack>
-        <IconButton onPress={() => {}}>
-          {/* TODO: figure out what send button should look like */}
-          <Send />
-        </IconButton>
-      </XStack>
-    </XStack>
+    <YStack height="100%" width="100%" padding="$l">
+      <TextArea fontSize="$xl" borderWidth={0} placeholder="New Title" />
+      <RichText
+        style={{ flex: 1, backgroundColor: '$secondaryBackground' }}
+        onMessage={handleMessage}
+        editor={editor}
+        injectedJavaScript={tentapInjectedJs}
+      />
+    </YStack>
   );
 }

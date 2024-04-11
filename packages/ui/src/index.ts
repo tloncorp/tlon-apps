@@ -3,6 +3,7 @@ export * from './core';
 export * from './components/Avatar';
 export * from './components/Channel';
 export * from './components/MessageInput';
+export * from './components/NotebookEditor';
 export * from './components/Icon';
 export * from './components/ListItem';
 export * from './components/TamaguiProvider';
