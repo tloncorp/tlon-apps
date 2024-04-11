@@ -13,7 +13,12 @@ import VolumeSetting from '@/components/VolumeSetting';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useIsMobile } from '@/logic/useMedia';
-import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
+import {
+  citeToPath,
+  getPrivacyFromGroup,
+  preSig,
+  useCopy,
+} from '@/logic/utils';
 import {
   useAmAdmin,
   useGang,
@@ -112,6 +117,7 @@ const GroupActions = React.memo(
     const { claim } = useGang(flag);
     const location = useLocation();
     const navigate = useNavigate();
+    const [host, name] = flag.split('/');
     const hasActivity = isGroupUnread(flag);
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : undefined;
@@ -303,7 +309,7 @@ const GroupActions = React.memo(
       keepOpenOnClick: true,
     });
 
-    if (!flag.includes(ship) && !isAdmin) {
+    if (preSig(ship) !== host) {
       actions.push({
         key: 'leave',
         type: 'destructive',
