@@ -4,7 +4,7 @@ import { Dimensions, FlatList } from 'react-native';
 import { Button } from 'tamagui';
 
 import { ArrowDown } from '../../assets/icons';
-import { Dialog, SizableText, View, XStack, YStack } from '../../core';
+import { Dialog, Modal, SizableText, View, XStack, YStack } from '../../core';
 import ChatMessage from '../ChatMessage';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
 
@@ -37,6 +37,8 @@ export default function ChatScroll({
   firstUnread?: string;
   selectedPost?: string;
 }) {
+  const [activeMessage, setActiveMessage] =
+    useState<db.PostWithRelations | null>(null);
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
   const lastPost = posts[posts.length - 1];
@@ -111,13 +113,13 @@ export default function ChatScroll({
           data={posts}
           renderItem={({ item }) => (
             <YStack paddingVertical="$m">
-              <MessageSelectContainer>
+              <View onLongPress={() => setActiveMessage(item)}>
                 <ChatMessage
                   post={item}
                   firstUnread={firstUnread}
                   unreadCount={unreadCount}
                 />
-              </MessageSelectContainer>
+              </View>
             </YStack>
           )}
           keyExtractor={(post) => post.id}
@@ -140,19 +142,19 @@ export default function ChatScroll({
           }}
         />
       </XStack>
-      {posts.length > 0 && (
+      {/* {posts.length > 0 && (
         <Dialog open={true}>
           <Dialog.Portal>
             <ChatMessageActions post={posts[0]} />
           </Dialog.Portal>
         </Dialog>
-      )}
+      )} */}
+      <Modal
+        visible={activeMessage !== null}
+        onDismiss={() => setActiveMessage(null)}
+      >
+        <ChatMessageActions post={activeMessage} />
+      </Modal>
     </XStack>
-  );
-}
-
-function MessageSelectContainer({ children }: { children: React.ReactNode }) {
-  return (
-    <View onLongPress={() => console.log('long pressed!')}>{children}</View>
   );
 }

@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db/types';
 
-import { Dialog, View, XStack, YStack } from '../../core';
+import { Dialog, View, XStack, YStack, ZStack } from '../../core';
 import { ActionList } from '../ActionList';
 import ChatMessage from '../ChatMessage';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
@@ -8,21 +8,13 @@ import { Icon } from '../Icon';
 
 export function ChatMessageActions({ post }: { post: db.PostWithRelations }) {
   return (
-    <>
-      <Dialog.Overlay
-        // should we just have zIndex modal overlay and modal content tokens?
-        zIndex="$zIndex.l"
-        flex={1}
-        backgroundColor="$darkOverlay"
-      />
-      <Dialog.Content zIndex="$zIndex.xl" unstyled>
-        <YStack gap="$xs">
-          <EmojiToolbar />
-          <MessageContainer post={post} />
-          <MessageActions />
-        </YStack>
-      </Dialog.Content>
-    </>
+    <View padding="$l">
+      <YStack gap="$xs">
+        <EmojiToolbar />
+        <MessageContainer post={post} />
+        <MessageActions />
+      </YStack>
+    </View>
   );
 }
 
@@ -33,7 +25,6 @@ function EmojiToolbar() {
       backgroundColor="$positiveBackground"
       borderRadius="$l"
       justifyContent="space-between"
-      width={256}
     >
       <SizableEmoji shortCode="seedling" fontSize={32} />
       <SizableEmoji shortCode="cyclone" fontSize={32} />
