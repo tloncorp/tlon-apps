@@ -1,8 +1,6 @@
 import { MessageInput, View } from '@tloncorp/ui/';
 import { useState } from 'react';
 
-import { group, initialContacts } from './fakeData';
-
 const MessageInputFixture = () => {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
@@ -11,8 +9,6 @@ const MessageInputFixture = () => {
       <MessageInput
         shouldBlur={inputShouldBlur}
         setShouldBlur={setInputShouldBlur}
-        group={group}
-        contacts={initialContacts}
         send={() => {}}
         channelId="channel-id"
       />

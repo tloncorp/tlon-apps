@@ -14,7 +14,8 @@ const posts = createFakePosts(100);
 
 const ChannelFixture = () => {
   const [open, setOpen] = useState(false);
-  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
+  const [currentChannel, setCurrentChannel] =
+    useState<db.ChannelWithLastPostAndMembers | null>(null);
   const { bottom } = useSafeAreaInsets();
 
   const tlonLocalChannelWithUnreads = {
@@ -57,7 +58,7 @@ const ChannelFixture = () => {
         group={group}
         channels={group.channels || []}
         paddingBottom={bottom}
-        onSelect={(channel: db.Channel) => {
+        onSelect={(channel: db.ChannelWithLastPostAndMembers) => {
           setCurrentChannel(channel);
           setOpen(false);
         }}
