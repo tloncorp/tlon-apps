@@ -31,7 +31,7 @@ export const syncUnreads = async () => {
   ]);
   const unreads = [...channelUnreads, ...dmUnreads];
   await db.insertUnreads(unreads);
-  await db.setJoinedChannels({
+  await db.setJoinedGroupChannels({
     channelIds: unreads
       .filter((u) => u.type === 'channel')
       .map((u) => u.channelId),
