@@ -6,9 +6,8 @@ export default function GroupListItemContent({
   model,
   onPress,
   onLongPress,
-  unreadCount,
   ...props
-}: ListItemProps<db.GroupInsert>) {
+}: ListItemProps<db.GroupSummary>) {
   return (
     <ListItem
       {...props}
@@ -26,16 +25,10 @@ export default function GroupListItemContent({
           {model.lastPost?.textContent ?? ''}
         </ListItem.Subtitle>
       </ListItem.MainContent>
-      <ListItem.EndContent position="relative" bottom={6}>
-        {true ? (
-          <ListItem.Time>
-            {model.lastPostAt
-              ? new Date(model.lastPostAt).toLocaleDateString()
-              : null}
-          </ListItem.Time>
-        ) : null}
-        {unreadCount && unreadCount > 0 ? (
-          <ListItem.Count>{unreadCount}</ListItem.Count>
+      <ListItem.EndContent>
+        {true ? <ListItem.Time time={model.lastPostAt} /> : null}
+        {model.unreadCount && model.unreadCount > 0 ? (
+          <ListItem.Count>{model.unreadCount}</ListItem.Count>
         ) : null}
       </ListItem.EndContent>
     </ListItem>

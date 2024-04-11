@@ -33,7 +33,7 @@ export const getPinnedItemType = (rawItem: string) => {
     }
     return 'dm';
   } else {
-    return 'club';
+    return 'groupDm';
   }
 };
 

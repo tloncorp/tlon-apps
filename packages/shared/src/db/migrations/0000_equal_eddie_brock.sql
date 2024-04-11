@@ -1,6 +1,6 @@
 CREATE TABLE `channel_members` (
-	`channel_id` text,
-	`contact_id` text,
+	`channel_id` text NOT NULL,
+	`contact_id` text NOT NULL,
 	PRIMARY KEY(`channel_id`, `contact_id`),
 	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -109,8 +109,7 @@ CREATE TABLE `groups` (
 	`is_secret` integer,
 	`is_joined` integer,
 	`last_post_id` text,
-	`last_post_at` integer,
-	`pin_index` integer
+	`last_post_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
@@ -158,19 +157,21 @@ CREATE TABLE `posts` (
 	`has_image` integer
 );
 --> statement-breakpoint
-CREATE TABLE `thread_unread_states` (
-	`channel_id` integer,
+CREATE TABLE `thread_unreads` (
+	`channel_id` text,
 	`thread_id` text,
 	`count` integer,
 	`first_unread_post_id` text,
-	PRIMARY KEY(`channel_id`, `thread_id`),
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+	`first_unread_post_received_at` integer,
+	PRIMARY KEY(`channel_id`, `thread_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `unreads` (
-	`channelId` text PRIMARY KEY NOT NULL,
-	`type` text,
-	`totalCount` integer,
-	`updatedAt` integer NOT NULL,
-	FOREIGN KEY (`channelId`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
+	`count` integer NOT NULL,
+	`count_without_threads` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`first_unread_post_id` text,
+	`first_unread_post_received_at` integer
 );

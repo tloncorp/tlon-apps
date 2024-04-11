@@ -1,10 +1,9 @@
-import { SizableText, XStack } from '../../core';
-
 import {
   Channel as ChannelIcon,
   ChevronLeft,
   Search,
 } from '../../assets/icons';
+import { SizableText, XStack } from '../../core';
 import { IconButton } from '../IconButton';
 
 export function ChannelHeader({
@@ -12,11 +11,13 @@ export function ChannelHeader({
   goBack,
   goToChannels,
   goToSearch,
+  showPickerButton,
 }: {
   title: string;
   goBack: () => void;
   goToChannels: () => void;
   goToSearch: () => void;
+  showPickerButton?: boolean;
 }) {
   return (
     <XStack
@@ -41,9 +42,11 @@ export function ChannelHeader({
         <IconButton onPress={goToSearch}>
           <Search />
         </IconButton>
-        <IconButton onPress={goToChannels}>
-          <ChannelIcon />
-        </IconButton>
+        {showPickerButton && (
+          <IconButton onPress={goToChannels}>
+            <ChannelIcon />
+          </IconButton>
+        )}
       </XStack>
     </XStack>
   );

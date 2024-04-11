@@ -2,6 +2,8 @@ import {
   AnyColumn,
   Column,
   SQLWrapper,
+  Subquery,
+  SubqueryConfig,
   Table,
   and,
   asc,
@@ -11,6 +13,7 @@ import {
   getTableColumns,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lt,
   not,
@@ -35,11 +38,15 @@ import {
   posts as $posts,
   unreads as $unreads,
 } from './schema';
-import { GroupSummary } from './types';
 import {
   ChannelInsert,
+  ChannelMember,
+  ChannelSummary,
+  ChannelWithLastPostAndMembers,
+  Contact,
   ContactInsert,
   GroupInsert,
+  GroupSummary,
   Pin,
   PostInsert,
   TableName,
@@ -48,7 +55,6 @@ import {
 } from './types';
 
 export interface GetGroupsOptions {
-  sort?: 'pinIndex';
   includeUnjoined?: boolean;
   includeUnreads?: boolean;
   includeLastPost?: boolean;
@@ -57,7 +63,6 @@ export interface GetGroupsOptions {
 export const getGroups = createReadQuery(
   'getGroups',
   async ({
-    sort,
     includeUnjoined,
     includeLastPost,
     includeUnreads,
@@ -70,7 +75,7 @@ export const getGroups = createReadQuery(
       .from($channels)
       .rightJoin($unreads, eq($channels.id, $unreads.channelId))
       .groupBy($channels.groupId)
-      .having(gt($unreads.totalCount, 0))
+      .having(gt($unreads.count, 0))
       .as('unreadCounts');
     const query = client
       .select({
@@ -88,22 +93,108 @@ export const getGroups = createReadQuery(
     if (includeUnreads) {
       query.leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId));
     }
-    if (sort === 'pinIndex') {
-      query.orderBy(ascNullsLast($groups.pinIndex), desc($groups.lastPostAt));
-    }
     return query;
   },
-  ({
-    includeLastPost,
-    includeUnreads,
-    sort,
-  }: GetGroupsOptions): TableName[] => [
+  ({ includeLastPost, includeUnreads }: GetGroupsOptions): TableName[] => [
     'groups',
-    ...(sort === 'pinIndex' ? (['pins'] as TableName[]) : []),
     ...(includeLastPost ? (['posts'] as TableName[]) : []),
     ...(includeUnreads ? (['unreads'] as TableName[]) : []),
   ]
 );
+
+export const getChats = createReadQuery(
+  'getChats',
+  async (): Promise<ChannelSummary[]> => {
+    const partitionedGroupsQuery = client
+      .select({
+        ...getTableColumns($channels),
+        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY ${$channels.lastPostAt} DESC)`.as(
+          'rn'
+        ),
+      })
+      .from($channels)
+      .where(and(isNotNull($channels.groupId)))
+      .as('q');
+
+    const groupChannels = client
+      .select()
+      .from(partitionedGroupsQuery)
+      .where(eq(partitionedGroupsQuery.rn, 1));
+
+    const allChannels = client
+      .select({
+        ...getTableColumns($channels),
+        rn: sql`0`.as('rn'),
+      })
+      .from($channels)
+      .where(isNull($channels.groupId))
+      .union(groupChannels)
+      .as('ac');
+
+    const result = await client
+      .select({
+        ...allQueryColumns(allChannels),
+        group: getTableColumns($groups),
+        unread: getTableColumns($unreads),
+        pin: getTableColumns($pins),
+        lastPost: getTableColumns($posts),
+        member: {
+          ...getTableColumns($channelMembers),
+        },
+        contact: getTableColumns($contacts),
+      })
+      .from(allChannels)
+      .leftJoin($groups, eq($groups.id, allChannels.groupId))
+      .leftJoin($unreads, eq($unreads.channelId, allChannels.id))
+      .leftJoin(
+        $pins,
+        or(
+          eq(allChannels.groupId, $pins.itemId),
+          eq(allChannels.id, $pins.itemId)
+        )
+      )
+      .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
+      .leftJoin($channelMembers, eq($channelMembers.channelId, allChannels.id))
+      .leftJoin($contacts, eq($contacts.id, $channelMembers.contactId))
+      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+    const [channelMembers, filteredChannels] = result.reduce<
+      [
+        Record<string, (ChannelMember & { contact: Contact | null })[]>,
+        typeof result,
+      ]
+    >(
+      ([members, filteredChannels], channel) => {
+        if (!channel.member || !members[channel.id]) {
+          filteredChannels.push(channel);
+        }
+        if (channel.member) {
+          members[channel.id] ||= [];
+          members[channel.id].push({
+            ...channel.member,
+            contact: channel.contact ?? null,
+          });
+        }
+        return [members, filteredChannels];
+      },
+      [{}, [] as typeof result]
+    );
+
+    return filteredChannels.map((c) => {
+      return {
+        ...c,
+        members: channelMembers[c.id] ?? null,
+      };
+    });
+  },
+  ['groups', 'channels']
+);
+
+const allQueryColumns = <T extends Subquery>(
+  subquery: T
+): T['_']['selectedFields'] => {
+  return (subquery as any)[SubqueryConfig]
+    .selection as T['_']['selectedFields'];
+};
 
 export const insertGroups = createWriteQuery(
   'insertGroups',
@@ -270,10 +361,7 @@ export const getUnreadsCount = createReadQuery(
       .select({ count: count() })
       .from($unreads)
       .where(() =>
-        and(
-          gt($unreads.totalCount, 0),
-          type ? eq($unreads.type, type) : undefined
-        )
+        and(gt($unreads.count, 0), type ? eq($unreads.type, type) : undefined)
       );
     return result[0].count;
   },
@@ -294,7 +382,7 @@ export const getUnreads = createReadQuery(
     return client.query.unreads.findMany({
       where: and(
         type ? eq($unreads.type, type) : undefined,
-        includeFullyRead ? undefined : gt($unreads.totalCount, 0)
+        includeFullyRead ? undefined : gt($unreads.count, 0)
       ),
       orderBy: orderBy === 'updatedAt' ? desc($unreads.updatedAt) : undefined,
     });
@@ -331,6 +419,49 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+export const getChannelWithLastPostAndMembers = createReadQuery(
+  'getChannelWithMembers',
+  async ({
+    id,
+  }: {
+    id: string;
+  }): Promise<ChannelWithLastPostAndMembers | undefined> => {
+    return await client.query.channels.findFirst({
+      where: eq($channels.id, id),
+      with: {
+        lastPost: true,
+        members: {
+          with: {
+            contact: true,
+          },
+        },
+      },
+    });
+  },
+  ['channels']
+);
+
+export const getStaleChannels = createReadQuery(
+  'getStaleChannels',
+  async () => {
+    return client
+      .select({
+        ...getTableColumns($channels),
+        unread: getTableColumns($unreads),
+      })
+      .from($channels)
+      .innerJoin($unreads, eq($unreads.channelId, $channels.id))
+      .where(
+        or(
+          isNull($channels.lastPostAt),
+          lt($channels.remoteUpdatedAt, $unreads.updatedAt)
+        )
+      )
+      .orderBy(desc($unreads.updatedAt));
+  },
+  ['channels']
+);
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: ChannelInsert[]) => {
@@ -357,7 +488,10 @@ export const insertChannels = createWriteQuery(
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: ChannelInsert) => {
+  (update: Partial<ChannelInsert> & { id: string }) => {
+    if (update.type) {
+      console.log('update channel type', update.id, update.type);
+    }
     return client
       .update($channels)
       .set(update)
@@ -533,6 +667,7 @@ export const getGroup = createReadQuery(
           where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
           with: {
             lastPost: true,
+            unread: true,
           },
         },
         roles: true,
@@ -617,7 +752,13 @@ export const getContact = createReadQuery(
 export const insertContact = createWriteQuery(
   'insertContact',
   async (contact: ContactInsert) => {
-    return client.insert($contacts).values(contact);
+    return client
+      .insert($contacts)
+      .values(contact)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSetAll($contacts),
+      });
   },
   ['contacts']
 );
@@ -634,8 +775,16 @@ export const insertContacts = createWriteQuery(
         isSecret: false,
       })
     );
-    await client.insert($contacts).values(contactsData).onConflictDoNothing();
-    await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    await client
+      .insert($contacts)
+      .values(contactsData)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSetAll($contacts),
+      });
+    if (targetGroups.length) {
+      await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    }
     // TODO: Remove stale pinned groups
     await client
       .insert($contactGroups)
@@ -665,34 +814,8 @@ export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
   async (pinnedItems: Pin[]) => {
     return client.transaction(async (tx) => {
-      await Promise.all([
-        tx.delete($pins),
-        tx
-          .update($groups)
-          .set({ pinIndex: null })
-          .where(not(isNull($groups.pinIndex))),
-      ]);
+      await tx.delete($pins);
       await tx.insert($pins).values(pinnedItems);
-      const groups: GroupInsert[] = pinnedItems.flatMap((p) => {
-        if (!p.itemId) {
-          return [];
-        }
-        return [
-          {
-            id: p.itemId,
-            pinIndex: p.index,
-          },
-        ];
-      });
-      await tx
-        .insert($groups)
-        .values(groups)
-        .onConflictDoUpdate({
-          target: [$groups.id],
-          set: {
-            pinIndex: sql`excluded.pin_index`,
-          },
-        });
     });
   },
   ['pins', 'groups']

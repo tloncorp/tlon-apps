@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
 
-const logger = createDevLogger('query', false);
+const logger = createDevLogger('query', true);
 const tableEventsLogger = createDevLogger('tableEvents', false);
 
 export type TableEventListener = (names: TableName[]) => void;
@@ -105,27 +105,43 @@ export const createQuery = <Args extends any[], T>(
   });
 };
 
+export interface UseQueryResult<T> {
+  result: T | null;
+  error: Error | null;
+  isLoading: boolean;
+}
+
 // Creates a hook that runs a query, rerunning it whenever deps change.
 export const createUseQuery =
   <Args extends any[], T>(query: WrappedQuery<Args, T>) =>
-  (...args: Args) => {
+  (...args: Args): UseQueryResult<T> => {
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<T | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const currentParams = useShallowEachObjectMemo(args);
+    const cancelQueryRef = useRef<Function | null>(null);
     const runQuery = useCallback(async () => {
-      // TODO: This could cause missed updates if the query is run multiple
-      // times in rapid succession, but ensures load state stays correct.
-      if (isLoading) return;
+      // Set up cancellation
+      if (cancelQueryRef.current) {
+        cancelQueryRef.current();
+      }
+      let isCancelled = false;
+      cancelQueryRef.current = () => {
+        isCancelled = true;
+      };
       setIsLoading(true);
+      // Run the query
       query(...args)
         .then((result) => {
+          if (isCancelled) return;
           setResult(result);
         })
         .catch((error) => {
+          if (isCancelled) return;
           setError(error);
         })
         .finally(() => {
+          if (isCancelled) return;
           setIsLoading(false);
         });
     }, [currentParams]);

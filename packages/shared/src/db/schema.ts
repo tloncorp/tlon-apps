@@ -66,18 +66,54 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
 }));
 
 export const unreads = sqliteTable('unreads', {
-  channelId: text('channelId')
-    .primaryKey()
-    .references(() => channels.id),
-  type: text('type').$type<'channel' | 'dm'>(),
-  totalCount: integer('totalCount'),
-  updatedAt: timestamp('updatedAt').notNull(),
+  channelId: text('channel_id').primaryKey(),
+  type: text('type').$type<'channel' | 'dm'>().notNull(),
+  count: integer('count').notNull(),
+  countWithoutThreads: integer('count_without_threads').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+  firstUnreadPostId: text('first_unread_post_id'),
+  firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
 });
+
+export const unreadsRelations = relations(unreads, ({ one, many }) => ({
+  channel: one(channels, {
+    fields: [unreads.channelId],
+    references: [channels.id],
+  }),
+  threadUnreads: many(threadUnreads),
+}));
+
+export const threadUnreads = sqliteTable(
+  'thread_unreads',
+  {
+    channelId: text('channel_id'),
+    threadId: text('thread_id'),
+    count: integer('count'),
+    firstUnreadPostId: text('first_unread_post_id'),
+    firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.channelId, table.threadId],
+    }),
+  })
+);
+
+export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
+  channel: one(channels, {
+    fields: [threadUnreads.channelId],
+    references: [channels.id],
+  }),
+  channelUnread: one(unreads, {
+    fields: [threadUnreads.channelId],
+    references: [unreads.channelId],
+  }),
+}));
 
 export const pins = sqliteTable(
   'pins',
   {
-    type: text('type').$type<'group' | 'dm' | 'club'>().notNull(),
+    type: text('type').$type<'group' | 'dm' | 'groupDm'>().notNull(),
     index: integer('index').notNull(),
     itemId: text('item_id').notNull(),
   },
@@ -95,7 +131,6 @@ export const groups = sqliteTable('groups', {
   isJoined: boolean('is_joined'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
-  pinIndex: integer('pin_index'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -280,15 +315,21 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
     fields: [channels.lastPostId],
     references: [posts.id],
   }),
-  threadUnreadStates: many(threadUnreadStates),
+  unread: one(unreads, {
+    fields: [channels.id],
+    references: [unreads.channelId],
+  }),
+  threadUnreads: many(threadUnreads),
   members: many(channelMembers),
 }));
 
 export const channelMembers = sqliteTable(
   'channel_members',
   {
-    channelId: text('channel_id').references(() => channels.id),
-    contactId: text('contact_id'),
+    channelId: text('channel_id')
+      .references(() => channels.id)
+      .notNull(),
+    contactId: text('contact_id').notNull(),
   },
   (table) => {
     return {
@@ -307,31 +348,6 @@ export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
-
-export const threadUnreadStates = sqliteTable(
-  'thread_unread_states',
-  {
-    channelId: integer('channel_id').references(() => channels.id),
-    threadId: text('thread_id'),
-    count: integer('count'),
-    firstUnreadPostId: text('first_unread_post_id'),
-  },
-  (table) => ({
-    pk: primaryKey({
-      columns: [table.channelId, table.threadId],
-    }),
-  })
-);
-
-export const threadUnreadStateRelations = relations(
-  threadUnreadStates,
-  ({ one }) => ({
-    channel: one(channels, {
-      fields: [threadUnreadStates.channelId],
-      references: [channels.id],
-    }),
-  })
-);
 
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey().notNull(),

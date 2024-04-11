@@ -6,7 +6,8 @@ import { useMemo } from 'react';
 import * as db from '../db';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { formatPostIdParam, toPostData } from './postsApi';
+import { formatPostIdParam } from './converters';
+import { toPostData } from './postsApi';
 import { scry } from './urbit';
 
 export const getUnreadChannels = async () => {

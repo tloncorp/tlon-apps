@@ -52,15 +52,11 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
 export function MessageInput({
   shouldBlur,
   setShouldBlur,
-  contacts,
-  group,
   send,
   channelId,
 }: {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  contacts: db.Contact[];
-  group: db.GroupWithRelations;
   send: (content: JSONContent, channelId: string) => Promise<void>;
   channelId: string;
 }) {

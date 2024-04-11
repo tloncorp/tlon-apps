@@ -29,7 +29,7 @@ export const toClientContact = (
     nickname: contact?.nickname ?? null,
     bio: contact?.bio ?? null,
     status: contact?.status ?? null,
-    color: contact?.color ? '#' + parseUx(contact.color) : null,
+    color: parseUrbitColor(contact?.color),
     coverImage: contact?.cover ?? null,
     avatarImage: contact?.avatar ?? null,
     pinnedGroups:
@@ -39,3 +39,14 @@ export const toClientContact = (
       })) ?? [],
   };
 };
+
+function parseUrbitColor(color?: string) {
+  let result = color ? parseUx(color) : null;
+  if (!result) {
+    return null;
+  }
+  while (result.length < 6) {
+    result = result + '0';
+  }
+  return '#' + result;
+}
