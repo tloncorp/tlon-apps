@@ -127,7 +127,7 @@ export function MessageInput({
       paddingHorizontal="$m"
       paddingVertical="$s"
       gap="$l"
-      alignItems="center"
+      alignItems="flex-end"
     >
       <XStack gap="$l">
         <IconButton onPress={() => {}}>
@@ -140,7 +140,7 @@ export function MessageInput({
           <ChannelGalleries />
         </IconButton>
       </XStack>
-      <XStack flex={1} gap="$l" alignItems="center">
+      <XStack flex={1} gap="$l" alignItems="flex-end">
         <XStack
           borderRadius="$xl"
           minHeight="$4xl"
