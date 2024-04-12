@@ -13,7 +13,6 @@ import {
 import { Extension, KeyboardShortcutCommand } from '@tiptap/core';
 import CodeBlock from '@tiptap/extension-code-block';
 import HardBreak from '@tiptap/extension-hard-break';
-import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent } from '@tiptap/react';
 
@@ -38,11 +37,7 @@ export const MessageInputEditor = () => {
       HistoryBridge.configureExtension({
         newGroupDelay: 100,
       }),
-      CodeBridge.configureExtension({
-        HTMLAttributes: {
-          class: 'rounded px-1 bg-gray-50 dark:bg-gray-100',
-        },
-      }),
+      CodeBridge,
       UnderlineBridge,
       LinkBridge.configureExtension({
         openOnClick: false,
@@ -52,11 +47,7 @@ export const MessageInputEditor = () => {
     ],
     tiptapOptions: {
       extensions: [
-        CodeBlock.configure({
-          HTMLAttributes: {
-            class: 'mr-4 px-2 rounded bg-gray-50 dark:bg-gray-100',
-          },
-        }),
+        CodeBlock,
         // TODO: Do we need this?
         HardBreak,
         // We use this because the PlaceholderBridge is not working (doesn't render the placeholder text)
@@ -75,19 +66,6 @@ export const MessageInputEditor = () => {
               () => commands.splitBlock(),
             ]),
         }),
-        Mention.extend({ priority: 1000 }).configure({
-          HTMLAttributes: {
-            class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
-          },
-          renderLabel: (props) => `~${props.node.attrs.id}`,
-        }),
-        // TODO: figure out why including this causes the editor to not render
-        // Mention.extend({ priority: 999, name: 'at-mention' }).configure({
-        // HTMLAttributes: {
-        // class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
-        // },
-        // renderLabel: (props) => `~${props.node.attrs.id}`,
-        // }),
       ],
     },
   });
