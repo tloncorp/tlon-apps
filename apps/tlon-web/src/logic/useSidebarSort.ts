@@ -1,17 +1,13 @@
-import { Unreads } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
+import _ from 'lodash';
 import { useCallback, useMemo } from 'react';
 
 import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
-import { useUnreads } from '@/state/channel/channel';
-import { useDmUnreads } from '@/state/chat';
+import { useUnreads } from '@/state/activity';
 import {
   useGroupSideBarSort,
   usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
-
-import { whomIsDm, whomIsMultiDm } from './utils';
 
 export interface Sorter {
   (a: string, b: string): number;
@@ -25,49 +21,20 @@ interface UseSidebarSort {
 export const sortAlphabetical = (aNest: string, bNest: string) =>
   aNest.localeCompare(bNest);
 
-interface MergeUnreadsAccumulatorType {
-  [key: string]: number;
-}
-
 export function useRecentSort() {
-  const channelUnreads = useUnreads();
-  const { data: dmUnreads } = useDmUnreads();
-  // pre-compute unreads before sorting
-  const processedUnreads = useMemo(() => {
-    const mergeUnreads = (unreads: DMUnreads | Unreads) =>
-      Object.entries(unreads).reduce<MergeUnreadsAccumulatorType>(
-        (acc, [nest, { recency }]) => {
-          // using a param re-assign is much faster than making a copy of an object.
-          // eslint-disable-next-line no-param-reassign
-          acc[nest] = recency ?? Number.NEGATIVE_INFINITY;
-          return acc;
-        },
-        {}
-      );
-
-    return {
-      dmUnreads: mergeUnreads(dmUnreads),
-      channelUnreads: mergeUnreads(channelUnreads),
-    };
-  }, [dmUnreads, channelUnreads]);
+  const unreads = useUnreads();
+  const recencyMap = useMemo(() => {
+    return _.mapValues(unreads, ({ recency }) => recency);
+  }, [unreads]);
 
   const sortRecent = useCallback(
-    (aNest: string, bNest: string) => {
-      const aUnreads =
-        whomIsDm(aNest) || whomIsMultiDm(aNest)
-          ? processedUnreads.dmUnreads
-          : processedUnreads.channelUnreads;
-      const aLast = aUnreads[aNest];
-
-      const bUnreads =
-        whomIsDm(bNest) || whomIsMultiDm(bNest)
-          ? processedUnreads.dmUnreads
-          : processedUnreads.channelUnreads;
-      const bLast = bUnreads[bNest];
+    (aIndex: string, bIndex: string) => {
+      const aLast = recencyMap[aIndex];
+      const bLast = recencyMap[bIndex];
 
       return Math.sign(aLast - bLast);
     },
-    [processedUnreads]
+    [recencyMap]
   );
 
   return sortRecent;

@@ -15,11 +15,11 @@ import Layout from '@/components/Layout/Layout';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { useFullChannel } from '@/logic/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
+import { useMarkReadMutation } from '@/state/activity';
 import {
   useArrangedPosts,
   useDisplayMode,
   useInfinitePosts,
-  useMarkReadMutation,
   useSortMode,
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -134,7 +134,7 @@ function DiaryChannel({ title }: ViewProps) {
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(
-      () => markRead({ nest: `diary/${chFlag}` }),
+      () => markRead({ index: { channel: `diary/${chFlag}` } }),
       [markRead, chFlag]
     ),
     isMarking,

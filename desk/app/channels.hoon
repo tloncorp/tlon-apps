@@ -1203,24 +1203,20 @@
     =/  reply  (get:on-v-replies:c replies.post id-reply)
     ?:  ?=([~ ~] reply)  ca-core
     ?:  ?=(%set -.u-reply)
-      =?  ca-core  ?&  ?=(^ reply)
-                       |(?=(~ reply.u-reply) ~!(reply (gth rev.u.reply.u-reply rev.u.u.reply)))
-                   ==
-        ::REVIEW  this might re-submit on edits. is that what we want?
-        ::        it looks like %activity inserts even if it's a duplicate.
-        =,  u.u.reply
-        =/  concern
-          :-  [[author id-reply] id-reply]
-          [[author.post id-post] id-post]
-        =/  mention=?
-          (was-mentioned:utils content our.bowl)
-        (ca-activity [%reply concern] content mention)
       ?~  reply
         =/  reply=(unit reply:c)
           ?~  reply.u-reply  ~
           `(uv-reply:utils id-post u.reply.u-reply)
         =?  ca-core  ?=(^ reply.u-reply)
           (on-reply:ca-hark id-post post u.reply.u-reply)
+        =?  ca-core  ?=(^ reply.u-reply)
+          =,  u.reply.u-reply
+          =/  concern
+            :-  [[author id-reply] id-reply]
+            [[author.post id-post] id-post]
+          =/  mention=?
+            (was-mentioned:utils content our.bowl)
+          (ca-activity [%reply concern] content mention)
         =?  pending.channel  ?=(^ reply.u-reply)
           =/  memo  +.+.u.reply.u-reply
           =/  client-id  [author sent]:memo

@@ -13,8 +13,8 @@
 +$  event-parent  [seen=? reply-floor=time]
 +$  event-parents  ((mop time-id event-parent) lte)
 +$  index
-  $%  [%channel channel-concern]
-      [%dm dm-concern]
+  $%  [%channel channel=nest:c]
+      [%dm =whom]
   ==
 +$  flavor
   $?  %dm-invite
@@ -83,10 +83,11 @@
       unread=(unit [message-key count=@ud])
       threads=unread-threads
   ==
++$  unreads  (map index unread-summary)
 +$  read-action
   $%  [%thread id=time-id]  ::  mark a whole thread as read
       [%post id=time-id]    ::  mark an individual post as read
       [%all ~]            ::  mark _everything_ as read
   ==
-+$  full-info  [=stream =indices unreads=(map index unread-summary)]
++$  full-info  [=stream =indices =unreads]
 --

@@ -1,4 +1,5 @@
-import { Perm, Story, Unreads } from '@tloncorp/shared/dist/urbit/channel';
+import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
+import { Perm, Story } from '@tloncorp/shared/dist/urbit/channel';
 import { isLink } from '@tloncorp/shared/dist/urbit/content';
 import {
   Channels,
@@ -18,12 +19,8 @@ import {
   RECENT_SORT,
   SortMode,
 } from '@/constants';
-import {
-  useChannel,
-  useJoinMutation,
-  usePerms,
-  useUnreads,
-} from '@/state/channel/channel';
+import { useUnreads } from '@/state/activity';
+import { useChannel, useJoinMutation, usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
 import { useNegotiate } from '@/state/negotiation';
@@ -41,7 +38,7 @@ export function isChannelJoined(nest: string, unreads: Unreads) {
   const { ship } = getFlagParts(flag);
 
   const isChannelHost = window.our === ship;
-  return isChannelHost || (nest && nest in unreads);
+  return isChannelHost || (nest && `channel/${nest}` in unreads);
 }
 
 export function canReadChannel(
@@ -111,7 +108,7 @@ function channelUnread(
     return Boolean(unread && !unread.seen);
   }
 
-  return (unreads[nest]?.count ?? 0) > 0;
+  return (unreads[`channel/${nest}`]?.count ?? 0) > 0;
 }
 
 export function useCheckChannelUnread() {

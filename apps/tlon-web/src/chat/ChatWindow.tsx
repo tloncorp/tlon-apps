@@ -10,14 +10,15 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
-import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChannelCompatibility } from '@/logic/channel';
 import { log } from '@/logic/utils';
-import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
+import { useMarkReadMutation } from '@/state/activity';
+import { useInfinitePosts } from '@/state/channel/channel';
 
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
+import UnreadAlerts from './UnreadAlerts';
 import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatWindowProps {
@@ -123,7 +124,7 @@ const ChatWindow = React.memo(
     const onAtBottom = useCallback(() => {
       const { bottom, delayedRead } = useChatStore.getState();
       bottom(true);
-      delayedRead(whom, () => markRead({ nest }));
+      delayedRead(whom, () => markRead({ index: { channel: nest } }));
       if (hasPreviousPage && !isFetching) {
         log('fetching previous page');
         fetchPreviousPage();
@@ -147,7 +148,7 @@ const ChatWindow = React.memo(
         const curr = clearOnNavRef.current;
         if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
           useChatStore.getState().read(curr.whom);
-          curr.markRead({ nest: curr.nest });
+          curr.markRead({ index: { channel: curr.nest } });
         }
       },
       []
@@ -193,7 +194,7 @@ const ChatWindow = React.memo(
 
     return (
       <div className="relative h-full">
-        <ChatUnreadAlerts nest={nest} root={root} />
+        <UnreadAlerts whom={whom} root={root} />
         <div className="flex h-full w-full flex-col overflow-hidden">
           <ChatScroller
             /**

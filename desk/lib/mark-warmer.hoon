@@ -28,5 +28,6 @@
 /$  ch-hidden   %hidden-messages      %json
 /$  crew        %chat-club-crew       %json
 /$  full-info   %activity-full        %json
-/$  act-unread  %activity-index-unreads  %json
+/$  act-ind-unread  %activity-index-unreads  %json
+/$  act-unread  %activity-unreads     %json
 ~

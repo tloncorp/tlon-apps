@@ -1,13 +1,13 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Editor } from '@tiptap/react';
+import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
-  Unread,
   constructStory,
 } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
@@ -36,19 +36,20 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import {
+  useIsDmOrMultiDm,
+  whomIsDm,
+  whomIsFlag,
+  whomIsMultiDm,
+} from '@/logic/utils';
+import { useMarkReadMutation } from '@/state/activity';
 import {
   useEditPostMutation,
   useIsEdited,
-  useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import {
-  useMarkDmReadMutation,
-  useMessageToggler,
-  useTrackedMessageStatus,
-} from '@/state/chat';
+import { useMessageToggler, useTrackedMessageStatus } from '@/state/chat';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import { getUnreadStatus, threadIsOlderThanLastRead } from '../unreadUtils';
@@ -77,13 +78,14 @@ export interface ChatMessageProps {
 }
 
 function getUnreadDisplay(
-  unread: Unread | DMUnread | undefined,
+  unread: Unread | undefined,
   id: string
 ): 'none' | 'top' | 'thread' {
   if (!unread) {
     return 'none';
   }
 
+  debugger;
   const { unread: mainChat, threads } = unread;
   const { hasMainChatUnreads } = getUnreadStatus(unread);
   const threadIsOlder = threadIsOlderThanLastRead(unread, id);
@@ -165,13 +167,18 @@ const ChatMessage = React.memo<
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadDisplay = useMemo(
-        () => getUnreadDisplay(unread?.unread, seal.id),
-        [unread, seal.id]
+        () =>
+          getUnreadDisplay(
+            unread?.unread,
+            !whomIsFlag(whom)
+              ? seal.id
+              : `${essay.author}/${formatUd(unixToDa(essay.sent))}`
+          ),
+        [unread, seal.id, whom, essay]
       );
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const { mutate: markChatRead } = useMarkReadMutation();
-      const { mutate: markDmRead } = useMarkDmReadMutation();
+      const { mutate: markRead } = useMarkReadMutation();
       const { mutate: editPost } = useEditPostMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
@@ -206,15 +213,16 @@ const ChatMessage = React.memo<
             if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
-                if (isDMOrMultiDM) {
-                  markDmRead({ whom });
-                } else {
-                  markChatRead({ nest: `chat/${whom}` });
-                }
+                const index = isDMOrMultiDM
+                  ? whomIsDm(whom)
+                    ? { dm: { ship: whom } }
+                    : { dm: { club: whom } }
+                  : { channel: `chat/${whom}` };
+                markRead({ index });
               });
             }
           },
-          [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead, markDmRead]
+          [unreadDisplay, unread, whom, isDMOrMultiDM, markRead]
         ),
       });
 

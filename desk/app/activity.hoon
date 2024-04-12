@@ -1,5 +1,5 @@
 ::
-/-  a=activity
+/-  a=activity, c=channels
 /+  default-agent, verb, dbug
 ::  build for performance
 /+  activity-json
@@ -83,6 +83,41 @@
   =.  state  old
   cor
 ::
+:: ++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)/v1
+:: ++  set-reads-from-old
+::   =.  cor
+::     =+  .^(=unreads:c %gx (welp channels-prefix /unreads/noun))
+::     =+  .^(=channels:c %gx (welp channels-prefix /channels/noun))
+::     =/  entries  ~(tap by unreads)
+::     |-
+::     =/  head  i.entries
+::     =+  next  $(entries t.entries)
+::     ?~  head  cor
+::     =/  [=nest:c =unread:c]  head
+::     =/  channel  (~(get by channels) nest)
+::     ?^  unread.unread
+::       ?~  channel  next
+::       =/  path
+::         ;:  welp
+::           channels-prefix
+::           /[kind.nest]/(scot %p ship.nest)/[name.nest]
+::           /posts/post/(scot %ud id.u.unread.unread)/noun
+::         ==
+::       =+  .^(post=(unit post:c) %gx path)
+::       ?~  post  next
+::       =/  =post-concern:a
+::         [[[author.u.post id.u.post] id.u.post] nest group.perm.channel]
+::       =.  stream  (put:on-event:a *stream:a id.u.post [%post post-concern ~ |])
+::       next
+::     =/  path
+::         ;:  welp
+::           channels-prefix
+::           /[kind.nest]/(scot %p ship.nest)/[name.nest]
+::           /posts/newest/1/outline/noun
+::         ==
+::     =+  .^(=posts:c %gx path)
+::     =/  entry=(unit [time post:c])  (ram:on-posts:c posts)
+::     ?~  entry  next
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -151,6 +186,7 @@
             time-id
           [| time-id]
       ==
+    =.  cor  (give-unreads index new)
     =.  indices
       (~(put by indices) index new)
     cor
@@ -162,11 +198,12 @@
     =/  new
       :-  (put:on-event:a stream.indy time-id event)
       reads.indy
+    =.  cor  (give-unreads index new)
     =.  indices
       (~(put by indices) index new)
     cor
       %post
-    =/  index  [%channel channel.event group.event]
+    =/  index  [%channel channel.event]
     =?  indices  !(~(has by indices) index)
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
@@ -177,17 +214,19 @@
             time-id
           [| time-id]
       ==
+    =.  cor  (give-unreads index new)
     =.  indices
       (~(put by indices) index new)
     cor
       %reply
-    =/  index  [%channel channel.event group.event]
+    =/  index  [%channel channel.event]
     =?  indices  !(~(has by indices) index)
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
     =/  new
       :-  (put:on-event:a stream.indy time-id event)
       reads.indy
+    =.  cor  (give-unreads index new)
     =.  indices
       (~(put by indices) index new)
     cor
@@ -228,8 +267,8 @@
   |=  =event:a
   ^-  (unit index:a)
   ?+  -.event  ~
-    %post      `[%channel channel.event group.event]
-    %reply     `[%channel channel.event group.event]
+    %post      `[%channel channel.event]
+    %reply     `[%channel channel.event]
     %dm-post   `[%dm whom.event]
     %dm-reply  `[%dm whom.event]
   ==
@@ -409,15 +448,15 @@
     =/  unread  ?~(last ~ `[u.last count])
     [(fall newest now.bowl) count unread threads]
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
-  ?>  ?=(?(%dm-post %post %reply) -.event)
+  ?>  ?=(?(%dm-post %dm-reply %post %reply) -.event)
   =.  count  +(count)
   =.  newest  `time.message-key.event
   =.  last
-    ?:  ?=(%reply -.event)  last
+    ?:  ?=(?(%reply %dm-reply) -.event)  last
     ?~  last  `message-key.event
     ?:  (gte time.message-key.event time.u.last)  last
     `message-key.event
-  =?  threads  ?=(%reply -.event)
+  =?  threads  ?=(?(%reply %dm-reply) -.event)
     =/  old
       %+  ~(gut by threads)  parent.event
       [message-key.event count=0]

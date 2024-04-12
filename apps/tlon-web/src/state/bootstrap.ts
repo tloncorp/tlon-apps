@@ -35,15 +35,14 @@ const emptyGroupsInit: GroupsInit = {
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { channels, unreads, groups, gangs, pins, chat } =
-    await asyncWithDefault(
-      () =>
-        api.scry<GroupsInit>({
-          app: 'groups-ui',
-          path: '/v1/init',
-        }),
-      emptyGroupsInit
-    );
+  const { channels, groups, gangs, pins, chat } = await asyncWithDefault(
+    () =>
+      api.scry<GroupsInit>({
+        app: 'groups-ui',
+        path: '/v1/init',
+      }),
+    emptyGroupsInit
+  );
 
   const full = await api.scry<FullActivity>({
     app: 'activity',
@@ -60,8 +59,14 @@ async function startGroups() {
   // make sure we remove the app part from the nest before handing it over
   useChatStore.getState().update(
     _.mapKeys(
-      _.pickBy(unreads, (v, k) => k.startsWith('chat')),
-      (v, k) => k.replace(/\w*\//, '')
+      _.pickBy(
+        full.unreads,
+        (v, k) =>
+          k.startsWith('channel/chat') ||
+          k.startsWith('ship') ||
+          k.startsWith('club')
+      ),
+      (v, k) => k.replace(/\w*\/(\w*\/)?/, '')
     )
   );
 }

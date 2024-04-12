@@ -7,7 +7,7 @@ import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
+import DMUnreadAlerts from '@/chat/UnreadAlerts';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useIsScrolling } from '@/logic/scroll';

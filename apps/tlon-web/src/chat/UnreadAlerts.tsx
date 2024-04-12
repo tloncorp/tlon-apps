@@ -1,4 +1,4 @@
-import { DMUnread, UnreadThread } from '@tloncorp/shared/dist/urbit/dms';
+import { Unread, UnreadThread } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -6,30 +6,33 @@ import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 import XIcon from '@/components/icons/XIcon';
-import { pluralize } from '@/logic/utils';
-import { useMarkDmReadMutation } from '@/state/chat';
+import { pluralize, whomIsDm, whomIsFlag } from '@/logic/utils';
+import { useMarkReadMutation } from '@/state/activity';
 
 import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 import { useChatInfo, useChatStore } from './useChatStore';
 
-interface DMUnreadAlertsProps {
+interface UnreadAlertsProps {
   whom: string;
   root: string;
 }
 
-export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
+export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
-  const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { mutate: markReadMut } = useMarkReadMutation();
   const markRead = useCallback(() => {
-    markDmRead({ whom });
+    const index = whomIsFlag(whom)
+      ? { channel: `chat/${whom}` }
+      : { dm: whomIsDm(whom) ? { ship: whom } : { club: whom } };
+    markReadMut({ index });
     useChatStore.getState().read(whom);
-  }, [whom, markDmRead]);
+  }, [whom, markReadMut]);
 
   if (!chatInfo?.unread || chatInfo.unread.seen) {
     return null;
   }
 
-  const unread = chatInfo.unread.unread as DMUnread;
+  const unread = chatInfo.unread.unread as Unread;
   const { unread: mainChat, threads } = unread;
   const { isEmpty, hasThreadUnreads } = getUnreadStatus(unread);
   if (isEmpty) {

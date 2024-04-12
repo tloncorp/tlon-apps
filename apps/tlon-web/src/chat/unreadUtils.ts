@@ -1,9 +1,8 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
+import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import bigInt from 'big-integer';
 
 export function threadIsOlderThanLastRead(
-  unread: DMUnread | Unread,
+  unread: Unread,
   threadId: string | null
 ): boolean {
   if (!unread || !threadId) {
@@ -22,15 +21,13 @@ export function threadIsOlderThanLastRead(
   }
 
   if (hasThread && hasMainChatUnread) {
-    return 'parent-time' in thread && 'time' in mainChatUnread
-      ? bigInt(thread['parent-time']).lesser(bigInt(mainChatUnread.time))
-      : bigInt(threadId).lesser(bigInt(mainChatUnread.id));
+    return bigInt(thread['parent-time']).lesser(bigInt(mainChatUnread.time));
   }
 
   return false;
 }
 
-export function getUnreadStatus(unread: DMUnread | Unread) {
+export function getUnreadStatus(unread: Unread) {
   const mainChatUnread = unread.unread;
   const threadUnreads = unread.threads || {};
 

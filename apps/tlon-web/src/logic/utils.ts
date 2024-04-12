@@ -1,3 +1,4 @@
+import { Index } from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   ChatStory,
@@ -1295,4 +1296,41 @@ export function cacheIdFromString(str: string): CacheId {
     author,
     sent: parseInt(udToDec(sentStr), 10),
   };
+}
+
+export function indexToString(index: Index) {
+  if ('channel' in index) {
+    return `channel/${index.channel}`;
+  }
+
+  if ('dm' in index) {
+    if ('ship' in index.dm) {
+      return `ship/${index.dm.ship}`;
+    }
+
+    return `club/${index.dm.club}`;
+  }
+
+  throw new Error('Invalid activity index');
+}
+
+export function stringToIndex(str: string): Index {
+  const parts = str.split('/');
+
+  if (parts.length === 0) {
+    throw new Error('Invalid activity index');
+  }
+
+  const [head, ...rest] = parts;
+  switch (head) {
+    case 'channel':
+      return { channel: rest.join('/') };
+    case 'ship':
+      return { dm: { ship: rest[0] } };
+
+    case 'club':
+      return { dm: { club: rest[0] } };
+    default:
+      throw new Error('Invalid activity index');
+  }
 }

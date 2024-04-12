@@ -16,16 +16,15 @@ import useActiveTab from '@/components/Sidebar/util';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { useMarkReadMutation } from '@/state/activity';
 import {
   useAddReplyMutation,
-  useMarkReadMutation,
   useMyLastReply,
   usePerms,
   usePost,
@@ -49,7 +48,6 @@ export default function ChatThread() {
     idTime: string;
   }>();
   const isMobile = useIsMobile();
-  const { isChatInputFocused } = useChatInputFocus();
   const isEditing = useIsEditingMessage();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
@@ -137,7 +135,7 @@ export default function ChatThread() {
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(flag, () => markRead({ nest }));
+    delayedRead(flag, () => markRead({ index: { channel: nest } }));
   }, [nest, flag, markRead]);
 
   const onEscape = useCallback(
@@ -165,7 +163,7 @@ export default function ChatThread() {
       ) {
         chatStoreLogger.log('unmount read from thread');
         useChatStore.getState().read(curr.flag);
-        curr.markRead({ nest: curr.nest });
+        curr.markRead({ index: { channel: curr.nest } });
       }
     },
     []

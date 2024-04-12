@@ -3,20 +3,27 @@ import { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { canReadChannel } from '@/logic/channel';
-import { useChannels, useUnreads } from '@/state/channel/channel';
-import { useDmUnreads, useMultiDms } from '@/state/chat';
+import { stringToIndex } from '@/logic/utils';
+import { useUnreads } from '@/state/activity';
+import { useChannels } from '@/state/channel/channel';
+import { useMultiDms } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import { useMessagesFilter } from '@/state/settings';
 
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();
-  const channelUnreads = useUnreads();
-  const { data: dmUnreads } = useDmUnreads();
+  const unreads = useUnreads();
   const channels = useChannels();
   const multiDms = useMultiDms();
   const groups = useGroups();
-  const joinedChannels = Object.entries(channelUnreads).filter(([k, v]) => {
-    const chat = channels[k];
+  const joinedChannels = Object.entries(unreads).filter(([k, v]) => {
+    const index = stringToIndex(k);
+    if (!('channel' in index)) {
+      return false;
+    }
+
+    const nest = index.channel;
+    const chat = channels[nest];
     if (!chat) {
       return false;
     }
@@ -26,16 +33,21 @@ export default function TalkHead() {
     const vessel = group?.fleet[window.our];
     return channel && vessel && canReadChannel(channel, vessel, group.bloc);
   });
-  const dms = Object.entries(dmUnreads).filter(([k, v]) => {
-    const club = multiDms[k];
-    if (club) {
-      return club.team.concat(club.hive).includes(window.our);
+  const dms = Object.entries(unreads).filter(([k, v]) => {
+    const index = stringToIndex(k);
+    if (!('dm' in index)) {
+      return false;
+    }
+
+    if ('club' in index.dm) {
+      const club = multiDms[index.dm.club];
+      return club ? club.team.concat(club.hive).includes(window.our) : true;
     }
 
     return true;
   }) as [string, { count: number }][]; // so the types below merge cleanly
 
-  const unreads = useMemo(() => {
+  const unreadsCount = useMemo(() => {
     switch (messagesFilter) {
       case 'All Messages':
         return _.sumBy(Object.values(_.concat(joinedChannels, dms)), 'count');
@@ -50,7 +62,11 @@ export default function TalkHead() {
 
   return (
     <Helmet defer={false}>
-      {unreads > 0 ? <title>{`(${unreads}) `}Tlon</title> : <title>Tlon</title>}
+      {unreadsCount > 0 ? (
+        <title>{`(${unreadsCount}) `}Tlon</title>
+      ) : (
+        <title>Tlon</title>
+      )}
     </Helmet>
   );
 }

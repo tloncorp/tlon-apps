@@ -1,5 +1,5 @@
-import { Block, Unread, Unreads } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread, DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
+import { Unread, Unreads } from '@tloncorp/shared/dist/urbit/activity';
+import { Block } from '@tloncorp/shared/dist/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
@@ -12,7 +12,7 @@ export interface ChatInfo {
   unread?: {
     readTimeout: number;
     seen: boolean;
-    unread: DMUnread | Unread; // lags behind actual unread, only gets update if unread
+    unread: Unread; // lags behind actual unread, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
@@ -44,12 +44,12 @@ export interface ChatStore {
   delayedRead: (whom: string, callback: () => void) => void;
   handleUnread: (
     whom: string,
-    unread: Unread | DMUnread,
+    unread: Unread,
     markRead: (whm: string) => void
   ) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (unreads: Unreads | DMUnreads) => void;
+  update: (unreads: Unreads) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -63,7 +63,7 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
-export function isUnread(unread: Unread | DMUnread): boolean {
+export function isUnread(unread: Unread): boolean {
   const hasThreads = Object.keys(unread.threads || {}).length > 0;
   return unread.count > 0 && (!!unread.unread || hasThreads);
 }

@@ -18,7 +18,8 @@ import { useFullChannel } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { useIsMobile } from '@/logic/useMedia';
-import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
+import { useMarkReadMutation } from '@/state/activity';
+import { useInfinitePosts } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
 import { useHeapDisplayMode, useHeapSortMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
@@ -63,7 +64,10 @@ function HeapChannel({ title }: ViewProps) {
 
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(() => markRead({ nest }), [markRead, nest]),
+    markRead: useCallback(
+      () => markRead({ index: { channel: nest } }),
+      [markRead, nest]
+    ),
     isMarking,
   });
 

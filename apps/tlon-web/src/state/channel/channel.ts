@@ -1,5 +1,4 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Action,
   CacheId,
@@ -32,15 +31,10 @@ import {
   Said,
   SortMode,
   TogglePost,
-  UnreadUpdate,
   newChatMap,
   newPostTupleArray,
 } from '@tloncorp/shared/dist/urbit/channel';
-import {
-  PagedWrits,
-  Writ,
-  newWritTupleArray,
-} from '@tloncorp/shared/dist/urbit/dms';
+import { PagedWrits, Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
 import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
@@ -72,8 +66,8 @@ import {
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { useUnreads } from '../activity';
 // eslint-disable-next-line import/no-cycle
-import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 
@@ -1336,79 +1330,6 @@ export function useReply(
   }, [post, replyId]);
 }
 
-export function useMarkReadMutation() {
-  const mutationFn = async (variables: { nest: Nest }) => {
-    checkNest(variables.nest);
-
-    await api.poke(channelAction(variables.nest, { read: null }));
-  };
-
-  return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['unreads']);
-    },
-  });
-}
-
-const emptyUnreads: Unreads = {};
-export function useUnreads(): Unreads {
-  const { mutate: markRead } = useMarkReadMutation();
-  const invalidate = useRef(
-    _.debounce(
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['unreads'],
-          refetchType: 'none',
-        });
-      },
-      300,
-      { leading: true, trailing: true }
-    )
-  );
-
-  const eventHandler = (event: UnreadUpdate) => {
-    const { nest, unread } = event;
-
-    if (unread !== null) {
-      const [app, flag] = nestToFlag(nest);
-
-      if (app === 'chat') {
-        useChatStore
-          .getState()
-          .handleUnread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
-      }
-
-      queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
-
-        const newUnreads = { ...d };
-        newUnreads[event.nest] = unread;
-
-        return newUnreads;
-      });
-    }
-
-    invalidate.current();
-  };
-
-  const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
-    queryKey: ['unreads'],
-    app: 'channels',
-    path: '/unreads',
-    scry: '/unreads',
-    onEvent: eventHandler,
-  });
-
-  if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyUnreads;
-  }
-
-  return data as Unreads;
-}
-
 export function useChatStoreChannelUnreads() {
   const chats = useChatStore((s) => s.chats);
 
@@ -1432,7 +1353,7 @@ export function useIsJoined(nest: Nest) {
   checkNest(nest);
   const unreads = useUnreads();
 
-  return Object.keys(unreads).includes(nest);
+  return Object.keys(unreads).includes(`channel/${nest}`);
 }
 
 export function useUnread(nest: Nest) {
@@ -1440,7 +1361,7 @@ export function useUnread(nest: Nest) {
 
   const unreads = useUnreads();
 
-  return unreads[nest];
+  return unreads[`channel/${nest}`];
 }
 
 export function useChats(): Channels {

@@ -1,4 +1,4 @@
-import { Unread, UnreadPoint } from '@tloncorp/shared/dist/urbit/channel';
+import { Unread, UnreadPoint } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 
 import XIcon from '@/components/icons/XIcon';
 import { nestToFlag, pluralize } from '@/logic/utils';
-import { useMarkReadMutation } from '@/state/channel/channel';
+import { useMarkReadMutation } from '@/state/activity';
 
 import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 import { useChatInfo, useChatStore } from './useChatStore';
@@ -25,7 +25,7 @@ export default function ChatUnreadAlerts({
   const [, flag] = nestToFlag(nest);
   const chatInfo = useChatInfo(flag);
   const markRead = useCallback(() => {
-    markChatRead({ nest });
+    markChatRead({ index: { channel: nest } });
     useChatStore.getState().read(flag);
   }, [nest, flag, markChatRead]);
 

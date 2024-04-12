@@ -1,4 +1,4 @@
-import { Story, UnreadPoint } from "./channel";
+import { Story } from './channel';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -39,7 +39,7 @@ export interface DmPostEvent {
     whom: Whom;
     content: Story[];
     mention: boolean;
-  }
+  };
 }
 
 export interface DmReplyEvent {
@@ -49,7 +49,7 @@ export interface DmReplyEvent {
     whom: Whom;
     content: Story[];
     mention: boolean;
-  }
+  };
 }
 
 export interface PostEvent {
@@ -59,7 +59,7 @@ export interface PostEvent {
     channel: string;
     content: Story[];
     mention: boolean;
-  }
+  };
 }
 
 export interface ReplyEvent {
@@ -70,7 +70,7 @@ export interface ReplyEvent {
     channel: string;
     content: Story[];
     mention: boolean;
-  }
+  };
 }
 
 export type ActivityEvent =
@@ -93,28 +93,59 @@ export interface Reads {
   posts: Record<string, PostRead>;
 }
 
-export interface Index {
+export interface IndexData {
   stream: Stream;
   reads: Reads;
 }
 
-export interface ThreadUnread {
-  last: string;
+export type Index = { channel: string } | { dm: Whom };
+
+export interface UnreadUpdate {
+  index: Index;
+  unread: Unread;
+}
+export interface MessageKey {
+  id: string;
+  time: string;
+}
+
+export interface UnreadPoint extends MessageKey {
   count: number;
+}
+
+export interface UnreadThread extends UnreadPoint {
+  'parent-time': string;
 }
 
 export interface Unread {
   recency: number;
   count: number;
   unread: UnreadPoint | null;
-  threads: Record<string, UnreadPoint>;
+  threads: Record<string, UnreadThread>;
 }
 
 export type Unreads = Record<string, Unread>;
 
-export type Indices = Record<string, Index>;
+export type Indices = Record<string, IndexData>;
 
 export type Stream = Record<string, ActivityEvent>;
+
+export type ReadAction = { post: string } | { thread: string } | { all: null };
+
+export interface ActivityReadAction {
+  index: Index;
+  action: ReadAction;
+}
+
+export interface ActivityVolumeAction {
+  index: Index;
+  level: 'hush' | 'soft' | 'loud';
+}
+
+export type ActivityAction =
+  | { add: ActivityEvent }
+  | { read: ActivityReadAction }
+  | { adjust: ActivityVolumeAction };
 
 export interface FullActivity {
   stream: Stream;

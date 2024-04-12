@@ -16,7 +16,8 @@ import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useCheckChannelUnread } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useLeaveMutation, useMarkReadMutation } from '@/state/channel/channel';
+import { useMarkReadMutation } from '@/state/activity';
+import { useLeaveMutation } from '@/state/channel/channel';
 import {
   useArchiveDm,
   useDmRsvpMutation,
@@ -71,8 +72,7 @@ export default function DmOptions({
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
-  const { mutate: markDmRead } = useMarkDmReadMutation();
-  const { mutate: markChannelRead } = useMarkReadMutation();
+  const { mutate: markReadMut } = useMarkReadMutation();
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
 
@@ -96,14 +96,15 @@ export default function DmOptions({
   };
 
   const markRead = useCallback(async () => {
-    if (isDMorMultiDm) {
-      markDmRead({ whom });
-    } else {
-      markChannelRead({ nest: whom });
-    }
+    const index = isDMorMultiDm
+      ? whomIsDm(whom)
+        ? { dm: { ship: whom } }
+        : { dm: { club: whom } }
+      : { channel: `chat/${whom}` };
+    markReadMut({ index });
 
     useChatStore.getState().read(whom);
-  }, [whom, markDmRead, markChannelRead, isDMorMultiDm]);
+  }, [whom, markReadMut, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);
 

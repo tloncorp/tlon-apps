@@ -38,7 +38,7 @@
   ::
   +|  %basics
   ::
-  ++  index
+  ++  string-index
     |=  i=index:a
     ^-  cord
     ?-  -.i
@@ -49,6 +49,14 @@
         %ship  (rap 3 'ship/' (scot %p p.whom.i) ~)
         %club  (rap 3 'club/' (scot %uv p.whom.i) ~)
       ==
+    ==
+  ::
+  ++  index
+    |=  i=index:a
+    %-  pairs
+    ?-  -.i
+      %channel  ~[channel/s/(nest:enjs:gj channel.i)]
+      %dm  ~[dm+(whom whom.i)]
     ==
   ::
   ++  reads
@@ -75,13 +83,13 @@
   ++  unread
     |=  sum=unread-summary:a
     %-  pairs
-    :~  newest+(time newest.sum)
+    :~  recency+(time newest.sum)
         count+(numb count.sum)
         :-  %unread
         ?~  unread.sum  ~
         %-  pairs
         :~  id/s+(msg-id id.u.unread.sum)
-            time+(time time.u.unread.sum)
+            time+(time-id time.u.unread.sum)
             count/(numb count.u.unread.sum)
         ==
         :-  %threads
@@ -195,18 +203,18 @@
     %-  pairs
     %+  turn  ~(tap by ind)
     |=  [i=index:a s=stream:a r=reads:a]
-    :-  (index i)
+    :-  (string-index i)
     %-  pairs
     :~  stream+(stream s)
         reads+(reads r)
     ==
   ::
   ++  unreads
-    |=  us=(map index:a unread-summary:a)
+    |=  us=unreads:a
     %-  pairs
     %+  turn  ~(tap by us)
     |=  [i=index:a sum=unread-summary:a]
-    [(index i) (unread sum)]
+    [(string-index i) (unread sum)]
   ::
   ++  full-info
     |=  fi=full-info:a
@@ -220,15 +228,49 @@
   ++  index-unreads
     |=  [i=index:a u=unread-summary:a]
     %-  pairs
-    :~  index/s/(index i)
-        unreads+(unread u)
+    :~  index+(index i)
+        unread+(unread u)
     ==
   --
 ::
 ++  dejs
   =,  dejs:format
   |%
-  :: +|  %primitives
+  +|  %primitives
+  ++  id    (se %ud)
+  ++  club-id  (se %uv)
+  ++  ship  `$-(json ship:z)`(su ship-rule)
+  ++  ship-rule  ;~(pfix sig fed:ag)
+  +|  %basics
+  ++  index
+    %-  of
+    :~  channel/nest:dejs:cj
+        dm/dm-index
+    ==
   ::
+  ++  dm-index
+    %-  of
+    :~  ship/ship
+        club/club-id
+    ==
+  ::
+  ++  read-action
+    %-  of
+    :~  all/ul
+        post/id
+        thread/id
+    ==
+  ::
+  +|  %updates
+  ++  read
+    %-  ot
+    :~  index/index
+        action/read-action
+    ==
+  ::
+  ++  action
+    %-  of
+    :~  read/read
+    ==
   --
 --

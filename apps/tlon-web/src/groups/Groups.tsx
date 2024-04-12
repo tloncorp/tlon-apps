@@ -10,7 +10,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { getFlagParts } from '@/logic/utils';
-import { useUnreads } from '@/state/channel/channel';
+import { useUnreads } from '@/state/activity';
 import {
   useGang,
   useGroup,
@@ -94,7 +94,7 @@ function Groups() {
 
       const allUnreads = _.mapKeys(unreads, (k, v) => k);
       const channel = Object.entries(group.channels).find(
-        ([nest]) => nest in allUnreads
+        ([nest]) => `channel/${nest}` in allUnreads
       );
 
       canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);

@@ -1,12 +1,12 @@
 /* eslint-disable import/no-cycle */
 import { faker } from '@faker-js/faker';
+import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Posts,
   Story,
   storyFromChatStory,
 } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
 import { decToUd, unixToDa } from '@urbit/api';
 import { subDays, subMinutes } from 'date-fns';
 import _ from 'lodash';
@@ -136,7 +136,7 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList: DMUnreads = {
+export const dmList: Unreads = {
   '~fabled-faster': {
     recency: 0,
     count: 0,
