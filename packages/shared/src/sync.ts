@@ -4,6 +4,14 @@ import { createDevLogger } from './debug';
 
 const logger = createDevLogger('sync', false);
 
+export const syncInitData = async () => {
+  const initData = await api.getInitData();
+  await db.insertPinnedItems(initData.pins);
+  await db.insertGroups(initData.groups);
+  await db.insertUnreads(initData.unreads);
+  await db.insertChannels(initData.channels);
+};
+
 export const syncContacts = async () => {
   const contacts = await api.getContacts();
   await db.insertContacts(contacts);
@@ -135,11 +143,8 @@ async function persistPagedPostData(
 
 export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
-    ['pinnedItems', syncPinnedItems],
+    ['initData', syncInitData],
     ['contacts', syncContacts],
-    ['groups', syncGroups],
-    ['dms', syncDms],
-    ['unreads', syncUnreads],
     ['posts', syncPosts],
   ];
 
