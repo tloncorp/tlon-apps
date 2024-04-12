@@ -850,6 +850,8 @@ export const insertPinnedItems = createWriteQuery(
   async (pinnedItems: Pin[]) => {
     return client.transaction(async (tx) => {
       await tx.delete($pins);
+      // users may not have pinned items
+      if (!pinnedItems.length) return;
       await tx.insert($pins).values(pinnedItems);
     });
   },
