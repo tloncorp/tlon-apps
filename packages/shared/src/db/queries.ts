@@ -457,7 +457,11 @@ export const getStaleChannels = createReadQuery(
           lt($channels.remoteUpdatedAt, $unreads.updatedAt)
         )
       )
-      .orderBy(desc($unreads.updatedAt));
+      .leftJoin(
+        $pins,
+        or(eq($pins.itemId, $channels.id), eq($pins.itemId, $channels.groupId))
+      )
+      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
   },
   ['channels']
 );
