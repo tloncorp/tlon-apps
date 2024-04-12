@@ -1,4 +1,5 @@
 import { formatUd, unixToDa } from '@urbit/aura';
+import {useMemo} from 'react';
 
 import * as ub from './channel';
 import * as ubc from './content';
@@ -284,4 +285,17 @@ export function createMessage(
   }
 
   return { id, cacheId, delta };
+}
+
+
+export function whomIsDm(whom: string): boolean {
+  return whom.startsWith('~') && !whom.match('/');
+}
+
+export function whomIsMultiDm(whom: string): boolean {
+  return whom.startsWith(`0v`);
+}
+
+export function useIsDmOrMultiDm(whom: string) {
+  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }

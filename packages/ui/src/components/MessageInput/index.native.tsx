@@ -56,7 +56,7 @@ export function MessageInput({
 }: {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: JSONContent, channelId: string) => Promise<void>;
+  send: (content: JSONContent, chatId: string) => Promise<void>;
   channelId: string;
 }) {
   const [conatinerHeight, setContainerHeight] = useState(0);
@@ -93,8 +93,6 @@ export function MessageInput({
       await send(json, channelId);
 
       editor.setContent('');
-
-      console.log('sending message', json, channelId);
     });
   }, [editor, send, channelId]);
 
@@ -172,7 +170,7 @@ export function MessageInput({
             `}
           />
         </XStack>
-        <IconButton onPress={() => {}}>
+        <IconButton onPress={handleEnter}>
           {/* TODO: figure out what send button should look like */}
           <Send />
         </IconButton>
