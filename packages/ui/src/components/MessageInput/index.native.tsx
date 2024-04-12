@@ -7,7 +7,6 @@ import {
 } from '@10play/tentap-editor';
 import { JSONContent } from '@tiptap/core';
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';

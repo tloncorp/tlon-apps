@@ -1,9 +1,5 @@
 {
   "name": "@tloncorp/editor",
-  "files": [
-    "src",
-    "dist"
-  ],
   "scripts": {
     "dev-message-input": "vite",
     "dev-notebook": "vite --mode notebook",
