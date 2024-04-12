@@ -1,14 +1,8 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
-import {
-  Avatar,
-  Circle,
-  Icon,
-  SizableText,
-  View,
-  useStyle,
-} from '@tloncorp/ui';
+import { Circle, Icon, SizableText, View, useStyle } from '@tloncorp/ui';
+import { Avatar } from '@tloncorp/ui/src/index';
 import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';
@@ -108,9 +102,17 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const { result: contact } = db.useContact({ id });
-  return (
-    <Avatar contact={contact} contactId={id} opacity={focused ? 1 : 0.6} />
+  const { result: contact, isLoading } = db.useContact({ id });
+  return isLoading && !contact ? null : (
+    // Uniquely sized avatar for tab bar
+    <Avatar
+      width={20}
+      height={20}
+      borderRadius={3}
+      contact={contact}
+      contactId={id}
+      opacity={focused ? 1 : 0.6}
+    />
   );
 }
 

@@ -1,5 +1,5 @@
 export * from './core';
-
+export * from './utils';
 export * from './components/Avatar';
 export * from './components/Channel';
 export * from './components/Icon';
