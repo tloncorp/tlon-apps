@@ -160,10 +160,11 @@ function toClientGroupMember({
   groupId: string;
   contactId: string;
   vessel: { sects: string[]; joined: number };
-}): db.GroupMemberInsert {
+}): db.ChatMemberInsert {
   return {
+    membershipType: 'group',
     contactId,
-    groupId,
+    chatId: groupId,
     roles: vessel.sects.map((roleId) => ({
       groupId,
       contactId,

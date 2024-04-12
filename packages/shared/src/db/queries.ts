@@ -16,7 +16,6 @@ import {
   isNotNull,
   isNull,
   lt,
-  not,
   or,
   sql,
 } from 'drizzle-orm';
@@ -24,12 +23,11 @@ import {
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
-  channelMembers as $channelMembers,
   channels as $channels,
+  chatMemberGroupRoles as $chatMemberGroupRoles,
+  chatMembers as $chatMembers,
   contactGroups as $contactGroups,
   contacts as $contacts,
-  groupMemberRoles as $groupMemberRoles,
-  groupMembers as $groupMembers,
   groupNavSectionChannels as $groupNavSectionChannels,
   groupNavSections as $groupNavSections,
   groupRoles as $groupRoles,
@@ -40,9 +38,9 @@ import {
 } from './schema';
 import {
   ChannelInsert,
-  ChannelMember,
   ChannelSummary,
   ChannelWithLastPostAndMembers,
+  ChatMember,
   Contact,
   ContactInsert,
   GroupInsert,
@@ -139,7 +137,7 @@ export const getChats = createReadQuery(
         pin: getTableColumns($pins),
         lastPost: getTableColumns($posts),
         member: {
-          ...getTableColumns($channelMembers),
+          ...getTableColumns($chatMembers),
         },
         contact: getTableColumns($contacts),
       })
@@ -154,12 +152,12 @@ export const getChats = createReadQuery(
         )
       )
       .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
-      .leftJoin($channelMembers, eq($channelMembers.channelId, allChannels.id))
-      .leftJoin($contacts, eq($contacts.id, $channelMembers.contactId))
+      .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
+      .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
       .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
-    const [channelMembers, filteredChannels] = result.reduce<
+    const [chatMembers, filteredChannels] = result.reduce<
       [
-        Record<string, (ChannelMember & { contact: Contact | null })[]>,
+        Record<string, (ChatMember & { contact: Contact | null })[]>,
         typeof result,
       ]
     >(
@@ -182,7 +180,7 @@ export const getChats = createReadQuery(
     return filteredChannels.map((c) => {
       return {
         ...c,
-        members: channelMembers[c.id] ?? null,
+        members: chatMembers[c.id] ?? null,
       };
     });
   },
@@ -207,8 +205,8 @@ export const insertGroups = createWriteQuery(
     'groups',
     'groupRoles',
     'contacts',
-    'groupMembers',
-    'groupMemberRoles',
+    'chatMembers',
+    'chatMemberGroupRoles',
     'channels',
     'pins',
   ]
@@ -313,7 +311,7 @@ const insertGroup = async (group: GroupInsert) => {
         .values(group.members.map((m) => ({ id: m.contactId })))
         .onConflictDoNothing();
       await client
-        .insert($groupMembers)
+        .insert($chatMembers)
         .values(group.members)
         .onConflictDoNothing();
       const validRoleNames = group.roles?.map((r) => r.id);
@@ -335,7 +333,7 @@ const insertGroup = async (group: GroupInsert) => {
       });
       if (memberRoles.length) {
         await client
-          .insert($groupMemberRoles)
+          .insert($chatMemberGroupRoles)
           .values(memberRoles)
           .onConflictDoNothing();
       }
@@ -479,9 +477,9 @@ export const insertChannels = createWriteQuery(
       for (let channel of channels) {
         if (channel.members) {
           await client
-            .delete($channelMembers)
-            .where(eq($channelMembers.channelId, channel.id));
-          await client.insert($channelMembers).values(channel.members);
+            .delete($chatMembers)
+            .where(eq($chatMembers.chatId, channel.id));
+          await client.insert($chatMembers).values(channel.members);
         }
       }
     });

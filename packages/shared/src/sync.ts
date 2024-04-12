@@ -8,7 +8,7 @@ export const syncInitData = async () => {
   const initData = await api.getInitData();
   await db.insertPinnedItems(initData.pins);
   await db.insertGroups(initData.groups);
-  await db.insertUnreads(initData.unreads);
+  await resetUnreads(initData.unreads);
   await db.insertChannels(initData.channels);
 };
 
@@ -38,6 +38,10 @@ export const syncUnreads = async () => {
     api.getDMUnreads(),
   ]);
   const unreads = [...channelUnreads, ...dmUnreads];
+  await resetUnreads(unreads);
+};
+
+const resetUnreads = async (unreads: db.UnreadInsert[]) => {
   await db.insertUnreads(unreads);
   await db.setJoinedGroupChannels({
     channelIds: unreads
