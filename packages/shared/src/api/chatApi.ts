@@ -13,9 +13,7 @@ export const markChatRead = (whom: string) =>
     },
   });
 
-export type GetDmsResponse = (db.ChannelInsert & {
-  members: db.ChannelMember[];
-})[];
+export type GetDmsResponse = db.ChannelInsert[];
 
 export const getDms = async (): Promise<GetDmsResponse> => {
   const result = (await scry({ app: 'chat', path: '/dm' })) as string[];
@@ -23,13 +21,13 @@ export const getDms = async (): Promise<GetDmsResponse> => {
 };
 
 export const toClientDms = (dmContacts: string[]) => {
-  return dmContacts.map((id) => {
+  return dmContacts.map((id): db.ChannelInsert => {
     return {
       id,
       type: 'dm' as const,
       title: '',
       description: '',
-      members: [{ channelId: id, contactId: id }],
+      members: [{ chatId: id, contactId: id, membershipType: 'channel' }],
     };
   });
 };
@@ -40,13 +38,18 @@ export const getGroupDms = async (): Promise<GetDmsResponse> => {
 };
 
 export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
-  return Object.entries(groupDms).map(([id, club]) => ({
-    id,
-    type: 'groupDm',
-    ...toClientMeta(club.meta),
-    members: club.team.map((member) => ({
-      contactId: member,
-      channelId: id,
-    })),
-  }));
+  return Object.entries(groupDms).map(
+    ([id, club]): db.ChannelInsert => ({
+      id,
+      type: 'groupDm',
+      ...toClientMeta(club.meta),
+      members: club.team.map(
+        (member): db.ChatMemberInsert => ({
+          contactId: member,
+          chatId: id,
+          membershipType: 'channel',
+        })
+      ),
+    })
+  );
 };

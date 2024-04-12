@@ -141,9 +141,11 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     members: [
       {
-        channelId: '~solfer-magfed',
+        chatId: '~solfer-magfed',
         contactId: '~solfer-magfed',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
     ],
   });
@@ -172,34 +174,46 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     members: [
       {
-        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
         contactId: '~finned-palmer',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
       {
-        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
         contactId: '~nocsyx-lassul',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
       {
-        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
         contactId: '~palfun-foslup',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
       {
-        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
         contactId: '~pondus-watbel',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
       {
-        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
         contactId: '~rilfun-lidlen',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
       {
-        channelId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
         contactId: '~solfer-magfed',
         contact: null,
+        joinedAt: null,
+        membershipType: 'channel',
       },
     ],
   });

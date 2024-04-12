@@ -9,7 +9,7 @@ export interface InitData {
   pins: db.Pin[];
   groups: db.Group[];
   unreads: db.Unread[];
-  channels: db.Channel[];
+  channels: db.ChannelInsert[];
 }
 
 export const getInitData = async () => {
