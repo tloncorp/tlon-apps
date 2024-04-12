@@ -135,7 +135,7 @@ export const groups = sqliteTable('groups', {
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
   roles: many(groupRoles),
-  members: many(groupMembers),
+  members: many(chatMembers),
   navSections: many(groupNavSections),
   channels: many(channels),
   posts: many(posts),
@@ -160,48 +160,50 @@ export const groupRoles = sqliteTable(
 );
 
 export const groupRolesRelations = relations(groupRoles, ({ one, many }) => ({
-  members: many(groupMemberRoles),
+  members: many(chatMemberGroupRoles),
   group: one(groups, {
     fields: [groupRoles.groupId],
     references: [groups.id],
   }),
 }));
 
-export const groupMembers = sqliteTable(
+export const chatMembers = sqliteTable(
   'group_members',
   {
-    groupId: text('group_id')
-      .references(() => groups.id)
+    membershipType: text('membership_type')
+      .$type<'group' | 'channel'>()
       .notNull(),
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    chatId: text('chat_id'),
+    contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
   },
   (table) => {
     return {
-      pk: primaryKey({ columns: [table.groupId, table.contactId] }),
+      pk: primaryKey({
+        columns: [table.chatId, table.contactId],
+      }),
     };
   }
 );
 
-export const groupMembersRelations = relations(
-  groupMembers,
-  ({ one, many }) => ({
-    roles: many(groupMemberRoles),
-    group: one(groups, {
-      fields: [groupMembers.groupId],
-      references: [groups.id],
-    }),
-    contact: one(contacts, {
-      fields: [groupMembers.contactId],
-      references: [contacts.id],
-    }),
-  })
-);
+export const chatMembersRelations = relations(chatMembers, ({ one, many }) => ({
+  roles: many(chatMemberGroupRoles),
+  group: one(groups, {
+    fields: [chatMembers.chatId],
+    references: [groups.id],
+  }),
+  channel: one(channels, {
+    fields: [chatMembers.chatId],
+    references: [channels.id],
+  }),
+  contact: one(contacts, {
+    fields: [chatMembers.contactId],
+    references: [contacts.id],
+  }),
+}));
 
-export const groupMemberRoles = sqliteTable(
-  'group_member_roles',
+export const chatMemberGroupRoles = sqliteTable(
+  'chat_member_roles',
   {
     groupId: text('group_id')
       .references(() => groups.id)
@@ -220,15 +222,15 @@ export const groupMemberRoles = sqliteTable(
   }
 );
 
-export const groupMemberRolesRelations = relations(
-  groupMemberRoles,
+export const chatMemberRolesRelations = relations(
+  chatMemberGroupRoles,
   ({ one }) => ({
-    groupMember: one(groupMembers, {
-      fields: [groupMemberRoles.groupId, groupMemberRoles.contactId],
-      references: [groupMembers.groupId, groupMembers.contactId],
+    groupMember: one(chatMembers, {
+      fields: [chatMemberGroupRoles.groupId, chatMemberGroupRoles.contactId],
+      references: [chatMembers.chatId, chatMembers.contactId],
     }),
     groupRole: one(groupRoles, {
-      fields: [groupMemberRoles.groupId, groupMemberRoles.roleId],
+      fields: [chatMemberGroupRoles.groupId, chatMemberGroupRoles.roleId],
       references: [groupRoles.groupId, groupRoles.id],
     }),
   })
@@ -320,33 +322,7 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
     references: [unreads.channelId],
   }),
   threadUnreads: many(threadUnreads),
-  members: many(channelMembers),
-}));
-
-export const channelMembers = sqliteTable(
-  'channel_members',
-  {
-    channelId: text('channel_id')
-      .references(() => channels.id)
-      .notNull(),
-    contactId: text('contact_id').notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.channelId, table.contactId] }),
-    };
-  }
-);
-
-export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
-  channel: one(channels, {
-    fields: [channelMembers.channelId],
-    references: [channels.id],
-  }),
-  contact: one(contacts, {
-    fields: [channelMembers.contactId],
-    references: [contacts.id],
-  }),
+  members: many(chatMembers),
 }));
 
 export const posts = sqliteTable('posts', {

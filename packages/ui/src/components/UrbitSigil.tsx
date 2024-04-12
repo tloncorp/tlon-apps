@@ -1,65 +1,40 @@
-// Note: the import statement for sigil is different in the native version
-// The native version uses the core entry point of sigil-js
-// The web version uses the default entry point of sigil-js
-import { utils } from '@tloncorp/shared';
-import sigil from '@urbit/sigil-js';
 import { useMemo } from 'react';
-import { useColorScheme } from 'react-native';
-// import { SvgXml } from 'react-native-svg';
-import { View } from 'tamagui';
 
-import {
-  UrbitSigilBase,
-  foregroundFromBackground,
-  themeAdjustColor,
-} from './UrbitSigilBase';
+import { UrbitSigilSvg, makeSigil } from './UrbitSigilSvg';
 
-const UrbitSigilWeb = View.styleable<{
-  ship: string;
-  color?: string;
-}>(({ ship, color, ...props }, ref) => {
-  const colorScheme = useColorScheme();
-  const colorIsFullHex = color?.startsWith('#') && color?.length === 7;
-  const adjustedColor = useMemo(
-    () =>
-      themeAdjustColor(
-        utils.normalizeUrbitColor(
-          // TODO: Figure out where '#0' comes from
-          !colorIsFullHex ? '#000000' : color ?? '#000000'
-        ),
-        colorScheme ?? 'light'
-      ),
-    [color, colorScheme]
-  );
-
-  const foregroundColor = useMemo(
-    () => foregroundFromBackground(adjustedColor),
-    [adjustedColor]
-  );
-
-  const validShip = ship.length <= 14; // planet or larger
+function UrbitSigil({
+  contactId,
+  colors,
+  renderDetail = false,
+  padding = 'none',
+  size = 24,
+  ...props
+}: {
+  contactId: string;
+  colors?: {
+    backgroundColor: string;
+    foregroundColor: string;
+  };
+  renderDetail?: boolean;
+  padding?: 'none' | 'default' | 'large';
+  size?: number;
+}) {
+  const validId = contactId.length <= 14; // planet or larger
   const sigilXml = useMemo(
     () =>
-      validShip
-        ? sigil({
-            point: ship,
-            detail: 'none',
-            size: 12,
-            space: 'none',
-            foreground: foregroundColor,
-            background: adjustedColor,
+      validId
+        ? makeSigil({
+            point: contactId,
+            detail: renderDetail ? 'default' : 'none',
+            size: size,
+            space: padding,
+            foreground: colors?.foregroundColor,
+            background: colors?.backgroundColor,
           })
         : null,
-    [ship]
+    [contactId, validId, size, colors?.foregroundColor, colors?.backgroundColor]
   );
-  return (
-    <UrbitSigilBase ship={ship} adjustedColor={adjustedColor}>
-      {/* TODO: get the svg to render on web
-       including this now breaks the vite build
-      sigilXml && <SvgXml xml={sigilXml} />
-      */}
-    </UrbitSigilBase>
-  );
-});
+  return sigilXml ? <UrbitSigilSvg xml={sigilXml} /> : null;
+}
 
-export default UrbitSigilWeb;
+export default UrbitSigil;

@@ -20,7 +20,7 @@ export function getChannelTitle(channel: db.ChannelWithLastPostAndMembers) {
 }
 
 export function getChannelMemberName(
-  member: db.ChannelMember & { contact: db.Contact | null }
+  member: db.ChatMember & { contact: db.Contact | null }
 ) {
   return member.contact?.nickname ? member.contact.nickname : member.contactId;
 }
