@@ -22,7 +22,7 @@ function makeChannelSummary({
   channel?: Partial<db.Channel>;
   group?: db.GroupSummary;
   lastPost?: db.Post;
-  members?: (db.ChannelMember & { contact: db.Contact | null })[];
+  members?: (db.ChatMember & { contact: db.Contact | null })[];
 }): db.ChannelSummary {
   return {
     id: 'channel-' + id++,
@@ -56,7 +56,15 @@ function makeChannelSummary({
 const dmSummary = makeChannelSummary({
   channel: { type: 'dm' },
   lastPost: createFakePost(),
-  members: [{ contactId: '~solfer-magfed', channelId: '', contact: null }],
+  members: [
+    {
+      contactId: '~solfer-magfed',
+      chatId: '',
+      contact: null,
+      membershipType: 'channel',
+      joinedAt: null,
+    },
+  ],
 });
 
 const groupDmSummary = makeChannelSummary({
@@ -64,13 +72,27 @@ const groupDmSummary = makeChannelSummary({
   lastPost: createFakePost(),
   group: groupWithLongTitle,
   members: [
-    { contactId: '~finned-palmer', channelId: '', contact: null },
+    {
+      contactId: '~finned-palmer',
+      chatId: '',
+      contact: null,
+      membershipType: 'channel',
+      joinedAt: null,
+    },
     {
       contactId: '~latter-bolden',
-      channelId: '',
+      chatId: '',
       contact: { nickname: 'LaTtEr BoLdEn' } as db.Contact,
+      membershipType: 'channel',
+      joinedAt: null,
     },
-    { contactId: '~solfer-magfed', channelId: '', contact: null },
+    {
+      contactId: '~solfer-magfed',
+      chatId: '',
+      contact: null,
+      membershipType: 'channel',
+      joinedAt: null,
+    },
   ],
 });
 

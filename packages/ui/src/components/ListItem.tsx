@@ -143,12 +143,7 @@ const ListItemAvatarIcon = ({
 }) => {
   return (
     <ListItemIconContainer backgroundColor={backgroundColor}>
-      <Avatar
-        width="$4xl"
-        height="$4xl"
-        contactId={contactId}
-        contact={contact}
-      />
+      <Avatar size={'$4xl'} contactId={contactId} contact={contact} />
     </ListItemIconContainer>
   );
 };

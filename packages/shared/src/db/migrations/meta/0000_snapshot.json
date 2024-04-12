@@ -1,54 +1,9 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "05041379-6dbd-46ba-ad24-789dda223058",
+  "id": "2f70dd04-f8d9-44b4-a7e5-8c635500533c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "channel_members": {
-      "name": "channel_members",
-      "columns": {
-        "channel_id": {
-          "name": "channel_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "channel_members_channel_id_channels_id_fk": {
-          "name": "channel_members_channel_id_channels_id_fk",
-          "tableFrom": "channel_members",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "channel_members_channel_id_contact_id_pk": {
-          "columns": [
-            "channel_id",
-            "contact_id"
-          ],
-          "name": "channel_members_channel_id_contact_id_pk"
-        }
-      },
-      "uniqueConstraints": {}
-    },
     "channels": {
       "name": "channels",
       "columns": {
@@ -198,6 +153,117 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
+    "chat_member_roles": {
+      "name": "chat_member_roles",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role_id": {
+          "name": "role_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "chat_member_roles_group_id_groups_id_fk": {
+          "name": "chat_member_roles_group_id_groups_id_fk",
+          "tableFrom": "chat_member_roles",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "chat_member_roles_contact_id_contacts_id_fk": {
+          "name": "chat_member_roles_contact_id_contacts_id_fk",
+          "tableFrom": "chat_member_roles",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chat_member_roles_group_id_contact_id_role_id_pk": {
+          "columns": [
+            "contact_id",
+            "group_id",
+            "role_id"
+          ],
+          "name": "chat_member_roles_group_id_contact_id_role_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "group_members": {
+      "name": "group_members",
+      "columns": {
+        "membership_type": {
+          "name": "membership_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "group_members_chat_id_contact_id_pk": {
+          "columns": [
+            "chat_id",
+            "contact_id"
+          ],
+          "name": "group_members_chat_id_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "contact_group_pins": {
       "name": "contact_group_pins",
       "columns": {
@@ -312,137 +378,6 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "group_member_roles": {
-      "name": "group_member_roles",
-      "columns": {
-        "group_id": {
-          "name": "group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "role_id": {
-          "name": "role_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "group_member_roles_group_id_groups_id_fk": {
-          "name": "group_member_roles_group_id_groups_id_fk",
-          "tableFrom": "group_member_roles",
-          "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "group_member_roles_contact_id_contacts_id_fk": {
-          "name": "group_member_roles_contact_id_contacts_id_fk",
-          "tableFrom": "group_member_roles",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "group_member_roles_group_id_contact_id_role_id_pk": {
-          "columns": [
-            "contact_id",
-            "group_id",
-            "role_id"
-          ],
-          "name": "group_member_roles_group_id_contact_id_role_id_pk"
-        }
-      },
-      "uniqueConstraints": {}
-    },
-    "group_members": {
-      "name": "group_members",
-      "columns": {
-        "group_id": {
-          "name": "group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "joined_at": {
-          "name": "joined_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "group_members_group_id_groups_id_fk": {
-          "name": "group_members_group_id_groups_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "group_members_contact_id_contacts_id_fk": {
-          "name": "group_members_contact_id_contacts_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "group_members_group_id_contact_id_pk": {
-          "columns": [
-            "contact_id",
-            "group_id"
-          ],
-          "name": "group_members_group_id_contact_id_pk"
-        }
-      },
       "uniqueConstraints": {}
     },
     "group_nav_section_channels": {

@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addCustomEnabledLoggers } from '@tloncorp/shared';
+import { setStorage } from '@tloncorp/ui';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
 import polyfill from 'react-native-polyfill-globals';
@@ -16,6 +18,7 @@ import utilities from './tailwind.json';
 polyfill();
 setupDb();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
+setStorage(AsyncStorage);
 
 function Main(props) {
   return (

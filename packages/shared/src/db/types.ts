@@ -51,24 +51,26 @@ export type GroupSummary = Group & {
 };
 
 export type GroupWithRelations = Group & {
-  members: GroupMember[];
+  members: ChatMember[];
   roles: GroupRole[];
   channels: ChannelWithLastPostAndMembers[];
   navSections: GroupNavSectionWithRelations[];
 };
 
 export type GroupWithMembersAndRoles = Group & {
-  members: GroupMember[];
+  members: ChatMember[];
   roles: GroupRole[];
 };
 
 export type GroupInsert = Insertable<'groups'>;
 export type GroupRole = typeof schema.groupRoles.$inferSelect;
 export type GroupRoleInsert = typeof schema.groupRoles.$inferInsert;
-export type GroupMember = typeof schema.groupMembers.$inferSelect;
-export type GroupMemberInsert = Insertable<'groupMembers'>;
-export type GroupMemberRole = typeof schema.groupMemberRoles.$inferSelect;
-export type GroupMemberRoleInsert = typeof schema.groupMemberRoles.$inferInsert;
+export type ChatMember = typeof schema.chatMembers.$inferSelect;
+export type ChatMemberInsert = Insertable<'chatMembers'>;
+export type ChatMemberGroupRole =
+  typeof schema.chatMemberGroupRoles.$inferSelect;
+export type ChatMemberGroupRoleInsert =
+  typeof schema.chatMemberGroupRoles.$inferInsert;
 export type GroupNavSection = typeof schema.groupNavSections.$inferSelect;
 export type GroupNavSectionInsert = typeof schema.groupNavSections.$inferInsert;
 export type GroupNavSectionWithRelations = GroupNavSection & {
@@ -85,18 +87,17 @@ export type ChannelWithRelations = Channel & {
   lastPost: Post | null;
   threadUnreadStates: ThreadUnreadState[];
 };
-export type ChannelMember = typeof schema.channelMembers.$inferSelect;
 export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
 export type ChannelWithLastPostAndMembers = Channel & {
   lastPost: Post | null;
-  members?: (ChannelMember & { contact: Contact | null })[] | null;
+  members?: (ChatMember & { contact: Contact | null })[] | null;
 };
 
 export type ChannelSummary = Channel & {
   unread: Unread | null;
   lastPost: Post | null;
   group: Group | null;
-  members: (ChannelMember & { contact: Contact | null })[] | null;
+  members: (ChatMember & { contact: Contact | null })[] | null;
   pin?: Pin | null;
 };
 

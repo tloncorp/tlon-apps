@@ -5,14 +5,12 @@ import { markChatRead } from '@tloncorp/shared/dist/api';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
-import { useWebViewContext } from '../contexts/webview/webview';
 import { connectNotifications } from '../lib/notifications';
 import type { TabParamList } from '../types';
 import { getPathFromWer } from '../utils/string';
 
 export default function useNotificationListener(initialNotifPath?: string) {
   const navigation = useNavigation<NavigationProp<TabParamList>>();
-  const webviewContext = useWebViewContext();
   const [gotoPath, setGotoPath] = useState<string | null>(
     initialNotifPath ?? null
   );
@@ -51,7 +49,7 @@ export default function useNotificationListener(initialNotifPath?: string) {
       // Clean up listeners
       notificationTapListener.remove();
     };
-  }, [navigation, webviewContext]);
+  }, [navigation]);
 
   // If notification tapped, broadcast that navigation update to the
   // webview and mark as handled
@@ -67,5 +65,5 @@ export default function useNotificationListener(initialNotifPath?: string) {
     // navigation.navigate(tab, { screen: 'Webview' });
     // setGotoPath(null);
     // }
-  }, [gotoPath, webviewContext, navigation]);
+  }, [gotoPath, navigation]);
 }

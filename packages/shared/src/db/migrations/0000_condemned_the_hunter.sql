@@ -1,10 +1,3 @@
-CREATE TABLE `channel_members` (
-	`channel_id` text NOT NULL,
-	`contact_id` text NOT NULL,
-	PRIMARY KEY(`channel_id`, `contact_id`),
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
 CREATE TABLE `channels` (
 	`id` text PRIMARY KEY NOT NULL,
 	`type` text NOT NULL,
@@ -27,6 +20,23 @@ CREATE TABLE `channels` (
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE TABLE `chat_member_roles` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`role_id` text NOT NULL,
+	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `group_members` (
+	`membership_type` text NOT NULL,
+	`chat_id` text,
+	`contact_id` text NOT NULL,
+	`joined_at` integer,
+	PRIMARY KEY(`chat_id`, `contact_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `contact_group_pins` (
 	`contact_id` text NOT NULL,
 	`group_id` text NOT NULL,
@@ -43,24 +53,6 @@ CREATE TABLE `contacts` (
 	`color` text,
 	`avatarImage` text,
 	`coverImage` text
-);
---> statement-breakpoint
-CREATE TABLE `group_member_roles` (
-	`group_id` text NOT NULL,
-	`contact_id` text NOT NULL,
-	`role_id` text NOT NULL,
-	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE TABLE `group_members` (
-	`group_id` text NOT NULL,
-	`contact_id` text NOT NULL,
-	`joined_at` integer,
-	PRIMARY KEY(`contact_id`, `group_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (
