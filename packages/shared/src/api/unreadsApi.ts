@@ -1,3 +1,5 @@
+import { daToDate, decToUd, udToDec } from '@urbit/api';
+
 import * as db from '../db';
 import { threadUnreads } from '../db/schema';
 import type * as ub from '../urbit';
@@ -80,7 +82,9 @@ export const toClientUnread = (
     countWithoutThreads: unread.unread?.count ?? 0,
     firstUnreadPostId: unread.unread?.id ?? null,
     firstUnreadPostReceivedAt: unread.unread?.id
-      ? udToDate(unread.unread?.id)
+      ? type === 'dm'
+        ? udToDate(decToUd(unread.unread.id.split('/')[1]))
+        : udToDate(unread.unread.id)
       : null,
     threadUnreads: Object.entries(unread.threads ?? {}).map(
       ([threadId, thread]) =>
