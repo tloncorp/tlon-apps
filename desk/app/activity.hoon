@@ -146,15 +146,70 @@
   ?+  pole  [~ ~]
       [%x ~]
     ``activity-full+!>([stream indices (~(run by indices) summarize-unreads)])
+  ::
+  ::  /all: unified feed (equality of opportunity)
+  ::
       [%x %all ~]
     ``activity-stream+!>((tap:on-event:a stream))
+  ::
       [%x %all start=@ count=@ ~]
     =-  ``activity-stream+!>(-)
     (tab:on-event:a stream `(slav %da start.pole) (slav %ud count.pole))
+  ::
+  ::  /each: unified feed (equality of outcome)
+  ::TODO  want to be able to filter for specific events kind too, but that will
+  ::      suffer from the "search range" "problem", where we want .count to
+  ::      mean entries trawled, not entries returned...
+  ::
+      [%x %each start=@ count=@ ~]
+    =;  =stream:a
+      ``activity-stream+!>((tap:on-event:a -))
+    =/  start  (slav %da start.pole)
+    =/  count  (slav %ud count.pole)
+    %-  ~(rep by indices)
+    |=  [[=index:a =stream:a =reads:a] out=stream:a]
+    ^+  out
+    ::REVIEW  key overlaps possible?
+    (gas:on-event:a out (tab:on-event:a stream `start count))
+  ::
+  ::  /indexed: per-index
+  ::
+      [%x %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+    =/  =index:a
+      ?-  -.concern.pole
+          %dm
+        :-  %dm
+        ?^  ship=(slaw %p whom.concern.pole)
+          [%ship u.ship]
+        [%club (slav %uv whom.concern.pole)]
+      ::
+          %channel
+        =,  concern.pole
+        [%channel [nk (slav %p ns) nt] [(slav %p gs) gt]]
+      ==
+    =/  rest=(^pole knot)
+      ?-  -.concern.pole
+        %dm       rest.concern.pole
+        %channel  rest.concern.pole
+      ==
+    ?~  dice=(~(get by indices) index)  [~ ~]
+    ?+  rest  ~
+        ~
+      ``activity-stream+!>((tap:on-event:a stream.u.dice))
+    ::
+        [start=@ count=@ ~]
+      =/  start  (slav %da start.rest)
+      =/  count  (slav %ud count.rest)
+      ``activity-stream+!>((tab:on-event:a stream.u.dice `start count))
+    ==
+  ::  /event: individual events
+  ::
       [%u %event id=@ ~]
     ``loob+!>((has:on-event:a stream (slav %da id.pole)))
+  ::
       [%x %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream (slav %da id.pole))])
+  ::
       [%x %unreads ~]
     ``activity-unreads+!>((~(run by indices) summarize-unreads))
   ==
