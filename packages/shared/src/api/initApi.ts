@@ -15,7 +15,7 @@ export interface InitData {
 export const getInitData = async () => {
   const response = await scry<ub.GroupsInit>({
     app: 'groups-ui',
-    path: '/init',
+    path: '/v1/init',
   });
   // TODO: handle gangs,possibly handle response.channels, but not sure if
   // necessary.

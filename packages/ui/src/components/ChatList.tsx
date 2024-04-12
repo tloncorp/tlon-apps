@@ -24,6 +24,10 @@ export function ChatList({
   onLongPressItem?: (chat: db.ChannelSummary) => void;
 }) {
   const data = useMemo(() => {
+    if (pinned.length === 0) {
+      return [{ title: 'All', data: unpinned }];
+    }
+
     return [
       { title: 'Pinned', data: pinned },
       { title: 'All', data: unpinned },
