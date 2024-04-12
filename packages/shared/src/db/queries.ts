@@ -324,7 +324,6 @@ const insertGroup = async (group: GroupInsert) => {
           // exist in the group's cabals. Should figure out if this is expected
           // behavior if we should try retain the role.
           if (!validRoleNames?.includes(r.roleId)) {
-            console.warn('discarding invalid role', r.contactId, r.roleId);
             return [];
           }
           return {
@@ -420,7 +419,7 @@ export const getChannel = createReadQuery(
 );
 
 export const getChannelWithLastPostAndMembers = createReadQuery(
-  'getChannelWithMembers',
+  'getChannelWithLastPostAndMembers',
   async ({
     id,
   }: {
@@ -504,12 +503,15 @@ export const updateChannel = createWriteQuery(
   ['channels']
 );
 
-export const setJoinedChannels = createWriteQuery(
-  'setJoinedChannels',
-  ({ channelIds }: { channelIds: string[] }) => {
-    return client
+export const setJoinedGroupChannels = createWriteQuery(
+  'setJoinedGroupChannels',
+  async ({ channelIds }: { channelIds: string[] }) => {
+    return await client
       .update($channels)
-      .set({ currentUserIsMember: inArray($channels.id, channelIds) });
+      .set({
+        currentUserIsMember: inArray($channels.id, channelIds),
+      })
+      .where(isNotNull($channels.groupId));
   },
   ['channels']
 );

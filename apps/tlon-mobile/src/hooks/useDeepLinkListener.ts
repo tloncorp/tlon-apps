@@ -6,14 +6,12 @@ import { Alert } from 'react-native';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { useWebViewContext } from '../contexts/webview/webview';
 import { inviteShipWithLure } from '../lib/hostingApi';
 import type { TabParamList } from '../types';
 import { trackError } from '../utils/posthog';
 
 export const useDeepLinkListener = () => {
   const navigation = useNavigation<NavigationProp<TabParamList>>();
-  const webviewContext = useWebViewContext();
   const { ship } = useShip();
   const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
 
@@ -62,5 +60,5 @@ export const useDeepLinkListener = () => {
     // navigation.navigate(tab, { screen: 'Webview' });
     // clearDeepLink();
     // }
-  }, [deepLinkPath, webviewContext, navigation, clearDeepLink]);
+  }, [deepLinkPath, navigation, clearDeepLink]);
 };
