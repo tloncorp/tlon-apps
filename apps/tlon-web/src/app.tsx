@@ -187,6 +187,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
           <Route element={<GroupsNav />}>
+            <Route path="/find/:ship/:name" element={<GroupPreviewModal />} />
             <Route path="/groups" element={<GroupsNav />} />
             <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
             <Route
