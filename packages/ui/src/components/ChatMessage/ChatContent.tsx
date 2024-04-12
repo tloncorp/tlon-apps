@@ -19,7 +19,7 @@ import {
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 
-import { Image, SizableText, View, YStack } from '../../core';
+import { Image, SizableText, Text, View, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
 
@@ -45,45 +45,51 @@ export function InlineContent({ story }: { story: Inline | null }) {
   if (typeof story === 'string') {
     if (utils.isSingleEmoji(story)) {
       return (
-        <SizableText paddingTop="$xl" size="$xl">
+        <Text paddingTop="$xl" fontSize="$xl">
           {story}
-        </SizableText>
+        </Text>
       );
     }
     return (
-      <SizableText color="$primaryText" size="$m">
+      <Text color="$primaryText" fontSize="$m">
         {story}
-      </SizableText>
+      </Text>
     );
   }
 
   if (isBold(story)) {
     return (
-      <SizableText fontWeight="$l">
+      <>
         {story.bold.map((s, k) => (
-          <InlineContent key={k} story={s} />
+          <Text fontSize="$m" fontWeight="bold" key={k}>
+            {s}
+          </Text>
         ))}
-      </SizableText>
+      </>
     );
   }
 
   if (isItalics(story)) {
     return (
-      <SizableText fontStyle="italic">
+      <>
         {story.italics.map((s, k) => (
-          <InlineContent key={k} story={s} />
+          <Text fontSize="$m" fontStyle="italic" key={k}>
+            {s}
+          </Text>
         ))}
-      </SizableText>
+      </>
     );
   }
 
   if (isStrikethrough(story)) {
     return (
-      <SizableText textDecorationLine="line-through">
+      <>
         {story.strike.map((s, k) => (
-          <InlineContent key={k} story={s} />
+          <Text fontSize="$m" textDecorationLine="line-through" key={k}>
+            {s}
+          </Text>
         ))}
-      </SizableText>
+      </>
     );
   }
 
