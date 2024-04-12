@@ -1,10 +1,12 @@
 import { utils } from '@tloncorp/shared';
+import { addPostReaction, removePostReaction } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { memo, useMemo } from 'react';
 
 import { useGroup } from '../../contexts';
-import { SizableText, View, YStack } from '../../core';
+import { Circle, SizableText, View, XStack, YStack } from '../../core';
+import { SizableEmoji } from '../Emoji/SizableEmoji';
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 
@@ -46,6 +48,29 @@ const ChatMessage = memo(
     // return utils.makePrettyDay(date);
     // }, [post.sentAt]);
 
+    const reactReduction = useMemo(() => {
+      const reactions = post.reactions;
+      const reactionDetails: Record<string, { count: number; self: boolean }> =
+        {};
+
+      reactions.forEach((r) => {
+        if (!reactionDetails[r.value]) {
+          reactionDetails[r.value] = { count: 0, self: false };
+        }
+        reactionDetails[r.value].count += 1;
+        reactionDetails[r.value].self =
+          reactionDetails[r.value].self || r.contactId === global.ship; // fix
+      });
+
+      return Object.entries(reactionDetails)
+        .map(([shortCode, details]) => ({
+          shortCode,
+          count: details.count,
+          self: details.self,
+        }))
+        .sort((a, b) => b.count - a.count); // Sort primarily by count
+    }, [post]);
+
     return (
       <YStack key={post.id} gap="$l">
         <YStack alignItems="center">
@@ -66,6 +91,42 @@ const ChatMessage = memo(
         <View paddingLeft="$4xl">
           <ChatContent story={content} />
         </View>
+        {reactReduction.length > 0 && (
+          <XStack padding="$m" paddingLeft="$4xl" borderRadius="$m">
+            {reactReduction.map((reaction) => (
+              <XStack
+                justifyContent="center"
+                alignItems="center"
+                backgroundColor={
+                  reaction.self ? '$blueSoft' : '$secondaryBackground'
+                }
+                padding="$xs"
+                borderRadius="$m"
+                onPress={() =>
+                  reaction.self
+                    ? removePostReaction(post.channelId, post.id, global.ship)
+                    : addPostReaction(
+                        post.channelId,
+                        post.id,
+                        reaction.shortCode,
+                        global.ship
+                      )
+                }
+              >
+                <SizableEmoji
+                  key={reaction.shortCode}
+                  shortCode={reaction.shortCode}
+                  fontSize="$s"
+                />
+                {reaction.count > 0 && (
+                  <SizableText marginLeft="$s" size="$s" color="$secondaryText">
+                    {reaction.count}
+                  </SizableText>
+                )}
+              </XStack>
+            ))}
+          </XStack>
+        )}
       </YStack>
     );
   }

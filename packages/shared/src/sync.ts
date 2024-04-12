@@ -68,7 +68,7 @@ export async function syncPostsBefore(post: db.Post) {
     count: 50,
     direction: 'older',
     cursor: post.id,
-    includeReplies: false,
+    includeReplies: true,
   });
   persistPagedPostData(post.channelId, postsResponse);
 }
@@ -81,7 +81,7 @@ export async function syncPostsAround(post: db.Post) {
     count: 50,
     direction: 'around',
     cursor: post.id,
-    includeReplies: false,
+    includeReplies: true,
   });
   persistPagedPostData(post.channelId, postsResponse);
 }
@@ -99,7 +99,7 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       ...(channel.lastPostId
         ? { direction: 'newer', cursor: channel.lastPostId }
         : { direction: 'older', date: new Date() }),
-      includeReplies: false,
+      includeReplies: true,
     });
     await persistPagedPostData(channel.id, postsResponse);
     logger.log(
@@ -127,6 +127,12 @@ async function persistPagedPostData(
   });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
+    // await db.insertPostReactions({
+    //   reactions: data.posts
+    //     .map((p) => p.reactions)
+    //     .flat()
+    //     .filter(Boolean) as db.ReactionInsert[],
+    // });
   }
   if (data.deletedPosts.length) {
     await db.deletePosts({ ids: data.deletedPosts });

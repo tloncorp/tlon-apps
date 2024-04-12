@@ -7,7 +7,7 @@ import {
   getTextContent,
 } from '../urbit';
 import { formatDateParam, formatUd, udToDate } from './converters';
-import { scry } from './urbit';
+import { poke, scry } from './urbit';
 
 export const getChannelPosts = async (
   channelId: string,
@@ -16,7 +16,7 @@ export const getChannelPosts = async (
     date,
     direction = 'older',
     count = 20,
-    includeReplies = false,
+    includeReplies = true,
   }: {
     cursor?: string;
     date?: Date;
@@ -58,6 +58,85 @@ export const getChannelPosts = async (
     return toPagedPostsData(channelId, response);
   }
 };
+
+export async function addReaction(
+  channelId: string,
+  postId: string,
+  shortCode: string,
+  our: string
+) {
+  console.log(`api: add reaction`, {
+    channel: {
+      nest: channelId,
+      action: {
+        post: {
+          'add-react': {
+            id: postId,
+            react: shortCode,
+            ship: our,
+          },
+        },
+      },
+    },
+  });
+
+  return await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          post: {
+            'add-react': {
+              id: postId,
+              react: shortCode,
+              ship: our,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function removeReaction(
+  channelId: string,
+  postId: string,
+  our: string
+) {
+  console.log(`api: del reaction`, {
+    channel: {
+      nest: channelId,
+      action: {
+        post: {
+          'del-react': {
+            id: postId,
+            ship: our,
+          },
+        },
+      },
+    },
+  });
+
+  return await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          post: {
+            'del-react': {
+              id: postId,
+              ship: our,
+            },
+          },
+        },
+      },
+    },
+  });
+}
 
 export interface GetChannelPostsResponse {
   older: string | null;

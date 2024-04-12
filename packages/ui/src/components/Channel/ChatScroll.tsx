@@ -1,12 +1,31 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList } from 'react-native';
+// import ContextMenu from 'react-native-context-menu-view';
+// import * as ContextMenu from 'zeego/context-menu';
+import { MotiView } from 'moti';
+import {
+  RefObject,
+  createRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Dimensions,
+  FlatList,
+  View as RNView,
+  TouchableOpacity,
+} from 'react-native';
 import { Button } from 'tamagui';
 
 import { ArrowDown } from '../../assets/icons';
 import { Dialog, Modal, SizableText, View, XStack, YStack } from '../../core';
 import ChatMessage from '../ChatMessage';
-import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
+import {
+  ChatMessageActions,
+  EmojiToolbar,
+} from '../ChatMessage/ChatMessageActions';
 
 const renderItem = ({
   post,
@@ -37,8 +56,6 @@ export default function ChatScroll({
   firstUnread?: string;
   selectedPost?: string;
 }) {
-  const [activeMessage, setActiveMessage] =
-    useState<db.PostWithRelations | null>(null);
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
   const lastPost = posts[posts.length - 1];
@@ -74,6 +91,16 @@ export default function ChatScroll({
       }
     }
   }, [selectedPost]);
+
+  // start context menu
+  const [activeMessage, setActiveMessage] =
+    useState<db.PostWithRelations | null>(null);
+  const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
+
+  const handleSetActive = useCallback((active: db.PostWithRelations) => {
+    activeMessageRefs[active.id] = createRef();
+    setActiveMessage(active);
+  }, []);
 
   return (
     <XStack position="relative" flex={1}>
@@ -112,15 +139,35 @@ export default function ChatScroll({
           ref={flatListRef}
           data={posts}
           renderItem={({ item }) => (
-            <YStack paddingVertical="$m">
-              <View onLongPress={() => setActiveMessage(item)}>
-                <ChatMessage
-                  post={item}
-                  firstUnread={firstUnread}
-                  unreadCount={unreadCount}
-                />
-              </View>
-            </YStack>
+            <MotiView
+              animate={{
+                scale: activeMessage?.id === item.id ? 0.95 : 1,
+              }}
+              transition={{
+                scale: {
+                  type: 'timing',
+                  duration: 100,
+                },
+              }}
+            >
+              <TouchableOpacity
+                onLongPress={() => handleSetActive(item)}
+                delayLongPress={300}
+              >
+                <RNView ref={activeMessageRefs[item.id]}>
+                  <View
+                    paddingVertical="$m"
+                    onLongPress={() => handleSetActive(item)}
+                  >
+                    <ChatMessage
+                      post={item}
+                      firstUnread={firstUnread}
+                      unreadCount={unreadCount}
+                    />
+                  </View>
+                </RNView>
+              </TouchableOpacity>
+            </MotiView>
           )}
           keyExtractor={(post) => post.id}
           keyboardDismissMode="on-drag"
@@ -142,19 +189,61 @@ export default function ChatScroll({
           }}
         />
       </XStack>
-      {/* {posts.length > 0 && (
-        <Dialog open={true}>
-          <Dialog.Portal>
-            <ChatMessageActions post={posts[0]} />
-          </Dialog.Portal>
-        </Dialog>
-      )} */}
       <Modal
         visible={activeMessage !== null}
         onDismiss={() => setActiveMessage(null)}
       >
-        <ChatMessageActions post={activeMessage} />
+        {activeMessage !== null && (
+          <ChatMessageActions
+            post={activeMessage!}
+            postRef={activeMessageRefs[activeMessage!.id]}
+            onDismiss={() => setActiveMessage(null)}
+          />
+        )}
       </Modal>
     </XStack>
   );
 }
+
+/* <ContextMenu
+                actions={[{ title: 'Title 1' }, { title: 'Title 2' }]}
+                onPress={(e) => {
+                  console.warn(
+                    `Pressed ${e.nativeEvent.name} at index ${e.nativeEvent.index}`
+                  );
+                }}
+                preview={<ChatMessageActions post={item} />}
+              >
+                <View backgroundColor="transparent">
+                  <ChatMessage
+                    post={item}
+                    firstUnread={firstUnread}
+                    unreadCount={unreadCount}
+                  />
+                </View>
+              </ContextMenu> */
+
+/* <ContextMenu.Root>
+                <ContextMenu.Trigger>
+                  <ChatMessage
+                    post={item}
+                    firstUnread={firstUnread}
+                    unreadCount={unreadCount}
+                  />
+                </ContextMenu.Trigger>
+                <ContextMenu.Content>
+                  <ContextMenu.Preview>
+                    <ChatMessageActions post={item} />
+                  </ContextMenu.Preview>
+                  <ContextMenu.Item key="testing">
+                    <ContextMenu.ItemTitle>Testing</ContextMenu.ItemTitle>
+                  </ContextMenu.Item>
+                  <ContextMenu.Item key="Another">
+                    <ContextMenu.ItemTitle>Another</ContextMenu.ItemTitle>
+                  </ContextMenu.Item>
+                  <ContextMenu.Item key="orange" destructive>
+                    <ContextMenu.ItemTitle>Bad</ContextMenu.ItemTitle>
+                  </ContextMenu.Item>
+                </ContextMenu.Content>
+              </ContextMenu.Root>
+            </YStack> */

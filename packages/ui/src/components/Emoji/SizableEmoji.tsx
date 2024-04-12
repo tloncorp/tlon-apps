@@ -10,7 +10,7 @@ export function SizableEmoji(
   }
 ) {
   const { shortCode, fontSize, ...rest } = props;
-  const lineHeight = getFontSize(fontSize);
+  const lineHeight = getFontSize(fontSize) + 2; // TODO: fix
   return (
     <SizableText {...rest} lineHeight={lineHeight} fontSize={fontSize}>
       {getNativeEmoji(shortCode)}
