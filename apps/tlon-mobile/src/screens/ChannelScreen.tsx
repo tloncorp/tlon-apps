@@ -37,7 +37,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     date: new Date(),
     count: 50,
   });
-
   const posts = useMemo<db.PostWithRelations[]>(
     () => postsData?.pages.flatMap((p) => p) ?? [],
     [postsData]
