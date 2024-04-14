@@ -387,9 +387,7 @@ export const postImageRelations = relations(postImages, ({ one }) => ({
 export const postReactions = sqliteTable(
   'post_reactions',
   {
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     postId: text('post_id')
       .references(() => posts.id)
       .notNull(),

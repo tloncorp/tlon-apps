@@ -125,7 +125,6 @@ CREATE TABLE `post_reactions` (
 	`post_id` text NOT NULL,
 	`value` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `post_id`),
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint

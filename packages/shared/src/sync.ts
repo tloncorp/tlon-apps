@@ -139,12 +139,12 @@ async function persistPagedPostData(
   });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
-    // await db.insertPostReactions({
-    //   reactions: data.posts
-    //     .map((p) => p.reactions)
-    //     .flat()
-    //     .filter(Boolean) as db.ReactionInsert[],
-    // });
+    await db.insertPostReactions({
+      reactions: data.posts
+        .map((p) => p.reactions)
+        .flat()
+        .filter(Boolean) as db.ReactionInsert[],
+    });
   }
   if (data.deletedPosts.length) {
     await db.deletePosts({ ids: data.deletedPosts });
