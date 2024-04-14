@@ -35,6 +35,7 @@ import {
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
+  threadUnreads as $threadUnreads,
   unreads as $unreads,
 } from './schema';
 import {
@@ -542,7 +543,7 @@ export const getChannelPosts = createReadQuery(
         author: true,
         reactions: true,
       },
-      orderBy: [desc($posts.id)],
+      orderBy: [desc($posts.receivedAt)],
       limit: count,
     });
   },
@@ -577,7 +578,7 @@ export const getChannelPostsAround = createReadQuery(
     // Get before posts
     const beforePosts = await client.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
-      orderBy: [desc($posts.sentAt)],
+      orderBy: [desc($posts.receivedAt)],
       limit: 25,
       with: {
         author: true,
@@ -588,7 +589,7 @@ export const getChannelPostsAround = createReadQuery(
     // Get after posts
     const afterPosts = await client.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
-      orderBy: [asc($posts.sentAt)],
+      orderBy: [asc($posts.receivedAt)],
       limit: 25,
       with: {
         author: true,
@@ -608,7 +609,7 @@ export const getChannelSearchResults = createReadQuery(
     if (postIds.length === 0) return [];
     return client.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), inArray($posts.id, postIds)),
-      orderBy: [desc($posts.sentAt)],
+      orderBy: [desc($posts.receivedAt)],
       with: {
         author: true,
         reactions: true,
@@ -893,12 +894,22 @@ export const insertContacts = createWriteQuery(
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
   async (unreads: UnreadInsert[]) => {
-    return client.transaction(() => {
-      return client
+    return client.transaction(async () => {
+      await client
         .insert($unreads)
         .values(unreads)
         .onConflictDoUpdate({
           target: [$unreads.channelId],
+          set: conflictUpdateSetAll($unreads),
+        });
+      const threadUnreads = unreads.flatMap((u) => {
+        return u.threadUnreads ?? [];
+      });
+      await client
+        .insert($threadUnreads)
+        .values(threadUnreads)
+        .onConflictDoUpdate({
+          target: [$threadUnreads.threadId, $threadUnreads.channelId],
           set: conflictUpdateSetAll($unreads),
         });
     });
