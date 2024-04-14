@@ -133,6 +133,7 @@ CREATE TABLE `posts` (
 	`author_id` text NOT NULL,
 	`channel_id` text NOT NULL,
 	`group_id` text,
+	`parent_id` text,
 	`type` text NOT NULL,
 	`title` text,
 	`image` text,

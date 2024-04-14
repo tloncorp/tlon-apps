@@ -3,13 +3,14 @@ import { beforeAll, beforeEach, expect, test, vi } from 'vitest';
 
 import { toClientGroup, toPagedPostsData } from '../api';
 import * as db from '../db';
+import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
 import rawChannelPostsData from '../test/channelPosts.json';
 import rawContactsData from '../test/contacts.json';
 import rawGroupsData from '../test/groups.json';
 import rawGroupsInitData from '../test/groupsInit.json';
 import { getClient, resetDb, setupDb } from '../test/helpers';
 import { setScryOutput, setScryOutputs } from '../test/helpers';
-import { GroupsInit, PagedPosts } from '../urbit';
+import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
 import { Group as UrbitGroup } from '../urbit/groups';
 import {
@@ -19,8 +20,11 @@ import {
   syncGroups,
   syncInitData,
   syncPinnedItems,
+  syncThreadPosts,
 } from './sync';
 
+const channelPostWithRepliesData =
+  rawChannelPostWithRepliesData as unknown as PostDataResponse;
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
@@ -223,8 +227,8 @@ test('syncs dms', async () => {
   });
 });
 
-const groupId = 'test-group';
-const channelId = 'test-channel';
+const groupId = '~solfer-magfed/test-group';
+const channelId = 'chat/~solfer-magfed/test-channel';
 const unreadTime = 1712091148002;
 
 const testGroupData: db.GroupInsert = {
@@ -317,4 +321,17 @@ test('syncs init data', async () => {
     ['diary/~bolbex-fogdys/bulletins'],
     ['chat/~nocsyx-lassul/bongtable'],
   ]);
+});
+
+test('syncs thread posts', async () => {
+  setScryOutput(channelPostWithRepliesData);
+  await syncThreadPosts(
+    channelPostWithRepliesData.seal.id,
+    'chat/~solfer-magfed/test-channel',
+    channelId
+  );
+  const posts = await db.getPosts();
+  expect(posts.length).toEqual(
+    Object.keys(channelPostWithRepliesData.seal.replies).length + 1
+  );
 });

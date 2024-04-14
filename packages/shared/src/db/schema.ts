@@ -330,6 +330,7 @@ export const posts = sqliteTable('posts', {
   authorId: text('author_id').notNull(),
   channelId: text('channel_id').notNull(),
   groupId: text('group_id'),
+  parentId: text('parent_id'),
   type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>().notNull(),
   title: text('title'),
   image: text('image'),
@@ -361,6 +362,11 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.authorId],
     references: [contacts.id],
   }),
+  parent: one(posts, {
+    fields: [posts.parentId],
+    references: [posts.id],
+  }),
+  replies: many(posts),
   images: many(postImages),
 }));
 

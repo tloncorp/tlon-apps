@@ -96,10 +96,12 @@ export const getChannelPosts = async ({
     const mode = includeReplies ? 'heavy' : 'light';
     path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
     app = 'chat';
-  } else {
+  } else if (isGroupChannelId(channelId)) {
     const mode = includeReplies ? 'post' : 'outline';
     path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
     app = 'channels';
+  } else {
+    throw new Error('invalid channel id');
   }
 
   try {
@@ -206,6 +208,48 @@ export async function deletePost(channelId: string, postId: string) {
   return await poke(action);
 }
 
+export const getPostWithReplies = async ({
+  postId,
+  channelId,
+  authorId,
+}: {
+  postId: string;
+  channelId: string;
+  authorId?: string;
+}) => {
+  if (
+    (!authorId && isDmChannelId(channelId)) ||
+    isGroupDmChannelId(channelId)
+  ) {
+    throw new Error(
+      'author id is required to fetch posts for a dm or group dm'
+    );
+  }
+
+  let app: 'chat' | 'channels';
+  let path: string;
+
+  if (isDmChannelId(channelId)) {
+    app = 'chat';
+    path = `/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+  } else if (isGroupDmChannelId(channelId)) {
+    app = 'chat';
+    path = `/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+  } else if (isGroupChannelId(channelId)) {
+    app = 'channels';
+    path = `/v1/${channelId}/posts/post/${postId}`;
+  } else {
+    throw new Error('invalid channel id');
+  }
+
+  const post = await scry<ub.Post>({
+    app,
+    path,
+  });
+
+  return toPostData(channelId, post);
+};
+
 export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
@@ -255,7 +299,10 @@ export function toPagedPostsData(
   };
 }
 
-export function toPostsData(channelId: string, posts: ub.Posts) {
+export function toPostsData(
+  channelId: string,
+  posts: ub.Posts | Record<string, ub.Reply>
+) {
   const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
     [string[], db.PostInsert[]]
   >(
@@ -263,24 +310,21 @@ export function toPostsData(channelId: string, posts: ub.Posts) {
       if (post === null) {
         memo[0].push(id);
       } else {
-        memo[1].push(toPostData(id, channelId, post));
+        memo[1].push(toPostData(channelId, post));
       }
       return memo;
     },
     [[], []]
   );
   return {
-    posts: otherPosts.sort((a, b) => {
-      return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
-    }),
+    posts: otherPosts,
     deletedPosts,
   };
 }
 
 export function toPostData(
-  id: string,
   channelId: string,
-  post: ub.Post
+  post: ub.Post | ub.PostDataResponse
 ): db.PostInsert {
   const type = isNotice(post)
     ? 'notice'
@@ -288,7 +332,7 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
-
+  const id = post.seal.id;
   return {
     id,
     channelId,
@@ -300,12 +344,51 @@ export function toPostData(
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
-    receivedAt: udToDate(id),
+    receivedAt: getReceivedAtFromId(id),
     replyCount: post?.seal.meta.replyCount,
-    images: getPostImages(post),
+    images: getContentImages(id, post.essay?.content),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
+    replies: isPostDataResponse(post)
+      ? getReplyData(id, channelId, post)
+      : null,
     ...flags,
   };
+}
+
+function getReceivedAtFromId(postId: string) {
+  return udToDate(postId.split('/').pop() ?? postId);
+}
+
+function isPostDataResponse(
+  post: ub.Post | ub.PostDataResponse
+): post is ub.PostDataResponse {
+  return !!(post.seal.replies && !Array.isArray(post.seal.replies));
+}
+
+function getReplyData(
+  postId: string,
+  channelId: string,
+  post: ub.PostDataResponse
+): db.PostInsert[] {
+  return Object.entries(post.seal.replies ?? {}).map(([, reply]) => {
+    const [content, flags] = toPostContent(reply.memo.content);
+    const id = reply.seal.id;
+    return {
+      id,
+      channelId,
+      type: 'chat',
+      authorId: reply.memo.author,
+      parentId: postId,
+      reactions: toReactionsData(reply.seal.reacts, id),
+      content: JSON.stringify(content),
+      textContent: getTextContent(reply.memo.content),
+      sentAt: reply.memo.sent,
+      receivedAt: getReceivedAtFromId(id),
+      replyCount: 0,
+      images: getContentImages(id, reply.memo.content),
+      ...flags,
+    };
+  });
 }
 
 export function toPostContent(
@@ -384,7 +467,7 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
   }
 }
 
-function isNotice(post: ub.Post | null) {
+function isNotice(post: ub.Post | ub.PostDataResponse | null) {
   const kindData = post?.essay['kind-data'];
   return (
     kindData &&
@@ -398,10 +481,10 @@ function isChatData(data: KindData): data is KindDataChat {
   return 'chat' in (data ?? {});
 }
 
-function getPostImages(post: ub.Post | null) {
-  return (post?.essay.content || []).reduce<db.PostImage[]>((memo, story) => {
+function getContentImages(postId: string, content?: ub.Story | null) {
+  return (content || []).reduce<db.PostImage[]>((memo, story) => {
     if (ub.isBlock(story) && ub.isImage(story.block)) {
-      memo.push({ ...story.block.image, postId: post!.seal.id });
+      memo.push({ ...story.block.image, postId });
     }
     return memo;
   }, []);
