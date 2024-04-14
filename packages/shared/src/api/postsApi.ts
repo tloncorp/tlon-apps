@@ -12,7 +12,7 @@ import {
   getTextContent,
 } from '../urbit';
 import { formatDateParam, formatUd, udToDate } from './converters';
-import { poke, scry } from './urbit';
+import { BadResponseError, poke, scry } from './urbit';
 
 export function channelAction(
   nest: ub.Nest,
@@ -63,22 +63,21 @@ export const sendPost = async (
   );
 };
 
-export const getChannelPosts = async (
-  channelId: string,
-  {
-    cursor,
-    date,
-    direction = 'older',
-    count = 20,
-    includeReplies = false,
-  }: {
-    cursor?: string;
-    date?: Date;
-    direction?: 'older' | 'newer' | 'around';
-    count?: number;
-    includeReplies?: boolean;
-  }
-) => {
+export const getChannelPosts = async ({
+  channelId,
+  cursor,
+  date,
+  direction = 'older',
+  count = 20,
+  includeReplies = false,
+}: {
+  channelId: string;
+  cursor?: string;
+  date?: Date;
+  direction?: 'older' | 'newer' | 'around';
+  count?: number;
+  includeReplies?: boolean;
+}) => {
   if (cursor && date) {
     throw new Error('Cannot specify both cursor and date');
   }
@@ -86,39 +85,43 @@ export const getChannelPosts = async (
     throw new Error('Must specify either cursor or date');
   }
   const finalCursor = cursor ? cursor : formatDateParam(date!);
+  let app: 'chat' | 'channels';
+  let path: string;
+
   if (isDmChannelId(channelId)) {
     const mode = includeReplies ? 'heavy' : 'light';
-    const path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedWrits>({
-      app: 'chat',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
+    app = 'chat';
+    path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
   } else if (isGroupDmChannelId(channelId)) {
     const mode = includeReplies ? 'heavy' : 'light';
-    const path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedWrits>({
-      app: 'chat',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
+    path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    app = 'chat';
   } else {
     const mode = includeReplies ? 'post' : 'outline';
-    const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedPosts>({
-      app: 'channels',
+    path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    app = 'channels';
+  }
+
+  try {
+    const response = await scry<ub.PagedWrits>({
+      app,
       path,
     });
     return toPagedPostsData(channelId, response);
+  } catch (e) {
+    // Treat 404 error as empty page of posts.
+    if (e instanceof BadResponseError && e.status === 404) {
+      return { posts: [] };
+    } else throw e;
   }
 };
 
 export interface GetChannelPostsResponse {
-  older: string | null;
-  newer: string | null;
+  older?: string | null;
+  newer?: string | null;
   posts: db.PostInsert[];
-  deletedPosts: string[];
-  totalPosts: number;
+  deletedPosts?: string[];
+  totalPosts?: number;
 }
 
 export interface DeletedPost {

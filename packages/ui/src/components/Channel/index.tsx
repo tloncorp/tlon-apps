@@ -26,6 +26,8 @@ export function Channel({
   goToChannels,
   goToSearch,
   messageSender,
+  onScrollEndReached,
+  onScrollStartReached,
   // TODO: implement gallery and notebook
   type,
 }: {
@@ -40,6 +42,8 @@ export function Channel({
   goToSearch: () => void;
   messageSender: (content: JSONContent, channelId: string) => void;
   type?: 'chat' | 'gallery' | 'notebook';
+  onScrollEndReached?: () => void;
+  onScrollStartReached?: () => void;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -73,6 +77,8 @@ export function Channel({
                     firstUnread={channel.firstUnreadPostId ?? undefined}
                     posts={posts}
                     setInputShouldBlur={setInputShouldBlur}
+                    onEndReached={onScrollEndReached}
+                    onStartReached={onScrollStartReached}
                   />
                 )}
                 <MessageInput

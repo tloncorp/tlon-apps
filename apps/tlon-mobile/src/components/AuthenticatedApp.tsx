@@ -1,5 +1,5 @@
 import { sync } from '@tloncorp/shared';
-import { QueryClient, QueryClientProvider } from '@tloncorp/shared/dist/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -12,8 +12,6 @@ import { TabStack } from '../navigation/TabStack';
 export interface AuthenticatedAppProps {
   initialNotificationPath?: string;
 }
-
-const queryClient = new QueryClient();
 
 function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();

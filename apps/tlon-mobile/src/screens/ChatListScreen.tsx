@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/dist/db';
+import type * as db from '@tloncorp/shared/dist/db';
+import * as hooks from '@tloncorp/shared/dist/hooks';
 import { ChatList, ChatOptionsSheet, View } from '@tloncorp/ui';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +15,7 @@ type ChatListScreenProps = NativeStackScreenProps<
 export default function ChatListScreen(props: ChatListScreenProps) {
   const [longPressedItem, setLongPressedItem] =
     React.useState<db.Channel | null>(null);
-  const { result: chats } = db.useCurrentChats();
+  const { data: chats } = hooks.useCurrentChats();
   const insets = useSafeAreaInsets();
 
   return (

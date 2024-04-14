@@ -1,10 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { JSONContent } from '@tiptap/core';
 import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
-import * as db from '@tloncorp/shared/dist/db';
-import { syncChannel, syncPostsAround } from '@tloncorp/shared/dist/sync';
+import type * as db from '@tloncorp/shared/dist/db';
+import * as hooks from '@tloncorp/shared/dist/hooks';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShip } from '../contexts/ship';
@@ -13,24 +13,42 @@ import type { HomeStackParamList } from '../types';
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
-  const [open, setOpen] = React.useState(false);
+  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
   );
-  const { result: channel } = db.useChannelWithLastPostAndMembers({
+  const { data: channel } = hooks.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
-  const { result: group, error } = db.useGroup({
+  const { data: group, error } = hooks.useGroup({
     id: channel?.groupId ?? '',
   });
-  const { result: posts } = db.useChannelPosts({
+  const {
+    data: postsData,
+    fetchNextPage,
+    fetchPreviousPage,
+    hasNextPage,
+    hasPreviousPage,
+    isFetching,
+    error: err,
+  } = hooks.useChannelPosts({
     channelId: currentChannelId,
+    direction: 'older',
+    date: new Date(),
+    count: 50,
   });
-  const { result: aroundPosts } = db.useChannelPostsAround({
+  if (err) {
+    console.error(err);
+  }
+  const posts = useMemo<db.PostWithRelations[]>(
+    () => postsData?.pages.flatMap((p) => p) ?? [],
+    [postsData]
+  );
+  const { data: aroundPosts } = hooks.useChannelPostsAround({
     channelId: currentChannelId,
     postId: props.route.params.selectedPost?.id ?? '',
   });
-  const { result: contacts } = db.useContacts();
+  const { data: contacts } = hooks.useContacts();
 
   const { top, bottom } = useSafeAreaInsets();
   const { ship } = useShip();
@@ -57,19 +75,19 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [error]);
 
-  useEffect(() => {
-    const runSyncChannel = async (id: string) => {
-      if (props.route.params.selectedPost) {
-        syncPostsAround(props.route.params.selectedPost);
-      } else {
-        syncChannel(id, Date.now());
-      }
-    };
+  // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
-    if (currentChannelId) {
-      runSyncChannel(currentChannelId);
+  const handleScrollEndReached = useCallback(() => {
+    if (hasNextPage && !isFetching) {
+      fetchNextPage();
     }
-  }, [currentChannelId, props.route.params.selectedPost]);
+  }, [fetchNextPage, hasNextPage, isFetching]);
+
+  const handleScrollStartReached = useCallback(() => {
+    if (hasPreviousPage && !isFetching) {
+      fetchPreviousPage();
+    }
+  }, [fetchPreviousPage, hasPreviousPage, isFetching]);
 
   if (!channel) {
     return null;
@@ -88,28 +106,30 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }}
         group={group ?? null}
         contacts={contacts ?? null}
-        posts={hasSelectedPost ? aroundPosts : posts}
+        posts={hasSelectedPost ? aroundPosts ?? null : posts}
         selectedPost={
           hasSelectedPost && aroundPosts?.length
             ? props.route.params.selectedPost?.id
             : undefined
         }
         goBack={props.navigation.goBack}
-        goToChannels={() => setOpen(true)}
         messageSender={messageSender}
+        goToChannels={() => setChannelNavOpen(true)}
         goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
+        onScrollEndReached={handleScrollEndReached}
+        onScrollStartReached={handleScrollStartReached}
       />
       {group && (
         <ChannelSwitcherSheet
-          open={open}
-          onOpenChange={(open) => setOpen(open)}
+          open={channelNavOpen}
+          onOpenChange={(open) => setChannelNavOpen(open)}
           group={group}
           channels={group?.channels || []}
           contacts={contacts ?? []}
           paddingBottom={bottom}
           onSelect={(channel: db.Channel) => {
             setCurrentChannelId(channel.id);
-            setOpen(false);
+            setChannelNavOpen(false);
           }}
         />
       )}
