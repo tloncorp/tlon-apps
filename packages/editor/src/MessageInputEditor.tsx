@@ -6,14 +6,13 @@ import {
   HistoryBridge,
   ItalicBridge,
   LinkBridge,
+  PlaceholderBridge,
   StrikeBridge,
   UnderlineBridge,
   useTenTap,
 } from '@10play/tentap-editor';
 import { Extension, KeyboardShortcutCommand } from '@tiptap/core';
 import CodeBlock from '@tiptap/extension-code-block';
-import HardBreak from '@tiptap/extension-hard-break';
-import Placeholder from '@tiptap/extension-placeholder';
 import { EditorContent } from '@tiptap/react';
 
 export function Shortcuts(bindings: {
@@ -39,6 +38,9 @@ export const MessageInputEditor = () => {
       }),
       CodeBridge,
       UnderlineBridge,
+      PlaceholderBridge.configureExtension({
+        placeholder: 'Message',
+      }),
       LinkBridge.configureExtension({
         openOnClick: false,
       }).extendExtension({
@@ -48,10 +50,6 @@ export const MessageInputEditor = () => {
     tiptapOptions: {
       extensions: [
         CodeBlock,
-        // TODO: Do we need this?
-        HardBreak,
-        // We use this because the PlaceholderBridge is not working (doesn't render the placeholder text)
-        Placeholder.configure({ placeholder: 'Message' }),
         Shortcuts({
           // this is necessary to override the default behavior of the editor
           // which is to insert a new paragraph when the user presses enter.

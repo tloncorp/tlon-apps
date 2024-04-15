@@ -1,6 +1,7 @@
 import {
   BridgeExtension,
   EditorMessage,
+  PlaceholderBridge,
   RichText,
   useBridgeState,
   useEditorBridge,
@@ -21,8 +22,20 @@ import { IconButton } from '../IconButton';
 // in the RichText component, and we need to make sure that the
 // bridge extension CSS is injected into the WebView.
 export const getStyleSheetCSS = (css: string, styleSheetTag: string) => {
+  // We need to specify the placeholder CSS here because the placeholder bridge
+  // extension is not picking up the placeholder content from the config.
+  const placeholderCSS = `
+    .is-editor-empty:first-child::before {
+        color: #adb5bd;
+        content: 'Message';
+        float: left;
+        height: 0;
+        pointer-events: none;
+    }
+  `;
+
   return `
-    cssContent = \`${css}\`;
+    cssContent = \`${styleSheetTag === 'placeholder' ? placeholderCSS : css}\`;
     head = document.head || document.getElementsByTagName('head')[0],
     styleElement = head.querySelector('style[data-tag="${styleSheetTag}"]');
 
