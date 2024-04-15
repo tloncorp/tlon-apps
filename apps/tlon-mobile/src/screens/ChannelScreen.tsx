@@ -29,17 +29,15 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     fetchPreviousPage,
     hasNextPage,
     hasPreviousPage,
-    isFetching,
-    error: err,
+    isFetchingNextPage,
+    isFetchingPreviousPage,
   } = hooks.useChannelPosts({
     channelId: currentChannelId,
     direction: 'older',
     date: new Date(),
     count: 50,
   });
-  if (err) {
-    console.error(err);
-  }
+
   const posts = useMemo<db.PostWithRelations[]>(
     () => postsData?.pages.flatMap((p) => p) ?? [],
     [postsData]
@@ -78,16 +76,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
   const handleScrollEndReached = useCallback(() => {
-    if (hasNextPage && !isFetching) {
+    if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetching]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const handleScrollStartReached = useCallback(() => {
-    if (hasPreviousPage && !isFetching) {
+    if (hasPreviousPage && !isFetchingPreviousPage) {
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetching]);
+  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   if (!channel) {
     return null;
@@ -104,6 +102,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
+        isLoadingPosts={isFetchingNextPage || isFetchingPreviousPage}
         group={group ?? null}
         contacts={contacts ?? null}
         posts={hasSelectedPost ? aroundPosts ?? null : posts}

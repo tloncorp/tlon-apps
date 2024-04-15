@@ -30,6 +30,7 @@ export function Channel({
   onScrollStartReached,
   // TODO: implement gallery and notebook
   type,
+  isLoadingPosts,
 }: {
   channel: db.ChannelWithLastPostAndMembers;
   selectedPost?: string;
@@ -44,6 +45,7 @@ export function Channel({
   type?: 'chat' | 'gallery' | 'notebook';
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
+  isLoadingPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -59,6 +61,7 @@ export function Channel({
               goToChannels={goToChannels}
               goToSearch={goToSearch}
               showPickerButton={!!group}
+              showSpinner={isLoadingPosts}
             />
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
