@@ -1,10 +1,22 @@
+import { JSONContent } from '@tiptap/core';
+import type * as db from '@tloncorp/shared/dist/db';
 import { useState } from 'react';
 
 import { Attachment, Camera, ChannelGalleries, Send } from '../../assets/icons';
 import { TextArea, XStack } from '../../core';
 import { IconButton } from '../IconButton';
 
-export default function MessageInput() {
+export function MessageInput({
+  shouldBlur,
+  setShouldBlur,
+  send,
+  channelId,
+}: {
+  shouldBlur: boolean;
+  setShouldBlur: (shouldBlur: boolean) => void;
+  send: (content: JSONContent, channelId: string) => void;
+  channelId: string;
+}) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (

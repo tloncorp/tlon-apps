@@ -13,4 +13,5 @@ export * from './logic/utils';
 export * from './hooks';
 export * as sync from './sync';
 export * as utils from './logic/utils';
+export * as tiptap from './logic/tiptap';
 export * from './debug';

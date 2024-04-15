@@ -11,7 +11,7 @@ interface Props {
   group: db.GroupWithRelations;
   channels: db.ChannelWithLastPostAndMembers[];
   contacts: db.Contact[];
-  onSelect: (channel: db.Channel) => void;
+  onSelect: (channel: db.ChannelWithLastPostAndMembers) => void;
   paddingBottom?: number;
 }
 
