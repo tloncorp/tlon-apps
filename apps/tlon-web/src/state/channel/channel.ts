@@ -64,10 +64,8 @@ import {
   cacheIdFromString,
   cacheIdToString,
   checkNest,
-  log,
   nestToFlag,
   stringToTa,
-  useIsDmOrMultiDm,
   whomIsFlag,
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
@@ -1303,7 +1301,18 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     ...post,
     seal: {
       ...post?.seal,
-      replies: [...diff, ...pendingReplies],
+      replies: [
+        ...diff,
+        ...pendingReplies.filter(([, reply]) => {
+          const clientIds = diff.map(([, r]) =>
+            r ? `${r.memo.author}:${r.memo.sent}` : ''
+          );
+          return !clientIds.some(
+            (id) =>
+              id === (reply ? `${reply.memo.author}:${reply.memo.sent}` : '')
+          );
+        }),
+      ],
     },
   };
 
