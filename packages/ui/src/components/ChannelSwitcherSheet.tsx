@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { useEffect, useState } from 'react';
 
 import { ContactsProvider } from '../contexts';
 import { SizableText } from '../core';
@@ -24,6 +25,10 @@ export function ChannelSwitcherSheet({
   contacts,
   paddingBottom,
 }: Props) {
+  const [hasOpened, setHasOpened] = useState(open);
+  useEffect(() => {
+    setHasOpened(open);
+  }, [open]);
   return (
     <ContactsProvider contacts={contacts}>
       <Sheet
@@ -53,12 +58,14 @@ export function ChannelSwitcherSheet({
             >
               {group?.title}
             </SizableText>
-            <ChannelNavSections
-              group={group}
-              channels={channels}
-              onSelect={onSelect}
-              paddingBottom={paddingBottom}
-            />
+            {hasOpened && (
+              <ChannelNavSections
+                group={group}
+                channels={channels}
+                onSelect={onSelect}
+                paddingBottom={paddingBottom}
+              />
+            )}
           </Sheet.ScrollView>
         </Sheet.Frame>
       </Sheet>

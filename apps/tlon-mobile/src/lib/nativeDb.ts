@@ -20,6 +20,13 @@ export function setupDb() {
     return;
   }
   connection = open({ location: 'default', name: 'tlon.sqlite' });
+  // Experimental SQLite settings. May cause crashes. More here:
+  // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
+  connection.execute('PRAGMA mmap_size=268435456');
+  connection.execute('PRAGMA journal_mode=MEMORY');
+  // TODO: may be more performant to run this periodically in background
+  connection.execute('PRAGMA optimize');
+
   client = drizzle(connection, {
     schema,
     logger: {
