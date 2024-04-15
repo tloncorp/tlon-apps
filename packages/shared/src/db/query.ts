@@ -1,35 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
+import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
 
 const logger = createDevLogger('query', true);
-const tableEventsLogger = createDevLogger('tableEvents', false);
-
-export type TableEventListener = (names: TableName[]) => void;
-
-const tableEvents = {
-  listeners: {} as Record<string, Set<TableEventListener>>,
-  on(names: TableName[], listener: TableEventListener) {
-    for (let name of names) {
-      this.listeners[name] ||= new Set();
-      this.listeners[name].add(listener);
-    }
-  },
-  off(names: TableName[], listener: TableEventListener) {
-    for (let name of names) {
-      this.listeners[name]?.delete(listener);
-    }
-  },
-  trigger(names: TableName[]) {
-    tableEventsLogger.log('trigger', names);
-    // Filter and de-duplicate listeners
-    const listeners = new Set(...names.map((n) => this.listeners[n]));
-    for (let listener of listeners) {
-      listener(names);
-    }
-  },
-};
 
 export interface QueryMeta<Args extends any[]> {
   /**
@@ -92,11 +65,18 @@ export const createQuery = <Args extends any[], T>(
     logger.log(meta.label + ':', Date.now() - startTime + 'ms');
     // Trigger table effects if necessary.
     if (meta?.tableEffects?.length) {
-      tableEvents.trigger(
+      const effects =
         typeof meta.tableEffects === 'function'
           ? meta.tableEffects(...args)
-          : meta.tableEffects
-      );
+          : meta.tableEffects;
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const tableKey = query.queryKey[1];
+          return (
+            tableKey instanceof Set && effects.some((e) => tableKey.has(e))
+          );
+        },
+      });
     }
     return result;
   };
@@ -104,83 +84,3 @@ export const createQuery = <Args extends any[], T>(
     meta,
   });
 };
-
-export interface UseQueryResult<T> {
-  result: T | null;
-  error: Error | null;
-  isLoading: boolean;
-}
-
-// Creates a hook that runs a query, rerunning it whenever deps change.
-export const createUseQuery =
-  <Args extends any[], T>(query: WrappedQuery<Args, T>) =>
-  (...args: Args): UseQueryResult<T> => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [result, setResult] = useState<T | null>(null);
-    const [error, setError] = useState<Error | null>(null);
-    const currentParams = useShallowEachObjectMemo(args);
-    const cancelQueryRef = useRef<Function | null>(null);
-    const runQuery = useCallback(async () => {
-      // Set up cancellation
-      if (cancelQueryRef.current) {
-        cancelQueryRef.current();
-      }
-      let isCancelled = false;
-      cancelQueryRef.current = () => {
-        isCancelled = true;
-      };
-      setIsLoading(true);
-      // Run the query
-      query(...args)
-        .then((result) => {
-          if (isCancelled) return;
-          setResult(result);
-        })
-        .catch((error) => {
-          if (isCancelled) return;
-          setError(error);
-        })
-        .finally(() => {
-          if (isCancelled) return;
-          setIsLoading(false);
-        });
-    }, [currentParams]);
-
-    // Run query on mount
-    useEffect(() => {
-      runQuery();
-    }, [currentParams]);
-
-    const deps = useMemo(() => {
-      return typeof query.meta.tableDependencies === 'function'
-        ? query.meta.tableDependencies(...args)
-        : query.meta.tableDependencies;
-    }, [currentParams]);
-
-    // Run query when table dependencies change
-    useEffect(() => {
-      tableEvents.on(deps, runQuery);
-      return () => {
-        tableEvents.off(deps, runQuery);
-      };
-    }, [currentParams]);
-    return { result, error, isLoading };
-  };
-
-function useShallowEachObjectMemo<T>(objs: T[]) {
-  const ref = useRef(objs);
-  if (objs.some((obj, i) => !isShallowEqual(obj, ref.current[i]))) {
-    ref.current = objs;
-  }
-  return ref.current;
-}
-
-function isShallowEqual(a: any, b: any): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object') return false;
-  if (Object.keys(a).length !== Object.keys(b).length) return false;
-  for (let key in a) {
-    if (a[key] !== b[key]) return false;
-  }
-  return true;
-}
