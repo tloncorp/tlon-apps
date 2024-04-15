@@ -3,7 +3,6 @@ import type { JSONContent } from '@tiptap/core';
 import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { syncChannel, syncPostsAround } from '@tloncorp/shared/dist/sync';
-import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,14 +36,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const { ship } = useShip();
 
   const messageSender = async (content: JSONContent, channelId: string) => {
-    if (!ship) {
+    if (!ship || !channel) {
       return;
     }
 
-    const isDm = whomIsDm(channelId);
-    const isMultiDm = whomIsMultiDm(channelId);
+    const channelType = channel.type;
 
-    if (isDm || isMultiDm) {
+    if (channelType === 'dm' || channelType === 'groupDm') {
       await sendDirectMessage(channelId, content, ship);
       return;
     }

@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, FlatList } from 'react-native';
 import { Button } from 'tamagui';
 
@@ -40,10 +40,14 @@ export default function ChatScroll({
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
-  const lastPost = posts[posts.length - 1];
-  const sortedPosts = posts.sort((a, b) => {
-    return b.receivedAt - a.receivedAt;
-  });
+  const lastPost = useMemo(() => posts[posts.length - 1], [posts]);
+  const sortedPosts = useMemo(
+    () =>
+      posts.sort((a, b) => {
+        return b.receivedAt - a.receivedAt;
+      }),
+    [posts]
+  );
   const pressedGoToBottom = () => {
     setHasPressedGoToBottom(true);
     if (flatListRef.current) {

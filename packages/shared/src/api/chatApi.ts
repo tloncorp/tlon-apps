@@ -23,41 +23,23 @@ interface OptimisticAction {
   event: WritDiff | WritResponse;
 }
 
-function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
-  return {
-    app: 'chat',
-    mark: 'chat-dm-action',
-    json: {
-      ship,
-      diff: {
-        id,
-        delta,
-      },
-    },
-  };
-}
-
-function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
-  return {
-    app: 'chat',
-    mark: 'chat-club-action-0',
-    json: {
-      id,
-      diff: {
-        uid: '0v3',
-        delta,
-      },
-    },
-  };
-}
-
 function getActionAndEvent(
   whom: string,
   id: string,
   delta: WritDelta
 ): OptimisticAction {
   if (whomIsDm(whom)) {
-    const action = dmAction(whom, delta, id);
+    const action: Poke<DmAction> = {
+      app: 'chat',
+      mark: 'chat-dm-action',
+      json: {
+        ship: whom,
+        diff: {
+          id,
+          delta,
+        },
+      },
+    };
     return {
       action,
       event: action.json.diff,
@@ -65,8 +47,20 @@ function getActionAndEvent(
   }
 
   const diff: WritDiff = { id, delta };
+  const action: Poke<ClubAction> = {
+    app: 'chat',
+    mark: 'chat-club-action-0',
+    json: {
+      id: whom,
+      diff: {
+        uid: '0v3',
+        delta: { writ: diff },
+      },
+    },
+  };
+
   return {
-    action: multiDmAction(whom, { writ: diff }),
+    action,
     event: diff,
   };
 }
