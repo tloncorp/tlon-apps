@@ -1,6 +1,6 @@
-import * as api from './api';
-import * as db from './db';
-import { createDevLogger } from './debug';
+import * as api from '../api';
+import * as db from '../db';
+import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('sync', false);
 

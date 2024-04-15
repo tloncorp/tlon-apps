@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 
-import * as db from '../../db';
-import { getFallbackContact } from '../../db/fallback';
+import * as db from '../db';
+import { getFallbackContact } from '../db/fallback';
 
 export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
   const [postsWithAuthor, setPostsWithAuthor] = useState<

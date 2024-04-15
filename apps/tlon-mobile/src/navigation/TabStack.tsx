@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import * as hooks from '@tloncorp/shared/dist/hooks';
+import * as store from '@tloncorp/shared/dist/store';
 import type { IconType } from '@tloncorp/ui';
 import { Circle, Icon, SizableText, View, useStyle } from '@tloncorp/ui';
 import { Avatar } from '@tloncorp/ui/src/index';
@@ -13,7 +13,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
   const { contactId } = useShip();
-  const { data: unreadCount } = hooks.useAllUnreadsCounts();
+  const { data: unreadCount } = store.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
   }) as ViewStyle;
@@ -102,7 +102,7 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const { data: contact, isLoading } = hooks.useContact({ id });
+  const { data: contact, isLoading } = store.useContact({ id });
   return isLoading && !contact ? null : (
     // Uniquely sized avatar for tab bar
     <Avatar

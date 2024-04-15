@@ -1,7 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { daToUnix, decToUd } from '@urbit/api';
-import bigInt from 'big-integer';
-import { useMemo } from 'react';
+import { decToUd } from '@urbit/api';
 
 import * as db from '../db';
 import type * as ub from '../urbit';
@@ -18,7 +15,7 @@ export const getUnreadChannels = async () => {
   return toUnreadsData(response);
 };
 
-const searchChatChannel = async (params: {
+export const searchChatChannel = async (params: {
   channelId: string;
   query: string;
   cursor?: string;
@@ -43,46 +40,6 @@ const searchChatChannel = async (params: {
 
   return { posts, cursor };
 };
-
-export function useInfiniteChannelSearch(channelId: string, query: string) {
-  const { data, ...rest } = useInfiniteQuery({
-    queryKey: ['channel', channelId, 'search', query],
-    enabled: query !== '',
-    queryFn: async ({ pageParam }) => {
-      const response = await searchChatChannel({
-        channelId,
-        query,
-        cursor: pageParam,
-      });
-
-      return response;
-    },
-    initialPageParam: '',
-    getNextPageParam: (lastPage) => {
-      if (lastPage.cursor === null) return undefined;
-      return lastPage.cursor;
-    },
-  });
-
-  const results = useMemo(
-    () => data?.pages.flatMap((page) => page.posts) ?? [],
-    [data]
-  );
-
-  const searchedThroughDate = useMemo(() => {
-    const params = data?.pages ?? [];
-    const lastValidCursor = params.findLast(
-      (page) => page.cursor !== null
-    )?.cursor;
-    return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
-  }, [data]);
-
-  return {
-    ...rest,
-    results,
-    searchedThroughDate,
-  };
-}
 
 type ChannelUnreadData = {
   id: string;
