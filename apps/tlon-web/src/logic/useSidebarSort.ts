@@ -1,3 +1,5 @@
+import { Unreads } from '@tloncorp/shared/dist/urbit/channel';
+import { DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
 import { useCallback, useMemo } from 'react';
 
 import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
@@ -23,28 +25,51 @@ interface UseSidebarSort {
 export const sortAlphabetical = (aNest: string, bNest: string) =>
   aNest.localeCompare(bNest);
 
+interface MergeUnreadsAccumulatorType {
+  [key: string]: number;
+}
+
 export function useRecentSort() {
   const channelUnreads = useUnreads();
   const { data: dmUnreads } = useDmUnreads();
+  // pre-compute unreads before sorting
+  const processedUnreads = useMemo(() => {
+    const mergeUnreads = (unreads: DMUnreads | Unreads) =>
+      Object.entries(unreads).reduce<MergeUnreadsAccumulatorType>(
+        (acc, [nest, { recency }]) => {
+          // using a param re-assign is much faster than making a copy of an object.
+          // eslint-disable-next-line no-param-reassign
+          acc[nest] = recency ?? Number.NEGATIVE_INFINITY;
+          return acc;
+        },
+        {}
+      );
+
+    return {
+      dmUnreads: mergeUnreads(dmUnreads),
+      channelUnreads: mergeUnreads(channelUnreads),
+    };
+  }, [dmUnreads, channelUnreads]);
+
   const sortRecent = useCallback(
     (aNest: string, bNest: string) => {
       const aUnreads =
-        whomIsDm(aNest) || whomIsMultiDm(aNest) ? dmUnreads : channelUnreads;
-      const aLast = aUnreads[aNest]?.recency ?? Number.NEGATIVE_INFINITY;
+        whomIsDm(aNest) || whomIsMultiDm(aNest)
+          ? processedUnreads.dmUnreads
+          : processedUnreads.channelUnreads;
+      // if the nest is not in the unreads, default to negative infinity
+      const aLast = aUnreads[aNest] ?? Number.NEGATIVE_INFINITY;
 
       const bUnreads =
-        whomIsDm(bNest) || whomIsMultiDm(bNest) ? dmUnreads : channelUnreads;
-      const bLast = bUnreads[bNest]?.recency ?? Number.NEGATIVE_INFINITY;
+        whomIsDm(bNest) || whomIsMultiDm(bNest)
+          ? processedUnreads.dmUnreads
+          : processedUnreads.channelUnreads;
+      // if the nest is not in the unreads, default to negative infinity
+      const bLast = bUnreads[bNest] ?? Number.NEGATIVE_INFINITY;
 
-      if (aLast < bLast) {
-        return -1;
-      }
-      if (aLast > bLast) {
-        return 1;
-      }
-      return 0;
+      return Math.sign(aLast - bLast);
     },
-    [dmUnreads, channelUnreads]
+    [processedUnreads]
   );
 
   return sortRecent;

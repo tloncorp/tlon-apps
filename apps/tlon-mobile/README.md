@@ -72,14 +72,20 @@ npm run ios
 
 #### Run Preview Scheme
 
-Run the Preview version of the app by specifying `scheme` or `variant` in the run command:
+Run the Preview version of the app by specifying different commands:
 
 ```sh
-npm run ios -- --scheme=Landscape-preview
+npm run ios:preview
 ```
 
 ```sh
-npm run android -- --variant=preview
+npm run android:preview
+```
+
+If your Metro bundler is running the `io.tlon.groups` package instead, you can explicity set the URI scheme:
+
+```sh
+npm run bundler -- --dev-client --scheme io.tlon.groups.preview
 ```
 
 ## Debugging

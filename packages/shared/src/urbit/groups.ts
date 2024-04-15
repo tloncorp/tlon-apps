@@ -5,6 +5,8 @@ export interface ViewProps {
   title?: string;
 }
 
+export type PinnedGroupsResponse = string[];
+
 export interface GroupMeta {
   title: string;
   description: string;

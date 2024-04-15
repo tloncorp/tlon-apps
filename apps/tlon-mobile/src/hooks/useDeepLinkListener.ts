@@ -1,19 +1,17 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { parseActiveTab } from '@tloncorp/shared';
+// import { parseActiveTab } from '@tloncorp/shared';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { useWebViewContext } from '../contexts/webview/webview';
 import { inviteShipWithLure } from '../lib/hostingApi';
 import type { TabParamList } from '../types';
 import { trackError } from '../utils/posthog';
 
 export const useDeepLinkListener = () => {
   const navigation = useNavigation<NavigationProp<TabParamList>>();
-  const webviewContext = useWebViewContext();
   const { ship } = useShip();
   const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
 
@@ -51,15 +49,16 @@ export const useDeepLinkListener = () => {
 
   // If deep link clicked, broadcast that navigation update to the webview and mark as handled
   useEffect(() => {
-    if (deepLinkPath && webviewContext.appLoaded) {
-      console.debug(
-        '[useDeepLinkListener] Setting webview path:',
-        deepLinkPath
-      );
-      webviewContext.setGotoPath(deepLinkPath);
-      const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
-      navigation.navigate(tab, { screen: 'Webview' });
-      clearDeepLink();
-    }
-  }, [deepLinkPath, webviewContext, navigation, clearDeepLink]);
+    // TODO: hook up deep links without webview
+    // if (deepLinkPath && webviewContext.appLoaded) {
+    // console.debug(
+    // '[useDeepLinkListener] Setting webview path:',
+    // deepLinkPath
+    // );
+    // webviewContext.setGotoPath(deepLinkPath);
+    // const tab = parseActiveTab(deepLinkPath) ?? 'Groups';
+    // navigation.navigate(tab, { screen: 'Webview' });
+    // clearDeepLink();
+    // }
+  }, [deepLinkPath, navigation, clearDeepLink]);
 };

@@ -4,6 +4,7 @@ import Author from '@/chat/ChatMessage/Author';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { firstInlineSummary } from '@/logic/tiptap';
 import { URL_REGEX, getFirstInline, makePrettyDay } from '@/logic/utils';
+import { useIsPostPending } from '@/state/channel/channel';
 
 interface HeapDetailSidebarProps {
   essay: PostEssay;
@@ -13,6 +14,10 @@ export default function HeapDetailSidebarInfo({
   essay,
 }: HeapDetailSidebarProps) {
   const { content, author, sent } = essay;
+  const isPending = useIsPostPending({
+    author,
+    sent,
+  });
   if (!content || content.length === 0) return null;
 
   const { title } = getKindDataFromEssay(essay);
@@ -29,9 +34,16 @@ export default function HeapDetailSidebarInfo({
         {!title && !isURL ? textPreview : null}
       </h2>
 
-      <time className="text-base font-semibold text-gray-400">
-        {makePrettyDay(unixDate)}
-      </time>
+      <div className="flex">
+        <time className="text-base font-semibold text-gray-400">
+          {makePrettyDay(unixDate)}
+        </time>
+        {isPending && (
+          <span className="ml-auto text-sm font-semibold text-gray-400">
+            Saved, awaiting host confirmation
+          </span>
+        )}
+      </div>
 
       <Author ship={author} />
     </div>

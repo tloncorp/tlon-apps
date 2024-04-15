@@ -2,6 +2,8 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
+const connect = require('connect');
+const { spawn } = require('child_process');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
@@ -24,6 +26,19 @@ module.exports = mergeConfig(config, {
       },
     }),
   },
+  server: {
+    enhanceMiddleware: (metroMiddleware) => {
+      return connect()
+        .use(metroMiddleware)
+        .use('/open-sqlite', (req, res) => {
+          const dbPath = new URL('http://localhost' + req.url).searchParams.get(
+            'path'
+          );
+          openDrizzleStudio(dbPath);
+          res.end('ok');
+        });
+    },
+  },
   resolver: {
     assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
     disableHierarchicalLookup: true,
@@ -35,6 +50,30 @@ module.exports = mergeConfig(config, {
       // without this.
       path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
-    sourceExts: [...config.resolver.sourceExts, 'svg'],
+    sourceExts: [...config.resolver.sourceExts, 'svg', 'sql'],
   },
 });
+
+function openDrizzleStudio(dbPath) {
+  console.log('Opening Drizzle Studio at', dbPath);
+  const ps = spawn(
+    '../../node_modules/.bin/drizzle-kit',
+    `studio --config ./drizzle-studio.config.ts`.split(' '),
+    {
+      env: { ...process.env, DB_URL: dbPath },
+      cwd: projectRoot,
+    }
+  );
+  ps.stderr.on('data', (data) => {
+    console.error(data.toString());
+  });
+  ps.stdout.on('data', (data) => {
+    console.log(data.toString());
+  });
+  process.on('exit', function () {
+    ps.kill(9);
+  });
+  import('open').then(({ default: open }) =>
+    open('http://local.drizzle.studio')
+  );
+}

@@ -9,10 +9,6 @@ export default {
 };
 
 export function getInitialPath(tab: TabName): string {
-  if (tab === 'Groups') {
-    return '/';
-  }
-
   if (tab === 'Messages') {
     return '/messages';
   }

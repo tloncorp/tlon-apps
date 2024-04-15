@@ -1,31 +1,76 @@
-import { Image, View, ViewProps } from "tamagui";
-import { UrbitSigil } from "./UrbitSigil";
-import type { ClientTypes as Client } from "../../../shared";
+import * as db from '@tloncorp/shared/dist/db';
+import { ComponentProps, useMemo } from 'react';
+import { SizeTokens, Token, getTokenValue, styled } from 'tamagui';
+
+import { Image, View } from '../core';
+import { useSigilColors } from '../utils/colorUtils';
+import UrbitSigil from './UrbitSigil';
 
 export function Avatar({
   contact,
+  contactId,
+  size = '$2xl',
   ...props
 }: {
-  contact: Client.Contact;
-} & ViewProps) {
-  // Note, the web Avatar component additionally checks calm settings and confirms the link is valid.
-  if (contact?.avatarImage) {
-    return (
-      <View
-        height={20}
-        width={20}
-        borderRadius="$2xs"
-        overflow="hidden"
-        {...props}
-      >
+  contact?: db.Contact | null;
+  contactId: string;
+  size?: AvatarFrameProps['size'];
+} & AvatarFrameProps) {
+  const colors = useSigilColors(contact?.color);
+  // TODO: check padding values against design
+  const sigilSize = useMemo(() => (size ? getTokenValue(size) : 20) / 2, []);
+  return (
+    <AvatarFrame
+      size={size}
+      {...props}
+      //@ts-expect-error
+      backgroundColor={colors.backgroundColor}
+    >
+      {contact?.avatarImage ? (
         <Image
-          source={{ uri: contact.avatarImage, width: 200, height: 200 }}
+          source={{
+            uri: contact.avatarImage,
+          }}
           height="100%"
           width="100%"
         />
-      </View>
-    );
-  }
-
-  return <UrbitSigil ship={contact?.id} {...props} />;
+      ) : !isNaN(sigilSize) ? (
+        <UrbitSigil colors={colors} size={sigilSize} contactId={contactId} />
+      ) : null}
+    </AvatarFrame>
+  );
 }
+
+const AvatarFrame = styled(View, {
+  name: 'AvatarFrame',
+  overflow: 'hidden',
+  alignItems: 'center',
+  justifyContent: 'center',
+  variants: {
+    size: {
+      $xl: {
+        height: '$xl',
+        width: '$xl',
+        borderRadius: '$2xs',
+      },
+      $2xl: {
+        height: '$2xl',
+        width: '$2xl',
+        borderRadius: '$xs',
+      },
+      $3xl: {
+        height: '$3xl',
+        width: '$3xl',
+        borderRadius: '$xs',
+      },
+      $4xl: {
+        height: '$4xl',
+        width: '$4xl',
+        borderRadius: '$s',
+      },
+    },
+  } as const,
+});
+
+type AvatarFrameProps = ComponentProps<typeof AvatarFrame>;
+export type AvatarSize = AvatarFrameProps['size'];

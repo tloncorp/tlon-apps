@@ -1,7 +1,7 @@
+import { removeUrbitClient } from '@tloncorp/shared/dist/api';
 import { useCallback } from 'react';
 
 import { useShip } from '../contexts/ship';
-import { removeUrbitClient } from '../lib/api';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 export function useLogout() {

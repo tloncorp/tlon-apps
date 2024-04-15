@@ -27,7 +27,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %3
+    $:  %4
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
@@ -119,16 +119,30 @@
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  ?>  ?=(%3 -.old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+  ?>  ?=(%4 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-3 state-2 state-1 state-0)
-  +$  state-3  current-state
+  +$  versioned-state  $%(state-4 state-3 state-2 state-1 state-0)
+  +$  state-4  current-state
+  +$  state-3
+    $:  %3
+        v-channels=(map nest:c v-channel-2)
+        voc=(map [nest:c plan:c] (unit said:c))
+        pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
+        hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+    ==
   ::
   +$  state-2
     $:  %2
-        =v-channels:c
+        v-channels=(map nest:c v-channel-2)
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
@@ -144,6 +158,10 @@
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
+  ++  state-3-to-4
+    |=  s=state-3
+    ^-  state-4
+    s(- %4, v-channels (~(run by v-channels.s) v-channel-2-to-3))
   ++  state-2-to-3
     |=  s=state-2
     ^-  state-3
@@ -163,6 +181,18 @@
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
     +$  local     [=net:c log=log-1 =remark:c =window =future]
     --
+  ::
+  ++  v-channel-2
+    |^  ,[global:v-channel:c local]
+    +$  local
+      $:  =net:c
+          =log:c
+          =remark:c
+          =window:v-channel:c
+          =future:v-channel:c
+      ==
+    --
+  ::
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
   +$  u-channel-1     $%  $<(%post u-channel:c)
@@ -194,6 +224,10 @@
       v-channels    (~(run by v-channels.s) v-channel-1-to-2)
       hidden-posts  [hidden-posts.s pend]
     ==
+  ++  v-channel-2-to-3
+    |=  v=v-channel-2
+    ^-  v-channel:c
+    v(future [future.v *pending-messages:c])
   ++  v-channel-1-to-2
     |=  v=v-channel-1
     %=  v
@@ -567,11 +601,13 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
-      [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels:utils v-channels))
-      [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
+      [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
+      [%x %v2 %channels ~]  ``channels-2+!>((uv-channels-2:utils v-channels))
+      [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
+      [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels)])
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x v=?(%v0 %v1) =kind:c ship=@ name=@ rest=*]
@@ -745,6 +781,50 @@
         last-read       `@da`(add now.bowl (div ~s1 100))
         unread-threads  *(set id-post:c)
       ==
+    =^  new-pending  ca-core
+      =*  pending  pending.channel
+      ?+  -.c-channel.command  [pending ca-core]
+          %post
+        =/  rest  c-post.c-channel.command
+        ?+  -.rest  [pending ca-core]
+            %add
+          =/  essay  essay.rest
+          =/  client-id  [author sent]:essay
+          =/  new-posts  (~(put by posts.pending) client-id essay)
+          :-  [new-posts replies.pending]
+          (ca-response %pending client-id [%post essay])
+        ::
+            %reply
+          ?+  -.c-reply.rest  [pending ca-core]
+              %add
+            =/  memo  memo.c-reply.rest
+            =/  post  (get:on-v-posts:c posts.channel id.rest)
+            ?~  post  [pending ca-core]
+            ?~  u.post  [pending ca-core]
+            =/  client-id  [author sent]:memo
+            =/  new-replies
+              (~(put by replies.pending) [id.rest client-id] memo)
+            =/  old  (get-reply-meta:utils u.u.post)
+            =/  meta
+              %=  old
+                reply-count    +(reply-count.old)
+                last-repliers  (get-last-repliers:utils u.u.post `our.bowl)
+                last-reply     `now.bowl
+              ==
+            :-  [posts.pending new-replies]
+            %-  ca-response
+            :*  %pending
+                client-id
+                :*  %reply
+                    id.rest
+                    meta
+                    memo.c-reply.rest
+                ==
+            ==
+          ==
+        ==
+      ==
+    =.  pending.channel  new-pending
     =/  =cage  [%channel-command !>(command)]
     ::  NB: we must have already subscribed to something from this ship,
     ::  so that we have negotiated a matching version.  If we want to do
@@ -1016,6 +1096,9 @@
           ::TODO  what about the "mention was added during edit" case?
           (on-post:ca-hark id-post u.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
+        =?  pending.channel  ?=(^ post.u-post)
+          =/  client-id  [author sent]:u.post.u-post
+          pending.channel(posts (~(del by posts.pending.channel) client-id))
         (ca-response %post id-post %set post)
       ::
       ?~  post.u-post
@@ -1076,6 +1159,11 @@
           `(uv-reply:utils id-post u.reply.u-reply)
         =?  ca-core  ?=(^ reply.u-reply)
           (on-reply:ca-hark id-post post u.reply.u-reply)
+        =?  pending.channel  ?=(^ reply.u-reply)
+          =/  memo  +.+.u.reply.u-reply
+          =/  client-id  [author sent]:memo
+          =/  new-replies  (~(del by replies.pending.channel) [id-post client-id])
+          pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)
       ::
       ?~  reply.u-reply  (put-reply ~ %set ~)

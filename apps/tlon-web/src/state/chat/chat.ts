@@ -1,5 +1,6 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
+  CacheId,
   ChannelsAction,
   Replies,
   Reply,
@@ -55,7 +56,7 @@ import { whomIsDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 // eslint-disable-next-line import/no-cycle
-import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
+import { PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
 import emptyMultiDm, {
   appendWritToLastPage,

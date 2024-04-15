@@ -1,12 +1,16 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Editor } from '@tiptap/react';
 import {
+  CacheId,
   Cite,
   Memo,
   Nest,
+  Post,
   PostEssay,
   PostTuple,
+  Reply,
   ReplyTuple,
+  Writ,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import cn from 'classnames';
@@ -56,7 +60,7 @@ import {
   useIsDmOrMultiDm,
   useThreadParentId,
 } from '@/logic/utils';
-import { CacheId, useMyLastMessage } from '@/state/channel/channel';
+import { useMyLastMessage } from '@/state/channel/channel';
 import {
   SendMessageVariables,
   SendReplyVariables,
@@ -73,6 +77,7 @@ interface ChatInputProps {
   autoFocus?: boolean;
   showReply?: boolean;
   className?: string;
+  myLastMessage?: Post | Writ | Reply | null;
   sendDisabled?: boolean;
   sendDm?: (variables: SendMessageVariables) => void;
   sendDmReply?: (variables: SendReplyVariables) => void;
@@ -136,6 +141,7 @@ export default function ChatInput({
   className = '',
   showReply = false,
   sendDisabled = false,
+  myLastMessage,
   sendDm,
   sendDmReply,
   sendChatMessage,
@@ -182,7 +188,6 @@ export default function ChatInput({
   const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
   const isDmOrMultiDM = useIsDmOrMultiDm(whom);
-  const myLastMessage = useMyLastMessage(whom, replying);
   const lastMessageId = myLastMessage ? myLastMessage.seal.id : '';
   const lastMessageIdRef = useRef(lastMessageId);
   const isReplyingRef = useRef(!!replying);
@@ -311,6 +316,22 @@ export default function ChatInput({
 
   const onUpdate = useRef(
     debounce(({ editor }: HandlerParams) => {
+      const editorJson = editor.getJSON();
+      // if the only content is an empty mention, clear the draft
+      // this is a workaround for a bug where the editor doesn't clear
+      // the mention after sending a reply
+      const isEmtpyMention =
+        editorJson?.content?.length === 1 &&
+        editorJson?.content[0].content?.length === 2 &&
+        editorJson?.content[0].content[0].type === 'mention' &&
+        editorJson?.content[0].content[1].type === 'text' &&
+        editorJson?.content[0].content[1].text === ': ';
+
+      if (isEmtpyMention) {
+        setDraft(inlinesToJSON(['']));
+        return;
+      }
+
       setDraft(editor.getJSON());
     }, 300)
   );

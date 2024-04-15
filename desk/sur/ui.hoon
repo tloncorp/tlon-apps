@@ -10,6 +10,15 @@
       profile=?
   ==
 ::
++$  init-0
+  $:  groups=groups-ui:g
+      =gangs:g
+      channels=channels-0:d
+      =unreads:d
+      pins=(list whom)
+      =chat
+      profile=?
+  ==
 +$  chat
   $:  clubs=(map id:club:c crew:club:c)
       dms=(set ship)

@@ -35,7 +35,7 @@ app](https://urbit.org/applications/~pocwet/docs) if you have both Docs and
 Groups installed on a running Urbit ship.
 
 Visit this repository's wiki for [an overview of how to use Landscape and
-its apps](https://github.com/tloncorp/landscape-apps/wiki).
+its apps](https://github.com/tloncorp/tlon-apps/wiki).
 
 ## Integrating with Groups agents
 

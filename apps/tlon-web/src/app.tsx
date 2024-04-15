@@ -1,5 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { TamaguiProvider, config } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -164,6 +165,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
   const location = useLocation();
+  const currentTheme = useLocalState((s) => s.currentTheme);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -180,11 +182,12 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   }, [loaded]);
 
   return (
-    <>
+    <TamaguiProvider config={config} defaultTheme={currentTheme}>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
           <Route element={<GroupsNav />}>
+            <Route path="/find/:ship/:name" element={<GroupPreviewModal />} />
             <Route path="/groups" element={<GroupsNav />} />
             <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
             <Route
@@ -557,7 +560,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
           ) : null}
         </Routes>
       ) : null}
-    </>
+    </TamaguiProvider>
   );
 });
 
@@ -610,7 +613,7 @@ function Scheduler() {
   return null;
 }
 
-function App() {
+const App = React.memo(() => {
   useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
@@ -650,7 +653,7 @@ function App() {
       </LeapProvider>
     </div>
   );
-}
+});
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;

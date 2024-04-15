@@ -1,15 +1,14 @@
 import { JSONContent } from '@tiptap/core';
 import {
   Block,
+  CacheId,
   Cite,
   Memo,
   Nest,
   PostEssay,
   constructStory,
 } from '@tloncorp/shared/dist/urbit/channel';
-import { WritDelta } from '@tloncorp/shared/dist/urbit/dms';
 
-import { CacheId } from '@/state/channel/channel';
 import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
 import { buildAddDelta, createMessage } from '@/state/chat/utils';
 
