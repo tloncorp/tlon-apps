@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { JSONContent } from '@tiptap/core';
 import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
-import * as hooks from '@tloncorp/shared/dist/hooks';
+import * as store from '@tloncorp/shared/dist/store';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,10 +17,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
   );
-  const { data: channel } = hooks.useChannelWithLastPostAndMembers({
+  const { data: channel } = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
-  const { data: group, error } = hooks.useGroup({
+  const { data: group, error } = store.useGroup({
     id: channel?.groupId ?? '',
   });
   const {
@@ -31,7 +31,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     hasPreviousPage,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = hooks.useChannelPosts({
+  } = store.useChannelPosts({
     channelId: currentChannelId,
     direction: 'older',
     date: new Date(),
@@ -41,11 +41,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     () => postsData?.pages.flatMap((p) => p) ?? [],
     [postsData]
   );
-  const { data: aroundPosts } = hooks.useChannelPostsAround({
+  const { data: aroundPosts } = store.useChannelPostsAround({
     channelId: currentChannelId,
     postId: props.route.params.selectedPost?.id ?? '',
   });
-  const { data: contacts } = hooks.useContacts();
+  const { data: contacts } = store.useContacts();
 
   const { top, bottom } = useSafeAreaInsets();
   const { ship } = useShip();
