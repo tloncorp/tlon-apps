@@ -40,7 +40,7 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import { useIsDmOrMultiDm, whomIsDm } from '@/logic/utils';
+import { useIsDmOrMultiDm, whomIsDm, whomIsNest } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/activity';
 import {
   useEditReplyMutation,
@@ -48,11 +48,7 @@ import {
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import {
-  useMarkDmReadMutation,
-  useMessageToggler,
-  useTrackedMessageStatus,
-} from '@/state/chat';
+import { useMessageToggler, useTrackedMessageStatus } from '@/state/chat';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';
@@ -124,6 +120,9 @@ const ReplyMessage = React.memo<
       }: ReplyMessageProps,
       ref
     ) => {
+      // we pass `whom` as a channel flag for chat, nest for diary/heap
+      // because we use flags in unreads
+      const nest = whomIsNest(whom) ? whom : `chat/${whom}`;
       const [searchParms, setSearchParams] = useSearchParams();
       const isEditing = searchParms.get('editReply') === reply.seal.id;
       const isEdited = useIsEdited(reply);
@@ -284,7 +283,7 @@ const ReplyMessage = React.memo<
           }
 
           editReply({
-            nest: `chat/${whom}`,
+            nest,
             postId: seal['parent-id'],
             replyId: seal.id,
             memo: {
@@ -296,7 +295,7 @@ const ReplyMessage = React.memo<
 
           setSearchParams({}, { replace: true });
         },
-        [editReply, whom, seal, memo, setSearchParams]
+        [editReply, nest, seal, memo, setSearchParams]
       );
 
       const messageEditor = useMessageEditor({

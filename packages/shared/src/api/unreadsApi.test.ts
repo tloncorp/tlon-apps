@@ -18,8 +18,12 @@ const inputUnread: [string, ub.Unread, client.UnreadType] = [
 const expectedChannelUnread = {
   channelId: 'chat/~nibset-napwyn/commons',
   type: 'channel',
-  totalCount: 0,
+  count: 0,
   updatedAt: 1684342021902,
+  countWithoutThreads: 0,
+  firstUnreadPostId: null,
+  firstUnreadPostReceivedAt: null,
+  threadUnreads: [],
 };
 
 test('converts a channel unread from server to client format', () => {
@@ -46,8 +50,12 @@ const inputDMUnread: [string, ub.DMUnread, client.UnreadType] = [
 const expectedDMUnread = {
   channelId: 'dm/~pondus-latter',
   type: 'dm',
-  totalCount: 0,
+  count: 0,
   updatedAt: 1684342021902,
+  countWithoutThreads: 0,
+  firstUnreadPostId: null,
+  firstUnreadPostReceivedAt: null,
+  threadUnreads: [],
 };
 
 test('converts a channel unread from server to client format', () => {

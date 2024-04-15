@@ -29,7 +29,6 @@ export type Group = {
   description?: string;
   isSecret: boolean;
   isPreview?: boolean;
-  pinIndex?: number | null;
   lastPostAt?: number | null;
 
   // Linked objects
@@ -73,6 +72,20 @@ export type Channel = {
   firstUnreadPostId?: string;
   unreadThreads?: ThreadUnreadState[];
   lastPostAt?: number;
+};
+
+export type Post = {
+  id: string;
+  author: Contact;
+  title?: string;
+  image?: string;
+  content: string;
+  sentAt: string;
+  replyCount: number;
+  type: 'chat' | 'heap' | 'diary';
+
+  channel: Channel;
+  group: Group;
 };
 
 export type ThreadUnreadState = {

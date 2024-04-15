@@ -1,23 +1,28 @@
 {
   "name": "@tloncorp/ui",
   "types": "./src",
-  "main": "src/index.ts",
+  "main": "dist/cjs",
+  "module": "dist/esm",
   "module:jsx": "src",
   "files": [
     "types",
+    "src",
     "dist"
   ],
   "scripts": {
-    "build": "npx tamagui-build --skip-types",
-    "watch": "tamagui-build --watch --skip-types",
+    "build": "npx tamagui-build --skip-types && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/",
+    "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/esm/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/ && tamagui-build --watch --skip-types",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format"
+    "lint:all": "npm run lint:format",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@tamagui/animations-moti": "1.93.2",
     "@tamagui/get-token": "1.93.2",
     "@tamagui/image": "1.93.2",
     "@uidotdev/usehooks": "^2.4.1",
+    "color2k": "^2.0.0",
+    "lodash": "^4.17.21",
     "react-native-svg": "^15.0.0",
     "tamagui": "1.93.2"
   },

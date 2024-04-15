@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type * as db from '@tloncorp/shared/dist/db';
 
 export type SignUpExtras = {
   nickname?: string;
@@ -17,8 +18,19 @@ export type WebViewStackParamList = {
   ExternalWebView: ExternalWebViewScreenParams;
 };
 
+export type HomeStackParamList = {
+  ChatList: undefined;
+  Channel: {
+    channel: db.Channel;
+    selectedPost?: db.Post;
+  };
+  ChannelSearch: {
+    channel: db.Channel;
+  };
+};
+
 export type TabParamList = {
-  Groups: NavigatorScreenParams<WebViewStackParamList>;
+  Groups: NavigatorScreenParams<HomeStackParamList>;
   Messages: NavigatorScreenParams<WebViewStackParamList>;
   Activity: NavigatorScreenParams<WebViewStackParamList>;
   Profile: NavigatorScreenParams<WebViewStackParamList>;

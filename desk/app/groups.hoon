@@ -117,7 +117,6 @@
       %noun
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
-      %verify-cabals  verify-cabals
     ==
   ::
       %reset-group-perms
@@ -261,41 +260,6 @@
     [%pass wire %agent dock %poke cage]
   core
 ::
-++  verify-cabals  (roll ~(tap by groups) verify-group-cabals)
-++  verify-group-cabals
-  |=  [[=flag:g [* =group:g]] core=_cor]
-  =.  core
-    ::  repair members as needed
-    ::
-    %+  roll
-      ~(tap by fleet.group)
-    |=  [[s=ship =vessel:fleet:g] cre=_core]
-    =/  diff  (~(dif in sects.vessel) ~(key by cabals.group))
-    ?:  =(~(wyt in diff) 0)  cre
-    =/  action  [flag now.bowl %fleet (~(gas in *(set ship)) ~[s]) %del-sects diff]
-    cre(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cre])
-  %+  roll
-    ~(tap by channels.group)
-  |=  [[=nest:g =channel:g] cr=_core]
-  =.  cr
-    ::  repair readers as needed
-    ::
-    =/  readers  (~(dif in readers.channel) ~(key by cabals.group))
-    ?.  (gth ~(wyt in readers) 0)  cr
-    =/  action  [flag now.bowl %channel nest %del-sects readers]
-    cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
-  ::  repair writers as needed
-  ::
-  =+  .^(has=? %gu (channel-scry nest))
-  ?.  has  cr
-  =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
-  =/  diff  (~(dif in writers) ~(key by cabals.group))
-  ?.  (gth ~(wyt in diff) 0)  cr
-  ?.  ?=(?(%chat %heap %diary) p.nest)  cr
-  =/  cmd=c-channels:d  [%channel nest %del-writers diff]
-  =/  cage  [%channel-command !>(cmd)]
-  cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
-::
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -310,7 +274,6 @@
       %3
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
     =.  cor  (watch-contact |)
     ?:  =(okay:g cool)  cor
     =.  cor  (emil (drop load:epos))
@@ -1539,8 +1502,35 @@
     ::
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
-      =.  cor  (verify-group-cabals [flag ~ group] cor)
-      go-core
+      =/  old-sect=(set sect:g)  (sy sect ~)
+      =.  fleet.group
+        ::  remove from members as needed
+        ::
+        %-  ~(urn by fleet.group)
+        |=  [* =vessel:fleet:g]
+        vessel(sects (~(dif in sects.vessel) old-sect))
+      =/  channels  ~(tap by channels.group)
+      |-
+      ?~  channels  go-core
+      =*  next  $(channels t.channels)
+      =/  [=nest:g =channel:g]  i.channels
+      ::  repair readers as needed
+      ::
+      =.  go-core  (go-channel-del-sects nest old-sect)
+      ::  repair writers as needed
+      ::
+      =+  .^(has=? %gu (channel-scry nest))
+      ::  missing channel
+      ?.  has  next
+      ::  unsupported channel
+      ?.  ?=(?(%chat %heap %diary) p.nest)  next
+      ::  not host
+      ?:  !=(our.bowl p.q.nest)  next
+      =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
+      =/  cage  [%channel-command !>(cmd)]
+      =/  dock  [p.q.nest %channels-server]
+      =.  cor  (emit %pass /groups/role %agent dock %poke cage)
+      next
     ==
   ::
   ++  go-fleet-update
@@ -1704,6 +1694,7 @@
         vessel(sects (~(dif in sects.vessel) sects.diff))
       go-core
     ==
+  ::
   ++  go-channel-update
     |=  [ch=nest:g =diff:channel:g]
     ^+  go-core
@@ -1743,11 +1734,7 @@
       go-core
     ::
         %del-sects
-      =/  =channel:g  (got:by-ch ch)
-      =.  readers.channel  (~(dif in readers.channel) sects.diff)
-      =.  channels.group  (put:by-ch ch channel)
-      ::  TODO: revoke?
-      go-core
+      (go-channel-del-sects ch sects.diff)
     ::
         %zone
       ?.  (has:by-ch ch)  go-core
@@ -1770,6 +1757,14 @@
       =.  channels.group  (put:by-ch ch channel)
       go-core
     ==
+  ::
+  ++  go-channel-del-sects
+    |=  [ch=nest:g sects=(set sect:g)]
+    =/  =channel:g  (~(got by channels.group) ch)
+    =.  readers.channel  (~(dif in readers.channel) sects)
+    =.  channels.group  (~(put by channels.group) ch channel)
+    go-core
+  ::
   ++  go-bump-zone
     |=  [ch=nest:g =channel:g]
     =/  =zone:g  zone.channel

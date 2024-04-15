@@ -1,6 +1,7 @@
 export * from './core';
-
+export * from './utils';
 export * from './components/Avatar';
+export * from './components/Channel';
 export * from './components/Icon';
 export * from './components/ListItem';
 export * from './components/TamaguiProvider';
@@ -9,6 +10,11 @@ export * from './components/View';
 export * from './components/Sheet';
 export * from './components/GroupOptionsSheet';
 export * from './components/GroupListItem';
-export * from './components/GroupList';
+export * from './components/ChatList';
 export * from './components/ChannelSwitcherSheet';
+export * from './components/SearchBar';
+export * from './components/ChannelSearch';
+export * from './components/LoadingSpinner';
+export * from './components/Button';
 export * from './tamagui.config';
+export * from './contexts';

@@ -1,9 +1,12 @@
-import { daToUnix, unixToDa } from '@urbit/api';
-import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
-
 import * as db from '../db';
 import * as ub from '../urbit';
-import { KindData, KindDataChat } from '../urbit';
+import {
+  KindData,
+  KindDataChat,
+  getChannelType,
+  getTextContent,
+} from '../urbit';
+import { formatDateParam, formatUd, udToDate } from './converters';
 import { scry } from './urbit';
 
 export const getChannelPosts = async (
@@ -29,17 +32,44 @@ export const getChannelPosts = async (
     throw new Error('Must specify either cursor or date');
   }
   const finalCursor = cursor ? cursor : formatDateParam(date!);
-  const mode = includeReplies ? 'post' : 'outline';
-  const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-  const result = await scry<ub.PagedPosts>({ app: 'channels', path });
-  return toPagedPostsData(channelId, result);
+  if (isDmChannelId(channelId)) {
+    const mode = includeReplies ? 'heavy' : 'light';
+    const path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedWrits>({
+      app: 'chat',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else if (isGroupDmChannelId(channelId)) {
+    const mode = includeReplies ? 'heavy' : 'light';
+    const path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedWrits>({
+      app: 'chat',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  } else {
+    const mode = includeReplies ? 'post' : 'outline';
+    const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    const response = await scry<ub.PagedPosts>({
+      app: 'channels',
+      path,
+    });
+    return toPagedPostsData(channelId, response);
+  }
 };
 
-export interface PagedPostsData {
+export interface GetChannelPostsResponse {
   older: string | null;
   newer: string | null;
   posts: db.PostInsert[];
+  deletedPosts: string[];
   totalPosts: number;
+}
+
+export interface DeletedPost {
+  id: string;
+  channelId: string;
 }
 
 export interface ChannelReference {
@@ -67,29 +97,43 @@ export type ContentReference = ChannelReference | GroupReference | AppReference;
 
 export function toPagedPostsData(
   channelId: string,
-  data: ub.PagedPosts
-): PagedPostsData {
+  data: ub.PagedPosts | ub.PagedWrits
+): GetChannelPostsResponse {
+  const posts = 'writs' in data ? data.writs : data.posts;
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
-    posts: toPostsData(channelId, data.posts),
     totalPosts: data.total,
+    ...toPostsData(channelId, posts),
   };
 }
 
-export function toPostsData(
-  channelId: string,
-  posts: ub.Posts
-): db.PostInsert[] {
-  return Object.entries(posts).map(([id, post]) => {
-    return toPostData(id, channelId, post);
-  });
+export function toPostsData(channelId: string, posts: ub.Posts) {
+  const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
+    [string[], db.PostInsert[]]
+  >(
+    (memo, [id, post]) => {
+      if (post === null) {
+        memo[0].push(id);
+      } else {
+        memo[1].push(toPostData(id, channelId, post));
+      }
+      return memo;
+    },
+    [[], []]
+  );
+  return {
+    posts: otherPosts.sort((a, b) => {
+      return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
+    }),
+    deletedPosts,
+  };
 }
 
 export function toPostData(
   id: string,
   channelId: string,
-  post: ub.Post | null
+  post: ub.Post
 ): db.PostInsert {
   const type = isNotice(post)
     ? 'notice'
@@ -97,23 +141,22 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
+
   return {
     id,
+    channelId,
     type,
     // Kind data will override
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
-    authorId: post?.essay.author,
+    authorId: post.essay.author,
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
-    sentAt: post?.essay.sent,
+    sentAt: post.essay.sent,
     receivedAt: udToDate(id),
     replyCount: post?.seal.meta.replyCount,
     images: getPostImages(post),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
-    channel: {
-      id: channelId,
-    },
     ...flags,
   };
 }
@@ -181,82 +224,6 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
   return null;
 }
 
-function getTextContent(story?: ub.Story | undefined) {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (ub.isBlock(verse)) {
-        return getBlockContent(verse.block);
-      } else {
-        return getInlinesContent(verse.inline);
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
-}
-
-function getBlockContent(block: ub.Block) {
-  if (ub.isImage(block)) {
-    return '[image]';
-  } else if (ub.isCite(block)) {
-    return '[ref]';
-  } else if (ub.isHeader(block)) {
-    return block.header.content.map(getInlineContent);
-  } else if (ub.isCode(block)) {
-    return block.code.code;
-  } else if (ub.isListing(block)) {
-    return getListingContent(block.listing);
-  }
-}
-
-function getListingContent(listing: ub.Listing): string {
-  if (ub.isListItem(listing)) {
-    return listing.item.map(getInlineContent).join(' ');
-  } else {
-    return listing.list.items.map(getListingContent).join(' ');
-  }
-}
-
-function getInlinesContent(inlines: ub.Inline[]): string {
-  return inlines
-    .map(getInlineContent)
-    .filter((v) => v && v !== '')
-    .join(' ');
-}
-
-function getInlineContent(inline: ub.Inline): string {
-  if (ub.isBold(inline)) {
-    return inline.bold.map(getInlineContent).join(' ');
-  } else if (ub.isItalics(inline)) {
-    return inline.italics.map(getInlineContent).join(' ');
-  } else if (ub.isLink(inline)) {
-    return inline.link.content;
-  } else if (ub.isStrikethrough(inline)) {
-    return inline.strike.map(getInlineContent).join(' ');
-  } else if (ub.isBlockquote(inline)) {
-    return inline.blockquote.map(getInlineContent).join(' ');
-  } else if (ub.isInlineCode(inline)) {
-    return inline['inline-code'];
-  } else if (ub.isBlockCode(inline)) {
-    return inline.code;
-  } else if (ub.isBreak(inline)) {
-    return '';
-  } else if (ub.isShip(inline)) {
-    return inline.ship;
-  } else if (ub.isTag(inline)) {
-    return inline.tag;
-  } else if (ub.isBlockReference(inline)) {
-    return inline.block.text;
-  } else if (ub.isTask(inline)) {
-    return inline.task.content.map(getInlineContent).join(' ');
-  } else {
-    return inline;
-  }
-}
-
 function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
   if (!kindData) {
     return;
@@ -306,18 +273,18 @@ function toReactionsData(
   });
 }
 
-// Utilities
-
-function formatUd(ud: string) {
-  //@ts-ignore string will get converted internally, so doesn't actually have to
-  //be a bigint
-  return baseFormatUd(ud);
+function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
 }
 
-function udToDate(da: string) {
-  return daToUnix(parseUd(da));
+function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
 }
 
-function formatDateParam(date: Date) {
-  return baseFormatUd(unixToDa(date!.getTime()));
+function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
 }

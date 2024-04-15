@@ -1,5 +1,13 @@
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { daToUnix, decToUd } from '@urbit/api';
+import bigInt from 'big-integer';
+import { useMemo } from 'react';
+
 import * as db from '../db';
 import type * as ub from '../urbit';
+import { stringToTa } from '../urbit/utils';
+import { formatPostIdParam } from './converters';
+import { toPostData } from './postsApi';
 import { scry } from './urbit';
 
 export const getUnreadChannels = async () => {
@@ -9,6 +17,72 @@ export const getUnreadChannels = async () => {
   });
   return toUnreadsData(response);
 };
+
+const searchChatChannel = async (params: {
+  channelId: string;
+  query: string;
+  cursor?: string;
+}) => {
+  const SINGLE_PAGE_SEARCH_DEPTH = 500;
+  const encodedQuery = stringToTa(params.query);
+
+  const response = await scry<ub.ChannelScam>({
+    app: 'channels',
+    path: `/${params.channelId}/search/bounded/text/${
+      params.cursor ? decToUd(params.cursor.toString()) : ''
+    }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
+  });
+
+  const posts = response.scan
+    .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
+    .map((scanItem) => (scanItem as { post: ub.Post }).post)
+    .map((post) =>
+      toPostData(formatPostIdParam(post.seal.id), params.channelId, post)
+    );
+  const cursor = response.last;
+
+  return { posts, cursor };
+};
+
+export function useInfiniteChannelSearch(channelId: string, query: string) {
+  const { data, ...rest } = useInfiniteQuery({
+    queryKey: ['channel', channelId, 'search', query],
+    enabled: query !== '',
+    queryFn: async ({ pageParam }) => {
+      const response = await searchChatChannel({
+        channelId,
+        query,
+        cursor: pageParam,
+      });
+
+      return response;
+    },
+    initialPageParam: '',
+    getNextPageParam: (lastPage) => {
+      if (lastPage.cursor === null) return undefined;
+      return lastPage.cursor;
+    },
+  });
+
+  const results = useMemo(
+    () => data?.pages.flatMap((page) => page.posts) ?? [],
+    [data]
+  );
+
+  const searchedThroughDate = useMemo(() => {
+    const params = data?.pages ?? [];
+    const lastValidCursor = params.findLast(
+      (page) => page.cursor !== null
+    )?.cursor;
+    return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
+  }, [data]);
+
+  return {
+    ...rest,
+    results,
+    searchedThroughDate,
+  };
+}
 
 type ChannelUnreadData = {
   id: string;

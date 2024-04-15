@@ -125,6 +125,7 @@
 		7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChannelStore.swift; sourceTree = "<group>"; };
 		7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsStore.swift; sourceTree = "<group>"; };
 		7036E3552ACD17600020A9FB /* ClubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubStore.swift; sourceTree = "<group>"; };
+		704095A92BBBBC5600BC61A8 /* Info-preview.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "Info-preview.plist"; path = "Landscape/Info-preview.plist"; sourceTree = "<group>"; };
 		705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "Images-preview.xcassets"; path = "Landscape/Images-preview.xcassets"; sourceTree = "<group>"; };
 		7083A16B2AFB01A30022404A /* TlonError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TlonError.swift; sourceTree = "<group>"; };
 		709FC0EC2AC1E25D00B0644D /* Club.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Club.swift; sourceTree = "<group>"; };
@@ -201,6 +202,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
+				704095A92BBBBC5600BC61A8 /* Info-preview.plist */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */,
@@ -482,7 +484,7 @@
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
 				70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
-				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */,
+				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */,
 				70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */,
 			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
@@ -986,16 +988,17 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
 				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = "Tlon - Preview";
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
+					"PREVIEW=1",
 					"FB_SONARKIT_ENABLED=1",
 				);
-				INFOPLIST_FILE = Landscape/Info.plist;
+				INFOPLIST_FILE = "Landscape/Info-preview.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1025,11 +1028,20 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
 				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = "Tlon - Preview";
-				INFOPLIST_FILE = Landscape/Info.plist;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"PREVIEW=1",
+					"COCOAPODS=1",
+					"$(inherited)",
+					"PB_FIELD_32BIT=1",
+					"PB_NO_PACKED_STRUCTS=1",
+					"PB_ENABLE_MALLOC=1",
+				);
+				INFOPLIST_FILE = "Landscape/Info-preview.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1368,7 +1380,7 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
@@ -1392,7 +1404,7 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire.git" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
@@ -1418,7 +1430,7 @@
 		};
 		70D386472A6098F800AFB46E /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */;
+			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */;
 			productName = Alamofire;
 		};
 		70D3866E2A60A3B300AFB46E /* UrsusSigil */ = {
@@ -1433,7 +1445,7 @@
 		};
 		70DBBFE22B7C60B50021EA96 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */;
+			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire.git" */;
 			productName = Alamofire;
 		};
 		70DBBFE42B7C60B50021EA96 /* UrsusSigil */ = {

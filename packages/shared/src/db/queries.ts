@@ -2,16 +2,20 @@ import {
   AnyColumn,
   Column,
   SQLWrapper,
+  Subquery,
+  SubqueryConfig,
   Table,
   and,
+  asc,
   count,
   desc,
   eq,
   getTableColumns,
   gt,
+  inArray,
+  isNotNull,
   isNull,
   lt,
-  not,
   or,
   sql,
 } from 'drizzle-orm';
@@ -20,10 +24,12 @@ import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
   channels as $channels,
+  chatMemberGroupRoles as $chatMemberGroupRoles,
+  chatMembers as $chatMembers,
   contactGroups as $contactGroups,
   contacts as $contacts,
-  groupMemberRoles as $groupMemberRoles,
-  groupMembers as $groupMembers,
+  groupNavSectionChannels as $groupNavSectionChannels,
+  groupNavSections as $groupNavSections,
   groupRoles as $groupRoles,
   groups as $groups,
   pins as $pins,
@@ -32,29 +38,161 @@ import {
 } from './schema';
 import {
   ChannelInsert,
+  ChannelSummary,
+  ChannelWithLastPostAndMembers,
+  ChatMember,
+  Contact,
   ContactInsert,
   GroupInsert,
-  Insertable,
+  GroupSummary,
   Pin,
   PostInsert,
+  TableName,
   Unread,
+  UnreadInsert,
 } from './types';
 
 export interface GetGroupsOptions {
-  sort?: 'pinIndex';
   includeUnjoined?: boolean;
+  includeUnreads?: boolean;
+  includeLastPost?: boolean;
 }
 
 export const getGroups = createReadQuery(
   'getGroups',
-  async ({ sort, includeUnjoined }: GetGroupsOptions = {}) => {
-    return client.query.groups.findMany({
-      where: includeUnjoined ? undefined : eq($groups.isJoined, true),
-      orderBy: sort === 'pinIndex' ? ascNullsLast($groups.pinIndex) : undefined,
+  async ({
+    includeUnjoined,
+    includeLastPost,
+    includeUnreads,
+  }: GetGroupsOptions = {}): Promise<GroupSummary[]> => {
+    const unreadCounts = client
+      .select({
+        groupId: $channels.groupId,
+        count: count().as('count'),
+      })
+      .from($channels)
+      .rightJoin($unreads, eq($channels.id, $unreads.channelId))
+      .groupBy($channels.groupId)
+      .having(gt($unreads.count, 0))
+      .as('unreadCounts');
+    const query = client
+      .select({
+        ...getTableColumns($groups),
+        ...(includeUnreads ? { unreadCount: unreadCounts.count } : undefined),
+        ...(includeLastPost
+          ? { lastPost: getTableColumns($posts) }
+          : undefined),
+      })
+      .from($groups)
+      .where(includeUnjoined ? undefined : eq($groups.isJoined, true));
+    if (includeLastPost) {
+      query.leftJoin($posts, eq($groups.lastPostId, $posts.id));
+    }
+    if (includeUnreads) {
+      query.leftJoin(unreadCounts, eq($groups.id, unreadCounts.groupId));
+    }
+    return query;
+  },
+  ({ includeLastPost, includeUnreads }: GetGroupsOptions): TableName[] => [
+    'groups',
+    ...(includeLastPost ? (['posts'] as TableName[]) : []),
+    ...(includeUnreads ? (['unreads'] as TableName[]) : []),
+  ]
+);
+
+export const getChats = createReadQuery(
+  'getChats',
+  async (): Promise<ChannelSummary[]> => {
+    const partitionedGroupsQuery = client
+      .select({
+        ...getTableColumns($channels),
+        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY ${$channels.lastPostAt} DESC)`.as(
+          'rn'
+        ),
+      })
+      .from($channels)
+      .where(and(isNotNull($channels.groupId)))
+      .as('q');
+
+    const groupChannels = client
+      .select()
+      .from(partitionedGroupsQuery)
+      .where(eq(partitionedGroupsQuery.rn, 1));
+
+    const allChannels = client
+      .select({
+        ...getTableColumns($channels),
+        rn: sql`0`.as('rn'),
+      })
+      .from($channels)
+      .where(isNull($channels.groupId))
+      .union(groupChannels)
+      .as('ac');
+
+    const result = await client
+      .select({
+        ...allQueryColumns(allChannels),
+        group: getTableColumns($groups),
+        unread: getTableColumns($unreads),
+        pin: getTableColumns($pins),
+        lastPost: getTableColumns($posts),
+        member: {
+          ...getTableColumns($chatMembers),
+        },
+        contact: getTableColumns($contacts),
+      })
+      .from(allChannels)
+      .leftJoin($groups, eq($groups.id, allChannels.groupId))
+      .leftJoin($unreads, eq($unreads.channelId, allChannels.id))
+      .leftJoin(
+        $pins,
+        or(
+          eq(allChannels.groupId, $pins.itemId),
+          eq(allChannels.id, $pins.itemId)
+        )
+      )
+      .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
+      .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
+      .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
+      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+    const [chatMembers, filteredChannels] = result.reduce<
+      [
+        Record<string, (ChatMember & { contact: Contact | null })[]>,
+        typeof result,
+      ]
+    >(
+      ([members, filteredChannels], channel) => {
+        if (!channel.member || !members[channel.id]) {
+          filteredChannels.push(channel);
+        }
+        if (channel.member) {
+          members[channel.id] ||= [];
+          members[channel.id].push({
+            ...channel.member,
+            contact: channel.contact ?? null,
+          });
+        }
+        return [members, filteredChannels];
+      },
+      [{}, [] as typeof result]
+    );
+
+    return filteredChannels.map((c) => {
+      return {
+        ...c,
+        members: chatMembers[c.id] ?? null,
+      };
     });
   },
-  ['groups', 'pins']
+  ['groups', 'channels']
 );
+
+const allQueryColumns = <T extends Subquery>(
+  subquery: T
+): T['_']['selectedFields'] => {
+  return (subquery as any)[SubqueryConfig]
+    .selection as T['_']['selectedFields'];
+};
 
 export const insertGroups = createWriteQuery(
   'insertGroups',
@@ -67,8 +205,8 @@ export const insertGroups = createWriteQuery(
     'groups',
     'groupRoles',
     'contacts',
-    'groupMembers',
-    'groupMemberRoles',
+    'chatMembers',
+    'chatMemberGroupRoles',
     'channels',
     'pins',
   ]
@@ -94,6 +232,64 @@ const insertGroup = async (group: GroupInsert) => {
           $groups.isJoined
         ),
       });
+    if (group.channels?.length) {
+      await client
+        .insert($channels)
+        .values(group.channels)
+        .onConflictDoUpdate({
+          target: [$channels.id],
+          set: conflictUpdateSet(
+            $channels.iconImage,
+            $channels.coverImage,
+            $channels.title,
+            $channels.description,
+            $channels.addedToGroupAt,
+            $channels.currentUserIsMember,
+            $channels.type
+          ),
+        });
+    }
+    if (group.navSections) {
+      const navSectionChannels = group.navSections.flatMap((s) => s.channels);
+      await tx
+        .insert($groupNavSections)
+        .values(
+          group.navSections.map((s) => ({
+            id: s.id,
+            groupId: group.id,
+            title: s.title,
+            description: s.description,
+            index: s.index,
+            channels: s.channels?.map((c) => ({
+              groupNavSectionId: s.id,
+              channelId: c.channelId,
+              index: s.index,
+            })),
+          }))
+        )
+        .onConflictDoUpdate({
+          target: $groupNavSections.id,
+          set: conflictUpdateSet(
+            $groupNavSections.iconImage,
+            $groupNavSections.coverImage,
+            $groupNavSections.title,
+            $groupNavSections.description
+          ),
+        });
+
+      if (navSectionChannels.length) {
+        await tx
+          .insert($groupNavSectionChannels)
+          .values(
+            navSectionChannels.map((s) => ({
+              index: s?.index,
+              groupNavSectionId: s?.groupNavSectionId,
+              channelId: s?.channelId,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+    }
     if (group.roles) {
       await client
         .insert($groupRoles)
@@ -115,7 +311,7 @@ const insertGroup = async (group: GroupInsert) => {
         .values(group.members.map((m) => ({ id: m.contactId })))
         .onConflictDoNothing();
       await client
-        .insert($groupMembers)
+        .insert($chatMembers)
         .values(group.members)
         .onConflictDoNothing();
       const validRoleNames = group.roles?.map((r) => r.id);
@@ -126,7 +322,6 @@ const insertGroup = async (group: GroupInsert) => {
           // exist in the group's cabals. Should figure out if this is expected
           // behavior if we should try retain the role.
           if (!validRoleNames?.includes(r.roleId)) {
-            console.warn('discarding invalid role', r.contactId, r.roleId);
             return [];
           }
           return {
@@ -138,26 +333,10 @@ const insertGroup = async (group: GroupInsert) => {
       });
       if (memberRoles.length) {
         await client
-          .insert($groupMemberRoles)
+          .insert($chatMemberGroupRoles)
           .values(memberRoles)
           .onConflictDoNothing();
       }
-    }
-    if (group.channels?.length) {
-      await client
-        .insert($channels)
-        .values(group.channels)
-        .onConflictDoUpdate({
-          target: [$channels.id],
-          set: conflictUpdateSet(
-            $channels.iconImage,
-            $channels.coverImage,
-            $channels.title,
-            $channels.description,
-            $channels.addedToGroupAt,
-            $channels.currentUserIsMember
-          ),
-        });
     }
     if (group.posts) {
     }
@@ -166,7 +345,7 @@ const insertGroup = async (group: GroupInsert) => {
 
 export const getGroupRoles = createReadQuery(
   'getGroupRoles',
-  async (groupId: string) => {
+  async () => {
     return client.query.groupRoles.findMany();
   },
   ['groupRoles']
@@ -179,10 +358,7 @@ export const getUnreadsCount = createReadQuery(
       .select({ count: count() })
       .from($unreads)
       .where(() =>
-        and(
-          gt($unreads.totalCount, 0),
-          type ? eq($unreads.type, type) : undefined
-        )
+        and(gt($unreads.count, 0), type ? eq($unreads.type, type) : undefined)
       );
     return result[0].count;
   },
@@ -203,7 +379,7 @@ export const getUnreads = createReadQuery(
     return client.query.unreads.findMany({
       where: and(
         type ? eq($unreads.type, type) : undefined,
-        includeFullyRead ? undefined : gt($unreads.totalCount, 0)
+        includeFullyRead ? undefined : gt($unreads.count, 0)
       ),
       orderBy: orderBy === 'updatedAt' ? desc($unreads.updatedAt) : undefined,
     });
@@ -229,15 +405,94 @@ export const getAllUnreadsCounts = createReadQuery(
 
 export const getChannel = createReadQuery(
   'getChannel',
-  async (id: string) => {
-    return client.query.channels.findFirst({ where: eq($channels.id, id) });
+  async ({ id, includeMembers }: { id: string; includeMembers?: boolean }) => {
+    return client.query.channels.findFirst({
+      where: eq($channels.id, id),
+      with: {
+        ...(includeMembers ? { members: { with: { contact: true } } } : {}),
+      },
+    });
+  },
+  ['channels']
+);
+
+export const getChannelWithLastPostAndMembers = createReadQuery(
+  'getChannelWithLastPostAndMembers',
+  async ({
+    id,
+  }: {
+    id: string;
+  }): Promise<ChannelWithLastPostAndMembers | undefined> => {
+    return await client.query.channels.findFirst({
+      where: eq($channels.id, id),
+      with: {
+        lastPost: true,
+        members: {
+          with: {
+            contact: true,
+          },
+        },
+      },
+    });
+  },
+  ['channels']
+);
+
+export const getStaleChannels = createReadQuery(
+  'getStaleChannels',
+  async () => {
+    return client
+      .select({
+        ...getTableColumns($channels),
+        unread: getTableColumns($unreads),
+      })
+      .from($channels)
+      .innerJoin($unreads, eq($unreads.channelId, $channels.id))
+      .where(
+        or(
+          isNull($channels.lastPostAt),
+          lt($channels.remoteUpdatedAt, $unreads.updatedAt)
+        )
+      )
+      .leftJoin(
+        $pins,
+        or(eq($pins.itemId, $channels.id), eq($pins.itemId, $channels.groupId))
+      )
+      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+  },
+  ['channels']
+);
+
+export const insertChannels = createWriteQuery(
+  'insertChannels',
+  async (channels: ChannelInsert[]) => {
+    return client.transaction(async (tx) => {
+      await client
+        .insert($channels)
+        .values(channels)
+        .onConflictDoUpdate({
+          target: $channels.id,
+          set: conflictUpdateSetAll($posts),
+        });
+      for (let channel of channels) {
+        if (channel.members) {
+          await client
+            .delete($chatMembers)
+            .where(eq($chatMembers.chatId, channel.id));
+          await client.insert($chatMembers).values(channel.members);
+        }
+      }
+    });
   },
   ['channels']
 );
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: ChannelInsert) => {
+  (update: Partial<ChannelInsert> & { id: string }) => {
+    if (update.type) {
+      console.log('update channel type', update.id, update.type);
+    }
     return client
       .update($channels)
       .set(update)
@@ -246,9 +501,103 @@ export const updateChannel = createWriteQuery(
   ['channels']
 );
 
+export const setJoinedGroupChannels = createWriteQuery(
+  'setJoinedGroupChannels',
+  async ({ channelIds }: { channelIds: string[] }) => {
+    return await client
+      .update($channels)
+      .set({
+        currentUserIsMember: inArray($channels.id, channelIds),
+      })
+      .where(isNotNull($channels.groupId));
+  },
+  ['channels']
+);
+
+export const getChannelPosts = createReadQuery(
+  'getChannelPosts',
+  async ({ channelId }: { channelId: string }) => {
+    return client.query.posts.findMany({
+      where: eq($posts.channelId, channelId),
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+  },
+  ['posts', 'channels']
+);
+
+export const getChannelPostsAround = createReadQuery(
+  'getChannelPosts',
+  async ({ channelId, postId }: { channelId: string; postId: string }) => {
+    if (!postId) return [];
+
+    // Get desired post
+    const referencePost = await client.query.posts.findFirst({
+      where: eq($posts.id, postId),
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+
+    if (!referencePost) {
+      throw new Error('Reference post not found');
+    }
+
+    const sentAt = referencePost.sentAt;
+
+    // Get before posts
+    const beforePosts = await client.query.posts.findMany({
+      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      orderBy: [desc($posts.sentAt)],
+      limit: 25,
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+
+    // Get after posts
+    const afterPosts = await client.query.posts.findMany({
+      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      orderBy: [asc($posts.sentAt)],
+      limit: 25,
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+
+    // Return all posts in order
+    return [...beforePosts.reverse(), referencePost, ...afterPosts];
+  },
+  ['posts', 'channels']
+);
+
+export const getChannelSearchResults = createReadQuery(
+  'getChannelSearchResults',
+  async (channelId: string, postIds: string[]) => {
+    if (postIds.length === 0) return [];
+    return client.query.posts.findMany({
+      where: and(eq($posts.channelId, channelId), inArray($posts.id, postIds)),
+      orderBy: [desc($posts.sentAt)],
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
+  },
+  []
+);
+
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
   async (channelId: string, posts: PostInsert[]) => {
+    if (!posts.length) {
+      return;
+    }
     return client.transaction(async (tx) => {
       const lastPost = posts[posts.length - 1];
       // Update last post meta for the channel these posts belong to,
@@ -272,8 +621,16 @@ export const insertChannelPosts = createWriteQuery(
       if (groupId) {
         await tx
           .update($groups)
-          .set({ lastPostAt: lastPost.receivedAt })
-          .where(eq($groups.id, groupId));
+          .set({ lastPostId: lastPost.id, lastPostAt: lastPost.receivedAt })
+          .where(
+            and(
+              eq($groups.id, groupId),
+              or(
+                isNull($groups.lastPostAt),
+                lt($groups.lastPostAt, lastPost.receivedAt ?? 0)
+              )
+            )
+          );
       }
       // Actually insert posts, overwriting any existing posts with the same id.
       await tx
@@ -288,14 +645,67 @@ export const insertChannelPosts = createWriteQuery(
   ['posts', 'channels', 'groups']
 );
 
+export const deletePosts = createWriteQuery(
+  'deletePosts',
+  async ({ ids }: { ids: string[] }) => {
+    return client.delete($posts).where(inArray($posts.id, ids));
+  },
+  ['posts']
+);
+
+export const getPosts = createReadQuery(
+  'getPosts',
+  () => {
+    return client.select().from($posts);
+  },
+  ['posts']
+);
+
 export const getGroup = createReadQuery(
   'getGroup',
-  async (id: string) => {
+  async ({ id }: { id: string }) => {
     return client.query.groups.findFirst({
       where: (groups, { eq }) => eq(groups.id, id),
+      with: {
+        channels: {
+          where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
+          with: {
+            lastPost: true,
+            unread: true,
+          },
+        },
+        roles: true,
+        members: true,
+        navSections: {
+          with: {
+            channels: true,
+          },
+        },
+      },
     });
   },
   ['groups']
+);
+
+export const getGroupByChannel = createReadQuery(
+  'getGroupByChannel',
+  async (channelId: string) => {
+    const channel = await client.query.channels.findFirst({
+      where: (channels, { eq }) => eq(channels.id, channelId),
+    });
+
+    if (!channel || !channel.groupId) return null;
+
+    return client.query.groups.findFirst({
+      where: (groups, { eq }) => eq(groups.id, channel.groupId!),
+      with: {
+        channels: true,
+        roles: true,
+        members: true,
+      },
+    });
+  },
+  ['channels', 'groups']
 );
 
 export const getContacts = createReadQuery(
@@ -314,6 +724,16 @@ export const getContacts = createReadQuery(
   ['contacts']
 );
 
+export const getContactsBatch = createReadQuery(
+  'getContactsBatch',
+  async ({ contactIds }: { contactIds: string[] }) => {
+    return client.query.contacts.findMany({
+      where: (contacts, { inArray }) => inArray(contacts.id, contactIds),
+    });
+  },
+  ['contacts']
+);
+
 export const getContactsCount = createReadQuery(
   'getContactsCount',
   async () => {
@@ -325,7 +745,7 @@ export const getContactsCount = createReadQuery(
 
 export const getContact = createReadQuery(
   'getContact',
-  async (id: string) => {
+  async ({ id }: { id: string }) => {
     return client.query.contacts.findFirst({
       where: (contacts, { eq }) => eq(contacts.id, id),
     });
@@ -336,7 +756,13 @@ export const getContact = createReadQuery(
 export const insertContact = createWriteQuery(
   'insertContact',
   async (contact: ContactInsert) => {
-    return client.insert($contacts).values(contact);
+    return client
+      .insert($contacts)
+      .values(contact)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSetAll($contacts),
+      });
   },
   ['contacts']
 );
@@ -353,8 +779,16 @@ export const insertContacts = createWriteQuery(
         isSecret: false,
       })
     );
-    await client.insert($contacts).values(contactsData).onConflictDoNothing();
-    await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    await client
+      .insert($contacts)
+      .values(contactsData)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSetAll($contacts),
+      });
+    if (targetGroups.length) {
+      await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    }
     // TODO: Remove stale pinned groups
     await client
       .insert($contactGroups)
@@ -366,16 +800,14 @@ export const insertContacts = createWriteQuery(
 
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
-  async (unreads: Insertable<'unreads'>[]) => {
+  async (unreads: UnreadInsert[]) => {
     return client.transaction(() => {
       return client
         .insert($unreads)
         .values(unreads)
         .onConflictDoUpdate({
           target: [$unreads.channelId],
-          set: {
-            totalCount: sql.raw(`excluded.totalCount + unreads.totalCount`),
-          },
+          set: conflictUpdateSetAll($unreads),
         });
     });
   },
@@ -386,34 +818,10 @@ export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
   async (pinnedItems: Pin[]) => {
     return client.transaction(async (tx) => {
-      await Promise.all([
-        tx.delete($pins),
-        tx
-          .update($groups)
-          .set({ pinIndex: null })
-          .where(not(isNull($groups.pinIndex))),
-      ]);
+      await tx.delete($pins);
+      // users may not have pinned items
+      if (!pinnedItems.length) return;
       await tx.insert($pins).values(pinnedItems);
-      const groups: GroupInsert[] = pinnedItems.flatMap((p) => {
-        if (!p.itemId) {
-          return [];
-        }
-        return [
-          {
-            id: p.itemId,
-            pinIndex: p.index,
-          },
-        ];
-      });
-      await tx
-        .insert($groups)
-        .values(groups)
-        .onConflictDoUpdate({
-          target: [$groups.id],
-          set: {
-            pinIndex: sql`excluded.pin_index`,
-          },
-        });
     });
   },
   ['pins', 'groups']
@@ -435,18 +843,18 @@ export const getPinnedItems = createReadQuery(
 
 // Helpers
 
-export function conflictUpdateSetAll(table: Table) {
+function conflictUpdateSetAll(table: Table) {
   const columns = getTableColumns(table);
   return conflictUpdateSet(...Object.values(columns));
 }
 
-export function conflictUpdateSet(...columns: Column[]) {
+function conflictUpdateSet(...columns: Column[]) {
   return Object.fromEntries(
     columns.map((c) => [toCamelCase(c.name), sql.raw(`excluded.${c.name}`)])
   );
 }
 
-export function ascNullsLast(column: SQLWrapper | AnyColumn) {
+function ascNullsLast(column: SQLWrapper | AnyColumn) {
   return sql`${column} ASC NULLS LAST`;
 }
 

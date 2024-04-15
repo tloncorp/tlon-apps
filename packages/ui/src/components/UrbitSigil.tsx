@@ -1,38 +1,40 @@
-// Note: the import statement for sigil is different in the native version
-// The native version uses the core entry point of sigil-js
-// The web version uses the default entry point of sigil-js
-import sigil from '@urbit/sigil-js';
 import { useMemo } from 'react';
-import { View, useTheme } from 'tamagui';
 
-export const UrbitSigil = View.styleable<{
-  ship: string;
-}>(({ ship, ...props }, ref) => {
-  const validShip = ship.length <= 14; // planet or larger
-  const theme = useTheme();
+import { UrbitSigilSvg, makeSigil } from './UrbitSigilSvg';
+
+function UrbitSigil({
+  contactId,
+  colors,
+  renderDetail = false,
+  padding = 'none',
+  size = 24,
+  ...props
+}: {
+  contactId: string;
+  colors?: {
+    backgroundColor: string;
+    foregroundColor: string;
+  };
+  renderDetail?: boolean;
+  padding?: 'none' | 'default' | 'large';
+  size?: number;
+}) {
+  const validId = contactId.length <= 14; // planet or larger
   const sigilXml = useMemo(
     () =>
-      sigil({
-        point: ship,
-        detail: 'none',
-        size: 12,
-        space: 'none',
-        foreground: '#ffffff',
-        // typescript thinks theme.darkBackground could be undefined
-        background: theme.darkBackground?.val,
-      }),
-    [ship]
+      validId
+        ? makeSigil({
+            point: contactId,
+            detail: renderDetail ? 'default' : 'none',
+            size: size,
+            space: padding,
+            foreground: colors?.foregroundColor,
+            background: colors?.backgroundColor,
+          })
+        : null,
+    [contactId, validId, size, colors?.foregroundColor, colors?.backgroundColor]
   );
-  return (
-    <View
-      ref={ref}
-      width={20}
-      height={20}
-      alignItems="center"
-      justifyContent="center"
-      backgroundColor="$darkBackground"
-      borderRadius="$2xs"
-      {...props}
-    />
-  );
-});
+  return sigilXml ? <UrbitSigilSvg xml={sigilXml} /> : null;
+}
+
+export default UrbitSigil;

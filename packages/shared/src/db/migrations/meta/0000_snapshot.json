@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "e752a78c-94ab-4ade-9ed6-6bbb5206b813",
+  "id": "2f70dd04-f8d9-44b4-a7e5-8c635500533c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -11,6 +11,13 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -28,8 +35,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "icon_image_color": {
+          "name": "icon_image_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "cover_image": {
           "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image_color": {
+          "name": "cover_image_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -130,6 +151,117 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "chat_member_roles": {
+      "name": "chat_member_roles",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role_id": {
+          "name": "role_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "chat_member_roles_group_id_groups_id_fk": {
+          "name": "chat_member_roles_group_id_groups_id_fk",
+          "tableFrom": "chat_member_roles",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "chat_member_roles_contact_id_contacts_id_fk": {
+          "name": "chat_member_roles_contact_id_contacts_id_fk",
+          "tableFrom": "chat_member_roles",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chat_member_roles_group_id_contact_id_role_id_pk": {
+          "columns": [
+            "contact_id",
+            "group_id",
+            "role_id"
+          ],
+          "name": "chat_member_roles_group_id_contact_id_role_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "group_members": {
+      "name": "group_members",
+      "columns": {
+        "membership_type": {
+          "name": "membership_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "group_members_chat_id_contact_id_pk": {
+          "columns": [
+            "chat_id",
+            "contact_id"
+          ],
+          "name": "group_members_chat_id_contact_id_pk"
+        }
+      },
       "uniqueConstraints": {}
     },
     "contact_group_pins": {
@@ -248,150 +380,19 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "group_member_roles": {
-      "name": "group_member_roles",
-      "columns": {
-        "group_id": {
-          "name": "group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "role_id": {
-          "name": "role_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "group_member_roles_group_id_groups_id_fk": {
-          "name": "group_member_roles_group_id_groups_id_fk",
-          "tableFrom": "group_member_roles",
-          "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "group_member_roles_contact_id_contacts_id_fk": {
-          "name": "group_member_roles_contact_id_contacts_id_fk",
-          "tableFrom": "group_member_roles",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "group_member_roles_group_id_contact_id_role_id_pk": {
-          "columns": [
-            "contact_id",
-            "group_id",
-            "role_id"
-          ],
-          "name": "group_member_roles_group_id_contact_id_role_id_pk"
-        }
-      },
-      "uniqueConstraints": {}
-    },
-    "group_members": {
-      "name": "group_members",
-      "columns": {
-        "group_id": {
-          "name": "group_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "joined_at": {
-          "name": "joined_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "group_members_group_id_groups_id_fk": {
-          "name": "group_members_group_id_groups_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "group_members_contact_id_contacts_id_fk": {
-          "name": "group_members_contact_id_contacts_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "group_members_group_id_contact_id_pk": {
-          "columns": [
-            "contact_id",
-            "group_id"
-          ],
-          "name": "group_members_group_id_contact_id_pk"
-        }
-      },
-      "uniqueConstraints": {}
-    },
     "group_nav_section_channels": {
       "name": "group_nav_section_channels",
       "columns": {
         "group_nav_section_id": {
           "name": "group_nav_section_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "channel_id": {
           "name": "channel_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -468,8 +469,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "icon_image_color": {
+          "name": "icon_image_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "cover_image": {
           "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image_color": {
+          "name": "cover_image_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -533,8 +548,29 @@
           "notNull": false,
           "autoincrement": false
         },
-        "image": {
-          "name": "image",
+        "icon_image": {
+          "name": "icon_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "icon_image_color": {
+          "name": "icon_image_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image": {
+          "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image_color": {
+          "name": "cover_image_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -542,13 +578,6 @@
         },
         "title": {
           "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "cover": {
-          "name": "cover",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -655,15 +684,15 @@
           "notNull": false,
           "autoincrement": false
         },
-        "last_post_at": {
-          "name": "last_post_at",
-          "type": "integer",
+        "last_post_id": {
+          "name": "last_post_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "pin_index": {
-          "name": "pin_index",
+        "last_post_at": {
+          "name": "last_post_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -850,14 +879,14 @@
           "name": "author_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "channel_id": {
           "name": "channel_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "group_id": {
@@ -871,7 +900,7 @@
           "name": "type",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "title": {
@@ -895,18 +924,18 @@
           "notNull": false,
           "autoincrement": false
         },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "received_at": {
           "name": "received_at",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false
         },
         "reply_count": {
@@ -916,8 +945,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "text": {
-          "name": "text",
+        "text_content": {
+          "name": "text_content",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -960,56 +989,16 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "posts_author_id_contacts_id_fk": {
-          "name": "posts_author_id_contacts_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "author_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "posts_channel_id_channels_id_fk": {
-          "name": "posts_channel_id_channels_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "posts_group_id_groups_id_fk": {
-          "name": "posts_group_id_groups_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "thread_unread_states": {
-      "name": "thread_unread_states",
+    "thread_unreads": {
+      "name": "thread_unreads",
       "columns": {
         "channel_id": {
           "name": "channel_id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1034,31 +1023,24 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "first_unread_post_received_at": {
+          "name": "first_unread_post_received_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "thread_unread_states_channel_id_channels_id_fk": {
-          "name": "thread_unread_states_channel_id_channels_id_fk",
-          "tableFrom": "thread_unread_states",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
-        "thread_unread_states_channel_id_thread_id_pk": {
+        "thread_unreads_channel_id_thread_id_pk": {
           "columns": [
             "channel_id",
             "thread_id"
           ],
-          "name": "thread_unread_states_channel_id_thread_id_pk"
+          "name": "thread_unreads_channel_id_thread_id_pk"
         }
       },
       "uniqueConstraints": {}
@@ -1066,8 +1048,8 @@
     "unreads": {
       "name": "unreads",
       "columns": {
-        "channelId": {
-          "name": "channelId",
+        "channel_id": {
+          "name": "channel_id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
@@ -1077,40 +1059,47 @@
           "name": "type",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
-        "totalCount": {
-          "name": "totalCount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updatedAt": {
-          "name": "updatedAt",
+        "count": {
+          "name": "count",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "count_without_threads": {
+          "name": "count_without_threads",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "first_unread_post_id": {
+          "name": "first_unread_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "first_unread_post_received_at": {
+          "name": "first_unread_post_received_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "unreads_channelId_channels_id_fk": {
-          "name": "unreads_channelId_channels_id_fk",
-          "tableFrom": "unreads",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channelId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     }

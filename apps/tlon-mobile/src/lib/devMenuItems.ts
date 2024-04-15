@@ -17,26 +17,35 @@ const devMenuItems = [
   {
     name: 'Drizzle studio (simulator only)',
     callback: async () => {
-      const path = getDbPath();
-      if (!path || !metroBundlerURL) {
-        console.warn(
-          'unable to open db, path or metroBundlerURL missing',
-          path,
-          metroBundlerURL
-        );
-      }
-      const url =
-        metroBundlerURL +
-        'open-sqlite?path=' +
-        encodeURIComponent(getDbPath() ?? '');
-      console.log('opening drizzle studio at url:', url);
-      try {
-        await fetch(url);
-      } catch (e) {
-        console.log(e);
-      }
+      const path = getDbPath() ?? '';
+      sendBundlerRequest('open-sqlite', { path });
+    },
+  },
+  {
+    name: 'Dump sqlite database',
+    callback: async () => {
+      const path = getDbPath() ?? '';
+      sendBundlerRequest('dump-sqlite', { path });
     },
   },
 ];
+
+async function sendBundlerRequest(
+  path: string,
+  params: Record<string, string>
+) {
+  if (!metroBundlerURL) {
+    console.warn('no metroBundlerURL');
+    return;
+  }
+  const url =
+    metroBundlerURL + path + '?' + new URLSearchParams(params).toString();
+  console.log('sending request to metro bundler:', url);
+  try {
+    await fetch(url);
+  } catch (e) {
+    console.log(e);
+  }
+}
 
 registerDevMenuItems(devMenuItems);

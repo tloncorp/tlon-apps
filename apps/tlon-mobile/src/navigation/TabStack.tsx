@@ -1,36 +1,15 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type * as client from '@tloncorp/shared/dist/client';
 import * as db from '@tloncorp/shared/dist/db';
 import type { IconType } from '@tloncorp/ui';
-import {
-  Avatar,
-  Circle,
-  Icon,
-  SizableText,
-  View,
-  useStyle,
-} from '@tloncorp/ui';
+import { Circle, Icon, SizableText, View, useStyle } from '@tloncorp/ui';
+import { Avatar } from '@tloncorp/ui/src/index';
 import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
-import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
-
-function fallbackContact(id: string): client.Contact {
-  return {
-    id,
-    nickname: null,
-    bio: null,
-    status: null,
-    color: null,
-    avatarImage: null,
-    coverImage: null,
-    pinnedGroupIds: [],
-  };
-}
 
 export const TabStack = () => {
   const { contactId } = useShip();
@@ -67,7 +46,7 @@ export const TabStack = () => {
         name="Groups"
         component={HomeStack}
         options={{
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               type={'Home'}
@@ -81,7 +60,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Messages"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -96,7 +75,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Activity"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon
@@ -110,7 +89,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Profile"
-        component={WebViewStack}
+        component={View}
         options={{
           tabBarIcon: ({ focused }) => (
             <AvatarTabIcon id={contactId!} focused={focused} />
@@ -123,10 +102,15 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const { result: contact } = db.useContact(id);
-  return (
+  const { result: contact, isLoading } = db.useContact({ id });
+  return isLoading && !contact ? null : (
+    // Uniquely sized avatar for tab bar
     <Avatar
-      contact={contact ?? fallbackContact(id)}
+      width={20}
+      height={20}
+      borderRadius={3}
+      contact={contact}
+      contactId={id}
       opacity={focused ? 1 : 0.6}
     />
   );

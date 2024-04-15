@@ -4,6 +4,8 @@ import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
+  Unread,
+  VerseBlock,
   constructStory,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
@@ -328,10 +330,22 @@ const ChatMessage = React.memo<
 
       const onSubmit = useCallback(
         async (editor: Editor) => {
-          // const now = Date.now();
           const editorJson = editor.getJSON();
+          // users can't edit blocks, so we need to preserve them
+          // and only update the inline content
+          const existingBlocks = (
+            essay.content.filter((verse) => 'block' in verse) as VerseBlock[]
+          ).map((b) => b.block);
           const inlineContent = JSONToInlines(editorJson);
           const content = constructStory(inlineContent);
+
+          if (existingBlocks.length > 0) {
+            content.push(
+              ...existingBlocks.map((b) => ({
+                block: b,
+              }))
+            );
+          }
 
           if (content.length === 0) {
             return;
@@ -352,9 +366,13 @@ const ChatMessage = React.memo<
         [editPost, whom, seal.id, essay, setSearchParams]
       );
 
+      // we only want to pass in the inline content to the editor
+      const contentInlines = essay.content.filter((verse) => 'inline' in verse);
+      const jsonContent = diaryMixedToJSON(contentInlines);
+
       const messageEditor = useMessageEditor({
         whom: writ.seal.id,
-        content: diaryMixedToJSON(essay.content),
+        content: jsonContent,
         uploadKey: 'chat-editor-should-not-be-used-for-uploads',
         allowMentions: true,
         onEnter: useCallback(

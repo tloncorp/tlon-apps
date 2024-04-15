@@ -1,48 +1,76 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
-import { Image, View, ViewProps, isWeb } from 'tamagui';
+import { ComponentProps, useMemo } from 'react';
+import { SizeTokens, Token, getTokenValue, styled } from 'tamagui';
 
-import { UrbitSigil } from './UrbitSigil';
+import { Image, View } from '../core';
+import { useSigilColors } from '../utils/colorUtils';
+import UrbitSigil from './UrbitSigil';
 
 export function Avatar({
   contact,
+  contactId,
+  size = '$2xl',
   ...props
 }: {
-  contact: db.Contact;
-} & ViewProps) {
-  // TODO: is there a better way to do this? Could we modify usage in web to match native?
-  // on native, we have to pass height/width for the source prop, on web we want to use other attributes
-  // to set those
-  const nativeDims = useMemo(
-    () =>
-      isWeb
-        ? { height: undefined, width: undefined }
-        : { height: 20, width: 20 },
-    [isWeb]
-  );
-
-  // Note, the web Avatar component additionally checks calm settings and confirms the link is valid.
-  if (contact?.avatarImage) {
-    return (
-      <View
-        height={20}
-        width={20}
-        borderRadius="$2xs"
-        overflow="hidden"
-        {...props}
-      >
+  contact?: db.Contact | null;
+  contactId: string;
+  size?: AvatarFrameProps['size'];
+} & AvatarFrameProps) {
+  const colors = useSigilColors(contact?.color);
+  // TODO: check padding values against design
+  const sigilSize = useMemo(() => (size ? getTokenValue(size) : 20) / 2, []);
+  return (
+    <AvatarFrame
+      size={size}
+      {...props}
+      //@ts-expect-error
+      backgroundColor={colors.backgroundColor}
+    >
+      {contact?.avatarImage ? (
         <Image
           source={{
             uri: contact.avatarImage,
-            height: nativeDims.height,
-            width: nativeDims.width,
           }}
           height="100%"
           width="100%"
         />
-      </View>
-    );
-  }
-
-  return <UrbitSigil ship={contact?.id} {...props} />;
+      ) : !isNaN(sigilSize) ? (
+        <UrbitSigil colors={colors} size={sigilSize} contactId={contactId} />
+      ) : null}
+    </AvatarFrame>
+  );
 }
+
+const AvatarFrame = styled(View, {
+  name: 'AvatarFrame',
+  overflow: 'hidden',
+  alignItems: 'center',
+  justifyContent: 'center',
+  variants: {
+    size: {
+      $xl: {
+        height: '$xl',
+        width: '$xl',
+        borderRadius: '$2xs',
+      },
+      $2xl: {
+        height: '$2xl',
+        width: '$2xl',
+        borderRadius: '$xs',
+      },
+      $3xl: {
+        height: '$3xl',
+        width: '$3xl',
+        borderRadius: '$xs',
+      },
+      $4xl: {
+        height: '$4xl',
+        width: '$4xl',
+        borderRadius: '$s',
+      },
+    },
+  } as const,
+});
+
+type AvatarFrameProps = ComponentProps<typeof AvatarFrame>;
+export type AvatarSize = AvatarFrameProps['size'];

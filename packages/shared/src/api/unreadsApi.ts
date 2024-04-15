@@ -1,5 +1,9 @@
+import { daToDate, decToUd, udToDec } from '@urbit/api';
+
 import * as db from '../db';
+import { threadUnreads } from '../db/schema';
 import type * as ub from '../urbit';
+import { udToDate } from './converters';
 import { scry, subscribe } from './urbit';
 
 export const getChannelUnreads = async () => {
@@ -19,7 +23,7 @@ export const getDMUnreads = async () => {
 };
 
 export const subscribeChannelUnreads = (
-  handler: (unread: db.Unread) => Promise<void>
+  handler: (unread: db.Unread) => void
 ) => {
   subscribe<ub.UnreadUpdate>(
     { app: 'channels', path: '/unreads' },
@@ -30,9 +34,7 @@ export const subscribeChannelUnreads = (
   );
 };
 
-export const subscribeDMUnreads = (
-  handler: (unread: db.Unread) => Promise<void>
-) => {
+export const subscribeDMUnreads = (handler: (unread: db.Unread) => void) => {
   subscribe<ub.DMUnreadUpdate>(
     { app: 'chat', path: '/unreads' },
     async (update) => {
@@ -42,24 +44,57 @@ export const subscribeDMUnreads = (
   );
 };
 
+export const subscribeUnreads = async (
+  handler: (unread: db.Unread) => void,
+  {
+    type,
+  }: {
+    type?: 'dm' | 'channel';
+  } = {}
+) => {
+  if (!type || type === 'dm') {
+    subscribeDMUnreads(handler);
+  }
+  if (!type || type === 'channel') {
+    subscribeChannelUnreads(handler);
+  }
+};
+
 export const toClientUnreads = (
   unreads: ub.Unreads,
   type: db.Unread['type']
-): db.Unread[] => {
-  return Object.entries(unreads).map(([nest, contact]) =>
-    toClientUnread(nest, contact, type)
+): (db.Unread & { threadUnreads: db.ThreadUnreadState[] })[] => {
+  return Object.entries(unreads).map(([id, contact]) =>
+    toClientUnread(id, contact, type)
   );
 };
 
 export const toClientUnread = (
-  nestOrWhom: string,
+  channelId: string,
   unread: ub.Unread,
   type: db.Unread['type']
-): db.Unread => {
+): db.Unread & { threadUnreads: db.ThreadUnreadState[] } => {
   return {
-    updatedAt: unread.recency,
-    channelId: nestOrWhom,
-    totalCount: unread.count,
+    channelId,
     type,
+    updatedAt: unread.recency,
+    count: unread.count,
+    countWithoutThreads: unread.unread?.count ?? 0,
+    firstUnreadPostId: unread.unread?.id ?? null,
+    firstUnreadPostReceivedAt: unread.unread?.id
+      ? type === 'dm'
+        ? udToDate(decToUd(unread.unread.id.split('/')[1]))
+        : udToDate(unread.unread.id)
+      : null,
+    threadUnreads: Object.entries(unread.threads ?? {}).map(
+      ([threadId, thread]) =>
+        ({
+          channelId,
+          threadId,
+          count: thread.count,
+          firstUnreadPostId: thread.id ?? null,
+          firstUnreadPostReceivedAt: thread.id ? udToDate(thread.id) : null,
+        }) as const
+    ),
   };
 };

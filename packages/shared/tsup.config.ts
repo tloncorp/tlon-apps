@@ -1,3 +1,4 @@
+import { exec } from 'child_process';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -8,13 +9,20 @@ export default defineConfig({
     'src/db/index.ts',
     'src/db/migrations/index.ts',
     'src/api/index.ts',
+    'src/sync.ts',
   ],
   format: ['esm'],
-  dts: true,
   minify: false,
   external: ['react'],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {
     '.sql': 'text',
+  },
+  onSuccess() {
+    return new Promise((resolve, reject) => {
+      exec('npm run types', (err) => {
+        err ? reject(err) : resolve();
+      });
+    });
   },
 });

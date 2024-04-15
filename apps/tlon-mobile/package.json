@@ -72,6 +72,7 @@
     "react-native-branch": "^5.9.0",
     "react-native-country-codes-picker": "^2.3.3",
     "react-native-device-info": "^10.8.0",
+    "react-native-fast-image": "^8.6.3",
     "react-native-fetch-api": "^3.0.0",
     "react-native-gesture-handler": "~2.14.0",
     "react-native-get-random-values": "^1.11.0",
@@ -91,6 +92,7 @@
   },
   "devDependencies": {
     "@react-native/metro-config": "^0.73.5",
+    "@tamagui/babel-plugin": "1.93.2",
     "@trivago/prettier-plugin-sort-imports": "^4.2.0",
     "@types/react": "^18.2.55",
     "@types/tmp": "^0.2.6",

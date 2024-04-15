@@ -259,7 +259,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       let s3Url: URL;
 
       if (config.publicUrlBase) {
-        s3Url = new URL(config.publicUrlBase);
+        s3Url = new URL(key, config.publicUrlBase);
       } else {
         s3Url = new URL(
           await getSignedUrl(client, command)

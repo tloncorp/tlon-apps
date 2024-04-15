@@ -1,19 +1,23 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import * as db from '@tloncorp/shared/dist/db';
-import { GroupList, GroupOptionsSheet, Icon, View } from '@tloncorp/ui';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Icon } from '@tloncorp/ui';
 import React, { useEffect } from 'react';
 
-import { useWebviewPositionContext } from '../contexts/webview/position';
-import type { TabParamList } from '../types';
+import { useScreenOptions } from '../hooks/useScreenOptions';
+import ChannelScreen from '../screens/ChannelScreen';
+import ChannelSearch from '../screens/ChannelSearchScreen';
+import ChatListScreen from '../screens/ChatListScreen';
+import type { HomeStackParamList, TabParamList } from '../types';
 
 type Props = BottomTabScreenProps<TabParamList, 'Groups'>;
+const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 export const HomeStack = ({ navigation }: Props) => {
-  const { setVisibility } = useWebviewPositionContext();
-  const [longPressedGroup, setLongPressedGroup] =
-    React.useState<db.Group | null>(null);
-
-  const { pinnedGroups, unpinnedGroups } = db.useGroupsForList() ?? {};
+  const screenOptions = useScreenOptions({
+    overrides: {
+      headerShown: false,
+    },
+  });
 
   useEffect(() => {
     navigation.setOptions({
@@ -28,27 +32,13 @@ export const HomeStack = ({ navigation }: Props) => {
         />
       ),
     });
-
-    const unsubscribe = navigation.addListener('tabPress', () => {
-      // hide the webview from other tabs
-      setVisibility(false);
-    });
-
-    return unsubscribe;
-  }, [navigation, setVisibility]);
+  }, [navigation]);
 
   return (
-    <View backgroundColor="$background" flex={1}>
-      <GroupList
-        pinned={Array.from(pinnedGroups ?? [])}
-        other={Array.from(unpinnedGroups ?? [])}
-        onGroupLongPress={setLongPressedGroup}
-      />
-      <GroupOptionsSheet
-        open={longPressedGroup !== null}
-        onOpenChange={(open) => (!open ? setLongPressedGroup(null) : 'noop')}
-        group={longPressedGroup ?? undefined}
-      />
-    </View>
+    <Stack.Navigator initialRouteName="ChatList" screenOptions={screenOptions}>
+      <Stack.Screen name="ChatList" component={ChatListScreen} />
+      <Stack.Screen name="Channel" component={ChannelScreen} />
+      <Stack.Screen name="ChannelSearch" component={ChannelSearch} />
+    </Stack.Navigator>
   );
 };
