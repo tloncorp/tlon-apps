@@ -22,6 +22,7 @@ import {
 import { Image, SizableText, Text, View, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
+import { PreviewableImage } from '../PreviewableImage';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
@@ -171,7 +172,7 @@ export function BlockContent({ story }: { story: Block }) {
   // TODO add support for videos and other embeds
   if (isImage(story)) {
     return (
-      <Image
+      <PreviewableImage
         source={{
           uri: story.image.src,
           width: story.image.height,

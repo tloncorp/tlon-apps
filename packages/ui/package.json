@@ -18,6 +18,7 @@
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
     "@react-native-clipboard/clipboard": "^1.14.0",
+    "@likashefqet/react-native-image-zoom": "^3.0.0",
     "@tamagui/animations-moti": "1.93.2",
     "@tamagui/get-token": "1.93.2",
     "@tamagui/image": "1.93.2",
