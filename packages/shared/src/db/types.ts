@@ -102,6 +102,7 @@ export type ChannelSummary = Channel & {
 };
 
 export type ChannelInsert = Insertable<'channels'>;
+export type ChannelType = schema.ChannelType;
 export type ThreadUnreadState = typeof schema.threadUnreads.$inferSelect;
 export type ThreadUnreadStateInsert = typeof schema.threadUnreads.$inferInsert;
 export type Post = typeof schema.posts.$inferSelect;

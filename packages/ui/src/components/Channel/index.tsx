@@ -66,6 +66,7 @@ export function Channel({
                     selectedPost={selectedPost}
                     firstUnread={channel.firstUnreadPostId ?? undefined}
                     posts={posts}
+                    channelType={channel.type}
                   />
                 )}
                 <MessageInput />

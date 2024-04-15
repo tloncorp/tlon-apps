@@ -10,7 +10,7 @@
     "clearcache": "expo start -c",
     "ios": "expo run:ios",
     "ios:preview": "expo run:ios --scheme=Landscape-preview",
-    "generate": "npm run generate:tailwind && npm run generate:ios",
+    "generate": "npm run generate:tailwind",
     "generate:ios": "react-native bundle --entry-file='index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
     "generate:tailwind": "tailwindcss --input input.css --output tailwind.css --no-autoprefixer && tailwind-rn",
     "format": "npm run format:js && npm run format:swift",
@@ -37,6 +37,7 @@
     "@gorhom/bottom-sheet": "^4.5.1",
     "@op-engineering/op-sqlite": "^3.0.7",
     "@react-native-async-storage/async-storage": "1.21.0",
+    "@react-native-clipboard/clipboard": "^1.14.0",
     "@react-native-community/netinfo": "11.1.0",
     "@react-native-firebase/app": "^18.4.0",
     "@react-native-firebase/crashlytics": "^18.4.0",
@@ -92,7 +93,8 @@
     "react-native-webview": "13.6.4",
     "tailwind-rn": "^4.2.0",
     "text-encoding": "^0.7.0",
-    "web-streams-polyfill": "^3.3.3"
+    "web-streams-polyfill": "^3.3.3",
+    "expo-haptics": "~12.8.1"
   },
   "devDependencies": {
     "@react-native/metro-config": "^0.73.5",

@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db/types';
 // import ContextMenu from 'react-native-context-menu-view';
 // import * as ContextMenu from 'zeego/context-menu';
 import { MotiView } from 'moti';
@@ -47,11 +47,13 @@ const renderItem = ({
 
 export default function ChatScroll({
   posts,
+  channelType,
   unreadCount,
   firstUnread,
   selectedPost,
 }: {
   posts: db.PostWithRelations[];
+  channelType: db.ChannelType;
   unreadCount?: number;
   firstUnread?: string;
   selectedPost?: string;
@@ -198,52 +200,10 @@ export default function ChatScroll({
             post={activeMessage!}
             postRef={activeMessageRefs[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
+            channelType={channelType}
           />
         )}
       </Modal>
     </XStack>
   );
 }
-
-/* <ContextMenu
-                actions={[{ title: 'Title 1' }, { title: 'Title 2' }]}
-                onPress={(e) => {
-                  console.warn(
-                    `Pressed ${e.nativeEvent.name} at index ${e.nativeEvent.index}`
-                  );
-                }}
-                preview={<ChatMessageActions post={item} />}
-              >
-                <View backgroundColor="transparent">
-                  <ChatMessage
-                    post={item}
-                    firstUnread={firstUnread}
-                    unreadCount={unreadCount}
-                  />
-                </View>
-              </ContextMenu> */
-
-/* <ContextMenu.Root>
-                <ContextMenu.Trigger>
-                  <ChatMessage
-                    post={item}
-                    firstUnread={firstUnread}
-                    unreadCount={unreadCount}
-                  />
-                </ContextMenu.Trigger>
-                <ContextMenu.Content>
-                  <ContextMenu.Preview>
-                    <ChatMessageActions post={item} />
-                  </ContextMenu.Preview>
-                  <ContextMenu.Item key="testing">
-                    <ContextMenu.ItemTitle>Testing</ContextMenu.ItemTitle>
-                  </ContextMenu.Item>
-                  <ContextMenu.Item key="Another">
-                    <ContextMenu.ItemTitle>Another</ContextMenu.ItemTitle>
-                  </ContextMenu.Item>
-                  <ContextMenu.Item key="orange" destructive>
-                    <ContextMenu.ItemTitle>Bad</ContextMenu.ItemTitle>
-                  </ContextMenu.Item>
-                </ContextMenu.Content>
-              </ContextMenu.Root>
-            </YStack> */

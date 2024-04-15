@@ -89,7 +89,13 @@ const ChatMessage = memo(
           />
         </View>
         <View paddingLeft="$4xl">
-          <ChatContent story={content} />
+          {post.hidden ? (
+            <SizableText color="$secondaryText">
+              You have hidden or flagged this message.
+            </SizableText>
+          ) : (
+            <ChatContent story={content} />
+          )}
         </View>
         {reactReduction.length > 0 && (
           <XStack padding="$m" paddingLeft="$4xl" borderRadius="$m">

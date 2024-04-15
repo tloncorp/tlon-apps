@@ -1,10 +1,8 @@
 import { addPostReaction, removePostReaction } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db';
-import { MotiView } from 'moti';
+import * as db from '@tloncorp/shared/dist/db/types';
 import { RefObject, useCallback, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import Animated, {
-  runOnUI,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -12,11 +10,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Dialog, View, XStack, YStack, ZStack } from '../../core';
-import { ActionList } from '../ActionList';
+import { View, XStack, YStack } from '../../core';
+import { Button } from '../Button';
 import ChatMessage from '../ChatMessage';
+import { EmojiPickerSheet } from '../Emoji/EmojiPickerSheet';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
 import { Icon } from '../Icon';
+import ChatMessageMenu from './ChatMessageMenu';
 
 interface LayoutStruct {
   x: number;
@@ -28,10 +28,12 @@ interface LayoutStruct {
 export function ChatMessageActions({
   post,
   postRef,
+  channelType,
   onDismiss,
 }: {
   post: db.PostWithRelations;
   postRef: RefObject<RNView>;
+  channelType: db.ChannelType;
   onDismiss: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -41,7 +43,7 @@ export function ChatMessageActions({
   const [originalLayout, setOriginalLayout] = useState<LayoutStruct | null>(
     null
   );
-  const translateX = useSharedValue(-500); // Start offscreen to the left
+  const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(0.3); // Start with a smaller scale
   const opacity = useSharedValue(0);
@@ -87,15 +89,12 @@ export function ChatMessageActions({
 
   useEffect(() => {
     if (actionLayout && originalLayout) {
-      console.log(`action layout`, JSON.stringify(actionLayout, null, 2));
-      console.log(`original layout`, JSON.stringify(originalLayout, null, 2));
-
       const verticalPosition = calcVerticalPosition();
 
       const springConfig = {
-        damping: 2000, // Increase damping to reduce springiness
-        stiffness: 1500, // Increase stiffness to speed up the animation
-        mass: 1, // Adjust mass if necessary (default is 1)
+        damping: 2000,
+        stiffness: 1500,
+        mass: 1,
       };
       translateY.value = withDelay(
         200,
@@ -121,16 +120,15 @@ export function ChatMessageActions({
 
   return (
     <Animated.View style={animatedStyles}>
-      <View
-        onLayout={handleLayout}
-        paddingHorizontal="$xl"
-        // borderWidth={2}
-        // borderColor="blue"
-      >
+      <View onLayout={handleLayout} paddingHorizontal="$xl">
         <YStack gap="$xs">
           <EmojiToolbar post={post} onDismiss={onDismiss} />
-          <MessageContainer post={post} postRef={postRef} />
-          <MessageActions />
+          <MessageContainer post={post} />
+          <ChatMessageMenu
+            post={post}
+            channelType={channelType}
+            dismiss={onDismiss}
+          />
         </YStack>
       </View>
     </Animated.View>
@@ -144,16 +142,20 @@ export function EmojiToolbar({
   post: db.PostWithRelations;
   onDismiss: () => void;
 }) {
-  const hasSelfReact = post.reactions.reduce(
-    (has, react) => has || react.contactId === global?.ship,
-    false
-  );
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const selfShortcode = post.reactions.reduce((foundValue, react) => {
-    return (
-      foundValue || (react.contactId === global?.ship ? react.value : null)
-    );
-  }, null);
+  const hasSelfReact =
+    post.reactions?.reduce(
+      (has, react) => has || react.contactId === global?.ship,
+      false
+    ) ?? false;
+
+  const selfShortcode =
+    post.reactions?.reduce((foundValue, react) => {
+      return (
+        foundValue || (react.contactId === global?.ship ? react.value : null)
+      );
+    }, null) ?? '';
 
   const handlePress = useCallback((shortCode) => {
     hasSelfReact && selfShortcode.includes(shortCode)
@@ -163,63 +165,66 @@ export function EmojiToolbar({
     setTimeout(() => onDismiss(), 50);
   }, []);
 
+  console.log('sheet open?', sheetOpen);
+
   return (
-    <XStack
-      padding="$l"
-      backgroundColor="$background"
-      borderRadius="$l"
-      justifyContent="space-between"
-      width={256}
-    >
-      <SizableEmoji
-        onPress={() => handlePress('seedling')}
-        shortCode="seedling"
-        fontSize={32}
+    <>
+      <XStack
+        padding="$l"
+        backgroundColor="$background"
+        borderRadius="$l"
+        justifyContent="space-between"
+        alignItems="center"
+        width={256}
+      >
+        <Button padding="$xs" borderWidth={0} onPress={() => handlePress('+1')}>
+          <SizableEmoji shortCode="+1" fontSize={32} />
+        </Button>
+        <Button
+          padding="$xs"
+          borderWidth={0}
+          onPress={() => handlePress('heart')}
+        >
+          <SizableEmoji shortCode="heart" fontSize={32} />
+        </Button>
+        <Button
+          padding="$xs"
+          borderWidth={0}
+          onPress={() => handlePress('cyclone')}
+        >
+          <SizableEmoji shortCode="cyclone" fontSize={32} />
+        </Button>
+        <Button
+          padding="$xs"
+          borderWidth={0}
+          onPress={() => handlePress('seedling')}
+        >
+          <SizableEmoji shortCode="seedling" fontSize={32} />
+        </Button>
+        <Button
+          padding="$xs"
+          borderWidth={0}
+          onPress={() => setSheetOpen(true)}
+        >
+          <Icon type="ChevronDown" size="$l" />
+        </Button>
+      </XStack>
+      <EmojiPickerSheet
+        open={sheetOpen}
+        onOpenChange={() => setSheetOpen(false)}
+        onEmojiSelect={handlePress}
       />
-      <SizableEmoji
-        onPress={() => handlePress('cyclone')}
-        shortCode="cyclone"
-        fontSize={32}
-      />
-      <SizableEmoji
-        onPress={() => handlePress('hot_pepper')}
-        shortCode="hot_pepper"
-        fontSize={32}
-      />
-      <SizableEmoji
-        onPress={() => handlePress('jack_o_lantern')}
-        shortCode="jack_o_lantern"
-        fontSize={32}
-      />
-      <Icon type="ChevronDown" size="$l" />
-    </XStack>
+    </>
   );
 }
 
-function MessageActions() {
-  return (
-    <ActionList width={220}>
-      <ActionList.Action>Reply</ActionList.Action>
-      <ActionList.Action>Start thread</ActionList.Action>
-      <ActionList.Action actionType="destructive" last>
-        Delete message
-      </ActionList.Action>
-    </ActionList>
-  );
-}
-
-const MAX_MESSAGE_TO_SCREEN_RATIO = 0.4;
-function MessageContainer({
-  post,
-  postRef,
-}: {
-  post: db.PostWithRelations;
-  postRef: RefObject<RNView>;
-}) {
+const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
+function MessageContainer({ post }: { post: db.PostWithRelations }) {
   const screenHeight = Dimensions.get('window').height;
   return (
     <View
       maxHeight={screenHeight * MAX_MESSAGE_TO_SCREEN_RATIO}
+      overflow="hidden"
       backgroundColor="$background"
       padding="$l"
       borderRadius="$l"
@@ -228,55 +233,3 @@ function MessageContainer({
     </View>
   );
 }
-
-// const MAX_MESSAGE_TO_SCREEN_RATIO = 0.4;
-// function MessageContainer({ post }: { post: db.PostWithRelations }) {
-//   const [scaleFactor, setScaleFactor] = useState<number | null>(null);
-//   const screenHeight = Dimensions.get('window').height;
-
-//   function calculateLayout(event: LayoutChangeEvent) {
-//     const { height: messageHeight, width: messageWidth } =
-//       event.nativeEvent.layout;
-
-//     const messageToScreenHeightRatio = messageHeight / screenHeight;
-//     if (messageToScreenHeightRatio > MAX_MESSAGE_TO_SCREEN_RATIO) {
-//       setScaleFactor(MAX_MESSAGE_TO_SCREEN_RATIO / messageToScreenHeightRatio);
-//     } else {
-//       setScaleFactor(1);
-//     }
-//   }
-
-//   return (
-//     <>
-//       <MotiView
-//       // animate={{
-//       //   opacity: scaleFactor === null ? 0 : 1,
-//       //   transform: scaleFactor !== null ? [{ scale: scaleFactor }] : [],
-//       // }}
-//       >
-//         {scaleFactor !== null && scaleFactor < 1 ? (
-//           <View
-//             height={Math.floor(screenHeight * MAX_MESSAGE_TO_SCREEN_RATIO)}
-//             borderWidth={2}
-//             borderColor="$orange"
-//             overflow="hidden"
-//           >
-//             <View backgroundColor="$background" padding="$l" borderRadius="$l">
-//               <ChatMessage post={post} />
-//             </View>
-//           </View>
-//         ) : (
-//           <View backgroundColor="$background" padding="$l" borderRadius="$l">
-//             <ChatMessage post={post} />
-//           </View>
-//         )}
-//       </MotiView>
-
-//       <View position="absolute" opacity={0} top={-20000} left={-20000}>
-//         <View onLayout={calculateLayout}>
-//           <ChatMessage post={post} />
-//         </View>
-//       </View>
-//     </>
-//   );
-// }

@@ -1,3 +1,5 @@
+import { Poke } from '@urbit/http-api';
+
 import * as db from '../db';
 import * as ub from '../urbit';
 import {
@@ -136,6 +138,46 @@ export async function removeReaction(
       },
     },
   });
+}
+
+export async function togglePost(channelId: string, postId: string) {
+  const action = {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      'toggle-post': postId,
+    },
+  };
+
+  return poke(action);
+}
+
+export async function deletePost(channelId: string, postId: string) {
+  const action = channelAction(channelId, {
+    post: {
+      del: postId,
+    },
+  });
+
+  // todo: we need to use a tracked poke here (or settle on a different pattern
+  // for expressing request response semantics)
+  return poke(action);
+}
+
+function channelAction(
+  channelId: string,
+  action: ub.Action
+): Poke<ub.ChannelsAction> {
+  return {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
 }
 
 export interface GetChannelPostsResponse {

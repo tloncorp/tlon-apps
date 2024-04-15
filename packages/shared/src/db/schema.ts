@@ -282,11 +282,11 @@ export const groupNavSectionChannelsRelations = relations(
   })
 );
 
+export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+
 export const channels = sqliteTable('channels', {
   id: text('id').primaryKey(),
-  type: text('type')
-    .$type<'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm'>()
-    .notNull(),
+  type: text('type').$type<ChannelType>().notNull(),
   groupId: text('group_id').references(() => groups.id),
   ...metaFields,
   addedToGroupAt: timestamp('added_to_group_at'),
@@ -344,6 +344,7 @@ export const posts = sqliteTable('posts', {
   hasGroupReference: boolean('has_group_reference'),
   hasLink: boolean('has_link'),
   hasImage: boolean('has_image'),
+  hidden: boolean('hidden').default(false),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({

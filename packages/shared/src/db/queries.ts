@@ -647,6 +647,22 @@ export const insertChannelPosts = createWriteQuery(
   ['posts', 'channels', 'groups']
 );
 
+export const updatePost = createWriteQuery(
+  'updateChannelPost',
+  async (post: Partial<PostInsert> & { id: string }) => {
+    return client.update($posts).set(post).where(eq($posts.id, post.id));
+  },
+  ['posts']
+);
+
+export const deletePost = createWriteQuery(
+  'deleteChannelPost',
+  async (postId: string) => {
+    return client.delete($posts).where(eq($posts.id, postId));
+  },
+  ['posts']
+);
+
 export const insertPostReactions = createWriteQuery(
   'insertPostReactions',
   async ({ reactions, our }: { reactions: ReactionInsert[]; our?: string }) => {
