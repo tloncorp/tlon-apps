@@ -147,7 +147,7 @@ export async function removeReaction(
   postId: string,
   our: string
 ) {
-  await poke({
+  return await poke({
     app: 'channels',
     mark: 'channel-action',
     json: {

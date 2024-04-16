@@ -11,6 +11,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { View, XStack, YStack } from '../../core';
+import { ReactionDetails, useReactionDetails } from '../../utils/postUtils';
 import { Button } from '../Button';
 import ChatMessage from '../ChatMessage';
 import { EmojiPickerSheet } from '../Emoji/EmojiPickerSheet';
@@ -143,26 +144,13 @@ export function EmojiToolbar({
   onDismiss: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  const hasSelfReact =
-    post.reactions?.reduce(
-      (has, react) => has || react.contactId === (global as any).ship,
-      false
-    ) ?? false;
-
-  const selfShortcode =
-    post.reactions?.reduce(
-      (foundValue, react) => {
-        return (
-          foundValue ||
-          (react.contactId === (global as any).ship ? react.value : null)
-        );
-      },
-      null as null | string
-    ) ?? '';
+  const details = useReactionDetails(
+    post.reactions ?? [],
+    (global as any).ship
+  );
 
   const handlePress = useCallback((shortCode: string) => {
-    hasSelfReact && selfShortcode.includes(shortCode)
+    details.self.didReact && details.self.value.includes(shortCode)
       ? store.removePostReaction(post.channelId, post.id, (global as any).ship)
       : store.addPostReaction(
           post.channelId,
@@ -174,7 +162,13 @@ export function EmojiToolbar({
     setTimeout(() => onDismiss(), 50);
   }, []);
 
-  console.log('sheet open?', sheetOpen);
+  const lastShortCode =
+    details.self.didReact &&
+    !['+1', 'heart', 'cyclone', 'seedling'].some((code) =>
+      details.self.value.includes(code)
+    )
+      ? details.self.value
+      : 'seedling';
 
   return (
     <>
@@ -186,30 +180,30 @@ export function EmojiToolbar({
         alignItems="center"
         width={256}
       >
-        <Button padding="$xs" borderWidth={0} onPress={() => handlePress('+1')}>
-          <SizableEmoji shortCode="+1" fontSize={32} />
-        </Button>
-        <Button
-          padding="$xs"
-          borderWidth={0}
-          onPress={() => handlePress('heart')}
-        >
-          <SizableEmoji shortCode="heart" fontSize={32} />
-        </Button>
-        <Button
-          padding="$xs"
-          borderWidth={0}
-          onPress={() => handlePress('cyclone')}
-        >
-          <SizableEmoji shortCode="cyclone" fontSize={32} />
-        </Button>
-        <Button
-          padding="$xs"
-          borderWidth={0}
-          onPress={() => handlePress('seedling')}
-        >
-          <SizableEmoji shortCode="seedling" fontSize={32} />
-        </Button>
+        <EmojiToolbarButton
+          post={post}
+          details={details}
+          dismiss={onDismiss}
+          shortCode="+1"
+        />
+        <EmojiToolbarButton
+          post={post}
+          details={details}
+          dismiss={onDismiss}
+          shortCode="heart"
+        />
+        <EmojiToolbarButton
+          post={post}
+          details={details}
+          dismiss={onDismiss}
+          shortCode="cyclone"
+        />
+        <EmojiToolbarButton
+          post={post}
+          details={details}
+          dismiss={onDismiss}
+          shortCode={lastShortCode}
+        />
         <Button
           padding="$xs"
           borderWidth={0}
@@ -224,6 +218,49 @@ export function EmojiToolbar({
         onEmojiSelect={handlePress}
       />
     </>
+  );
+}
+
+function EmojiToolbarButton({
+  shortCode,
+  details,
+  post,
+  dismiss,
+}: {
+  post: db.PostWithRelations;
+  shortCode: string;
+  details: ReactionDetails;
+  dismiss: () => void;
+}) {
+  const handlePress = useCallback(() => {
+    details.self.didReact && details.self.value.includes(shortCode)
+      ? store.removePostReaction(post.channelId, post.id, (global as any).ship)
+      : store.addPostReaction(
+          post.channelId,
+          post.id,
+          shortCode,
+          (global as any).ship
+        );
+
+    setTimeout(() => dismiss(), 50);
+  }, []);
+
+  return (
+    <Button
+      padding="$xs"
+      borderWidth={0}
+      backgroundColor={
+        details.self.didReact && details.self.value.includes(shortCode)
+          ? '$blueSoft'
+          : undefined
+      }
+      disabled={
+        details.self.didReact && !details.self.value.includes(shortCode)
+      }
+      onPress={handlePress}
+    >
+      <SizableEmoji shortCode={shortCode} fontSize={32} />
+    </Button>
   );
 }
 
