@@ -15,8 +15,9 @@ import {
   Dimensions,
   FlatList,
   ListRenderItem,
+  Pressable,
+  View as RNView,
   StyleProp,
-  TouchableOpacity,
   ViewStyle,
 } from 'react-native';
 import { useStyle } from 'tamagui';
@@ -93,9 +94,12 @@ export default function ChatScroll({
 
   const [activeMessage, setActiveMessage] =
     useState<db.PostWithRelations | null>(null);
-  const activeMessageRefs = useRef<Record<string, RefObject<TouchableOpacity>>>(
-    {}
-  );
+  const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
+
+  const handleSetActive = useCallback((active: db.PostWithRelations) => {
+    activeMessageRefs.current[active.id] = createRef();
+    setActiveMessage(active);
+  }, []);
 
   const renderItem: ListRenderItem<db.PostWithRelations> = useCallback(
     ({ item }) => {
@@ -114,7 +118,7 @@ export default function ChatScroll({
         </PressableMessage>
       );
     },
-    []
+    [activeMessage]
   );
 
   const handleScrollToIndexFailed = useCallback(
@@ -140,11 +144,6 @@ export default function ChatScroll({
   // const handleContainerPressed = useCallback(() => {
   //   setInputShouldBlur(true);
   // }, []);
-
-  const handleSetActive = useCallback((active: db.PostWithRelations) => {
-    activeMessageRefs.current[active.id] = createRef();
-    setActiveMessage(active);
-  }, []);
 
   return (
     <View>
@@ -187,10 +186,13 @@ function getPostId(post: db.Post) {
 }
 
 const PressableMessage = forwardRef<
-  TouchableOpacity,
+  RNView,
   PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
 >(({ isActive, onLongPress, children }, ref) => {
+  if (isActive) console.log(`WE HAVE AN ACTIVEEEEEEE`);
   return (
+    // this markup isn't ideal, but you need the MotiView for animating, the Pressable for
+    // customizing longpress duration, and the React Native View for ref measurement
     <MotiView
       animate={{
         scale: isActive ? 0.95 : 1,
@@ -202,13 +204,11 @@ const PressableMessage = forwardRef<
         },
       }}
     >
-      <TouchableOpacity
-        onLongPress={onLongPress}
-        delayLongPress={300}
-        ref={ref}
-      >
-        <View paddingVertical="$m">{children}</View>
-      </TouchableOpacity>
+      <Pressable onLongPress={onLongPress} delayLongPress={300}>
+        <RNView ref={ref}>
+          <View paddingVertical="$m">{children}</View>
+        </RNView>
+      </Pressable>
     </MotiView>
   );
 });
