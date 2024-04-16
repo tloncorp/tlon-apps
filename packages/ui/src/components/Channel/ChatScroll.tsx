@@ -140,13 +140,12 @@ export default function ChatScroll({
     gap: '$m',
   }) as StyleProp<ViewStyle>;
 
-  // TODO: handle in alternative manner? cc: Dan
-  // const handleContainerPressed = useCallback(() => {
-  //   setInputShouldBlur(true);
-  // }, []);
+  const handleContainerPressed = useCallback(() => {
+    setInputShouldBlur(true);
+  }, []);
 
   return (
-    <View>
+    <View flex={1} onPress={handleContainerPressed}>
       {unreadCount && !hasPressedGoToBottom && (
         <UnreadsButton onPress={pressedGoToBottom} />
       )}
