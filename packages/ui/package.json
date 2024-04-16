@@ -19,7 +19,6 @@
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
     "@react-native-clipboard/clipboard": "^1.14.0",
-    "@react-native-menu/menu": "^1.0.0",
     "@tamagui/animations-moti": "1.93.2",
     "@tamagui/get-token": "1.93.2",
     "@tamagui/image": "1.93.2",
@@ -32,8 +31,7 @@
     "react-native-context-menu-view": "^1.15.0",
     "react-native-reanimated": "^3.8.1",
     "react-native-svg": "^15.0.0",
-    "tamagui": "1.93.2",
-    "zeego": "^1.10.0"
+    "tamagui": "1.93.2"
   },
   "peerDependencies": {
     "@urbit/sigil-js": "^2.2.0",

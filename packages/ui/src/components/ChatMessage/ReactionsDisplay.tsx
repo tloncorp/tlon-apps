@@ -29,7 +29,7 @@ export function ReactionsDisplay({
           alignItems="center"
           backgroundColor={
             reaction.value === reactionDetails.self.value
-              ? '$blueSoft'
+              ? '$positiveBackground'
               : '$secondaryBackground'
           }
           padding="$xs"

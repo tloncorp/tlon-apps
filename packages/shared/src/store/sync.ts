@@ -94,7 +94,7 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       ...(channel.lastPostId
         ? { direction: 'newer', cursor: channel.lastPostId }
         : { direction: 'older', date: new Date() }),
-      includeReplies: true,
+      includeReplies: false,
     });
     await persistPagedPostData(channel.id, postsResponse);
     logger.log(

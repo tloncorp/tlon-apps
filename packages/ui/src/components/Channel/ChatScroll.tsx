@@ -169,7 +169,7 @@ export default function ChatScroll({
         {activeMessage !== null && (
           <ChatMessageActions
             currentUserId={currentUserId}
-            post={activeMessage!}
+            post={activeMessage}
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}

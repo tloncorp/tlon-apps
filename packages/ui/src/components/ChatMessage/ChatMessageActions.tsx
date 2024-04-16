@@ -246,7 +246,7 @@ function EmojiToolbarButton({
       borderWidth={0}
       backgroundColor={
         details.self.didReact && details.self.value.includes(shortCode)
-          ? '$blueSoft'
+          ? '$positiveBackground'
           : undefined
       }
       onPress={() => handlePress(shortCode)}

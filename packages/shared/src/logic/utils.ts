@@ -2,8 +2,6 @@ import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import _ from 'lodash';
 
-import * as db from '../db';
-
 export function makePrettyTime(date: Date) {
   return format(date, 'HH:mm');
 }
