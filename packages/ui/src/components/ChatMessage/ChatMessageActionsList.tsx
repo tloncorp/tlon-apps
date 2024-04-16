@@ -106,6 +106,7 @@ async function handleAction({
       break;
     case 'visibility':
       store.togglePost({ channelId: post.channelId, postId: post.id });
+      break;
   }
 
   await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
