@@ -122,22 +122,7 @@ export async function addReaction(
   shortCode: string,
   our: string
 ) {
-  console.log(`api: add reaction`, {
-    channel: {
-      nest: channelId,
-      action: {
-        post: {
-          'add-react': {
-            id: postId,
-            react: shortCode,
-            ship: our,
-          },
-        },
-      },
-    },
-  });
-
-  return await poke({
+  await poke({
     app: 'channels',
     mark: 'channel-action',
     json: {
@@ -162,21 +147,7 @@ export async function removeReaction(
   postId: string,
   our: string
 ) {
-  console.log(`api: del reaction`, {
-    channel: {
-      nest: channelId,
-      action: {
-        post: {
-          'del-react': {
-            id: postId,
-            ship: our,
-          },
-        },
-      },
-    },
-  });
-
-  return await poke({
+  await poke({
     app: 'channels',
     mark: 'channel-action',
     json: {
