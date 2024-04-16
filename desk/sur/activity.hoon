@@ -13,8 +13,8 @@
 +$  event-parent  [seen=? reply-floor=time]
 +$  event-parents  ((mop time-id event-parent) lte)
 +$  index
-  $%  [%channel channel=nest:c]
-      [%dm =whom]
+  $%  [%channel channel-concern]
+      [%dm dm-concern]
   ==
 +$  flavor
   $?  %dm-invite
@@ -58,12 +58,12 @@
   ==
 +$  time-event  [=time =event]
 +$  group-concern     group=flag:g
-+$  channel-concern   [channel=nest:c group=flag:g]
++$  channel-concern   =nest:c
 +$  dm-concern        =whom
 +$  dm-post-concern   [=message-key =whom]
 +$  dm-reply-concern  [=message-key parent=message-key =whom]
-+$  post-concern      [=message-key channel=nest:c group=flag:g]
-+$  reply-concern     [=message-key parent=message-key channel=nest:c group=flag:g]
++$  post-concern      [=message-key =nest:c]
++$  reply-concern     [=message-key parent=message-key =nest:c]
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club:ch]

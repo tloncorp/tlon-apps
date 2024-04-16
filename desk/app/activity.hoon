@@ -185,7 +185,7 @@
       ::
           %channel
         =,  concern.pole
-        [%channel [nk (slav %p ns) nt] [(slav %p gs) gt]]
+        [%channel [nk (slav %p ns) nt]]
       ==
     =/  rest=(^pole knot)
       ?-  -.concern.pole
@@ -258,7 +258,7 @@
       (~(put by indices) index new)
     cor
       %post
-    =/  index  [%channel channel.event]
+    =/  index  [%channel nest.event]
     =?  indices  !(~(has by indices) index)
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
@@ -274,7 +274,7 @@
       (~(put by indices) index new)
     cor
       %reply
-    =/  index  [%channel channel.event]
+    =/  index  [%channel nest.event]
     =?  indices  !(~(has by indices) index)
       (~(put by indices) index *[stream:a reads:a])
     =/  indy  (~(got by indices) index)
@@ -322,8 +322,8 @@
   |=  =event:a
   ^-  (unit index:a)
   ?+  -.event  ~
-    %post      `[%channel channel.event]
-    %reply     `[%channel channel.event]
+    %post      `[%channel nest.event]
+    %reply     `[%channel nest.event]
     %dm-post   `[%dm whom.event]
     %dm-reply  `[%dm whom.event]
   ==
@@ -467,7 +467,7 @@
   ::  then call stream-to-unreads
   |-
   ?~  event-parents
-    (stream-to-unreads stream)
+    (stream-to-unreads stream floor.reads)
   =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:on-parent:a event-parents)
   %=  $
       event-parents
@@ -489,9 +489,9 @@
     [`event | ~]
   ==
 ++  stream-to-unreads
-  |=  =stream:a
+  |=  [=stream:a floor=time]
   ^-  unread-summary:a
-  =/  newest=(unit time)  ~
+  =/  newest=time  floor
   =/  count  0
   =|  last=(unit message-key:a)
   =/  threads=unread-threads:a  ~
@@ -501,11 +501,11 @@
   |-
   ?~  stream
     =/  unread  ?~(last ~ `[u.last count])
-    [(fall newest now.bowl) count unread threads]
+    [newest count unread threads]
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
   ?>  ?=(?(%dm-post %dm-reply %post %reply) -.event)
   =.  count  +(count)
-  =.  newest  `time.message-key.event
+  =.  newest  time.message-key.event
   =.  last
     ?:  ?=(?(%reply %dm-reply) -.event)  last
     ?~  last  `message-key.event

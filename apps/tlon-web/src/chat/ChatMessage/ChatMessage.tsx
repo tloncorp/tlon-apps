@@ -1,10 +1,9 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Editor } from '@tiptap/react';
-import { Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { Index, Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
-  Unread,
   VerseBlock,
   constructStory,
 } from '@tloncorp/shared/dist/urbit/channel';
@@ -87,7 +86,6 @@ function getUnreadDisplay(
     return 'none';
   }
 
-  debugger;
   const { unread: mainChat, threads } = unread;
   const { hasMainChatUnreads } = getUnreadStatus(unread);
   const threadIsOlder = threadIsOlderThanLastRead(unread, id);
@@ -215,7 +213,7 @@ const ChatMessage = React.memo<
             if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
-                const index = isDMOrMultiDM
+                const index: Index = isDMOrMultiDM
                   ? whomIsDm(whom)
                     ? { dm: { ship: whom } }
                     : { dm: { club: whom } }

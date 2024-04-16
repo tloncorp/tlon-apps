@@ -9,6 +9,7 @@ import {
   emptyReply,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
@@ -40,11 +41,17 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import { useIsDmOrMultiDm, whomIsDm, whomIsNest } from '@/logic/utils';
+import {
+  useIsDmOrMultiDm,
+  whomIsDm,
+  whomIsFlag,
+  whomIsNest,
+} from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/activity';
 import {
   useEditReplyMutation,
   useIsEdited,
+  usePost,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
@@ -129,12 +136,28 @@ const ReplyMessage = React.memo<
       const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = seal['parent-id'] === seal.id;
+      const { post: parent } = usePost(nest, seal['parent-id'], true);
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
-      const isUnread = amUnread(unread?.unread, seal['parent-id'], seal.id);
+      const parentId = !whomIsFlag(whom)
+        ? seal['parent-id']
+        : parent
+          ? `${parent.essay.author}/${formatUd(unixToDa(parent.essay.sent))}`
+          : seal['parent-id'];
+      const isUnread = !whomIsFlag(whom)
+        ? amUnread(unread?.unread, parentId, seal.id)
+        : amUnread(
+            unread?.unread,
+            parentId,
+            `${memo.author}/${formatUd(unixToDa(memo.sent))}`
+          );
+      if (isUnread) {
+        debugger;
+      }
+      console.log(isUnread, parent, memo);
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markRead } = useMarkReadMutation();
@@ -344,7 +367,7 @@ const ReplyMessage = React.memo<
           {unread && isUnread ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.threads[seal['parent-id']]?.count || 0}
+              unreadCount={unread.unread.threads[parentId]?.count || 0}
               ref={viewRef}
             />
           ) : null}

@@ -5,7 +5,7 @@ import _ from 'lodash';
 
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
-import { asyncWithDefault } from '@/logic/utils';
+import { asyncWithDefault, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { initializeChat } from './chat';
@@ -52,21 +52,21 @@ async function startGroups() {
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['channels'], channels);
-  queryClient.setQueryData(['unreads'], full.unreads);
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
 
+  // strip channel/ship/club from start
+  const unreads = _.mapKeys(full.unreads, (v, k) => k.replace(/\w*\//, ''));
+  queryClient.setQueryData(['unreads'], unreads);
   // make sure we remove the app part from the nest before handing it over
   useChatStore.getState().update(
     _.mapKeys(
       _.pickBy(
-        full.unreads,
-        (v, k) =>
-          k.startsWith('channel/chat') ||
-          k.startsWith('ship') ||
-          k.startsWith('club')
+        unreads,
+        (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)
+        // strip kind from start
       ),
-      (v, k) => k.replace(/\w*\/(\w*\/)?/, '')
+      (v, k) => k.replace(/\w*\//, '')
     )
   );
 }

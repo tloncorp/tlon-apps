@@ -38,7 +38,7 @@ export function isChannelJoined(nest: string, unreads: Unreads) {
   const { ship } = getFlagParts(flag);
 
   const isChannelHost = window.our === ship;
-  return isChannelHost || (nest && `channel/${nest}` in unreads);
+  return isChannelHost || (nest && nest in unreads);
 }
 
 export function canReadChannel(
@@ -108,7 +108,7 @@ function channelUnread(
     return Boolean(unread && !unread.seen);
   }
 
-  return (unreads[`channel/${nest}`]?.count ?? 0) > 0;
+  return (unreads[nest]?.count ?? 0) > 0;
 }
 
 export function useCheckChannelUnread() {

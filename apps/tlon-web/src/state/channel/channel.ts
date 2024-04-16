@@ -1353,7 +1353,7 @@ export function useIsJoined(nest: Nest) {
   checkNest(nest);
   const unreads = useUnreads();
 
-  return Object.keys(unreads).includes(`channel/${nest}`);
+  return Object.keys(unreads).includes(nest);
 }
 
 export function useUnread(nest: Nest) {
@@ -1361,7 +1361,7 @@ export function useUnread(nest: Nest) {
 
   const unreads = useUnreads();
 
-  return unreads[`channel/${nest}`];
+  return unreads[nest];
 }
 
 export function useChats(): Channels {

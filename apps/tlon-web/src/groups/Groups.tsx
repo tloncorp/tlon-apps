@@ -94,7 +94,7 @@ function Groups() {
 
       const allUnreads = _.mapKeys(unreads, (k, v) => k);
       const channel = Object.entries(group.channels).find(
-        ([nest]) => `channel/${nest}` in allUnreads
+        ([nest]) => nest in allUnreads
       );
 
       canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);

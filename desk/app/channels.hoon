@@ -704,10 +704,9 @@
     :-  %activity-action
     !>  ^-  action
     :-  %add
-    =*  cc=channel-concern  [nest group.perm.perm.channel]
     ?-  -.concern
-      %post   [%post [key.concern cc] content mention]
-      %reply  [%reply [key.concern top.concern cc] content mention]
+      %post   [%post [key.concern nest] content mention]
+      %reply  [%reply [key.concern top.concern nest] content mention]
     ==
 ::
   ::
@@ -1042,7 +1041,7 @@
         =,  u.post.i.posts
         =/  mention=?
           (was-mentioned:utils content our.bowl)
-        =.  ca-core  (ca-activity [%post [[author id] id]] content mention)
+        =.  ca-core  (ca-activity [%post [[author sent] id]] content mention)
         $(posts t.posts)
       %+  murn  (turn (tap:on-v-posts:c posts.chk) head)
       |=  id=id-post:c
@@ -1137,7 +1136,7 @@
         =,  u.post.u-post
         =/  mention=?
           (was-mentioned:utils content our.bowl)
-        (ca-activity [%post [[author id] id]] content mention)
+        (ca-activity [%post [[author sent] id]] content mention)
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
@@ -1212,8 +1211,8 @@
         =?  ca-core  ?=(^ reply.u-reply)
           =,  u.reply.u-reply
           =/  concern
-            :-  [[author id-reply] id-reply]
-            [[author.post id-post] id-post]
+            :-  [[author sent] id-reply]
+            [[author.post sent.post] id-post]
           =/  mention=?
             (was-mentioned:utils content our.bowl)
           (ca-activity [%reply concern] content mention)

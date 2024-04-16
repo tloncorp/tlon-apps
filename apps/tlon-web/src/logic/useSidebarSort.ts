@@ -29,8 +29,8 @@ export function useRecentSort() {
 
   const sortRecent = useCallback(
     (aIndex: string, bIndex: string) => {
-      const aLast = recencyMap[aIndex];
-      const bLast = recencyMap[bIndex];
+      const aLast = recencyMap[aIndex] ?? Number.NEGATIVE_INFINITY;
+      const bLast = recencyMap[bIndex] ?? Number.NEGATIVE_INFINITY;
 
       return Math.sign(aLast - bLast);
     },

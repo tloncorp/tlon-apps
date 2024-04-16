@@ -1324,7 +1324,9 @@ export function stringToIndex(str: string): Index {
   const [head, ...rest] = parts;
   switch (head) {
     case 'channel':
-      return { channel: rest.join('/') };
+      return {
+        channel: rest.join('/'),
+      };
     case 'ship':
       return { dm: { ship: rest[0] } };
 

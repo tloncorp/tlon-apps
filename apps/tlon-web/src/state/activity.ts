@@ -57,7 +57,6 @@ export function useUnreads(): Unreads {
 
   const eventHandler = (event: UnreadUpdate) => {
     const { index, unread } = event;
-    debugger;
     if (!('channel' in index)) {
       return;
     }
@@ -78,7 +77,7 @@ export function useUnreads(): Unreads {
         }
 
         const newUnreads = { ...d };
-        newUnreads[`channel/${nest}`] = unread;
+        newUnreads[nest] = unread;
 
         return newUnreads;
       });
@@ -93,6 +92,11 @@ export function useUnreads(): Unreads {
     path: '/unreads',
     scry: '/unreads',
     onEvent: eventHandler,
+    onScry: (d) => {
+      return _.mapKeys(d, (v, key) =>
+        key.replace(/^(channel|ship|club)\//, '')
+      );
+    },
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {

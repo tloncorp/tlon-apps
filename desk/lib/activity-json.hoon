@@ -42,7 +42,7 @@
     |=  i=index:a
     ^-  cord
     ?-  -.i
-      %channel  (rap 3 'channel/' (nest:enjs:gj channel.i) ~)
+      %channel  (rap 3 'channel/' (nest:enjs:gj nest.i) ~)
     ::
         %dm
       ?-  -.whom.i
@@ -55,7 +55,7 @@
     |=  i=index:a
     %-  pairs
     ?-  -.i
-      %channel  ~[channel/s/(nest:enjs:gj channel.i)]
+      %channel  ~[channel/s/(nest:enjs:gj nest.i)]
       %dm  ~[dm+(whom whom.i)]
     ==
   ::
@@ -121,16 +121,14 @@
         %flag-post
       %-  pairs
       :~  key+(msg-key message-key.e)
-          channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
+          channel/s+(nest:enjs:gj nest.e)
       ==
     ::
         %flag-reply
       %-  pairs
       :~  parent+(msg-key parent.e)
           key+(msg-key message-key.e)
-          channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
+          channel/s+(nest:enjs:gj nest.e)
       ==
     ::
         %dm-post
@@ -153,8 +151,7 @@
         %post
       %-  pairs
       :~  key+(msg-key message-key.e)
-          group/s+(flag:enjs:gj group.e)
-          channel/s+(nest:enjs:gj channel.e)
+          channel/s+(nest:enjs:gj nest.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
       ==
@@ -163,8 +160,7 @@
       %-  pairs
       :~  parent+(msg-key parent.e)
           key+(msg-key message-key.e)
-          group/s+(flag:enjs:gj group.e)
-          channel/s+(nest:enjs:gj channel.e)
+          channel/s+(nest:enjs:gj nest.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
       ==

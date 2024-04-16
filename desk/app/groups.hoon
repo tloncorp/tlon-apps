@@ -544,6 +544,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
+      [%activity %submit *]  cor
       [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
@@ -839,8 +840,8 @@
       ?-  -.concern
         %join  [%join ^flag ship.concern]
         %kick  [%kick ^flag ship.concern]
-        %flag-post  [%flag-post key.concern nest.concern ^flag]
-        %flag-reply  [%flag-reply parent.concern key.concern nest.concern ^flag]
+        %flag-post  [%flag-post key.concern nest.concern]
+        %flag-reply  [%flag-reply parent.concern key.concern nest.concern]
         %role  [%role ^flag [ship roles]:concern]
         %ask   [%ask ^flag ship.concern]
       ==

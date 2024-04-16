@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { canReadChannel } from '@/logic/channel';
-import { stringToIndex } from '@/logic/utils';
+import { whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import { useUnreads } from '@/state/activity';
 import { useChannels } from '@/state/channel/channel';
 import { useMultiDms } from '@/state/chat';
@@ -17,13 +17,7 @@ export default function TalkHead() {
   const multiDms = useMultiDms();
   const groups = useGroups();
   const joinedChannels = Object.entries(unreads).filter(([k, v]) => {
-    const index = stringToIndex(k);
-    if (!('channel' in index)) {
-      return false;
-    }
-
-    const nest = index.channel;
-    const chat = channels[nest];
+    const chat = channels[k];
     if (!chat) {
       return false;
     }
@@ -34,13 +28,12 @@ export default function TalkHead() {
     return channel && vessel && canReadChannel(channel, vessel, group.bloc);
   });
   const dms = Object.entries(unreads).filter(([k, v]) => {
-    const index = stringToIndex(k);
-    if (!('dm' in index)) {
+    if (whomIsNest(k)) {
       return false;
     }
 
-    if ('club' in index.dm) {
-      const club = multiDms[index.dm.club];
+    if (whomIsMultiDm(k)) {
+      const club = multiDms[k];
       return club ? club.team.concat(club.hive).includes(window.our) : true;
     }
 

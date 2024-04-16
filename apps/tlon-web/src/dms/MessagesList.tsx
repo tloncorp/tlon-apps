@@ -7,7 +7,7 @@ import { InlineEmptyPlaceholder } from '@/components/EmptyPlaceholder';
 import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSort from '@/logic/useMessageSort';
-import { stringToIndex, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useUnreads } from '@/state/activity';
 import { useChats } from '@/state/channel/channel';
 import { useContacts } from '@/state/contact';
@@ -71,93 +71,77 @@ export default function MessagesList({
 
   const organizedUnreads = useMemo(
     () =>
-      sortMessages(unreads)
-        .map(([k, v]) => {
-          const index = stringToIndex(k);
-          const key =
-            'channel' in index
-              ? index.channel
-              : 'ship' in index.dm
-                ? index.dm.ship
-                : index.dm.club;
+      sortMessages(unreads).filter(([key]) => {
+        const chat = chats[key];
+        const groupFlag = chat?.perms.group;
+        const group = groups[groupFlag || ''];
+        const vessel = group?.fleet[window.our];
+        const channel = group?.channels[key];
+        const isChannel = key.includes('/');
+        const isDm = whomIsDm(key);
+        const isMultiDm = whomIsMultiDm(key);
 
-          return [key, v] as [string, Unread];
-        })
-        .filter(([key]) => {
-          const chat = chats[key];
-          const groupFlag = chat?.perms.group;
-          const group = groups[groupFlag || ''];
-          const vessel = group?.fleet[window.our];
-          const channel = group?.channels[key];
-          const isChannel = key.includes('/');
-          const isDm = whomIsDm(key);
-          const isMultiDm = whomIsMultiDm(key);
+        if (
+          chat &&
+          channel &&
+          vessel &&
+          !canReadChannel(channel, vessel, group?.bloc)
+        ) {
+          return false;
+        }
 
-          if (
-            chat &&
-            channel &&
-            vessel &&
-            !canReadChannel(channel, vessel, group?.bloc)
-          ) {
-            return false;
+        if (pinned.includes(key) && !searchQuery) {
+          return false;
+        }
+
+        if (allPending.includes(key)) {
+          return false;
+        }
+
+        if (filter === filters.groups && (isDm || isMultiDm)) {
+          return false;
+        }
+
+        if (filter === filters.dms && isChannel) {
+          return false;
+        }
+
+        if (!group && isChannel) {
+          return false;
+        }
+
+        if (searchQuery) {
+          if (isChannel) {
+            const titleMatch = channel.meta.title
+              .toLowerCase()
+              .startsWith(searchQuery.toLowerCase());
+            const shipMatch = deSig(key)?.startsWith(deSig(searchQuery) || '');
+            return titleMatch || shipMatch;
           }
 
-          if (pinned.includes(key) && !searchQuery) {
-            return false;
+          if (isDm) {
+            const contact = contacts[key];
+            const nicknameMatch = contact?.nickname
+              .toLowerCase()
+              .startsWith(searchQuery.toLowerCase());
+            const shipMatch = deSig(key)?.startsWith(deSig(searchQuery) || '');
+            return nicknameMatch || shipMatch;
           }
 
-          if (allPending.includes(key)) {
-            return false;
+          if (isMultiDm) {
+            const club = clubs[key];
+            const titleMatch = club?.meta.title
+              ?.toLowerCase()
+              .startsWith(searchQuery.toLowerCase());
+            const shipsMatch = club?.hive?.some((ship) =>
+              deSig(ship)?.startsWith(deSig(searchQuery) || '')
+            );
+            return titleMatch || shipsMatch;
           }
+        }
 
-          if (filter === filters.groups && (isDm || isMultiDm)) {
-            return false;
-          }
-
-          if (filter === filters.dms && isChannel) {
-            return false;
-          }
-
-          if (!group && isChannel) {
-            return false;
-          }
-
-          if (searchQuery) {
-            if (isChannel) {
-              const titleMatch = channel.meta.title
-                .toLowerCase()
-                .startsWith(searchQuery.toLowerCase());
-              const shipMatch = deSig(key)?.startsWith(
-                deSig(searchQuery) || ''
-              );
-              return titleMatch || shipMatch;
-            }
-
-            if (isDm) {
-              const contact = contacts[key];
-              const nicknameMatch = contact?.nickname
-                .toLowerCase()
-                .startsWith(searchQuery.toLowerCase());
-              const shipMatch = deSig(key)?.startsWith(
-                deSig(searchQuery) || ''
-              );
-              return nicknameMatch || shipMatch;
-            }
-
-            if (isMultiDm) {
-              const club = clubs[key];
-              const titleMatch = club?.meta.title
-                ?.toLowerCase()
-                .startsWith(searchQuery.toLowerCase());
-              const shipsMatch = club?.hive?.some((ship) =>
-                deSig(ship)?.startsWith(deSig(searchQuery) || '')
-              );
-              return titleMatch || shipsMatch;
-            }
-          }
-
-          return true; // is all
-        }),
+        return true; // is all
+      }),
     [
       sortMessages,
       unreads,
@@ -171,8 +155,6 @@ export default function MessagesList({
       clubs,
     ]
   );
-
-  console.log(organizedUnreads);
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);

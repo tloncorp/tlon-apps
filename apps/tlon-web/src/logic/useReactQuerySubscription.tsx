@@ -18,6 +18,7 @@ export default function useReactQuerySubscription<T, Event = null>({
   scryApp = app,
   priority = 3,
   onEvent,
+  onScry,
   options,
 }: {
   queryKey: QueryKey;
@@ -27,6 +28,7 @@ export default function useReactQuerySubscription<T, Event = null>({
   scryApp?: string;
   priority?: number;
   onEvent?: (data: Event) => void;
+  onScry?: (data: T) => T;
   options?: UseQueryOptions<T>;
 }) {
   const queryClient = useQueryClient();
@@ -42,11 +44,12 @@ export default function useReactQuerySubscription<T, Event = null>({
 
   const fetchData = async () =>
     useSchedulerStore.getState().wait(async () => {
-      console.log('scrying', scryApp, scry);
-      return api.scry<T>({
+      const result = await api.scry<T>({
         app: scryApp,
         path: scry,
       });
+
+      return onScry ? onScry(result) : result;
     }, priority);
 
   useEffect(() => {
