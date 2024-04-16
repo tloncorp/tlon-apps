@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import { ActionList } from '../ActionList';
 
-export default function ChatMessageMenu({
+export default function ChatMessageActionsList({
   dismiss,
   channelType,
   post,

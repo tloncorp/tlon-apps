@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import * as Haptics from 'expo-haptics';
 import { RefObject, useCallback, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import Animated, {
@@ -17,7 +18,7 @@ import ChatMessage from '../ChatMessage';
 import { EmojiPickerSheet } from '../Emoji/EmojiPickerSheet';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
 import { Icon } from '../Icon';
-import ChatMessageMenu from './ChatMessageMenu';
+import ChatMessageActionsList from './ChatMessageActionsList';
 
 interface LayoutStruct {
   x: number;
@@ -83,6 +84,12 @@ export function ChatMessageActions({
   }
 
   useEffect(() => {
+    // on mount, give initial haptic feeedback
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  useEffect(() => {
+    // measure the original post
     postRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
       translateX.value = pageX;
       translateY.value = pageY;
@@ -91,6 +98,7 @@ export function ChatMessageActions({
   }, [postRef]);
 
   useEffect(() => {
+    // when we have both measurements, animate
     if (actionLayout && originalLayout) {
       const verticalPosition = calcVerticalPosition();
 
@@ -131,7 +139,7 @@ export function ChatMessageActions({
             currentUserId={currentUserId}
           />
           <MessageContainer post={post} currentUserId={currentUserId} />
-          <ChatMessageMenu
+          <ChatMessageActionsList
             post={post}
             channelType={channelType}
             dismiss={onDismiss}
@@ -154,7 +162,7 @@ export function EmojiToolbar({
   const [sheetOpen, setSheetOpen] = useState(false);
   const details = useReactionDetails(post.reactions ?? [], currentUserId);
 
-  const handlePress = useCallback((shortCode: string) => {
+  const handlePress = useCallback(async (shortCode: string) => {
     details.self.didReact && details.self.value.includes(shortCode)
       ? store.removePostReaction(post.channelId, post.id, currentUserId)
       : store.addPostReaction(
@@ -164,6 +172,7 @@ export function EmojiToolbar({
           currentUserId
         );
 
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => onDismiss(), 50);
   }, []);
 
