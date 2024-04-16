@@ -111,7 +111,7 @@ export default function ChatScroll({
   }, []);
 
   return (
-    <View onPress={handleContainerPressed}>
+    <View flex={1} onPress={handleContainerPressed}>
       {unreadCount && !hasPressedGoToBottom && (
         <UnreadsButton onPress={pressedGoToBottom} />
       )}
