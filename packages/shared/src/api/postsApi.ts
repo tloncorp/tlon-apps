@@ -1,32 +1,83 @@
+import type { JSONContent } from '@tiptap/core';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { JSONToInlines } from '../logic/tiptap';
 import * as ub from '../urbit';
 import {
   KindData,
   KindDataChat,
-  getChannelType,
+  checkNest,
+  constructStory,
   getTextContent,
 } from '../urbit';
 import { formatDateParam, formatUd, udToDate } from './converters';
-import { poke, scry } from './urbit';
+import { BadResponseError, poke, scry } from './urbit';
 
-export const getChannelPosts = async (
+export function channelAction(
+  nest: ub.Nest,
+  action: ub.Action
+): Poke<ub.ChannelsAction> {
+  checkNest(nest);
+  return {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest,
+        action,
+      },
+    },
+  };
+}
+
+export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+  checkNest(nest);
+
+  return channelAction(nest, {
+    post: action,
+  });
+}
+
+export const sendPost = async (
   channelId: string,
-  {
-    cursor,
-    date,
-    direction = 'older',
-    count = 20,
-    includeReplies = true,
-  }: {
-    cursor?: string;
-    date?: Date;
-    direction?: 'older' | 'newer' | 'around';
-    count?: number;
-    includeReplies?: boolean;
-  }
+  content: JSONContent,
+  author: string
 ) => {
+  const inlines = JSONToInlines(content);
+  const story = constructStory(inlines);
+
+  const essay: ub.PostEssay = {
+    content: story,
+    sent: Date.now(),
+    'kind-data': {
+      chat: null,
+    },
+    author,
+  };
+
+  await poke(
+    channelPostAction(channelId, {
+      add: essay,
+    })
+  );
+};
+
+export const getChannelPosts = async ({
+  channelId,
+  cursor,
+  date,
+  direction = 'older',
+  count = 20,
+  includeReplies = false,
+}: {
+  channelId: string;
+  cursor?: string;
+  date?: Date;
+  direction?: 'older' | 'newer' | 'around';
+  count?: number;
+  includeReplies?: boolean;
+}) => {
   if (cursor && date) {
     throw new Error('Cannot specify both cursor and date');
   }
@@ -34,30 +85,34 @@ export const getChannelPosts = async (
     throw new Error('Must specify either cursor or date');
   }
   const finalCursor = cursor ? cursor : formatDateParam(date!);
+  let app: 'chat' | 'channels';
+  let path: string;
+
   if (isDmChannelId(channelId)) {
     const mode = includeReplies ? 'heavy' : 'light';
-    const path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedWrits>({
-      app: 'chat',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
+    app = 'chat';
+    path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
   } else if (isGroupDmChannelId(channelId)) {
     const mode = includeReplies ? 'heavy' : 'light';
-    const path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedWrits>({
-      app: 'chat',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
+    path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    app = 'chat';
   } else {
     const mode = includeReplies ? 'post' : 'outline';
-    const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedPosts>({
-      app: 'channels',
+    path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    app = 'channels';
+  }
+
+  try {
+    const response = await scry<ub.PagedWrits>({
+      app,
       path,
     });
     return toPagedPostsData(channelId, response);
+  } catch (e) {
+    // Treat 404 error as empty page of posts.
+    if (e instanceof BadResponseError && e.status === 404) {
+      return { posts: [] };
+    } else throw e;
   }
 };
 
@@ -164,28 +219,12 @@ export async function deletePost(channelId: string, postId: string) {
   return poke(action);
 }
 
-function channelAction(
-  channelId: string,
-  action: ub.Action
-): Poke<ub.ChannelsAction> {
-  return {
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: channelId,
-        action,
-      },
-    },
-  };
-}
-
 export interface GetChannelPostsResponse {
-  older: string | null;
-  newer: string | null;
+  older?: string | null;
+  newer?: string | null;
   posts: db.PostInsert[];
-  deletedPosts: string[];
-  totalPosts: number;
+  deletedPosts?: string[];
+  totalPosts?: number;
 }
 
 export interface DeletedPost {

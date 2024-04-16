@@ -1,6 +1,6 @@
 import { addReaction, removeReaction } from '../api';
 import * as db from '../db';
-import * as sync from '../sync';
+import * as store from '../store';
 
 // demo mode, just make em functions
 export async function addPostReaction(
@@ -17,7 +17,7 @@ export async function addPostReaction(
     });
 
     await addReaction(channelId, postId, formattedShortcode, our);
-    sync.syncChannel(channelId, Date.now());
+    store.syncChannel(channelId, Date.now());
   } catch (e) {
     console.error('addPostReaction failed', e);
   }
@@ -33,7 +33,7 @@ export async function removePostReaction(
     await db.deletePostReaction({ postId, contactId: our });
 
     await removeReaction(channelId, postId, our);
-    sync.syncChannel(channelId, Date.now());
+    store.syncChannel(channelId, Date.now());
   } catch (e) {
     console.error('removePostReaction failed', e);
   }

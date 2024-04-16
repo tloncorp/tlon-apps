@@ -31,11 +31,10 @@ export default function AuthorRow({
   sent: number;
   roles?: string[];
 }) {
-  const date = new Date(sent);
-  const timeDisplay = useMemo(
-    () => utils.makePrettyDayAndDateAndTime(date),
-    [date]
-  );
+  const timeDisplay = useMemo(() => {
+    const date = new Date(sent);
+    return utils.makePrettyTime(date);
+  }, [sent]);
   const firstRole = roles?.[0];
 
   return (
@@ -43,7 +42,7 @@ export default function AuthorRow({
       <Avatar size="$2xl" contact={author} contactId={authorId} />
       <ContactName showAlias name={authorId} />
       <SizableText color="$secondaryText" size="$s">
-        {timeDisplay.time}
+        {timeDisplay}
       </SizableText>
       {firstRole && <RoleBadge role={firstRole} />}
     </XStack>

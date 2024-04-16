@@ -1,6 +1,4 @@
-import * as db from '@tloncorp/shared/dist/db/types';
-// import ContextMenu from 'react-native-context-menu-view';
-// import * as ContextMenu from 'zeego/context-menu';
+import * as db from '@tloncorp/shared/dist/db';
 import { MotiView } from 'moti';
 import {
   RefObject,
@@ -14,53 +12,52 @@ import {
 import {
   Dimensions,
   FlatList,
+  ListRenderItem,
   View as RNView,
+  StyleProp,
   TouchableOpacity,
+  ViewStyle,
 } from 'react-native';
-import { Button } from 'tamagui';
+import { useStyle } from 'tamagui';
 
 import { ArrowDown } from '../../assets/icons';
 import { Dialog, Modal, SizableText, View, XStack, YStack } from '../../core';
+import { Button } from '../Button';
 import ChatMessage from '../ChatMessage';
 import {
   ChatMessageActions,
   EmojiToolbar,
 } from '../ChatMessage/ChatMessageActions';
 
-const renderItem = ({
-  post,
-  firstUnread,
-  unreadCount,
-}: {
-  post: db.PostWithRelations;
-  firstUnread?: string;
-  unreadCount?: number;
-}) => (
-  <YStack paddingVertical="$m">
-    <ChatMessage
-      post={post}
-      firstUnread={firstUnread}
-      unreadCount={unreadCount}
-    />
-  </YStack>
-);
-
 export default function ChatScroll({
   posts,
   channelType,
   unreadCount,
   firstUnread,
+  setInputShouldBlur,
   selectedPost,
+  onStartReached,
+  onEndReached,
 }: {
   posts: db.PostWithRelations[];
   channelType: db.ChannelType;
   unreadCount?: number;
   firstUnread?: string;
+  setInputShouldBlur: (shouldBlur: boolean) => void;
   selectedPost?: string;
+  onStartReached?: () => void;
+  onEndReached?: () => void;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
-  const lastPost = posts[posts.length - 1];
+  const lastPost = useMemo(() => posts[posts.length - 1], [posts]);
+  const sortedPosts = useMemo(
+    () =>
+      posts.sort((a, b) => {
+        return b.receivedAt - a.receivedAt;
+      }),
+    [posts]
+  );
   const pressedGoToBottom = () => {
     setHasPressedGoToBottom(true);
     if (flatListRef.current) {
@@ -94,103 +91,100 @@ export default function ChatScroll({
     }
   }, [selectedPost]);
 
+  // const renderItem: ListRenderItem<db.PostWithRelations> = useCallback(
+  //   ({ item }) => {
+  //     return (
+  //       <ChatMessage
+  //         post={item}
+  //         firstUnread={firstUnread}
+  //         unreadCount={unreadCount}
+  //       />
+  //     );
+  //   },
+  //   []
+  // );
+
+  const handleScrollToIndexFailed = useCallback(
+    ({ index }: { index: number }) => {
+      console.log('scroll to index failed');
+      const wait = new Promise((resolve) => setTimeout(resolve, 100));
+      wait.then(() => {
+        flatListRef.current?.scrollToIndex({
+          index,
+          animated: false,
+        });
+      });
+    },
+    []
+  );
+
+  const contentContainerStyle = useStyle({
+    paddingHorizontal: '$m',
+    gap: '$m',
+  }) as StyleProp<ViewStyle>;
+
+  const handleContainerPressed = useCallback(() => {
+    setInputShouldBlur(true);
+  }, []);
+
   // start context menu
   const [activeMessage, setActiveMessage] =
     useState<db.PostWithRelations | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
   const handleSetActive = useCallback((active: db.PostWithRelations) => {
-    activeMessageRefs[active.id] = createRef();
+    activeMessageRefs.current[active.id] = createRef();
     setActiveMessage(active);
   }, []);
 
   return (
-    <XStack position="relative" flex={1}>
+    <View onPress={handleContainerPressed}>
       {unreadCount && !hasPressedGoToBottom && (
-        <XStack
-          position="absolute"
-          bottom="5%"
-          left={Dimensions.get('window').width / 2 - 60}
-          zIndex={50}
-          width="40%"
-        >
-          <Button
-            backgroundColor="$blueSoft"
-            padding="$s"
-            borderRadius="$l"
-            // height="$3xl"
-            height="$4xl"
-            width="100%"
-            alignItems="center"
-            // alignSelf="center"
-            elevation="$s"
-            onPress={pressedGoToBottom}
-            size="$s"
-          >
-            <Button.Text>Scroll to latest</Button.Text>
-            <Button.Icon>
-              <XStack width="$s" height="$s">
-                <ArrowDown />
-              </XStack>
-            </Button.Icon>
-          </Button>
-        </XStack>
+        <UnreadsButton onPress={pressedGoToBottom} />
       )}
-      <XStack flex={1} paddingHorizontal="$m">
-        <FlatList
-          ref={flatListRef}
-          data={posts}
-          renderItem={({ item }) => (
-            <MotiView
-              animate={{
-                scale: activeMessage?.id === item.id ? 0.95 : 1,
-              }}
-              transition={{
-                scale: {
-                  type: 'timing',
-                  duration: 100,
-                },
-              }}
+      <FlatList<db.PostWithRelations>
+        ref={flatListRef}
+        data={posts}
+        renderItem={({ item }) => (
+          <MotiView
+            animate={{
+              scale: activeMessage?.id === item.id ? 0.95 : 1,
+            }}
+            transition={{
+              scale: {
+                type: 'timing',
+                duration: 100,
+              },
+            }}
+          >
+            <TouchableOpacity
+              onLongPress={() => handleSetActive(item)}
+              delayLongPress={300}
             >
-              <TouchableOpacity
-                onLongPress={() => handleSetActive(item)}
-                delayLongPress={300}
-              >
-                <RNView ref={activeMessageRefs[item.id]}>
-                  <View
-                    paddingVertical="$m"
-                    onLongPress={() => handleSetActive(item)}
-                  >
-                    <ChatMessage
-                      post={item}
-                      firstUnread={firstUnread}
-                      unreadCount={unreadCount}
-                    />
-                  </View>
-                </RNView>
-              </TouchableOpacity>
-            </MotiView>
-          )}
-          keyExtractor={(post) => post.id}
-          keyboardDismissMode="on-drag"
-          inverted
-          onScrollToIndexFailed={({
-            index,
-            highestMeasuredFrameIndex,
-            averageItemLength,
-          }) => {
-            console.log('failed');
-
-            const wait = new Promise((resolve) => setTimeout(resolve, 100));
-            wait.then(() => {
-              flatListRef.current?.scrollToIndex({
-                index,
-                animated: false,
-              });
-            });
-          }}
-        />
-      </XStack>
+              <RNView ref={activeMessageRefs.current[item.id]}>
+                <View
+                  paddingVertical="$m"
+                  onLongPress={() => handleSetActive(item)}
+                >
+                  <ChatMessage
+                    post={item}
+                    firstUnread={firstUnread}
+                    unreadCount={unreadCount}
+                  />
+                </View>
+              </RNView>
+            </TouchableOpacity>
+          </MotiView>
+        )}
+        keyExtractor={getPostId}
+        keyboardDismissMode="on-drag"
+        onEndReached={onEndReached}
+        onEndReachedThreshold={2}
+        onStartReached={onStartReached}
+        contentContainerStyle={contentContainerStyle}
+        inverted
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+      />
       <Modal
         visible={activeMessage !== null}
         onDismiss={() => setActiveMessage(null)}
@@ -198,12 +192,46 @@ export default function ChatScroll({
         {activeMessage !== null && (
           <ChatMessageActions
             post={activeMessage!}
-            postRef={activeMessageRefs[activeMessage!.id]}
+            postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
           />
         )}
       </Modal>
-    </XStack>
+    </View>
   );
 }
+
+function getPostId(post: db.Post) {
+  return post.id;
+}
+
+const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
+  return (
+    <XStack
+      position="absolute"
+      bottom="5%"
+      left={Dimensions.get('window').width / 2 - 60}
+      zIndex={50}
+      width="40%"
+    >
+      <Button
+        backgroundColor="$blueSoft"
+        padding="$s"
+        borderRadius="$l"
+        height="$4xl"
+        width="100%"
+        alignItems="center"
+        onPress={onPress}
+        size="$s"
+      >
+        <Button.Text>Scroll to latest</Button.Text>
+        <Button.Icon>
+          <XStack width="$s" height="$s">
+            <ArrowDown />
+          </XStack>
+        </Button.Icon>
+      </Button>
+    </XStack>
+  );
+};

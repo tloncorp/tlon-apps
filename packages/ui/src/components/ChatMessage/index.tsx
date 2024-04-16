@@ -53,13 +53,13 @@ const ChatMessage = memo(
       const reactionDetails: Record<string, { count: number; self: boolean }> =
         {};
 
-      reactions.forEach((r) => {
+      reactions?.forEach((r) => {
         if (!reactionDetails[r.value]) {
           reactionDetails[r.value] = { count: 0, self: false };
         }
         reactionDetails[r.value].count += 1;
         reactionDetails[r.value].self =
-          reactionDetails[r.value].self || r.contactId === global.ship; // fix
+          reactionDetails[r.value].self || r.contactId === (global as any).ship; // fix
       });
 
       return Object.entries(reactionDetails)
@@ -110,12 +110,16 @@ const ChatMessage = memo(
                 borderRadius="$m"
                 onPress={() =>
                   reaction.self
-                    ? removePostReaction(post.channelId, post.id, global.ship)
+                    ? removePostReaction(
+                        post.channelId,
+                        post.id,
+                        (global as any).ship
+                      )
                     : addPostReaction(
                         post.channelId,
                         post.id,
                         reaction.shortCode,
-                        global.ship
+                        (global as any).ship
                       )
                 }
               >

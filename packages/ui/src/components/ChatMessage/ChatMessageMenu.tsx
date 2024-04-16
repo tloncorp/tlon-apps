@@ -1,7 +1,7 @@
 import Clipboard from '@react-native-clipboard/clipboard';
-import * as actions from '@tloncorp/shared/dist/actions';
-import * as db from '@tloncorp/shared/dist/db/types';
+import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
+import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 
 import { ActionList } from '../ActionList';
@@ -18,6 +18,7 @@ export default function ChatMessageMenu({
   const postActions = getPostActions(post, channelType);
 
   return (
+    // arbitrary width that looks reasonable given labels
     <ActionList width={220}>
       {postActions.map((action, index) => (
         <ActionList.Action
@@ -101,10 +102,10 @@ async function handleAction({
       Clipboard.setString(post.textContent ?? '');
       break;
     case 'delete':
-      actions.deletePost({ channelId: post.channelId, postId: post.id });
+      store.deletePost({ channelId: post.channelId, postId: post.id });
       break;
     case 'visibility':
-      actions.togglePost({ channelId: post.channelId, postId: post.id });
+      store.togglePost({ channelId: post.channelId, postId: post.id });
   }
 
   await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

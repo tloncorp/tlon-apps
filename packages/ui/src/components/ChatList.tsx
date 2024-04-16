@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/src/store';
 import React, { useCallback, useMemo } from 'react';
 import {
   SectionList,
@@ -19,7 +20,7 @@ export function ChatList({
   unpinned,
   onLongPressItem,
   onPressItem,
-}: db.CurrentChats & {
+}: store.CurrentChats & {
   onPressItem?: (chat: db.ChannelSummary) => void;
   onLongPressItem?: (chat: db.ChannelSummary) => void;
 }) {

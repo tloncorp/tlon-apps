@@ -1,5 +1,5 @@
 import { sync } from '@tloncorp/shared';
-import { QueryClient, QueryClientProvider } from '@tloncorp/shared/dist/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -13,15 +13,13 @@ export interface AuthenticatedAppProps {
   initialNotificationPath?: string;
 }
 
-const queryClient = new QueryClient();
-
 function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
   useNotificationListener(initialNotificationPath);
   useDeepLinkListener();
 
   useEffect(() => {
-    global.ship = ship; // todo: remove
+    (global as any).ship = ship; // todo: remove
     configureClient(ship ?? '', shipUrl ?? '');
     sync.start().catch((e) => {
       console.warn('Sync failed', e);

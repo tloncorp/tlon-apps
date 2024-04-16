@@ -3,13 +3,14 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
-import * as fixture9 from './src/fixtures/Button.fixture';
-import * as fixture8 from './src/fixtures/Channel.fixture';
-import * as fixture7 from './src/fixtures/ChannelSwitcherSheet.fixture';
-import * as fixture6 from './src/fixtures/GroupList.fixture';
-import * as fixture5 from './src/fixtures/GroupListItem.fixture';
-import * as fixture4 from './src/fixtures/HeaderButton.fixture';
-import * as fixture3 from './src/fixtures/Input.fixture';
+import * as fixture10 from './src/fixtures/Button.fixture';
+import * as fixture9 from './src/fixtures/Channel.fixture';
+import * as fixture8 from './src/fixtures/ChannelSwitcherSheet.fixture';
+import * as fixture7 from './src/fixtures/GroupList.fixture';
+import * as fixture6 from './src/fixtures/GroupListItem.fixture';
+import * as fixture5 from './src/fixtures/HeaderButton.fixture';
+import * as fixture4 from './src/fixtures/Input.fixture';
+import * as fixture3 from './src/fixtures/MessageInput.fixture';
 import * as fixture2 from './src/fixtures/SearchBar.fixture';
 import * as fixture1 from './src/fixtures/TlonButton.fixture';
 import * as decorator0 from './src/fixtures/cosmos.decorator';
@@ -23,13 +24,14 @@ const fixtures = {
   'src/App.fixture.tsx': { module: fixture0 },
   'src/fixtures/TlonButton.fixture.tsx': { module: fixture1 },
   'src/fixtures/SearchBar.fixture.tsx': { module: fixture2 },
-  'src/fixtures/Input.fixture.tsx': { module: fixture3 },
-  'src/fixtures/HeaderButton.fixture.tsx': { module: fixture4 },
-  'src/fixtures/GroupListItem.fixture.tsx': { module: fixture5 },
-  'src/fixtures/GroupList.fixture.tsx': { module: fixture6 },
-  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture7 },
-  'src/fixtures/Channel.fixture.tsx': { module: fixture8 },
-  'src/fixtures/Button.fixture.tsx': { module: fixture9 },
+  'src/fixtures/MessageInput.fixture.tsx': { module: fixture3 },
+  'src/fixtures/Input.fixture.tsx': { module: fixture4 },
+  'src/fixtures/HeaderButton.fixture.tsx': { module: fixture5 },
+  'src/fixtures/GroupListItem.fixture.tsx': { module: fixture6 },
+  'src/fixtures/GroupList.fixture.tsx': { module: fixture7 },
+  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture8 },
+  'src/fixtures/Channel.fixture.tsx': { module: fixture9 },
+  'src/fixtures/Button.fixture.tsx': { module: fixture10 },
 };
 
 const decorators = {

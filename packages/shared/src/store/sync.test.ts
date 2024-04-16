@@ -1,25 +1,29 @@
+import * as $ from 'drizzle-orm';
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest';
 
-import { toClientGroup, toPagedPostsData } from './api';
-import * as db from './db';
+import { toClientGroup, toPagedPostsData } from '../api';
+import * as db from '../db';
+import rawChannelPostsData from '../test/channelPosts.json';
+import rawContactsData from '../test/contacts.json';
+import rawGroupsData from '../test/groups.json';
+import rawGroupsInitData from '../test/groupsInit.json';
+import { getClient, resetDb, setupDb } from '../test/helpers';
+import { setScryOutput, setScryOutputs } from '../test/helpers';
+import { GroupsInit, PagedPosts } from '../urbit';
+import { Contact as UrbitContact } from '../urbit/contact';
+import { Group as UrbitGroup } from '../urbit/groups';
 import {
   syncChannel,
   syncContacts,
   syncDms,
   syncGroups,
+  syncInitData,
   syncPinnedItems,
 } from './sync';
-import rawChannelPostsData from './test/channelPosts.json';
-import rawContactsData from './test/contacts.json';
-import rawGroupsData from './test/groups.json';
-import { resetDb, setupDb } from './test/helpers';
-import { setScryOutput, setScryOutputs } from './test/helpers';
-import { PagedPosts } from './urbit';
-import { Contact as UrbitContact } from './urbit/contact';
-import { Group as UrbitGroup } from './urbit/groups';
 
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
+const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
 
 beforeAll(() => {
   setupDb();
@@ -278,4 +282,39 @@ test('deletes removed posts', async () => {
   await syncChannel(channelId, unreadTime);
   const posts = await db.getPosts();
   expect(posts.length).toEqual(0);
+});
+
+test('syncs init data', async () => {
+  setScryOutput(rawGroupsInitData);
+  await syncInitData();
+  const groups = await db.getGroups({});
+  expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
+  const pins = await db.getPinnedItems();
+  expect(pins.length).toEqual(groupsInitData.pins.length);
+  const dmsAndClubs = await getClient()
+    ?.select({ count: $.count() })
+    .from(db.schema.channels)
+    .where(
+      $.or(
+        $.eq(db.schema.channels.type, 'dm'),
+        $.eq(db.schema.channels.type, 'groupDm')
+      )
+    );
+  expect(dmsAndClubs?.[0].count).toEqual(
+    groupsInitData.chat.dms.length +
+      Object.keys(groupsInitData.chat.clubs).length
+  );
+  const staleChannels = await db.getStaleChannels();
+  expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
+    ['chat/~bolbex-fogdys/watercooler-4926'],
+    ['chat/~dabben-larbet/hosting-6173'],
+    ['chat/~bolbex-fogdys/tlon-general'],
+    ['chat/~bolbex-fogdys/marcom'],
+    ['heap/~bolbex-fogdys/design-1761'],
+    ['chat/~bitpyx-dildus/interface'],
+    ['chat/~bolbex-fogdys/ops'],
+    ['heap/~dabben-larbet/fanmail-3976'],
+    ['diary/~bolbex-fogdys/bulletins'],
+    ['chat/~nocsyx-lassul/bongtable'],
+  ]);
 });

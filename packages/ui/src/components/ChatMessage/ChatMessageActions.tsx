@@ -1,5 +1,5 @@
-import { addPostReaction, removePostReaction } from '@tloncorp/shared/dist';
-import * as db from '@tloncorp/shared/dist/db/types';
+import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { RefObject, useCallback, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import Animated, {
@@ -146,21 +146,30 @@ export function EmojiToolbar({
 
   const hasSelfReact =
     post.reactions?.reduce(
-      (has, react) => has || react.contactId === global?.ship,
+      (has, react) => has || react.contactId === (global as any).ship,
       false
     ) ?? false;
 
   const selfShortcode =
-    post.reactions?.reduce((foundValue, react) => {
-      return (
-        foundValue || (react.contactId === global?.ship ? react.value : null)
-      );
-    }, null) ?? '';
+    post.reactions?.reduce(
+      (foundValue, react) => {
+        return (
+          foundValue ||
+          (react.contactId === (global as any).ship ? react.value : null)
+        );
+      },
+      null as null | string
+    ) ?? '';
 
-  const handlePress = useCallback((shortCode) => {
+  const handlePress = useCallback((shortCode: string) => {
     hasSelfReact && selfShortcode.includes(shortCode)
-      ? removePostReaction(post.channelId, post.id, global.ship)
-      : addPostReaction(post.channelId, post.id, shortCode, global.ship);
+      ? store.removePostReaction(post.channelId, post.id, (global as any).ship)
+      : store.addPostReaction(
+          post.channelId,
+          post.id,
+          shortCode,
+          (global as any).ship
+        );
 
     setTimeout(() => onDismiss(), 50);
   }, []);

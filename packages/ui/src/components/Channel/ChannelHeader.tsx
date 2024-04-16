@@ -3,7 +3,7 @@ import {
   ChevronLeft,
   Search,
 } from '../../assets/icons';
-import { SizableText, XStack } from '../../core';
+import { SizableText, Spinner, XStack } from '../../core';
 import { IconButton } from '../IconButton';
 
 export function ChannelHeader({
@@ -12,12 +12,14 @@ export function ChannelHeader({
   goToChannels,
   goToSearch,
   showPickerButton,
+  showSpinner,
 }: {
   title: string;
   goBack: () => void;
   goToChannels: () => void;
   goToSearch: () => void;
   showPickerButton?: boolean;
+  showSpinner?: boolean;
 }) {
   return (
     <XStack
@@ -38,7 +40,8 @@ export function ChannelHeader({
           {title}
         </SizableText>
       </XStack>
-      <XStack gap="$m">
+      <XStack gap="$m" alignItems="center">
+        {showSpinner && <Spinner />}
         <IconButton onPress={goToSearch}>
           <Search />
         </IconButton>

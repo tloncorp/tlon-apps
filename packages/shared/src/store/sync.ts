@@ -1,6 +1,6 @@
-import * as api from './api';
-import * as db from './db';
-import { createDevLogger } from './debug';
+import * as api from '../api';
+import * as db from '../db';
+import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('sync', false);
 
@@ -56,7 +56,9 @@ async function handleUnreadUpdate(unread: db.Unread) {
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
-export const syncPosts = async ({ type }: { type?: 'channel' | 'dm' } = {}) => {
+export const syncStaleChannels = async ({
+  type,
+}: { type?: 'channel' | 'dm' } = {}) => {
   const staleChannels = await db.getStaleChannels();
 
   for (let channel of staleChannels) {
@@ -72,30 +74,10 @@ export const syncPosts = async ({ type }: { type?: 'channel' | 'dm' } = {}) => {
   }
 };
 
-export async function syncPostsBefore(post: db.Post) {
-  if (!post.channelId) {
-    throw new Error("post is missing channel, can't sync");
-  }
-  const postsResponse = await api.getChannelPosts(post.channelId, {
-    count: 50,
-    direction: 'older',
-    cursor: post.id,
-    includeReplies: true,
-  });
-  persistPagedPostData(post.channelId, postsResponse);
-}
-
-export async function syncPostsAround(post: db.Post) {
-  if (!post.channelId) {
-    throw new Error("post is missing channel, can't sync");
-  }
-  const postsResponse = await api.getChannelPosts(post.channelId, {
-    count: 50,
-    direction: 'around',
-    cursor: post.id,
-    includeReplies: true,
-  });
-  persistPagedPostData(post.channelId, postsResponse);
+export async function syncPosts(options: db.GetChannelPostsOptions) {
+  const response = await api.getChannelPosts(options);
+  await persistPagedPostData(options.channelId, response);
+  return response;
 }
 
 export async function syncChannel(id: string, remoteUpdatedAt: number) {
@@ -107,7 +89,8 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   // If we don't have any posts, start loading backward from the current time
   if ((channel.remoteUpdatedAt ?? 0) < remoteUpdatedAt) {
     logger.log('loading posts for channel', id);
-    const postsResponse = await api.getChannelPosts(id, {
+    const postsResponse = await api.getChannelPosts({
+      channelId: id,
       ...(channel.lastPostId
         ? { direction: 'newer', cursor: channel.lastPostId }
         : { direction: 'older', date: new Date() }),
@@ -116,7 +99,7 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
     await persistPagedPostData(channel.id, postsResponse);
     logger.log(
       'loaded',
-      postsResponse.posts.length,
+      postsResponse.posts?.length,
       `posts for channel ${id} in `,
       Date.now() - startTime + 'ms'
     );
@@ -146,7 +129,7 @@ async function persistPagedPostData(
         .filter(Boolean) as db.ReactionInsert[],
     });
   }
-  if (data.deletedPosts.length) {
+  if (data.deletedPosts?.length) {
     await db.deletePosts({ ids: data.deletedPosts });
   }
 }
@@ -155,7 +138,7 @@ export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
     ['initData', syncInitData],
     ['contacts', syncContacts],
-    ['posts', syncPosts],
+    ['staleChannels', syncStaleChannels],
   ];
 
   api.subscribeUnreads(handleUnreadUpdate);
