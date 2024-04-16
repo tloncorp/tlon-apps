@@ -17,6 +17,7 @@ import ChatScroll from './ChatScroll';
 
 export function Channel({
   channel,
+  currentUserId,
   posts,
   selectedPost,
   contacts,
@@ -33,6 +34,7 @@ export function Channel({
   isLoadingPosts,
 }: {
   channel: db.ChannelWithLastPostAndMembers;
+  currentUserId: string;
   selectedPost?: string;
   posts: db.PostWithRelations[] | null;
   contacts: db.Contact[] | null;
@@ -75,6 +77,7 @@ export function Channel({
                   </View>
                 ) : (
                   <ChatScroll
+                    currentUserId={currentUserId}
                     unreadCount={channel.unreadCount ?? undefined}
                     selectedPost={selectedPost}
                     firstUnread={channel.firstUnreadPostId ?? undefined}

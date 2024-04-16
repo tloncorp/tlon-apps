@@ -7,12 +7,14 @@ import { SizableEmoji } from '../Emoji/SizableEmoji';
 
 export function ReactionsDisplay({
   post,
+  currentUserId,
 }: {
   post: db.PostWithRelations | db.PostInsertWithAuthor;
+  currentUserId: string;
 }) {
   const reactionDetails = useReactionDetails(
     post.reactions ?? [],
-    (global as any).ship
+    currentUserId
   );
 
   if (reactionDetails.list.length === 0) {
@@ -38,16 +40,12 @@ export function ReactionsDisplay({
           }
           onPress={() =>
             reactionDetails.self.didReact
-              ? store.removePostReaction(
-                  post.channelId,
-                  post.id,
-                  (global as any).ship
-                )
+              ? store.removePostReaction(post.channelId, post.id, currentUserId)
               : store.addPostReaction(
                   post.channelId,
                   post.id,
                   reaction.value,
-                  (global as any).ship
+                  currentUserId
                 )
           }
         >

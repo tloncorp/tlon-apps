@@ -28,11 +28,13 @@ interface LayoutStruct {
 
 export function ChatMessageActions({
   post,
+  currentUserId,
   postRef,
   channelType,
   onDismiss,
 }: {
   post: db.PostWithRelations;
+  currentUserId: string;
   postRef: RefObject<TouchableOpacity>;
   channelType: db.ChannelType;
   onDismiss: () => void;
@@ -123,8 +125,12 @@ export function ChatMessageActions({
     <Animated.View style={animatedStyles}>
       <View onLayout={handleLayout} paddingHorizontal="$xl">
         <YStack gap="$xs">
-          <EmojiToolbar post={post} onDismiss={onDismiss} />
-          <MessageContainer post={post} />
+          <EmojiToolbar
+            post={post}
+            onDismiss={onDismiss}
+            currentUserId={currentUserId}
+          />
+          <MessageContainer post={post} currentUserId={currentUserId} />
           <ChatMessageMenu
             post={post}
             channelType={channelType}
@@ -138,25 +144,24 @@ export function ChatMessageActions({
 
 export function EmojiToolbar({
   post,
+  currentUserId,
   onDismiss,
 }: {
   post: db.PostWithRelations;
+  currentUserId: string;
   onDismiss: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const details = useReactionDetails(
-    post.reactions ?? [],
-    (global as any).ship
-  );
+  const details = useReactionDetails(post.reactions ?? [], currentUserId);
 
   const handlePress = useCallback((shortCode: string) => {
     details.self.didReact && details.self.value.includes(shortCode)
-      ? store.removePostReaction(post.channelId, post.id, (global as any).ship)
+      ? store.removePostReaction(post.channelId, post.id, currentUserId)
       : store.addPostReaction(
           post.channelId,
           post.id,
           shortCode,
-          (global as any).ship
+          currentUserId
         );
 
     setTimeout(() => onDismiss(), 50);
@@ -181,28 +186,24 @@ export function EmojiToolbar({
         width={256}
       >
         <EmojiToolbarButton
-          post={post}
           details={details}
-          dismiss={onDismiss}
           shortCode="+1"
+          handlePress={handlePress}
         />
         <EmojiToolbarButton
-          post={post}
           details={details}
-          dismiss={onDismiss}
           shortCode="heart"
+          handlePress={handlePress}
         />
         <EmojiToolbarButton
-          post={post}
           details={details}
-          dismiss={onDismiss}
           shortCode="cyclone"
+          handlePress={handlePress}
         />
         <EmojiToolbarButton
-          post={post}
           details={details}
-          dismiss={onDismiss}
           shortCode={lastShortCode}
+          handlePress={handlePress}
         />
         <Button
           padding="$xs"
@@ -224,27 +225,12 @@ export function EmojiToolbar({
 function EmojiToolbarButton({
   shortCode,
   details,
-  post,
-  dismiss,
+  handlePress,
 }: {
-  post: db.PostWithRelations;
   shortCode: string;
   details: ReactionDetails;
-  dismiss: () => void;
+  handlePress: (shortCode: string) => void;
 }) {
-  const handlePress = useCallback(() => {
-    details.self.didReact && details.self.value.includes(shortCode)
-      ? store.removePostReaction(post.channelId, post.id, (global as any).ship)
-      : store.addPostReaction(
-          post.channelId,
-          post.id,
-          shortCode,
-          (global as any).ship
-        );
-
-    setTimeout(() => dismiss(), 50);
-  }, []);
-
   return (
     <Button
       padding="$xs"
@@ -254,10 +240,7 @@ function EmojiToolbarButton({
           ? '$blueSoft'
           : undefined
       }
-      disabled={
-        details.self.didReact && !details.self.value.includes(shortCode)
-      }
-      onPress={handlePress}
+      onPress={() => handlePress(shortCode)}
     >
       <SizableEmoji shortCode={shortCode} fontSize={32} />
     </Button>
@@ -265,7 +248,13 @@ function EmojiToolbarButton({
 }
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
-function MessageContainer({ post }: { post: db.PostWithRelations }) {
+function MessageContainer({
+  post,
+  currentUserId,
+}: {
+  post: db.PostWithRelations;
+  currentUserId: string;
+}) {
   const screenHeight = Dimensions.get('window').height;
   return (
     <View
@@ -275,7 +264,7 @@ function MessageContainer({ post }: { post: db.PostWithRelations }) {
       padding="$l"
       borderRadius="$l"
     >
-      <ChatMessage post={post} />
+      <ChatMessage post={post} currentUserId={currentUserId} />
     </View>
   );
 }

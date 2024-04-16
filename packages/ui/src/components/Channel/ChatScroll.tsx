@@ -29,6 +29,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
 
 export default function ChatScroll({
   posts,
+  currentUserId,
   channelType,
   unreadCount,
   firstUnread,
@@ -38,6 +39,7 @@ export default function ChatScroll({
   onEndReached,
 }: {
   posts: db.PostWithRelations[];
+  currentUserId: string;
   channelType: db.ChannelType;
   unreadCount?: number;
   firstUnread?: string;
@@ -104,6 +106,7 @@ export default function ChatScroll({
           isActive={activeMessage?.id === item.id}
         >
           <ChatMessage
+            currentUserId={currentUserId}
             post={item}
             firstUnread={firstUnread}
             unreadCount={unreadCount}
@@ -133,9 +136,10 @@ export default function ChatScroll({
     gap: '$m',
   }) as StyleProp<ViewStyle>;
 
-  const handleContainerPressed = useCallback(() => {
-    setInputShouldBlur(true);
-  }, []);
+  // TODO: handle in alternative manner? cc: Dan
+  // const handleContainerPressed = useCallback(() => {
+  //   setInputShouldBlur(true);
+  // }, []);
 
   const handleSetActive = useCallback((active: db.PostWithRelations) => {
     activeMessageRefs.current[active.id] = createRef();
@@ -143,7 +147,7 @@ export default function ChatScroll({
   }, []);
 
   return (
-    <View onPress={handleContainerPressed}>
+    <View>
       {unreadCount && !hasPressedGoToBottom && (
         <UnreadsButton onPress={pressedGoToBottom} />
       )}
@@ -166,6 +170,7 @@ export default function ChatScroll({
       >
         {activeMessage !== null && (
           <ChatMessageActions
+            currentUserId={currentUserId}
             post={activeMessage!}
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}

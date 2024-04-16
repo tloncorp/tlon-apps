@@ -19,7 +19,6 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   useDeepLinkListener();
 
   useEffect(() => {
-    (global as any).ship = ship; // todo: remove
     configureClient(ship ?? '', shipUrl ?? '');
     sync.start().catch((e) => {
       console.warn('Sync failed', e);

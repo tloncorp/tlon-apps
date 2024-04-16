@@ -14,8 +14,10 @@ const ChatMessage = memo(
     post,
     firstUnread,
     unreadCount,
+    currentUserId,
   }: {
     post: db.PostWithRelations | db.PostInsertWithAuthor;
+    currentUserId: string;
     firstUnread?: string;
     unreadCount?: number;
   }) => {
@@ -73,7 +75,7 @@ const ChatMessage = memo(
             <ChatContent story={content} />
           )}
         </View>
-        <ReactionsDisplay post={post} />
+        <ReactionsDisplay post={post} currentUserId={currentUserId} />
       </YStack>
     );
   }
