@@ -12,6 +12,7 @@
 /$  perm        %channel-perm         %json
 /$  scan        %channel-scan         %json
 /$  unreads     %channel-unreads      %json
+/$  heads       %channel-heads        %json
 /$  posts       %channel-posts        %json
 /$  simple-posts  %channel-simple-posts  %json
 /$  post        %channel-post         %json

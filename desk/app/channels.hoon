@@ -618,17 +618,13 @@
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ::
-    ::TODO  rename to /overview or similar?
-    ::TODO  want to include "any changes at all since" flag?
-      [%x %v2 %latest since=?(~ [u=@ ~])]
-    ::REVIEW  this will miss cases where the then-last msg was deleted (or edited).
-    ::        i suppose we would need to look at the logs also?
+      [%x %v2 %heads since=?(~ [u=@ ~])]
     =/  since=(unit id-post:c)
       ?~  since.pole  ~
       ?^  tim=(slaw %da u.since.pole)  `u.tim
       `(slav %ud u.since.pole)
-    :^  ~  ~  %noun  ::TODO
-    !>  ^-  (list [=nest:c recency=time latest=(unit post:c)])  ::TODO  ?
+    :^  ~  ~  %channel-heads
+    !>  ^-  channel-heads:c
     %+  murn  ~(tap by v-channels)
     =/  slip=?  |  ::  slipped past a deleted message
     |=  [=nest:c v-channel:c]
@@ -641,7 +637,7 @@
     ?~  val.u.vp
       $(slip &, posts +:(pop:on-v-posts:c posts))
     =*  result
-      `[nest recency.remark `(uv-post:utils u.val.u.vp)]
+      `[nest recency.remark `(uv-post-without-replies:utils u.val.u.vp)]
     ::  if the request is bounded, check that latest message is "in bounds"
     ::  (and not presumably already known by the requester)
     ::
@@ -1696,12 +1692,10 @@
         :: ?^  tim=(slaw %da limit.pole)  [%time u.tim]
         :: [%count (slav %ud limit.pole)]
         (slav %ud limit.pole)
-      =-  ``noun+!>(-)
-      ::TODO  +give-posts would be misleading, the metadata isn't relevant for
-      ::      the kind of gathering & pagination done here
-      ::      ...although, we'll want to give the date last checked, so that the
-      ::      client doesn't have to look at the oldest msg timestamp in the list,
-      ::      which may be older (due to a log affecting it being younger).
+      =;  [older=(unit time) posts=v-posts:c]
+        =/  =paged-posts:c
+          [(uv-posts:utils posts) `before older (wyt:on-v-posts:c posts)]
+        ``channel-posts+!>(paged-posts)
       ::  walk both posts and logs, in chronological order, newest-first,
       ::  until we accumulate the desired amount of results
       ::
@@ -1709,18 +1703,21 @@
       ::      so we just eat the conversion overhead here
       =/  posts  (bap:on-v-posts:c (lot:on-v-posts:c posts.channel ~ `before))
       =/  logs   (bap:log-on:c (lot:log-on:c log.channel ~ `before))
-      =|  s=[=_limit out=v-posts:c]
-      =<  out
+      =|  s=[=_limit older=_`(unit time)`(some before) out=v-posts:c]
+      =<  [older out]
       |-  ^+  s
       ?:  =(0 limit.s)  s
-      ?~  posts  s  ::  cannot have logs if posts already empty ::REVIEW right?
+      ?~  posts
+        ::  cannot have logs if posts already empty ::REVIEW right?
+        ::
+        s(older ~)
       =*  pit  key.i.posts
       =/  lit  ?~(logs pit key.i.logs)
       ?:  (gte pit lit)
         ::  post is newer than logs
         ::
         =?  s  !(has:on-v-posts:c out.s pit)
-          [(dec limit.s) (put:on-v-posts:c out.s i.posts)]
+          [(dec limit.s) `pit (put:on-v-posts:c out.s i.posts)]
         $(posts t.posts)
       ::  log is newer than posts
       ::
@@ -1728,7 +1725,7 @@
       ?.  ?=(%post -.val.i.logs)  $(logs t.logs)
       =*  id  id.val.i.logs
       =?  s  !(has:on-v-posts:c out.s id)
-        :-  (dec limit.s)
+        :+  (dec limit.s)  `lit
         (put:on-v-posts:c out.s id (got:on-v-posts:c posts.channel id))
       $(logs t.logs)
     ::
