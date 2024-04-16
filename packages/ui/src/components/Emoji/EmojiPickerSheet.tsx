@@ -25,7 +25,6 @@ export function EmojiPickerSheet(
       onDismiss={() => props.onOpenChange?.(false)}
     >
       <Sheet
-        zIndex={999999999999}
         snapPointsMode="percent"
         snapPoints={[60]}
         {...rest}
@@ -34,8 +33,8 @@ export function EmojiPickerSheet(
         // @ts-ignore-next-line
         animation="quick"
       >
-        <Sheet.Overlay />
-        <Sheet.Frame padding="$xl" alignItems="center">
+        <Sheet.Overlay zIndex="$modalSheet" />
+        <Sheet.Frame zIndex="$modalSheet" padding="$xl" alignItems="center">
           <Sheet.Handle paddingBottom="$2xl" />
           <FlatList
             style={{ width: '100%' }}
