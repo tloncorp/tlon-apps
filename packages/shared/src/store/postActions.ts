@@ -2,72 +2,107 @@ import * as api from '../api';
 import * as db from '../db';
 import * as sync from './sync';
 
-export async function togglePost({
-  channelId,
-  postId,
-}: {
-  channelId: string;
-  postId: string;
-}) {
-  try {
-    // optimistic update
-    await db.updatePost({ id: postId, hidden: true });
+export async function hidePost({ post }: { post: db.PostInsert }) {
+  // optimistic update
+  await db.updatePost({ id: post.id, hidden: true });
 
-    await api.togglePost(channelId, postId);
+  try {
+    await api.hidePost(post.channelId, post.id);
   } catch (e) {
     console.error('Failed to hide post', e);
+
+    // rollback optimistic update
+    await db.updatePost({ id: post.id, hidden: false });
   }
 }
 
-export async function deletePost({
-  channelId,
-  postId,
-}: {
-  channelId: string;
-  postId: string;
-}) {
-  try {
-    // optimistic update
-    await db.deletePost(postId);
+export async function showPost({ post }: { post: db.PostInsert }) {
+  // optimistic update
+  await db.updatePost({ id: post.id, hidden: false });
 
-    await api.deletePost(channelId, postId);
+  try {
+    await api.showPost(post.channelId, post.id);
+  } catch (e) {
+    console.error('Failed to show post', e);
+
+    // rollback optimistic update
+    await db.updatePost({ id: post.id, hidden: true });
+  }
+}
+
+export async function deletePost({ post }: { post: db.PostInsert }) {
+  // optimistic update
+  await db.deletePost(post.id);
+
+  try {
+    await api.deletePost(post.channelId, post.id);
   } catch (e) {
     console.error('Failed to delete post', e);
+
+    // rollback optimistic update
+    await db.insertChannelPosts(post.channelId, [post]);
   }
 }
 
 export async function addPostReaction(
-  channelId: string,
-  postId: string,
+  post: db.PostInsert,
   shortCode: string,
-  our: string
+  currentUserId: string
 ) {
   const formattedShortcode = shortCode.replace(/^(?!:)(.*)$(?<!:)/, ':$1:');
-  try {
-    // optimistic update
-    await db.insertPostReactions({
-      reactions: [{ postId, value: formattedShortcode, contactId: our }],
-    });
 
-    await api.addReaction(channelId, postId, formattedShortcode, our);
-    sync.syncChannel(channelId, Date.now());
+  // optimistic update
+  await db.insertPostReactions({
+    reactions: [
+      { postId: post.id, value: formattedShortcode, contactId: currentUserId },
+    ],
+  });
+
+  try {
+    await api.addReaction(
+      post.channelId,
+      post.id,
+      formattedShortcode,
+      currentUserId
+    );
+    sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
-    console.error('addPostReaction failed', e);
+    console.error('Failed to add post reaction', e);
+
+    // rollback optimistic update
+    await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
   }
 }
 
 export async function removePostReaction(
-  channelId: string,
-  postId: string,
-  our: string
+  post: db.PostInsert,
+  currentUserId: string
 ) {
-  try {
-    // optimistic update
-    await db.deletePostReaction({ postId, contactId: our });
+  const existingReaction = await db.getPostReaction({
+    postId: post.id,
+    contactId: currentUserId,
+  });
 
-    await api.removeReaction(channelId, postId, our);
-    sync.syncChannel(channelId, Date.now());
+  // optimistic update
+  await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
+
+  try {
+    await api.removeReaction(post.channelId, post.id, currentUserId);
+    sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
-    console.error('removePostReaction failed', e);
+    console.error('Failed to remove post reaction', e);
+
+    // rollback optimistic update
+    if (existingReaction) {
+      await db.insertPostReactions({
+        reactions: [
+          {
+            postId: post.id,
+            contactId: currentUserId,
+            value: existingReaction.value,
+          },
+        ],
+      });
+    }
   }
 }

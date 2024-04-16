@@ -164,13 +164,8 @@ export function EmojiToolbar({
 
   const handlePress = useCallback(async (shortCode: string) => {
     details.self.didReact && details.self.value.includes(shortCode)
-      ? store.removePostReaction(post.channelId, post.id, currentUserId)
-      : store.addPostReaction(
-          post.channelId,
-          post.id,
-          shortCode,
-          currentUserId
-        );
+      ? store.removePostReaction(post, currentUserId)
+      : store.addPostReaction(post, shortCode, currentUserId);
 
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setTimeout(() => onDismiss(), 50);

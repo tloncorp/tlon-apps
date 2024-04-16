@@ -79,7 +79,7 @@ function getPostActions(
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },
-        { id: 'visibility', label: 'Hide' },
+        { id: 'visibility', label: post.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
   }
@@ -102,10 +102,10 @@ async function handleAction({
       Clipboard.setString(post.textContent ?? '');
       break;
     case 'delete':
-      store.deletePost({ channelId: post.channelId, postId: post.id });
+      store.deletePost({ post });
       break;
     case 'visibility':
-      store.togglePost({ channelId: post.channelId, postId: post.id });
+      post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
   }
 

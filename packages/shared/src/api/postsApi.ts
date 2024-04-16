@@ -166,16 +166,32 @@ export async function removeReaction(
   });
 }
 
-export async function togglePost(channelId: string, postId: string) {
+export async function showPost(channelId: string, postId: string) {
   const action = {
     app: 'channels',
     mark: 'channel-action',
     json: {
-      'toggle-post': postId,
+      'toggle-post': {
+        show: postId,
+      },
     },
   };
 
-  return poke(action);
+  return await poke(action);
+}
+
+export async function hidePost(channelId: string, postId: string) {
+  const action = {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      'toggle-post': {
+        hide: postId,
+      },
+    },
+  };
+
+  return await poke(action);
 }
 
 export async function deletePost(channelId: string, postId: string) {
@@ -187,7 +203,7 @@ export async function deletePost(channelId: string, postId: string) {
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
-  return poke(action);
+  return await poke(action);
 }
 
 export interface GetChannelPostsResponse {

@@ -40,13 +40,8 @@ export function ReactionsDisplay({
           }
           onPress={() =>
             reactionDetails.self.didReact
-              ? store.removePostReaction(post.channelId, post.id, currentUserId)
-              : store.addPostReaction(
-                  post.channelId,
-                  post.id,
-                  reaction.value,
-                  currentUserId
-                )
+              ? store.removePostReaction(post, currentUserId)
+              : store.addPostReaction(post, reaction.value, currentUserId)
           }
         >
           <SizableEmoji

@@ -687,6 +687,21 @@ export const deletePost = createWriteQuery(
   ['posts']
 );
 
+export const getPostReaction = createReadQuery(
+  'getPostReaction',
+  async ({ postId, contactId }: { postId: string; contactId: string }) => {
+    return client.query.postReactions
+      .findFirst({
+        where: and(
+          eq($postReactions.postId, postId),
+          eq($postReactions.contactId, contactId)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  []
+);
+
 export const insertPostReactions = createWriteQuery(
   'insertPostReactions',
   async ({ reactions, our }: { reactions: ReactionInsert[]; our?: string }) => {
