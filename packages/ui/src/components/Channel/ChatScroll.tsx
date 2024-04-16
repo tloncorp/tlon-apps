@@ -1,8 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { MotiView } from 'moti';
 import {
+  PropsWithChildren,
   RefObject,
   createRef,
+  forwardRef,
   useCallback,
   useEffect,
   useMemo,
@@ -13,7 +15,6 @@ import {
   Dimensions,
   FlatList,
   ListRenderItem,
-  View as RNView,
   StyleProp,
   TouchableOpacity,
   ViewStyle,
@@ -21,13 +22,10 @@ import {
 import { useStyle } from 'tamagui';
 
 import { ArrowDown } from '../../assets/icons';
-import { Dialog, Modal, SizableText, View, XStack, YStack } from '../../core';
+import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import ChatMessage from '../ChatMessage';
-import {
-  ChatMessageActions,
-  EmojiToolbar,
-} from '../ChatMessage/ChatMessageActions';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
 
 export default function ChatScroll({
   posts,
@@ -91,18 +89,30 @@ export default function ChatScroll({
     }
   }, [selectedPost]);
 
-  // const renderItem: ListRenderItem<db.PostWithRelations> = useCallback(
-  //   ({ item }) => {
-  //     return (
-  //       <ChatMessage
-  //         post={item}
-  //         firstUnread={firstUnread}
-  //         unreadCount={unreadCount}
-  //       />
-  //     );
-  //   },
-  //   []
-  // );
+  const [activeMessage, setActiveMessage] =
+    useState<db.PostWithRelations | null>(null);
+  const activeMessageRefs = useRef<Record<string, RefObject<TouchableOpacity>>>(
+    {}
+  );
+
+  const renderItem: ListRenderItem<db.PostWithRelations> = useCallback(
+    ({ item }) => {
+      return (
+        <PressableMessage
+          ref={activeMessageRefs.current[item.id]}
+          onLongPress={() => handleSetActive(item)}
+          isActive={activeMessage?.id === item.id}
+        >
+          <ChatMessage
+            post={item}
+            firstUnread={firstUnread}
+            unreadCount={unreadCount}
+          />
+        </PressableMessage>
+      );
+    },
+    []
+  );
 
   const handleScrollToIndexFailed = useCallback(
     ({ index }: { index: number }) => {
@@ -127,11 +137,6 @@ export default function ChatScroll({
     setInputShouldBlur(true);
   }, []);
 
-  // start context menu
-  const [activeMessage, setActiveMessage] =
-    useState<db.PostWithRelations | null>(null);
-  const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
-
   const handleSetActive = useCallback((active: db.PostWithRelations) => {
     activeMessageRefs.current[active.id] = createRef();
     setActiveMessage(active);
@@ -145,37 +150,7 @@ export default function ChatScroll({
       <FlatList<db.PostWithRelations>
         ref={flatListRef}
         data={posts}
-        renderItem={({ item }) => (
-          <MotiView
-            animate={{
-              scale: activeMessage?.id === item.id ? 0.95 : 1,
-            }}
-            transition={{
-              scale: {
-                type: 'timing',
-                duration: 100,
-              },
-            }}
-          >
-            <TouchableOpacity
-              onLongPress={() => handleSetActive(item)}
-              delayLongPress={300}
-            >
-              <RNView ref={activeMessageRefs.current[item.id]}>
-                <View
-                  paddingVertical="$m"
-                  onLongPress={() => handleSetActive(item)}
-                >
-                  <ChatMessage
-                    post={item}
-                    firstUnread={firstUnread}
-                    unreadCount={unreadCount}
-                  />
-                </View>
-              </RNView>
-            </TouchableOpacity>
-          </MotiView>
-        )}
+        renderItem={renderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
         onEndReached={onEndReached}
@@ -205,6 +180,33 @@ export default function ChatScroll({
 function getPostId(post: db.Post) {
   return post.id;
 }
+
+const PressableMessage = forwardRef<
+  TouchableOpacity,
+  PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
+>(({ isActive, onLongPress, children }, ref) => {
+  return (
+    <MotiView
+      animate={{
+        scale: isActive ? 0.95 : 1,
+      }}
+      transition={{
+        scale: {
+          type: 'timing',
+          duration: 50,
+        },
+      }}
+    >
+      <TouchableOpacity
+        onLongPress={onLongPress}
+        delayLongPress={300}
+        ref={ref}
+      >
+        <View paddingVertical="$m">{children}</View>
+      </TouchableOpacity>
+    </MotiView>
+  );
+});
 
 const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (

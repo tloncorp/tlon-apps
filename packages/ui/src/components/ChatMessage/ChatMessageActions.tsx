@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { RefObject, useCallback, useEffect, useState } from 'react';
-import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
+import { Dimensions, LayoutChangeEvent, TouchableOpacity } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -33,7 +33,7 @@ export function ChatMessageActions({
   onDismiss,
 }: {
   post: db.PostWithRelations;
-  postRef: RefObject<RNView>;
+  postRef: RefObject<TouchableOpacity>;
   channelType: db.ChannelType;
   onDismiss: () => void;
 }) {

@@ -2,7 +2,6 @@ import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import { ComponentProps } from 'react';
 import { Modal as RNModal } from 'react-native';
-import Animated from 'react-native-reanimated';
 
 import { View, ZStack } from '../core';
 
