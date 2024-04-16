@@ -188,7 +188,6 @@ const PressableMessage = forwardRef<
   RNView,
   PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
 >(({ isActive, onLongPress, children }, ref) => {
-  if (isActive) console.log(`WE HAVE AN ACTIVEEEEEEE`);
   return (
     // this markup isn't ideal, but you need the MotiView for animating, the Pressable for
     // customizing longpress duration, and the React Native View for ref measurement
