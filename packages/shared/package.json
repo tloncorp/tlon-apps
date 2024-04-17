@@ -6,9 +6,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
+    "preinstall": "rm -f ./tsconfig.tsbuildinfo",
     "dev": "npm run build -- --watch",
     "dev:migrations": "concurrently \"npm run watch-migrations\" \"npm run dev\"",
-    "postinstall": "npm run build",
     "test": "vitest",
     "types": "tsc",
     "lint:format": "prettier src/ --write",
