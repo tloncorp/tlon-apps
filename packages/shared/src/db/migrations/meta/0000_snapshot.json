@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "2f70dd04-f8d9-44b4-a7e5-8c635500533c",
+  "id": "5513afe8-cf67-4ae7-b611-8c79f656cba6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -827,19 +827,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "post_reactions_contact_id_contacts_id_fk": {
-          "name": "post_reactions_contact_id_contacts_id_fk",
-          "tableFrom": "post_reactions",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "post_reactions_post_id_posts_id_fk": {
           "name": "post_reactions_post_id_posts_id_fk",
           "tableFrom": "post_reactions",
@@ -986,6 +973,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
         }
       },
       "indexes": {},

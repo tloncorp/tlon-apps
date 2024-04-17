@@ -39,6 +39,7 @@ const ChannelFixture = () => {
       <View backgroundColor="$background">
         <Channel
           posts={posts}
+          currentUserId="~zod"
           channel={currentChannel || tlonLocalChannelWithUnreads}
           contacts={initialContacts}
           group={group}

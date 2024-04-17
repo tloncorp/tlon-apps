@@ -89,7 +89,6 @@
     "@tiptap/suggestion": "^2.0.3",
     "@tloncorp/mock-http-api": "^1.2.0",
     "@tloncorp/shared": "*",
-    "@tloncorp/ui": "*",
     "@types/marked": "^4.3.0",
     "@urbit/api": "^2.2.0",
     "@urbit/aura": "^1.0.0",

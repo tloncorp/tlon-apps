@@ -13,16 +13,22 @@
     "build": "npx tamagui-build --skip-types && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/",
     "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/esm/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/ && tamagui-build --watch --skip-types",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format",
-    "postinstall": "npm run build"
+    "lint:all": "npm run lint:format"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.1.2",
+    "@react-native-clipboard/clipboard": "^1.14.0",
     "@tamagui/animations-moti": "1.93.2",
     "@tamagui/get-token": "1.93.2",
     "@tamagui/image": "1.93.2",
     "@uidotdev/usehooks": "^2.4.1",
     "color2k": "^2.0.0",
+    "expo-blur": "^12.9.2",
+    "expo-haptics": "^12.8.1",
     "lodash": "^4.17.21",
+    "moti": "^0.28.1",
+    "react-native-context-menu-view": "^1.15.0",
+    "react-native-reanimated": "^3.8.1",
     "react-native-svg": "^15.0.0",
     "tamagui": "1.93.2"
   },

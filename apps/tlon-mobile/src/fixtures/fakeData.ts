@@ -166,6 +166,7 @@ export const tlonLocalIntros: db.ChannelWithLastPostAndMembers = {
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
+    hidden: false,
   },
 };
 
@@ -196,6 +197,7 @@ export const tlonLocalWaterCooler: db.ChannelWithLastPostAndMembers = {
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
+    hidden: false,
   },
 };
 
@@ -226,6 +228,7 @@ export const tlonLocalSupport: db.ChannelWithLastPostAndMembers = {
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
+    hidden: false,
   },
 };
 
@@ -256,6 +259,7 @@ export const tlonLocalBulletinBoard: db.ChannelWithLastPostAndMembers = {
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
+    hidden: false,
   },
 };
 
@@ -285,6 +289,7 @@ export const tlonLocalCommunityCatalog: db.ChannelWithLastPostAndMembers = {
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
+    hidden: false,
   },
 };
 
@@ -314,6 +319,7 @@ export const tlonLocalGettingStarted: db.ChannelWithLastPostAndMembers = {
     hasChannelReference: null,
     hasGroupReference: null,
     hasLink: null,
+    hidden: false,
   },
 };
 
@@ -524,6 +530,7 @@ export const createFakePost = (): db.PostWithRelations => {
     hasGroupReference: null,
     hasLink: null,
     reactions: null,
+    hidden: false,
   };
 };
 
