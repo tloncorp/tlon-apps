@@ -3,8 +3,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run post-build",
-    "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html",
-    "postinstall": "npm run build"
+    "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html"
   },
   "dependencies": {
     "@tiptap/core": "^2.0.3",
