@@ -7,7 +7,7 @@ export function IconButton({
   size = '$s',
 }: {
   children: React.ReactNode;
-  onPress: () => void;
+  onPress?: () => void;
   size?: SizeTokens;
 }) {
   return (
@@ -16,7 +16,8 @@ export function IconButton({
       onPress={onPress}
       // borderWidth="unset" because otherwise it would be set to 1px
       // and we don't want that for an icon button
-      borderWidth="unset">
+      borderWidth="unset"
+    >
       <Button.Icon>{children}</Button.Icon>
     </Button>
   );

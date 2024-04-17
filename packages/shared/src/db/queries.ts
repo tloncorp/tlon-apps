@@ -16,6 +16,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  not,
   or,
   sql,
 } from 'drizzle-orm';
@@ -340,6 +341,31 @@ export const insertGroups = createWriteQuery(
   ]
 );
 
+export const getThreadPosts = createReadQuery(
+  'getThreadPosts',
+  ({ parentId }: { parentId: string }) => {
+    return client.query.posts.findMany({
+      where: eq($posts.parentId, parentId),
+      with: {
+        author: true,
+        reactions: true,
+      },
+      orderBy: [desc($posts.receivedAt)],
+    });
+  },
+  ['posts']
+);
+
+export const getThreadUnreadState = createReadQuery(
+  'getThreadUnreadState',
+  ({ parentId }: { parentId: string }) => {
+    return client.query.threadUnreads.findFirst({
+      where: eq($threadUnreads.threadId, parentId),
+    });
+  },
+  ['posts']
+);
+
 export const getGroupRoles = createReadQuery(
   'getGroupRoles',
   async () => {
@@ -533,6 +559,7 @@ export const getChannelPosts = createReadQuery(
     return client.query.posts.findMany({
       where: and(
         eq($posts.channelId, channelId),
+        not(eq($posts.type, 'reply')),
         cursor
           ? direction === 'older'
             ? lt($posts.id, cursor)
@@ -627,6 +654,7 @@ export const insertChannelPosts = createWriteQuery(
     }
     return client.transaction(async (tx) => {
       const lastPost = posts[posts.length - 1];
+      console.log(lastPost.textContent);
       // Update last post meta for the channel these posts belong to,
       // Also grab that channels groupId for updating the group's lastPostAt and
       // associating the posts with the group.
@@ -744,6 +772,20 @@ export const getPosts = createReadQuery(
   'getPosts',
   () => {
     return client.select().from($posts);
+  },
+  ['posts']
+);
+
+export const getPostWithRelations = createReadQuery(
+  'getPostWithRelations',
+  async ({ id }: { id: string }) => {
+    return client.query.posts.findFirst({
+      where: eq($posts.id, id),
+      with: {
+        author: true,
+        reactions: true,
+      },
+    });
   },
   ['posts']
 );

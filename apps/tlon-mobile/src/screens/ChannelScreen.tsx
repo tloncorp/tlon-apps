@@ -47,7 +47,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   });
   const { data: contacts } = store.useContacts();
 
-  const { top, bottom } = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
   const { ship } = useShip();
 
   const messageSender = async (content: JSONContent, channelId: string) => {
@@ -86,12 +86,19 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
+  const handleGoToPost = useCallback(
+    (post: db.PostWithRelations) => {
+      props.navigation.push('Post', { post });
+    },
+    [props.navigation]
+  );
+
   if (!channel) {
     return null;
   }
 
   return (
-    <View paddingTop={top} backgroundColor="$background" flex={1}>
+    <View backgroundColor="$background" flex={1}>
       <Channel
         channel={channel}
         currentUserId={ship!}
@@ -113,6 +120,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
         goBack={props.navigation.goBack}
         messageSender={messageSender}
+        goToPost={handleGoToPost}
         goToChannels={() => setChannelNavOpen(true)}
         goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
         onScrollEndReached={handleScrollEndReached}

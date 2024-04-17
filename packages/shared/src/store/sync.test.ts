@@ -325,11 +325,11 @@ test('syncs init data', async () => {
 
 test('syncs thread posts', async () => {
   setScryOutput(channelPostWithRepliesData);
-  await syncThreadPosts(
-    channelPostWithRepliesData.seal.id,
-    'chat/~solfer-magfed/test-channel',
-    channelId
-  );
+  await syncThreadPosts({
+    postId: channelPostWithRepliesData.seal.id,
+    authorId: channelPostWithRepliesData.essay.author,
+    channelId,
+  });
   const posts = await db.getPosts();
   expect(posts.length).toEqual(
     Object.keys(channelPostWithRepliesData.seal.replies).length + 1

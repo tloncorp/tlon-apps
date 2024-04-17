@@ -120,3 +120,10 @@ export const useChannel = (options: { id: string }) => {
     queryFn: () => db.getChannel(options),
   });
 };
+
+export const usePostWithRelations = (options: { id: string }) => {
+  return useQuery({
+    queryKey: [['post', options]],
+    queryFn: () => db.getPostWithRelations(options),
+  });
+};
