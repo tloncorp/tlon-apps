@@ -13,8 +13,7 @@
     "build": "npx tamagui-build --skip-types && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/",
     "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/esm/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/ && tamagui-build --watch --skip-types",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format",
-    "postinstall": "npm run build"
+    "lint:all": "npm run lint:format"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
