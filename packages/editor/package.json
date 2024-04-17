@@ -1,5 +1,9 @@
 {
   "name": "@tloncorp/editor",
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run post-build",
