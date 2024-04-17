@@ -94,6 +94,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     <View paddingTop={top} backgroundColor="$background" flex={1}>
       <Channel
         channel={channel}
+        currentUserId={ship!}
         calmSettings={{
           disableAppTileUnreads: false,
           disableAvatars: false,

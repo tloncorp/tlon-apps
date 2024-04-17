@@ -87,11 +87,15 @@ PODS:
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
+  - ExpoBlur (12.9.2):
+    - ExpoModulesCore
   - ExpoClipboard (5.0.1):
     - ExpoModulesCore
   - ExpoDevice (5.9.3):
     - ExpoModulesCore
   - ExpoFileSystem (16.0.8):
+    - ExpoModulesCore
+  - ExpoHaptics (12.8.1):
     - ExpoModulesCore
   - ExpoKeepAwake (12.8.2):
     - ExpoModulesCore
@@ -1277,6 +1281,8 @@ PODS:
   - RecaptchaInterop (100.0.0)
   - RNCAsyncStorage (1.21.0):
     - React-Core
+  - RNCClipboard (1.14.0):
+    - React-Core
   - RNDeviceInfo (10.12.0):
     - React-Core
   - RNFastImage (8.6.3):
@@ -1339,9 +1345,11 @@ DEPENDENCIES:
   - expo-dev-launcher (from `../../../node_modules/expo-dev-launcher`)
   - expo-dev-menu (from `../../../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
+  - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
+  - ExpoHaptics (from `../../../node_modules/expo-haptics/ios`)
   - ExpoKeepAwake (from `../../../node_modules/expo-keep-awake/ios`)
   - ExpoLocalization (from `../../../node_modules/expo-localization/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
@@ -1407,6 +1415,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "recaptcha-enterprise-react-native (from `../../../node_modules/@google-cloud/recaptcha-enterprise-react-native`)"
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCClipboard (from `../../../node_modules/@react-native-clipboard/clipboard`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
   - RNFastImage (from `../../../node_modules/react-native-fast-image`)
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
@@ -1477,12 +1486,16 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-dev-menu"
   expo-dev-menu-interface:
     :path: "../../../node_modules/expo-dev-menu-interface/ios"
+  ExpoBlur:
+    :path: "../../../node_modules/expo-blur/ios"
   ExpoClipboard:
     :path: "../../../node_modules/expo-clipboard/ios"
   ExpoDevice:
     :path: "../../../node_modules/expo-device/ios"
   ExpoFileSystem:
     :path: "../../../node_modules/expo-file-system/ios"
+  ExpoHaptics:
+    :path: "../../../node_modules/expo-haptics/ios"
   ExpoKeepAwake:
     :path: "../../../node_modules/expo-keep-awake/ios"
   ExpoLocalization:
@@ -1608,6 +1621,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@google-cloud/recaptcha-enterprise-react-native"
   RNCAsyncStorage:
     :path: "../../../node_modules/@react-native-async-storage/async-storage"
+  RNCClipboard:
+    :path: "../../../node_modules/@react-native-clipboard/clipboard"
   RNDeviceInfo:
     :path: "../../../node_modules/react-native-device-info"
   RNFastImage:
@@ -1648,9 +1663,11 @@ SPEC CHECKSUMS:
   expo-dev-launcher: fcdb0f3e91c34778f0816b0f590c7a57f052a87c
   expo-dev-menu: 166fc9c7b82641cdead1dc26d958d20a127ee97b
   expo-dev-menu-interface: 7ba029c9d1a82ac22b9b584c00514860b060553e
+  ExpoBlur: e832d874bd94afc0645daddbd3162ec1ce172080
   ExpoClipboard: b597982124f067ff9f5b89093eb3d97898d5d877
   ExpoDevice: d204395e17fffdcefa7470bdef33b07719ac41b1
   ExpoFileSystem: eecaf6796aed0f4dd20042dc2ca2cac6c4bc1185
+  ExpoHaptics: 28a771b630353cd6e8dcf1b1e3e693e38ad7c3c3
   ExpoKeepAwake: 0f5cad99603a3268e50af9a6eb8b76d0d9ac956c
   ExpoLocalization: f5f5d71dc0c9514d3d77b2771144f6fed6398d04
   ExpoModulesCore: 2346e83abf90c2b2c16a54c3fc4a1169ae12816c
@@ -1732,6 +1749,7 @@ SPEC CHECKSUMS:
   RecaptchaEnterprise: dc302910b77963a0cc6f6908407e30b35268a755
   RecaptchaInterop: 7d1a4a01a6b2cb1610a47ef3f85f0c411434cb21
   RNCAsyncStorage: 618d03a5f52fbccb3d7010076bc54712844c18ef
+  RNCClipboard: 090462274cc05b02628bd158baf6d73c3abe8441
   RNDeviceInfo: db5c64a060e66e5db3102d041ebe3ef307a85120
   RNFastImage: 5c9c9fed9c076e521b3f509fe79e790418a544e8
   RNFBApp: 614f1621b49db54ebd258df8c45427370d8d84a2

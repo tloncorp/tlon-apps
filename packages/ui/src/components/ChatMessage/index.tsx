@@ -1,20 +1,23 @@
-import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { memo, useMemo } from 'react';
 
 import { useGroup } from '../../contexts';
 import { SizableText, View, YStack } from '../../core';
+import { useReactionDetails } from '../../utils/postUtils';
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
+import { ReactionsDisplay } from './ReactionsDisplay';
 
 const ChatMessage = memo(
   ({
     post,
     firstUnread,
     unreadCount,
+    currentUserId,
   }: {
     post: db.PostWithRelations | db.PostInsertWithAuthor;
+    currentUserId: string;
     firstUnread?: string;
     unreadCount?: number;
   }) => {
@@ -64,8 +67,15 @@ const ChatMessage = memo(
           />
         </View>
         <View paddingLeft="$4xl">
-          <ChatContent story={content} />
+          {post.hidden ? (
+            <SizableText color="$secondaryText">
+              You have hidden or flagged this message.
+            </SizableText>
+          ) : (
+            <ChatContent story={content} />
+          )}
         </View>
+        <ReactionsDisplay post={post} currentUserId={currentUserId} />
       </YStack>
     );
   }

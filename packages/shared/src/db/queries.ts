@@ -33,6 +33,7 @@ import {
   groupRoles as $groupRoles,
   groups as $groups,
   pins as $pins,
+  postReactions as $postReactions,
   posts as $posts,
   unreads as $unreads,
 } from './schema';
@@ -47,6 +48,7 @@ import {
   GroupSummary,
   Pin,
   PostInsert,
+  ReactionInsert,
   TableName,
   Unread,
   UnreadInsert,
@@ -667,6 +669,66 @@ export const insertChannelPosts = createWriteQuery(
     });
   },
   ['posts', 'channels', 'groups']
+);
+
+export const updatePost = createWriteQuery(
+  'updateChannelPost',
+  async (post: Partial<PostInsert> & { id: string }) => {
+    return client.update($posts).set(post).where(eq($posts.id, post.id));
+  },
+  ['posts']
+);
+
+export const deletePost = createWriteQuery(
+  'deleteChannelPost',
+  async (postId: string) => {
+    return client.delete($posts).where(eq($posts.id, postId));
+  },
+  ['posts']
+);
+
+export const getPostReaction = createReadQuery(
+  'getPostReaction',
+  async ({ postId, contactId }: { postId: string; contactId: string }) => {
+    return client.query.postReactions
+      .findFirst({
+        where: and(
+          eq($postReactions.postId, postId),
+          eq($postReactions.contactId, contactId)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  []
+);
+
+export const insertPostReactions = createWriteQuery(
+  'insertPostReactions',
+  async ({ reactions, our }: { reactions: ReactionInsert[]; our?: string }) => {
+    return client
+      .insert($postReactions)
+      .values(reactions)
+      .onConflictDoUpdate({
+        target: [$postReactions.postId, $postReactions.contactId],
+        set: conflictUpdateSetAll($postReactions),
+      });
+  },
+  ['posts', 'postReactions', 'contacts']
+);
+
+export const deletePostReaction = createWriteQuery(
+  'deletePostReaction',
+  async ({ postId, contactId }: { postId: string; contactId: string }) => {
+    return client
+      .delete($postReactions)
+      .where(
+        and(
+          eq($postReactions.postId, postId),
+          eq($postReactions.contactId, contactId)
+        )
+      );
+  },
+  ['postReactions']
 );
 
 export const deletePosts = createWriteQuery(

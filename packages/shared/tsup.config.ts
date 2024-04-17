@@ -9,6 +9,7 @@ export default defineConfig({
     'src/db/index.ts',
     'src/db/migrations/index.ts',
     'src/api/index.ts',
+    'src/logic/index.ts',
     'src/store/index.ts',
   ],
   format: ['esm'],
