@@ -85,7 +85,7 @@ export function ChatMessageActions({
 
   useEffect(() => {
     // on mount, give initial haptic feeedback
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
   useEffect(() => {

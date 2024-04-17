@@ -202,7 +202,7 @@ const PressableMessage = forwardRef<
         },
       }}
     >
-      <Pressable onLongPress={onLongPress} delayLongPress={300}>
+      <Pressable onLongPress={onLongPress} delayLongPress={250}>
         <RNView ref={ref}>
           <View paddingVertical="$m">{children}</View>
         </RNView>

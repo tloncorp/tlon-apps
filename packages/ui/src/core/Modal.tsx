@@ -7,7 +7,6 @@ import { View, ZStack } from '../core';
 
 export function Modal(props: ComponentProps<typeof RNModal>) {
   const onDismiss = () => {
-    console.log('got dismiss..');
     if (props.onDismiss) {
       props.onDismiss();
     }
