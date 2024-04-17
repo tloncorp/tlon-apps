@@ -107,12 +107,12 @@ export function MessageInput({
     });
   }, [editor, send, channelId]);
 
-  const handleEnter = useCallback(() => {
+  const handleSend = useCallback(() => {
     Keyboard.dismiss();
     sendMessage();
   }, [sendMessage]);
 
-  const handleShiftEnter = useCallback(() => {
+  const handleAddNewLine = useCallback(() => {
     editor.splitBlock();
   }, []);
 
@@ -120,12 +120,12 @@ export function MessageInput({
     async (event: WebViewMessageEvent) => {
       const { data } = event.nativeEvent;
       if (data === 'enter') {
-        handleEnter();
+        handleAddNewLine();
         return;
       }
 
       if (data === 'shift-enter') {
-        handleShiftEnter();
+        handleAddNewLine();
         return;
       }
 
@@ -134,7 +134,7 @@ export function MessageInput({
         e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
       });
     },
-    [handleEnter]
+    [editor, handleAddNewLine]
   );
 
   const tentapInjectedJs = useMemo(
@@ -195,7 +195,7 @@ export function MessageInput({
             `}
           />
         </XStack>
-        <IconButton onPress={handleEnter}>
+        <IconButton onPress={handleSend}>
           {/* TODO: figure out what send button should look like */}
           <Send />
         </IconButton>

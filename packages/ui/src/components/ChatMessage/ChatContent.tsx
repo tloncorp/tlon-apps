@@ -18,24 +18,27 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
-import { ReactElement } from 'react';
+import { ReactElement, memo, useMemo } from 'react';
 import { Linking } from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
+import Video from '../Video';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
     <Button
       // TODO: implement this once we have a profile screen or sheet
       // onPress={() => naivigate('Profile', { ship })}
-      backgroundColor="$blueSoft"
+      backgroundColor="$positiveBackground"
       paddingHorizontal="$xs"
       paddingVertical={0}
-      borderRadius="$xl"
+      borderRadius="$m"
     >
-      <ContactName name={ship} showAlias />
+      <Text color="$blue" fontSize="$m">
+        <ContactName name={ship} showAlias />
+      </Text>
     </Button>
   );
 }
@@ -167,8 +170,11 @@ export function BlockContent({ story }: { story: Block }) {
   // TODO add support for other embeds and refs
 
   if (isImage(story)) {
-    // TODO: implement video playback on web
-    // const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
+    const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
+
+    if (isVideoFile) {
+      return <Video block={story} />;
+    }
 
     return (
       <Image
@@ -193,7 +199,7 @@ export function BlockContent({ story }: { story: Block }) {
   );
 }
 
-function LineRenderer({ storyInlines }: { storyInlines: Inline[] }) {
+const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
   const inlineElements: ReactElement[][] = [];
   let currentLine: ReactElement[] = [];
 
@@ -224,7 +230,7 @@ function LineRenderer({ storyInlines }: { storyInlines: Inline[] }) {
         <YStack
           key={`blockquote-${index}`}
           borderLeftWidth={2}
-          borderLeftColor="$gray100"
+          borderColor="$gray100"
           paddingLeft="$l"
         >
           {Array.isArray(inline.blockquote) ? (
@@ -265,25 +271,36 @@ function LineRenderer({ storyInlines }: { storyInlines: Inline[] }) {
       })}
     </>
   );
-}
+});
 
 export default function ChatContent({ story }: { story: Story }) {
-  const storyInlines = (
-    story.filter((s) => 'inline' in s) as VerseInline[]
-  ).flatMap((i) => i.inline);
-  const storyBlocks = story.filter((s) => 'block' in s) as VerseBlock[];
-  const inlineLength = storyInlines.length;
-  const blockLength = storyBlocks.length;
-  const blockContent = storyBlocks.sort((a, b) => {
-    // Sort images to the end
-    if (isImage(a) && !isImage(b)) {
-      return 1;
-    }
-    if (!isImage(a) && isImage(b)) {
-      return -1;
-    }
-    return 0;
-  });
+  const storyInlines = useMemo(
+    () =>
+      (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
+        (i) => i.inline
+      ),
+    [story]
+  );
+  const storyBlocks = useMemo(
+    () => story.filter((s) => 'block' in s) as VerseBlock[],
+    [story]
+  );
+  const inlineLength = useMemo(() => storyInlines.length, [storyInlines]);
+  const blockLength = useMemo(() => storyBlocks.length, [storyBlocks]);
+  const blockContent = useMemo(
+    () =>
+      storyBlocks.sort((a, b) => {
+        // Sort images to the end
+        if (isImage(a) && !isImage(b)) {
+          return 1;
+        }
+        if (!isImage(a) && isImage(b)) {
+          return -1;
+        }
+        return 0;
+      }),
+    [storyBlocks]
+  );
 
   if (blockLength === 0 && inlineLength === 0) {
     return null;
