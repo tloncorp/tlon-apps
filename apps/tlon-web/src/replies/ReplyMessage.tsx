@@ -154,10 +154,6 @@ const ReplyMessage = React.memo<
             parentId,
             `${memo.author}/${formatUd(unixToDa(memo.sent))}`
           );
-      if (isUnread) {
-        debugger;
-      }
-      console.log(isUnread, parent, memo);
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markRead } = useMarkReadMutation();

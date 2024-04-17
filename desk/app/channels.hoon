@@ -696,6 +696,8 @@
             mention=?
         ==
     ^+  ca-core
+    =/  key  ?-(-.concern %post key.concern, %reply key.concern)
+    ?:  =(p.id.key our.bowl)  ca-core
     ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
       ca-core
     %-  emit
