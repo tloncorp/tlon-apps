@@ -16,7 +16,7 @@
     "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./apps/tlon-web\"",
     "test": "npm run test --workspaces --if-present -- run -u",
     "prepare": "husky",
-    "postinstall": "npx patch-package"
+    "postinstall": "npx patch-package && npm run build --prefix ./packages/editor && npm run generate --prefix ./apps/tlon-mobile"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
