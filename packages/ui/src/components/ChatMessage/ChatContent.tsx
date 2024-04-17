@@ -18,7 +18,8 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
-import { ReactElement } from 'react';
+import { AVPlaybackStatus, ResizeMode, Video } from 'expo-av';
+import { ReactElement, useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
@@ -165,8 +166,54 @@ export function InlineContent({ story }: { story: Inline | null }) {
 }
 
 export function BlockContent({ story }: { story: Block }) {
-  // TODO add support for videos and other embeds
+  // TODO add support for other embeds and refs
+
   if (isImage(story)) {
+    const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
+
+    if (isVideoFile) {
+      const videoRef = useRef<Video | null>(null);
+      const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus>();
+
+      useEffect(() => {
+        if (!videoRef.current || !playbackStatus || !playbackStatus.isLoaded) {
+          return;
+        }
+
+        if (playbackStatus.isPlaying) {
+          videoRef.current?.presentFullscreenPlayer();
+        }
+
+        if (playbackStatus.didJustFinish) {
+          videoRef.current?.dismissFullscreenPlayer();
+        }
+      }, [playbackStatus]);
+
+      return (
+        <View flex={1}>
+          <Video
+            ref={videoRef}
+            source={{ uri: story.image.src }}
+            rate={1.0}
+            volume={1.0}
+            isMuted={false}
+            resizeMode={ResizeMode.CONTAIN}
+            usePoster
+            useNativeControls
+            onFullscreenUpdate={(event) => {
+              if (event.fullscreenUpdate === 2) {
+                videoRef.current?.pauseAsync();
+              }
+            }}
+            onPlaybackStatusUpdate={(status) => {
+              setPlaybackStatus(status);
+            }}
+            style={{ width: 200, height: 200 }}
+          />
+        </View>
+      );
+    }
+
     return (
       <Image
         source={{
