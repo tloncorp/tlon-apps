@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
 

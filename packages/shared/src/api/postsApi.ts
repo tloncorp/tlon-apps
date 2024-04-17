@@ -116,6 +116,96 @@ export const getChannelPosts = async ({
   }
 };
 
+export async function addReaction(
+  channelId: string,
+  postId: string,
+  shortCode: string,
+  our: string
+) {
+  await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          post: {
+            'add-react': {
+              id: postId,
+              react: shortCode,
+              ship: our,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function removeReaction(
+  channelId: string,
+  postId: string,
+  our: string
+) {
+  return await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          post: {
+            'del-react': {
+              id: postId,
+              ship: our,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function showPost(channelId: string, postId: string) {
+  const action = {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      'toggle-post': {
+        show: postId,
+      },
+    },
+  };
+
+  return await poke(action);
+}
+
+export async function hidePost(channelId: string, postId: string) {
+  const action = {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      'toggle-post': {
+        hide: postId,
+      },
+    },
+  };
+
+  return await poke(action);
+}
+
+export async function deletePost(channelId: string, postId: string) {
+  const action = channelAction(channelId, {
+    post: {
+      del: postId,
+    },
+  });
+
+  // todo: we need to use a tracked poke here (or settle on a different pattern
+  // for expressing request response semantics)
+  return await poke(action);
+}
+
 export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
