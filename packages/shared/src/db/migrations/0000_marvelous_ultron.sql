@@ -141,6 +141,8 @@ CREATE TABLE `posts` (
 	`received_at` integer NOT NULL,
 	`sent_at` integer NOT NULL,
 	`reply_count` integer,
+	`reply_time` integer,
+	`reply_contact_ids` text,
 	`text_content` text,
 	`has_app_reference` integer,
 	`has_channel_reference` integer,

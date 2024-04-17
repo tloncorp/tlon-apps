@@ -11,7 +11,12 @@ import {
   constructStory,
   getTextContent,
 } from '../urbit';
-import { formatDateParam, formatUd, udToDate } from './converters';
+import {
+  formatDateParam,
+  formatPostIdParam,
+  formatUd,
+  udToDate,
+} from './converters';
 import { BadResponseError, poke, scry } from './urbit';
 
 export function channelAction(
@@ -98,24 +103,20 @@ export const getChannelPosts = async ({
     app = 'chat';
   } else if (isGroupChannelId(channelId)) {
     const mode = includeReplies ? 'post' : 'outline';
-    path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    path = `/v1/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
     app = 'channels';
   } else {
     throw new Error('invalid channel id');
   }
 
-  try {
-    const response = await scry<ub.PagedWrits>({
+  const response = await with404Handler(
+    scry<ub.PagedWrits>({
       app,
       path,
-    });
-    return toPagedPostsData(channelId, response);
-  } catch (e) {
-    // Treat 404 error as empty page of posts.
-    if (e instanceof BadResponseError && e.status === 404) {
-      return { posts: [] };
-    } else throw e;
-  }
+    }),
+    { posts: [] }
+  );
+  return toPagedPostsData(channelId, response);
 };
 
 export async function addReaction(
@@ -215,7 +216,7 @@ export const getPostWithReplies = async ({
 }: {
   postId: string;
   channelId: string;
-  authorId?: string;
+  authorId: string;
 }) => {
   if (
     (!authorId && isDmChannelId(channelId)) ||
@@ -249,6 +250,17 @@ export const getPostWithReplies = async ({
 
   return toPostData(channelId, post);
 };
+
+async function with404Handler<T>(scryRequest: Promise<any>, defaultValue: T) {
+  try {
+    return await scryRequest;
+  } catch (e) {
+    if (e instanceof BadResponseError && e.status === 404) {
+      return defaultValue;
+    }
+    throw e;
+  }
+}
 
 export interface GetChannelPostsResponse {
   older?: string | null;
@@ -317,7 +329,9 @@ export function toPostsData(
     [[], []]
   );
   return {
-    posts: otherPosts,
+    posts: otherPosts.sort((a, b) => {
+      return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
+    }),
     deletedPosts,
   };
 }
@@ -332,7 +346,7 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
-  const id = post.seal.id;
+  const id = getCanonicalPostId(post.seal.id);
   return {
     id,
     channelId,
@@ -346,6 +360,8 @@ export function toPostData(
     sentAt: post.essay.sent,
     receivedAt: getReceivedAtFromId(id),
     replyCount: post?.seal.meta.replyCount,
+    replyTime: post?.seal.meta.lastReply,
+    replyContactIds: post?.seal.meta.lastRepliers,
     images: getContentImages(id, post.essay?.content),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
     replies: isPostDataResponse(post)
@@ -353,6 +369,20 @@ export function toPostData(
       : null,
     ...flags,
   };
+}
+
+// We treat
+export function getCanonicalPostId(inputId: string) {
+  let id = inputId;
+  // Dm and club posts come prefixed with the author, so we strip it
+  if (id[0] === '~') {
+    id = id.split('/').pop()!;
+  }
+  // The id in group post ids doesn't come dot separated, so we format it
+  if (id[3] !== '.') {
+    id = formatUd(id);
+  }
+  return id;
 }
 
 function getReceivedAtFromId(postId: string) {
@@ -376,7 +406,7 @@ function getReplyData(
     return {
       id,
       channelId,
-      type: 'chat',
+      type: 'reply',
       authorId: reply.memo.author,
       parentId: postId,
       reactions: toReactionsData(reply.seal.reacts, id),

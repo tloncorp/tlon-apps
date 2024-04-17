@@ -112,11 +112,15 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   }
 }
 
-export async function syncThreadPosts(
-  postId: string,
-  authorId: string,
-  channelId: string
-) {
+export async function syncThreadPosts({
+  postId,
+  authorId,
+  channelId,
+}: {
+  postId: string;
+  authorId: string;
+  channelId: string;
+}) {
   const response = await api.getPostWithReplies({
     postId,
     authorId,

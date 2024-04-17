@@ -152,7 +152,10 @@ export const tlonLocalIntros: db.ChannelWithLastPostAndMembers = {
     authorId: '~ravmel-ropdyl',
     content: createSimpleContent('hello'),
     sentAt: 0,
+    parentId: null,
     replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/intros',
@@ -184,7 +187,10 @@ export const tlonLocalWaterCooler: db.ChannelWithLastPostAndMembers = {
     authorId: '~rilfun-lidlen',
     content: createSimpleContent('hey'),
     sentAt: 0,
+    parentId: null,
     replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/water-cooler',
@@ -215,7 +221,10 @@ export const tlonLocalSupport: db.ChannelWithLastPostAndMembers = {
     authorId: '~solfer-magfed',
     content: createSimpleContent('sup'),
     sentAt: 0,
+    parentId: null,
     replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/support',
@@ -246,7 +255,10 @@ export const tlonLocalBulletinBoard: db.ChannelWithLastPostAndMembers = {
     authorId: '~nocsyx-lassul',
     content: createSimpleContent('yo'),
     sentAt: 0,
+    parentId: null,
     replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/bulletin-board',
@@ -276,7 +288,10 @@ export const tlonLocalCommunityCatalog: db.ChannelWithLastPostAndMembers = {
     authorId: '~latter-bolden',
     content: createSimpleContent('lol'),
     sentAt: 0,
+    parentId: null,
     replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/community-catalog',
@@ -306,7 +321,10 @@ export const tlonLocalGettingStarted: db.ChannelWithLastPostAndMembers = {
     authorId: '~ravmel-ropdyl',
     content: createSimpleContent('hi'),
     sentAt: 0,
+    parentId: null,
     replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/getting-started',
@@ -516,13 +534,17 @@ export const createFakePost = (): db.PostWithRelations => {
     author: fakeContact,
     content,
     sentAt: randomSentAtSameDay,
-    replyCount: 0,
+    ...createFakeReplyMeta(),
     type: 'chat',
     groupId: group.id,
     channelId: tlonLocalIntros.id,
     title: null,
     hasImage: null,
     image: null,
+    parentId: null,
+    replyCount: 0,
+    replyContactIds: null,
+    replyTime: null,
     receivedAt: randomSentAtSameDay,
     textContent: getTextContent(JSON.parse(content)) ?? null,
     hasAppReference: null,
@@ -533,6 +555,23 @@ export const createFakePost = (): db.PostWithRelations => {
     hidden: false,
   };
 };
+
+export const createFakeReplyMeta = () => {
+  const replyCount = Math.max(0, randInt(0, 10));
+  return {
+    replyCount,
+    replyTime: getRandomTimeOnSameDay(),
+    replyContactIds: Array.from(Array(Math.min(replyCount, 3))).map(
+      () => getRandomFakeContact().id
+    ),
+  };
+};
+
+function getRandomTimeOnSameDay() {
+  return new Date(
+    new Date().getTime() - Math.floor(Math.random() * 10000000)
+  ).getTime();
+}
 
 export const createFakePosts = (count: number): db.PostWithRelations[] => {
   const posts = [];
@@ -608,3 +647,7 @@ export const groupWithSvgImage = {
   lastPostAt: dates.lastMonth,
   unreadCount: Math.floor(Math.random() * 20),
 };
+
+function randInt(min: number, max: number) {
+  return Math.floor(min + Math.random() * (max - min));
+}
