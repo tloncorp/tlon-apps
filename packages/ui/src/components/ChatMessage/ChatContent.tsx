@@ -144,7 +144,6 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <Text
         textDecorationLine="underline"
         onPress={() => Linking.openURL(story.link.href)}
-        fontSize="$m"
       >
         <InlineContent story={story.link.content} />
       </Text>
@@ -289,9 +288,18 @@ function LineRenderer({ storyInlines }: { storyInlines: Inline[] }) {
   if (currentLine.length > 0) {
     inlineElements.push(currentLine);
   }
+
   return (
     <>
       {inlineElements.map((line, index) => {
+        if (line.length === 0) {
+          return (
+            <XStack alignItems="center" key={`line-${index}`}>
+              <Text height="$xl">{'\n'}</Text>
+            </XStack>
+          );
+        }
+
         return (
           <XStack alignItems="center" key={`line-${index}`} flexWrap="wrap">
             {line}
