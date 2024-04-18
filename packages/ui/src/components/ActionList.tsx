@@ -19,8 +19,8 @@ const ActionFrameComponent = (
     <ActionListFrame {...rest}>
       <BlurView
         style={{ flex: 1 }}
-        intensity={intensity ?? 60}
-        tint={tint ?? 'light'}
+        intensity={intensity ?? 80}
+        tint={tint ?? 'extraLight'}
       >
         {children}
       </BlurView>
@@ -30,11 +30,11 @@ const ActionFrameComponent = (
 
 const ActionFrame = styled(ListItemFrame, {
   borderRadius: 'unset',
-  borderBottomWidth: 1,
-  borderBottomColor: '$gray400',
+  borderBottomWidth: 0.5,
+  borderBottomColor: '$gray200',
   backgroundColor: 'transparent',
   pressStyle: {
-    backgroundColor: '$gray400',
+    backgroundColor: '$gray200',
   },
   variants: {
     last: {
@@ -53,9 +53,7 @@ function Action(
   const { children, actionType, ...rest } = props;
   return (
     <ActionFrame {...rest}>
-      <ListItem.Title
-        color={actionType === 'destructive' ? '$red' : '$gray100'}
-      >
+      <ListItem.Title color={actionType === 'destructive' ? '$red' : undefined}>
         {children}
       </ListItem.Title>
     </ActionFrame>

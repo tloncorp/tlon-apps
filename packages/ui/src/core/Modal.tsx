@@ -38,8 +38,8 @@ export function ModalOverlay(props: ComponentProps<typeof View>) {
         },
       }}
     >
-      <View flex={1} backgroundColor="$darkOverlay" {...props}>
-        <BlurView style={{ flex: 1 }} intensity={15} />
+      <View flex={1} {...props}>
+        <BlurView style={{ flex: 1 }} intensity={40} tint="dark" />
       </View>
     </MotiView>
   );
