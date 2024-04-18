@@ -36,7 +36,7 @@ function ShipMention({ ship }: { ship: string }) {
       paddingVertical={0}
       borderRadius="$m"
     >
-      <Text color="$blue" fontSize="$m">
+      <Text color="$positiveActionText" fontSize="$m">
         <ContactName name={ship} showAlias />
       </Text>
     </Button>

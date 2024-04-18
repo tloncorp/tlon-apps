@@ -8,8 +8,6 @@ export default function Video({ block }: { block: Image }) {
   const videoRef = useRef<ExpoVideo | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus>();
 
-  console.log({ playbackStatus });
-
   useEffect(() => {
     if (!videoRef.current || !playbackStatus || !playbackStatus.isLoaded) {
       return;
