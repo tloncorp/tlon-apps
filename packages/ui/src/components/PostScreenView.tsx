@@ -1,9 +1,10 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { MessageInput, View, YStack } from '@tloncorp/ui';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
+import { View, YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import ChatScroll from './Channel/ChatScroll';
+import { MessageInput } from './MessageInput';
 
 export function PostScreenView({
   currentUserId,

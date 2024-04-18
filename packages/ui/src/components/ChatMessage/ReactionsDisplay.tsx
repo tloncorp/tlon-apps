@@ -25,6 +25,7 @@ export function ReactionsDisplay({
     <XStack padding="$m" paddingLeft="$4xl" borderRadius="$m">
       {reactionDetails.list.map((reaction) => (
         <XStack
+          key={reaction.value}
           justifyContent="center"
           alignItems="center"
           backgroundColor={
