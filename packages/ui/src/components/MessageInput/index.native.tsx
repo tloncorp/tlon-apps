@@ -2,10 +2,12 @@ import {
   BridgeExtension,
   EditorMessage,
   RichText,
+  TenTapStartKit,
   useBridgeState,
   useEditorBridge,
 } from '@10play/tentap-editor';
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
+import { ShortcutsBridge } from '@tloncorp/editor/src/bridges/shortcut';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
@@ -19,20 +21,8 @@ import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 // in the RichText component, and we need to make sure that the
 // bridge extension CSS is injected into the WebView.
 export const getStyleSheetCSS = (css: string, styleSheetTag: string) => {
-  // We need to specify the placeholder CSS here because the placeholder bridge
-  // extension is not picking up the placeholder content from the config.
-  const placeholderCSS = `
-    .is-editor-empty:first-child::before {
-        color: #adb5bd;
-        content: 'Message';
-        float: left;
-        height: 0;
-        pointer-events: none;
-    }
-  `;
-
   return `
-    cssContent = \`${styleSheetTag === 'placeholder' ? placeholderCSS : css}\`;
+    cssContent = \`${css}\`;
     head = document.head || document.getElementsByTagName('head')[0],
     styleElement = head.querySelector('style[data-tag="${styleSheetTag}"]');
 
@@ -68,6 +58,13 @@ export function MessageInput({
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
+    bridgeExtensions: [
+      ...TenTapStartKit,
+      PlaceholderBridge.configureExtension({
+        placeholder: 'Message',
+      }),
+      ShortcutsBridge,
+    ],
   });
   const editorState = useBridgeState(editor);
 
@@ -88,6 +85,7 @@ export function MessageInput({
       // set the height of the container based on the text length.
       // every 36 characters, add 16px to the height
       // TODO: do this a better way
+      // TODO: account for line breaks
       const height = Math.max(64, 64 + Math.floor(text.length / 25) * 16);
       setContainerHeight(height);
     });
@@ -101,16 +99,25 @@ export function MessageInput({
     });
   }, [editor, send, channelId]);
 
-  const handleEnter = useCallback(() => {
+  const handleSend = useCallback(() => {
     Keyboard.dismiss();
     sendMessage();
   }, [sendMessage]);
+
+  const handleAddNewLine = useCallback(() => {
+    editor.splitBlock();
+  }, []);
 
   const handleMessage = useCallback(
     async (event: WebViewMessageEvent) => {
       const { data } = event.nativeEvent;
       if (data === 'enter') {
-        handleEnter();
+        handleAddNewLine();
+        return;
+      }
+
+      if (data === 'shift-enter') {
+        handleAddNewLine();
         return;
       }
 
@@ -119,7 +126,7 @@ export function MessageInput({
         e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
       });
     },
-    [handleEnter]
+    [editor, handleAddNewLine]
   );
 
   const tentapInjectedJs = useMemo(
@@ -128,7 +135,7 @@ export function MessageInput({
   );
 
   return (
-    <MessageInputContainer>
+    <MessageInputContainer onPressSend={handleSend}>
       <XStack
         borderRadius="$xl"
         minHeight="$4xl"
@@ -151,6 +158,11 @@ export function MessageInput({
 
                 if (e.key === 'Enter' && !e.shiftKey) {
                   window.ReactNativeWebView.postMessage('enter');
+                  return;
+                }
+
+                if (e.key === 'Enter' && e.shiftKey) {
+                  window.ReactNativeWebView.postMessage('shift-enter');
                   return;
                 }
 

@@ -1,15 +1,18 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { MessageInput, View, YStack } from '@tloncorp/ui';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
+import { View, YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import ChatScroll from './Channel/ChatScroll';
+import { MessageInput } from './MessageInput';
 
 export function PostScreenView({
+  currentUserId,
   channel,
   posts,
   goBack,
 }: {
+  currentUserId: string;
   channel: db.Channel | null;
   posts: db.PostWithRelations[] | null;
   goBack?: () => void;
@@ -28,7 +31,14 @@ export function PostScreenView({
         keyboardVerticalOffset={70}
         style={{ flex: 1 }}
       >
-        {posts && <ChatScroll posts={posts} showReplies={false} />}
+        {posts && channel && (
+          <ChatScroll
+            channelType={channel.type}
+            currentUserId={currentUserId}
+            posts={posts}
+            showReplies={false}
+          />
+        )}
         {channel && (
           // Interaction disabled for now, will implement whatever blur solution
           // we end up with.

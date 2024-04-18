@@ -27,6 +27,7 @@ export const ChatMessageReplySummary = React.memo(
         <XStack alignItems="center">
           {replyContactIds?.map((c, i) => (
             <View
+              key={c}
               marginRight={i !== (replyContactIds?.length ?? 0) - 1 ? -8 : 0}
               borderColor="$background"
               borderWidth={2}

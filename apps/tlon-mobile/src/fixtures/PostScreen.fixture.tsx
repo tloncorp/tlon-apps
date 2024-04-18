@@ -6,6 +6,10 @@ const posts = createFakePosts(10);
 
 export default (
   <>
-    <PostScreenView channel={tlonLocalBulletinBoard} posts={posts} />
+    <PostScreenView
+      currentUserId="~solfer-magfed"
+      channel={tlonLocalBulletinBoard}
+      posts={posts}
+    />
   </>
 );

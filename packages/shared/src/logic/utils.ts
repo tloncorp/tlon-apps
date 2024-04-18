@@ -2,6 +2,23 @@ import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import _ from 'lodash';
 
+export const IMAGE_REGEX =
+  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
+export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
+export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
+export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+export const PATP_REGEX = /(~[a-z0-9-]+)/i;
+export const IMAGE_URL_REGEX =
+  /^(http(s?):)([/.\w\s-:]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
+export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
+// sig and hep explicitly left out
+export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
+
+export function isImageUrl(url: string) {
+  return IMAGE_URL_REGEX.test(url);
+}
+
 export function makePrettyTime(date: Date) {
   return format(date, 'HH:mm');
 }

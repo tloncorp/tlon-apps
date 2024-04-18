@@ -87,7 +87,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   const handleGoToPost = useCallback(
-    (post: db.PostWithRelations) => {
+    (post: db.PostInsert) => {
       props.navigation.push('Post', { post });
     },
     [props.navigation]

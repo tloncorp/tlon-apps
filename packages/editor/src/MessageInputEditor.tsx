@@ -11,19 +11,10 @@ import {
   UnderlineBridge,
   useTenTap,
 } from '@10play/tentap-editor';
-import { Extension, KeyboardShortcutCommand } from '@tiptap/core';
 import CodeBlock from '@tiptap/extension-code-block';
 import { EditorContent } from '@tiptap/react';
 
-export function Shortcuts(bindings: {
-  [keyCode: string]: KeyboardShortcutCommand;
-}) {
-  return Extension.create({
-    addKeyboardShortcuts() {
-      return bindings;
-    },
-  });
-}
+import { ShortcutsBridge } from './bridges/shortcut';
 
 export const MessageInputEditor = () => {
   const editor = useTenTap({
@@ -32,6 +23,7 @@ export const MessageInputEditor = () => {
       BoldBridge,
       ItalicBridge,
       StrikeBridge,
+      ShortcutsBridge,
       BlockquoteBridge,
       HistoryBridge.configureExtension({
         newGroupDelay: 100,
@@ -48,23 +40,7 @@ export const MessageInputEditor = () => {
       }),
     ],
     tiptapOptions: {
-      extensions: [
-        CodeBlock,
-        Shortcuts({
-          // this is necessary to override the default behavior of the editor
-          // which is to insert a new paragraph when the user presses enter.
-          // We want enter to send the message instead.
-          Enter: () => true,
-          // TODO: figure out why shift-enter is not working
-          'Shift-Enter': ({ editor }) =>
-            editor.commands.first(({ commands }) => [
-              () => commands.newlineInCode(),
-              () => commands.createParagraphNear(),
-              () => commands.liftEmptyBlock(),
-              () => commands.splitBlock(),
-            ]),
-        }),
-      ],
+      extensions: [CodeBlock],
     },
   });
 

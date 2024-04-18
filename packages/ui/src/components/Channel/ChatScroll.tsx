@@ -7,7 +7,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -52,7 +51,7 @@ export default function ChatScroll({
   onStartReached?: () => void;
   onEndReached?: () => void;
   onPressImage?: (source: { uri: string }, post?: db.PostWithRelations) => void;
-  onPressReplies?: (post: db.PostWithRelations) => void;
+  onPressReplies?: (post: db.PostInsert) => void;
   showReplies?: boolean;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
@@ -169,6 +168,7 @@ export default function ChatScroll({
         onStartReached={onStartReached}
         contentContainerStyle={contentContainerStyle}
         // inverted
+        onScrollBeginDrag={handleContainerPressed}
         onScrollToIndexFailed={handleScrollToIndexFailed}
       />
       <Modal

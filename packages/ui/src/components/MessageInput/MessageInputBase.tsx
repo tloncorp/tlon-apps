@@ -12,7 +12,10 @@ export interface MessageInputProps {
   channelId: string;
 }
 
-export const MessageInputContainer = ({ children }: PropsWithChildren) => {
+export const MessageInputContainer = ({
+  children,
+  onPressSend,
+}: PropsWithChildren<{ onPressSend?: () => void }>) => {
   return (
     <XStack
       paddingHorizontal="$m"
@@ -33,7 +36,7 @@ export const MessageInputContainer = ({ children }: PropsWithChildren) => {
       </XStack>
       <XStack flex={1} gap="$l" alignItems="center">
         {children}
-        <IconButton onPress={() => {}}>
+        <IconButton onPress={onPressSend}>
           {/* TODO: figure out what send button should look like */}
           <Send />
         </IconButton>
