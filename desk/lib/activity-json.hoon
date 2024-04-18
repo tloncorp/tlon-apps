@@ -38,46 +38,46 @@
   ::
   +|  %basics
   ::
-  ++  string-index
-    |=  i=index:a
+  ++  string-source
+    |=  s=source:a
     ^-  cord
-    ?-  -.i
-      %channel  (rap 3 'channel/' (nest:enjs:gj nest.i) ~)
+    ?-  -.s
+      %channel  (rap 3 'channel/' (nest:enjs:gj nest.s) ~)
     ::
         %dm
-      ?-  -.whom.i
-        %ship  (rap 3 'ship/' (scot %p p.whom.i) ~)
-        %club  (rap 3 'club/' (scot %uv p.whom.i) ~)
+      ?-  -.whom.s
+        %ship  (rap 3 'ship/' (scot %p p.whom.s) ~)
+        %club  (rap 3 'club/' (scot %uv p.whom.s) ~)
       ==
     ==
   ::
-  ++  index
-    |=  i=index:a
+  ++  source
+    |=  s=source:a
     %-  pairs
-    ?-  -.i
-      %channel  ~[channel/s/(nest:enjs:gj nest.i)]
-      %dm  ~[dm+(whom whom.i)]
+    ?-  -.s
+      %channel  ~[channel/s/(nest:enjs:gj nest.s)]
+      %dm  ~[dm+(whom whom.s)]
     ==
   ::
   ++  reads
     |=  r=reads:a
     %-  pairs
     :~  floor+(time floor.r)
-        posts+(post-reads event-parents.r)
+        posts+(post-reads posts.r)
     ==
   ::
   ++  post-reads
-    |=  ep=event-parents:a
+    |=  pr=post-reads:a
     %-  pairs
-    %+  turn  (tap:on-parent:a ep)
-    |=  [id=time-id:a p=event-parent:a]
+    %+  turn  (tap:on-post-reads:a pr)
+    |=  [id=time-id:a p=post-read:a]
     [(scot %ud id) (post-read p)]
   ::
   ++  post-read
-    |=  p=event-parent:a
+    |=  p=post-read:a
     %-  pairs
     :~  seen/b+seen.p
-        floor+(time reply-floor.p)
+        floor+(time floor.p)
     ==
   ::
   ++  unread
@@ -112,7 +112,7 @@
     ?-  -.e
       %dm-invite  (whom whom.e)
     ::
-        ?(%kick %join)
+        ?(%group-kick %group-join %group-ask %group-invite)
       %-  pairs
       :~  group+s+(flag:enjs:gj group.e)
           ship+(ship ship.e)
@@ -120,20 +120,20 @@
     ::
         %flag-post
       %-  pairs
-      :~  key+(msg-key message-key.e)
-          channel/s+(nest:enjs:gj nest.e)
+      :~  key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
       ==
     ::
         %flag-reply
       %-  pairs
       :~  parent+(msg-key parent.e)
-          key+(msg-key message-key.e)
-          channel/s+(nest:enjs:gj nest.e)
+          key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
       ==
     ::
         %dm-post
       %-  pairs
-      :~  key+(msg-key message-key.e)
+      :~  key+(msg-key key.e)
           whom+(whom whom.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
@@ -142,7 +142,7 @@
         %dm-reply
       %-  pairs
       :~  parent+(msg-key parent.e)
-          key+(msg-key message-key.e)
+          key+(msg-key key.e)
           whom+(whom whom.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
@@ -150,8 +150,8 @@
     ::
         %post
       %-  pairs
-      :~  key+(msg-key message-key.e)
-          channel/s+(nest:enjs:gj nest.e)
+      :~  key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
       ==
@@ -159,33 +159,21 @@
         %reply
       %-  pairs
       :~  parent+(msg-key parent.e)
-          key+(msg-key message-key.e)
-          channel/s+(nest:enjs:gj nest.e)
+          key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
           content+(story:enjs:cj content.e)
           mention/b+mention.e
       ==
     ::
-        %ask
-      %-  pairs
-      :~  group/s+(flag:enjs:gj group.e)
-          ship+(ship ship.e)
-      ==
-    ::
-        %role
+        %group-role
       %-  pairs
       :~  group/s+(flag:enjs:gj group.e)
           ship+(ship ship.e)
           roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
       ==
-    ::
-        %group-invite
-      %-  pairs
-      :~  group/s+(flag:enjs:gj group.e)
-          ship+(ship ship.e)
-      ==
     ==
   ::
-  +|  %scry-responses
+  +|  %collections
   ::
   ++  stream
     |=  s=stream:a
@@ -198,10 +186,10 @@
     |=  ind=indices:a
     %-  pairs
     %+  turn  ~(tap by ind)
-    |=  [i=index:a s=stream:a r=reads:a]
-    :-  (string-index i)
+    |=  [sc=source:a st=stream:a r=reads:a]
+    :-  (string-source sc)
     %-  pairs
-    :~  stream+(stream s)
+    :~  stream+(stream st)
         reads+(reads r)
     ==
   ::
@@ -209,8 +197,8 @@
     |=  us=unreads:a
     %-  pairs
     %+  turn  ~(tap by us)
-    |=  [i=index:a sum=unread-summary:a]
-    [(string-index i) (unread sum)]
+    |=  [s=source:a sum=unread-summary:a]
+    [(string-source s) (unread sum)]
   ::
   ++  full-info
     |=  fi=full-info:a
@@ -220,12 +208,34 @@
         unreads+(unreads unreads.fi)
     ==
   ::
-  +|  %subscription-facts
-  ++  index-unreads
-    |=  [i=index:a u=unread-summary:a]
+  +|  %updates
+  ++  update
+    |=  u=update:a
+    %+  frond  -.u
+    ?-  -.u
+      %add  (added +.u)
+      %read  (read +.u)
+      %adjust  (adjusted +.u)
+    ==
+  ::
+  ++  added
+    |=  ad=time-event:a
     %-  pairs
-    :~  index+(index i)
+    :~  time+(time time.ad)
+        event+(event event.ad)
+    ==
+  ++  read
+    |=  [s=source:a u=unread-summary:a]
+    %-  pairs
+    :~  source+(source s)
         unread+(unread u)
+    ==
+  ::
+  ++  adjusted
+    |=  [s=source:a v=volume:a]
+    %-  pairs
+    :~  source+(source s)
+        volume+s+v
     ==
   --
 ::
@@ -238,16 +248,28 @@
   ++  ship  `$-(json ship:z)`(su ship-rule)
   ++  ship-rule  ;~(pfix sig fed:ag)
   +|  %basics
-  ++  index
+  ++  source
     %-  of
     :~  channel/nest:dejs:cj
-        dm/dm-index
+        dm/dm-source
     ==
   ::
-  ++  dm-index
+  ++  dm-source
     %-  of
     :~  ship/ship
         club/club-id
+    ==
+  ::
+  +|  %action
+  ++  action
+    %-  of
+    :~  read/read
+    ==
+  ::
+  ++  read
+    %-  ot
+    :~  source/source
+        action/read-action
     ==
   ::
   ++  read-action
@@ -257,16 +279,5 @@
         thread/id
     ==
   ::
-  +|  %updates
-  ++  read
-    %-  ot
-    :~  index/index
-        action/read-action
-    ==
-  ::
-  ++  action
-    %-  of
-    :~  read/read
-    ==
   --
 --

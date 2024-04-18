@@ -134,7 +134,7 @@ function DiaryChannel({ title }: ViewProps) {
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(
-      () => markRead({ index: { channel: `diary/${chFlag}` } }),
+      () => markRead({ source: { channel: `diary/${chFlag}` } }),
       [markRead, chFlag]
     ),
     isMarking,

@@ -96,12 +96,12 @@ export default function DmOptions({
   };
 
   const markRead = useCallback(async () => {
-    const index = isDMorMultiDm
+    const source = isDMorMultiDm
       ? whomIsDm(whom)
         ? { dm: { ship: whom } }
         : { dm: { club: whom } }
       : { channel: `chat/${whom}` };
-    markReadMut({ index });
+    markReadMut({ source });
 
     useChatStore.getState().read(whom);
   }, [whom, markReadMut, isDMorMultiDm]);

@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import {
   ActivityAction,
-  Index,
-  UnreadUpdate,
+  ActivityReadUpdate,
+  Source,
   Unreads,
 } from '@tloncorp/shared/dist/urbit/activity';
 import _ from 'lodash';
@@ -23,10 +23,10 @@ export function activityAction(action: ActivityAction) {
 }
 
 export function useMarkReadMutation() {
-  const mutationFn = async (variables: { index: Index }) => {
+  const mutationFn = async (variables: { source: Source }) => {
     await api.poke(
       activityAction({
-        read: { index: variables.index, action: { all: null } },
+        read: { source: variables.source, action: { all: null } },
       })
     );
   };
@@ -55,20 +55,20 @@ export function useUnreads(): Unreads {
     )
   );
 
-  const eventHandler = (event: UnreadUpdate) => {
-    const { index, unread } = event;
-    if (!('channel' in index)) {
+  const eventHandler = (event: ActivityReadUpdate) => {
+    const { source, unread } = event.read;
+    if (!('channel' in source)) {
       return;
     }
 
-    const nest = index.channel;
+    const nest = source.channel;
     if (unread !== null) {
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
         useChatStore
           .getState()
-          .handleUnread(flag, unread, () => markRead({ index }));
+          .handleUnread(flag, unread, () => markRead({ source }));
       }
 
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
@@ -86,7 +86,10 @@ export function useUnreads(): Unreads {
     invalidate.current();
   };
 
-  const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
+  const { data, ...rest } = useReactQuerySubscription<
+    Unreads,
+    ActivityReadUpdate
+  >({
     queryKey: ['unreads'],
     app: 'activity',
     path: '/unreads',

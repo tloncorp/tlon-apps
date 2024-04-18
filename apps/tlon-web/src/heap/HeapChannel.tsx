@@ -65,7 +65,7 @@ function HeapChannel({ title }: ViewProps) {
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(
-      () => markRead({ index: { channel: nest } }),
+      () => markRead({ source: { channel: nest } }),
       [markRead, nest]
     ),
     isMarking,
