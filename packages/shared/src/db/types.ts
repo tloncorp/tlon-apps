@@ -136,3 +136,13 @@ export type Reaction = typeof schema.postReactions.$inferSelect;
 export type ReactionInsert = typeof schema.postReactions.$inferInsert;
 export type Pin = typeof schema.pins.$inferSelect;
 export type PinInsert = typeof schema.pins.$inferInsert;
+
+export function isPostWithReplies(
+  post: PostWithRelations | PostInsertWithAuthor
+): post is PostWithRelations {
+  return (
+    post.replyCount !== null &&
+    post.replyTime !== null &&
+    post.replyContactIds !== null
+  );
+}

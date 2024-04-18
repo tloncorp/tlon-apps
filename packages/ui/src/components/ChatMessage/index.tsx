@@ -17,6 +17,7 @@ const ChatMessage = ({
   firstUnread,
   unreadCount,
   onPressReplies,
+  onPressImage,
   showReplies,
   currentUserId,
 }: {
@@ -28,6 +29,7 @@ const ChatMessage = ({
   onPressReplies?: (
     post: db.PostWithRelations | db.PostInsertWithAuthor
   ) => void;
+  onPressImage?: (source: { uri: string }, post?: db.PostWithRelations) => void;
 }) => {
   const group = useGroup(post.groupId ?? '');
 
@@ -84,8 +86,8 @@ const ChatMessage = ({
             You have hidden or flagged this message.
           </SizableText>
         ) : (
-          <ChatContent story={content} />
-        )}{' '}
+          <ChatContent story={content} onPressImage={onPressImage} />
+        )}
       </View>
       <ReactionsDisplay post={post} currentUserId={currentUserId} />
 

@@ -26,7 +26,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   }, [ship, shipUrl]);
 
   return (
-    <ZStack flex={1}>
+    <ZStack flex={1} backgroundColor="$black">
       <TabStack />
     </ZStack>
   );

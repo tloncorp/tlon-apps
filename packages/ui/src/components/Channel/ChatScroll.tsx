@@ -39,6 +39,7 @@ export default function ChatScroll({
   onStartReached,
   onEndReached,
   onPressReplies,
+  onPressImage,
   showReplies = true,
 }: {
   posts: db.PostWithRelations[];
@@ -50,6 +51,7 @@ export default function ChatScroll({
   selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
+  onPressImage?: (source: { uri: string }, post?: db.PostWithRelations) => void;
   onPressReplies?: (post: db.PostWithRelations) => void;
   showReplies?: boolean;
 }) {
@@ -113,11 +115,19 @@ export default function ChatScroll({
             unreadCount={unreadCount}
             showReplies={showReplies}
             onPressReplies={onPressReplies}
+            onPressImage={onPressImage}
           />
         </PressableMessage>
       );
     },
-    [activeMessage, showReplies, firstUnread, onPressReplies, unreadCount]
+    [
+      activeMessage,
+      showReplies,
+      firstUnread,
+      onPressReplies,
+      onPressImage,
+      unreadCount,
+    ]
   );
 
   const handleScrollToIndexFailed = useCallback(
@@ -158,7 +168,7 @@ export default function ChatScroll({
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
         contentContainerStyle={contentContainerStyle}
-        inverted
+        // inverted
         onScrollToIndexFailed={handleScrollToIndexFailed}
       />
       <Modal

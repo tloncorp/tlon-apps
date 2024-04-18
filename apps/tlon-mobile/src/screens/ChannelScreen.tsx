@@ -93,6 +93,15 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [props.navigation]
   );
 
+  const handleGoToImage = useCallback(
+    (source: { uri: string }) => {
+      props.navigation.push('ImagePreview', {
+        source: { uri: source.uri, height: null, width: null },
+      });
+    },
+    [props.navigation]
+  );
+
   if (!channel) {
     return null;
   }
@@ -121,6 +130,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goBack={props.navigation.goBack}
         messageSender={messageSender}
         goToPost={handleGoToPost}
+        goToImage={handleGoToImage}
         goToChannels={() => setChannelNavOpen(true)}
         goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
         onScrollEndReached={handleScrollEndReached}

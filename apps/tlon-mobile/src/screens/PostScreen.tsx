@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
-import { PostScreenView } from '@tloncorp/ui';
+import { PostScreenView } from '@tloncorp/ui/src';
 import React, { useEffect, useMemo } from 'react';
 
 import type { HomeStackParamList } from '../types';

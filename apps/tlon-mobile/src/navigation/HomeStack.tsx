@@ -7,6 +7,7 @@ import { useScreenOptions } from '../hooks/useScreenOptions';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import ImagePreviewScreen from '../screens/ImagePreviewScreen';
 import PostScreen from '../screens/PostScreen';
 import type { HomeStackParamList, TabParamList } from '../types';
 
@@ -35,12 +36,30 @@ export const HomeStack = ({ navigation }: Props) => {
     });
   }, [navigation]);
 
+  // useLayoutEffect(() => {
+  //   const routeName = getFocusedRouteNameFromRoute(route);
+  //   if (routeName === 'ImagePreview') {
+  //     navigation.setOptions({
+  //       tabBarStyle: { opacity: 0 },
+  //     });
+  //   } else {
+  //     navigation.setOptions({
+  //       tabBarStyle: { opacity: 1 },
+  //     });
+  //   }
+  // });
+
   return (
     <Stack.Navigator initialRouteName="ChatList" screenOptions={screenOptions}>
       <Stack.Screen name="ChatList" component={ChatListScreen} />
       <Stack.Screen name="Channel" component={ChannelScreen} />
       <Stack.Screen name="ChannelSearch" component={ChannelSearch} />
       <Stack.Screen name="Post" component={PostScreen} />
+      <Stack.Screen
+        name="ImagePreview"
+        component={ImagePreviewScreen}
+        options={{ animation: 'fade' }}
+      />
     </Stack.Navigator>
   );
 };

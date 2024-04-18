@@ -30,6 +30,14 @@ export type HomeStackParamList = {
   Post: {
     post: db.PostWithRelations;
   };
+  ImagePreview: {
+    post?: db.PostWithRelations;
+    source: {
+      uri: string;
+      height: number | null;
+      width: number | null;
+    };
+  };
 };
 
 export type TabParamList = {

@@ -36,11 +36,7 @@ export function PreviewableImage(
             paddingTop={top}
             borderWidth={1}
             borderColor="orange"
-          >
-            <IconButton onPress={() => setPreviewOpen(false)}>
-              <Icon type="Close" size="$l" />
-            </IconButton>
-          </XStack>
+          ></XStack>
           <ImageZoom
             style={{ flex: 1 }}
             uri={source.uri}

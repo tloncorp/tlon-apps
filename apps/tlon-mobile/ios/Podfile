@@ -56,6 +56,12 @@ abstract_target 'common' do
           Pod::BuildType.static_library
         end
       end
+
+      if pod.name.eql?('RNScreens')
+        def pod.build_type
+          Pod::BuildType.static_library
+        end
+      end
     end
   end
 

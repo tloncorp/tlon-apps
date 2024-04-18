@@ -18,6 +18,8 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
+import { Pressable } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { Image, SizableText, Text, View, YStack } from '../../core';
 import { Button } from '../Button';
@@ -168,22 +170,45 @@ export function InlineContent({ story }: { story: Inline | null }) {
   );
 }
 
-export function BlockContent({ story }: { story: Block }) {
+export function BlockContent({
+  story,
+  onPressImage,
+}: {
+  story: Block;
+  onPressImage?: (source: { uri: string }) => void;
+}) {
   // TODO add support for videos and other embeds
   if (isImage(story)) {
     return (
-      <PreviewableImage
-        source={{
-          uri: story.image.src,
-          width: story.image.height,
-          height: story.image.width,
-        }}
-        alt={story.image.alt}
-        borderRadius="$m"
-        height={200}
-        width={200}
-        resizeMode="contain"
-      />
+      <Pressable
+        onPress={() =>
+          onPressImage &&
+          onPressImage({
+            uri: story.image.src,
+          })
+        }
+      >
+        <Animated.Image
+          sharedTransitionTag={story.image.src}
+          source={{ uri: story.image.src, height: 200, width: 200 }}
+          style={{ resizeMode: 'contain' }}
+          alt={story.image.alt}
+        />
+        {/* <Animated.View sharedTransitionTag="blub">
+          <Image
+            source={{
+              uri: story.image.src,
+              width: story.image.height,
+              height: story.image.width,
+            }}
+            alt={story.image.alt}
+            borderRadius="$m"
+            height={200}
+            width={200}
+            resizeMode="contain"
+          />
+        </Animated.View> */}
+      </Pressable>
     );
   }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
@@ -194,7 +219,13 @@ export function BlockContent({ story }: { story: Block }) {
   );
 }
 
-export default function ChatContent({ story }: { story: Story }) {
+export default function ChatContent({
+  story,
+  onPressImage,
+}: {
+  story: Story;
+  onPressImage?: (source: { uri: string }) => void;
+}) {
   const storyInlines = (
     story.filter((s) => 'inline' in s) as VerseInline[]
   ).flatMap((i) => i.inline);
@@ -225,7 +256,13 @@ export default function ChatContent({ story }: { story: Story }) {
           {blockContent
             .filter((a) => !!a)
             .map((storyItem, key) => {
-              return <BlockContent key={key} story={storyItem.block} />;
+              return (
+                <BlockContent
+                  key={key}
+                  story={storyItem.block}
+                  onPressImage={onPressImage}
+                />
+              );
             })}
         </YStack>
       ) : null}

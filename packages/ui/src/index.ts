@@ -1,5 +1,6 @@
 export * from './core';
 export * from './utils';
+export * from './components/ImagePreviewScreenView';
 export * from './components/PostScreenView';
 export * from './components/Avatar';
 export * from './components/Channel';

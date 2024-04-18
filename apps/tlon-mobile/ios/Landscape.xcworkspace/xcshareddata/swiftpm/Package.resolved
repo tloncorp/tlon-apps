@@ -1,0 +1,69 @@
+{
+  "originHash" : "43e9183213352d9b2933fdaccbd22af8bcbd1d7ee7f36f65536d1cfdc10993b7",
+  "pins" : [
+    {
+      "identity" : "alamofire",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Alamofire/Alamofire.git",
+      "state" : {
+        "revision" : "bc268c28fb170f494de9e9927c371b8342979ece",
+        "version" : "5.7.1"
+      }
+    },
+    {
+      "identity" : "bigint",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/attaswift/BigInt",
+      "state" : {
+        "revision" : "0ed110f7555c34ff468e72e1686e59721f2b0da6",
+        "version" : "5.3.0"
+      }
+    },
+    {
+      "identity" : "murmurhash-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/daisuke-t-jp/MurmurHash-Swift",
+      "state" : {
+        "revision" : "7e69bedaaaea09673524d83de12dac6e09d5b74a",
+        "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "simplekeychain",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/auth0/SimpleKeychain",
+      "state" : {
+        "revision" : "f082494aab8056139a4fe234c920a9f92f681aff",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "swiftsvg",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mchoe/SwiftSVG",
+      "state" : {
+        "revision" : "c3a8866a25ace169ee8e5c037670ba14aa59606f",
+        "version" : "2.3.2"
+      }
+    },
+    {
+      "identity" : "ursusatom",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alecananian/UrsusAtom",
+      "state" : {
+        "revision" : "682286086aa0877d81662922ddd974aa613adf65",
+        "version" : "1.3.0"
+      }
+    },
+    {
+      "identity" : "ursussigil",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alecananian/UrsusSigil",
+      "state" : {
+        "revision" : "39f825c9f663928f5e28b212f512b198c8fcd92e",
+        "version" : "1.3.0"
+      }
+    }
+  ],
+  "version" : 3
+}
