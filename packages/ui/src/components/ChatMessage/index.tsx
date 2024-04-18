@@ -83,7 +83,7 @@ const ChatMessage = ({
           </SizableText>
         ) : (
           <ChatContent story={content} />
-        )}{' '}
+        )}
       </View>
       <ReactionsDisplay post={post} currentUserId={currentUserId} />
 
