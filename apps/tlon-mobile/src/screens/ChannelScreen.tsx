@@ -23,6 +23,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const { data: group, error } = store.useGroup({
     id: channel?.groupId ?? '',
   });
+  const selectedPost = props.route.params.selectedPost;
+  const hasSelectedPost = !!selectedPost;
+
   const {
     data: postsData,
     fetchNextPage,
@@ -33,18 +36,22 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     isFetchingPreviousPage,
   } = store.useChannelPosts({
     channelId: currentChannelId,
-    direction: 'older',
-    date: new Date(),
+    ...(hasSelectedPost
+      ? {
+          direction: 'around',
+          cursor: selectedPost.id,
+        }
+      : {
+          direction: 'older',
+          date: new Date(),
+        }),
     count: 50,
   });
   const posts = useMemo<db.PostWithRelations[]>(
     () => postsData?.pages.flatMap((p) => p) ?? [],
     [postsData]
   );
-  const { data: aroundPosts } = store.useChannelPostsAround({
-    channelId: currentChannelId,
-    postId: props.route.params.selectedPost?.id ?? '',
-  });
+
   const { data: contacts } = store.useContacts();
 
   const { bottom } = useSafeAreaInsets();
@@ -64,7 +71,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
     await sendPost(channelId, content, ship);
   };
-  const hasSelectedPost = !!props.route.params.selectedPost;
 
   useEffect(() => {
     if (error) {
@@ -112,11 +118,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         isLoadingPosts={isFetchingNextPage || isFetchingPreviousPage}
         group={group ?? null}
         contacts={contacts ?? null}
-        posts={hasSelectedPost ? aroundPosts ?? null : posts}
+        posts={posts}
         selectedPost={
-          hasSelectedPost && aroundPosts?.length
-            ? props.route.params.selectedPost?.id
-            : undefined
+          hasSelectedPost && posts?.length ? selectedPost?.id : undefined
         }
         goBack={props.navigation.goBack}
         messageSender={messageSender}
