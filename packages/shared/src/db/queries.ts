@@ -654,7 +654,6 @@ export const insertChannelPosts = createWriteQuery(
     }
     return client.transaction(async (tx) => {
       const lastPost = posts[posts.length - 1];
-      console.log(lastPost.textContent);
       // Update last post meta for the channel these posts belong to,
       // Also grab that channels groupId for updating the group's lastPostAt and
       // associating the posts with the group.
