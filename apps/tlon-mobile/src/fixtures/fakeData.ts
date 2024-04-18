@@ -117,6 +117,16 @@ export const roles: db.GroupRole[] = [
   },
 ];
 
+const basicUnread = {
+  type: 'channel',
+  count: 10,
+  countWithoutThreads: 5,
+  channelId: '~nibset-napwyn/intros',
+  updatedAt: getRandomTimeOnSameDay(),
+  firstUnreadPostId: '1',
+  firstUnreadPostReceivedAt: getRandomTimeOnSameDay(),
+} as const;
+
 const emptyChannel: db.Channel = {
   id: '',
   groupId: '',
@@ -147,6 +157,7 @@ export const tlonLocalIntros: db.ChannelWithLastPostAndMembers = {
   description: 'Introduce yourself to the group',
   lastPostId: '1',
   unreadCount: 40,
+  unread: basicUnread,
   lastPost: {
     id: '1',
     authorId: '~ravmel-ropdyl',
@@ -182,6 +193,7 @@ export const tlonLocalWaterCooler: db.ChannelWithLastPostAndMembers = {
   description: 'General chat',
   lastPostId: '2',
   unreadCount: 31,
+  unread: basicUnread,
   lastPost: {
     id: '2',
     authorId: '~rilfun-lidlen',
@@ -216,6 +228,7 @@ export const tlonLocalSupport: db.ChannelWithLastPostAndMembers = {
   description: 'Get help with Tlon',
   lastPostId: '3',
   unreadCount: 27,
+  unread: basicUnread,
   lastPost: {
     id: '3',
     authorId: '~solfer-magfed',
@@ -250,6 +263,7 @@ export const tlonLocalBulletinBoard: db.ChannelWithLastPostAndMembers = {
   description: 'Important announcements',
   lastPostId: '4',
   unreadCount: 0,
+  unread: basicUnread,
   lastPost: {
     id: '4',
     authorId: '~nocsyx-lassul',
@@ -282,6 +296,7 @@ export const tlonLocalCommunityCatalog: db.ChannelWithLastPostAndMembers = {
   groupId: '~nibset-napwyn/tlon',
   title: 'Community Catalog',
   description: 'Find other groups',
+  unread: basicUnread,
   lastPostId: '5',
   lastPost: {
     id: '5',
@@ -316,6 +331,7 @@ export const tlonLocalGettingStarted: db.ChannelWithLastPostAndMembers = {
   title: 'Getting Started',
   description: 'Get started with Tlon',
   lastPostId: '6',
+  unread: basicUnread,
   lastPost: {
     id: '6',
     authorId: '~ravmel-ropdyl',
