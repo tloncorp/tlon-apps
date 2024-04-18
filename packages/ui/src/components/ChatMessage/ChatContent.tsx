@@ -18,22 +18,27 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
+import { ReactElement, memo, useMemo } from 'react';
+import { Linking } from 'react-native';
 
-import { Image, SizableText, Text, View, YStack } from '../../core';
+import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
+import Video from '../Video';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
     <Button
       // TODO: implement this once we have a profile screen or sheet
       // onPress={() => naivigate('Profile', { ship })}
-      backgroundColor="$blueSoft"
+      backgroundColor="$positiveBackground"
       paddingHorizontal="$xs"
       paddingVertical={0}
-      borderRadius="$xl"
+      borderRadius="$m"
     >
-      <ContactName name={ship} showAlias />
+      <Text color="$positiveActionText" fontSize="$m">
+        <ContactName name={ship} showAlias />
+      </Text>
     </Button>
   );
 }
@@ -62,7 +67,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <>
         {story.bold.map((s, k) => (
           <Text fontSize="$m" fontWeight="bold" key={k}>
-            {s}
+            <InlineContent story={s} />
           </Text>
         ))}
       </>
@@ -74,7 +79,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <>
         {story.italics.map((s, k) => (
           <Text fontSize="$m" fontStyle="italic" key={k}>
-            {s}
+            <InlineContent story={s} />
           </Text>
         ))}
       </>
@@ -86,7 +91,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <>
         {story.strike.map((s, k) => (
           <Text fontSize="$m" textDecorationLine="line-through" key={k}>
-            {s}
+            <InlineContent story={s} />
           </Text>
         ))}
       </>
@@ -95,14 +100,14 @@ export function InlineContent({ story }: { story: Inline | null }) {
 
   if (isInlineCode(story)) {
     return (
-      <SizableText
+      <Text
         fontFamily="$mono"
         backgroundColor="$gray100"
         padding="$xs"
         borderRadius="$xl"
       >
-        <InlineContent story={story['inline-code']} />
-      </SizableText>
+        {story['inline-code']}
+      </Text>
     );
   }
 
@@ -114,62 +119,63 @@ export function InlineContent({ story }: { story: Inline | null }) {
         borderRadius="$xl"
         marginBottom="$m"
       >
-        <SizableText
+        <Text
           fontFamily="$mono"
           padding="$m"
           borderRadius="$xl"
           backgroundColor="$gray100"
         >
           {story.code}
-        </SizableText>
+        </Text>
       </View>
     );
   }
 
   if (isLink(story)) {
+    const supported = Linking.canOpenURL(story.link.href);
+
+    if (!supported) {
+      return (
+        <Text textDecorationLine="underline">
+          <InlineContent story={story.link.content} />
+        </Text>
+      );
+    }
+
     return (
-      <SizableText
-        color="$blue"
-        onPress={() => window.open(story.link.href, '_blank')}
+      <Text
+        textDecorationLine="underline"
+        onPress={() => Linking.openURL(story.link.href)}
       >
-        {story.link.content}
-      </SizableText>
+        <InlineContent story={story.link.content} />
+      </Text>
     );
   }
 
   if (isBreak(story)) {
-    return <InlineContent story={null} />;
+    return <Text height="$s" />;
   }
   if (isShip(story)) {
     return <ShipMention ship={story.ship} />;
   }
-  if (isBlockquote(story)) {
-    return (
-      <SizableText
-        backgroundColor="$gray100"
-        padding="$m"
-        borderRadius="$xl"
-        fontStyle="italic"
-      >
-        {Array.isArray(story.blockquote)
-          ? story.blockquote.map((item, index) => (
-              <InlineContent key={item.toString() + index} story={item} />
-            ))
-          : story.blockquote}
-      </SizableText>
-    );
-  }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
   return (
-    <SizableText color="$primaryText" fontWeight="$l">
+    <Text color="$primaryText" fontWeight="$l">
       This content cannot be rendered, unhandled message type.
-    </SizableText>
+    </Text>
   );
 }
 
 export function BlockContent({ story }: { story: Block }) {
-  // TODO add support for videos and other embeds
+  // TODO add support for other embeds and refs
+
   if (isImage(story)) {
+    const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
+
+    if (isVideoFile) {
+      return <Video block={story} />;
+    }
+
     return (
       <Image
         source={{
@@ -187,31 +193,114 @@ export function BlockContent({ story }: { story: Block }) {
   }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
   return (
-    <SizableText fontWeight="$l">
+    <Text fontWeight="$l">
       This content cannot be rendered, unhandled message type.
-    </SizableText>
+    </Text>
   );
 }
 
-export default function ChatContent({ story }: { story: Story }) {
-  const storyInlines = (
-    story.filter((s) => 'inline' in s) as VerseInline[]
-  ).flatMap((i) => i.inline);
-  const storyBlocks = story.filter((s) => 'block' in s) as VerseBlock[];
-  const inlineLength = storyInlines.length;
-  const blockLength = storyBlocks.length;
-  // const firstBlockCode = storyInlines.findIndex(isBlockCode);
-  // const lastBlockCode = findLastIndex(storyInlines, isBlockCode);
-  const blockContent = storyBlocks.sort((a, b) => {
-    // Sort images to the end
-    if (isImage(a) && !isImage(b)) {
-      return 1;
+const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
+  const inlineElements: ReactElement[][] = [];
+  let currentLine: ReactElement[] = [];
+
+  storyInlines.forEach((inline, index) => {
+    if (isBreak(inline)) {
+      inlineElements.push(currentLine);
+      currentLine = [];
+    } else if (typeof inline === 'string') {
+      if (utils.isSingleEmoji(inline)) {
+        currentLine.push(
+          <Text
+            key={`emoji-${inline}-${index}`}
+            paddingTop="$xl"
+            fontSize="$xl"
+          >
+            {inline}
+          </Text>
+        );
+      } else {
+        currentLine.push(
+          <Text key={`string-${inline}-${index}`} fontSize="$m">
+            {inline}
+          </Text>
+        );
+      }
+    } else if (isBlockquote(inline)) {
+      currentLine.push(
+        <YStack
+          key={`blockquote-${index}`}
+          borderLeftWidth={2}
+          borderColor="$gray100"
+          paddingLeft="$l"
+        >
+          {Array.isArray(inline.blockquote) ? (
+            <LineRenderer storyInlines={inline.blockquote} />
+          ) : (
+            // not clear if this is necessary
+            <InlineContent story={inline.blockquote} />
+          )}
+        </YStack>
+      );
+    } else {
+      currentLine.push(
+        <InlineContent key={`inline-${index}`} story={inline} />
+      );
     }
-    if (!isImage(a) && isImage(b)) {
-      return -1;
-    }
-    return 0;
   });
+
+  if (currentLine.length > 0) {
+    inlineElements.push(currentLine);
+  }
+
+  return (
+    <>
+      {inlineElements.map((line, index) => {
+        if (line.length === 0) {
+          return (
+            <XStack alignItems="center" key={`line-${index}`}>
+              <Text height="$xl">{'\n'}</Text>
+            </XStack>
+          );
+        }
+
+        return (
+          <XStack alignItems="center" key={`line-${index}`} flexWrap="wrap">
+            {line}
+          </XStack>
+        );
+      })}
+    </>
+  );
+});
+
+export default function ChatContent({ story }: { story: Story }) {
+  const storyInlines = useMemo(
+    () =>
+      (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
+        (i) => i.inline
+      ),
+    [story]
+  );
+  const storyBlocks = useMemo(
+    () => story.filter((s) => 'block' in s) as VerseBlock[],
+    [story]
+  );
+  const inlineLength = useMemo(() => storyInlines.length, [storyInlines]);
+  const blockLength = useMemo(() => storyBlocks.length, [storyBlocks]);
+  const blockContent = useMemo(
+    () =>
+      storyBlocks.sort((a, b) => {
+        // Sort images to the end
+        if (isImage(a) && !isImage(b)) {
+          return 1;
+        }
+        if (!isImage(a) && isImage(b)) {
+          return -1;
+        }
+        return 0;
+      }),
+    [storyBlocks]
+  );
 
   if (blockLength === 0 && inlineLength === 0) {
     return null;
@@ -228,59 +317,7 @@ export default function ChatContent({ story }: { story: Story }) {
             })}
         </YStack>
       ) : null}
-      {inlineLength > 0 ? (
-        <>
-          {storyInlines.map((storyItem, index) => {
-            // TODO: figure out if this was necessary
-            // if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
-            // return (
-            // <YStack
-            // key={`${storyItem.toString()}-${index}`}
-            // className="rounded bg-gray-100 py-2"
-            // borderRadius="$m"
-            // >
-            // <InlineContent story={storyItem} />
-            // </YStack>
-            // );
-            // }
-
-            // if (index === firstBlockCode) {
-            // return (
-            // <YStack
-            // key={`${storyItem.toString()}-${index}`}
-            // className="rounded bg-gray-100 py-2"
-            // borderRadius="$m"
-            // >
-            // <InlineContent
-            // key={`${storyItem.toString()}-${index}`}
-            // story={storyItem}
-            // />
-            // </YStack>
-            // );
-            // }
-            // if (index === lastBlockCode) {
-            // return (
-            // <YStack
-            // key={`${storyItem.toString()}-${index}`}
-            // className="rounded bg-gray-100 py-2"
-            // borderRadius="$m"
-            // >
-            // <InlineContent
-            // key={`${storyItem.toString()}-${index}`}
-            // story={storyItem}
-            // />
-            // </YStack>
-            // );
-            // }
-            return (
-              <InlineContent
-                key={`${storyItem.toString()}-${index}`}
-                story={storyItem}
-              />
-            );
-          })}
-        </>
-      ) : null}
+      {inlineLength > 0 ? <LineRenderer storyInlines={storyInlines} /> : null}
     </YStack>
   );
 }
