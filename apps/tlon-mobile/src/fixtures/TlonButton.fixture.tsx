@@ -1,7 +1,20 @@
 import { TlonButton } from '../components/TlonButton';
+import { FixtureWrapper } from './FixtureWrapper';
 
 export default {
-  primary: () => <TlonButton title="Button" />,
-  secondary: () => <TlonButton title="Button" variant="secondary" />,
-  minimal: () => <TlonButton title="Button" variant="minimal" />,
+  primary: () => (
+    <FixtureWrapper fillWidth>
+      <TlonButton title="Button" />
+    </FixtureWrapper>
+  ),
+  secondary: () => (
+    <FixtureWrapper fillWidth>
+      <TlonButton title="Button" variant="secondary" />
+    </FixtureWrapper>
+  ),
+  minimal: () => (
+    <FixtureWrapper fillWidth>
+      <TlonButton title="Button" variant="minimal" />
+    </FixtureWrapper>
+  ),
 };

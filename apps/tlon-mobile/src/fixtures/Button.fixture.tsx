@@ -1,14 +1,20 @@
 import { Button } from '@tloncorp/ui';
 
+import { FixtureWrapper } from './FixtureWrapper';
+
 export default {
   primary: () => (
-    <Button>
-      <Button.Text>Primary</Button.Text>
-    </Button>
+    <FixtureWrapper fillWidth>
+      <Button>
+        <Button.Text>Primary</Button.Text>
+      </Button>
+    </FixtureWrapper>
   ),
   text: () => (
-    <Button minimal>
-      <Button.Text>Text Button</Button.Text>
-    </Button>
+    <FixtureWrapper fillWidth>
+      <Button minimal>
+        <Button.Text>Text Button</Button.Text>
+      </Button>
+    </FixtureWrapper>
   ),
 };

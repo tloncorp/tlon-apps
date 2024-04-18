@@ -1,7 +1,10 @@
 import { HeaderButton } from '../components/HeaderButton';
+import { FixtureWrapper } from './FixtureWrapper';
 
 export default {
   primary: () => (
-    <HeaderButton title="Button" onPress={() => console.log('press')} />
+    <FixtureWrapper>
+      <HeaderButton title="Button" onPress={() => console.log('press')} />
+    </FixtureWrapper>
   ),
 };
