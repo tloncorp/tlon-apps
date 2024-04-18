@@ -112,6 +112,26 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   }
 }
 
+export async function syncThreadPosts({
+  postId,
+  authorId,
+  channelId,
+}: {
+  postId: string;
+  authorId: string;
+  channelId: string;
+}) {
+  const response = await api.getPostWithReplies({
+    postId,
+    authorId,
+    channelId,
+  });
+  await db.insertChannelPosts(channelId, [
+    response,
+    ...(response.replies ?? []),
+  ]);
+}
+
 async function persistPagedPostData(
   channelId: string,
   data: api.GetChannelPostsResponse

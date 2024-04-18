@@ -26,6 +26,7 @@ export function Channel({
   goBack,
   goToChannels,
   goToSearch,
+  goToPost,
   messageSender,
   onScrollEndReached,
   onScrollStartReached,
@@ -42,6 +43,7 @@ export function Channel({
   calmSettings: CalmState;
   goBack: () => void;
   goToChannels: () => void;
+  goToPost: (post: db.PostInsert) => void;
   goToSearch: () => void;
   messageSender: (content: JSONContent, channelId: string) => void;
   type?: 'chat' | 'gallery' | 'notebook';
@@ -83,6 +85,7 @@ export function Channel({
                     firstUnread={channel.firstUnreadPostId ?? undefined}
                     posts={posts}
                     channelType={channel.type}
+                    onPressReplies={goToPost}
                     setInputShouldBlur={setInputShouldBlur}
                     onEndReached={onScrollEndReached}
                     onStartReached={onScrollStartReached}

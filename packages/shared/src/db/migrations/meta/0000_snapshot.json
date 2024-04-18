@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "5513afe8-cf67-4ae7-b611-8c79f656cba6",
+  "id": "e23487d2-fb61-49e7-aafb-308a5a537d0d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -883,6 +883,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "type": {
           "name": "type",
           "type": "text",
@@ -928,6 +935,20 @@
         "reply_count": {
           "name": "reply_count",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reply_time": {
+          "name": "reply_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reply_contact_ids": {
+          "name": "reply_contact_ids",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

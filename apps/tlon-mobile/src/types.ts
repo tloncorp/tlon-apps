@@ -27,6 +27,9 @@ export type HomeStackParamList = {
   ChannelSearch: {
     channel: db.Channel;
   };
+  Post: {
+    post: db.PostInsert;
+  };
 };
 
 export type TabParamList = {

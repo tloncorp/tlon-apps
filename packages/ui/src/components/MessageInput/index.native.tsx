@@ -7,16 +7,14 @@ import {
   useBridgeState,
   useEditorBridge,
 } from '@10play/tentap-editor';
-import { JSONContent } from '@tiptap/core';
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import { ShortcutsBridge } from '@tloncorp/editor/src/bridges/shortcut';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
 
-import { Attachment, Camera, ChannelGalleries, Send } from '../../assets/icons';
 import { XStack } from '../../core';
-import { IconButton } from '../IconButton';
+import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
 // This function and the one below it are taken from RichText.tsx
 // in the tentap-editor package.
@@ -56,13 +54,8 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-}: {
-  shouldBlur: boolean;
-  setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: JSONContent, chatId: string) => Promise<void>;
-  channelId: string;
-}) {
-  const [conatinerHeight, setContainerHeight] = useState(0);
+}: MessageInputProps) {
+  const [containerHeight, setContainerHeight] = useState(0);
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
@@ -143,40 +136,23 @@ export function MessageInput({
   );
 
   return (
-    <XStack
-      paddingHorizontal="$m"
-      paddingVertical="$s"
-      gap="$l"
-      alignItems="flex-end"
-    >
-      <XStack gap="$l">
-        <IconButton onPress={() => {}}>
-          <Camera />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <Attachment />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <ChannelGalleries />
-        </IconButton>
-      </XStack>
-      <XStack flex={1} gap="$l" alignItems="flex-end">
-        <XStack
-          borderRadius="$xl"
-          minHeight="$4xl"
-          height={conatinerHeight}
-          backgroundColor="$secondaryBackground"
-          paddingHorizontal="$l"
-          flex={1}
-        >
-          <RichText
-            style={{
-              padding: 8,
-              backgroundColor: '$secondaryBackground',
-            }}
-            editor={editor}
-            onMessage={handleMessage}
-            injectedJavaScript={`
+    <MessageInputContainer onPressSend={handleSend}>
+      <XStack
+        borderRadius="$xl"
+        minHeight="$4xl"
+        height={containerHeight}
+        backgroundColor="$secondaryBackground"
+        paddingHorizontal="$l"
+        flex={1}
+      >
+        <RichText
+          style={{
+            padding: 8,
+            backgroundColor: '$secondaryBackground',
+          }}
+          editor={editor}
+          onMessage={handleMessage}
+          injectedJavaScript={`
               ${tentapInjectedJs}
 
               window.addEventListener('keydown', (e) => {
@@ -193,13 +169,8 @@ export function MessageInput({
 
               });
             `}
-          />
-        </XStack>
-        <IconButton onPress={handleSend}>
-          {/* TODO: figure out what send button should look like */}
-          <Send />
-        </IconButton>
+        />
       </XStack>
-    </XStack>
+    </MessageInputContainer>
   );
 }

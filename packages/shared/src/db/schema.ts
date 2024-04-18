@@ -330,7 +330,10 @@ export const posts = sqliteTable('posts', {
   authorId: text('author_id').notNull(),
   channelId: text('channel_id').notNull(),
   groupId: text('group_id'),
-  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>().notNull(),
+  parentId: text('parent_id'),
+  type: text('type')
+    .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
+    .notNull(),
   title: text('title'),
   image: text('image'),
   content: text('content', { mode: 'json' }),
@@ -338,6 +341,10 @@ export const posts = sqliteTable('posts', {
   sentAt: timestamp('sent_at').notNull(),
   // client-side time
   replyCount: integer('reply_count'),
+  replyTime: timestamp('reply_time'),
+  replyContactIds: text('reply_contact_ids', {
+    mode: 'json',
+  }).$type<string[]>(),
   textContent: text('text_content'),
   hasAppReference: boolean('has_app_reference'),
   hasChannelReference: boolean('has_channel_reference'),
@@ -361,6 +368,11 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.authorId],
     references: [contacts.id],
   }),
+  parent: one(posts, {
+    fields: [posts.parentId],
+    references: [posts.id],
+  }),
+  replies: many(posts),
   images: many(postImages),
 }));
 

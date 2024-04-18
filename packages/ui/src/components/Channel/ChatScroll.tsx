@@ -7,7 +7,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -38,27 +37,24 @@ export default function ChatScroll({
   selectedPost,
   onStartReached,
   onEndReached,
+  onPressReplies,
+  showReplies = true,
 }: {
   posts: db.PostWithRelations[];
   currentUserId: string;
   channelType: db.ChannelType;
   unreadCount?: number;
   firstUnread?: string;
-  setInputShouldBlur: (shouldBlur: boolean) => void;
+  setInputShouldBlur?: (shouldBlur: boolean) => void;
   selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
+  onPressReplies?: (post: db.PostInsert) => void;
+  showReplies?: boolean;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
-  const lastPost = useMemo(() => posts[posts.length - 1], [posts]);
-  const sortedPosts = useMemo(
-    () =>
-      posts.sort((a, b) => {
-        return b.receivedAt - a.receivedAt;
-      }),
-    [posts]
-  );
+
   const pressedGoToBottom = () => {
     setHasPressedGoToBottom(true);
     if (flatListRef.current) {
@@ -114,11 +110,13 @@ export default function ChatScroll({
             post={item}
             firstUnread={firstUnread}
             unreadCount={unreadCount}
+            showReplies={showReplies}
+            onPressReplies={onPressReplies}
           />
         </PressableMessage>
       );
     },
-    [activeMessage]
+    [activeMessage, showReplies, firstUnread, onPressReplies, unreadCount]
   );
 
   const handleScrollToIndexFailed = useCallback(
@@ -141,7 +139,7 @@ export default function ChatScroll({
   }) as StyleProp<ViewStyle>;
 
   const handleContainerPressed = useCallback(() => {
-    setInputShouldBlur(true);
+    setInputShouldBlur?.(true);
   }, []);
 
   return (
