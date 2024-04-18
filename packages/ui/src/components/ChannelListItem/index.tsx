@@ -42,8 +42,8 @@ export default function ChannelListItem({
       </ListItem.MainContent>
       <ListItem.EndContent position="relative" top={3}>
         {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-        {model.unreadCount && model.unreadCount > 0 ? (
-          <ListItem.Count>{model.unreadCount}</ListItem.Count>
+        {model.unread?.count && model.unread.count > 0 ? (
+          <ListItem.Count>{model.unread.count}</ListItem.Count>
         ) : null}
       </ListItem.EndContent>
     </ListItem>
@@ -60,9 +60,7 @@ function ChannelListItemIcon({
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
-    return (
-      <ListItem.SystemIcon icon={icon} backgroundColor={backgroundColor} />
-    );
+    return <ListItem.SystemIcon icon={icon} backgroundColor={'$gray50'} />;
   } else if (model.type === 'dm') {
     return (
       <ListItem.AvatarIcon

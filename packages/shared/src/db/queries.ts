@@ -463,6 +463,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
             contact: true,
           },
         },
+        unread: true,
       },
     });
   },
