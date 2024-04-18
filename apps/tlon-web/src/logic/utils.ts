@@ -1,4 +1,4 @@
-import { Index } from '@tloncorp/shared/dist/urbit/activity';
+import { Source } from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   ChatStory,
@@ -1298,27 +1298,27 @@ export function cacheIdFromString(str: string): CacheId {
   };
 }
 
-export function indexToString(index: Index) {
-  if ('channel' in index) {
-    return `channel/${index.channel}`;
+export function sourceToString(source: Source) {
+  if ('channel' in source) {
+    return `channel/${source.channel}`;
   }
 
-  if ('dm' in index) {
-    if ('ship' in index.dm) {
-      return `ship/${index.dm.ship}`;
+  if ('dm' in source) {
+    if ('ship' in source.dm) {
+      return `ship/${source.dm.ship}`;
     }
 
-    return `club/${index.dm.club}`;
+    return `club/${source.dm.club}`;
   }
 
-  throw new Error('Invalid activity index');
+  throw new Error('Invalid activity source');
 }
 
-export function stringToIndex(str: string): Index {
+export function stringToSource(str: string): Source {
   const parts = str.split('/');
 
   if (parts.length === 0) {
-    throw new Error('Invalid activity index');
+    throw new Error('Invalid activity source');
   }
 
   const [head, ...rest] = parts;
@@ -1333,6 +1333,6 @@ export function stringToIndex(str: string): Index {
     case 'club':
       return { dm: { club: rest[0] } };
     default:
-      throw new Error('Invalid activity index');
+      throw new Error('Invalid activity source');
   }
 }

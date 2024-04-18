@@ -191,12 +191,12 @@ const ReplyMessage = React.memo<
             if (inView && isUnread && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
-                const index = isDMOrMultiDM
+                const source = isDMOrMultiDM
                   ? whomIsDm(whom)
                     ? { dm: { ship: whom } }
                     : { dm: { club: whom } }
                   : { channel: `chat/${whom}` };
-                markRead({ index });
+                markRead({ source });
               });
             }
           },

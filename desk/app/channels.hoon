@@ -707,8 +707,8 @@
     !>  ^-  action
     :-  %add
     ?-  -.concern
-      %post   [%post [key.concern nest] content mention]
-      %reply  [%reply [key.concern top.concern nest] content mention]
+      %post   [%post nest key.concern content mention]
+      %reply  [%reply nest key.concern top.concern content mention]
     ==
 ::
   ::

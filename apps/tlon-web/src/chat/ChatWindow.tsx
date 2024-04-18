@@ -124,7 +124,7 @@ const ChatWindow = React.memo(
     const onAtBottom = useCallback(() => {
       const { bottom, delayedRead } = useChatStore.getState();
       bottom(true);
-      delayedRead(whom, () => markRead({ index: { channel: nest } }));
+      delayedRead(whom, () => markRead({ source: { channel: nest } }));
       if (hasPreviousPage && !isFetching) {
         log('fetching previous page');
         fetchPreviousPage();
@@ -148,7 +148,7 @@ const ChatWindow = React.memo(
         const curr = clearOnNavRef.current;
         if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
           useChatStore.getState().read(curr.whom);
-          curr.markRead({ index: { channel: curr.nest } });
+          curr.markRead({ source: { channel: curr.nest } });
         }
       },
       []

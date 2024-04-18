@@ -7,7 +7,7 @@
 ::  $indices: the stream and its read data split into various indices
 +$  indices  (map source [=stream =reads])
 ::  $volume-settings: the volume settings for each source
-+$  volume-settings  (map source volume-level)
++$  volume-settings  (map source volume)
 ::  $unreads: the current unread state for each source
 +$  unreads  (map source unread-summary)
 ::  TODO: kill?
@@ -44,14 +44,14 @@
 ::
 ::  $update: what we hear after an action
 ::
-::    $added: an event was added to the stream
+::    $add: an event was added to the stream
 ::    $read: a source's unread state was updated
-::    $adjusted: the volume of a source was adjusted
+::    $adjust: the volume of a source was adjusted
 ::
 +$  update
-  $%  [%added =time-event]
+  $%  [%add time-event]
       [%read =source =unread-summary]
-      [%adjusted =source =volume]
+      [%adjust =source =volume]
   ==
 ::
 +|  %basics
@@ -72,38 +72,38 @@
   ==
 ::
 +$  post-event
-  $:  key=message-key
-      channel=nest:c
+  $:  channel=nest:c
+      key=message-key
       content=story:c
       mention=?
   ==
 ::
 +$  reply-event
-  $:  key=message-key
+  $:  channel=nest:c
+      key=message-key
       parent=message-key
-      channel=nest:c
       content=story:c
       mention=?
   ==
 ::
 +$  dm-post-event
-  $:  key=message-key
-      whom=whom
+  $:  =whom
+      key=message-key
       content=story:c
       mention=?
   ==
 ::
 +$  dm-reply-event
-  $:  key=message-key
+  $:  =whom
+      key=message-key
       parent=message-key
-      whom=whom
       content=story:c
       mention=?
   ==
 ::
 ::  $source: where the activity is happening
 +$  source
-  $%  [%channel channel=nest:c]
+  $%  [%channel =nest:c]
       [%dm =whom]
   ==
 ::
@@ -179,8 +179,8 @@
   ==
 +$  notify-level  ?(%notify %default)
 +|  %helpers
-++  on-event    ((on time event) lte)
-++  ex-event    ((mp time event) lte)
-++  on-parent   ((on time event-parent) lte)
 +$  time-event  [=time =event]
+++  on-event        ((on time event) lte)
+++  ex-event        ((mp time event) lte)
+++  on-post-reads   ((on time post-read) lte)
 --

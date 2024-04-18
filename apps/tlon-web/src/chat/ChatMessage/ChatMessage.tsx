@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Editor } from '@tiptap/react';
-import { Index, Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { Source, Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
@@ -213,12 +213,12 @@ const ChatMessage = React.memo<
             if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
-                const index: Index = isDMOrMultiDM
+                const source: Source = isDMOrMultiDM
                   ? whomIsDm(whom)
                     ? { dm: { ship: whom } }
                     : { dm: { club: whom } }
                   : { channel: `chat/${whom}` };
-                markRead({ index });
+                markRead({ source });
               });
             }
           },

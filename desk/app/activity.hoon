@@ -167,7 +167,7 @@
     =/  start  (slav %da start.pole)
     =/  count  (slav %ud count.pole)
     %-  ~(rep by indices)
-    |=  [[=index:a =stream:a =reads:a] out=stream:a]
+    |=  [[=source:a =stream:a =reads:a] out=stream:a]
     ^+  out
     ::REVIEW  key overlaps possible?
     (gas:on-event:a out (tab:on-event:a stream `start count))
@@ -175,7 +175,7 @@
   ::  /indexed: per-index
   ::
       [%x %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
-    =/  =index:a
+    =/  =source:a
       ?-  -.concern.pole
           %dm
         :-  %dm
@@ -192,7 +192,7 @@
         %dm       rest.concern.pole
         %channel  rest.concern.pole
       ==
-    ?~  dice=(~(get by indices) index)  [~ ~]
+    ?~  dice=(~(get by indices) source)  [~ ~]
     ?+  rest  ~
         ~
       ``activity-stream+!>((tap:on-event:a stream.u.dice))
@@ -230,107 +230,110 @@
     (put:on-event:a stream time-id event)
   ?+  -.event  cor
       %dm-post
-    =/  index  [%dm whom.event]
-    =?  indices  !(~(has by indices) index)
-      (~(put by indices) index [*stream:a *reads:a])
-    =/  indy  (~(got by indices) index)
+    =/  source  [%dm whom.event]
+    =?  indices  !(~(has by indices) source)
+      (~(put by indices) source [*stream:a *reads:a])
+    =/  indy  (~(got by indices) source)
     =/  new
       :*  (put:on-event:a stream.indy time-id event)
           floor.reads.indy
-          %^  put:on-parent:a  event-parents.reads.indy
+          %^  put:on-post-reads:a  posts.reads.indy
             time-id
           [| time-id]
       ==
-    =.  cor  (give-unreads index new)
+    =.  cor  (give-unreads source new)
     =.  indices
-      (~(put by indices) index new)
+      (~(put by indices) source new)
     cor
       %dm-reply
-    =/  index  [%dm whom.event]
-    =?  indices  !(~(has by indices) index)
-      (~(put by indices) index *[stream:a reads:a])
-    =/  indy  (~(got by indices) index)
+    =/  source  [%dm whom.event]
+    =?  indices  !(~(has by indices) source)
+      (~(put by indices) source *[stream:a reads:a])
+    =/  indy  (~(got by indices) source)
     =/  new
       :-  (put:on-event:a stream.indy time-id event)
       reads.indy
-    =.  cor  (give-unreads index new)
+    =.  cor  (give-unreads source new)
     =.  indices
-      (~(put by indices) index new)
+      (~(put by indices) source new)
     cor
       %post
-    =/  index  [%channel nest.event]
-    =?  indices  !(~(has by indices) index)
-      (~(put by indices) index *[stream:a reads:a])
-    =/  indy  (~(got by indices) index)
+    =/  source  [%channel channel.event]
+    =?  indices  !(~(has by indices) source)
+      (~(put by indices) source *[stream:a reads:a])
+    =/  indy  (~(got by indices) source)
     =/  new
       :*  (put:on-event:a stream.indy time-id event)
           floor.reads.indy
-          %^  put:on-parent:a  event-parents.reads.indy
+          %^  put:on-post-reads:a  posts.reads.indy
             time-id
           [| time-id]
       ==
-    =.  cor  (give-unreads index new)
+    =.  cor  (give-unreads source new)
     =.  indices
-      (~(put by indices) index new)
+      (~(put by indices) source new)
     cor
       %reply
-    =/  index  [%channel nest.event]
-    =?  indices  !(~(has by indices) index)
-      (~(put by indices) index *[stream:a reads:a])
-    =/  indy  (~(got by indices) index)
+    =/  source  [%channel channel.event]
+    =?  indices  !(~(has by indices) source)
+      (~(put by indices) source *[stream:a reads:a])
+    =/  indy  (~(got by indices) source)
     =/  new
       :-  (put:on-event:a stream.indy time-id event)
       reads.indy
-    =.  cor  (give-unreads index new)
+    =.  cor  (give-unreads source new)
     =.  indices
-      (~(put by indices) index new)
+      (~(put by indices) source new)
     cor
   ==
 ++  loudness
-  ^-  (map flavor:a flavor-level:a)
+  ^-  (map event-type:a notify-level:a)
   %-  malt
-  ^-  (list [flavor:a flavor-level:a])
-  :~  [%dm-invite %notify]
+  ^-  (list [event-type:a notify-level:a])
+  :~  [%post %default]
+      [%post-mention %notify]
+      [%reply %notify]
+      [%reply-mention %notify]
+      [%dm-invite %notify]
       [%dm-post %notify]
       [%dm-post-mention %notify]
       [%dm-reply %notify]
       [%dm-reply-mention %notify]
-      [%kick %default]
-      [%join %default]
-      [%post %default]
-      [%post-mention %notify]
-      [%reply %notify]
-      [%reply-mention %notify]
+      [%group-invite %notify]
+      [%group-ask %notify]
+      [%group-kick %default]
+      [%group-join %default]
+      [%group-role %default]
       [%flag-post %default]
       [%flag-reply %default]
   ==
 ++  notifiable
   |=  =event:a
   ^-  ?
-  =/  index  (determine-index event)
+  =/  source  (determine-index event)
   =/  =volume:a
-    ?~  index  %soft
-    (~(gut by volume-settings) u.index %soft)
-  ?-  level
+    ?~  source  %soft
+    (~(gut by volume-settings) u.source %soft)
+  ?-  volume
       %loud  &
       %hush  |
       %soft  |
       %default
     .=  %notify
-    (~(gut by loudness) (determine-flavor event) %default)
+    (~(gut by loudness) (determine-event-type event) %default)
   ==
 ++  determine-index
   |=  =event:a
-  ^-  (unit index:a)
+  ^-  (unit source:a)
   ?+  -.event  ~
-    %post      `[%channel nest.event]
-    %reply     `[%channel nest.event]
+    %post      `[%channel channel.event]
+    %reply     `[%channel channel.event]
     %dm-post   `[%dm whom.event]
     %dm-reply  `[%dm whom.event]
   ==
-++  determine-flavor
+++  determine-event-type
   |=  =event:a
-  ^-  flavor:a
+  ^-  event-type:a
   ?+  -.event  -.event
       %post      ?:(mention.event %post-mention %post)
       %reply     ?:(mention.event %reply-mention %reply)
@@ -339,15 +342,15 @@
   ==
 ::
 ++  find-floor
-  |=  [=index:a mode=$%([%all ~] [%reply parent=time-id:a])]
+  |=  [=source:a mode=$%([%all ~] [%reply parent=time-id:a])]
   ^-  (unit time)
-  ?.  (~(has by indices) index)  ~
+  ?.  (~(has by indices) source)  ~
   ::  starting at the last-known first-unread location (floor), walk towards
   ::  the present, to find the new first-unread location (new floor)
   ::
   =/  [orig=stream:a =reads:a]
-    (~(got by indices) index)
-  ?>  |(?=(%all -.mode) (has:on-parent:a event-parents.reads parent.mode))
+    (~(got by indices) source)
+  ?>  |(?=(%all -.mode) (has:on-post-reads:a posts.reads parent.mode))
   ::  slice off the earlier part of the stream, for efficiency
   ::
   =/  =stream:a
@@ -355,7 +358,7 @@
       (lot:on-event:a orig `beginning ~)
     ?-  -.mode
         %all    floor.reads
-        %reply  reply-floor:(got:on-parent:a event-parents.reads parent.mode)
+        %reply  floor:(got:on-post-reads:a posts.reads parent.mode)
     ==
   =|  new-floor=(unit time)
   |-
@@ -364,7 +367,7 @@
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   ?:  ?&  ?=(%reply -.mode)
       ?|  !?=(%reply -.event)
-          ?&(?=(?(%dm-post %post) -.event) =(message-key.event parent.mode))
+          ?&(?=(?(%dm-post %post) -.event) =(key.event parent.mode))
       ==  ==
     ::  we're in reply mode, and it's not a reply event, or a reply to
     ::  something else, so, skip
@@ -379,60 +382,60 @@
     $(new-floor `time, stream rest)
   ?+  -.event  !!
       ?(%dm-post %post)
-    =*  id=time-id:a  q.id.message-key.event
-    =/  par=(unit event-parent:a)  (get:on-parent:a event-parents.reads id)
+    =*  id=time-id:a  q.id.key.event
+    =/  par=(unit post-read:a)  (get:on-post-reads:a posts.reads id)
     ?~(par | seen.u.par)
   ::
       %reply
-    =*  id=time-id:a  q.id.message-key.event
-    =/  par=(unit event-parent:a)  (get:on-parent:a event-parents.reads id)
-    ?~(par | (gte time reply-floor.u.par))
+    =*  id=time-id:a  q.id.key.event
+    =/  par=(unit post-read:a)  (get:on-post-reads:a posts.reads id)
+    ?~(par | (gte time floor.u.par))
   ==
 ::
 ++  update-floor
-  |=  =index:a
+  |=  =source:a
   ^+  cor
-  =/  new-floor=(unit time)  (find-floor index %all ~)
+  =/  new-floor=(unit time)  (find-floor source %all ~)
   =?  indices  ?=(^ new-floor)
-    %+  ~(jab by indices)  index
+    %+  ~(jab by indices)  source
     |=  [=stream:a =reads:a]
     [stream reads(floor u.new-floor)]
   cor
 ::
 ++  read
-  |=  [=index:a action=read-action:a]
+  |=  [=source:a action=read-action:a]
   ^+  cor
   ?-  -.action
       %thread
-    =/  indy  (~(get by indices) index)
+    =/  indy  (~(get by indices) source)
     ?~  indy  cor
     =/  new
-      =-  u.indy(event-parents.reads -)
-      %+  put:on-parent:a  event-parents.reads.u.indy
-      =;  new-reply-floor=(unit time)
-        [id.action [& (fall new-reply-floor id.action)]]
-      (find-floor index %reply id.action)
+      =-  u.indy(posts.reads -)
+      %+  put:on-post-reads:a  posts.reads.u.indy
+      =;  new-floor=(unit time)
+        [id.action [& (fall new-floor id.action)]]
+      (find-floor source %reply id.action)
     =.  indices
-      (~(put by indices) index new)
-    =.  cor  (update-floor index)
-    (give-unreads index new)
+      (~(put by indices) source new)
+    =.  cor  (update-floor source)
+    (give-unreads source new)
   ::
       %post
-    =/  indy  (~(get by indices) index)
+    =/  indy  (~(get by indices) source)
     ?~  indy  cor
-    =/  old-event-parent  (get:on-parent:a event-parents.reads.u.indy id.action)
-    ?~  old-event-parent  cor
+    =/  old-post-read  (get:on-post-reads:a posts.reads.u.indy id.action)
+    ?~  old-post-read  cor
     =/  new
-      =-  u.indy(event-parents.reads -)
-      %+  put:on-parent:a  event-parents.reads.u.indy
-      [id.action u.old-event-parent(seen &)]
+      =-  u.indy(posts.reads -)
+      %+  put:on-post-reads:a  posts.reads.u.indy
+      [id.action u.old-post-read(seen &)]
     =.  indices
-      (~(put by indices) index new)
-    =.  cor  (update-floor index)
-    (give-unreads index new)
+      (~(put by indices) source new)
+    =.  cor  (update-floor source)
+    (give-unreads source new)
   ::
       %all
-    =/  indy  (~(get by indices) index)
+    =/  indy  (~(get by indices) source)
     ?~  indy  cor
     =/  new
       =/  latest=(unit [=time event:a])
@@ -441,37 +444,37 @@
       ?~  latest  u.indy
       u.indy(reads [time.u.latest ~])
     =.  indices
-      (~(put by indices) index new)
-    (give-unreads index new)
+      (~(put by indices) source new)
+    (give-unreads source new)
   ==
 ::
 ++  give-unreads
-  |=  [=index:a =stream:a =reads:a]
+  |=  [=source:a =stream:a =reads:a]
   ^+  cor
-  (give %fact ~[/unreads] activity-index-unreads+!>([index (summarize-unreads [stream reads])]))
+  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (summarize-unreads [stream reads])]))
 ::
 ++  adjust
-  |=  [=index:a =volume:a]
+  |=  [=source:a =volume:a]
   ^+  cor
   =.  volume-settings
-    (~(put by volume-settings) index volume)
+    (~(put by volume-settings) source volume)
   cor
 ::
 ++  summarize-unreads
   |=  [=stream:a =reads:a]
   ^-  unread-summary:a
   =.  stream  (lot:on-event:a stream `floor.reads ~)
-  =/  event-parents  event-parents.reads
+  =/  post-reads  posts.reads
   ::  for each item in reads
   ::  remove the post from the event stream
-  ::  remove replies older than reply-floor from the event stream
+  ::  remove replies older than floor from the event stream
   ::  then call stream-to-unreads
   |-
-  ?~  event-parents
+  ?~  post-reads
     (stream-to-unreads stream floor.reads)
-  =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:on-parent:a event-parents)
+  =/  [[=time =post-read:a] rest=post-reads:a]  (pop:on-post-reads:a post-reads)
   %=  $
-      event-parents
+      post-reads
     rest
   ::
       stream
@@ -481,11 +484,11 @@
     |=  [@ key=@da =event:a]
     ^-  [(unit event:a) ? @]
     ?>  ?=(?(%post %reply %dm-post) -.event)
-    ?:  &(seen.event-parent =(time key))
+    ?:  &(seen.post-read =(time key))
       [~ | ~]
     ?.  =(-.event %reply)
       [`event | ~]
-    ?:  (lth time.message-key.event reply-floor.event-parent)
+    ?:  (lth time.key.event floor.post-read)
       [~ | ~]
     [`event | ~]
   ==
@@ -506,16 +509,16 @@
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
   ?>  ?=(?(%dm-post %dm-reply %post %reply) -.event)
   =.  count  +(count)
-  =.  newest  time.message-key.event
+  =.  newest  time.key.event
   =.  last
     ?:  ?=(?(%reply %dm-reply) -.event)  last
-    ?~  last  `message-key.event
-    ?:  (gte time.message-key.event time.u.last)  last
-    `message-key.event
+    ?~  last  `key.event
+    ?:  (gte time.key.event time.u.last)  last
+    `key.event
   =?  threads  ?=(?(%reply %dm-reply) -.event)
     =/  old
       %+  ~(gut by threads)  parent.event
-      [message-key.event count=0]
+      [key.event count=0]
     %+  ~(put by threads)  parent.event
     ::  we don't need to update the timestamp, because we always process the
     ::  oldest message first

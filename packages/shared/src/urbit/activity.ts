@@ -2,6 +2,8 @@ import { Story } from './channel';
 
 export type Whom = { ship: string } | { club: string };
 
+export type Volume = 'hush' | 'soft' | 'default' | 'loud';
+
 export interface MessageKey {
   id: string;
   time: string;
@@ -11,15 +13,15 @@ export interface DmInviteEvent {
   'dm-invite': Whom;
 }
 
-export interface KickEvent {
-  kick: {
+export interface GroupKickEvent {
+  'group-kick': {
     ship: string;
     group: string;
   };
 }
 
-export interface JoinEvent {
-  join: {
+export interface GroupJoinEvent {
+  'group-join': {
     ship: string;
     group: string;
   };
@@ -75,8 +77,8 @@ export interface ReplyEvent {
 
 export type ActivityEvent =
   | DmInviteEvent
-  | KickEvent
-  | JoinEvent
+  | GroupKickEvent
+  | GroupJoinEvent
   | FlagEvent
   | DmPostEvent
   | DmReplyEvent
@@ -98,12 +100,8 @@ export interface IndexData {
   reads: Reads;
 }
 
-export type Index = { channel: string } | { dm: Whom };
+export type Source = { channel: string } | { dm: Whom };
 
-export interface UnreadUpdate {
-  index: Index;
-  unread: Unread;
-}
 export interface MessageKey {
   id: string;
   time: string;
@@ -133,19 +131,45 @@ export type Stream = Record<string, ActivityEvent>;
 export type ReadAction = { post: string } | { thread: string } | { all: null };
 
 export interface ActivityReadAction {
-  index: Index;
+  source: Source;
   action: ReadAction;
 }
 
 export interface ActivityVolumeAction {
-  index: Index;
-  level: 'hush' | 'soft' | 'loud';
+  source: Source;
+  volume: Volume;
 }
 
 export type ActivityAction =
   | { add: ActivityEvent }
   | { read: ActivityReadAction }
   | { adjust: ActivityVolumeAction };
+
+export interface ActivityReadUpdate {
+  read: {
+    source: Source;
+    unread: Unread;
+  };
+}
+
+export interface ActivityVolumeUpdate {
+  adjust: {
+    source: Source;
+    volume: Volume;
+  };
+}
+
+export interface ActivityAddUpdate {
+  add: {
+    time: string;
+    event: ActivityEvent;
+  };
+}
+
+export type ActivityUpdate =
+  | ActivityReadUpdate
+  | ActivityVolumeUpdate
+  | ActivityAddUpdate;
 
 export interface FullActivity {
   stream: Stream;

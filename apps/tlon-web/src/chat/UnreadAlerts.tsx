@@ -21,10 +21,10 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
   const { mutate: markReadMut } = useMarkReadMutation();
   const markRead = useCallback(() => {
-    const index = whomIsFlag(whom)
+    const source = whomIsFlag(whom)
       ? { channel: `chat/${whom}` }
       : { dm: whomIsDm(whom) ? { ship: whom } : { club: whom } };
-    markReadMut({ index });
+    markReadMut({ source });
     useChatStore.getState().read(whom);
   }, [whom, markReadMut]);
 

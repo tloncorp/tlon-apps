@@ -135,7 +135,7 @@ export default function ChatThread() {
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(flag, () => markRead({ index: { channel: nest } }));
+    delayedRead(flag, () => markRead({ source: { channel: nest } }));
   }, [nest, flag, markRead]);
 
   const onEscape = useCallback(
@@ -163,7 +163,7 @@ export default function ChatThread() {
       ) {
         chatStoreLogger.log('unmount read from thread');
         useChatStore.getState().read(curr.flag);
-        curr.markRead({ index: { channel: curr.nest } });
+        curr.markRead({ source: { channel: curr.nest } });
       }
     },
     []

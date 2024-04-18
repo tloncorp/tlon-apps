@@ -838,12 +838,12 @@
       %-  submit-activity
       ^-  event
       ?-  -.concern
-        %join  [%join ^flag ship.concern]
-        %kick  [%kick ^flag ship.concern]
+        %join  [%group-join ^flag ship.concern]
+        %kick  [%group-kick ^flag ship.concern]
         %flag-post  [%flag-post key.concern nest.concern]
         %flag-reply  [%flag-reply parent.concern key.concern nest.concern]
-        %role  [%role ^flag [ship roles]:concern]
-        %ask   [%ask ^flag ship.concern]
+        %role  [%group-role ^flag [ship roles]:concern]
+        %ask   [%group-ask ^flag ship.concern]
       ==
     go-core
   ::

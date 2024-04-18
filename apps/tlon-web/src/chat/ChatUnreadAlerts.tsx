@@ -25,7 +25,7 @@ export default function ChatUnreadAlerts({
   const [, flag] = nestToFlag(nest);
   const chatInfo = useChatInfo(flag);
   const markRead = useCallback(() => {
-    markChatRead({ index: { channel: nest } });
+    markChatRead({ source: { channel: nest } });
     useChatStore.getState().read(flag);
   }, [nest, flag, markChatRead]);
 
