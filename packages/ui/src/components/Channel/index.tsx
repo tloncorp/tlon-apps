@@ -43,7 +43,7 @@ export function Channel({
   calmSettings: CalmState;
   goBack: () => void;
   goToChannels: () => void;
-  goToPost: (post: db.PostWithRelations) => void;
+  goToPost: (post: db.PostInsert) => void;
   goToSearch: () => void;
   messageSender: (content: JSONContent, channelId: string) => void;
   type?: 'chat' | 'gallery' | 'notebook';

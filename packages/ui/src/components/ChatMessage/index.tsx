@@ -25,9 +25,7 @@ const ChatMessage = ({
   unreadCount?: number;
   showReplies?: boolean;
   currentUserId: string;
-  onPressReplies?: (
-    post: db.PostWithRelations | db.PostInsertWithAuthor
-  ) => void;
+  onPressReplies?: (post: db.PostInsert) => void;
 }) => {
   const group = useGroup(post.groupId ?? '');
 
