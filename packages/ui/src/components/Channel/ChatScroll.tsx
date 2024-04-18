@@ -7,6 +7,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -187,12 +188,11 @@ const PressableMessage = forwardRef<
   RNView,
   PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
 >(({ isActive, onLongPress, children }, ref) => {
-  return (
-    // this markup isn't ideal, but you need the MotiView for animating, the Pressable for
-    // customizing longpress duration, and the React Native View for ref measurement
+  return isActive ? (
+    // need the extra React Native View for ref measurement
     <MotiView
       animate={{
-        scale: isActive ? 0.95 : 1,
+        scale: 0.95,
       }}
       transition={{
         scale: {
@@ -201,12 +201,14 @@ const PressableMessage = forwardRef<
         },
       }}
     >
-      <Pressable onLongPress={onLongPress} delayLongPress={250}>
-        <RNView ref={ref}>
-          <View paddingVertical="$m">{children}</View>
-        </RNView>
-      </Pressable>
+      <RNView ref={ref}>
+        <View paddingVertical="$m">{children}</View>
+      </RNView>
     </MotiView>
+  ) : (
+    <Pressable onLongPress={onLongPress} delayLongPress={250}>
+      <View paddingVertical="$m">{children}</View>
+    </Pressable>
   );
 });
 
