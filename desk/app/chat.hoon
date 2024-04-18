@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
 /-  meta
 /-  ha=hark
 /-  contacts
@@ -722,6 +722,37 @@
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   (pass-hark cage)
 ::
+++  pass-activity
+  =,  activity
+  |=  $:  =whom
+          $=  concern
+          $%  [%post key=message-key]
+              [%reply key=message-key top=message-key]
+              [%invite ~]
+          ==
+          content=story:d
+          mention=?
+      ==
+  ^+  cor
+  ?:  ?&  ?=(?(%post %reply) -.concern)
+          .=  our.bowl
+          p.id:?-(-.concern %post key.concern, %reply key.concern)
+      ==
+    cor
+  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
+    cor
+  %-  emit
+  =;  =cage
+    [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  :-  %activity-action
+  !>  ^-  action
+  :-  %add
+  ?-  -.concern
+    %post    [%dm-post [key.concern whom] content mention]
+    %reply   [%dm-reply [key.concern top.concern whom] content mention]
+    %invite  [%dm-invite whom]
+  ==
+::
 ++  make-notice
     |=  [=ship text=cord]
     ^-  delta:writs:c
@@ -1099,6 +1130,11 @@
     =/  link  (welp /dm/(scot %uv id) rest)
     [& & rope con link but]
   ::
+  ++  cu-activity  !.
+    |*  a=*
+    =.  cor  (pass-activity [%club id] a)
+    cu-core
+  ::
   ++  cu-pass
     |%
     ++  act
@@ -1236,6 +1272,9 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
+        =/  concern  [%post [. q]:p.diff.delta]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  cu-core  (cu-activity concern content.memo mention)
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1267,6 +1306,10 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
+          =/  top-con  [. q]:p.diff.delta
+          =/  concern  [%reply [. q]:id.q.diff.delta top-con]
+          =/  mention  (was-mentioned:utils content.memo our.bowl)
+          =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1514,6 +1557,11 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-area-writs  `path`/dm/(scot %p ship)/writs
   ::
+  ++  di-activity  !.
+    |*  a=*
+    =.  cor  (pass-activity [%ship ship] a)
+    di-core
+  ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -1552,6 +1600,8 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
+    =?  di-core  &(=(net.dm %invited) !=(ship our.bowl))
+      (di-activity [%invite ~] *story:d &)
     ?-  -.q.diff
         ?(%del %add-react %del-react)  (di-give-writs-diff diff)
     ::
@@ -1575,6 +1625,11 @@
         ~
       =?  cor  (want-hark %to-us)
         (emit (pass-yarn new-yarn))
+      =/  concern
+        ?:  =(net.dm %invited)  [%invite ~]
+        [%post [. q]:p.diff]
+      =/  mention  (was-mentioned:utils content.memo our.bowl)
+      =.  di-core  (di-activity concern content.memo mention)
       (di-give-writs-diff diff)
     ::
         %reply
@@ -1605,6 +1660,10 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
+        =/  top-con  [. q]:p.diff
+        =/  concern  [%reply [. q]:id.q.diff top-con]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)
       ==
     ==
