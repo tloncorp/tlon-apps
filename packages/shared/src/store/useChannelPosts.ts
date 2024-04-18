@@ -15,10 +15,8 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       postsLogger.log('unmount', options);
     };
   }, []);
-  const initialPageParam = useMemo(() => ({ ...options }), []);
   return useInfiniteQuery({
-    // TODO: why doesn't initialPageParam work?
-    initialPageParam,
+    initialPageParam: options,
     queryFn: async (ctx): Promise<db.PostWithRelations[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log(
@@ -46,14 +44,8 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       return secondResult ?? [];
     },
     queryKey: [
-      ['channel', initialPageParam.channelId],
+      ['channel', options.channelId],
       useKeyFromQueryDeps(db.getChannelPosts),
-      [
-        initialPageParam.cursor,
-        initialPageParam.date,
-        initialPageParam.direction,
-        initialPageParam.count,
-      ],
     ],
     getNextPageParam: (lastPage): db.GetChannelPostsOptions | undefined => {
       if (!lastPage[lastPage.length - 1]?.id) return undefined;
