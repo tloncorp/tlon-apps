@@ -13,7 +13,7 @@
     ==
   ::
   +$  state-0
-    [%0 =stream:a =indices:a =volume:a]
+    [%0 =stream:a =indices:a =volume-settings:a]
   --
 ::
 =|  state-0
@@ -223,7 +223,7 @@
     ?.  (has:on-event:a stream t)  t
     $(t +(t))
   =.  cor
-    (give %fact ~[/] activity-event+!>([time-id event]))
+    (give %fact ~[/] activity-update+!>([%added time-id event]))
   =?  cor  (notifiable event)
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  stream
@@ -308,13 +308,14 @@
   |=  =event:a
   ^-  ?
   =/  index  (determine-index event)
-  =/  =index-level:a
+  =/  =volume:a
     ?~  index  %soft
-    (~(gut by volume) u.index %soft)
-  ?-  index-level
+    (~(gut by volume-settings) u.index %soft)
+  ?-  level
       %loud  &
       %hush  |
-      %soft
+      %soft  |
+      %default
     .=  %notify
     (~(gut by loudness) (determine-flavor event) %default)
   ==
@@ -450,10 +451,10 @@
   (give %fact ~[/unreads] activity-index-unreads+!>([index (summarize-unreads [stream reads])]))
 ::
 ++  adjust
-  |=  [=index:a =index-level:a]
+  |=  [=index:a =volume:a]
   ^+  cor
-  =.  volume
-    (~(put by volume) index index-level)
+  =.  volume-settings
+    (~(put by volume-settings) index volume)
   cor
 ::
 ++  summarize-unreads
