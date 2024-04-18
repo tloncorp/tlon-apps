@@ -19,3 +19,15 @@ export function createDevLogger(tag: string, enabled: boolean) {
     },
   });
 }
+
+export async function logDuration<T>(
+  label: string,
+  logger: Console,
+  fn: () => Promise<T>
+) {
+  const start = Date.now();
+  logger.log('start:' + label);
+  const result = await fn();
+  logger.log(label, 'took', Date.now() - start, 'ms');
+  return result;
+}

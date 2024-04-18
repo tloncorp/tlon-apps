@@ -1,6 +1,7 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
@@ -65,16 +66,16 @@ export const syncStaleChannels = async ({
     await db.getStaleChannels()
   );
   for (let channel of channels) {
-    try {
-      await syncChannel(channel.id, channel.unread.updatedAt);
-    } catch (e) {
-      logger.log(
-        'sync failed for channel id',
-        channel.id,
-        e instanceof Error ? e.message : ''
-      );
-    }
+    syncQueue.add(channel.id, () => {
+      return syncChannel(channel.id, channel.unread.updatedAt);
+    });
   }
+};
+
+export const clearSyncQueue = () => {
+  // TODO: Model all sync functions as syncQueue.add calls so that this works on
+  // more than just `syncStaleChannels`
+  syncQueue.clear();
 };
 
 /**
@@ -186,7 +187,7 @@ export const start = async () => {
   const enabledOperations: [string, () => Promise<void>][] = [
     ['initData', syncInitData],
     ['contacts', syncContacts],
-    ['staleChannels', syncStaleChannels],
+    ['channels', syncStaleChannels],
   ];
 
   api.subscribeUnreads(handleUnreadUpdate);

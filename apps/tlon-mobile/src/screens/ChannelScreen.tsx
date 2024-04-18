@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { JSONContent } from '@tiptap/core';
 import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
@@ -13,6 +14,12 @@ import type { HomeStackParamList } from '../types';
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
+  useFocusEffect(
+    useCallback(() => {
+      store.clearSyncQueue();
+    }, [])
+  );
+
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
@@ -77,8 +84,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       console.error(error);
     }
   }, [error]);
-
-  // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
   const handleScrollEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {

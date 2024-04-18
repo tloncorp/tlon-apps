@@ -1,8 +1,9 @@
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { ChatList, ChatOptionsSheet, View } from '@tloncorp/ui';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { HomeStackParamList } from '../types';
@@ -17,6 +18,12 @@ export default function ChatListScreen(props: ChatListScreenProps) {
     React.useState<db.Channel | null>(null);
   const { data: chats } = store.useCurrentChats();
   const insets = useSafeAreaInsets();
+
+  useFocusEffect(
+    useCallback(() => {
+      store.syncStaleChannels();
+    }, [])
+  );
 
   return (
     <View paddingTop={insets.top} backgroundColor="$background" flex={1}>
