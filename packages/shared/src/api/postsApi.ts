@@ -371,7 +371,6 @@ export function toPostData(
   };
 }
 
-// We treat
 export function getCanonicalPostId(inputId: string) {
   let id = inputId;
   // Dm and club posts come prefixed with the author, so we strip it
