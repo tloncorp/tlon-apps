@@ -15,7 +15,7 @@ export interface MessageInputProps {
 export const MessageInputContainer = ({
   children,
   onPressSend,
-}: PropsWithChildren<{ onPressSend: () => void }>) => {
+}: PropsWithChildren<{ onPressSend?: () => void }>) => {
   return (
     <XStack
       paddingHorizontal="$m"

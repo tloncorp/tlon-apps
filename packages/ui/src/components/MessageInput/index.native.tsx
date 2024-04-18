@@ -1,6 +1,7 @@
 import {
   BridgeExtension,
   EditorMessage,
+  PlaceholderBridge,
   RichText,
   TenTapStartKit,
   useBridgeState,
