@@ -1,6 +1,10 @@
 import { deSig } from '@urbit/aura';
 import { Urbit } from '@urbit/http-api';
 
+import { createDevLogger } from '../debug';
+
+const logger = createDevLogger('urbit', true);
+
 const config = {
   shipName: '',
   shipUrl: '',
@@ -31,15 +35,16 @@ export function configureClient({
   fetchFn?: typeof fetch;
   verbose?: boolean;
 }) {
+  logger.log('configuring client', shipName, shipUrl);
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
   clientInstance.ship = deSig(shipName);
   clientInstance.verbose = verbose;
   clientInstance.on('status-update', (status) => {
-    console.log(`client status:`, status);
+    logger.log('status-update', status);
   });
 
   clientInstance.on('error', (error) => {
-    console.error('client error:', error);
+    logger.log('error', error);
   });
 }
 
@@ -69,14 +74,14 @@ export function subscribe<T>(
     app: endpoint.app,
     path: endpoint.path,
     event: (data: T) => {
-      console.debug(
+      logger.debug(
         `got subscription event on ${printEndpoint(endpoint)}:`,
         data
       );
       handler(data);
     },
     err: (error) => {
-      console.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
+      logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
     },
   });
 }
@@ -84,7 +89,7 @@ export function subscribe<T>(
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);
   config.shipUrl = shipUrl;
-  console.debug('Configured new Urbit API for', shipName);
+  logger.debug('Configured new Urbit API for', shipName);
 };
 
 export const poke = async ({
@@ -95,19 +100,37 @@ export const poke = async ({
   app: string;
   mark: string;
   json: any;
-}) =>
-  clientInstance?.poke({
+}) => {
+  logger.log('poke', app, mark, json);
+  return clientInstance?.poke({
     app,
     mark,
     json,
   });
+};
+
+export class BadResponseError extends Error {
+  constructor(
+    public status: number,
+    public body: string
+  ) {
+    super();
+  }
+}
 
 export const scry = async <T>({ app, path }: { app: string; path: string }) => {
-  return fetch(`${config.shipUrl}/~/scry/${app}${path}.json`, {
+  logger.log('scry', app, path);
+  const res = await fetch(`${config.shipUrl}/~/scry/${app}${path}.json`, {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
     credentials: 'include',
-  }).then((res) => res.json()) as Promise<T>;
+  });
+  if (!res.ok) {
+    logger.log('bad scry', app, path, res.status);
+    const body = await res.text();
+    throw new BadResponseError(res.status, body);
+  }
+  return (await res.json()) as T;
 };

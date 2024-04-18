@@ -183,7 +183,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           unread: {
             recency: 0,
             count: 0,
-            unread: { id: '', count: 0 },
+            unread: { id: '', time: '', count: 0 },
             threads: {},
           },
           readTimeout: 0,

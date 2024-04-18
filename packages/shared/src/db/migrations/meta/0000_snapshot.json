@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "2f70dd04-f8d9-44b4-a7e5-8c635500533c",
+  "id": "e23487d2-fb61-49e7-aafb-308a5a537d0d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -827,19 +827,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "post_reactions_contact_id_contacts_id_fk": {
-          "name": "post_reactions_contact_id_contacts_id_fk",
-          "tableFrom": "post_reactions",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "post_reactions_post_id_posts_id_fk": {
           "name": "post_reactions_post_id_posts_id_fk",
           "tableFrom": "post_reactions",
@@ -896,6 +883,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "type": {
           "name": "type",
           "type": "text",
@@ -945,6 +939,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "reply_time": {
+          "name": "reply_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reply_contact_ids": {
+          "name": "reply_contact_ids",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "text_content": {
           "name": "text_content",
           "type": "text",
@@ -986,6 +994,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
         }
       },
       "indexes": {},

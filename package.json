@@ -8,14 +8,20 @@
   ],
   "scripts": {
     "build:shared": "npm run build --prefix ./packages/shared",
-    "build:web": "npm run build:shared && npm run build --prefix ./apps/tlon-web",
+    "build:ui": "npm run build --prefix ./packages/ui",
+    "build:editor": "npm run build --prefix ./packages/editor",
+    "build:web": "npm run build --prefix ./apps/tlon-web",
+    "build:mobile": "npm run build --prefix ./apps/tlon-mobile",
+    "build:apps": "npm run build:mobile",
+    "build:packages": "npm run build:shared && npm run build:ui && npm run build:editor",
+    "build:all": "npm run build:packages && npm run build:apps",
     "dev:shared": "npm run dev --prefix ./packages/shared",
     "dev:android": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run android --prefix ./apps/tlon-mobile\"",
     "dev:ios": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run ios --prefix ./apps/tlon-mobile\"",
     "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./apps/tlon-web\"",
     "test": "npm run test --workspaces --if-present -- run -u",
     "prepare": "husky",
-    "postinstall": "npx patch-package"
+    "postinstall": "npx patch-package && npm run build:all"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",

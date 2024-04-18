@@ -1,5 +1,9 @@
+import { formatUd, unixToDa } from '@urbit/aura';
+import {useMemo} from 'react';
+
 import * as ub from './channel';
 import * as ubc from './content';
+import * as ubd from './dms';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -14,6 +18,85 @@ export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
+}
+
+export function preSig(ship: string): string {
+  if (!ship) {
+    return '';
+  }
+
+  if (ship.trim().startsWith('~')) {
+    return ship.trim();
+  }
+
+  return '~'.concat(ship.trim());
+}
+
+export function getFirstInline(content: ub.Story) {
+  const inlines = content.filter((v) => 'inline' in v) as ub.VerseInline[];
+  if (inlines.length === 0) {
+    return null;
+  }
+
+  return inlines[0].inline;
+}
+
+export function citeToPath(cite: ub.Cite) {
+  if ('desk' in cite) {
+    return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
+  }
+  if ('chan' in cite) {
+    return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
+  }
+  if ('group' in cite) {
+    return `/1/group/${cite.group}`;
+  }
+
+  return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
+}
+
+export function pathToCite(path: string): ub.Cite | undefined {
+  const segments = path.split('/');
+  if (segments.length < 3) {
+    return undefined;
+  }
+  const [, ver, kind, ...rest] = segments;
+  if (ver !== '1') {
+    return undefined;
+  }
+  if (kind === 'chan') {
+    if (rest.length < 3) {
+      return undefined;
+    }
+    const nest = rest.slice(0, 3).join('/');
+    return {
+      chan: {
+        nest,
+        where: `/${rest.slice(3).join('/')}` || '/',
+      },
+    };
+  }
+  if (kind === 'desk') {
+    if (rest.length < 2) {
+      return undefined;
+    }
+    const flag = rest.slice(0, 2).join('/');
+    return {
+      desk: {
+        flag,
+        where: `/${rest.slice(2).join('/')}` || '/',
+      },
+    };
+  }
+  if (kind === 'group') {
+    if (rest.length !== 2) {
+      return undefined;
+    }
+    return {
+      group: rest.join('/'),
+    };
+  }
+  return undefined;
 }
 
 //  encode the string into @ta-safe format, using logic from +wood.
@@ -150,4 +233,69 @@ export function getInlineContent(inline: ubc.Inline): string {
   } else {
     return inline;
   }
+}
+
+function makeId(our: string) {
+  const sent = Date.now();
+  return {
+    id: `${our}/${formatUd(unixToDa(sent))}`,
+    sent,
+  };
+}
+
+export function createMessage(
+  our: string,
+  mem: ub.PostEssay,
+  replying?: string
+): {
+  id: string;
+  cacheId: ub.CacheId;
+  delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
+} {
+  const { id, sent } = makeId(our);
+  const cacheId = { author: mem.author, sent };
+  const memo: Omit<ub.PostEssay, 'kind-data'> = {
+    content: mem.content,
+    author: mem.author,
+    sent,
+  };
+
+  let delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
+  if (!replying) {
+    delta = {
+      add: {
+        memo,
+        kind: null,
+        time: null,
+      },
+    };
+  } else {
+    delta = {
+      reply: {
+        id,
+        meta: null,
+        delta: {
+          add: {
+            memo,
+            time: null,
+          },
+        },
+      },
+    };
+  }
+
+  return { id, cacheId, delta };
+}
+
+
+export function whomIsDm(whom: string): boolean {
+  return whom.startsWith('~') && !whom.match('/');
+}
+
+export function whomIsMultiDm(whom: string): boolean {
+  return whom.startsWith(`0v`);
+}
+
+export function useIsDmOrMultiDm(whom: string) {
+  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }

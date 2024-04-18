@@ -6,9 +6,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
+    "preinstall": "rm -f ./tsconfig.tsbuildinfo",
     "dev": "npm run build -- --watch",
     "dev:migrations": "concurrently \"npm run watch-migrations\" \"npm run dev\"",
-    "postinstall": "npm run build",
     "test": "vitest",
     "types": "tsc",
     "lint:format": "prettier src/ --write",
@@ -33,6 +33,13 @@
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "@tiptap/core": "^2.0.3",
+    "@tiptap/pm": "^2.0.3",
+    "@tiptap/react": "^2.0.3",
+    "@tiptap/suggestion": "^2.0.3"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.9.5"
   }
 }

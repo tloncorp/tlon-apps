@@ -1,30 +1,88 @@
+import type { JSONContent } from '@tiptap/core';
+import { Poke } from '@urbit/http-api';
+
 import * as db from '../db';
+import { JSONToInlines } from '../logic/tiptap';
 import * as ub from '../urbit';
 import {
   KindData,
   KindDataChat,
-  getChannelType,
+  checkNest,
+  constructStory,
   getTextContent,
 } from '../urbit';
-import { formatDateParam, formatUd, udToDate } from './converters';
-import { scry } from './urbit';
+import {
+  formatDateParam,
+  formatPostIdParam,
+  formatUd,
+  udToDate,
+} from './converters';
+import { BadResponseError, poke, scry } from './urbit';
 
-export const getChannelPosts = async (
+export function channelAction(
+  nest: ub.Nest,
+  action: ub.Action
+): Poke<ub.ChannelsAction> {
+  checkNest(nest);
+  return {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest,
+        action,
+      },
+    },
+  };
+}
+
+export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
+  checkNest(nest);
+
+  return channelAction(nest, {
+    post: action,
+  });
+}
+
+export const sendPost = async (
   channelId: string,
-  {
-    cursor,
-    date,
-    direction = 'older',
-    count = 20,
-    includeReplies = false,
-  }: {
-    cursor?: string;
-    date?: Date;
-    direction?: 'older' | 'newer' | 'around';
-    count?: number;
-    includeReplies?: boolean;
-  }
+  content: JSONContent,
+  author: string
 ) => {
+  const inlines = JSONToInlines(content);
+  const story = constructStory(inlines);
+
+  const essay: ub.PostEssay = {
+    content: story,
+    sent: Date.now(),
+    'kind-data': {
+      chat: null,
+    },
+    author,
+  };
+
+  await poke(
+    channelPostAction(channelId, {
+      add: essay,
+    })
+  );
+};
+
+export const getChannelPosts = async ({
+  channelId,
+  cursor,
+  date,
+  direction = 'older',
+  count = 20,
+  includeReplies = false,
+}: {
+  channelId: string;
+  cursor?: string;
+  date?: Date;
+  direction?: 'older' | 'newer' | 'around';
+  count?: number;
+  includeReplies?: boolean;
+}) => {
   if (cursor && date) {
     throw new Error('Cannot specify both cursor and date');
   }
@@ -32,39 +90,184 @@ export const getChannelPosts = async (
     throw new Error('Must specify either cursor or date');
   }
   const finalCursor = cursor ? cursor : formatDateParam(date!);
+  let app: 'chat' | 'channels';
+  let path: string;
+
   if (isDmChannelId(channelId)) {
     const mode = includeReplies ? 'heavy' : 'light';
-    const path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedWrits>({
-      app: 'chat',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
+    app = 'chat';
+    path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
   } else if (isGroupDmChannelId(channelId)) {
     const mode = includeReplies ? 'heavy' : 'light';
-    const path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedWrits>({
-      app: 'chat',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
-  } else {
+    path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    app = 'chat';
+  } else if (isGroupChannelId(channelId)) {
     const mode = includeReplies ? 'post' : 'outline';
-    const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-    const response = await scry<ub.PagedPosts>({
-      app: 'channels',
-      path,
-    });
-    return toPagedPostsData(channelId, response);
+    path = `/v1/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    app = 'channels';
+  } else {
+    throw new Error('invalid channel id');
   }
+
+  const response = await with404Handler(
+    scry<ub.PagedWrits>({
+      app,
+      path,
+    }),
+    { posts: [] }
+  );
+  return toPagedPostsData(channelId, response);
 };
 
+export async function addReaction(
+  channelId: string,
+  postId: string,
+  shortCode: string,
+  our: string
+) {
+  await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          post: {
+            'add-react': {
+              id: postId,
+              react: shortCode,
+              ship: our,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function removeReaction(
+  channelId: string,
+  postId: string,
+  our: string
+) {
+  return await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          post: {
+            'del-react': {
+              id: postId,
+              ship: our,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function showPost(channelId: string, postId: string) {
+  const action = {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      'toggle-post': {
+        show: postId,
+      },
+    },
+  };
+
+  return await poke(action);
+}
+
+export async function hidePost(channelId: string, postId: string) {
+  const action = {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      'toggle-post': {
+        hide: postId,
+      },
+    },
+  };
+
+  return await poke(action);
+}
+
+export async function deletePost(channelId: string, postId: string) {
+  const action = channelAction(channelId, {
+    post: {
+      del: postId,
+    },
+  });
+
+  // todo: we need to use a tracked poke here (or settle on a different pattern
+  // for expressing request response semantics)
+  return await poke(action);
+}
+
+export const getPostWithReplies = async ({
+  postId,
+  channelId,
+  authorId,
+}: {
+  postId: string;
+  channelId: string;
+  authorId: string;
+}) => {
+  if (
+    (!authorId && isDmChannelId(channelId)) ||
+    isGroupDmChannelId(channelId)
+  ) {
+    throw new Error(
+      'author id is required to fetch posts for a dm or group dm'
+    );
+  }
+
+  let app: 'chat' | 'channels';
+  let path: string;
+
+  if (isDmChannelId(channelId)) {
+    app = 'chat';
+    path = `/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+  } else if (isGroupDmChannelId(channelId)) {
+    app = 'chat';
+    path = `/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+  } else if (isGroupChannelId(channelId)) {
+    app = 'channels';
+    path = `/v1/${channelId}/posts/post/${postId}`;
+  } else {
+    throw new Error('invalid channel id');
+  }
+
+  const post = await scry<ub.Post>({
+    app,
+    path,
+  });
+
+  return toPostData(channelId, post);
+};
+
+async function with404Handler<T>(scryRequest: Promise<any>, defaultValue: T) {
+  try {
+    return await scryRequest;
+  } catch (e) {
+    if (e instanceof BadResponseError && e.status === 404) {
+      return defaultValue;
+    }
+    throw e;
+  }
+}
+
 export interface GetChannelPostsResponse {
-  older: string | null;
-  newer: string | null;
+  older?: string | null;
+  newer?: string | null;
   posts: db.PostInsert[];
-  deletedPosts: string[];
-  totalPosts: number;
+  deletedPosts?: string[];
+  totalPosts?: number;
 }
 
 export interface DeletedPost {
@@ -108,7 +311,10 @@ export function toPagedPostsData(
   };
 }
 
-export function toPostsData(channelId: string, posts: ub.Posts) {
+export function toPostsData(
+  channelId: string,
+  posts: ub.Posts | Record<string, ub.Reply>
+) {
   const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
     [string[], db.PostInsert[]]
   >(
@@ -116,7 +322,7 @@ export function toPostsData(channelId: string, posts: ub.Posts) {
       if (post === null) {
         memo[0].push(id);
       } else {
-        memo[1].push(toPostData(id, channelId, post));
+        memo[1].push(toPostData(channelId, post));
       }
       return memo;
     },
@@ -131,9 +337,8 @@ export function toPostsData(channelId: string, posts: ub.Posts) {
 }
 
 export function toPostData(
-  id: string,
   channelId: string,
-  post: ub.Post
+  post: ub.Post | ub.PostDataResponse
 ): db.PostInsert {
   const type = isNotice(post)
     ? 'notice'
@@ -141,7 +346,7 @@ export function toPostData(
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
-
+  const id = getCanonicalPostId(post.seal.id);
   return {
     id,
     channelId,
@@ -153,12 +358,66 @@ export function toPostData(
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
-    receivedAt: udToDate(id),
+    receivedAt: getReceivedAtFromId(id),
     replyCount: post?.seal.meta.replyCount,
-    images: getPostImages(post),
+    replyTime: post?.seal.meta.lastReply,
+    replyContactIds: post?.seal.meta.lastRepliers,
+    images: getContentImages(id, post.essay?.content),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
+    replies: isPostDataResponse(post)
+      ? getReplyData(id, channelId, post)
+      : null,
     ...flags,
   };
+}
+
+export function getCanonicalPostId(inputId: string) {
+  let id = inputId;
+  // Dm and club posts come prefixed with the author, so we strip it
+  if (id[0] === '~') {
+    id = id.split('/').pop()!;
+  }
+  // The id in group post ids doesn't come dot separated, so we format it
+  if (id[3] !== '.') {
+    id = formatUd(id);
+  }
+  return id;
+}
+
+function getReceivedAtFromId(postId: string) {
+  return udToDate(postId.split('/').pop() ?? postId);
+}
+
+function isPostDataResponse(
+  post: ub.Post | ub.PostDataResponse
+): post is ub.PostDataResponse {
+  return !!(post.seal.replies && !Array.isArray(post.seal.replies));
+}
+
+function getReplyData(
+  postId: string,
+  channelId: string,
+  post: ub.PostDataResponse
+): db.PostInsert[] {
+  return Object.entries(post.seal.replies ?? {}).map(([, reply]) => {
+    const [content, flags] = toPostContent(reply.memo.content);
+    const id = reply.seal.id;
+    return {
+      id,
+      channelId,
+      type: 'reply',
+      authorId: reply.memo.author,
+      parentId: postId,
+      reactions: toReactionsData(reply.seal.reacts, id),
+      content: JSON.stringify(content),
+      textContent: getTextContent(reply.memo.content),
+      sentAt: reply.memo.sent,
+      receivedAt: getReceivedAtFromId(id),
+      replyCount: 0,
+      images: getContentImages(id, reply.memo.content),
+      ...flags,
+    };
+  });
 }
 
 export function toPostContent(
@@ -237,7 +496,7 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
   }
 }
 
-function isNotice(post: ub.Post | null) {
+function isNotice(post: ub.Post | ub.PostDataResponse | null) {
   const kindData = post?.essay['kind-data'];
   return (
     kindData &&
@@ -251,10 +510,10 @@ function isChatData(data: KindData): data is KindDataChat {
   return 'chat' in (data ?? {});
 }
 
-function getPostImages(post: ub.Post | null) {
-  return (post?.essay.content || []).reduce<db.PostImage[]>((memo, story) => {
+function getContentImages(postId: string, content?: ub.Story | null) {
+  return (content || []).reduce<db.PostImage[]>((memo, story) => {
     if (ub.isBlock(story) && ub.isImage(story.block)) {
-      memo.push({ ...story.block.image, postId: post!.seal.id });
+      memo.push({ ...story.block.image, postId });
     }
     return memo;
   }, []);

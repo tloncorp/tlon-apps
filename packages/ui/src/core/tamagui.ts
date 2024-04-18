@@ -15,6 +15,7 @@ export {
   Spinner,
   TextArea,
   Text,
+  Dialog,
 } from 'tamagui';
 
 export type { ViewProps, SizeTokens, FontSizeTokens } from 'tamagui';

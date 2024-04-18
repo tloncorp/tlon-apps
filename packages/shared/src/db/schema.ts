@@ -282,11 +282,11 @@ export const groupNavSectionChannelsRelations = relations(
   })
 );
 
+export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+
 export const channels = sqliteTable('channels', {
   id: text('id').primaryKey(),
-  type: text('type')
-    .$type<'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm'>()
-    .notNull(),
+  type: text('type').$type<ChannelType>().notNull(),
   groupId: text('group_id').references(() => groups.id),
   ...metaFields,
   addedToGroupAt: timestamp('added_to_group_at'),
@@ -330,7 +330,10 @@ export const posts = sqliteTable('posts', {
   authorId: text('author_id').notNull(),
   channelId: text('channel_id').notNull(),
   groupId: text('group_id'),
-  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>().notNull(),
+  parentId: text('parent_id'),
+  type: text('type')
+    .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
+    .notNull(),
   title: text('title'),
   image: text('image'),
   content: text('content', { mode: 'json' }),
@@ -338,12 +341,17 @@ export const posts = sqliteTable('posts', {
   sentAt: timestamp('sent_at').notNull(),
   // client-side time
   replyCount: integer('reply_count'),
+  replyTime: timestamp('reply_time'),
+  replyContactIds: text('reply_contact_ids', {
+    mode: 'json',
+  }).$type<string[]>(),
   textContent: text('text_content'),
   hasAppReference: boolean('has_app_reference'),
   hasChannelReference: boolean('has_channel_reference'),
   hasGroupReference: boolean('has_group_reference'),
   hasLink: boolean('has_link'),
   hasImage: boolean('has_image'),
+  hidden: boolean('hidden').default(false),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
@@ -360,6 +368,11 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.authorId],
     references: [contacts.id],
   }),
+  parent: one(posts, {
+    fields: [posts.parentId],
+    references: [posts.id],
+  }),
+  replies: many(posts),
   images: many(postImages),
 }));
 
@@ -387,9 +400,7 @@ export const postImageRelations = relations(postImages, ({ one }) => ({
 export const postReactions = sqliteTable(
   'post_reactions',
   {
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     postId: text('post_id')
       .references(() => posts.id)
       .notNull(),

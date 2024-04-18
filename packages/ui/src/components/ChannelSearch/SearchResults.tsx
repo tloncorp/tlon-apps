@@ -10,10 +10,12 @@ import { SearchState } from './types';
 
 export function SearchResults({
   posts,
+  currentUserId,
   navigateToPost,
   search,
 }: {
   posts: db.PostInsertWithAuthor[];
+  currentUserId: string;
   navigateToPost: (post: db.PostWithRelations) => void;
   search: SearchState;
 }) {
@@ -74,7 +76,7 @@ export function SearchResults({
                       navigateToPost(post as unknown as db.PostWithRelations)
                     }
                   >
-                    <ChatMessage post={post} />
+                    <ChatMessage post={post} currentUserId={currentUserId} />
                   </View>
                 )}
                 ListFooterComponent={
