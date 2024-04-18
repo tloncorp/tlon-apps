@@ -56,12 +56,15 @@ async function handleUnreadUpdate(unread: db.Unread) {
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
+type StaleChannel = db.Channel & { unread: db.Unread };
+
 export const syncStaleChannels = async ({
   type,
 }: { type?: 'channel' | 'dm' } = {}) => {
-  const staleChannels = await db.getStaleChannels();
-
-  for (let channel of staleChannels) {
+  const channels: StaleChannel[] = optimizeChannelLoadOrder(
+    await db.getStaleChannels()
+  );
+  for (let channel of channels) {
     try {
       await syncChannel(channel.id, channel.unread.updatedAt);
     } catch (e) {
@@ -73,6 +76,31 @@ export const syncStaleChannels = async ({
     }
   }
 };
+
+/**
+ * Optimize load order for our current display. Starting with all channels
+ * ordered by update time, sort so recently updated dms are synced before all but
+ * the most recently updated channel of each group.
+ */
+function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
+  const seenGroups = new Set<string>();
+  const topChannels: StaleChannel[] = [];
+  const skippedChannels: StaleChannel[] = [];
+  const restOfChannels: StaleChannel[] = [];
+  channels.forEach((c) => {
+    if (topChannels.length < 10) {
+      if (!c.groupId || !seenGroups.has(c.groupId)) {
+        topChannels.push(c);
+        if (c.groupId) seenGroups.add(c.groupId);
+      } else {
+        skippedChannels.push(c);
+      }
+    } else {
+      restOfChannels.push(c);
+    }
+  });
+  return [...topChannels, ...skippedChannels, ...restOfChannels];
+}
 
 export async function syncPosts(options: db.GetChannelPostsOptions) {
   const response = await api.getChannelPosts(options);
