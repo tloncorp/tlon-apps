@@ -23,8 +23,6 @@ const ChatMessage = ({
   currentUserId: string;
   onPressReplies?: (post: db.PostInsert) => void;
 }) => {
-  // const group = useGroup(post.groupId ?? '');
-
   if (!post) {
     return null;
   }
