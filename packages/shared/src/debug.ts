@@ -26,8 +26,8 @@ export async function logDuration<T>(
   fn: () => Promise<T>
 ) {
   const start = Date.now();
-  logger.log('start:' + label);
+  logger.log('start:time:' + label);
   const result = await fn();
-  logger.log(label, 'took', Date.now() - start, 'ms');
+  logger.log('end:time:' + label + '', `(${Date.now() - start}ms)`);
   return result;
 }

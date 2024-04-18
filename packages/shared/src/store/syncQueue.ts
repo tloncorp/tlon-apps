@@ -13,6 +13,7 @@ class SyncQueue {
   concurrency = 2;
   queue: SyncOperation[];
   isSyncing: boolean;
+  activeThreads = 0;
 
   constructor() {
     this.queue = [];
@@ -21,10 +22,9 @@ class SyncQueue {
 
   add<T>(label: string, action: () => Promise<T>) {
     return new Promise<T>((resolve, reject) => {
+      logger.log('enqueue:' + label);
       this.queue.push({ label, action, resolve, reject });
-      if (!this.isSyncing) {
-        this.start();
-      }
+      this.syncNext();
     });
   }
 
@@ -34,27 +34,27 @@ class SyncQueue {
     oldQueue.forEach((p) => p.reject(new Error('Queue cleared')));
   }
 
-  async sync() {
+  async syncNext() {
+    if (this.activeThreads >= this.concurrency) return;
+    if (this.queue.length === 0) return;
+    const threadId = this.activeThreads++;
     while (this.queue.length) {
+      logger.log('next:thread:' + threadId, 'remaining:' + this.queue.length);
       const { label, action, resolve, reject } = this.queue.shift()!;
       try {
-        const result = await logDuration(label, logger, () => action());
-        resolve(result);
+        const result = await logDuration(label, logger, action);
+        setTimeout(() => resolve(result), 0);
       } catch (e) {
+        logger.log('failed:' + label, threadId, e);
         reject(e);
       }
+      logger.log(
+        'done:' + label,
+        'thread:' + threadId,
+        'remaining:' + this.queue.length
+      );
     }
-  }
-
-  async start() {
-    if (this.isSyncing) return;
-    this.isSyncing = true;
-    const threads = [];
-    for (let i = 0; i < this.concurrency; i++) {
-      threads.push(this.sync());
-    }
-    await Promise.all(threads);
-    this.isSyncing = false;
+    --this.activeThreads;
   }
 }
 

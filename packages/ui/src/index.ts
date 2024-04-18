@@ -18,5 +18,6 @@ export * from './components/SearchBar';
 export * from './components/ChannelSearch';
 export * from './components/LoadingSpinner';
 export * from './components/Button';
+export * from './components/ScreenHeader';
 export * from './tamagui.config';
 export * from './contexts';

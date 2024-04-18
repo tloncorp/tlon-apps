@@ -6,16 +6,20 @@ import { syncQueue } from './syncQueue';
 const logger = createDevLogger('sync', false);
 
 export const syncInitData = async () => {
-  const initData = await api.getInitData();
-  await db.insertPinnedItems(initData.pins);
-  await db.insertGroups(initData.groups);
-  await resetUnreads(initData.unreads);
-  await db.insertChannels(initData.channels);
+  return syncQueue.add('init', async () => {
+    const initData = await api.getInitData();
+    await db.insertPinnedItems(initData.pins);
+    await db.insertGroups(initData.groups);
+    await resetUnreads(initData.unreads);
+    await db.insertChannels(initData.channels);
+  });
 };
 
 export const syncContacts = async () => {
-  const contacts = await api.getContacts();
-  await db.insertContacts(contacts);
+  return syncQueue.add('contacts', async () => {
+    const contacts = await api.getContacts();
+    await db.insertContacts(contacts);
+  });
 };
 
 export const syncPinnedItems = async () => {
@@ -171,12 +175,13 @@ async function persistPagedPostData(
   });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
-    await db.insertPostReactions({
-      reactions: data.posts
-        .map((p) => p.reactions)
-        .flat()
-        .filter(Boolean) as db.ReactionInsert[],
-    });
+    const reactions = data.posts
+      .map((p) => p.reactions)
+      .flat()
+      .filter(Boolean) as db.ReactionInsert[];
+    if (reactions.length) {
+      await db.insertPostReactions({ reactions });
+    }
   }
   if (data.deletedPosts?.length) {
     await db.deletePosts({ ids: data.deletedPosts });
@@ -184,21 +189,7 @@ async function persistPagedPostData(
 }
 
 export const start = async () => {
-  const enabledOperations: [string, () => Promise<void>][] = [
-    ['initData', syncInitData],
-    ['contacts', syncContacts],
-    ['channels', syncStaleChannels],
-  ];
-
   api.subscribeUnreads(handleUnreadUpdate);
-
-  for (const [name, fn] of enabledOperations) {
-    try {
-      await runOperation(name, fn);
-    } catch (e) {
-      console.log(e);
-    }
-  }
 };
 
 async function runOperation(name: string, fn: () => Promise<void>) {

@@ -326,8 +326,6 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
-        if (group.posts) {
-        }
       }
     });
   },
@@ -974,13 +972,15 @@ export const insertUnreads = createWriteQuery(
       const threadUnreads = unreads.flatMap((u) => {
         return u.threadUnreads ?? [];
       });
-      await client
-        .insert($threadUnreads)
-        .values(threadUnreads)
-        .onConflictDoUpdate({
-          target: [$threadUnreads.threadId, $threadUnreads.channelId],
-          set: conflictUpdateSetAll($unreads),
-        });
+      if (threadUnreads.length) {
+        await client
+          .insert($threadUnreads)
+          .values(threadUnreads)
+          .onConflictDoUpdate({
+            target: [$threadUnreads.threadId, $threadUnreads.channelId],
+            set: conflictUpdateSetAll($unreads),
+          });
+      }
     });
   },
   ['unreads']

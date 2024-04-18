@@ -4,12 +4,16 @@ import type { PropsWithChildren } from 'react';
 export const FixtureWrapper = ({
   fillWidth,
   fillHeight,
+  verticalAlign,
+  horizontalAlign,
   children,
   backgroundColor,
   innerBackgroundColor,
 }: PropsWithChildren<{
   fillWidth?: boolean;
   fillHeight?: boolean;
+  verticalAlign?: 'top' | 'center' | 'bottom';
+  horizontalAlign?: 'left' | 'center' | 'right';
   backgroundColor?: string;
   innerBackgroundColor?: string;
 }>) => {
@@ -19,8 +23,22 @@ export const FixtureWrapper = ({
       backgroundColor={backgroundColor ?? '$secondaryBackground'}
       flex={1}
       flexDirection="column"
-      alignItems={fillWidth ? 'stretch' : 'center'}
-      justifyContent={fillHeight ? 'unset' : 'center'}
+      width={fillWidth ? '100%' : 'unset'}
+      height={fillHeight ? '100%' : 'unset'}
+      justifyContent={
+        verticalAlign === 'top'
+          ? 'flex-start'
+          : verticalAlign === 'bottom'
+            ? 'flex-end'
+            : 'center'
+      }
+      alignItems={
+        horizontalAlign === 'left'
+          ? 'flex-start'
+          : horizontalAlign === 'right'
+            ? 'flex-end'
+            : 'center'
+      }
     >
       <View
         //@ts-expect-error chill

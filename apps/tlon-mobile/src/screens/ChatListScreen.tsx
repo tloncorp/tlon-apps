@@ -1,11 +1,18 @@
-import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { ChatList, ChatOptionsSheet, View } from '@tloncorp/ui';
-import React, { useCallback } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  ChatList,
+  ChatOptionsSheet,
+  ScreenHeader,
+  Spinner,
+  View,
+} from '@tloncorp/ui';
+import { Add } from '@tloncorp/ui/src/assets/icons';
+import { IconButton } from '@tloncorp/ui/src/components/IconButton';
+import React from 'react';
 
+import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
 import type { HomeStackParamList } from '../types';
 
 type ChatListScreenProps = NativeStackScreenProps<
@@ -17,17 +24,24 @@ export default function ChatListScreen(props: ChatListScreenProps) {
   const [longPressedItem, setLongPressedItem] =
     React.useState<db.Channel | null>(null);
   const { data: chats } = store.useCurrentChats();
-  const insets = useSafeAreaInsets();
 
-  useFocusEffect(
-    useCallback(() => {
-      store.syncStaleChannels();
-    }, [])
-  );
+  const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
+  useRefetchQueryOnFocus(refetch);
 
   return (
-    <View paddingTop={insets.top} backgroundColor="$background" flex={1}>
-      {chats && (
+    <View backgroundColor="$background" flex={1}>
+      <ScreenHeader
+        title="Chats"
+        rightControls={
+          <>
+            {isFetchingInitData && <Spinner />}
+            <IconButton onPress={() => {}}>
+              <Add />
+            </IconButton>
+          </>
+        }
+      />
+      {chats && (chats.unpinned.length || !isFetchingInitData) && (
         <ChatList
           pinned={chats.pinned ?? []}
           unpinned={chats.unpinned ?? []}
