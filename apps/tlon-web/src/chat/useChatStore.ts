@@ -42,11 +42,7 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  handleUnread: (
-    whom: string,
-    unread: Unread,
-    markRead: (whm: string) => void
-  ) => void;
+  handleUnread: (whom: string, unread: Unread) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
   update: (unreads: Unreads) => void;

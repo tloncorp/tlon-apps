@@ -1336,3 +1336,7 @@ export function stringToSource(str: string): Source {
       throw new Error('Invalid activity source');
   }
 }
+
+export function sourceToUnreadKey(source: Source): string {
+  return sourceToString(source).replace(/\w*\//, '');
+}

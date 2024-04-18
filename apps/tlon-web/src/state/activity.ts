@@ -11,7 +11,7 @@ import { useRef } from 'react';
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { nestToFlag } from '@/logic/utils';
+import { nestToFlag, sourceToUnreadKey } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 export function activityAction(action: ActivityAction) {
@@ -57,31 +57,29 @@ export function useUnreads(): Unreads {
 
   const eventHandler = (event: ActivityReadUpdate) => {
     const { source, unread } = event.read;
-    if (!('channel' in source)) {
-      return;
-    }
-
-    const nest = source.channel;
-    if (unread !== null) {
+    const key = sourceToUnreadKey(source);
+    if ('dm' in source) {
+      useChatStore.getState().handleUnread(key, unread);
+    } else {
+      const nest = source.channel;
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
-        useChatStore
-          .getState()
-          .handleUnread(flag, unread, () => markRead({ source }));
+        useChatStore.getState().handleUnread(flag, unread);
+      }
+    }
+
+    queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
+      if (d === undefined) {
+        return undefined;
       }
 
-      queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
+      const newUnreads = { ...d };
 
-        const newUnreads = { ...d };
-        newUnreads[nest] = unread;
+      newUnreads[key] = unread;
 
-        return newUnreads;
-      });
-    }
+      return newUnreads;
+    });
 
     invalidate.current();
   };
