@@ -54,6 +54,7 @@ const ChannelFixture = () => {
           goToSearch={() => {}}
           goToChannels={() => setOpen(true)}
           goToPost={() => {}}
+          goToImageViewer={() => {}}
           messageSender={() => {}}
         />
         <ChannelSwitcherSheet

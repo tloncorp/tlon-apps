@@ -39,6 +39,7 @@ export default function ChatScroll({
   selectedPost,
   onStartReached,
   onEndReached,
+  onPressImage,
   onPressReplies,
   showReplies = true,
 }: {
@@ -51,6 +52,7 @@ export default function ChatScroll({
   selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
+  onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
   onPressReplies?: (post: db.PostInsert) => void;
   showReplies?: boolean;
 }) {
@@ -114,6 +116,7 @@ export default function ChatScroll({
             unreadCount={unreadCount}
             showReplies={showReplies}
             onPressReplies={onPressReplies}
+            onPressImage={onPressImage}
           />
         </PressableMessage>
       );
@@ -155,13 +158,13 @@ export default function ChatScroll({
         renderItem={renderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
+        contentContainerStyle={contentContainerStyle}
+        onScrollBeginDrag={handleContainerPressed}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+        inverted
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
-        contentContainerStyle={contentContainerStyle}
-        inverted
-        onScrollBeginDrag={handleContainerPressed}
-        onScrollToIndexFailed={handleScrollToIndexFailed}
       />
       <Modal
         visible={activeMessage !== null}

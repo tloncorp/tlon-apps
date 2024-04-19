@@ -13,6 +13,7 @@ const ChatMessage = ({
   firstUnread,
   unreadCount,
   onPressReplies,
+  onPressImage,
   showReplies,
   currentUserId,
 }: {
@@ -22,6 +23,7 @@ const ChatMessage = ({
   showReplies?: boolean;
   currentUserId: string;
   onPressReplies?: (post: db.PostInsert) => void;
+  onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
 }) => {
   if (!post) {
     return null;
@@ -76,7 +78,14 @@ const ChatMessage = ({
             You have hidden or flagged this message.
           </SizableText>
         ) : (
-          <ChatContent story={content} />
+          <ChatContent
+            story={content}
+            onPressImage={
+              onPressImage
+                ? (uri?: string) => onPressImage(post, uri)
+                : undefined
+            }
+          />
         )}
       </View>
       <ReactionsDisplay post={post} currentUserId={currentUserId} />
