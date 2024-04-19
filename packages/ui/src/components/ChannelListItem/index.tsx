@@ -2,7 +2,6 @@ import type * as db from '@tloncorp/shared/dist/db';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
-import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ChannelListItem({
@@ -26,17 +25,10 @@ export default function ChannelListItem({
         <ListItem.Title>{title}</ListItem.Title>
         {model.lastPost && (
           <ListItem.Subtitle>
-            {model.type !== 'dm' ? (
-              <>
-                <ContactName
-                  showAlias
-                  name={model.lastPost.authorId}
-                  size="$s"
-                />
-                :{' '}
-              </>
-            ) : null}
-            {model.lastPost.textContent ?? ''}
+            {model.type !== 'dm'
+              ? model.lastPost?.author?.nickname || model.lastPost.authorId
+              : null}{' '}
+            {model.lastPost.textContent ?? ' '}
           </ListItem.Subtitle>
         )}
       </ListItem.MainContent>

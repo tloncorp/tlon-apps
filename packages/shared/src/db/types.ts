@@ -89,14 +89,14 @@ export type ChannelWithRelations = Channel & {
 };
 export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
 export type ChannelWithLastPostAndMembers = Channel & {
-  lastPost: Post | null;
+  lastPost: PostInsertWithAuthor | null;
   members?: (ChatMember & { contact: Contact | null })[] | null;
   unread: Unread | null;
 };
 
 export type ChannelSummary = Channel & {
   unread: Unread | null;
-  lastPost: Post | null;
+  lastPost: Post & {author: Contact | null} | null;
   group: Group | null;
   members: (ChatMember & { contact: Contact | null })[] | null;
   pin?: Pin | null;

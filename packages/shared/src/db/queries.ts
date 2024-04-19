@@ -20,6 +20,7 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
@@ -134,6 +135,7 @@ export const getChats = createReadQuery(
       .union(groupChannels)
       .as('ac');
 
+    const $authors = alias($contacts, 'authors');
     const result = await client
       .select({
         ...allQueryColumns(allChannels),
@@ -141,6 +143,7 @@ export const getChats = createReadQuery(
         unread: getTableColumns($unreads),
         pin: getTableColumns($pins),
         lastPost: getTableColumns($posts),
+        lastPostAuthor: getTableColumns($authors),
         member: {
           ...getTableColumns($chatMembers),
         },
@@ -159,6 +162,7 @@ export const getChats = createReadQuery(
       .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
       .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
       .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
+      .leftJoin($authors, eq($authors.id, $posts.authorId))
       .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
     const [chatMembers, filteredChannels] = result.reduce<
       [
@@ -182,10 +186,16 @@ export const getChats = createReadQuery(
       [{}, [] as typeof result]
     );
 
-    return filteredChannels.map((c) => {
+    return filteredChannels.map(({ lastPost, lastPostAuthor, ...c }) => {
       return {
         ...c,
         members: chatMembers[c.id] ?? null,
+        lastPost: lastPost
+          ? {
+              ...lastPost,
+              author: lastPostAuthor ?? null,
+            }
+          : null,
       };
     });
   },
@@ -456,7 +466,11 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
     return await client.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
-        lastPost: true,
+        lastPost: {
+          with: {
+            author: true,
+          },
+        },
         members: {
           with: {
             contact: true,
