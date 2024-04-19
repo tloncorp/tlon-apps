@@ -19,7 +19,7 @@ import {
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 import { ReactElement, memo, useMemo } from 'react';
-import { Linking } from 'react-native';
+import { Linking, TouchableOpacity } from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
@@ -166,7 +166,13 @@ export function InlineContent({ story }: { story: Inline | null }) {
   );
 }
 
-export function BlockContent({ story }: { story: Block }) {
+export function BlockContent({
+  story,
+  onPressImage,
+}: {
+  story: Block;
+  onPressImage?: (src: string) => void;
+}) {
   // TODO add support for other embeds and refs
 
   if (isImage(story)) {
@@ -177,18 +183,23 @@ export function BlockContent({ story }: { story: Block }) {
     }
 
     return (
-      <Image
-        source={{
-          uri: story.image.src,
-          width: story.image.height,
-          height: story.image.width,
-        }}
-        alt={story.image.alt}
-        borderRadius="$m"
-        height={200}
-        width={200}
-        resizeMode="contain"
-      />
+      <TouchableOpacity
+        onPress={onPressImage ? () => onPressImage(story.image.src) : undefined}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{
+            uri: story.image.src,
+            width: story.image.height,
+            height: story.image.width,
+          }}
+          alt={story.image.alt}
+          borderRadius="$m"
+          height={200}
+          width={200}
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
     );
   }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
@@ -273,7 +284,13 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
   );
 });
 
-export default function ChatContent({ story }: { story: Story }) {
+export default function ChatContent({
+  story,
+  onPressImage,
+}: {
+  story: Story;
+  onPressImage?: (src: string) => void;
+}) {
   const storyInlines = useMemo(
     () =>
       (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
@@ -313,7 +330,13 @@ export default function ChatContent({ story }: { story: Story }) {
           {blockContent
             .filter((a) => !!a)
             .map((storyItem, key) => {
-              return <BlockContent key={key} story={storyItem.block} />;
+              return (
+                <BlockContent
+                  key={key}
+                  story={storyItem.block}
+                  onPressImage={onPressImage}
+                />
+              );
             })}
         </YStack>
       ) : null}

@@ -104,6 +104,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [props.navigation]
   );
 
+  const handleGoToImage = useCallback(
+    (post: db.PostInsert, uri?: string) => {
+      // @ts-expect-error TODO: fix typing for nested stack navigation
+      props.navigation.navigate('ImageViewer', { post, uri });
+    },
+    [props.navigation]
+  );
+
   if (!channel) {
     return null;
   }
@@ -130,6 +138,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goBack={props.navigation.goBack}
         messageSender={messageSender}
         goToPost={handleGoToPost}
+        goToImageViewer={handleGoToImage}
         goToChannels={() => setChannelNavOpen(true)}
         goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
         onScrollEndReached={handleScrollEndReached}
