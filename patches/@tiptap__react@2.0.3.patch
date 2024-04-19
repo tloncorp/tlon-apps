@@ -1,7 +1,7 @@
-diff --git a/node_modules/@tiptap/react/dist/index.js b/node_modules/@tiptap/react/dist/index.js
-index ca146b7..0b3b451 100644
---- a/node_modules/@tiptap/react/dist/index.js
-+++ b/node_modules/@tiptap/react/dist/index.js
+diff --git a/dist/index.js b/dist/index.js
+index ca146b7c9952320c5c607e82a936711ef6916228..8ae800886426e8413ef631aded1c290185ab768c 100644
+--- a/dist/index.js
++++ b/dist/index.js
 @@ -58,7 +58,7 @@ class PureEditorContent extends React.Component {
      }
      init() {

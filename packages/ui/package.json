@@ -13,7 +13,7 @@
     "build": "npx tamagui-build --skip-types && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/",
     "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/esm/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/esm/assets/icons/ && tamagui-build --watch --skip-types",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format"
+    "lint:all": "pnpm lint:format"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
@@ -28,6 +28,7 @@
     "expo-haptics": "^12.8.1",
     "lodash": "^4.17.21",
     "moti": "^0.28.1",
+    "@tloncorp/shared": "*",
     "react-native-context-menu-view": "^1.15.0",
     "react-native-reanimated": "^3.8.1",
     "react-native-safe-area-context": "^4.9.0",

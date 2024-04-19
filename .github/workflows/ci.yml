@@ -12,24 +12,28 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile, --strict-peer-dependencies]
 
       - name: Run Lint
-        run: npm run lint --workspaces --if-present
+        run: pnpm -r lint
 
       - name: Check Types
-        run: npm run tsc --workspaces --if-present
+        run: pnpm -r tsc
 
       - name: Run Tests
-        run: npm run test --workspaces --if-present -- run
+        run: pnpm -r test run
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
         working-directory: ./apps/tlon-web
 
       - name: Run E2E Tests for Groups
-        run: npm run e2e
+        run: pnpm e2e
         working-directory: ./apps/tlon-web
 
       - uses: actions/upload-artifact@v3
@@ -40,5 +44,5 @@ jobs:
           retention-days: 30
 
       - name: Build
-        run: npm run build
+        run: pnpm build
         working-directory: ./apps/tlon-web

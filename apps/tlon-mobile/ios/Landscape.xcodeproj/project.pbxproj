@@ -484,7 +484,7 @@
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
 				70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
-				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */,
+				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */,
 				70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */,
 			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
@@ -1270,7 +1270,7 @@
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
-				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
 			};
@@ -1363,7 +1363,7 @@
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
-				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
 				VALIDATE_PRODUCT = YES;
@@ -1420,7 +1420,7 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
@@ -1444,7 +1444,7 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire.git" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
 			requirement = {
@@ -1470,7 +1470,7 @@
 		};
 		70D386472A6098F800AFB46E /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */;
+			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire.git" */;
 			productName = Alamofire;
 		};
 		70D3866E2A60A3B300AFB46E /* UrsusSigil */ = {
@@ -1485,7 +1485,7 @@
 		};
 		70DBBFE22B7C60B50021EA96 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */;
+			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire.git" */;
 			productName = Alamofire;
 		};
 		70DBBFE42B7C60B50021EA96 /* UrsusSigil */ = {

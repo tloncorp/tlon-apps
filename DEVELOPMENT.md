@@ -10,9 +10,9 @@ These instructions are for working on the Tlon app as a developer at Tlon.
 
 ## Getting Started
 
-To get started working on Tlon, run `npm install` in the root directory.
+To get started working on Tlon, run `pnpm install` in the root directory.
 
-To develop, you'll need a running ship to point to. To do so you first need to add a `.env.local` file to the `apps/tlon-web` directory. This file will not be committed. Adding `VITE_SHIP_URL={URL}` (where **{URL}** is the URL of the ship you would like to point to) will allow you to run `npm run dev`. This will proxy all requests to the ship except for those powering the interface, which lets you work with live data.
+To develop, you'll need a running ship to point to. To do so you first need to add a `.env.local` file to the `apps/tlon-web` directory. This file will not be committed. Adding `VITE_SHIP_URL={URL}` (where **{URL}** is the URL of the ship you would like to point to) will allow you to run `pnpm dev`. This will proxy all requests to the ship except for those powering the interface, which lets you work with live data.
 
 Regardless of what you run to develop, Vite will hot-reload code changes as you work so you don't have to constantly refresh.
 
@@ -67,7 +67,7 @@ Since %groups has already been released and is now in the pill. It is very unlik
 
 Tlon is distributed via the Urbit network by way of a [glob](https://developers.urbit.org/reference/additional/dist/glob#-make-glob), or a Landscape application bundle. Instructions are as follows:
 
-1. Run `npm run build` in the `apps/tlon-web` directory, which outputs to `/dist`.
+1. Run `pnpm build` in the `apps/tlon-web` directory, which outputs to `/dist`.
 2. Create or launch an urbit using the -F flag.
 3. On that urbit, if you don't already have a desk to run from, run `|merge %work our %base` to create a new desk and mount it with `|mount %work`.
 4. Now the `%work` desk is accessible through the host OS's filesystem as a directory of that urbit's pier ie `~/zod/work`.

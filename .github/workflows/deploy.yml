@@ -24,9 +24,9 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Install Dependencies
-        run: npm ci
+        run: pnpm install
       - working-directory: ./apps/tlon-web
-        run: npm run build
+        run: pnpm build
       - uses: actions/upload-artifact@v3
         with:
           name: "ui-dist"
