@@ -31,7 +31,7 @@ export const ChatMessageReplySummary = React.memo(
               marginRight={i !== (replyContactIds?.length ?? 0) - 1 ? -8 : 0}
               borderColor="$background"
               borderWidth={2}
-              borderRadius={'$xs'}
+              borderRadius={'$2xs'}
             >
               <Avatar key={c} contactId={c} size="$xl" />
             </View>

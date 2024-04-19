@@ -21,7 +21,7 @@ export const ScreenHeaderComponent = ({
   return (
     <View
       paddingTop={insets.top}
-      borderBottomWidth={StyleSheet.hairlineWidth}
+      borderBottomWidth={1}
       borderBottomColor={'$border'}
     >
       <XStack
