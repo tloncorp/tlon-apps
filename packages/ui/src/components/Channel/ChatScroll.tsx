@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import React from 'react';
 import {
   Dimensions,
   FlatList,

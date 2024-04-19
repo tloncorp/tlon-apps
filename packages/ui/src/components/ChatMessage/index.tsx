@@ -1,12 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
-import { formatDistanceToNow } from 'date-fns';
 import { memo, useCallback, useMemo } from 'react';
-import React from 'react';
 
-import { useGroup } from '../../contexts';
-import { SizableText, View, XStack, YStack } from '../../core';
-import { Avatar } from '../Avatar';
+import { SizableText, View, YStack } from '../../core';
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -27,8 +23,6 @@ const ChatMessage = ({
   currentUserId: string;
   onPressReplies?: (post: db.PostInsert) => void;
 }) => {
-  const group = useGroup(post.groupId ?? '');
-
   if (!post) {
     return null;
   }

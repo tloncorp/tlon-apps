@@ -14,6 +14,7 @@ export const useScreenOptions = (
     headerTitle: '',
     headerBackTitleVisible: false,
     headerShadowVisible: false,
+    gestureEnabled: true,
     headerStyle: {
       backgroundColor: isDarkMode ? '#000' : '#fff',
     },

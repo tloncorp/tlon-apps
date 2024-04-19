@@ -13,6 +13,8 @@ export function IconButton({
   return (
     <Button
       size={size}
+      width="$3xl"
+      height="$3xl"
       onPress={onPress}
       // borderWidth="unset" because otherwise it would be set to 1px
       // and we don't want that for an icon button
