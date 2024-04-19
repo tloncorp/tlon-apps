@@ -47,10 +47,18 @@ export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
 export const sendPost = async (
   channelId: string,
   content: JSONContent,
-  author: string
+  author: string,
+  blocks?: ub.Block[]
 ) => {
   const inlines = JSONToInlines(content);
   const story = constructStory(inlines);
+  if (blocks && blocks.length > 0) {
+    story.push(...blocks.map((b) => ({ block: b })));
+  }
+
+  console.log({
+    blocks,
+  });
 
   const essay: ub.PostEssay = {
     content: story,

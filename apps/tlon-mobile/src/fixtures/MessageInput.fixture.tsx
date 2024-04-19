@@ -14,6 +14,9 @@ const MessageInputFixture = () => {
           setShouldBlur={setInputShouldBlur}
           send={() => {}}
           channelId="channel-id"
+          imageAttachment={null}
+          setImageAttachment={() => {}}
+          resetImageAttachment={() => {}}
         />
       </View>
     </FixtureWrapper>

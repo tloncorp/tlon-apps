@@ -55,6 +55,9 @@ const ChannelFixture = () => {
           goToChannels={() => setOpen(true)}
           goToPost={() => {}}
           messageSender={() => {}}
+          imageAttachment={null}
+          setImageAttachment={() => {}}
+          resetImageAttachment={() => {}}
         />
         <ChannelSwitcherSheet
           open={open}

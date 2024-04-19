@@ -94,7 +94,8 @@
     "tailwind-rn": "^4.2.0",
     "text-encoding": "^0.7.0",
     "web-streams-polyfill": "^3.3.3",
-    "expo-av": "~13.10.5"
+    "expo-av": "~13.10.5",
+    "expo-image-picker": "~14.7.1"
   },
   "devDependencies": {
     "@react-native/metro-config": "^0.73.5",

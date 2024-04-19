@@ -9,6 +9,7 @@ import {
 } from '@10play/tentap-editor';
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import { ShortcutsBridge } from '@tloncorp/editor/src/bridges/shortcut';
+import type * as ub from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
@@ -54,6 +55,10 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
+  setImageAttachment,
+  imageAttachment,
+  uploadedImage,
+  resetImageAttachment,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(0);
   const editor = useEditorBridge({
@@ -94,7 +99,22 @@ export function MessageInput({
 
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
-      await send(json, channelId);
+      const blocks: ub.Block[] = [];
+
+      console.log({ uploadedImage });
+
+      if (uploadedImage) {
+        blocks.push({
+          image: {
+            src: uploadedImage.url,
+            height: uploadedImage.size ? uploadedImage.size[0] : 200,
+            width: uploadedImage.size ? uploadedImage.size[1] : 200,
+            alt: 'image',
+          },
+        });
+      }
+
+      await send(json, channelId, blocks);
 
       editor.setContent('');
     });
@@ -136,7 +156,12 @@ export function MessageInput({
   );
 
   return (
-    <MessageInputContainer onPressSend={handleSend}>
+    <MessageInputContainer
+      setImageAttachment={setImageAttachment}
+      onPressSend={handleSend}
+      uploadedImage={uploadedImage}
+      resetImageAttachment={resetImageAttachment}
+    >
       <XStack
         borderRadius="$xl"
         minHeight="$4xl"

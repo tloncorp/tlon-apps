@@ -4,6 +4,7 @@ import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
 import { useShip } from '../contexts/ship';
+import { useStorage } from '../hooks/storage/storage';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
@@ -23,6 +24,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
     sync.start().catch((e) => {
       console.warn('Sync failed', e);
     });
+    useStorage.getState().start();
   }, [ship, shipUrl]);
 
   return (

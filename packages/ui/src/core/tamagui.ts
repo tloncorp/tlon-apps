@@ -16,6 +16,8 @@ export {
   TextArea,
   Text,
   Dialog,
+  Popover,
+  Separator,
 } from 'tamagui';
 
 export type { ViewProps, SizeTokens, FontSizeTokens } from 'tamagui';

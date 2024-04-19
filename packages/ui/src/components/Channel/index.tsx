@@ -1,5 +1,7 @@
 import { JSONContent } from '@tiptap/core';
 import * as db from '@tloncorp/shared/dist/db';
+import * as ub from '@tloncorp/shared/dist/urbit';
+import { Upload } from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -28,8 +30,12 @@ export function Channel({
   goToSearch,
   goToPost,
   messageSender,
+  imageAttachment,
+  setImageAttachment,
   onScrollEndReached,
   onScrollStartReached,
+  uploadedImage,
+  resetImageAttachment,
   // TODO: implement gallery and notebook
   type,
   isLoadingPosts,
@@ -45,7 +51,15 @@ export function Channel({
   goToChannels: () => void;
   goToPost: (post: db.PostInsert) => void;
   goToSearch: () => void;
-  messageSender: (content: JSONContent, channelId: string) => void;
+  messageSender: (
+    content: JSONContent,
+    channelId: string,
+    blocks: ub.Block[]
+  ) => void;
+  imageAttachment: string | null;
+  setImageAttachment: (image: string | null) => void;
+  uploadedImage?: Upload | null;
+  resetImageAttachment: () => void;
   type?: 'chat' | 'gallery' | 'notebook';
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
@@ -96,6 +110,10 @@ export function Channel({
                   setShouldBlur={setInputShouldBlur}
                   send={messageSender}
                   channelId={channel.id}
+                  setImageAttachment={setImageAttachment}
+                  imageAttachment={imageAttachment}
+                  uploadedImage={uploadedImage}
+                  resetImageAttachment={resetImageAttachment}
                 />
               </YStack>
             </KeyboardAvoidingView>
