@@ -18,8 +18,13 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
-import { ReactElement, memo, useMemo } from 'react';
-import { Linking, TouchableOpacity } from 'react-native';
+import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ImageLoadEventData,
+  Linking,
+  NativeSyntheticEvent,
+  TouchableOpacity,
+} from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
@@ -34,7 +39,7 @@ function ShipMention({ ship }: { ship: string }) {
       backgroundColor="$positiveBackground"
       paddingHorizontal="$xs"
       paddingVertical={0}
-      borderRadius="$m"
+      borderRadius="$s"
     >
       <Text color="$positiveActionText" fontSize="$m">
         <ContactName name={ship} showAlias />
@@ -102,9 +107,9 @@ export function InlineContent({ story }: { story: Inline | null }) {
     return (
       <Text
         fontFamily="$mono"
-        backgroundColor="$gray100"
+        backgroundColor="$secondaryBackground"
         padding="$xs"
-        borderRadius="$xl"
+        borderRadius="$s"
       >
         {story['inline-code']}
       </Text>
@@ -114,16 +119,16 @@ export function InlineContent({ story }: { story: Inline | null }) {
   if (isBlockCode(story)) {
     return (
       <View
-        backgroundColor="$gray100"
+        backgroundColor="$secondaryBackground"
         padding="$m"
-        borderRadius="$xl"
+        borderRadius="$s"
         marginBottom="$m"
       >
         <Text
           fontFamily="$mono"
           padding="$m"
-          borderRadius="$xl"
-          backgroundColor="$gray100"
+          borderRadius="$s"
+          backgroundColor="$secondaryBackground"
         >
           {story.code}
         </Text>
@@ -175,6 +180,16 @@ export function BlockContent({
 }) {
   // TODO add support for other embeds and refs
 
+  const [aspect, setAspect] = useState<number | null>(null);
+
+  const handleImageLoaded = useCallback(
+    (e: NativeSyntheticEvent<ImageLoadEventData>) => {
+      //@ts-expect-error TODO: figure out why the type is wrong here.
+      setAspect(e.nativeEvent.width / e.nativeEvent.height);
+    },
+    []
+  );
+
   if (isImage(story)) {
     const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
 
@@ -195,8 +210,9 @@ export function BlockContent({
           }}
           alt={story.image.alt}
           borderRadius="$m"
-          height={200}
+          onLoad={handleImageLoaded}
           width={200}
+          height={aspect ? 200 / aspect : 100}
           resizeMode="contain"
         />
       </TouchableOpacity>
@@ -221,17 +237,17 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
     } else if (typeof inline === 'string') {
       if (utils.isSingleEmoji(inline)) {
         currentLine.push(
-          <Text
-            key={`emoji-${inline}-${index}`}
-            paddingTop="$xl"
-            fontSize="$xl"
-          >
+          <Text key={`emoji-${inline}-${index}`} fontSize="$xl">
             {inline}
           </Text>
         );
       } else {
         currentLine.push(
-          <Text key={`string-${inline}-${index}`} fontSize="$m">
+          <Text
+            key={`string-${inline}-${index}`}
+            fontSize="$m"
+            lineHeight={'$m'}
+          >
             {inline}
           </Text>
         );
@@ -241,7 +257,7 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
         <YStack
           key={`blockquote-${index}`}
           borderLeftWidth={2}
-          borderColor="$gray100"
+          borderColor="$border"
           paddingLeft="$l"
         >
           {Array.isArray(inline.blockquote) ? (

@@ -56,14 +56,14 @@ const ChatMessage = ({
   }, [onPressReplies]);
 
   return (
-    <YStack key={post.id} gap="$l">
-      <YStack alignItems="center">
-        {isUnread && unreadCount && (
+    <YStack key={post.id} gap="$l" paddingVertical="$l">
+      {isUnread && unreadCount && (
+        <YStack alignItems="center">
           <SizableText size="$s" fontWeight="$l">
             {unreadCount} unread messages • "Today"
           </SizableText>
-        )}
-      </YStack>
+        </YStack>
+      )}
       <View paddingLeft="$l">
         <AuthorRow
           author={post.author}
