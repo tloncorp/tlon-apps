@@ -14,6 +14,7 @@ import produce from 'immer';
 import _ from 'lodash';
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'react-native';
+import 'react-native-get-random-values';
 import create from 'zustand';
 
 import type { ShipInfo } from '../../contexts/ship';
