@@ -6,11 +6,8 @@ export const useInitialSync = () => {
   return useQuery({
     queryFn: async () => {
       try {
-        await Promise.all([
-          syncInitData(),
-          syncContacts(),
-          syncStaleChannels(),
-        ]);
+        await Promise.all([syncInitData(), syncContacts()]);
+        await syncStaleChannels();
       } catch (e) {
         console.log('SYNC ERROR', e);
       }
