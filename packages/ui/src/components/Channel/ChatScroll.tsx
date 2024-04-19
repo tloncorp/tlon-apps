@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import {
   PropsWithChildren,
@@ -28,6 +29,13 @@ import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import ChatMessage from '../ChatMessage';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
+
+interface Measurement {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export default function ChatScroll({
   posts,
@@ -94,18 +102,38 @@ export default function ChatScroll({
 
   const [activeMessage, setActiveMessage] =
     useState<db.PostWithRelations | null>(null);
-  const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
+  const [activeMeasurements, setActiveMeasurements] =
+    useState<Measurement | null>(null);
+  const modalReady = useMemo(
+    () => Boolean(activeMessage && activeMeasurements),
+    [activeMeasurements, activeMessage]
+  );
+
+  const registerMeasurement = useCallback(
+    (id: string, measurement: Measurement) => {
+      setTimeout(() => {
+        setActiveMeasurements(measurement);
+      }, 20);
+    },
+    [activeMessage, setActiveMeasurements]
+  );
+
+  const clearActive = useCallback(() => {
+    setActiveMessage(null);
+    setActiveMeasurements(null);
+  }, [setActiveMessage, setActiveMeasurements]);
 
   const handleSetActive = useCallback((active: db.PostWithRelations) => {
-    activeMessageRefs.current[active.id] = createRef();
     setActiveMessage(active);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
   const renderItem: ListRenderItem<db.PostWithRelations> = useCallback(
     ({ item }) => {
       return (
         <PressableMessage
-          ref={activeMessageRefs.current[item.id]}
+          id={item.id}
+          registerMeasurement={registerMeasurement}
           onLongPress={() => handleSetActive(item)}
           isActive={activeMessage?.id === item.id}
         >
@@ -117,6 +145,7 @@ export default function ChatScroll({
             showReplies={showReplies}
             onPressReplies={onPressReplies}
             onPressImage={onPressImage}
+            onLongPress={() => handleSetActive(item)}
           />
         </PressableMessage>
       );
@@ -166,15 +195,12 @@ export default function ChatScroll({
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
       />
-      <Modal
-        visible={activeMessage !== null}
-        onDismiss={() => setActiveMessage(null)}
-      >
-        {activeMessage !== null && (
+      <Modal visible={modalReady} onDismiss={clearActive}>
+        {modalReady && (
           <ChatMessageActions
             currentUserId={currentUserId}
-            post={activeMessage}
-            postRef={activeMessageRefs.current[activeMessage!.id]}
+            post={activeMessage!}
+            originalMessageLayout={activeMeasurements!}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
           />
@@ -188,10 +214,25 @@ function getPostId(post: db.Post) {
   return post.id;
 }
 
-const PressableMessage = forwardRef<
-  RNView,
-  PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
->(({ isActive, onLongPress, children }, ref) => {
+const PressableMessage = ({
+  id,
+  isActive,
+  onLongPress,
+  registerMeasurement,
+  children,
+}: PropsWithChildren<{
+  id: string;
+  isActive: boolean;
+  onLongPress: () => void;
+  registerMeasurement: (id: string, measurement: Measurement) => void;
+}>) => {
+  const layoutRef = useRef<RNView>(null);
+  const handleActiveLayout = useCallback(() => {
+    layoutRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+      registerMeasurement(id, { x: pageX, y: pageY, width, height });
+    });
+  }, []);
+
   return isActive ? (
     // need the extra React Native View for ref measurement
     <MotiView
@@ -205,7 +246,7 @@ const PressableMessage = forwardRef<
         },
       }}
     >
-      <RNView ref={ref}>
+      <RNView ref={layoutRef} onLayout={handleActiveLayout}>
         <View paddingVertical="$m">{children}</View>
       </RNView>
     </MotiView>
@@ -214,7 +255,7 @@ const PressableMessage = forwardRef<
       <View paddingVertical="$m">{children}</View>
     </Pressable>
   );
-});
+};
 
 const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (

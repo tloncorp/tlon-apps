@@ -14,6 +14,7 @@ const ChatMessage = ({
   unreadCount,
   onPressReplies,
   onPressImage,
+  onLongPress,
   showReplies,
   currentUserId,
 }: {
@@ -23,6 +24,7 @@ const ChatMessage = ({
   showReplies?: boolean;
   currentUserId: string;
   onPressReplies?: (post: db.PostInsert) => void;
+  onLongPress?: () => void;
   onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
 }) => {
   if (!post) {
@@ -85,6 +87,7 @@ const ChatMessage = ({
                 ? (uri?: string) => onPressImage(post, uri)
                 : undefined
             }
+            onLongPress={onLongPress}
           />
         )}
       </View>

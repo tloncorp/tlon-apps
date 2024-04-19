@@ -1,14 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { RefObject, useCallback, useEffect, useState } from 'react';
-import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSpring,
-} from 'react-native-reanimated';
+import { MotiView } from 'moti';
+import { useCallback, useEffect, useState } from 'react';
+import { Dimensions, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { View, XStack, YStack } from '../../core';
@@ -20,7 +15,7 @@ import { SizableEmoji } from '../Emoji/SizableEmoji';
 import { Icon } from '../Icon';
 import ChatMessageActionsList from './ChatMessageActionsList';
 
-interface LayoutStruct {
+interface Measurement {
   x: number;
   y: number;
   height: number;
@@ -30,123 +25,106 @@ interface LayoutStruct {
 export function ChatMessageActions({
   post,
   currentUserId,
-  postRef,
   channelType,
+  originalMessageLayout,
   onDismiss,
 }: {
   post: db.PostWithRelations;
   currentUserId: string;
-  postRef: RefObject<RNView>;
+  originalMessageLayout: Measurement;
   channelType: db.ChannelType;
   onDismiss: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
+  const MESSAGE_OFFSET_FROM_CONTAINER_TOP = 70;
 
-  const [actionLayout, setActionLayout] = useState<LayoutStruct | null>(null);
-  const [originalLayout, setOriginalLayout] = useState<LayoutStruct | null>(
-    null
-  );
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const scale = useSharedValue(0.3); // Start with a smaller scale
-  const opacity = useSharedValue(0);
+  const [actionLayout, setActionLayout] = useState<Measurement | null>(null);
+  const [translateY, setTranslateY] = useState(0);
 
   function handleLayout(event: LayoutChangeEvent) {
     const { height, width, x, y } = event.nativeEvent.layout;
     setActionLayout({ x, y, height, width });
   }
 
-  function calcVerticalPosition(): number {
-    if (actionLayout && originalLayout) {
-      const originalCenterY = originalLayout.y + originalLayout.height / 2;
-      let newY = originalCenterY - actionLayout.height / 2;
+  useEffect(() => {
+    if (actionLayout && originalMessageLayout) {
+      let newY = originalMessageLayout.y - MESSAGE_OFFSET_FROM_CONTAINER_TOP;
+      const totalHeight = actionLayout.height;
+      const screenHeight = Dimensions.get('window').height;
 
-      // Ensure the entire actionLayout is within the safe screen bounds
+      // Adjust newY to ensure the component does not clip off the bottom of the screen
       if (
-        newY + actionLayout.height >
-        Dimensions.get('window').height - insets.bottom - PADDING_THRESHOLD
+        newY + totalHeight >
+        screenHeight - insets.bottom - PADDING_THRESHOLD
       ) {
-        newY =
-          Dimensions.get('window').height -
-          insets.bottom -
-          actionLayout.height -
-          PADDING_THRESHOLD; // Adjust down if overflowing
+        newY = screenHeight - insets.bottom - totalHeight - PADDING_THRESHOLD;
       }
+
+      // Adjust newY to ensure the component does not clip off the top of the screen
       if (newY < insets.top + PADDING_THRESHOLD) {
-        newY = insets.top + PADDING_THRESHOLD; // Adjust up if underflowing
+        newY = insets.top + PADDING_THRESHOLD;
       }
 
-      return newY;
+      // Update translateY to move the component to newY
+      setTranslateY(newY);
     }
-
-    return 0;
-  }
-
-  useEffect(() => {
-    // on mount, give initial haptic feeedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
-
-  useEffect(() => {
-    // measure the original post
-    postRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      translateX.value = pageX;
-      translateY.value = pageY;
-      setOriginalLayout({ x: pageX, y: pageY, width, height });
-    });
-  }, [postRef]);
-
-  useEffect(() => {
-    // when we have both measurements, animate
-    if (actionLayout && originalLayout) {
-      const verticalPosition = calcVerticalPosition();
-
-      const springConfig = {
-        damping: 2000,
-        stiffness: 1500,
-        mass: 1,
-      };
-      translateY.value = withDelay(
-        200,
-        withSpring(verticalPosition, springConfig)
-      );
-      translateX.value = withDelay(150, withSpring(0, springConfig));
-      scale.value = withDelay(200, withSpring(1, springConfig));
-      opacity.value = withDelay(200, withSpring(1, springConfig));
-    }
-  }, [actionLayout, originalLayout]);
-
-  const animatedStyles = useAnimatedStyle(
-    () => ({
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { scale: scale.value },
-      ],
-      opacity: opacity.value,
-    }),
-    [translateX, translateY, scale]
-  );
+  });
 
   return (
-    <Animated.View style={animatedStyles}>
-      <View onLayout={handleLayout} paddingHorizontal="$xl">
-        <YStack gap="$xs">
-          <EmojiToolbar
-            post={post}
-            onDismiss={onDismiss}
-            currentUserId={currentUserId}
-          />
-          <MessageContainer post={post} currentUserId={currentUserId} />
-          <ChatMessageActionsList
-            post={post}
-            channelType={channelType}
-            dismiss={onDismiss}
-          />
-        </YStack>
-      </View>
-    </Animated.View>
+    <>
+      <MotiView
+        delay={200}
+        from={{
+          translateX: 0,
+          translateY:
+            originalMessageLayout.y - MESSAGE_OFFSET_FROM_CONTAINER_TOP,
+          opacity: 0,
+        }}
+        animate={{
+          translateX: 0,
+          translateY: translateY,
+          opacity: 1,
+        }}
+        transition={{
+          type: 'spring',
+          damping: 20,
+          stiffness: 400,
+          mass: 1,
+        }}
+      >
+        <View onLayout={handleLayout} paddingHorizontal="$xl">
+          <YStack gap="$xs">
+            <EmojiToolbar
+              post={post}
+              onDismiss={onDismiss}
+              currentUserId={currentUserId}
+            />
+            <MessageContainer post={post} currentUserId={currentUserId} />
+
+            <MotiView
+              from={{
+                scale: 0,
+                opacity: 0,
+              }}
+              animate={{ scale: 1, opacity: 1, translateX: 0, translateY: 0 }}
+              transition={{
+                type: 'timing',
+                duration: 100,
+                delay: 250,
+              }}
+              style={{ transformOrigin: 'top left' }}
+            >
+              <ChatMessageActionsList
+                post={post}
+                channelType={channelType}
+                dismiss={onDismiss}
+              />
+            </MotiView>
+          </YStack>
+        </View>
+      </MotiView>
+    </>
   );
 }
 
@@ -180,7 +158,17 @@ export function EmojiToolbar({
       : 'seedling';
 
   return (
-    <>
+    <MotiView
+      from={{ scaleX: 0, opacity: 0 }}
+      animate={{ scaleX: 1, opacity: 1 }}
+      exit={{ scaleX: 0, opacity: 0 }}
+      transition={{
+        type: 'timing',
+        duration: 100,
+        delay: 250,
+      }}
+      style={{ transformOrigin: 'left' }}
+    >
       <XStack
         padding="$l"
         backgroundColor="$background"
@@ -222,7 +210,7 @@ export function EmojiToolbar({
         onOpenChange={() => setSheetOpen(false)}
         onEmojiSelect={handlePress}
       />
-    </>
+    </MotiView>
   );
 }
 
@@ -235,19 +223,38 @@ function EmojiToolbarButton({
   details: ReactionDetails;
   handlePress: (shortCode: string) => void;
 }) {
+  const [isPressed, setIsPressed] = useState(false);
+  const onPress = useCallback(() => {
+    setIsPressed(true);
+    setTimeout(() => setIsPressed(false), 150);
+    setTimeout(() => handlePress(shortCode), 300);
+  }, []);
+
   return (
-    <Button
-      padding="$xs"
-      borderWidth={0}
-      backgroundColor={
-        details.self.didReact && details.self.value.includes(shortCode)
-          ? '$positiveBackground'
-          : undefined
-      }
-      onPress={() => handlePress(shortCode)}
+    <MotiView
+      from={{ scale: 0 }}
+      animate={{ scale: isPressed ? 1.25 : 1 }}
+      transition={{
+        type: 'spring',
+        stiffness: 150,
+        damping: 10,
+        mass: 0.5,
+        delay: isPressed ? 0 : 300,
+      }}
     >
-      <SizableEmoji shortCode={shortCode} fontSize={32} />
-    </Button>
+      <Button
+        padding="$xs"
+        borderWidth={0}
+        backgroundColor={
+          details.self.didReact && details.self.value.includes(shortCode)
+            ? '$blueSoft'
+            : undefined
+        }
+        onPress={onPress}
+      >
+        <SizableEmoji shortCode={shortCode} fontSize={32} />
+      </Button>
+    </MotiView>
   );
 }
 
