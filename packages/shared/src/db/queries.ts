@@ -497,6 +497,10 @@ export const getStaleChannels = createReadQuery(
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: ChannelInsert[]) => {
+    if (channels.length === 0) {
+      return;
+    }
+
     return client.transaction(async (tx) => {
       await client
         .insert($channels)
@@ -505,8 +509,9 @@ export const insertChannels = createWriteQuery(
           target: $channels.id,
           set: conflictUpdateSetAll($posts),
         });
+
       for (let channel of channels) {
-        if (channel.members) {
+        if (channel.members && channel.members.length > 0) {
           await client
             .delete($chatMembers)
             .where(eq($chatMembers.chatId, channel.id));
