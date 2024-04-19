@@ -33,6 +33,9 @@ export const getPinnedItemType = (rawItem: string) => {
     }
     return 'dm';
   } else {
+    if (rawItem.split('/').length === 3) {
+      return 'channel';
+    }
     return 'groupDm';
   }
 };
