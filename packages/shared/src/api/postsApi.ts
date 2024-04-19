@@ -56,10 +56,6 @@ export const sendPost = async (
     story.push(...blocks.map((b) => ({ block: b })));
   }
 
-  console.log({
-    blocks,
-  });
-
   const essay: ub.PostEssay = {
     content: story,
     sent: Date.now(),

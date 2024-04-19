@@ -78,10 +78,16 @@ export const markChatRead = (whom: string) =>
 export const sendDirectMessage = async (
   to: string,
   content: JSONContent,
-  author: string
+  author: string,
+  blocks?: ub.Block[]
 ) => {
   const inlines = JSONToInlines(content);
   const story = constructStory(inlines);
+
+  if (blocks && blocks.length > 0) {
+    story.push(...blocks.map((b) => ({ block: b })));
+  }
+
 
   const delta: WritDeltaAdd = {
     add: {

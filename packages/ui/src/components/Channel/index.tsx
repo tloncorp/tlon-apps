@@ -28,6 +28,7 @@ export function Channel({
   goBack,
   goToChannels,
   goToSearch,
+  goToImageViewer,
   goToPost,
   messageSender,
   imageAttachment,
@@ -50,6 +51,7 @@ export function Channel({
   goBack: () => void;
   goToChannels: () => void;
   goToPost: (post: db.PostInsert) => void;
+  goToImageViewer: (post: db.PostInsert, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (
     content: JSONContent,
@@ -100,6 +102,7 @@ export function Channel({
                     posts={posts}
                     channelType={channel.type}
                     onPressReplies={goToPost}
+                    onPressImage={goToImageViewer}
                     setInputShouldBlur={setInputShouldBlur}
                     onEndReached={onScrollEndReached}
                     onStartReached={onScrollStartReached}

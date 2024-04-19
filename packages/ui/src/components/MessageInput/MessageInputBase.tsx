@@ -1,11 +1,11 @@
 import { JSONContent } from '@tiptap/core';
 import { Upload } from '@tloncorp/shared/dist/urbit';
-import { PropsWithChildren, useEffect, useState } from 'react';
-import { ImageBackground } from 'react-native';
 import * as ub from '@tloncorp/shared/dist/urbit';
+import { PropsWithChildren } from 'react';
+import { ImageBackground } from 'react-native';
 
-import { Attachment, ChannelGalleries, Close, Send } from '../../assets/icons';
-import { Image, Text, View, XStack, YStack } from '../../core';
+import { ArrowUp, Close } from '../../assets/icons';
+import { View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
@@ -79,7 +79,7 @@ export const MessageInputContainer = ({
           {children}
           <IconButton onPress={onPressSend}>
             {/* TODO: figure out what send button should look like */}
-            <Send />
+            <ArrowUp />
           </IconButton>
         </XStack>
       </XStack>

@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import React from 'react';
 import {
   Dimensions,
   FlatList,
@@ -38,6 +39,7 @@ export default function ChatScroll({
   selectedPost,
   onStartReached,
   onEndReached,
+  onPressImage,
   onPressReplies,
   showReplies = true,
 }: {
@@ -50,6 +52,7 @@ export default function ChatScroll({
   selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
+  onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
   onPressReplies?: (post: db.PostInsert) => void;
   showReplies?: boolean;
 }) {
@@ -113,6 +116,7 @@ export default function ChatScroll({
             unreadCount={unreadCount}
             showReplies={showReplies}
             onPressReplies={onPressReplies}
+            onPressImage={onPressImage}
           />
         </PressableMessage>
       );
@@ -154,13 +158,13 @@ export default function ChatScroll({
         renderItem={renderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
+        contentContainerStyle={contentContainerStyle}
+        onScrollBeginDrag={handleContainerPressed}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+        inverted
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
-        contentContainerStyle={contentContainerStyle}
-        inverted
-        onScrollBeginDrag={handleContainerPressed}
-        onScrollToIndexFailed={handleScrollToIndexFailed}
       />
       <Modal
         visible={activeMessage !== null}
@@ -201,13 +205,11 @@ const PressableMessage = forwardRef<
         },
       }}
     >
-      <RNView ref={ref}>
-        <View paddingVertical="$m">{children}</View>
-      </RNView>
+      <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
     <Pressable onLongPress={onLongPress} delayLongPress={250}>
-      <View paddingVertical="$m">{children}</View>
+      {children}
     </Pressable>
   );
 });

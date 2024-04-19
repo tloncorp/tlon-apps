@@ -8,7 +8,7 @@ import { useStorage } from '../hooks/storage/storage';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
-import { TabStack } from '../navigation/TabStack';
+import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
   initialNotificationPath?: string;
@@ -29,7 +29,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
 
   return (
     <ZStack flex={1}>
-      <TabStack />
+      <RootStack />
     </ZStack>
   );
 }

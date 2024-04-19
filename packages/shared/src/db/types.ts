@@ -91,6 +91,7 @@ export type ChannelWithGroup = Channel & { group: GroupWithMembersAndRoles };
 export type ChannelWithLastPostAndMembers = Channel & {
   lastPost: Post | null;
   members?: (ChatMember & { contact: Contact | null })[] | null;
+  unread: Unread | null;
 };
 
 export type ChannelSummary = Channel & {

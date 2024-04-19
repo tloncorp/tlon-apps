@@ -50,6 +50,7 @@ import {
   GroupSummary,
   Pin,
   PostInsert,
+  PostWithRelations,
   ReactionInsert,
   TableName,
   Unread,
@@ -325,8 +326,6 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
-        if (group.posts) {
-        }
       }
     });
   },
@@ -463,6 +462,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
             contact: true,
           },
         },
+        unread: true,
       },
     });
   },
@@ -555,7 +555,30 @@ export interface GetChannelPostsOptions {
 
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
-  async ({ channelId, cursor, direction, count }: GetChannelPostsOptions) => {
+  async ({
+    channelId,
+    cursor,
+    direction,
+    count = 50,
+    date,
+  }: GetChannelPostsOptions): Promise<PostWithRelations[]> => {
+    if (direction === 'around') {
+      const result = await Promise.all([
+        getChannelPosts({
+          channelId,
+          cursor,
+          direction: 'older',
+          count: Math.floor(count / 2),
+        }),
+        getChannelPosts({
+          channelId,
+          cursor,
+          direction: 'newer',
+          count: Math.ceil(count / 2),
+        }),
+      ]);
+      return result.flatMap((r) => r);
+    }
     return client.query.posts.findMany({
       where: and(
         eq($posts.channelId, channelId),
@@ -564,7 +587,11 @@ export const getChannelPosts = createReadQuery(
           ? direction === 'older'
             ? lt($posts.id, cursor)
             : gt($posts.id, cursor)
-          : undefined
+          : date
+            ? direction === 'older'
+              ? lt($posts.receivedAt, date.getTime())
+              : gt($posts.receivedAt, date.getTime())
+            : undefined
       ),
       with: {
         author: true,
@@ -946,13 +973,15 @@ export const insertUnreads = createWriteQuery(
       const threadUnreads = unreads.flatMap((u) => {
         return u.threadUnreads ?? [];
       });
-      await client
-        .insert($threadUnreads)
-        .values(threadUnreads)
-        .onConflictDoUpdate({
-          target: [$threadUnreads.threadId, $threadUnreads.channelId],
-          set: conflictUpdateSetAll($unreads),
-        });
+      if (threadUnreads.length) {
+        await client
+          .insert($threadUnreads)
+          .values(threadUnreads)
+          .onConflictDoUpdate({
+            target: [$threadUnreads.threadId, $threadUnreads.channelId],
+            set: conflictUpdateSetAll($unreads),
+          });
+      }
     });
   },
   ['unreads']

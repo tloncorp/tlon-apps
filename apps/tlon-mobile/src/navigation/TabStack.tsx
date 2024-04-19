@@ -18,12 +18,20 @@ export const TabStack = () => {
     paddingHorizontal: '$xl',
   }) as ViewStyle;
 
+  const tabBarStyle = useStyle({
+    backgroundColor: '$background',
+    borderTopWidth: 1,
+    borderTopColor: '$border',
+    paddingTop: '$m',
+  }) as ViewStyle;
+
   return (
     <Tab.Navigator
       id="TabBar"
       initialRouteName="Groups"
       screenOptions={{
         headerShown: false,
+        tabBarStyle: tabBarStyle,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         headerTitle({ style, ...props }) {
           return (
@@ -58,21 +66,7 @@ export const TabStack = () => {
           tabBarShowLabel: false,
         }}
       />
-      <Tab.Screen
-        name="Messages"
-        component={View}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon
-              type={'Messages'}
-              activeType={'MessagesFilled'}
-              isActive={focused}
-              hasUnreads={(unreadCount?.dms ?? 0) > 0}
-            />
-          ),
-          tabBarShowLabel: false,
-        }}
-      />
+
       <Tab.Screen
         name="Activity"
         component={View}
@@ -106,9 +100,9 @@ function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
   return isLoading && !contact ? null : (
     // Uniquely sized avatar for tab bar
     <Avatar
-      width={20}
-      height={20}
-      borderRadius={3}
+      width={26}
+      height={26}
+      borderRadius={6}
       contact={contact}
       contactId={id}
       opacity={focused ? 1 : 0.6}
