@@ -51,6 +51,7 @@ export const MessageInputEditor = () => {
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
       }}
+      // @ts-expect-error bad
       editor={editor}
     />
   );

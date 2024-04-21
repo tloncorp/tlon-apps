@@ -1,6 +1,6 @@
 #!/bin/sh
-npm test
+pnpm test
 
 git add ./apps/tlon-web/src/\*.snap
 
-npm run lint:staged --workspaces --if-present
+pnpm exec lint-staged

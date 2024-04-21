@@ -1,27 +1,26 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "_version": "2.0.0",
+  "extends": "../../tsconfig",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "module": "esnext",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "outDir": "dist",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
     "paths": {
       "@10play/tentap-editor": [
-        "../../node_modules/@10play/tentap-editor/lib-web/typescript/webEditorUtils/index.d.ts"
+        "../../../node_modules/@10play/tentap-editor/lib-web/typescript/webEditorUtils/index.d.ts"
       ]
     },
-    "moduleResolution": "node",
-    "target": "es2015",
-    "allowJs": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "noEmit": true,
-    "noFallthroughCasesInSwitch": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "composite": true
-  }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+  ]
 }

@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "dev": "vite",
+    "tsc": "tsc --noEmit",
     "build": "vite build && pnpm post-build",
     "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html"
   },

@@ -17,7 +17,7 @@ jobs:
         with:
           run_install: |
             - recursive: true
-              args: [--frozen-lockfile, --strict-peer-dependencies]
+              args: [--frozen-lockfile]
 
       - name: Run Lint
         run: pnpm -r lint

@@ -7,8 +7,9 @@ import {
   useBridgeState,
   useEditorBridge,
 } from '@10play/tentap-editor';
+// ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import { ShortcutsBridge } from '@tloncorp/editor/src/bridges/shortcut';
+import { ShortcutsBridge } from '@tloncorp/editor/src/bridges';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
