@@ -1,11 +1,15 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "../../tsconfig",
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "cosmos.imports.ts",
+    "tamagui.config.ts",
+    "tamagui.d.ts",
+    "index.js",
+    "svg.d.ts"
+  ],
   "compilerOptions": {
-    "strict": true,
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-    "types": ["../../packages/ui/src/tamagui.d.ts"]
+    "composite": true
   }
 }

@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as store from '@tloncorp/shared/dist/store';
 import type { IconType } from '@tloncorp/ui';
 import { Circle, Icon, SizableText, View, useStyle } from '@tloncorp/ui';
-import { Avatar } from '@tloncorp/ui/src/index';
+import { Avatar } from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 
 import { useShip } from '../contexts/ship';

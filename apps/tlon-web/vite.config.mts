@@ -179,6 +179,14 @@ export default ({ mode }: { mode: string }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    optimizeDeps: {
+      esbuildOptions: {
+        // Fix for polyfill issue with @tamagui/animations-moti
+        define: {
+          global: 'globalThis',
+        },
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',

@@ -17,18 +17,18 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format && npm run lint:fix",
+    "lint:all": "pnpm lint:format && pnpm run lint:fix",
     "lint:staged": "lint-staged",
     "mock": "vite --mode mock",
     "serve": "vite preview",
     "serve-sw": "vite preview --mode sw",
     "test": "cross-env TZ=UTC vitest",
-    "e2e": "npm run rube",
-    "e2e:debug:zod": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=zod npm run e2e",
-    "e2e:debug:bus": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=bus npm run e2e",
-    "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true npm run e2e",
+    "e2e": "pnpm rube",
+    "e2e:debug:zod": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=zod pnpm run e2e",
+    "e2e:debug:bus": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=bus pnpm run e2e",
+    "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true pnpm e2e",
     "tsc": "tsc --noEmit",
-    "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
+    "e2e:codegen": "concurrently \"pnpm dev-no-ssl\" \"pnpm exec playwright codegen http://localhost:3000\"",
     "cosmos": "cosmos"
   },
   "lint-staged": {
@@ -36,8 +36,8 @@
       "tsc-files --noEmit src/window.ts src/env.d.ts src/global.d.ts"
     ],
     "*.{js,jsx,ts,tsx}": [
-      "npm run lint:fix",
-      "npm run lint:format"
+      "pnpm run lint:fix",
+      "pnpm run lint:format"
     ]
   },
   "dependencies": {
@@ -88,7 +88,8 @@
     "@tiptap/react": "^2.0.3",
     "@tiptap/suggestion": "^2.0.3",
     "@tloncorp/mock-http-api": "^1.2.0",
-    "@tloncorp/shared": "*",
+    "@tloncorp/shared": "workspace:*",
+    "@tloncorp/ui": "workspace:*",
     "@types/marked": "^4.3.0",
     "@urbit/api": "^2.2.0",
     "@urbit/aura": "^1.0.0",
@@ -222,8 +223,8 @@
     "postcss": "^8.4.12",
     "postcss-import": "^14.1.0",
     "prettier": "^3.1.1",
-    "react-cosmos": "6.0.0-beta.6",
-    "react-cosmos-plugin-vite": "6.0.0-beta.6",
+    "react-cosmos": "6.1.1",
+    "react-cosmos-plugin-vite": "6.1.1",
     "react-test-renderer": "^18.2.0",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.6.0",
@@ -231,7 +232,6 @@
     "tailwindcss-theme-swapper": "^0.7.3",
     "tar-fs": "^3.0.4",
     "tsc-files": "^1.1.4",
-    "typescript": "^5.4.2",
     "vite": "^5.1.6",
     "vite-plugin-pwa": "^0.17.5",
     "vitest": "^0.34.1",

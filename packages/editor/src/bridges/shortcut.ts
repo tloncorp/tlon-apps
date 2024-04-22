@@ -45,6 +45,7 @@ export const ShortcutsBridge = new BridgeExtension<
   ShortcutsEditorInstance,
   ShortcutsMessage
 >({
+  //@ts-expect-error version mismatch between tiptap and tentap
   tiptapExtension: Shortcuts({
     // this is necessary to override the default behavior of the editor
     // which is to insert a new paragraph when the user presses enter.
@@ -53,10 +54,10 @@ export const ShortcutsBridge = new BridgeExtension<
   }),
   onBridgeMessage: (editor, message) => {
     switch (message.type) {
-        // we used all of these actions to create a new paragraph
-        // in the tiptap editor on the web.
-        // for now it looks likwe we just need splitBlock, but we'll
-        // keep the rest of the actions here for reference/possible future use.
+      // we used all of these actions to create a new paragraph
+      // in the tiptap editor on the web.
+      // for now it looks likwe we just need splitBlock, but we'll
+      // keep the rest of the actions here for reference/possible future use.
       case ShortcutsActionType.createParagraphNear:
         editor.chain().focus().createParagraphNear().run();
         break;

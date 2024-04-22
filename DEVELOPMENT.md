@@ -4,15 +4,15 @@ These instructions are for working on the Tlon app as a developer at Tlon.
 
 ## Project Structure
 
-- `/desk`: The folder containing the desk for %groups. This currently contains the agents necessary for the Tlon app.
+-   `/desk`: The folder containing the desk for %groups. This currently contains the agents necessary for the Tlon app.
 
-- `/apps/tlon-web`: Tlon is built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
+-   `/apps/tlon-web`: Tlon is built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
 
 ## Getting Started
 
-To get started working on Tlon, run `npm install` in the root directory.
+To get started working on Tlon, run `pnpm install` in the root directory.
 
-To develop, you'll need a running ship to point to. To do so you first need to add a `.env.local` file to the `apps/tlon-web` directory. This file will not be committed. Adding `VITE_SHIP_URL={URL}` (where **{URL}** is the URL of the ship you would like to point to) will allow you to run `npm run dev`. This will proxy all requests to the ship except for those powering the interface, which lets you work with live data.
+To develop, you'll need a running ship to point to. To do so you first need to add a `.env.local` file to the `apps/tlon-web` directory. This file will not be committed. Adding `VITE_SHIP_URL={URL}` (where **{URL}** is the URL of the ship you would like to point to) will allow you to run `pnpm dev`. This will proxy all requests to the ship except for those powering the interface, which lets you work with live data.
 
 Regardless of what you run to develop, Vite will hot-reload code changes as you work so you don't have to constantly refresh.
 
@@ -36,38 +36,36 @@ And commit:
 |commit %groups
 ```
 
-Since %groups has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions or use Tlon's
-[Bouncer](https://github.com/tloncorp/bouncer) utility (requires Ruby 3+).
+Since %groups has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions or use Tlon's [Bouncer](https://github.com/tloncorp/bouncer) utility (requires Ruby 3+).
 
 1. Clone or pull latest versions of this repo, `tloncorp/landscape` and `urbit/urbit`.
-2. Boot a fake ship. Use local networking with `-F` like so:
-   `urbit -F zod`
+2. Boot a fake ship. Use local networking with `-F` like so: `urbit -F zod`
 3. Create and mount the appropriate desks on local `~zod`:
-   1. `|new-desk %landscape`
-   2. `|mount %landscape`
-   3. `|new-desk %groups`
-   4. `|mount %groups`
+    1. `|new-desk %landscape`
+    2. `|mount %landscape`
+    3. `|new-desk %groups`
+    4. `|mount %groups`
 4. From the `urbit/urbit` repo:
-   1. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
-   2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/groups/`
+    1. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
+    2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/groups/`
 5. From the `tloncorp/landscape` repo:
-   1. `rsync -avL desk/* ~/urbit/zod/landscape/`
-   2. `rsync -avL desk-dev/* ~/urbit/zod/groups/`
+    1. `rsync -avL desk/* ~/urbit/zod/landscape/`
+    2. `rsync -avL desk-dev/* ~/urbit/zod/groups/`
 6. From this repo:
-   1. `rsync -avL desk/* ~/urbit/zod/groups/`
-   2. `rsync -avL landscape-dev/* ~/urbit/zod/groups/`
+    1. `rsync -avL desk/* ~/urbit/zod/groups/`
+    2. `rsync -avL landscape-dev/* ~/urbit/zod/groups/`
 7. Commit and install landscape on local `~zod`:
-   1. `|commit %landscape`
-   2. `|install our %landscape`
+    1. `|commit %landscape`
+    2. `|install our %landscape`
 8. Similarly commit and install Tlon:
-   1. `|commit %groups`
-   2. `|install our %groups`
+    1. `|commit %groups`
+    2. `|install our %groups`
 
 ## Deploying
 
 Tlon is distributed via the Urbit network by way of a [glob](https://developers.urbit.org/reference/additional/dist/glob#-make-glob), or a Landscape application bundle. Instructions are as follows:
 
-1. Run `npm run build` in the `apps/tlon-web` directory, which outputs to `/dist`.
+1. Run `pnpm build` in the `apps/tlon-web` directory, which outputs to `/dist`.
 2. Create or launch an urbit using the -F flag.
 3. On that urbit, if you don't already have a desk to run from, run `|merge %work our %base` to create a new desk and mount it with `|mount %work`.
 4. Now the `%work` desk is accessible through the host OS's filesystem as a directory of that urbit's pier ie `~/zod/work`.
@@ -96,57 +94,39 @@ This project uses husky to run git pre-commit hooks. You may disable Husky by ad
 
 ## Glossary
 
-_bloc_
-: superuser sects
+_bloc_ : superuser sects
 
 sects in the bloc set are allowed to make modifications to the group, and its various metadata and permissions
 
-_brief_
-: a representation of the last thing we've seen, and how many new items since
+_brief_ : a representation of the last thing we've seen, and how many new items since
 
-_cabal_
-: contains the metadata for a role
+_cabal_ : contains the metadata for a role
 
-_chat_
-: backend term for a group chat
+_chat_ : backend term for a group chat
 
-_club_
-: backend term for a multi-DM group (distinct from a `chat` and a `dm`)
+_club_ : backend term for a multi-DM group (distinct from a `chat` and a `dm`)
 
-_cordon_
-: represents a group's permissions. `open` allows anyone to enter but
-those banned, `shut` requires requesting to join, `afar` is a custom policy
-determined by another agent
+_cordon_ : represents a group's permissions. `open` allows anyone to enter but those banned, `shut` requires requesting to join, `afar` is a custom policy determined by another agent
 
-_curio_
-: represents an item in a collection
+_curio_ : represents an item in a collection
 
-_dm_
-: backend term for a 1:1 message
+_dm_ : backend term for a 1:1 message
 
-_flag_
-: composite identifier consisting of `ship/group-name` used to key state and in routes
+_flag_ : composite identifier consisting of `ship/group-name` used to key state and in routes
 
-_fleet_
-: the map of ships that are part of a group
+_fleet_ : the map of ships that are part of a group
 
-_gang_
-: a group invite
+_gang_ : a group invite
 
-_heap_
-: a collection
+_heap_ : a collection
 
-_sect_
-: a term representing a role
+_sect_ : a term representing a role
 
-_stash_
-: all heaps we are a part of
+_stash_ : all heaps we are a part of
 
-_vessel_
-: represents the roles a group member has and their join time
+_vessel_ : represents the roles a group member has and their join time
 
-_bloc_
-: roles that have superuser perms (default is admin)
+_bloc_ : roles that have superuser perms (default is admin)
 
 ## Cosmos
 

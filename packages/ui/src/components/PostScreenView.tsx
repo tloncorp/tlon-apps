@@ -20,7 +20,7 @@ export function PostScreenView({
   return (
     <YStack flex={1} backgroundColor={'$background'}>
       <ChannelHeader
-        title={'Thread: ' + channel?.title ?? null}
+        title={'Thread: ' + (channel?.title ?? null)}
         goBack={goBack}
         showPickerButton={false}
         showSearchButton={false}

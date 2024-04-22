@@ -7,7 +7,7 @@ Requires a local fake ship with homestead desk installed ([guide](./DEVELOPMENT.
 From the root directory of `tlon-apps`, run:
 
 ```
-npm install
+pnpm install
 ```
 
 If you need to specify a local dev ship on a URL other than `http://localhost:8080`, make a `.env.local` file in the `tlon-web` directory.
