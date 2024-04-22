@@ -7,8 +7,8 @@
   "scripts": {
     "build": "tsup",
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",
-    "dev": "pnpm build -- --watch",
-    "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm run dev\"",
+    "dev": "pnpm build --watch",
+    "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm dev\"",
     "test": "vitest",
     "types": "tsc --emitDeclarationOnly",
     "tsc": "tsc --noEmit",
@@ -16,7 +16,7 @@
     "lint:all": "pnpm lint:format",
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
-    "watch-migrations": "pnpm generate:migration -- --watch"
+    "watch-migrations": "pnpm generate:migration --watch"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.28.14",
