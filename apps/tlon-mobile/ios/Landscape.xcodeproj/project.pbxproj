@@ -963,7 +963,7 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
-				CURRENT_PROJECT_VERSION = 62;
+				CURRENT_PROJECT_VERSION = 105;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = Tlon;
 				ENABLE_BITCODE = NO;
@@ -976,7 +976,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.0.0;
+				MARKETING_VERSION = 4.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1001,7 +1001,7 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
-				CURRENT_PROJECT_VERSION = 62;
+				CURRENT_PROJECT_VERSION = 105;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = Tlon;
 				INFOPLIST_FILE = Landscape/Info.plist;
@@ -1009,7 +1009,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.0.0;
+				MARKETING_VERSION = 4.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1033,7 +1033,7 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
-				CURRENT_PROJECT_VERSION = 62;
+				CURRENT_PROJECT_VERSION = 105;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = "Tlon - Preview";
 				ENABLE_BITCODE = NO;
@@ -1047,7 +1047,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.0.0;
+				MARKETING_VERSION = 4.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1073,7 +1073,7 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
-				CURRENT_PROJECT_VERSION = 62;
+				CURRENT_PROJECT_VERSION = 105;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = "Tlon - Preview";
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -1090,7 +1090,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.0.0;
+				MARKETING_VERSION = 4.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
