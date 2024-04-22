@@ -24,6 +24,19 @@
       "ios": {
         "scheme": "Landscape"
       }
+    },
+    "local": {
+      "channel": "local",
+      "env": {
+        "APP_VARIANT": "preview"
+      },
+      "android": {
+        "gradleCommand": ":app:assemblePreviewRelease",
+        "buildType": "apk"
+      },
+      "ios": {
+        "scheme": "Landscape-local"
+      }
     }
   },
   "submit": {
