@@ -34,7 +34,7 @@
   "engines": {
     "node": ">=18.18.0"
   },
-  "packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589",
+  "packageManager": "pnpm@9.0.5+sha256.61bd66913b52012107ec25a6ee4d6a161021ab99e04f6acee3aa50d0e34b4af9",
   "pnpm": {
     "patchedDependencies": {
       "@tiptap/react@2.0.3": "patches/@tiptap__react@2.0.3.patch",
