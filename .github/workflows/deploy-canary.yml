@@ -23,8 +23,12 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: .nvmrc
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
       - working-directory: ./apps/tlon-web
         run:
           pnpm build
