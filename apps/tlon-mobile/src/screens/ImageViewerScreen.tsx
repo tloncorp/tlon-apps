@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
-import { ImageViewerScreenView } from '@tloncorp/ui/src';
+import { ImageViewerScreenView } from '@tloncorp/ui';
 
 import type { RootStackParamList } from '../types';
 

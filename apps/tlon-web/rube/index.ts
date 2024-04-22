@@ -566,13 +566,13 @@ const runPlaywrightTests = async () => {
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests for ${ship}`);
-      const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
+      const playwrightArgs = ['exec', 'playwright', 'test', '--workers=2', ''];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');
       }
 
-      const testProcess = childProcess.spawn('npx', playwrightArgs, {
+      const testProcess = childProcess.spawn('pnpm', playwrightArgs, {
         env: {
           ...process.env,
           SHIP: ship,
@@ -604,7 +604,7 @@ const runPlaywrightTests = async () => {
         playwrightArgs.push('--ui');
       }
 
-      const testProcess = childProcess.spawn('npx', playwrightArgs, {
+      const testProcess = childProcess.spawn('pnpm', playwrightArgs, {
         env: {
           ...process.env,
         },

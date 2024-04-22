@@ -1,0 +1,17 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+deleted file mode 100644
+index b44df6eb3b5841e3536c2a0af1ac893893c28a9b..0000000000000000000000000000000000000000
+diff --git a/package.json b/package.json
+index b20cb155ffaa3682de3b7f4f09839d68d38d2f62..51ab1919f4d5c25c785b71f356a10d87a8341d7b 100644
+--- a/package.json
++++ b/package.json
+@@ -30,8 +30,7 @@
+     "clean": "rm -rf lib/",
+     "build": "yarn clean && rollup -c && cp src/storage.d.ts lib/",
+     "prepare": "yarn build",
+-    "test": "jest",
+-    "postinstall": "opencollective-postinstall"
++    "test": "jest"
+   },
+   "jest": {
+     "verbose": true,

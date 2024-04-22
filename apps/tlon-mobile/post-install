@@ -1,5 +1,5 @@
 #!/bin/bash
 
 if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
-  npm run generate:ios
+  pnpm generate:ios
 fi

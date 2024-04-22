@@ -22,7 +22,7 @@ export default defineConfig({
   },
   onSuccess() {
     return new Promise((resolve, reject) => {
-      exec('npm run types', (err) => {
+      exec('pnpm types', (err) => {
         err ? reject(err) : resolve();
       });
     });

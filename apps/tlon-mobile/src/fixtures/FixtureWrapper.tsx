@@ -1,3 +1,4 @@
+import type { ColorProp } from '@tloncorp/ui';
 import { View } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -15,13 +16,12 @@ export const FixtureWrapper = ({
   fillHeight?: boolean;
   verticalAlign?: 'top' | 'center' | 'bottom';
   horizontalAlign?: 'left' | 'center' | 'right';
-  backgroundColor?: string;
-  innerBackgroundColor?: string;
+  backgroundColor?: ColorProp;
+  innerBackgroundColor?: ColorProp;
 }>) => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View
-        //@ts-expect-error chill
         backgroundColor={backgroundColor ?? '$secondaryBackground'}
         flex={1}
         flexDirection="column"
@@ -43,7 +43,6 @@ export const FixtureWrapper = ({
         }
       >
         <View
-          //@ts-expect-error chill
           backgroundColor={innerBackgroundColor ?? '$background'}
           width={fillWidth ? '100%' : 'unset'}
           height={fillHeight ? '100%' : 'unset'}

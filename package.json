@@ -2,38 +2,48 @@
   "private": true,
   "name": "tlon-apps",
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "build:shared": "npm run build --prefix ./packages/shared",
-    "build:ui": "npm run build --prefix ./packages/ui",
-    "build:editor": "npm run build --prefix ./packages/editor",
-    "build:web": "npm run build --prefix ./apps/tlon-web",
-    "build:mobile": "npm run build --prefix ./apps/tlon-mobile",
-    "build:apps": "npm run build:mobile",
-    "build:packages": "npm run build:shared && npm run build:ui && npm run build:editor",
-    "build:all": "npm run build:packages && npm run build:apps",
-    "dev:shared": "npm run dev --prefix ./packages/shared",
-    "dev:android": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run android --prefix ./apps/tlon-mobile\"",
-    "dev:ios": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run ios --prefix ./apps/tlon-mobile\" \"npm run watch --prefix ./packages/ui\"",
-    "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./apps/tlon-web\"",
-    "test": "npm run test --workspaces --if-present -- run -u",
+    "build:shared": "pnpm --filter '@tloncorp/shared' build",
+    "build:ui": "pnpm --filter '@tloncorp/ui' build",
+    "build:editor": "pnpm --filter '@tloncorp/editor' build",
+    "build:web": "pnpm --filter 'tlon-web' build",
+    "build:mobile": "pnpm --filter 'tlon-mobile' build",
+    "build:apps": "pnpm run build:mobile",
+    "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
+    "build:all": "pnpm run build:packages && pnpm run build:apps",
+    "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
+    "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
+    "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm run dev --filter 'tlon-mobile'\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
+    "test": "pnpm run -r test run -u",
     "prepare": "husky",
-    "postinstall": "npx patch-package && npm run build:all"
+    "postinstall": "pnpm run build:all"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "concurrently": "^8.2.2",
     "husky": "^9.0.10",
-    "patch-package": "^6.4.7",
+    "lint-staged": "^15.0.0",
     "tsup": "^8.0.1",
     "vitest": "^1.2.2"
   },
   "engines": {
-    "node": ">=18.18.0",
-    "npm": ">=9.8.1"
+    "node": ">=18.18.0"
   },
-  "packageManager": "npm@10.2.4+sha256.36b548120f75f26408d04ff163cd4a699916f1c4b72ebeeab0bbaf054009eb5b"
+  "packageManager": "pnpm@9.0.5+sha256.61bd66913b52012107ec25a6ee4d6a161021ab99e04f6acee3aa50d0e34b4af9",
+  "pnpm": {
+    "patchedDependencies": {
+      "@tiptap/react@2.0.3": "patches/@tiptap__react@2.0.3.patch",
+      "@types/testing-library__jest-dom@5.14.5": "patches/@types__testing-library__jest-dom@5.14.5.patch",
+      "@urbit/http-api@3.1.0-dev-2": "patches/@urbit__http-api@3.1.0-dev-2.patch",
+      "tailwind-rn@4.2.0": "patches/tailwind-rn@4.2.0.patch",
+      "usehooks-ts@2.6.0": "patches/usehooks-ts@2.6.0.patch",
+      "react-native-storage@1.0.1": "patches/react-native-storage@1.0.1.patch",
+      "react-native-reanimated@3.6.2": "patches/react-native-reanimated@3.6.2.patch"
+    },
+    "overrides": {
+      "typescript": "5.4.5",
+      "@urbit/http-api": "3.1.0-dev-2"
+    }
+  }
 }

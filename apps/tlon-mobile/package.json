@@ -9,28 +9,28 @@
     "bundler": "expo start",
     "clearcache": "expo start -c",
     "ios": "expo run:ios",
-    "ios:release": "npx expo run:ios --configuration Release",
+    "ios:release": "pnpm exec expo run:ios --configuration Release",
     "ios:preview": "expo run:ios --scheme=Landscape-preview",
-    "generate": "npm run generate:tailwind && npm run generate:ios",
+    "generate": "pnpm generate:tailwind && pnpm run generate:ios",
     "generate:ios": "react-native bundle --entry-file='index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
     "generate:tailwind": "tailwindcss --input input.css --output tailwind.css --no-autoprefixer && tailwind-rn",
-    "format": "npm run format:js && npm run format:swift",
+    "format": "pnpm format:js && pnpm run format:swift",
     "format:js": "eslint --fix --quiet ./src && prettier --write .",
     "format:swift": "swiftformat **/*.swift --exclude ./ios/Pods, ./node_modules",
     "lint": "eslint ./src",
     "lint:staged": "lint-staged",
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
-    "build": "npm run generate",
+    "build": "pnpm generate",
     "eas-build-post-install": "./post-install",
     "cosmos": "cosmos-native"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
-      "npm run format:js"
+      "pnpm run format:js"
     ],
     "*.swift": [
-      "npm run format:swift"
+      "pnpm format:swift"
     ]
   },
   "dependencies": {
@@ -46,9 +46,9 @@
     "@react-navigation/bottom-tabs": "^6.5.12",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
-    "@tloncorp/editor": "*",
-    "@tloncorp/shared": "*",
-    "@tloncorp/ui": "*",
+    "@tloncorp/editor": "workspace:*",
+    "@tloncorp/shared": "workspace:*",
+    "@tloncorp/ui": "workspace:*",
     "@urbit/aura": "^1.0.0",
     "@urbit/http-api": "^3.1.0-dev-2",
     "classnames": "^2.3.2",
@@ -119,11 +119,10 @@
     "postcss": "^8.4.26",
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.4",
-    "react-cosmos": "^6.1.1",
-    "react-cosmos-native": "^6.1.1",
+    "react-cosmos": "6.1.1",
+    "react-cosmos-native": "6.1.1",
     "react-native-svg-transformer": "^1.3.0",
     "tailwindcss": "^3.3.3",
-    "typescript": "^5.1.3",
     "vitest": "^1.0.4"
   }
 }

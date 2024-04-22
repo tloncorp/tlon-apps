@@ -1,4 +1,4 @@
-import { PostScreenView } from '@tloncorp/ui/src/components/PostScreenView';
+import { PostScreenView } from '@tloncorp/ui';
 
 import { createFakePosts, tlonLocalBulletinBoard } from './fakeData';
 

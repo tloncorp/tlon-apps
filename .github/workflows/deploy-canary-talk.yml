@@ -22,8 +22,8 @@ jobs:
           node-version-file: ./ui/.nvmrc
       - working-directory: ./ui
         run: |
-          npm ci
-          npm run build:chat
+          pnpm install
+          pnpm build:chat
       - uses: actions/upload-artifact@v3
         with:
           name: "ui-dist"
