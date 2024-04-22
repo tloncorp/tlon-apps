@@ -3,18 +3,16 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import { Upload } from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
-import { ImageBackground, KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 
-import { Close } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
   ContactsProvider,
   GroupsProvider,
 } from '../../contexts';
-import { Spinner, View, XStack, YStack } from '../../core';
+import { Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
-import { Button } from '../Button';
 import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';

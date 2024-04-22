@@ -157,7 +157,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       (mostRecentFile.status === 'success' ||
         mostRecentFile.status === 'loading')
     ) {
-      console.log({ mostRecentFile });
       setUploadedImage(mostRecentFile);
 
       if (mostRecentFile.status === 'success' && mostRecentFile.url !== '') {

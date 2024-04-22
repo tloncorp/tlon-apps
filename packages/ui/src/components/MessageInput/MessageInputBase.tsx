@@ -42,7 +42,11 @@ export const MessageInputContainer = ({
         alignItems="center"
       >
         {uploadedImage && uploadedImage.url !== '' ? null : (
-          <XStack gap="$l" animation="quick">
+          <XStack
+            gap="$l"
+            // @ts-expect-error this is fine
+            animation="quick"
+          >
             <AttachmentButton
               uploadedImage={uploadedImage}
               setImage={setImageAttachment}

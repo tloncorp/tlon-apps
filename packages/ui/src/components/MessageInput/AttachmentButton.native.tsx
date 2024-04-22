@@ -86,11 +86,6 @@ export default function AttachmentButton({
         animation={[
           // @ts-expect-error this is fine
           'quick',
-          {
-            opacity: {
-              overshootClamping: true,
-            },
-          },
         ]}
       >
         <YGroup separator={<Separator borderColor="$positiveBorder" />}>
