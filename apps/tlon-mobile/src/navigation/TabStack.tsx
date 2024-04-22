@@ -18,12 +18,20 @@ export const TabStack = () => {
     paddingHorizontal: '$xl',
   }) as ViewStyle;
 
+  const tabBarStyle = useStyle({
+    backgroundColor: '$background',
+    borderTopWidth: 1,
+    borderTopColor: '$border',
+    paddingTop: '$m',
+  }) as ViewStyle;
+
   return (
     <Tab.Navigator
       id="TabBar"
       initialRouteName="Groups"
       screenOptions={{
         headerShown: false,
+        tabBarStyle: tabBarStyle,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         headerTitle({ style, ...props }) {
           return (

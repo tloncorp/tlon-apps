@@ -1,20 +1,25 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
 export const syncInitData = async () => {
-  const initData = await api.getInitData();
-  await db.insertPinnedItems(initData.pins);
-  await db.insertGroups(initData.groups);
-  await resetUnreads(initData.unreads);
-  await db.insertChannels(initData.channels);
+  return syncQueue.add('init', async () => {
+    const initData = await api.getInitData();
+    await db.insertPinnedItems(initData.pins);
+    await db.insertGroups(initData.groups);
+    await resetUnreads(initData.unreads);
+    await db.insertChannels(initData.channels);
+  });
 };
 
 export const syncContacts = async () => {
-  const contacts = await api.getContacts();
-  await db.insertContacts(contacts);
+  return syncQueue.add('contacts', async () => {
+    const contacts = await api.getContacts();
+    await db.insertContacts(contacts);
+  });
 };
 
 export const syncPinnedItems = async () => {
@@ -56,23 +61,51 @@ async function handleUnreadUpdate(unread: db.Unread) {
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
+type StaleChannel = db.Channel & { unread: db.Unread };
+
 export const syncStaleChannels = async ({
   type,
 }: { type?: 'channel' | 'dm' } = {}) => {
-  const staleChannels = await db.getStaleChannels();
-
-  for (let channel of staleChannels) {
-    try {
-      await syncChannel(channel.id, channel.unread.updatedAt);
-    } catch (e) {
-      logger.log(
-        'sync failed for channel id',
-        channel.id,
-        e instanceof Error ? e.message : ''
-      );
-    }
+  const channels: StaleChannel[] = optimizeChannelLoadOrder(
+    await db.getStaleChannels()
+  );
+  for (let channel of channels) {
+    syncQueue.add(channel.id, () => {
+      return syncChannel(channel.id, channel.unread.updatedAt);
+    });
   }
 };
+
+export const clearSyncQueue = () => {
+  // TODO: Model all sync functions as syncQueue.add calls so that this works on
+  // more than just `syncStaleChannels`
+  syncQueue.clear();
+};
+
+/**
+ * Optimize load order for our current display. Starting with all channels
+ * ordered by update time, sort so recently updated dms are synced before all but
+ * the most recently updated channel of each group.
+ */
+function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
+  const seenGroups = new Set<string>();
+  const topChannels: StaleChannel[] = [];
+  const skippedChannels: StaleChannel[] = [];
+  const restOfChannels: StaleChannel[] = [];
+  channels.forEach((c) => {
+    if (topChannels.length < 10) {
+      if (!c.groupId || !seenGroups.has(c.groupId)) {
+        topChannels.push(c);
+        if (c.groupId) seenGroups.add(c.groupId);
+      } else {
+        skippedChannels.push(c);
+      }
+    } else {
+      restOfChannels.push(c);
+    }
+  });
+  return [...topChannels, ...skippedChannels, ...restOfChannels];
+}
 
 export async function syncPosts(options: db.GetChannelPostsOptions) {
   const response = await api.getChannelPosts(options);
@@ -142,12 +175,13 @@ async function persistPagedPostData(
   });
   if (data.posts.length) {
     await db.insertChannelPosts(channelId, data.posts);
-    await db.insertPostReactions({
-      reactions: data.posts
-        .map((p) => p.reactions)
-        .flat()
-        .filter(Boolean) as db.ReactionInsert[],
-    });
+    const reactions = data.posts
+      .map((p) => p.reactions)
+      .flat()
+      .filter(Boolean) as db.ReactionInsert[];
+    if (reactions.length) {
+      await db.insertPostReactions({ reactions });
+    }
   }
   if (data.deletedPosts?.length) {
     await db.deletePosts({ ids: data.deletedPosts });
@@ -155,21 +189,7 @@ async function persistPagedPostData(
 }
 
 export const start = async () => {
-  const enabledOperations: [string, () => Promise<void>][] = [
-    ['initData', syncInitData],
-    ['contacts', syncContacts],
-    ['staleChannels', syncStaleChannels],
-  ];
-
   api.subscribeUnreads(handleUnreadUpdate);
-
-  for (const [name, fn] of enabledOperations) {
-    try {
-      await runOperation(name, fn);
-    } catch (e) {
-      console.log(e);
-    }
-  }
 };
 
 async function runOperation(name: string, fn: () => Promise<void>) {

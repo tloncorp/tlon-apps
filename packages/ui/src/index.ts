@@ -1,6 +1,7 @@
 export * from './core';
 export * from './utils';
 export * from './components/PostScreenView';
+export * from './components/ImageViewerScreenView';
 export * from './components/Avatar';
 export * from './components/Channel';
 export * from './components/MessageInput';
@@ -18,5 +19,6 @@ export * from './components/SearchBar';
 export * from './components/ChannelSearch';
 export * from './components/LoadingSpinner';
 export * from './components/Button';
+export * from './components/ScreenHeader';
 export * from './tamagui.config';
 export * from './contexts';

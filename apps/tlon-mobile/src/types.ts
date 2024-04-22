@@ -32,12 +32,18 @@ export type HomeStackParamList = {
   };
 };
 
+export type RootStackParamList = {
+  Tabs: NavigatorScreenParams<TabParamList>;
+  ImageViewer: {
+    post: db.PostInsert;
+    uri?: string;
+  };
+};
+
 export type TabParamList = {
   Groups: NavigatorScreenParams<HomeStackParamList>;
-  Messages: NavigatorScreenParams<WebViewStackParamList>;
   Activity: NavigatorScreenParams<WebViewStackParamList>;
   Profile: NavigatorScreenParams<WebViewStackParamList>;
-  Discover: NavigatorScreenParams<WebViewStackParamList>;
 };
 
 export type TabName = keyof TabParamList;

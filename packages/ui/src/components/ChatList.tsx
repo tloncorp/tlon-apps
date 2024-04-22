@@ -39,6 +39,7 @@ export function ChatList({
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
+      paddingTop: '$l',
       paddingHorizontal: '$l',
     },
     { resolveValues: 'value' }

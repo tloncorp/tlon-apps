@@ -371,8 +371,9 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   parent: one(posts, {
     fields: [posts.parentId],
     references: [posts.id],
+    relationName: 'parent',
   }),
-  replies: many(posts),
+  replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
 }));
 

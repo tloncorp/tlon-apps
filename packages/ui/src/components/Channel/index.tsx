@@ -26,6 +26,7 @@ export function Channel({
   goBack,
   goToChannels,
   goToSearch,
+  goToImageViewer,
   goToPost,
   messageSender,
   onScrollEndReached,
@@ -44,6 +45,7 @@ export function Channel({
   goBack: () => void;
   goToChannels: () => void;
   goToPost: (post: db.PostInsert) => void;
+  goToImageViewer: (post: db.PostInsert, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: JSONContent, channelId: string) => void;
   type?: 'chat' | 'gallery' | 'notebook';
@@ -86,6 +88,7 @@ export function Channel({
                     posts={posts}
                     channelType={channel.type}
                     onPressReplies={goToPost}
+                    onPressImage={goToImageViewer}
                     setInputShouldBlur={setInputShouldBlur}
                     onEndReached={onScrollEndReached}
                     onStartReached={onScrollStartReached}

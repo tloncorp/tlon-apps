@@ -22,7 +22,7 @@ export function ReactionsDisplay({
   }
 
   return (
-    <XStack padding="$m" paddingLeft="$4xl" borderRadius="$m">
+    <XStack paddingLeft="$4xl" borderRadius="$m" gap="$xs">
       {reactionDetails.list.map((reaction) => (
         <XStack
           key={reaction.value}
@@ -34,7 +34,16 @@ export function ReactionsDisplay({
               : '$secondaryBackground'
           }
           padding="$xs"
-          borderRadius="$m"
+          paddingHorizontal="$s"
+          height="$3xl"
+          borderRadius="$s"
+          borderColor={
+            reaction.value === reactionDetails.self.value
+              ? '$positiveBorder'
+              : '$border'
+          }
+          borderWidth={1}
+          gap={'$xs'}
           disabled={
             reactionDetails.self.didReact &&
             reaction.value !== reactionDetails.self.value
@@ -51,7 +60,7 @@ export function ReactionsDisplay({
             fontSize="$s"
           />
           {reaction.count > 0 && (
-            <SizableText marginLeft="$s" size="$s" color="$secondaryText">
+            <SizableText color="$secondaryText" lineHeight={0}>
               {reaction.count}
             </SizableText>
           )}

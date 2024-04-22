@@ -1,12 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit/channel';
-import { formatDistanceToNow } from 'date-fns';
 import { memo, useCallback, useMemo } from 'react';
-import React from 'react';
 
-import { useGroup } from '../../contexts';
-import { SizableText, View, XStack, YStack } from '../../core';
-import { Avatar } from '../Avatar';
+import { SizableText, View, YStack } from '../../core';
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -17,6 +13,7 @@ const ChatMessage = ({
   firstUnread,
   unreadCount,
   onPressReplies,
+  onPressImage,
   showReplies,
   currentUserId,
 }: {
@@ -26,9 +23,8 @@ const ChatMessage = ({
   showReplies?: boolean;
   currentUserId: string;
   onPressReplies?: (post: db.PostInsert) => void;
+  onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
 }) => {
-  const group = useGroup(post.groupId ?? '');
-
   if (!post) {
     return null;
   }
@@ -60,14 +56,14 @@ const ChatMessage = ({
   }, [onPressReplies]);
 
   return (
-    <YStack key={post.id} gap="$l">
-      <YStack alignItems="center">
-        {isUnread && unreadCount && (
+    <YStack key={post.id} gap="$l" paddingVertical="$l">
+      {isUnread && unreadCount && (
+        <YStack alignItems="center">
           <SizableText size="$s" fontWeight="$l">
             {unreadCount} unread messages • "Today"
           </SizableText>
-        )}
-      </YStack>
+        </YStack>
+      )}
       <View paddingLeft="$l">
         <AuthorRow
           author={post.author}
@@ -82,7 +78,14 @@ const ChatMessage = ({
             You have hidden or flagged this message.
           </SizableText>
         ) : (
-          <ChatContent story={content} />
+          <ChatContent
+            story={content}
+            onPressImage={
+              onPressImage
+                ? (uri?: string) => onPressImage(post, uri)
+                : undefined
+            }
+          />
         )}
       </View>
       <ReactionsDisplay post={post} currentUserId={currentUserId} />

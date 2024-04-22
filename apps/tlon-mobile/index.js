@@ -3,7 +3,6 @@ import { addCustomEnabledLoggers } from '@tloncorp/shared';
 import { setStorage } from '@tloncorp/ui';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
-import polyfill from 'react-native-polyfill-globals';
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
@@ -15,7 +14,6 @@ import utilities from './tailwind.json';
 
 // Modifies fetch to support server sent events which
 // are required for Urbit client subscriptions
-polyfill();
 setupDb();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
 setStorage(AsyncStorage);

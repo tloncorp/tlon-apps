@@ -1,5 +1,6 @@
 import { cite } from '@urbit/aura';
 import { useMemo } from 'react';
+import { ColorTokens } from 'tamagui';
 
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';
@@ -15,6 +16,7 @@ export default function ContactName({
   full?: boolean;
   showAlias?: boolean;
   size?: FontSizeTokens;
+  color?: ColorTokens;
 }) {
   const contact = useContact(name);
   const separator = /([_^-])/;
@@ -30,6 +32,7 @@ export default function ContactName({
 
   return (
     <SizableText
+      color={props.color}
       accessibilityHint={
         !calm.disableNicknames && contact?.nickname
           ? contact.nickname

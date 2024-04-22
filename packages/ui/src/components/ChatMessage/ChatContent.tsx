@@ -18,8 +18,13 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
-import { ReactElement, memo, useMemo } from 'react';
-import { Linking } from 'react-native';
+import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ImageLoadEventData,
+  Linking,
+  NativeSyntheticEvent,
+  TouchableOpacity,
+} from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
@@ -34,7 +39,7 @@ function ShipMention({ ship }: { ship: string }) {
       backgroundColor="$positiveBackground"
       paddingHorizontal="$xs"
       paddingVertical={0}
-      borderRadius="$m"
+      borderRadius="$s"
     >
       <Text color="$positiveActionText" fontSize="$m">
         <ContactName name={ship} showAlias />
@@ -102,9 +107,9 @@ export function InlineContent({ story }: { story: Inline | null }) {
     return (
       <Text
         fontFamily="$mono"
-        backgroundColor="$gray100"
+        backgroundColor="$secondaryBackground"
         padding="$xs"
-        borderRadius="$xl"
+        borderRadius="$s"
       >
         {story['inline-code']}
       </Text>
@@ -114,16 +119,16 @@ export function InlineContent({ story }: { story: Inline | null }) {
   if (isBlockCode(story)) {
     return (
       <View
-        backgroundColor="$gray100"
+        backgroundColor="$secondaryBackground"
         padding="$m"
-        borderRadius="$xl"
+        borderRadius="$s"
         marginBottom="$m"
       >
         <Text
           fontFamily="$mono"
           padding="$m"
-          borderRadius="$xl"
-          backgroundColor="$gray100"
+          borderRadius="$s"
+          backgroundColor="$secondaryBackground"
         >
           {story.code}
         </Text>
@@ -166,8 +171,24 @@ export function InlineContent({ story }: { story: Inline | null }) {
   );
 }
 
-export function BlockContent({ story }: { story: Block }) {
+export function BlockContent({
+  story,
+  onPressImage,
+}: {
+  story: Block;
+  onPressImage?: (src: string) => void;
+}) {
   // TODO add support for other embeds and refs
+
+  const [aspect, setAspect] = useState<number | null>(null);
+
+  const handleImageLoaded = useCallback(
+    (e: NativeSyntheticEvent<ImageLoadEventData>) => {
+      //@ts-expect-error TODO: figure out why the type is wrong here.
+      setAspect(e.nativeEvent.width / e.nativeEvent.height);
+    },
+    []
+  );
 
   if (isImage(story)) {
     const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
@@ -177,18 +198,24 @@ export function BlockContent({ story }: { story: Block }) {
     }
 
     return (
-      <Image
-        source={{
-          uri: story.image.src,
-          width: story.image.height,
-          height: story.image.width,
-        }}
-        alt={story.image.alt}
-        borderRadius="$m"
-        height={200}
-        width={200}
-        resizeMode="contain"
-      />
+      <TouchableOpacity
+        onPress={onPressImage ? () => onPressImage(story.image.src) : undefined}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{
+            uri: story.image.src,
+            width: story.image.height,
+            height: story.image.width,
+          }}
+          alt={story.image.alt}
+          borderRadius="$m"
+          onLoad={handleImageLoaded}
+          width={200}
+          height={aspect ? 200 / aspect : 100}
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
     );
   }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
@@ -210,17 +237,17 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
     } else if (typeof inline === 'string') {
       if (utils.isSingleEmoji(inline)) {
         currentLine.push(
-          <Text
-            key={`emoji-${inline}-${index}`}
-            paddingTop="$xl"
-            fontSize="$xl"
-          >
+          <Text key={`emoji-${inline}-${index}`} fontSize="$xl">
             {inline}
           </Text>
         );
       } else {
         currentLine.push(
-          <Text key={`string-${inline}-${index}`} fontSize="$m">
+          <Text
+            key={`string-${inline}-${index}`}
+            fontSize="$m"
+            lineHeight={'$m'}
+          >
             {inline}
           </Text>
         );
@@ -230,7 +257,7 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
         <YStack
           key={`blockquote-${index}`}
           borderLeftWidth={2}
-          borderColor="$gray100"
+          borderColor="$border"
           paddingLeft="$l"
         >
           {Array.isArray(inline.blockquote) ? (
@@ -273,7 +300,13 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
   );
 });
 
-export default function ChatContent({ story }: { story: Story }) {
+export default function ChatContent({
+  story,
+  onPressImage,
+}: {
+  story: Story;
+  onPressImage?: (src: string) => void;
+}) {
   const storyInlines = useMemo(
     () =>
       (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
@@ -313,7 +346,13 @@ export default function ChatContent({ story }: { story: Story }) {
           {blockContent
             .filter((a) => !!a)
             .map((storyItem, key) => {
-              return <BlockContent key={key} story={storyItem.block} />;
+              return (
+                <BlockContent
+                  key={key}
+                  story={storyItem.block}
+                  onPressImage={onPressImage}
+                />
+              );
             })}
         </YStack>
       ) : null}
