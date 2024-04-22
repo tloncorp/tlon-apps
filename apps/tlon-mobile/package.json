@@ -14,10 +14,12 @@
     "generate": "pnpm generate:tailwind && pnpm run generate:ios",
     "generate:ios": "react-native bundle --entry-file='index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
     "generate:tailwind": "tailwindcss --input input.css --output tailwind.css --no-autoprefixer && tailwind-rn",
-    "format": "pnpm format:js && pnpm run format:swift",
-    "format:js": "eslint --fix --quiet ./src && prettier --write .",
-    "format:swift": "swiftformat **/*.swift --exclude ./ios/Pods, ./node_modules",
     "lint": "eslint ./src",
+    "lint:fix": "pnpm lint:fix:js",
+    "lint:fix:js": "eslint --fix --quiet ./src",
+    "lint:format": "pnpm lint:format:js && pnpm lint:format:swift",
+    "lint:format:js": "prettier --write .",
+    "lint:format:swift": "swiftformat **/*.swift --exclude ./ios/Pods, ./node_modules",
     "lint:staged": "lint-staged",
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit",
@@ -27,10 +29,11 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md,html}": [
-      "pnpm run format:js"
+      "pnpm lint:fix:js",
+      "pnpm lint:format:js"
     ],
     "*.swift": [
-      "pnpm format:swift"
+      "pnpm lint:format:swift"
     ]
   },
   "dependencies": {

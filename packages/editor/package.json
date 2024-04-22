@@ -8,7 +8,16 @@
     "dev": "vite",
     "tsc": "tsc --noEmit",
     "build": "vite build && pnpm post-build",
-    "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html"
+    "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
+    "lint:format": "prettier src/ --write"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "pnpm lint:fix",
+      "pnpm lint:format"
+    ]
   },
   "dependencies": {
     "@tiptap/core": "^2.0.3",

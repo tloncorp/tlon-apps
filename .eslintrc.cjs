@@ -18,14 +18,6 @@ module.exports = {
     },
   },
   parser: '@typescript-eslint/parser',
-  parserOptions: {
-    project: [
-      './tsconfig.json',
-      './packages/*/tsconfig.json',
-      './apps/*/tsconfig.json',
-    ],
-    tsconfigRootDir: __dirname,
-  },
   plugins: ['@typescript-eslint'],
   ignorePatterns: ['dist', 'node_modules'],
   rules: {

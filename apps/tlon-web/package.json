@@ -36,8 +36,8 @@
       "tsc-files --noEmit src/window.ts src/env.d.ts src/global.d.ts"
     ],
     "*.{js,jsx,ts,tsx}": [
-      "pnpm run lint:fix",
-      "pnpm run lint:format"
+      "pnpm lint:fix",
+      "pnpm lint:format"
     ]
   },
   "dependencies": {
