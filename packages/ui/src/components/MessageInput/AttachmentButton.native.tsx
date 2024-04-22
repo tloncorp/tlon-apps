@@ -48,14 +48,14 @@ export default function AttachmentButton({
   };
 
   useEffect(() => {
-    if (mediaLibraryPermissionStatus?.granted === false) {
+    if (showPopover && mediaLibraryPermissionStatus?.granted === false) {
       requestMediaLibraryPermission();
     }
 
-    if (cameraPermissionStatus?.granted === false) {
+    if (showPopover && cameraPermissionStatus?.granted === false) {
       requestCameraPermission();
     }
-  }, [mediaLibraryPermissionStatus]);
+  }, [mediaLibraryPermissionStatus, showPopover]);
 
   return (
     <Popover
