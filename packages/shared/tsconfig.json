@@ -4,20 +4,16 @@
     "strict": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "module": "system",
     "declaration": true,
     "declarationMap": true,
     "": true,
     "rootDir": "./src",
     "outDir": "dist",
     "composite": true,
+    "resolveJsonModule": true,
   },
   "include": [
-    "src/**/*",
-    "src/**/*.json",
-    "src/**/*.sql"
+    "./src",
+    "./src/test/*.json"
   ],
-  "exclude": [
-    "src/**/*.test.ts"
-  ]
 }

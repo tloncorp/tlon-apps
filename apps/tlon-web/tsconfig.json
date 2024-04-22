@@ -35,6 +35,7 @@
     "./*.setup.ts",
     "./rube",
     "cosmos/setup.ts",
-    "vite.config.mts"
-  ]
+    "vite.config.mts",
+    ".eslintrc.cjs",
+  ],
 }

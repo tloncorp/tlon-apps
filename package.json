@@ -17,11 +17,17 @@
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
     "test": "pnpm run -r test run -u",
     "prepare": "husky",
-    "postinstall": "pnpm run build:all"
+    "postinstall": "pnpm run build:all",
+    "lint:all": "eslint ."
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
     "concurrently": "^8.2.2",
+    "eslint": "8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "husky": "^9.0.10",
     "lint-staged": "^15.0.0",
     "tsup": "^8.0.1",
