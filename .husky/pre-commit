@@ -3,4 +3,5 @@ pnpm test
 
 git add ./apps/tlon-web/src/\*.snap
 
+pnpm -r tsc
 pnpm exec lint-staged
