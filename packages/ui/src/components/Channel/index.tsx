@@ -3,19 +3,22 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import { Upload } from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
+import { ImageBackground, KeyboardAvoidingView, Platform } from 'react-native';
 
+import { Close } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
   ContactsProvider,
   GroupsProvider,
 } from '../../contexts';
-import { Spinner, View, YStack } from '../../core';
+import { Spinner, View, XStack, YStack } from '../../core';
 import * as utils from '../../utils';
+import { Button } from '../Button';
 import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
+import UploadedImagePreview from './UploadedImagePreview';
 
 export function Channel({
   channel,
@@ -89,7 +92,12 @@ export function Channel({
               style={{ flex: 1 }}
             >
               <YStack flex={1}>
-                {!posts || !contacts ? (
+                {uploadedImage && uploadedImage.url !== '' ? (
+                  <UploadedImagePreview
+                    uploadedImage={uploadedImage}
+                    resetImageAttachment={resetImageAttachment}
+                  />
+                ) : !posts || !contacts ? (
                   <View flex={1} alignItems="center" justifyContent="center">
                     <Spinner />
                   </View>

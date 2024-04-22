@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Add, Camera, ChannelGalleries } from '../../assets/icons';
 import { Popover, Separator, Spinner, View, YGroup } from '../../core';
 import { Button } from '../Button';
+import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
   setImage,
@@ -66,15 +67,15 @@ export default function AttachmentButton({
       stayInFrame={true}
     >
       <Popover.Trigger>
-        <Button.Icon>
-          {uploadedImage && uploadedImage.url === '' ? (
-            <View alignItems="center" padding="$m">
-              <Spinner />
-            </View>
-          ) : (
+        {uploadedImage && uploadedImage.url === '' ? (
+          <View alignItems="center" padding="$m">
+            <Spinner />
+          </View>
+        ) : (
+          <IconButton onPress={() => setShowPopover(true)}>
             <Add />
-          )}
-        </Button.Icon>
+          </IconButton>
+        )}
       </Popover.Trigger>
       <Popover.Content
         borderWidth={1}

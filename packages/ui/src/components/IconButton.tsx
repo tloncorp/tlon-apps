@@ -5,6 +5,7 @@ export function IconButton({
   children,
   onPress,
   size = '$s',
+  ...props
 }: {
   children: React.ReactNode;
   onPress?: () => void;

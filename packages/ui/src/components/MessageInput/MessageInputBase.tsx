@@ -35,46 +35,20 @@ export const MessageInputContainer = ({
 }>) => {
   return (
     <YStack>
-      {uploadedImage && uploadedImage.url !== '' && (
-        <ImageBackground
-          source={{
-            uri: uploadedImage.url,
-          }}
-          style={{
-            width: '100%',
-            height: 500,
-            borderRadius: 16,
-          }}
-        >
-          <XStack alignItems="flex-end">
-            <View>
-              <Button
-                onPress={() => {
-                  resetImageAttachment();
-                }}
-                borderRadius="$radius.4xl"
-                backgroundColor="$background"
-              >
-                <Button.Icon>
-                  <Close />
-                </Button.Icon>
-              </Button>
-            </View>
-          </XStack>
-        </ImageBackground>
-      )}
       <XStack
         paddingHorizontal="$m"
         paddingVertical="$s"
         gap="$l"
         alignItems="center"
       >
-        <XStack gap="$l">
-          <AttachmentButton
-            uploadedImage={uploadedImage}
-            setImage={setImageAttachment}
-          />
-        </XStack>
+        {uploadedImage && uploadedImage.url !== '' ? null : (
+          <XStack gap="$l" animation="quick">
+            <AttachmentButton
+              uploadedImage={uploadedImage}
+              setImage={setImageAttachment}
+            />
+          </XStack>
+        )}
         <XStack flex={1} gap="$l" alignItems="center">
           {children}
           <IconButton onPress={onPressSend}>

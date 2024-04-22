@@ -30,9 +30,7 @@ export const MessageInputEditor = () => {
       }),
       CodeBridge,
       UnderlineBridge,
-      PlaceholderBridge.configureExtension({
-        placeholder: 'Message',
-      }),
+      PlaceholderBridge,
       LinkBridge.configureExtension({
         openOnClick: false,
       }).extendExtension({
