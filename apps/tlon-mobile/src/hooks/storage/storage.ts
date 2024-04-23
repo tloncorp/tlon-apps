@@ -1,5 +1,10 @@
 import * as api from '@tloncorp/shared/dist/api';
-import type { StorageState, StorageUpdate } from '@tloncorp/shared/dist/urbit';
+import type {
+  RNFile,
+  StorageState,
+  StorageUpdate,
+  Uploader,
+} from '@tloncorp/shared/dist/urbit';
 import { enableMapSet } from 'immer';
 import _ from 'lodash';
 import { compose } from 'lodash/fp';
@@ -26,6 +31,29 @@ const getIsHosted = async () => {
 export const getHostingUploadURL = async () => {
   const isHosted = await getIsHosted();
   return isHosted ? 'https://memex.tlon.network' : '';
+};
+
+const fetchImageFromUri = async (uri: string) => {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const name = uri.split('/').pop();
+
+  const file: RNFile = {
+    blob,
+    name: name ?? 'channel-image',
+    type: blob.type,
+  };
+
+  return file;
+};
+
+export const handleImagePicked = async (uri: string, uploader: Uploader) => {
+  const image = await fetchImageFromUri(uri);
+  if (!image) {
+    return;
+  }
+
+  await uploader?.uploadFiles([image]);
 };
 
 enableMapSet();

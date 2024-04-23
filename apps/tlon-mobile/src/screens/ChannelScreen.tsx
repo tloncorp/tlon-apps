@@ -5,12 +5,13 @@ import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import type * as ub from '@tloncorp/shared/dist/urbit';
-import type { RNFile, Upload } from '@tloncorp/shared/dist/urbit';
+import type { Upload } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShip } from '../contexts/ship';
+import { handleImagePicked } from '../hooks/storage/storage';
 import { useUploader } from '../hooks/storage/upload';
 import type { HomeStackParamList } from '../types';
 
@@ -107,49 +108,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [error]);
 
-  const fetchImageFromUri = useCallback(
-    async (uri: string) => {
-      if (!imageAttachment) {
-        return null;
-      }
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const name = uri.split('/').pop();
-
-      const file: RNFile = {
-        blob,
-        name: name ?? 'channel-image',
-        type: blob.type,
-      };
-
-      return file;
-    },
-    [imageAttachment]
-  );
-
-  const handleImagePicked = useCallback(
-    async (uri: string) => {
-      const image = await fetchImageFromUri(uri);
-      if (!image) {
-        return;
-      }
-
-      await uploader?.uploadFiles([image]);
-    },
-    [fetchImageFromUri, uploader]
-  );
-
   useEffect(() => {
     if (
+      uploader &&
       imageAttachment &&
       mostRecentFile?.status !== 'loading' &&
       mostRecentFile?.status !== 'error' &&
       mostRecentFile?.status !== 'success'
     ) {
-      handleImagePicked(imageAttachment);
+      handleImagePicked(imageAttachment, uploader);
       setImageAttachment(null);
     }
-  }, [imageAttachment, handleImagePicked, mostRecentFile]);
+  }, [imageAttachment, mostRecentFile, uploader]);
 
   useEffect(() => {
     if (
