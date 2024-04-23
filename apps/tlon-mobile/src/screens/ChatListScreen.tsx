@@ -34,9 +34,7 @@ export default function ChatListScreen(props: ChatListScreenProps) {
         rightControls={
           <>
             {isFetchingInitData && <Spinner />}
-            <IconButton onPress={() => {}}>
-              <Icon type="Add" />
-            </IconButton>
+            <Icon type="Add" onPress={() => {}} />
           </>
         }
       />
