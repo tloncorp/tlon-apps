@@ -4,7 +4,11 @@
     "promptToConfigurePushNotifications": false
   },
   "build": {
+    "base": {
+      "pnpm": "9.0.5"
+    },
     "preview": {
+      "extends": "base",
       "channel": "preview",
       "env": {
         "APP_VARIANT": "preview"
@@ -17,6 +21,7 @@
       }
     },
     "production": {
+      "extends": "base",
       "channel": "production",
       "android": {
         "gradleCommand": ":app:bundleProductionRelease"
