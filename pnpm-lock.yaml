@@ -9,12 +9,6 @@ overrides:
   '@urbit/http-api': 3.1.0-dev-2
 
 patchedDependencies:
-  '@tiptap/react@2.0.3':
-    hash: tt2duu22fpwhmhaws3iaoig4mu
-    path: patches/@tiptap__react@2.0.3.patch
-  '@types/testing-library__jest-dom@5.14.5':
-    hash: n4thxxgg24py6nu2jafoa3v4pa
-    path: patches/@types__testing-library__jest-dom@5.14.5.patch
   '@urbit/http-api@3.1.0-dev-2':
     hash: a4psibisxhh5q6cyjn3nbiaogm
     path: patches/@urbit__http-api@3.1.0-dev-2.patch
@@ -27,9 +21,6 @@ patchedDependencies:
   tailwind-rn@4.2.0:
     hash: huubbq5aurym44djogb6gnyabq
     path: patches/tailwind-rn@4.2.0.patch
-  usehooks-ts@2.6.0:
-    hash: zfxlgoj5v64fvvaz7tv5fo5k2e
-    path: patches/usehooks-ts@2.6.0.patch
 
 importers:
 
@@ -458,7 +449,7 @@ importers:
         version: 2.0.3(@tiptap/core@2.0.3)
       '@tiptap/react':
         specifier: ^2.0.3
-        version: 2.0.3(patch_hash=tt2duu22fpwhmhaws3iaoig4mu)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@tiptap/suggestion':
         specifier: ^2.0.3
         version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))
@@ -674,7 +665,7 @@ importers:
         version: 1.0.1(react@18.2.0)
       usehooks-ts:
         specifier: ^2.6.0
-        version: 2.6.0(patch_hash=zfxlgoj5v64fvvaz7tv5fo5k2e)(react@18.2.0)
+        version: 2.6.0(react@18.2.0)
       uuid:
         specifier: ^9.0.0
         version: 9.0.0
@@ -921,7 +912,7 @@ importers:
         version: 2.0.3(@tiptap/core@2.0.3)
       '@tiptap/react':
         specifier: ^2.0.3
-        version: 2.0.3(patch_hash=tt2duu22fpwhmhaws3iaoig4mu)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -967,7 +958,7 @@ importers:
         version: 2.0.3(@tiptap/core@2.0.3)
       '@tiptap/react':
         specifier: ^2.0.3
-        version: 2.0.3(patch_hash=tt2duu22fpwhmhaws3iaoig4mu)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@tiptap/suggestion':
         specifier: ^2.0.3
         version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))
@@ -17406,7 +17397,7 @@ snapshots:
     dependencies:
       '@adobe/css-tools': 4.0.1
       '@babel/runtime': 7.23.8
-      '@types/testing-library__jest-dom': 5.14.5(patch_hash=n4thxxgg24py6nu2jafoa3v4pa)
+      '@types/testing-library__jest-dom': 5.14.5
       aria-query: 5.3.0
       chalk: 3.0.0
       css.escape: 1.5.1
@@ -17827,7 +17818,7 @@ snapshots:
       prosemirror-transform: 1.8.0
       prosemirror-view: 1.33.4
 
-  '@tiptap/react@2.0.3(patch_hash=tt2duu22fpwhmhaws3iaoig4mu)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+  '@tiptap/react@2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tiptap/core': 2.0.3(@tiptap/pm@2.0.3)
       '@tiptap/extension-bubble-menu': 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))
@@ -18119,7 +18110,7 @@ snapshots:
     dependencies:
       '@types/node': 20.10.8
 
-  '@types/testing-library__jest-dom@5.14.5(patch_hash=n4thxxgg24py6nu2jafoa3v4pa)':
+  '@types/testing-library__jest-dom@5.14.5':
     dependencies:
       '@types/jest': 28.1.7
 
@@ -25392,7 +25383,7 @@ snapshots:
     dependencies:
       react: 18.2.0
 
-  usehooks-ts@2.6.0(patch_hash=zfxlgoj5v64fvvaz7tv5fo5k2e)(react@18.2.0):
+  usehooks-ts@2.6.0(react@18.2.0):
     dependencies:
       react: 18.2.0
 
