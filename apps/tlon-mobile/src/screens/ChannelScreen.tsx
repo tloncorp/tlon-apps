@@ -1,10 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { sendPost } from '@tloncorp/shared/dist/api';
+import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import type * as ub from '@tloncorp/shared/dist/urbit';
-import type { Story, Upload } from '@tloncorp/shared/dist/urbit';
+import type { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -184,7 +184,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToImageViewer={handleGoToImage}
         goToChannels={() => setChannelNavOpen(true)}
         goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
-        imageAttachment={imageAttachment}
         uploadedImage={uploadedImage}
         setImageAttachment={setImageAttachment}
         resetImageAttachment={resetImageAttachment}

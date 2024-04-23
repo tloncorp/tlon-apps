@@ -1,5 +1,5 @@
+import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
-import type { Upload } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import type { PropsWithChildren } from 'react';
@@ -92,7 +92,6 @@ const ChannelFixture = () => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        imageAttachment={null}
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
       />
@@ -176,7 +175,6 @@ const ChannelFixtureWithImage = () => {
         goToImageViewer={() => {}}
         messageSender={() => {}}
         uploadedImage={uploadedImage}
-        imageAttachment={imageAttachment}
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
       />

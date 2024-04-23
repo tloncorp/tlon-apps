@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { Story, Upload } from '@tloncorp/shared/dist/urbit';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { Upload } from 'packages/shared/dist/api';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -30,7 +31,6 @@ export function Channel({
   goToImageViewer,
   goToPost,
   messageSender,
-  imageAttachment,
   setImageAttachment,
   onScrollEndReached,
   onScrollStartReached,
@@ -53,7 +53,6 @@ export function Channel({
   goToImageViewer: (post: db.PostInsert, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => void;
-  imageAttachment: string | null;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   resetImageAttachment: () => void;

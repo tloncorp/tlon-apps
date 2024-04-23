@@ -1,4 +1,4 @@
-import { Upload } from '@tloncorp/shared/dist/urbit';
+import { Upload } from '@tloncorp/shared/dist/api';
 
 import { Attachment } from '../../assets/icons';
 import { IconButton } from '../IconButton';

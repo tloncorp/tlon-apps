@@ -1,4 +1,4 @@
-import { Upload } from '@tloncorp/shared/dist/urbit';
+import { Upload } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 

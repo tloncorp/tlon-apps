@@ -4,7 +4,7 @@ import type {
   StorageState,
   StorageUpdate,
   Uploader,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/dist/api';
 import { enableMapSet } from 'immer';
 import _ from 'lodash';
 import { compose } from 'lodash/fp';

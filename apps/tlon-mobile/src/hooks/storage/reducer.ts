@@ -1,5 +1,5 @@
 /* eslint-disable no-param-reassign */
-import type { StorageState, StorageUpdate } from '@tloncorp/shared/dist/urbit';
+import type { StorageState, StorageUpdate } from '@tloncorp/shared/dist/api';
 import _ from 'lodash';
 
 import { getHostingUploadURL } from './storage';

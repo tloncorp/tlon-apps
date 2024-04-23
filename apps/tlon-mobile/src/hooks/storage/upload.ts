@@ -7,7 +7,7 @@ import type {
   StorageConfiguration,
   StorageCredentials,
   Uploader,
-} from '@tloncorp/shared/dist/urbit';
+} from '@tloncorp/shared/dist/api';
 import { deSig, formatDa, unixToDa } from '@urbit/aura';
 // import imageCompression from 'browser-image-compression';
 import produce from 'immer';

@@ -1,4 +1,5 @@
-import { Story, Upload } from '@tloncorp/shared/dist/urbit';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { Upload } from 'packages/shared/dist/api';
 import { PropsWithChildren } from 'react';
 
 import { ArrowUp } from '../../assets/icons';

@@ -1,4 +1,4 @@
-import { Upload } from '@tloncorp/shared/dist/urbit';
+import { Upload } from '@tloncorp/shared/dist/api';
 import { useState } from 'react';
 import { ImageBackground } from 'react-native';
 
