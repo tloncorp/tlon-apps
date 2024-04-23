@@ -26,17 +26,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v3
       - name: Set up Expo and EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Explicitly build
-        run: pnpm build:packages && pnpm build:mobile
       - name: Create build vars
         id: vars
         run: |
