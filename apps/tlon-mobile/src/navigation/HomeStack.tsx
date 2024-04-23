@@ -20,21 +20,6 @@ export const HomeStack = ({ navigation }: Props) => {
     },
   });
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Icon
-          type="Add"
-          pressStyle={{
-            backgroundColor: '$secondaryBackground',
-            borderRadius: '$s',
-          }}
-          onPress={() => {}}
-        />
-      ),
-    });
-  }, [navigation]);
-
   return (
     <Stack.Navigator initialRouteName="ChatList" screenOptions={screenOptions}>
       <Stack.Screen name="ChatList" component={ChatListScreen} />
