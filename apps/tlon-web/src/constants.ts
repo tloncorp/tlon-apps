@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/prefer-default-export
 export const STANDARD_MESSAGE_FETCH_PAGE_SIZE = 100;
 export const LARGE_MESSAGE_FETCH_PAGE_SIZE = 300;
 export const FETCH_BATCH_SIZE = 3;

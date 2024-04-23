@@ -12,7 +12,7 @@ export default function InvitedGroupsDisplay({
       <h3 className="mb-4 text-lg font-bold">Pending Invites</h3>
       <div className="h-5/6 overflow-auto">
         {Object.keys(pendingGangs).map((flag, index) => (
-          <div className="p-1">
+          <div className="p-1" key={index}>
             <GroupReference
               key={index}
               flag={flag}

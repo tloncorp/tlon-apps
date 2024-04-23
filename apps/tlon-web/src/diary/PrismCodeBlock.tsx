@@ -121,8 +121,9 @@ function CodeBlockView(props: NodeViewProps) {
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content className="dropdown max-h-64 w-48 overflow-y-auto">
-                {options.map((o) => (
+                {options.map((o, i) => (
                   <DropdownMenu.Item
+                    key={i}
                     className="dropdown-item"
                     onSelect={() => {
                       setSelectedLanguage(o.value);

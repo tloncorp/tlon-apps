@@ -10,13 +10,20 @@
     "dev": "pnpm build --watch",
     "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm dev\"",
     "test": "vitest",
-    "types": "tsc --emitDeclarationOnly",
+    "types": "tsc --emitDeclarationOnly --noEmit false",
     "tsc": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
-    "lint:all": "pnpm lint:format",
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
     "watch-migrations": "pnpm generate:migration --watch"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "pnpm lint:fix",
+      "pnpm lint:format"
+    ]
   },
   "dependencies": {
     "@tanstack/react-query": "^5.28.14",

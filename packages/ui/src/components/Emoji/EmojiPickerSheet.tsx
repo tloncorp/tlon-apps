@@ -30,7 +30,6 @@ export function EmojiPickerSheet(
         {...rest}
         dismissOnSnapToBottom
         dismissOnOverlayPress
-        // @ts-ignore-next-line
         animation="quick"
       >
         <Sheet.Overlay zIndex="$modalSheet" />

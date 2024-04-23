@@ -23,7 +23,7 @@ export function Avatar({
     <AvatarFrame
       size={size}
       {...props}
-      //@ts-expect-error
+      // @ts-expect-error custom color
       backgroundColor={colors.backgroundColor}
     >
       {contact?.avatarImage ? (
