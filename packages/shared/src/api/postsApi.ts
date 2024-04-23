@@ -1,13 +1,20 @@
+import { unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import * as ub from '../urbit';
 import {
+  ClubAction,
+  DmAction,
   KindData,
   KindDataChat,
   Story,
+  WritDelta,
+  WritDeltaAdd,
+  WritDiff,
   checkNest,
   getTextContent,
+  whomIsDm,
 } from '../urbit';
 import { formatDateParam, formatUd, udToDate } from './converters';
 import { BadResponseError, poke, scry } from './urbit';
@@ -29,6 +36,42 @@ export function channelAction(
   };
 }
 
+export function chatAction(
+  whom: string,
+  id: string,
+  delta: WritDelta
+): Poke<DmAction | ClubAction> {
+  if (whomIsDm(whom)) {
+    const action: Poke<DmAction> = {
+      app: 'chat',
+      mark: 'chat-dm-action',
+      json: {
+        ship: whom,
+        diff: {
+          id,
+          delta,
+        },
+      },
+    };
+    return action;
+  }
+
+  const diff: WritDiff = { id, delta };
+  const action: Poke<ClubAction> = {
+    app: 'chat',
+    mark: 'chat-club-action-0',
+    json: {
+      id: whom,
+      diff: {
+        uid: '0v3',
+        delta: { writ: diff },
+      },
+    },
+  };
+
+  return action;
+}
+
 export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   checkNest(nest);
 
@@ -42,6 +85,28 @@ export const sendPost = async (
   content: Story,
   author: string
 ) => {
+  if (isDmChannelId(channelId)) {
+    const delta: WritDeltaAdd = {
+      add: {
+        memo: {
+          content,
+          sent: Date.now(),
+          author,
+        },
+        kind: null,
+        time: null,
+      },
+    };
+
+    const action = chatAction(
+      channelId,
+      `${delta.add.memo.author}/${formatUd(unixToDa(delta.add.memo.sent).toString())}`,
+      delta
+    );
+    await poke(action);
+    return;
+  }
+
   const essay: ub.PostEssay = {
     content,
     sent: Date.now(),

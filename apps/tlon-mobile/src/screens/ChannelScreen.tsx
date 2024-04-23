@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
+import { sendPost } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import type * as ub from '@tloncorp/shared/dist/urbit';
@@ -84,14 +84,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const messageSender = useCallback(
     async (content: Story, channelId: string) => {
       if (!ship || !channel) {
-        return;
-      }
-
-      const channelType = channel.type;
-
-      if (channelType === 'dm' || channelType === 'groupDm') {
-        await sendDirectMessage(channelId, content, ship);
-        resetImageAttachment();
         return;
       }
 
