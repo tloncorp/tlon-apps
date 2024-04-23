@@ -1,11 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { JSONContent } from '@tiptap/core';
 import { sendDirectMessage, sendPost } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import type * as ub from '@tloncorp/shared/dist/urbit';
-import type { Upload } from '@tloncorp/shared/dist/urbit';
+import type { Story, Upload } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,7 +82,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [uploader]);
 
   const messageSender = useCallback(
-    async (content: JSONContent, channelId: string, blocks: ub.Block[]) => {
+    async (content: Story, channelId: string) => {
       if (!ship || !channel) {
         return;
       }
@@ -91,12 +90,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       const channelType = channel.type;
 
       if (channelType === 'dm' || channelType === 'groupDm') {
-        await sendDirectMessage(channelId, content, ship, blocks);
+        await sendDirectMessage(channelId, content, ship);
         resetImageAttachment();
         return;
       }
 
-      await sendPost(channelId, content, ship, blocks);
+      await sendPost(channelId, content, ship);
       resetImageAttachment();
     },
     [ship, channel, resetImageAttachment]

@@ -1,22 +1,15 @@
-import type { JSONContent } from '@tiptap/core';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
-import { JSONToInlines } from '../logic/tiptap';
 import * as ub from '../urbit';
 import {
   KindData,
   KindDataChat,
+  Story,
   checkNest,
-  constructStory,
   getTextContent,
 } from '../urbit';
-import {
-  formatDateParam,
-  formatPostIdParam,
-  formatUd,
-  udToDate,
-} from './converters';
+import { formatDateParam, formatUd, udToDate } from './converters';
 import { BadResponseError, poke, scry } from './urbit';
 
 export function channelAction(
@@ -46,18 +39,11 @@ export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
 
 export const sendPost = async (
   channelId: string,
-  content: JSONContent,
-  author: string,
-  blocks?: ub.Block[]
+  content: Story,
+  author: string
 ) => {
-  const inlines = JSONToInlines(content);
-  const story = constructStory(inlines);
-  if (blocks && blocks.length > 0) {
-    story.push(...blocks.map((b) => ({ block: b })));
-  }
-
   const essay: ub.PostEssay = {
-    content: story,
+    content,
     sent: Date.now(),
     'kind-data': {
       chat: null,

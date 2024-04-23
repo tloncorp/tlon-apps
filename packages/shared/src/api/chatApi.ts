@@ -1,18 +1,15 @@
 import { Poke, unixToDa } from '@urbit/api';
 
 import * as db from '../db';
-import { JSONToInlines } from '../logic/tiptap';
 import * as ub from '../urbit';
 import {
   ClubAction,
-  ClubDelta,
   DmAction,
-  JSONContent,
+  Story,
   WritDelta,
   WritDeltaAdd,
   WritDiff,
   WritResponse,
-  constructStory,
   whomIsDm,
 } from '../urbit';
 import { formatUd, toClientMeta } from './converters';
@@ -77,21 +74,13 @@ export const markChatRead = (whom: string) =>
 
 export const sendDirectMessage = async (
   to: string,
-  content: JSONContent,
-  author: string,
-  blocks?: ub.Block[]
+  content: Story,
+  author: string
 ) => {
-  const inlines = JSONToInlines(content);
-  const story = constructStory(inlines);
-
-  if (blocks && blocks.length > 0) {
-    story.push(...blocks.map((b) => ({ block: b })));
-  }
-
   const delta: WritDeltaAdd = {
     add: {
       memo: {
-        content: story,
+        content,
         sent: Date.now(),
         author,
       },

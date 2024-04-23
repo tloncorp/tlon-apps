@@ -1,24 +1,18 @@
-import { JSONContent } from '@tiptap/core';
-import { Upload } from '@tloncorp/shared/dist/urbit';
-import * as ub from '@tloncorp/shared/dist/urbit';
+import { Story, Upload } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren } from 'react';
-import { ImageBackground } from 'react-native';
 
-import { ArrowUp, Close } from '../../assets/icons';
-import { View, XStack, YStack } from '../../core';
-import { Button } from '../Button';
+import { ArrowUp } from '../../assets/icons';
+import { XStack, YStack } from '../../core';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: JSONContent, channelId: string, blocks: ub.Block[]) => void;
+  send: (content: Story, channelId: string) => void;
   channelId: string;
   setImageAttachment: (image: string | null) => void;
-  imageAttachment: string | null;
   uploadedImage?: Upload | null;
-  resetImageAttachment: () => void;
 }
 
 export const MessageInputContainer = ({
@@ -26,12 +20,10 @@ export const MessageInputContainer = ({
   onPressSend,
   setImageAttachment,
   uploadedImage,
-  resetImageAttachment,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
-  resetImageAttachment: () => void;
 }>) => {
   return (
     <YStack>

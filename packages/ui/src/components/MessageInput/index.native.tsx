@@ -7,10 +7,12 @@ import {
   useBridgeState,
   useEditorBridge,
 } from '@10play/tentap-editor';
-// ts-expect-error not typed
+//ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import { ShortcutsBridge } from '@tloncorp/editor/src/bridges';
+import { tiptap } from '@tloncorp/shared/dist';
 import type * as ub from '@tloncorp/shared/dist/urbit';
+import { constructStory } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
@@ -57,9 +59,7 @@ export function MessageInput({
   send,
   channelId,
   setImageAttachment,
-  imageAttachment,
   uploadedImage,
-  resetImageAttachment,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(0);
   const editor = useEditorBridge({
@@ -101,8 +101,8 @@ export function MessageInput({
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
       const blocks: ub.Block[] = [];
-
-      console.log({ uploadedImage });
+      const inlines = tiptap.JSONToInlines(json);
+      const story = constructStory(inlines);
 
       if (uploadedImage) {
         blocks.push({
@@ -115,11 +115,15 @@ export function MessageInput({
         });
       }
 
-      await send(json, channelId, blocks);
+      if (blocks && blocks.length > 0) {
+        story.push(...blocks.map((block) => ({ block })));
+      }
+
+      await send(story, channelId);
 
       editor.setContent('');
     });
-  }, [editor, send, channelId]);
+  }, [editor, send, channelId, uploadedImage]);
 
   const handleSend = useCallback(() => {
     Keyboard.dismiss();
@@ -161,7 +165,6 @@ export function MessageInput({
       setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
       uploadedImage={uploadedImage}
-      resetImageAttachment={resetImageAttachment}
     >
       <XStack
         borderRadius="$xl"

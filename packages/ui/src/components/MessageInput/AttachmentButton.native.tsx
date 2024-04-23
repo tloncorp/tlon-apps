@@ -56,7 +56,13 @@ export default function AttachmentButton({
     if (showPopover && cameraPermissionStatus?.granted === false) {
       requestCameraPermission();
     }
-  }, [mediaLibraryPermissionStatus, showPopover]);
+  }, [
+    mediaLibraryPermissionStatus,
+    showPopover,
+    cameraPermissionStatus,
+    requestMediaLibraryPermission,
+    requestCameraPermission,
+  ]);
 
   return (
     <Popover
