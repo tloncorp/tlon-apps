@@ -100,7 +100,6 @@ export interface Uploader {
   uploadType: 'prompt' | 'paste' | 'drag';
 }
 
-
 export interface FileStore {
   client: S3Client | null;
   uploaders: Record<string, Uploader>;

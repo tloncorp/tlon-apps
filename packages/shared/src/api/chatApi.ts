@@ -88,7 +88,6 @@ export const sendDirectMessage = async (
     story.push(...blocks.map((b) => ({ block: b })));
   }
 
-
   const delta: WritDeltaAdd = {
     add: {
       memo: {
