@@ -7,13 +7,14 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
   build: {
     outDir: 'dist',
-    emptyOutDir: false,
-    rollupOptions: {
-      external: ['react-native', '@10play/tentap-editor'],
-    },
   },
   resolve: {
-    alias: [],
+    alias: [
+      {
+        find: '@10play/tentap-editor', // On our web bundle we only want to include web related code
+        replacement: '@10play/tentap-editor/web',
+      },
+    ],
   },
   plugins: [react(), viteSingleFile()],
   server: {
