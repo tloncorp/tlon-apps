@@ -14,6 +14,7 @@ export interface MessageInputProps {
   channelId: string;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
+  paddingBottom?: number;
 }
 
 export const MessageInputContainer = ({
@@ -21,10 +22,12 @@ export const MessageInputContainer = ({
   onPressSend,
   setImageAttachment,
   uploadedImage,
+  paddingBottom,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
+  paddingBottom?: number;
 }>) => {
   return (
     <YStack>
@@ -39,6 +42,7 @@ export const MessageInputContainer = ({
             <AttachmentButton
               uploadedImage={uploadedImage}
               setImage={setImageAttachment}
+              paddingBottom={paddingBottom ?? 0}
             />
           </XStack>
         )}

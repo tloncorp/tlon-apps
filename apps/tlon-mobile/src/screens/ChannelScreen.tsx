@@ -189,6 +189,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         resetImageAttachment={resetImageAttachment}
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
+        paddingBottom={bottom}
       />
       {group && (
         <ChannelSwitcherSheet

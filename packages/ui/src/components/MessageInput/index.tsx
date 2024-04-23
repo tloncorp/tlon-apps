@@ -11,11 +11,15 @@ export function MessageInput({
   channelId,
   setImageAttachment,
   uploadedImage,
+  paddingBottom,
 }: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <MessageInputContainer setImageAttachment={setImageAttachment}>
+    <MessageInputContainer
+      paddingBottom={paddingBottom}
+      setImageAttachment={setImageAttachment}
+    >
       <TextArea
         flexGrow={1}
         borderRadius="$xl"

@@ -3,16 +3,19 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 
 import { Add, Camera, ChannelGalleries } from '../../assets/icons';
-import { Popover, Separator, Spinner, View, YGroup } from '../../core';
+import { Separator, Spinner, View, YGroup, YStack } from '../../core';
 import { Button } from '../Button';
 import { IconButton } from '../IconButton';
+import { Sheet } from '../Sheet';
 
 export default function AttachmentButton({
   setImage,
   uploadedImage,
+  paddingBottom,
 }: {
   setImage: (uri: string | null) => void;
   uploadedImage?: Upload | null;
+  paddingBottom: number;
 }) {
   const [showPopover, setShowPopover] = useState(false);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
@@ -65,34 +68,33 @@ export default function AttachmentButton({
   ]);
 
   return (
-    <Popover
-      open={showPopover}
-      onOpenChange={(open: boolean) => setShowPopover(open)}
-      placement="top"
-      allowFlip={false}
-      stayInFrame={true}
-    >
-      <Popover.Trigger>
-        {uploadedImage && uploadedImage.url === '' ? (
-          <View alignItems="center" padding="$m">
-            <Spinner />
-          </View>
-        ) : (
-          <IconButton onPress={() => setShowPopover(true)}>
-            <Add />
-          </IconButton>
-        )}
-      </Popover.Trigger>
-      <Popover.Content
-        borderWidth={1}
-        borderColor="$positiveBorder"
-        enterStyle={{ y: -10, opacity: 0 }}
-        exitStyle={{ y: -10, opacity: 0 }}
-        elevate
-        animation={'quick'}
+    <>
+      {uploadedImage && uploadedImage.url === '' ? (
+        <View alignItems="center" padding="$m">
+          <Spinner />
+        </View>
+      ) : (
+        <IconButton onPress={() => setShowPopover(true)}>
+          <Add />
+        </IconButton>
+      )}
+      <Sheet
+        open={showPopover}
+        onOpenChange={(open: boolean) => setShowPopover(open)}
+        modal
+        animation="quick"
+        dismissOnSnapToBottom
+        snapPointsMode="fit"
       >
-        <YGroup separator={<Separator borderColor="$positiveBorder" />}>
-          <YGroup.Item>
+        <Sheet.Overlay animation="quick" />
+        <Sheet.Frame>
+          <Sheet.Handle paddingTop="$xl" />
+          <YStack
+            paddingBottom={paddingBottom}
+            gap="$xl"
+            paddingHorizontal="$xl"
+            paddingTop="$xl"
+          >
             <Button
               borderWidth={0}
               alignItems="center"
@@ -105,8 +107,6 @@ export default function AttachmentButton({
               </Button.Icon>
               <Button.Text size="$s">Photo Library</Button.Text>
             </Button>
-          </YGroup.Item>
-          <YGroup.Item>
             <Button
               borderWidth={0}
               alignItems="center"
@@ -119,9 +119,9 @@ export default function AttachmentButton({
               </Button.Icon>
               <Button.Text size="$s">Take a Photo</Button.Text>
             </Button>
-          </YGroup.Item>
-        </YGroup>
-      </Popover.Content>
-    </Popover>
+          </YStack>
+        </Sheet.Frame>
+      </Sheet>
+    </>
   );
 }

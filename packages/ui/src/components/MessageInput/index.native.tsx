@@ -60,6 +60,7 @@ export function MessageInput({
   channelId,
   setImageAttachment,
   uploadedImage,
+  paddingBottom,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(0);
   const editor = useEditorBridge({
@@ -165,6 +166,7 @@ export function MessageInput({
       setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
       uploadedImage={uploadedImage}
+      paddingBottom={paddingBottom}
     >
       <XStack
         borderRadius="$xl"

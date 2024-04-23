@@ -16,7 +16,6 @@ export {
   TextArea,
   Text,
   Dialog,
-  Popover,
   Separator,
 } from 'tamagui';
 
