@@ -9,9 +9,9 @@ import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useShip } from '../contexts/ship';
 import { handleImagePicked } from '../hooks/storage/storage';
 import { useUploader } from '../hooks/storage/upload';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { HomeStackParamList } from '../types';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
@@ -73,7 +73,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const { data: contacts } = store.useContacts();
 
   const { bottom } = useSafeAreaInsets();
-  const { ship } = useShip();
+  const currentUserId = useCurrentUserId();
 
   const resetImageAttachment = useCallback(() => {
     setImageAttachment(null);
@@ -83,14 +83,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const messageSender = useCallback(
     async (content: Story, channelId: string) => {
-      if (!ship || !channel) {
+      if (!currentUserId || !channel) {
         return;
       }
 
-      await sendPost(channelId, content, ship);
+      await sendPost(channelId, content, currentUserId);
       resetImageAttachment();
     },
-    [ship, channel, resetImageAttachment]
+    [currentUserId, channel, resetImageAttachment]
   );
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     <View backgroundColor="$background" flex={1}>
       <Channel
         channel={channel}
-        currentUserId={ship!}
+        currentUserId={currentUserId}
         calmSettings={{
           disableAppTileUnreads: false,
           disableAvatars: false,
