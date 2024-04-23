@@ -8,7 +8,7 @@ import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useShip } from '../contexts/ship';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { HomeStackParamList } from '../types';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
@@ -62,21 +62,21 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const { data: contacts } = store.useContacts();
 
   const { bottom } = useSafeAreaInsets();
-  const { ship } = useShip();
+  const currentUserId = useCurrentUserId();
 
   const messageSender = async (content: JSONContent, channelId: string) => {
-    if (!ship || !channel) {
+    if (!currentUserId || !channel) {
       return;
     }
 
     const channelType = channel.type;
 
     if (channelType === 'dm' || channelType === 'groupDm') {
-      await sendDirectMessage(channelId, content, ship);
+      await sendDirectMessage(channelId, content, currentUserId);
       return;
     }
 
-    await sendPost(channelId, content, ship);
+    await sendPost(channelId, content, currentUserId);
   };
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     <View backgroundColor="$background" flex={1}>
       <Channel
         channel={channel}
-        currentUserId={ship!}
+        currentUserId={currentUserId}
         calmSettings={{
           disableAppTileUnreads: false,
           disableAvatars: false,

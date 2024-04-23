@@ -6,7 +6,7 @@ import { Button, SearchBar, SearchResults } from '@tloncorp/ui';
 import { useCallback, useLayoutEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useShip } from '../contexts/ship';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { HomeStackParamList } from '../types';
 
 type ChannelSearchProps = NativeStackScreenProps<
@@ -18,7 +18,7 @@ export default function ChannelSearch({
   route,
   navigation,
 }: ChannelSearchProps) {
-  const { ship } = useShip();
+  const currentUserId = useCurrentUserId();
   const { channel } = route.params;
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
@@ -63,7 +63,7 @@ export default function ChannelSearch({
 
         <SearchResults
           posts={posts ?? []}
-          currentUserId={ship!}
+          currentUserId={currentUserId}
           navigateToPost={navigateToPost}
           search={{
             query,

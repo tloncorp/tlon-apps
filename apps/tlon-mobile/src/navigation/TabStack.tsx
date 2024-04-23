@@ -5,14 +5,14 @@ import { Circle, Icon, SizableText, View, useStyle } from '@tloncorp/ui';
 import { Avatar } from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 
-import { useShip } from '../contexts/ship';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
-  const { contactId } = useShip();
+  const currentUserId = useCurrentUserId();
   const { data: unreadCount } = store.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
@@ -86,7 +86,7 @@ export const TabStack = () => {
         component={View}
         options={{
           tabBarIcon: ({ focused }) => (
-            <AvatarTabIcon id={contactId!} focused={focused} />
+            <AvatarTabIcon id={currentUserId!} focused={focused} />
           ),
           tabBarShowLabel: false,
         }}
