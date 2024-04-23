@@ -203,7 +203,7 @@ export const insertGroups = createWriteQuery(
   'insertGroups',
   async (groupData: GroupInsert[]) => {
     await client.transaction(async (tx) => {
-      for (let group of groupData) {
+      for (const group of groupData) {
         await tx
           .insert($groups)
           .values(group)
@@ -510,7 +510,7 @@ export const insertChannels = createWriteQuery(
           set: conflictUpdateSetAll($posts),
         });
 
-      for (let channel of channels) {
+      for (const channel of channels) {
         if (channel.members && channel.members.length > 0) {
           await client
             .delete($chatMembers)

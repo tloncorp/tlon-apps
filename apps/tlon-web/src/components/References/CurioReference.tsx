@@ -6,9 +6,7 @@ import { useLocation, useNavigate } from 'react-router';
 import ShipName from '@/components/ShipName';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import useGroupJoin from '@/groups/useGroupJoin';
-// eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
-// eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { linkUrlFromContent } from '@/logic/channel';

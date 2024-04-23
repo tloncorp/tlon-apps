@@ -4,7 +4,6 @@ import classNames from 'classnames';
 import React from 'react';
 
 // import { useDrop } from 'react-dnd';
-// eslint-disable-next-line import/no-cycle
 // import { dragTypes, selTiles } from './Grid';
 
 interface TileContainerProps {

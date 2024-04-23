@@ -69,7 +69,7 @@ export const syncStaleChannels = async ({
   const channels: StaleChannel[] = optimizeChannelLoadOrder(
     await db.getStaleChannels()
   );
-  for (let channel of channels) {
+  for (const channel of channels) {
     syncQueue.add(channel.id, () => {
       return syncChannel(channel.id, channel.unread.updatedAt);
     });

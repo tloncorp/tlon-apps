@@ -25,10 +25,6 @@ const ChatMessage = ({
   onPressReplies?: (post: db.PostInsert) => void;
   onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
 }) => {
-  if (!post) {
-    return null;
-  }
-
   const isUnread = useMemo(
     () => firstUnread && post.id === firstUnread,
     [firstUnread, post.id]
@@ -38,6 +34,15 @@ const ChatMessage = ({
     () => JSON.parse(post.content as string) as Story,
     [post.content]
   );
+
+  const handleRepliesPressed = useCallback(() => {
+    onPressReplies?.(post);
+  }, [onPressReplies, post]);
+
+  if (!post) {
+    return null;
+  }
+
   // const roles = useMemo(
   // () =>
   // group.members
@@ -51,16 +56,12 @@ const ChatMessage = ({
   // return utils.makePrettyDay(date);
   // }, [post.sentAt]);
 
-  const handleRepliesPressed = useCallback(() => {
-    onPressReplies?.(post);
-  }, [onPressReplies]);
-
   return (
     <YStack key={post.id} gap="$l" paddingVertical="$l">
       {isUnread && unreadCount && (
         <YStack alignItems="center">
           <SizableText size="$s" fontWeight="$l">
-            {unreadCount} unread messages • "Today"
+            {unreadCount} unread messages • &quot;Today&quot;
           </SizableText>
         </YStack>
       )}

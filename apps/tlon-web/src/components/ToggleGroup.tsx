@@ -35,6 +35,7 @@ export default function ToggleGroup({
       {options.map((option, index) => (
         <ToggleGroupPrimitive.Item
           value={option.value}
+          key={index}
           aria-label={option.ariaLabel}
           className={cn(
             'w-full whitespace-nowrap px-4 py-[7px] text-[17px] leading-[22px]',

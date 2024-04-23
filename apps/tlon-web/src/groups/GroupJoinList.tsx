@@ -95,7 +95,7 @@ export default function GroupJoinList({
   return (
     <>
       {gangEntries.map(([flag]) => (
-        <div className="mx-4">
+        <div className="mx-4" key={flag}>
           <GroupJoinItem highlight={highlightAll} key={flag} flag={flag} />
         </div>
       ))}

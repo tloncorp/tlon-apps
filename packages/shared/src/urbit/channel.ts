@@ -437,7 +437,6 @@ export interface ChannelPostResponse {
   };
 }
 
-
 export type PendingResponse =
   | { post: PostEssay }
   | {
@@ -445,14 +444,14 @@ export type PendingResponse =
         top: string;
         meta: ReplyMeta;
         memo: Memo;
-      }
-    }
+      };
+    };
 
 export interface ChannelPendingResponse {
   pending: {
     id: CacheId;
     pending: PendingResponse;
-  }
+  };
 }
 
 export type Response =

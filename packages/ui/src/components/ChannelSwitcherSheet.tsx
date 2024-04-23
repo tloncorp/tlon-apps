@@ -38,15 +38,9 @@ export function ChannelSwitcherSheet({
         dismissOnSnapToBottom
         snapPointsMode="percent"
         snapPoints={[90]}
-        // TODO: Figure out why typescript is complaining about the animation prop
-        // @ts-ignore - animation prop is not recognized
         animation="quick"
       >
-        <Sheet.Overlay
-          // TODO: Figure out why typescript is complaining about the animation prop
-          // @ts-ignore - animation prop is not recognized
-          animation="quick"
-        />
+        <Sheet.Overlay animation="quick" />
         <Sheet.Frame>
           <Sheet.Handle paddingTop="$xl" />
           <Sheet.ScrollView gap="$xl" paddingHorizontal="$xl" paddingTop="$xl">

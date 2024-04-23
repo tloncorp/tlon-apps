@@ -4,7 +4,6 @@ import cn from 'classnames';
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import useGroupJoin from '@/groups/useGroupJoin';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';

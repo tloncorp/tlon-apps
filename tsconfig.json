@@ -10,7 +10,6 @@
     "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "noEmit": true,
     "noEmitOnError": false,
     "noImplicitAny": true,
     "noImplicitReturns": false,
