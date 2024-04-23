@@ -43,7 +43,7 @@
     "preview": {
       "android": {
         "applicationId": "io.tlon.groups.preview",
-        "releaseStatus": "draft",
+        "releaseStatus": "completed",
         "track": "internal",
         "changesNotSentForReview": true
       },

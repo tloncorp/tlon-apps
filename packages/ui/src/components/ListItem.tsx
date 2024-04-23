@@ -175,7 +175,7 @@ const ListItemIconContainer = ({
       borderRadius="$s"
       overflow="hidden"
       flex={0}
-      // @ts-expect-error
+      // @ts-expect-error user-supplied color
       backgroundColor={backgroundColor ?? '$secondaryBackground'}
     >
       {children}
@@ -256,7 +256,11 @@ const ListItemTime = ListItemTimeText.styleable<{
       return meta.time;
     }
   }, [time]);
-  return <ListItemTimeText {...props}>{formattedTime ?? ''}</ListItemTimeText>;
+  return (
+    <ListItemTimeText {...props} ref={ref}>
+      {formattedTime ?? ''}
+    </ListItemTimeText>
+  );
 });
 
 const ListItemCount = ({ children }: PropsWithChildren) => {

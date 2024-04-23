@@ -31,17 +31,25 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Create build vars
         id: vars
         run: |
           echo "profile=${{ inputs.profile || 'preview' }}" >> $GITHUB_OUTPUT
       - name: Build for selected platforms
         working-directory: ./apps/tlon-mobile
-        run: eas build --profile ${{ steps.vars.outputs.profile }} --platform ${{ inputs.platform || 'all' }} --non-interactive --auto-submit
+        run:
+          eas build --profile ${{ steps.vars.outputs.profile }} --platform ${{
+          inputs.platform || 'all' }} --non-interactive --auto-submit
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
-          NOTIFY_PROVIDER: "${{ steps.vars.outputs.profile == 'preview' && 'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
-          NOTIFY_SERVICE: "${{ steps.vars.outputs.profile == 'preview' && 'tlon-preview-release' || 'groups-native' }}"
+          NOTIFY_PROVIDER:
+            "${{ steps.vars.outputs.profile == 'preview' &&
+            'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
+          NOTIFY_SERVICE:
+            "${{ steps.vars.outputs.profile == 'preview' &&
+            'tlon-preview-release' || 'groups-native' }}"

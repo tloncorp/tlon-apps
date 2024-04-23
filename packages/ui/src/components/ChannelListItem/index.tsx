@@ -61,11 +61,11 @@ function ChannelListItemIcon({
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
     return <ListItem.SystemIcon icon={icon} backgroundColor={'$gray50'} />;
-  } else if (model.type === 'dm') {
+  } else if (model.type === 'dm' && model.members?.[0]?.contactId) {
     return (
       <ListItem.AvatarIcon
         backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId!}
+        contactId={model.members?.[0]?.contactId}
         contact={model.members?.[0]?.contact}
       />
     );

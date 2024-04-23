@@ -83,10 +83,7 @@ export default function AttachmentButton({
         enterStyle={{ y: -10, opacity: 0 }}
         exitStyle={{ y: -10, opacity: 0 }}
         elevate
-        animation={[
-          // @ts-expect-error this is fine
-          'quick',
-        ]}
+        animation={'quick'}
       >
         <YGroup separator={<Separator borderColor="$positiveBorder" />}>
           <YGroup.Item>

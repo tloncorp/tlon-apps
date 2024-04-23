@@ -90,7 +90,7 @@ function GroupMemberRoleList({
   return (
     <div className="flex h-32 flex-col space-y-6 overflow-auto rounded-lg p-2">
       {Object.keys(sortedMemberList).map((role: string) => (
-        <div className="w-full">
+        <div className="w-full" key={role}>
           <div className="mb-2 text-gray-400">
             Inviting {sortedMemberList[role].length} people as "{role}"
           </div>

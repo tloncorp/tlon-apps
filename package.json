@@ -17,11 +17,17 @@
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
     "test": "pnpm run -r test run -u",
     "prepare": "husky",
-    "postinstall": "pnpm run build:all"
+    "postinstall": "pnpm run build:all",
+    "lint:all": "pnpm -r lint"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
     "concurrently": "^8.2.2",
+    "eslint": "8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "husky": "^9.0.10",
     "lint-staged": "^15.0.0",
     "tsup": "^8.0.1",
@@ -39,8 +45,9 @@
       "tailwind-rn@4.2.0": "patches/tailwind-rn@4.2.0.patch",
       "usehooks-ts@2.6.0": "patches/usehooks-ts@2.6.0.patch",
       "react-native-storage@1.0.1": "patches/react-native-storage@1.0.1.patch",
-      "react-native-reanimated@3.6.2": "patches/react-native-reanimated@3.6.2.patch"
+      "react-native-reanimated@3.8.1": "patches/react-native-reanimated@3.8.1.patch"
     },
+    "allowNonAppliedPatches": true,
     "overrides": {
       "typescript": "5.4.5",
       "@urbit/http-api": "3.1.0-dev-2"

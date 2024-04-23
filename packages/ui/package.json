@@ -10,9 +10,16 @@
   "scripts": {
     "build": "pnpm exec tamagui-build --skip-types && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/jsx/assets/icons/",
     "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/jsx/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/jsx/assets/icons/ && tamagui-build --watch --skip-types",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
-    "lint:all": "pnpm lint:format",
     "tsc": "tsc --noEmit"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "pnpm lint:fix",
+      "pnpm lint:format"
+    ]
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",

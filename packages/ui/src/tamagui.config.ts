@@ -256,8 +256,5 @@ export const config = createTamagui({
   settings: {
     allowedStyleValues: 'somewhat-strict',
   },
-  // Different versions of a transitive dependency are conflicting for the AnimationDriver,
-  // ignore the warning for now
-  // @ts-ignore
-  animations: animations as any,
+  animations: animations,
 });

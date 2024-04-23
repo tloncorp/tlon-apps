@@ -85,9 +85,9 @@ export function Channel({
               showSpinner={isLoadingPosts}
             />
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              keyboardVerticalOffset={70}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
               style={{ flex: 1 }}
+              contentContainerStyle={{ flex: 1 }}
             >
               <YStack flex={1}>
                 {uploadedImage && uploadedImage.url !== '' ? (

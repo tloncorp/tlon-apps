@@ -37,15 +37,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enabledLoggers: process.env.ENABLED_LOGGERS,
   },
   ios: {
-    runtimeVersion: '4.0.0',
-    buildNumber: '62',
+    runtimeVersion: '4.0.1',
+    buildNumber: '106',
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
-    runtimeVersion: '4.0.0',
-    versionCode: 62,
+    runtimeVersion: '4.0.1',
+    versionCode: 106,
   },
   plugins: [
     [

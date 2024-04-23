@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig",
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
+    "./src"
   ],
   "compilerOptions": {
     "composite": true,

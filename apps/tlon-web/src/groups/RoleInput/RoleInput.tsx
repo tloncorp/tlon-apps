@@ -33,7 +33,7 @@ export default function RoleInput(props: {
   return (
     <div className="flex flex-col">
       {fields.map((field, index) => (
-        <div className="flex">
+        <div className="flex" key={index}>
           <select key={field.id} {...register(`roles.${index}.value`)}>
             <option key={field.value}>{field.value}</option>
             {unpicked.map((u) => (
