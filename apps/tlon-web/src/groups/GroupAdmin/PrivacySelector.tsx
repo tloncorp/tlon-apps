@@ -108,8 +108,10 @@ function PrivacySettingRow({
           horizontal ? 'sm:pl-0' : ''
         )}
       >
-        {description.map((desc) => (
-          <li className="ml-4 sm:mb-1.5">{desc}</li>
+        {description.map((desc, i) => (
+          <li key={i} className="ml-4 sm:mb-1.5">
+            {desc}
+          </li>
         ))}
       </ul>
 

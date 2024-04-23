@@ -24,4 +24,4 @@ export * from './negotiation';
 export * from './sigil';
 export * from './ui';
 export * from './volume';
-export * from './utils'
+export * from './utils';

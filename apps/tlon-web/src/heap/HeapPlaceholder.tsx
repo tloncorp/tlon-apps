@@ -21,6 +21,7 @@ function ChatScrollerPlaceholder({ count }: ChatScrollerPlaceholderProps) {
     >
       {new Array(count).fill(true).map((_, i) => (
         <div
+          key={i}
           className={cn(
             `bg-gray-${getShade(i)}`,
             'rounded-lg',

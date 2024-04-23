@@ -13,8 +13,8 @@ export function DiaryVerse(props: DiaryVerseProps) {
   if ('inline' in verse) {
     return (
       <div onClick={onClick}>
-        {verse.inline.map((s) => (
-          <InlineContent story={s} />
+        {verse.inline.map((s, i) => (
+          <InlineContent story={s} key={i} />
         ))}
       </div>
     );
