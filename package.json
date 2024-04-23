@@ -33,8 +33,11 @@
   "packageManager": "pnpm@9.0.5+sha256.61bd66913b52012107ec25a6ee4d6a161021ab99e04f6acee3aa50d0e34b4af9",
   "pnpm": {
     "patchedDependencies": {
+      "@tiptap/react@2.0.3": "patches/@tiptap__react@2.0.3.patch",
+      "@types/testing-library__jest-dom@5.14.5": "patches/@types__testing-library__jest-dom@5.14.5.patch",
       "@urbit/http-api@3.1.0-dev-2": "patches/@urbit__http-api@3.1.0-dev-2.patch",
       "tailwind-rn@4.2.0": "patches/tailwind-rn@4.2.0.patch",
+      "usehooks-ts@2.6.0": "patches/usehooks-ts@2.6.0.patch",
       "react-native-storage@1.0.1": "patches/react-native-storage@1.0.1.patch",
       "react-native-reanimated@3.8.1": "patches/react-native-reanimated@3.8.1.patch"
     },
