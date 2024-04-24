@@ -39,10 +39,12 @@
       "distribution": "internal",
       "autoIncrement": true,
       "android": {
-        "gradleCommand": ":app:bundlePreviewRelease"
+        "gradleCommand": ":app:bundlePreviewRelease",
+        "image": "latest"
       },
       "ios": {
-        "scheme": "Landscape-preview"
+        "scheme": "Landscape-preview",
+        "image": "latest"
       }
     }
   },
