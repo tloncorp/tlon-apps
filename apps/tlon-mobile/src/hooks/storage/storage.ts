@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as api from '@tloncorp/shared/dist/api';
 import type {
   StorageState,
@@ -8,7 +9,6 @@ import type {
 import { enableMapSet } from 'immer';
 import _ from 'lodash';
 import { compose } from 'lodash/fp';
-import { createDevLogger } from 'packages/shared/dist';
 import create from 'zustand';
 
 import reduce from './reducer';

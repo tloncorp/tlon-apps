@@ -1,5 +1,5 @@
-import { createDevLogger } from 'packages/shared/dist';
-import { RNFile, Uploader } from 'packages/shared/dist/api';
+import { createDevLogger } from '@tloncorp/shared/dist';
+import { RNFile, Uploader } from '@tloncorp/shared/dist/api';
 
 import type { ShipInfo } from '../../contexts/ship';
 import storage from '../../lib/storage';
