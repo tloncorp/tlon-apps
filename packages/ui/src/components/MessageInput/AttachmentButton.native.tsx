@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 
 import { Add, Camera, ChannelGalleries } from '../../assets/icons';
-import { Separator, Spinner, View, YGroup, YStack } from '../../core';
+import { Spinner, View, YStack } from '../../core';
 import { Button } from '../Button';
 import { IconButton } from '../IconButton';
 import { Sheet } from '../Sheet';
@@ -41,7 +41,7 @@ export default function AttachmentButton({
     setShowPopover(false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 1,
       exif: false,
     });

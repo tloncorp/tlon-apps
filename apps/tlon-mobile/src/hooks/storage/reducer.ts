@@ -2,7 +2,7 @@
 import type { StorageState, StorageUpdate } from '@tloncorp/shared/dist/api';
 import _ from 'lodash';
 
-import { getHostingUploadURL } from './storage';
+import { getHostingUploadURL } from './utils';
 
 const credentials = (
   json: StorageUpdate,

@@ -20,8 +20,12 @@ export interface StorageUpdateCredentials {
 
 export interface StorageUpdateConfiguration {
   configuration: {
-    buckets: string[];
+    buckets: Set<string>;
     currentBucket: string;
+    region: string;
+    publicUrlBase: string;
+    presignedUrl: string;
+    service: StorageService;
   };
 }
 
@@ -155,6 +159,8 @@ export interface StorageState {
   };
   [ref: string]: unknown;
   start: () => void;
+  getCredentials: () => Promise<StorageCredentials> | undefined;
+  getConfiguration: () => Promise<StorageConfiguration> | undefined;
   set: SetState<StorageState>;
   get: GetState<StorageState>;
 }

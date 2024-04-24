@@ -1,60 +1,20 @@
 import * as api from '@tloncorp/shared/dist/api';
 import type {
-  RNFile,
   StorageState,
   StorageUpdate,
-  Uploader,
+  StorageUpdateConfiguration,
+  StorageUpdateCredentials,
 } from '@tloncorp/shared/dist/api';
 import { enableMapSet } from 'immer';
 import _ from 'lodash';
 import { compose } from 'lodash/fp';
+import { createDevLogger } from 'packages/shared/dist';
 import create from 'zustand';
 
-import type { ShipInfo } from '../../contexts/ship';
-import storage from '../../lib/storage';
 import reduce from './reducer';
+import { getHostingUploadURL, getIsHosted } from './utils';
 
-const getShipInfo = async () => {
-  const shipInfo = (await storage.load({ key: 'store' })) as
-    | ShipInfo
-    | undefined;
-
-  return shipInfo;
-};
-
-const getIsHosted = async () => {
-  const shipInfo = await getShipInfo();
-  const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
-  return isHosted;
-};
-
-export const getHostingUploadURL = async () => {
-  const isHosted = await getIsHosted();
-  return isHosted ? 'https://memex.tlon.network' : '';
-};
-
-const fetchImageFromUri = async (uri: string) => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const name = uri.split('/').pop();
-
-  const file: RNFile = {
-    blob,
-    name: name ?? 'channel-image',
-    type: blob.type,
-  };
-
-  return file;
-};
-
-export const handleImagePicked = async (uri: string, uploader: Uploader) => {
-  const image = await fetchImageFromUri(uri);
-  if (!image) {
-    return;
-  }
-
-  await uploader?.uploadFiles([image]);
-};
+const logger = createDevLogger('storage state', true);
 
 enableMapSet();
 
@@ -82,9 +42,56 @@ export const useStorage = create<StorageState>((set, get) => ({
     },
     credentials: null,
   },
+  getCredentials: async () => {
+    const storageUpdate = await api.scry<{
+      'storage-update': StorageUpdateCredentials;
+    }>({
+      app: 'storage',
+      path: '/credentials',
+    });
+
+    const { credentials } = storageUpdate['storage-update'];
+
+    set({ s3: { ...get().s3, credentials } });
+
+    return credentials;
+  },
+  getConfiguration: async () => {
+    const storageUpdate = await api.scry<{
+      'storage-update': StorageUpdateConfiguration;
+    }>({
+      app: 'storage',
+      path: '/configuration',
+    });
+
+    const { configuration } = storageUpdate['storage-update'];
+
+    set({ s3: { ...get().s3, configuration } });
+
+    return configuration;
+  },
   start: async () => {
-    const isHosted = await getIsHosted();
-    const hostingUploadURL = await getHostingUploadURL();
+    let isHosted: boolean | undefined = undefined;
+    let hostingUploadURL = '';
+    try {
+      isHosted = await getIsHosted();
+      hostingUploadURL = await getHostingUploadURL();
+    } catch (e) {
+      logger.error(e);
+    }
+
+    try {
+      // we apparently need to specifically scry for these on android since
+      // the subscription isn't working
+      await get().getCredentials();
+      await get().getConfiguration();
+      set({
+        loaded: true,
+      });
+    } catch (e) {
+      logger.error(e);
+    }
+
     api.subscribe<StorageUpdate>(
       {
         app: 'storage',

@@ -61,6 +61,7 @@ export function MessageInput({
   setImageAttachment,
   uploadedImage,
   paddingBottom,
+  canUpload,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(0);
   const editor = useEditorBridge({
@@ -133,7 +134,7 @@ export function MessageInput({
 
   const handleAddNewLine = useCallback(() => {
     editor.splitBlock();
-  }, []);
+  }, [editor]);
 
   const handleMessage = useCallback(
     async (event: WebViewMessageEvent) => {
@@ -167,6 +168,7 @@ export function MessageInput({
       onPressSend={handleSend}
       uploadedImage={uploadedImage}
       paddingBottom={paddingBottom}
+      canUpload={canUpload}
     >
       <XStack
         borderRadius="$xl"

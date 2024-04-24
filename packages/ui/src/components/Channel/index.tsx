@@ -35,11 +35,13 @@ export function Channel({
   onScrollEndReached,
   onScrollStartReached,
   uploadedImage,
+  imageAttachment,
   resetImageAttachment,
   // TODO: implement gallery and notebook
   type,
   isLoadingPosts,
   paddingBottom,
+  canUpload,
 }: {
   channel: db.ChannelWithLastPostAndMembers;
   currentUserId: string;
@@ -54,6 +56,7 @@ export function Channel({
   goToImageViewer: (post: db.PostInsert, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => void;
+  imageAttachment?: string | null;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   resetImageAttachment: () => void;
@@ -62,6 +65,7 @@ export function Channel({
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
   paddingBottom: number;
+  canUpload: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -85,9 +89,9 @@ export function Channel({
               contentContainerStyle={{ flex: 1 }}
             >
               <YStack flex={1}>
-                {uploadedImage && uploadedImage.url !== '' ? (
+                {imageAttachment ? (
                   <UploadedImagePreview
-                    uploadedImage={uploadedImage}
+                    imageAttachment={imageAttachment}
                     resetImageAttachment={resetImageAttachment}
                   />
                 ) : !posts || !contacts ? (
@@ -117,6 +121,7 @@ export function Channel({
                   setImageAttachment={setImageAttachment}
                   uploadedImage={uploadedImage}
                   paddingBottom={paddingBottom}
+                  canUpload={canUpload}
                 />
               </YStack>
             </KeyboardAvoidingView>

@@ -9,8 +9,8 @@ import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { handleImagePicked } from '../hooks/storage/storage';
 import { useUploader } from '../hooks/storage/upload';
+import { handleImagePicked } from '../hooks/storage/utils';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { HomeStackParamList } from '../types';
 
@@ -30,6 +30,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [imageAttachment, setImageAttachment] = React.useState<string | null>(
     null
   );
+  const [startedImageUpload, setStartedImageUpload] = React.useState(false);
   const [uploadedImage, setUploadedImage] = React.useState<
     Upload | null | undefined
   >(null);
@@ -78,6 +79,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const resetImageAttachment = useCallback(() => {
     setImageAttachment(null);
     setUploadedImage(null);
+    setStartedImageUpload(false);
     uploader?.clear();
   }, [uploader]);
 
@@ -103,14 +105,15 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     if (
       uploader &&
       imageAttachment &&
+      !startedImageUpload &&
       mostRecentFile?.status !== 'loading' &&
       mostRecentFile?.status !== 'error' &&
       mostRecentFile?.status !== 'success'
     ) {
       handleImagePicked(imageAttachment, uploader);
-      setImageAttachment(null);
+      setStartedImageUpload(true);
     }
-  }, [imageAttachment, mostRecentFile, uploader]);
+  }, [imageAttachment, mostRecentFile, uploader, startedImageUpload]);
 
   useEffect(() => {
     if (
@@ -185,11 +188,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToChannels={() => setChannelNavOpen(true)}
         goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
         uploadedImage={uploadedImage}
+        imageAttachment={imageAttachment}
         setImageAttachment={setImageAttachment}
         resetImageAttachment={resetImageAttachment}
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
         paddingBottom={bottom}
+        canUpload={!!uploader}
       />
       {group && (
         <ChannelSwitcherSheet

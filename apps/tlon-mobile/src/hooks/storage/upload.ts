@@ -12,6 +12,7 @@ import { deSig, formatDa, unixToDa } from '@urbit/aura';
 // import imageCompression from 'browser-image-compression';
 import produce from 'immer';
 import _ from 'lodash';
+import { createDevLogger } from 'packages/shared/dist';
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import 'react-native-get-random-values';
@@ -20,6 +21,8 @@ import create from 'zustand';
 import type { ShipInfo } from '../../contexts/ship';
 import storage from '../../lib/storage';
 import { useStorage } from './storage';
+
+const logger = createDevLogger('upload state', true);
 
 function prefixEndpoint(endpoint: string) {
   return endpoint.match(/https?:\/\//) ? endpoint : `https://${endpoint}`;
@@ -30,7 +33,7 @@ async function imageSize(url: string) {
     url,
     (width, height) => [width, height],
     (error) => {
-      console.log('failed to get image size', { error });
+      logger.log('failed to get image size', { error });
       return undefined;
     }
   );
@@ -185,7 +188,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
             path: '/secret',
           })
           .catch((e) => {
-            console.log('failed to get secret', { e });
+            logger.log('failed to get secret', { e });
             return '';
           });
         const urlWithToken = `${url}?token=${token}`;
@@ -193,7 +196,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           .then(async (response) => {
             if (response.status !== 200) {
               const body = await response.text().catch(() => {
-                console.log(
+                logger.log(
                   'Error parsing response body, body, response status not 200'
                 );
                 return '';
@@ -206,7 +209,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
             // using multiple buckets internally.
             const fileUrlResponse = await fetch(url);
             const fileUrl = await fileUrlResponse.json().catch(() => {
-              console.log('Error parsing response body, fileUrlResponse');
+              logger.log('Error parsing response body, fileUrlResponse');
               return '';
             });
             updateStatus(uploader, key, 'success');
@@ -219,7 +222,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
                   })
                 )
                 .catch((e) => {
-                  console.log('failed to get image size', { e });
+                  logger.log('failed to get image size', { e });
                   return '';
                 });
             }
@@ -244,7 +247,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
               'error',
               `Tlon Hosting upload error: ${error.message}, contact support if it persists.`
             );
-            console.log({ error });
+            logger.log({ error });
           });
       } catch (error: any) {
         updateStatus(
@@ -253,7 +256,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           'error',
           `Tlon Hosting upload error: ${error.message}, contact support if it persists.`
         );
-        console.log({ error });
+        logger.log({ error });
       }
     }
 
@@ -279,7 +282,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           await getSignedUrl(client, command)
             .then((res) => res.split('?')[0])
             .catch((e) => {
-              console.log('failed to get signed url', { e });
+              logger.log('failed to get signed url', { e });
               return '';
             })
         );
@@ -290,7 +293,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         : await getSignedUrl(client, command)
             .then((res) => res.split('?')[0])
             .catch((e) => {
-              console.log('failed to get signed url', { e });
+              logger.log('failed to get signed url', { e });
               return '';
             });
 
@@ -321,7 +324,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
                 })
               )
               .catch((e) => {
-                console.log('failed to get image size', { e });
+                logger.log('failed to get image size', { e });
                 return '';
               });
           }
@@ -346,7 +349,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
             'error',
             `S3 upload error: ${error.message}, check your S3 configuration.`
           );
-          console.log({ error });
+          logger.log({ error });
         });
     }
   },
@@ -366,6 +369,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       draft.files[fileKey].status = status as Status;
 
       if (status === 'error' && msg) {
+        logger.error(msg);
         draft.files[fileKey].errorMessage = msg;
       }
     });

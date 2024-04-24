@@ -95,6 +95,7 @@ const ChannelFixture = () => {
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
         paddingBottom={bottom}
+        canUpload={true}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -179,6 +180,7 @@ const ChannelFixtureWithImage = () => {
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
         paddingBottom={bottom}
+        canUpload={true}
       />
       <ChannelSwitcherSheet
         open={open}

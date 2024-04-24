@@ -7,10 +7,10 @@ import { Spinner, View, XStack } from '../../core';
 import { Button } from '../Button';
 
 export default function UploadedImagePreview({
-  uploadedImage,
+  imageAttachment,
   resetImageAttachment,
 }: {
-  uploadedImage: Upload;
+  imageAttachment: string;
   resetImageAttachment: () => void;
 }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +25,7 @@ export default function UploadedImagePreview({
       <View flex={1} position="relative">
         <ImageBackground
           source={{
-            uri: uploadedImage.url,
+            uri: imageAttachment,
           }}
           style={{
             width: '100%',

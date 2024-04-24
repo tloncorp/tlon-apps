@@ -15,6 +15,7 @@ export interface MessageInputProps {
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   paddingBottom?: number;
+  canUpload?: boolean;
 }
 
 export const MessageInputContainer = ({
@@ -23,11 +24,13 @@ export const MessageInputContainer = ({
   setImageAttachment,
   uploadedImage,
   paddingBottom,
+  canUpload,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   paddingBottom?: number;
+  canUpload?: boolean;
 }>) => {
   return (
     <YStack>
@@ -37,7 +40,7 @@ export const MessageInputContainer = ({
         gap="$l"
         alignItems="center"
       >
-        {uploadedImage && uploadedImage.url !== '' ? null : (
+        {uploadedImage && uploadedImage.url !== '' ? null : canUpload ? (
           <XStack gap="$l" animation="quick">
             <AttachmentButton
               uploadedImage={uploadedImage}
@@ -45,7 +48,7 @@ export const MessageInputContainer = ({
               paddingBottom={paddingBottom ?? 0}
             />
           </XStack>
-        )}
+        ) : null}
         <XStack flex={1} gap="$l" alignItems="center">
           {children}
           <IconButton onPress={onPressSend}>
