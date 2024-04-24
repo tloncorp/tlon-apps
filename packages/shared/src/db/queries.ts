@@ -3,7 +3,6 @@ import {
   Column,
   SQLWrapper,
   Subquery,
-  SubqueryConfig,
   Table,
   and,
   asc,
@@ -192,13 +191,6 @@ export const getChats = createReadQuery(
   ['groups', 'channels']
 );
 
-const allQueryColumns = <T extends Subquery>(
-  subquery: T
-): T['_']['selectedFields'] => {
-  return (subquery as any)[SubqueryConfig]
-    .selection as T['_']['selectedFields'];
-};
-
 export const insertGroups = createWriteQuery(
   'insertGroups',
   async (groupData: GroupInsert[]) => {
@@ -219,7 +211,7 @@ export const insertGroups = createWriteQuery(
             ),
           });
         if (group.channels?.length) {
-          await client
+          await tx
             .insert($channels)
             .values(group.channels)
             .onConflictDoUpdate({
@@ -279,7 +271,7 @@ export const insertGroups = createWriteQuery(
           }
         }
         if (group.roles) {
-          await client
+          await tx
             .insert($groupRoles)
             .values(group.roles)
             .onConflictDoUpdate({
@@ -294,11 +286,11 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.members) {
-          await client
+          await tx
             .insert($contacts)
             .values(group.members.map((m) => ({ id: m.contactId })))
             .onConflictDoNothing();
-          await client
+          await tx
             .insert($chatMembers)
             .values(group.members)
             .onConflictDoNothing();
@@ -320,7 +312,7 @@ export const insertGroups = createWriteQuery(
             });
           });
           if (memberRoles.length) {
-            await client
+            await tx
               .insert($chatMemberGroupRoles)
               .values(memberRoles)
               .onConflictDoNothing();
@@ -502,7 +494,7 @@ export const insertChannels = createWriteQuery(
     }
 
     return client.transaction(async (tx) => {
-      await client
+      await tx
         .insert($channels)
         .values(channels)
         .onConflictDoUpdate({
@@ -512,10 +504,10 @@ export const insertChannels = createWriteQuery(
 
       for (const channel of channels) {
         if (channel.members && channel.members.length > 0) {
-          await client
+          await tx
             .delete($chatMembers)
             .where(eq($chatMembers.chatId, channel.id));
-          await client.insert($chatMembers).values(channel.members);
+          await tx.insert($chatMembers).values(channel.members);
         }
       }
     });
@@ -967,8 +959,8 @@ export const insertContacts = createWriteQuery(
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
   async (unreads: UnreadInsert[]) => {
-    return client.transaction(async () => {
-      await client
+    return client.transaction(async (tx) => {
+      await tx
         .insert($unreads)
         .values(unreads)
         .onConflictDoUpdate({
@@ -979,7 +971,7 @@ export const insertUnreads = createWriteQuery(
         return u.threadUnreads ?? [];
       });
       if (threadUnreads.length) {
-        await client
+        await tx
           .insert($threadUnreads)
           .values(threadUnreads)
           .onConflictDoUpdate({
@@ -1020,6 +1012,13 @@ export const getPinnedItems = createReadQuery(
 );
 
 // Helpers
+
+function allQueryColumns<T extends Subquery>(
+  subquery: T
+): T['_']['selectedFields'] {
+  console;
+  return subquery._.selectedFields;
+}
 
 function conflictUpdateSetAll(table: Table) {
   const columns = getTableColumns(table);
