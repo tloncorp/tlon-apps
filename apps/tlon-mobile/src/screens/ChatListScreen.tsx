@@ -8,8 +8,7 @@ import {
   Spinner,
   View,
 } from '@tloncorp/ui';
-import { Add } from '@tloncorp/ui/src/assets/icons';
-import { IconButton } from '@tloncorp/ui/src/components/IconButton';
+import { Icon, IconButton } from '@tloncorp/ui';
 import React from 'react';
 
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
@@ -35,9 +34,7 @@ export default function ChatListScreen(props: ChatListScreenProps) {
         rightControls={
           <>
             {isFetchingInitData && <Spinner />}
-            <IconButton onPress={() => {}}>
-              <Add />
-            </IconButton>
+            <Icon type="Add" onPress={() => {}} />
           </>
         }
       />

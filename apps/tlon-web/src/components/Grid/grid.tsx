@@ -11,7 +11,6 @@ import { ChargeWithDesk, useCharges } from '@/state/docket';
 import { SettingsState, usePutEntryMutation, useTiles } from '@/state/settings';
 
 import Dialog from '../Dialog';
-// eslint-disable-next-line import/no-cycle
 import Tile from './Tile';
 
 export const selTiles = (s: SettingsState) => ({

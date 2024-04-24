@@ -28,7 +28,7 @@ export function toClientMeta(meta: ub.GroupMeta) {
 }
 
 export function formatUd(ud: string) {
-  //@ts-ignore string will get converted internally, so doesn't actually have to
+  // @ts-expect-error string will get converted internally, so doesn't actually have to
   //be a bigint
   return baseFormatUd(ud);
 }

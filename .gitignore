@@ -8,3 +8,5 @@ bin
 /rube/urbit
 
 gha-creds-*
+.turbo
+tsconfig.tsbuildinfo

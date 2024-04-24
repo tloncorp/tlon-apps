@@ -7,29 +7,36 @@
   "scripts": {
     "build": "tsup",
     "preinstall": "rm -f ./tsconfig.tsbuildinfo",
-    "dev": "npm run build -- --watch",
-    "dev:migrations": "concurrently \"npm run watch-migrations\" \"npm run dev\"",
+    "dev": "pnpm build --watch",
+    "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm dev\"",
     "test": "vitest",
-    "types": "tsc",
+    "types": "tsc --emitDeclarationOnly --noEmit false",
+    "tsc": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
-    "lint:all": "npm run lint:format",
-    "generate": "npm run generate:migration",
+    "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
-    "watch-migrations": "npm run generate:migration -- --watch"
+    "watch-migrations": "pnpm generate:migration --watch"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "pnpm lint:fix",
+      "pnpm lint:format"
+    ]
   },
   "dependencies": {
     "@tanstack/react-query": "^5.28.14",
     "@urbit/api": "^2.2.0",
     "big-integer": "^1.6.52",
-    "drizzle-orm": "^0.30.4",
     "sorted-btree": "^1.8.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
     "better-sqlite3": "^9.4.3",
-    "drizzle-kit": "^0.20.14",
+    "drizzle-kit": "0.20.17",
     "tsup": "^8.0.1",
-    "typescript": "^5.1.3",
+    "typescript": "5.1.3",
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
@@ -37,7 +44,8 @@
     "@tiptap/core": "^2.0.3",
     "@tiptap/pm": "^2.0.3",
     "@tiptap/react": "^2.0.3",
-    "@tiptap/suggestion": "^2.0.3"
+    "@tiptap/suggestion": "^2.0.3",
+    "drizzle-orm": "0.30.9"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.9.5"

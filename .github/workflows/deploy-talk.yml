@@ -18,10 +18,14 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: .nvmrc
-      - name: Install Dependencies
-        run: npm ci
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
       - working-directory: ./apps/tlon-web
-        run: npm run build:chat
+        run: pnpm build:chat
       - uses: actions/upload-artifact@v3
         with:
           name: "ui-dist"

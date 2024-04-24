@@ -3,9 +3,7 @@ import React from 'react';
 
 import { useRemotePost } from '@/state/channel/channel';
 
-// eslint-disable-next-line import/no-cycle
 import UnavailableReference from './UnavailableReference';
-// eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
 
 function WritChanReference(props: {

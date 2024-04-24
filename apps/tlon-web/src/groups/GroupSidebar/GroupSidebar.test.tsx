@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import fetch from 'cross-fetch';
 import React from 'react';
 import { describe, expect, it } from 'vitest';

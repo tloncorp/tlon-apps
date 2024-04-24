@@ -1,0 +1,12 @@
+diff --git a/dist/tailwind-provider.d.ts b/dist/tailwind-provider.d.ts
+index afa56a7a4e4e3d3c980ddf0cc39172bfa217f6f8..a4233999b40be7f71b6404de7e2cecefd5cc446d 100644
+--- a/dist/tailwind-provider.d.ts
++++ b/dist/tailwind-provider.d.ts
+@@ -2,6 +2,7 @@ import * as React from 'react';
+ import { ColorSchemeName } from 'react-native';
+ import { Utilities } from './types';
+ interface Props {
++    children: JSX.Element;
+     utilities: Utilities;
+     colorScheme?: ColorSchemeName;
+ }

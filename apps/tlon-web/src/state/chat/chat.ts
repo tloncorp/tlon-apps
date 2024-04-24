@@ -55,7 +55,6 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { whomIsDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-// eslint-disable-next-line import/no-cycle
 import { PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
 import emptyMultiDm, {

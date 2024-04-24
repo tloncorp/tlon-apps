@@ -1,4 +1,3 @@
-/* eslint-disable import/prefer-default-export */
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 

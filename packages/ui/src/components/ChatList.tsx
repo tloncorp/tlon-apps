@@ -93,7 +93,7 @@ export function ChatList({
 }
 
 function getChannelKey(channel: db.ChannelSummary) {
-  return channel.id;
+  return channel.id + channel.pin?.itemId ?? '';
 }
 
 const ChatListItem = React.memo(
@@ -111,7 +111,11 @@ const ChatListItem = React.memo(
       onLongPress?.(model);
     }, [onLongPress]);
 
-    if (model.type === 'dm' || model.type === 'groupDm') {
+    if (
+      model.type === 'dm' ||
+      model.type === 'groupDm' ||
+      model.pin?.type === 'channel'
+    ) {
       return (
         <ChannelListItem
           model={model}

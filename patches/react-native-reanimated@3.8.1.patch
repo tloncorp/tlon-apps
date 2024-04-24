@@ -1,0 +1,14 @@
+diff --git a/lib/module/reanimated2/js-reanimated/index.js b/lib/module/reanimated2/js-reanimated/index.js
+index f84001e6cad7b45a999f00bd0dd4b85b38976c9c..04fa1f7910888977948e7595edb7fe9860b03cbc 100644
+--- a/lib/module/reanimated2/js-reanimated/index.js
++++ b/lib/module/reanimated2/js-reanimated/index.js
+@@ -4,6 +4,9 @@ import JSReanimated from './JSReanimated';
+ import { isWeb } from '../PlatformChecker';
+ import { PropsAllowlists } from '../../propsAllowlists';
+ 
++// polyfill `global` since this module gets imported by @tamagui/animations-moti on web
++globalThis.global = globalThis;
++
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ let createReactDOMStyle;
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
