@@ -17,14 +17,14 @@ export default function AttachmentButton({
   uploadedImage?: Upload | null;
   paddingBottom: number;
 }) {
-  const [showPopover, setShowPopover] = useState(false);
+  const [showInputSelector, setShowInputSelector] = useState(false);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
   const takePicture = async () => {
-    setShowPopover(false);
+    setShowInputSelector(false);
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -38,7 +38,7 @@ export default function AttachmentButton({
   };
 
   const pickImage = async () => {
-    setShowPopover(false);
+    setShowInputSelector(false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
@@ -52,16 +52,16 @@ export default function AttachmentButton({
   };
 
   useEffect(() => {
-    if (showPopover && mediaLibraryPermissionStatus?.granted === false) {
+    if (showInputSelector && mediaLibraryPermissionStatus?.granted === false) {
       requestMediaLibraryPermission();
     }
 
-    if (showPopover && cameraPermissionStatus?.granted === false) {
+    if (showInputSelector && cameraPermissionStatus?.granted === false) {
       requestCameraPermission();
     }
   }, [
     mediaLibraryPermissionStatus,
-    showPopover,
+    showInputSelector,
     cameraPermissionStatus,
     requestMediaLibraryPermission,
     requestCameraPermission,
@@ -74,13 +74,13 @@ export default function AttachmentButton({
           <Spinner />
         </View>
       ) : (
-        <IconButton onPress={() => setShowPopover(true)}>
+        <IconButton onPress={() => setShowInputSelector(true)}>
           <Add />
         </IconButton>
       )}
       <Sheet
-        open={showPopover}
-        onOpenChange={(open: boolean) => setShowPopover(open)}
+        open={showInputSelector}
+        onOpenChange={(open: boolean) => setShowInputSelector(open)}
         modal
         animation="quick"
         dismissOnSnapToBottom

@@ -1,6 +1,6 @@
+import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { Upload } from 'packages/shared/dist/api';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
