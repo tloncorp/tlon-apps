@@ -1,16 +1,16 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as api from '@tloncorp/shared/dist/api';
-import type {
-  StorageState,
-  StorageUpdate,
-  StorageUpdateConfiguration,
-  StorageUpdateCredentials,
-} from '@tloncorp/shared/dist/api';
 import { enableMapSet } from 'immer';
 import _ from 'lodash';
 import { compose } from 'lodash/fp';
 import create from 'zustand';
 
+import type {
+  StorageState,
+  StorageUpdate,
+  StorageUpdateConfiguration,
+  StorageUpdateCredentials,
+} from '../../api';
+import * as api from '../../api';
+import { createDevLogger } from '../../debug';
 import reduce from './reducer';
 import { getHostingUploadURL, getIsHosted } from './utils';
 

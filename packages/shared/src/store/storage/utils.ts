@@ -1,8 +1,5 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
-import { RNFile, Uploader } from '@tloncorp/shared/dist/api';
-
-import type { ShipInfo } from '../../contexts/ship';
-import storage from '../../lib/storage';
+import { RNFile, Uploader, client } from '../../api';
+import { createDevLogger } from '../../debug';
 
 const logger = createDevLogger('storage utils', true);
 
@@ -43,12 +40,10 @@ export const handleImagePicked = async (uri: string, uploader: Uploader) => {
   }
 };
 
-const getShipInfo = async () => {
-  const shipInfo = (await storage.load({ key: 'store' })) as
-    | ShipInfo
-    | undefined;
+export const getShipInfo = async () => {
+  const { ship, url } = client;
 
-  return shipInfo;
+  return { ship, shipUrl: url };
 };
 
 export const getIsHosted = async () => {

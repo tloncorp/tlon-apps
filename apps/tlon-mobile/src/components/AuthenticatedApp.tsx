@@ -1,10 +1,9 @@
-import { sync } from '@tloncorp/shared';
+import { sync, useStorage } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
 import { useShip } from '../contexts/ship';
-import { useStorage } from '../hooks/storage/storage';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';

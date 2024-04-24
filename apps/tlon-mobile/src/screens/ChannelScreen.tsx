@@ -4,15 +4,16 @@ import { sendPost } from '@tloncorp/shared/dist/api';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { useUploader } from '@tloncorp/shared/dist/store';
+import { handleImagePicked } from '@tloncorp/shared/dist/store';
 import type { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useUploader } from '../hooks/storage/upload';
-import { handleImagePicked } from '../hooks/storage/utils';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import type { HomeStackParamList } from '../types';
+import { imageSize } from '../utils/images';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
@@ -34,7 +35,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [uploadedImage, setUploadedImage] = React.useState<
     Upload | null | undefined
   >(null);
-  const uploader = useUploader(`channel-${currentChannelId}`);
+  const uploader = useUploader(`channel-${currentChannelId}`, imageSize);
   const mostRecentFile = uploader?.getMostRecent();
   const { data: channel } = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,

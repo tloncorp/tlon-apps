@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
-import type { StorageState, StorageUpdate } from '@tloncorp/shared/dist/api';
 import _ from 'lodash';
 
+import type { StorageState, StorageUpdate } from '../../api';
 import { getHostingUploadURL } from './utils';
 
 const credentials = (

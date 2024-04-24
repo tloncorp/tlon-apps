@@ -113,12 +113,15 @@ export interface FileStore {
   uploadFiles: (
     uploader: string,
     files: RNFile[] | null,
-    config: StorageConfiguration
+    config: StorageConfiguration,
+    imageSizer: (url: string) => Promise<[number, number]>
   ) => Promise<void>;
   upload: (
     uploader: string,
     upload: Upload,
-    config: StorageConfiguration
+    config: StorageConfiguration,
+    imageSizer: (url: string) => Promise<[number, number]>,
+    compressor?: (file: RNFile) => Promise<RNFile>
   ) => Promise<void>;
   clear: (uploader: string) => void;
   setUploadType: (uploaderKey: string, type: Uploader['uploadType']) => void;

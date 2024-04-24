@@ -1,44 +1,28 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { createDevLogger } from '@tloncorp/shared/dist';
-import * as api from '@tloncorp/shared/dist/api';
+import { deSig, formatDa, unixToDa } from '@urbit/aura';
+// import imageCompression from 'browser-image-compression';
+import produce from 'immer';
+import _ from 'lodash';
+import { useCallback, useEffect, useState } from 'react';
+import create from 'zustand';
+
 import type {
   FileStore,
   Status,
   StorageConfiguration,
   StorageCredentials,
   Uploader,
-} from '@tloncorp/shared/dist/api';
-import { deSig, formatDa, unixToDa } from '@urbit/aura';
-// import imageCompression from 'browser-image-compression';
-import produce from 'immer';
-import _ from 'lodash';
-import { useCallback, useEffect, useState } from 'react';
-import { Image } from 'react-native';
-import 'react-native-get-random-values';
-import create from 'zustand';
-
-import type { ShipInfo } from '../../contexts/ship';
-import storage from '../../lib/storage';
+} from '../../api';
+import * as api from '../../api';
+import { createDevLogger } from '../../debug';
 import { useStorage } from './storage';
+import { getShipInfo } from './utils';
 
 const logger = createDevLogger('upload state', true);
 
 function prefixEndpoint(endpoint: string) {
   return endpoint.match(/https?:\/\//) ? endpoint : `https://${endpoint}`;
-}
-
-async function imageSize(url: string) {
-  const size = await Image.getSize(
-    url,
-    (width, height) => [width, height],
-    (error) => {
-      logger.log('failed to get image size', { error });
-      return undefined;
-    }
-  );
-
-  return size;
 }
 
 // function videoSize(url: string) {
@@ -110,12 +94,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const uploader = get().getUploader(uploaderKey);
     return uploader ? uploader.uploadType : 'prompt';
   },
-  uploadFiles: async (uploader, files, config) => {
+  uploadFiles: async (uploader, files, config, imageSizer) => {
     if (!files) return;
 
-    const shipInfo = (await storage.load({ key: 'store' })) as
-      | ShipInfo
-      | undefined;
+    const shipInfo = await getShipInfo();
 
     if (!shipInfo) {
       return;
@@ -139,9 +121,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       draft.files = { ...draft.files, ...newFiles };
     });
 
-    fileList.forEach((f) => upload(uploader, f, config));
+    fileList.forEach((f) => upload(uploader, f, config, imageSizer));
   },
-  upload: async (uploader, upload, config) => {
+  upload: async (uploader, upload, config, imageSizer, compressor) => {
     const { client, updateStatus, updateFile } = get();
 
     const { key, file } = upload;
@@ -214,7 +196,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
             });
             updateStatus(uploader, key, 'success');
             if (isImageFile(file.blob)) {
-              imageSize(fileUrl)
+              imageSizer(fileUrl)
                 .then((s) =>
                   updateFile(uploader, key, {
                     size: s,
@@ -316,7 +298,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         .then(() => {
           updateStatus(uploader, key, 'success');
           if (isImageFile(file.blob)) {
-            imageSize(url)
+            imageSizer(url)
               .then((s) =>
                 updateFile(uploader, key, {
                   size: s,
@@ -396,12 +378,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
 const emptyUploader = (
   key: string,
-  config: StorageConfiguration
+  config: StorageConfiguration,
+  imageSizer: (url: string) => Promise<[number, number]>
 ): Uploader => ({
   files: {},
   getMostRecent: () => useFileStore.getState().getMostRecent(key),
   uploadFiles: async (files) =>
-    useFileStore.getState().uploadFiles(key, files, config),
+    useFileStore.getState().uploadFiles(key, files, config, imageSizer),
   clear: () => useFileStore.getState().clear(key),
   removeByURL: (url) => useFileStore.getState().removeByURL(key, url),
   uploadType: 'prompt',
@@ -441,7 +424,10 @@ function useClient() {
 }
 
 const selUploader = (key: string) => (s: FileStore) => s.uploaders[key];
-export function useUploader(key: string): Uploader | undefined {
+export function useUploader(
+  key: string,
+  imageSizer: (url: string) => Promise<[number, number]>
+): Uploader | undefined {
   const {
     s3: { configuration },
   } = useStorage();
@@ -455,11 +441,11 @@ export function useUploader(key: string): Uploader | undefined {
     ) {
       useFileStore.setState(
         produce((draft) => {
-          draft.uploaders[key] = emptyUploader(key, configuration);
+          draft.uploaders[key] = emptyUploader(key, configuration, imageSizer);
         })
       );
     }
-  }, [client, configuration, key]);
+  }, [client, configuration, key, imageSizer]);
 
   return uploader;
 }
