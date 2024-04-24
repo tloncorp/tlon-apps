@@ -39,11 +39,11 @@
       "distribution": "internal",
       "autoIncrement": true,
       "android": {
-        "gradleCommand": ":app:bundleProductionRelease",
+        "gradleCommand": ":app:bundlePreviewRelease",
         "image": "latest"
       },
       "ios": {
-        "scheme": "Landscape",
+        "scheme": "Landscape-preview",
         "image": "latest"
       }
     }
