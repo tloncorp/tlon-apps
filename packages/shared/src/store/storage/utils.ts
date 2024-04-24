@@ -1,3 +1,5 @@
+import { preSig } from '@urbit/api';
+
 import { RNFile, Uploader, client } from '../../api';
 import { createDevLogger } from '../../debug';
 
@@ -43,7 +45,11 @@ export const handleImagePicked = async (uri: string, uploader: Uploader) => {
 export const getShipInfo = async () => {
   const { ship, url } = client;
 
-  return { ship, shipUrl: url };
+  if (!ship) {
+    return { ship: '', shipUrl: '' };
+  }
+
+  return { ship: preSig(ship), shipUrl: url };
 };
 
 export const getIsHosted = async () => {

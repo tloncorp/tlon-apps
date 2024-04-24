@@ -28,7 +28,7 @@ export default function AttachmentButton({
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 1,
+      quality: 0.5,
       exif: false,
     });
 
@@ -42,7 +42,7 @@ export default function AttachmentButton({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
-      quality: 1,
+      quality: 0.5,
       exif: false,
     });
 
