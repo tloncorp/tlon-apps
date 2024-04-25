@@ -1,7 +1,6 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { deSig, formatDa, unixToDa } from '@urbit/aura';
-// import imageCompression from 'browser-image-compression';
 import produce from 'immer';
 import _ from 'lodash';
 import { useCallback, useEffect, useState } from 'react';
@@ -49,6 +48,7 @@ function isImageFile(file: Blob) {
   return acceptedImageTypes.includes(file.type);
 }
 
+// TODO: handle video files
 // function isVideoFile(file: Blob) {
 // const acceptedVideoTypes = [
 // 'video/mp4',
