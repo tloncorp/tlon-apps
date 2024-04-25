@@ -70,6 +70,8 @@ export function subscribe<T>(
     throw new Error('Tied to subscribe, but Urbit client is not initialized');
   }
 
+  logger.debug('subscribing to', printEndpoint(endpoint));
+
   clientInstance.subscribe({
     app: endpoint.app,
     path: endpoint.path,

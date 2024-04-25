@@ -15,7 +15,7 @@ export default defineConfig({
   ],
   format: ['esm'],
   minify: false,
-  external: ['react'],
+  external: ['react', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {
     '.sql': 'text',

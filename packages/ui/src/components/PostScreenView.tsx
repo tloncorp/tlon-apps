@@ -48,6 +48,7 @@ export function PostScreenView({
               setShouldBlur={() => {}}
               send={() => {}}
               channelId={channel.id}
+              setImageAttachment={() => {}}
             />
           </View>
         )}
