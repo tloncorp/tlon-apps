@@ -1,12 +1,12 @@
 env:
   desk: 'groups'
   urbit_path: '~/dev/urbit/urbit'
-  repo_path: '~/dev/urbit/landscape-apps'
+  repo_path: '~/dev/urbit/tlon-apps'
   landscape_path: '~/dev/urbit/landscape'
   ship_path: '~/dev/urbit/ships'
 script:
   - sync:
-    - cmd: '~/dev/urbit/landscape-apps/ops/sync.sh'
+    - cmd: '~/dev/urbit/tlon-apps/ops/sync.sh'
       type: 'system'
   - commit:
     - cmd: 'commit %groups'

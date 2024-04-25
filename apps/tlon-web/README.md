@@ -4,7 +4,7 @@
 
 Requires a local fake ship with homestead desk installed ([guide](./DEVELOPMENT.md))
 
-From the root directory of `landscape-apps`, run:
+From the root directory of `tlon-apps`, run:
 
 ```
 npm install
@@ -26,6 +26,7 @@ npm run dev:web
 ```
 
 or
+
 ```
 npm run dev --prefix ./apps/tlon-web
 ```

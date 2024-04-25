@@ -20,7 +20,7 @@
   
   [PushNotificationManager configure];
   
-#if DEBUG
+#if PREVIEW
    [RNBranch useTestInstance];
 #endif
   

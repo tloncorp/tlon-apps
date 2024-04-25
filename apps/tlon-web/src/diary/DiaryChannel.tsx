@@ -1,11 +1,15 @@
 import * as Toast from '@radix-ui/react-toast';
-import { PostTuple } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  ChannelsSubscribeResponse,
+  PostTuple,
+} from '@tloncorp/shared/dist/urbit/channel';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
+import api from '@/api';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import Layout from '@/components/Layout/Layout';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -27,7 +31,6 @@ import {
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';
 import DiaryListItem from './DiaryList/DiaryListItem';
-import useDiaryActions from './useDiaryActions';
 
 const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
@@ -64,12 +67,10 @@ function DiaryChannel({ title }: ViewProps) {
     nest,
   });
 
+  const awaitingNote = new URLSearchParams(location.search).get('awaiting');
   const newNote = new URLSearchParams(location.search).get('new');
-  const [showToast, setShowToast] = useState(false);
-  const { didCopy, onCopy } = useDiaryActions({
-    flag: chFlag,
-    time: newNote || '',
-  });
+  const awaitingMsg = 'Note saved, awaiting host confirmation';
+  const newMsg = 'Note successfully published';
 
   // user can override admin-set display and sort mode for this channel type
   const userDisplayMode = useUserDiaryDisplayMode(chFlag);
@@ -82,10 +83,45 @@ function DiaryChannel({ title }: ViewProps) {
   useEffect(() => {
     let timeout: any;
 
-    if (newNote) {
-      setShowToast(true);
+    if (awaitingNote) {
       timeout = setTimeout(() => {
-        setShowToast(false);
+        navigate(location.pathname, { replace: true });
+      }, 3000);
+
+      api
+        .track<ChannelsSubscribeResponse>(
+          { app: 'channels', path: `/v1/${nest}` },
+          ({ response }) => {
+            if ('post' in response) {
+              const { 'r-post': postResponse } = response.post;
+              return (
+                'set' in postResponse &&
+                postResponse.set !== null &&
+                postResponse.set.essay.author === window.our &&
+                postResponse.set.essay.sent === parseInt(awaitingNote, 10)
+              );
+            }
+
+            return false;
+          }
+        )
+        .then(() => {
+          navigate(`${location.pathname}?new=${awaitingNote}`, {
+            replace: true,
+          });
+        });
+    }
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [nest, awaitingNote, location, navigate]);
+
+  useEffect(() => {
+    let timeout: any;
+
+    if (newNote) {
+      timeout = setTimeout(() => {
         navigate(location.pathname, { replace: true });
       }, 3000);
     }
@@ -186,14 +222,22 @@ function DiaryChannel({ title }: ViewProps) {
       </Helmet>
       <Toast.Provider>
         <div className="relative flex flex-col items-center">
-          <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
+          <Toast.Root
+            duration={3000}
+            defaultOpen={false}
+            open={!!(awaitingNote || newNote)}
+          >
             <Toast.Description asChild>
               <div className="absolute z-10 flex -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
-                <span className="px-4 py-2">Note successfully published</span>
+                {awaitingNote ? (
+                  <span className="px-4 py-2">{awaitingMsg}</span>
+                ) : (
+                  <span className="px-4 py-2">{newMsg}</span>
+                )}
               </div>
             </Toast.Description>
           </Toast.Root>
-          <Toast.Viewport label="Note successfully published" />
+          <Toast.Viewport label={awaitingNote ? awaitingMsg : newMsg} />
         </div>
       </Toast.Provider>
       <div className="h-full bg-gray-50">

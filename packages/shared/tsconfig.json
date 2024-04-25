@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "NodeNext",
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "./src",
+    "outDir": "dist",
+    "composite": true,
+    "allowJs": true
+  },
+  "files": ["./src/index.ts"],
+  "include": ["src/**/*", "src/**/*.json", "src/**/*.sql"],
+  "exclude": ["src/**/*.test.ts"]
+}

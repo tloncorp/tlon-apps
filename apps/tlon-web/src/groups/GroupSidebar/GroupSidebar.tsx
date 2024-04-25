@@ -1,6 +1,12 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import { useCallback, useContext, useMemo } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { foregroundFromBackground } from '@/components/Avatar';
@@ -28,7 +34,9 @@ import { useCalm } from '@/state/settings';
 
 function GroupHeader() {
   const flag = useGroupFlag();
-  const group = useGroup(flag);
+  const realGroup = useGroup(flag);
+  const lastGroupRef = useRef(realGroup);
+  const group = lastGroupRef.current;
   const { needsUpdate } = useContext(AppUpdateContext);
   const { preview, claim } = useGang(flag);
   const defaultImportCover = useMemo(
@@ -37,6 +45,12 @@ function GroupHeader() {
   );
   const calm = useCalm();
   const isDark = useIsDark();
+
+  useEffect(() => {
+    if (realGroup) {
+      lastGroupRef.current = realGroup;
+    }
+  }, [realGroup]);
 
   const bgStyle = useCallback(() => {
     if (
@@ -115,9 +129,11 @@ function GroupHeader() {
   );
 }
 
-export default function GroupSidebar() {
+const GroupSidebar = React.memo(() => {
   const flag = useGroupFlag();
-  const group = useGroup(flag);
+  const realGroup = useGroup(flag);
+  const lastGroupRef = useRef(realGroup);
+  const group = lastGroupRef.current;
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
@@ -125,6 +141,12 @@ export default function GroupSidebar() {
     () => (group ? getPrivacyFromGroup(group) : undefined),
     [group]
   );
+
+  useEffect(() => {
+    if (realGroup) {
+      lastGroupRef.current = realGroup;
+    }
+  }, [realGroup]);
 
   return (
     <nav className="flex h-full min-w-64 flex-none flex-col bg-white">
@@ -183,4 +205,6 @@ export default function GroupSidebar() {
       </div>
     </nav>
   );
-}
+});
+
+export default GroupSidebar;

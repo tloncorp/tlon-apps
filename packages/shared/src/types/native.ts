@@ -1,5 +1,5 @@
 export interface NativeWebViewOptions {
-  colorScheme?: "light" | "dark" | null;
+  colorScheme?: 'light' | 'dark' | null;
   hideTabBar?: boolean;
   isUsingTlonAuth?: boolean;
   safeAreaInsets?: {
@@ -10,35 +10,35 @@ export interface NativeWebViewOptions {
   };
 }
 
-export type MobileNavTab = "Groups" | "Messages" | "Activity" | "Profile";
+export type MobileNavTab = 'Groups' | 'Messages' | 'Activity' | 'Profile';
 
 export interface GotoMessage {
-  action: "goto";
+  action: 'goto';
   path: string;
 }
 
 export interface NativeTabChange {
-  action: "nativeTabChange";
+  action: 'nativeTabChange';
   tab: MobileNavTab;
 }
 
 export type NativeCommand = GotoMessage | NativeTabChange;
 
 export type WebAppAction =
-  | "copy"
-  | "logout"
-  | "manageAccount"
-  | "appLoaded"
-  | "activeTabChange"
-  | "saveLastPath";
+  | 'copy'
+  | 'logout'
+  | 'manageAccount'
+  | 'appLoaded'
+  | 'activeTabChange'
+  | 'saveLastPath';
 export interface ActiveTabChange {
-  action: "activeTabChange";
+  action: 'activeTabChange';
   value: MobileNavTab;
 }
 export interface SaveLastPath {
-  action: "saveLastPath";
+  action: 'saveLastPath';
   value: {
-    tab: "Groups" | "Messages";
+    tab: 'Groups' | 'Messages';
     path: string;
   };
 }

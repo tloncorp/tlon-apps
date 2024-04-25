@@ -1,37 +1,40 @@
-import sigil from "@urbit/sigil-js/dist/core";
-import { useMemo } from "react";
-import { SvgXml } from "react-native-svg";
-import { useTheme, View } from "tamagui";
+import { useMemo } from 'react';
 
-export const UrbitSigil = View.styleable<{
-  ship: string;
-}>(({ ship, ...props }, ref) => {
-  const validShip = ship.length <= 14; // planet or larger
-  const theme = useTheme();
+import { UrbitSigilSvg, makeSigil } from './UrbitSigilSvg';
+
+function UrbitSigil({
+  contactId,
+  colors,
+  renderDetail = false,
+  padding = 'none',
+  size = 24,
+  ...props
+}: {
+  contactId: string;
+  colors?: {
+    backgroundColor: string;
+    foregroundColor: string;
+  };
+  renderDetail?: boolean;
+  padding?: 'none' | 'default' | 'large';
+  size?: number;
+}) {
+  const validId = contactId.length <= 14; // planet or larger
   const sigilXml = useMemo(
     () =>
-      sigil({
-        point: ship,
-        detail: "none",
-        size: 12,
-        space: "none",
-        foreground: "#ffffff",
-        background: theme.darkBackground.val,
-      }),
-    [ship]
+      validId
+        ? makeSigil({
+            point: contactId,
+            detail: renderDetail ? 'default' : 'none',
+            size: size,
+            space: padding,
+            foreground: colors?.foregroundColor,
+            background: colors?.backgroundColor,
+          })
+        : null,
+    [contactId, validId, size, colors?.foregroundColor, colors?.backgroundColor]
   );
-  return (
-    <View
-      ref={ref}
-      width={20}
-      height={20}
-      alignItems="center"
-      justifyContent="center"
-      backgroundColor="$darkBackground"
-      borderRadius="$2xs"
-      {...props}
-    >
-      {validShip && <SvgXml xml={sigilXml} />}
-    </View>
-  );
-});
+  return sigilXml ? <UrbitSigilSvg xml={sigilXml} /> : null;
+}
+
+export default UrbitSigil;

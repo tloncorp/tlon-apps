@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %3
+    $:  %4
         =v-channels:c
     ==
   --
@@ -88,13 +88,36 @@
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  cor  ?=(%2 -.old)  (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  ?>  ?=(%3 -.old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+  ?>  ?=(%4 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-3 state-2 state-1 state-0)
-  +$  state-3  current-state
-  +$  state-2  [%2 =v-channels:c]
+  +$  versioned-state  $%(state-4 state-3 state-2 state-1 state-0)
+  +$  state-4  current-state
+  ++  state-3-to-4
+    |=  s=state-3
+    ^-  state-4
+    s(- %4, v-channels (~(run by v-channels.s) v-channel-2-to-3))
+  ::
+  ++  v-channel-2-to-3
+    |=  v=v-channel-2
+    ^-  v-channel:c
+    v(future [future.v *pending-messages:c])
+  ++  v-channels-2  (map nest:c v-channel-2)
+  ++  v-channel-2
+    |^  ,[global:v-channel:c local]
+    +$  local
+      $:  =net:c
+          =log:c
+          =remark:c
+          =window:v-channel:c
+          =future:v-channel:c
+      ==
+    --
+  ::
+  +$  state-3  [%3 v-channels=v-channels-2]
+  +$  state-2  [%2 v-channels=v-channels-2]
   ++  state-2-to-3
     |=  old=state-2
     ^-  state-3
@@ -144,6 +167,7 @@
     s(- %2, v-channels (~(run by v-channels.s) v-channel-1-to-2))
   ++  v-channel-1-to-2
     |=  v=v-channel-1
+    ^-  v-channel-2
     %=  v
       posts   (v-posts-1-to-2 posts.v)
       log     (log-1-to-2 log.v)

@@ -5,6 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "types": ["../../packages/ui/src/tamagui.d.ts"]
   }
 }

@@ -60,6 +60,7 @@
         =remark
         =window
         =future
+        pending=pending-messages
     ==
   --
 ::  $v-post: a channel post
@@ -198,6 +199,13 @@
 ::  $react: either an emoji identifier like :diff or a URL for custom
 +$  react     @ta
 +$  v-reacts  (map ship (rev (unit react)))
++$  client-id  [author=ship sent=time]
++$  pending-posts  (map client-id essay)
++$  pending-replies  (map [top=id-post id=client-id] memo)
++$  pending-messages
+  $:  posts=pending-posts
+      replies=pending-replies
+  ==
 ::  $scam: bounded search results
 +$  scam
   $:  last=(unit id-post)  ::  last (top-level) message that was searched
@@ -404,6 +412,7 @@
 +$  r-channel
   $%  [%posts =posts]
       [%post id=id-post =r-post]
+      [%pending id=client-id =r-pending]
       [%order order=arranged-posts]
       [%view =view]
       [%sort =sort]
@@ -422,6 +431,10 @@
       [%essay =essay]
   ==
 ::
++$  r-pending
+  $%  [%post =essay]
+      [%reply top=id-post =reply-meta =memo]
+  ==
 +$  r-reply
   $%  [%set reply=(unit reply)]
       [%reacts =reacts]
@@ -458,6 +471,15 @@
         =perm
     ==
   ::
+  +$  local
+    $:  =net
+        =remark
+        pending=pending-messages
+    ==
+  --
++$  channels-0  (map nest channel-0)
+++  channel-0
+  |^  ,[global:channel local]
   +$  local
     $:  =net
         =remark
