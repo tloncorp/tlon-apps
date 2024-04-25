@@ -18,4 +18,10 @@ export {
   Dialog,
 } from 'tamagui';
 
-export type { ViewProps, SizeTokens, FontSizeTokens } from 'tamagui';
+export type {
+  ViewProps,
+  SizeTokens,
+  FontSizeTokens,
+  ColorTokens,
+  ThemeTokens,
+} from 'tamagui';

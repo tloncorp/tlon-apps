@@ -77,6 +77,12 @@ importers:
       '@10play/tentap-editor':
         specifier: ^0.4.55
         version: 0.4.55(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@aws-sdk/client-s3':
+        specifier: ^3.190.0
+        version: 3.190.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.190.0
+        version: 3.190.0
       '@google-cloud/recaptcha-enterprise-react-native':
         specifier: ^18.3.0
         version: 18.4.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -161,6 +167,12 @@ importers:
       expo-haptics:
         specifier: ~12.8.1
         version: 12.8.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-image-manipulator:
+        specifier: ~11.8.0
+        version: 11.8.0(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-image-picker:
+        specifier: ~14.7.1
+        version: 14.7.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-localization:
         specifier: ~14.8.3
         version: 14.8.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
@@ -185,6 +197,12 @@ importers:
       expo-updates:
         specifier: ~0.24.10
         version: 0.24.10(encoding@0.1.13)(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      immer:
+        specifier: ^9.0.12
+        version: 9.0.21
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       posthog-react-native:
         specifier: ^2.7.1
         version: 2.11.3(@react-native-async-storage/async-storage@1.21.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)))(@react-navigation/native@6.1.10(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(expo-application@5.8.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)))(expo-device@5.9.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)))(expo-file-system@16.0.9(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)))(expo-localization@14.8.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)))(react-native-device-info@10.12.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0)))
@@ -257,6 +275,9 @@ importers:
       web-streams-polyfill:
         specifier: ^3.3.3
         version: 3.3.3
+      zustand:
+        specifier: ^3.7.2
+        version: 3.7.2(react@18.2.0)
     devDependencies:
       '@react-native/metro-config':
         specifier: ^0.73.5
@@ -7218,6 +7239,21 @@ packages:
 
   expo-haptics@12.8.1:
     resolution: {integrity: sha512-ntLsHkfle8K8w9MW8pZEw92ZN3sguaGUSSIxv30fPKNeQFu7Cq/h47Qv3tONv2MO3wU48N9FbKnant6XlfptpA==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-loader@4.6.0:
+    resolution: {integrity: sha512-RHQTDak7/KyhWUxikn2yNzXL7i2cs16cMp6gEAgkHOjVhoCJQoOJ0Ljrt4cKQ3IowxgCuOrAgSUzGkqs7omj8Q==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-manipulator@11.8.0:
+    resolution: {integrity: sha512-ZWVrHnYmwJq6h7auk+ropsxcNi+LyZcPFKQc8oy+JA0SaJosfShvkCm7RADWAunHmfPCmjHrhwPGEu/rs7WG/A==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-picker@14.7.1:
+    resolution: {integrity: sha512-ILQVOJgI3aEzrDmCFGDPtpAepYkn8mot8G7vfQ51BfFdQbzL6N3Wm1fS/ofdWlAZJl/qT2DwaIh5xYmf3SyGZA==}
     peerDependencies:
       expo: '*'
 
@@ -20517,6 +20553,20 @@ snapshots:
   expo-haptics@12.8.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  expo-image-loader@4.6.0(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  expo-image-manipulator@11.8.0(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+      expo-image-loader: 4.6.0(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+
+  expo-image-picker@14.7.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+      expo-image-loader: 4.6.0(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
 
   expo-json-utils@0.12.3: {}
 
