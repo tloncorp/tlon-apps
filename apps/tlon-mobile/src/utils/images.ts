@@ -28,10 +28,21 @@ export async function resizeImage(url: string) {
 
   const [width, height] = size;
 
-  if (width > 1200 || height > 1200) {
+  if (width > 1200) {
     logger.log('resizing image', { width, height });
     const manipulated = await manipulateAsync(url, [
-      { resize: { width: 1200, height: 1200 } },
+      { resize: { width: 1200 } },
+    ]);
+
+    logger.log('manipulated', manipulated);
+
+    return manipulated.uri;
+  }
+
+  if (height > 1200) {
+    logger.log('resizing image', { width, height });
+    const manipulated = await manipulateAsync(url, [
+      { resize: { height: 1200 } },
     ]);
 
     logger.log('manipulated', manipulated);
