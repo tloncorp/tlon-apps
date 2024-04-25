@@ -1,6 +1,6 @@
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { Upload } from 'packages/shared/dist/api';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useCallback, useMemo } from 'react';
 
 import { ArrowUp } from '../../assets/icons';
 import { XStack, YStack } from '../../core';
@@ -32,6 +32,19 @@ export const MessageInputContainer = ({
   paddingBottom?: number;
   canUpload?: boolean;
 }>) => {
+  const hasUploadedImage = useMemo(
+    () => !!(uploadedImage && uploadedImage.url !== ''),
+    [uploadedImage]
+  );
+  const uploadIsLoading = useMemo(
+    () => uploadedImage?.status === 'loading',
+    [uploadedImage]
+  );
+  const sendIconColor = useMemo(
+    () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
+    [uploadIsLoading]
+  );
+
   return (
     <YStack>
       <XStack
@@ -40,7 +53,7 @@ export const MessageInputContainer = ({
         gap="$l"
         alignItems="center"
       >
-        {uploadedImage && uploadedImage.url !== '' ? null : canUpload ? (
+        {hasUploadedImage ? null : canUpload ? (
           <XStack gap="$l" animation="quick">
             <AttachmentButton
               uploadedImage={uploadedImage}
@@ -51,7 +64,11 @@ export const MessageInputContainer = ({
         ) : null}
         <XStack flex={1} gap="$l" alignItems="center">
           {children}
-          <IconButton onPress={onPressSend}>
+          <IconButton
+            color={sendIconColor}
+            disabled={uploadIsLoading}
+            onPress={onPressSend}
+          >
             {/* TODO: figure out what send button should look like */}
             <ArrowUp />
           </IconButton>

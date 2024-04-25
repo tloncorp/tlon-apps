@@ -27,7 +27,7 @@ export default function AttachmentButton({
     setShowInputSelector(false);
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.5,
       exif: false,
     });
