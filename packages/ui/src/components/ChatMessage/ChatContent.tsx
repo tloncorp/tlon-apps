@@ -1,7 +1,10 @@
 import { utils } from '@tloncorp/shared';
 import {
+  ContentReference as ContentReferenceType,
+  PostContent,
+} from '@tloncorp/shared/dist/api';
+import {
   Block,
-  Story,
   VerseBlock,
   VerseInline,
   isImage,
@@ -29,6 +32,7 @@ import {
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
+import ContentReference from '../ContentReference';
 import Video from '../Video';
 
 function ShipMention({ ship }: { ship: string }) {
@@ -304,22 +308,38 @@ export default function ChatContent({
   story,
   onPressImage,
 }: {
-  story: Story;
+  story: PostContent;
   onPressImage?: (src: string) => void;
 }) {
   const storyInlines = useMemo(
     () =>
-      (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
-        (i) => i.inline
-      ),
+      story !== null
+        ? (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
+            (i) => i.inline
+          )
+        : [],
     [story]
   );
   const storyBlocks = useMemo(
-    () => story.filter((s) => 'block' in s) as VerseBlock[],
+    () =>
+      story !== null ? (story.filter((s) => 'block' in s) as VerseBlock[]) : [],
+    [story]
+  );
+  const storyReferences = useMemo(
+    () =>
+      story !== null
+        ? (story.filter(
+            (s) => 'type' in s && s.type == 'reference'
+          ) as ContentReferenceType[])
+        : [],
     [story]
   );
   const inlineLength = useMemo(() => storyInlines.length, [storyInlines]);
   const blockLength = useMemo(() => storyBlocks.length, [storyBlocks]);
+  const referenceLength = useMemo(
+    () => storyReferences.length,
+    [storyReferences]
+  );
   const blockContent = useMemo(
     () =>
       storyBlocks.sort((a, b) => {
@@ -335,12 +355,19 @@ export default function ChatContent({
     [storyBlocks]
   );
 
-  if (blockLength === 0 && inlineLength === 0) {
+  if (blockLength === 0 && inlineLength === 0 && referenceLength === 0) {
     return null;
   }
 
   return (
     <YStack>
+      {referenceLength > 0 ? (
+        <YStack gap="$s">
+          {storyReferences.map((ref, key) => {
+            return <ContentReference key={key} reference={ref} />;
+          })}
+        </YStack>
+      ) : null}
       {blockLength > 0 ? (
         <YStack>
           {blockContent

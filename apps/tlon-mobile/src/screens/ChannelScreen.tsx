@@ -209,6 +209,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollStartReached={handleScrollStartReached}
         paddingBottom={bottom}
         canUpload={!!uploader}
+        navigateToChannelOrPost={(channel: db.Channel, post: db.Post) => {
+          props.navigation.push('Channel', { channel, selectedPost: post });
+        }}
       />
       {group && (
         <ChannelSwitcherSheet

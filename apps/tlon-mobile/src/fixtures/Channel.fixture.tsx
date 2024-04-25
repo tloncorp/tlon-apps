@@ -96,6 +96,7 @@ const ChannelFixture = () => {
         resetImageAttachment={() => {}}
         paddingBottom={bottom}
         canUpload={true}
+        navigateToChannelOrPost={() => {}}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -181,6 +182,7 @@ const ChannelFixtureWithImage = () => {
         resetImageAttachment={resetImageAttachment}
         paddingBottom={bottom}
         canUpload={true}
+        navigateToChannelOrPost={() => {}}
       />
       <ChannelSwitcherSheet
         open={open}

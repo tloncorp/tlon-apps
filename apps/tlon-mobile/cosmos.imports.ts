@@ -3,10 +3,11 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
-import * as fixture14 from './src/fixtures/Button.fixture';
-import * as fixture13 from './src/fixtures/Channel.fixture';
-import * as fixture12 from './src/fixtures/ChannelHeader.fixture';
-import * as fixture11 from './src/fixtures/ChannelSwitcherSheet.fixture';
+import * as fixture15 from './src/fixtures/Button.fixture';
+import * as fixture14 from './src/fixtures/Channel.fixture';
+import * as fixture13 from './src/fixtures/ChannelHeader.fixture';
+import * as fixture12 from './src/fixtures/ChannelSwitcherSheet.fixture';
+import * as fixture11 from './src/fixtures/ChatReference.fixture';
 import * as fixture10 from './src/fixtures/GroupList.fixture';
 import * as fixture9 from './src/fixtures/GroupListItem.fixture';
 import * as fixture8 from './src/fixtures/HeaderButton.fixture';
@@ -36,10 +37,11 @@ const fixtures = {
   'src/fixtures/HeaderButton.fixture.tsx': { module: fixture8 },
   'src/fixtures/GroupListItem.fixture.tsx': { module: fixture9 },
   'src/fixtures/GroupList.fixture.tsx': { module: fixture10 },
-  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture11 },
-  'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture12 },
-  'src/fixtures/Channel.fixture.tsx': { module: fixture13 },
-  'src/fixtures/Button.fixture.tsx': { module: fixture14 },
+  'src/fixtures/ChatReference.fixture.tsx': { module: fixture11 },
+  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture12 },
+  'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture13 },
+  'src/fixtures/Channel.fixture.tsx': { module: fixture14 },
+  'src/fixtures/Button.fixture.tsx': { module: fixture15 },
 };
 
 const decorators = {
