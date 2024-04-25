@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { PropsWithChildren, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   SectionList,
   SectionListData,

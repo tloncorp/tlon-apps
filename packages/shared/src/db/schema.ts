@@ -110,12 +110,11 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   }),
 }));
 
+export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
 export const pins = sqliteTable(
   'pins',
   {
-    type: text('type')
-      .$type<'group' | 'channel' | 'dm' | 'groupDm'>()
-      .notNull(),
+    type: text('type').$type<PinType>().notNull(),
     index: integer('index').notNull(),
     itemId: text('item_id').notNull(),
   },
