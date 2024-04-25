@@ -1,4 +1,4 @@
-import { sync } from '@tloncorp/shared';
+import { sync, useStorage } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
@@ -23,6 +23,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
     sync.start().catch((e) => {
       console.warn('Sync failed', e);
     });
+    useStorage.getState().start();
   }, [ship, shipUrl]);
 
   return (

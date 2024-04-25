@@ -49,6 +49,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     runtimeVersion: '4.0.1',
   },
+  plugins: [
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'The app accesses your photos to allow you to upload images.',
+        cameraPermission:
+          'The app accesses your camera to allow you to take photos.',
+        microphonePermission:
+          'The app accesses your microphone to allow you to record audio.',
+      },
+    ],
+  ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,
   },

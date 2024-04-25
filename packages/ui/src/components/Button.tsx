@@ -4,6 +4,7 @@ import {
   SizeTokens,
   Stack,
   Text,
+  ThemeTokens,
   Variable,
   View,
   createStyledContext,
@@ -14,10 +15,12 @@ import {
 
 export const ButtonContext = createStyledContext<{
   size: SizeTokens;
+  color: ThemeTokens;
   minimal: boolean;
   onPress?: () => void;
 }>({
   size: '$m',
+  color: '$primaryText',
   minimal: false,
 });
 
@@ -94,15 +97,15 @@ export const ButtonText = styled(Text, {
   } as const,
 });
 
-const ButtonIcon = (props: { children: any }) => {
-  const { size } = useContext(ButtonContext.context);
+const ButtonIcon = (props: { color?: ThemeTokens; children: any }) => {
+  const { size, color } = useContext(ButtonContext.context);
   const smaller = getSize(size, {
     shift: -2,
   });
   const theme = useTheme();
   return cloneElement(props.children, {
     size: smaller.val * 0.5,
-    color: theme.primaryText?.get(),
+    color: props.color ?? color ?? theme.primaryText?.get(),
   });
 };
 

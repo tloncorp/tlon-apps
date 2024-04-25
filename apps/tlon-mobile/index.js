@@ -3,6 +3,7 @@ import { addCustomEnabledLoggers } from '@tloncorp/shared';
 import { setStorage } from '@tloncorp/ui';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
+import 'react-native-get-random-values';
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';

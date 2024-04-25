@@ -1,5 +1,6 @@
-import { JSONContent } from '@tiptap/core';
+import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -14,6 +15,7 @@ import * as utils from '../../utils';
 import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
+import UploadedImagePreview from './UploadedImagePreview';
 
 export function Channel({
   channel,
@@ -29,11 +31,17 @@ export function Channel({
   goToImageViewer,
   goToPost,
   messageSender,
+  setImageAttachment,
   onScrollEndReached,
   onScrollStartReached,
+  uploadedImage,
+  imageAttachment,
+  resetImageAttachment,
   // TODO: implement gallery and notebook
   type,
   isLoadingPosts,
+  paddingBottom,
+  canUpload,
 }: {
   channel: db.ChannelWithLastPostAndMembers;
   currentUserId: string;
@@ -47,11 +55,17 @@ export function Channel({
   goToPost: (post: db.PostInsert) => void;
   goToImageViewer: (post: db.PostInsert, imageUri?: string) => void;
   goToSearch: () => void;
-  messageSender: (content: JSONContent, channelId: string) => void;
+  messageSender: (content: Story, channelId: string) => void;
+  imageAttachment?: string | null;
+  setImageAttachment: (image: string | null) => void;
+  uploadedImage?: Upload | null;
+  resetImageAttachment: () => void;
   type?: 'chat' | 'gallery' | 'notebook';
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
+  paddingBottom: number;
+  canUpload: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -75,7 +89,12 @@ export function Channel({
               contentContainerStyle={{ flex: 1 }}
             >
               <YStack flex={1}>
-                {!posts || !contacts ? (
+                {imageAttachment ? (
+                  <UploadedImagePreview
+                    imageAttachment={imageAttachment}
+                    resetImageAttachment={resetImageAttachment}
+                  />
+                ) : !posts || !contacts ? (
                   <View flex={1} alignItems="center" justifyContent="center">
                     <Spinner />
                   </View>
@@ -99,6 +118,10 @@ export function Channel({
                   setShouldBlur={setInputShouldBlur}
                   send={messageSender}
                   channelId={channel.id}
+                  setImageAttachment={setImageAttachment}
+                  uploadedImage={uploadedImage}
+                  paddingBottom={paddingBottom}
+                  canUpload={canUpload}
                 />
               </YStack>
             </KeyboardAvoidingView>

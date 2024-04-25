@@ -6,3 +6,4 @@ export * from './useChannelSearch';
 export * from './postActions';
 export * from './useThreadPosts';
 export * from './useInitialSync';
+export * from './storage';

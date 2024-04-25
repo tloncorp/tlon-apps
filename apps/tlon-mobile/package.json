@@ -37,6 +37,8 @@
   },
   "dependencies": {
     "@10play/tentap-editor": "^0.4.55",
+    "@aws-sdk/client-s3": "^3.190.0",
+    "@aws-sdk/s3-request-presigner": "^3.190.0",
     "@google-cloud/recaptcha-enterprise-react-native": "^18.3.0",
     "@gorhom/bottom-sheet": "^4.5.1",
     "@op-engineering/op-sqlite": "5.0.5",
@@ -65,6 +67,8 @@
     "expo-device": "~5.9.3",
     "expo-file-system": "~16.0.8",
     "expo-haptics": "~12.8.1",
+    "expo-image-manipulator": "~11.8.0",
+    "expo-image-picker": "~14.7.1",
     "expo-localization": "~14.8.3",
     "expo-modules-core": "~1.11.8",
     "expo-notifications": "~0.27.6",
@@ -73,6 +77,8 @@
     "expo-status-bar": "~1.11.1",
     "expo-task-manager": "~11.7.2",
     "expo-updates": "~0.24.10",
+    "immer": "^9.0.12",
+    "lodash": "^4.17.21",
     "posthog-react-native": "^2.7.1",
     "react": "^18.2.0",
     "react-hook-form": "^7.50.1",
@@ -96,7 +102,8 @@
     "react-native-webview": "13.6.4",
     "tailwind-rn": "^4.2.0",
     "text-encoding": "^0.7.0",
-    "web-streams-polyfill": "^3.3.3"
+    "web-streams-polyfill": "^3.3.3",
+    "zustand": "^3.7.2"
   },
   "devDependencies": {
     "@react-native/metro-config": "^0.73.5",
