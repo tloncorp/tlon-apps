@@ -16,7 +16,6 @@ export {
   TextArea,
   Text,
   Dialog,
-  Separator,
 } from 'tamagui';
 
 export type {
