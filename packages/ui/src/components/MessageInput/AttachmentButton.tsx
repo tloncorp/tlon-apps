@@ -5,11 +5,9 @@ import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
   setImage,
-  paddingBottom,
 }: {
   setImage: (uri: string) => void;
   uploadedImage?: Upload | null;
-  paddingBottom: number;
 }) {
   return (
     <IconButton onPress={() => {}}>

@@ -40,7 +40,6 @@ export function Channel({
   // TODO: implement gallery and notebook
   type,
   isLoadingPosts,
-  paddingBottom,
   canUpload,
 }: {
   channel: db.ChannelWithLastPostAndMembers;
@@ -64,7 +63,6 @@ export function Channel({
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
-  paddingBottom: number;
   canUpload: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -120,7 +118,6 @@ export function Channel({
                   channelId={channel.id}
                   setImageAttachment={setImageAttachment}
                   uploadedImage={uploadedImage}
-                  paddingBottom={paddingBottom}
                   canUpload={canUpload}
                 />
               </YStack>
