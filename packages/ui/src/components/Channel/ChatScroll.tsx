@@ -117,6 +117,7 @@ export default function ChatScroll({
             showReplies={showReplies}
             onPressReplies={onPressReplies}
             onPressImage={onPressImage}
+            onLongPress={() => handleSetActive(item)}
           />
         </PressableMessage>
       );
@@ -191,7 +192,7 @@ function getPostId(post: db.Post) {
 const PressableMessage = forwardRef<
   RNView,
   PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
->(({ isActive, onLongPress, children }, ref) => {
+>(function PressableMessageComponent({ isActive, onLongPress, children }, ref) {
   return isActive ? (
     // need the extra React Native View for ref measurement
     <MotiView
