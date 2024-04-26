@@ -1,6 +1,5 @@
-import { parseUx } from '@urbit/aura';
-
 import * as db from '../db';
+import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { scry } from './urbit';
 
@@ -29,7 +28,7 @@ export const toClientContact = (
     nickname: contact?.nickname ?? null,
     bio: contact?.bio ?? null,
     status: contact?.status ?? null,
-    color: parseUrbitColor(contact?.color),
+    color: contact?.color ? normalizeUrbitColor(contact.color) : null,
     coverImage: contact?.cover ?? null,
     avatarImage: contact?.avatar ?? null,
     pinnedGroups:
@@ -39,14 +38,3 @@ export const toClientContact = (
       })) ?? [],
   };
 };
-
-function parseUrbitColor(color?: string) {
-  let result = color ? parseUx(color) : null;
-  if (!result) {
-    return null;
-  }
-  while (result.length < 6) {
-    result = result + '0';
-  }
-  return '#' + result;
-}

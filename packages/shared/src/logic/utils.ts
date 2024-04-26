@@ -1,6 +1,5 @@
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
-import _ from 'lodash';
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -111,7 +110,7 @@ export function isSingleEmoji(input: string): boolean {
   return (
     (matches &&
       matches.length === 1 &&
-      matches.length === _.split(input, '').length) ??
+      matches.length === input.split('').length) ??
     false
   );
 }
@@ -122,6 +121,6 @@ export function normalizeUrbitColor(color: string): string {
   }
 
   const colorString = color.slice(2).replace('.', '').toUpperCase();
-  const lengthAdjustedColor = _.padStart(colorString, 6, '0');
+  const lengthAdjustedColor = colorString.padStart(6, '0');
   return `#${lengthAdjustedColor}`;
 }
