@@ -31,27 +31,19 @@ export const useRequests = () => {
 };
 
 type RequestProviderProps = {
-  usePost?: typeof usePostWithRelations;
-  useChannel?: typeof useChannelFromStore;
-  useGroup?: (id: string) => void;
-  useApp?: (id: string) => void;
+  usePost: typeof usePostWithRelations;
+  useChannel: typeof useChannelFromStore;
+  useGroup: (id: string) => void;
+  useApp: (id: string) => void;
 };
 
-export const RequestsProvider: React.FC<
-  PropsWithChildren<RequestProviderProps>
-> = ({
+export const RequestsProvider = ({
   children,
   usePost,
   useChannel,
   useGroup,
   useApp,
-}: {
-  children: React.ReactNode;
-  usePost: typeof usePostWithRelations;
-  useChannel: typeof useChannelFromStore;
-  useGroup: (id: string) => void;
-  useApp: (id: string) => void;
-}) => {
+}: PropsWithChildren<RequestProviderProps>) => {
   const value = useMemo(
     () => ({ usePost, useChannel, useGroup, useApp }),
     [usePost, useChannel, useGroup, useApp]

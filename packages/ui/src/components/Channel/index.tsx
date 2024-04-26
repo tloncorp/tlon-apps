@@ -84,7 +84,12 @@ export function Channel({
     <CalmProvider initialCalm={calmSettings}>
       <GroupsProvider groups={group ? [group] : null}>
         <ContactsProvider contacts={contacts ?? null}>
-          <RequestsProvider usePost={usePost} useChannel={useChannel}>
+          <RequestsProvider
+            usePost={usePost}
+            useChannel={useChannel}
+            useGroup={() => null}
+            useApp={() => null}
+          >
             <NavigationProvider navigate={navigateToChannelOrPost}>
               <YStack justifyContent="space-between" width="100%" height="100%">
                 <ChannelHeader

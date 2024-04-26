@@ -1,4 +1,4 @@
-import { getChannelType } from 'packages/shared/dist/urbit';
+import { getChannelType } from '@tloncorp/shared/dist/urbit';
 
 import { Text } from '../../core';
 import ChatReferenceWrapper from './ChatReferenceWrapper';

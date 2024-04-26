@@ -1,6 +1,6 @@
+import { Upload } from '@tloncorp/shared/dist/api';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { Upload } from 'packages/shared/dist/api';
-import { PropsWithChildren, useCallback, useMemo } from 'react';
+import { PropsWithChildren, useMemo } from 'react';
 
 import { ArrowUp } from '../../assets/icons';
 import { XStack, YStack } from '../../core';
