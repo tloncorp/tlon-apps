@@ -18,7 +18,9 @@ export default function ReferenceSkeleton() {
       >
         <XStack padding="$l" gap="$l" alignItems="center">
           <LoadingSpinner />
-          <Text fontSize="$l" color="$tertiaryText">Loading</Text>
+          <Text fontSize="$l" color="$tertiaryText">
+            Loading
+          </Text>
         </XStack>
         <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
       </XStack>
