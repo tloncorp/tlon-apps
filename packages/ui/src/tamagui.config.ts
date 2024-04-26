@@ -98,6 +98,7 @@ export const themes = {
     secondaryBackground: '#322E2E',
     tertiaryText: '#808080',
     border: '#333333',
+    secondaryBorder: '#4C4C4C',
     activeBorder: '#4C4C4C',
     positiveActionText: '#4E91F5',
     positiveBackground: '#143A5E',
@@ -106,6 +107,7 @@ export const themes = {
     negativeBackground: '#4B2525',
     negativeBorder: '#814444',
     darkBackground: '#4C4C4C',
+    overlayBackground: '#FFFFFF',
   },
   light: {
     primaryText: '#1A1818',
@@ -115,6 +117,7 @@ export const themes = {
     secondaryBackground: '#F5F5F5',
     tertiaryText: '#999999',
     border: '#E5E5E5',
+    secondaryBorder: '#CCCCCC',
     activeBorder: '#CCCCCC',
     positiveActionText: '#3B80E8',
     positiveBackground: '#F5FAFF',
@@ -123,6 +126,7 @@ export const themes = {
     negativeBackground: '#FEF5F5',
     negativeBorder: '#FCD0D0',
     darkBackground: '#333333',
+    overlayBackground: '#000000',
   },
   ocean: {
     primaryText: '#D2F1F9',
@@ -132,6 +136,7 @@ export const themes = {
     secondaryBackground: '#0076A3',
     tertiaryText: '#58C9E8',
     border: '#0076A3',
+    secondaryBorder: '#4C4C4C',
     activeBorder: '#005073',
     positiveActionText: '#4A7B9D',
     positiveBackground: '#CDE5EF',
@@ -140,6 +145,7 @@ export const themes = {
     negativeBackground: '#FFCCCB',
     negativeBorder: '#FF8575',
     darkBackground: '#024E6C',
+    overlayBackground: '#000000',
   },
   desert: {
     primaryText: '#4A3F35',
@@ -149,6 +155,7 @@ export const themes = {
     secondaryBackground: '#F0E5CF',
     tertiaryText: '#A89F91',
     border: '#F0E5CF',
+    secondaryBorder: '#4C4C4C',
     activeBorder: '#E6D5B8',
     positiveActionText: '#C27D38',
     positiveBackground: '#DECDA3',
@@ -157,6 +164,7 @@ export const themes = {
     negativeBackground: '#E4B9B2',
     negativeBorder: '#ECD9D2',
     darkBackground: '#C9B79C',
+    overlayBackground: '#000000',
   },
   forest: {
     primaryText: '#A3BFA8',
@@ -166,6 +174,7 @@ export const themes = {
     secondaryBackground: '#567856',
     tertiaryText: '#738C70',
     border: '#567856',
+    secondaryBorder: '#4C4C4C',
     activeBorder: '#2F4F2F',
     positiveActionText: '#679267',
     positiveBackground: '#8DAF8D',
@@ -174,6 +183,7 @@ export const themes = {
     negativeBackground: '#E9967A',
     negativeBorder: '#F0A891',
     darkBackground: '#335233',
+    overlayBackground: '#000000',
   },
   mountain: {
     primaryText: '#D9D5C3',
@@ -183,6 +193,7 @@ export const themes = {
     secondaryBackground: '#767C74',
     tertiaryText: '#91988F',
     border: '#767C74',
+    secondaryBorder: '#4C4C4C',
     activeBorder: '#3E423A',
     positiveActionText: '#6E6658',
     positiveBackground: '#8D8B7F',
@@ -191,6 +202,7 @@ export const themes = {
     negativeBackground: '#C2B280',
     negativeBorder: '#D3CBAA',
     darkBackground: '#2E3130',
+    overlayBackground: '#000000',
   },
 };
 

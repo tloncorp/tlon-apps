@@ -39,10 +39,13 @@ const fakeLoadingMostRecentFile: Upload = {
   size: [100, 100],
 };
 
-const ChannelFixtureWrapper = ({ children }: PropsWithChildren) => {
+const ChannelFixtureWrapper = ({
+  children,
+  theme,
+}: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   const { bottom } = useSafeAreaInsets();
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <FixtureWrapper fillWidth fillHeight theme={theme}>
       <View paddingBottom={bottom} backgroundColor="$background">
         {children}
       </View>
@@ -50,7 +53,7 @@ const ChannelFixtureWrapper = ({ children }: PropsWithChildren) => {
   );
 };
 
-const ChannelFixture = () => {
+export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   const [open, setOpen] = useState(false);
   const [currentChannel, setCurrentChannel] =
     useState<db.ChannelWithLastPostAndMembers | null>(null);
@@ -72,7 +75,7 @@ const ChannelFixture = () => {
   }, []);
 
   return (
-    <ChannelFixtureWrapper>
+    <ChannelFixtureWrapper theme={props.theme}>
       <Channel
         posts={posts}
         currentUserId="~zod"

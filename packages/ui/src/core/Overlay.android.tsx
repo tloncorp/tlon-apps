@@ -1,12 +1,9 @@
-import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import { ComponentProps } from 'react';
 
-import { useAppContext } from '../contexts';
 import { View } from './tamagui';
 
 export function Overlay(props: ComponentProps<typeof View>) {
-  const { theme } = useAppContext();
   return (
     <MotiView
       style={{ flex: 1 }}
@@ -23,7 +20,7 @@ export function Overlay(props: ComponentProps<typeof View>) {
       <View
         flex={1}
         opacity={0.4}
-        backgroundColor={theme === 'dark' ? '$white' : '$black'}
+        backgroundColor="$overlayBackground"
         {...props}
       ></View>
     </MotiView>

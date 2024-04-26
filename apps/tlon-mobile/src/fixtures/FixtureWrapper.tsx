@@ -1,5 +1,5 @@
 import type { ColorProp } from '@tloncorp/ui';
-import { View } from '@tloncorp/ui';
+import { Theme, View } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -11,6 +11,7 @@ export const FixtureWrapper = ({
   children,
   backgroundColor,
   innerBackgroundColor,
+  theme = 'light',
 }: PropsWithChildren<{
   fillWidth?: boolean;
   fillHeight?: boolean;
@@ -18,38 +19,41 @@ export const FixtureWrapper = ({
   horizontalAlign?: 'left' | 'center' | 'right';
   backgroundColor?: ColorProp;
   innerBackgroundColor?: ColorProp;
+  theme?: 'light' | 'dark';
 }>) => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View
-        backgroundColor={backgroundColor ?? '$secondaryBackground'}
-        flex={1}
-        flexDirection="column"
-        width={fillWidth ? '100%' : 'unset'}
-        height={fillHeight ? '100%' : 'unset'}
-        justifyContent={
-          verticalAlign === 'top'
-            ? 'flex-start'
-            : verticalAlign === 'bottom'
-              ? 'flex-end'
-              : 'center'
-        }
-        alignItems={
-          horizontalAlign === 'left'
-            ? 'flex-start'
-            : horizontalAlign === 'right'
-              ? 'flex-end'
-              : 'center'
-        }
-      >
+      <Theme name={theme}>
         <View
-          backgroundColor={innerBackgroundColor ?? '$background'}
+          backgroundColor={backgroundColor ?? '$secondaryBackground'}
+          flex={1}
+          flexDirection="column"
           width={fillWidth ? '100%' : 'unset'}
           height={fillHeight ? '100%' : 'unset'}
+          justifyContent={
+            verticalAlign === 'top'
+              ? 'flex-start'
+              : verticalAlign === 'bottom'
+                ? 'flex-end'
+                : 'center'
+          }
+          alignItems={
+            horizontalAlign === 'left'
+              ? 'flex-start'
+              : horizontalAlign === 'right'
+                ? 'flex-end'
+                : 'center'
+          }
         >
-          {children}
+          <View
+            backgroundColor={innerBackgroundColor ?? '$background'}
+            width={fillWidth ? '100%' : 'unset'}
+            height={fillHeight ? '100%' : 'unset'}
+          >
+            {children}
+          </View>
         </View>
-      </View>
+      </Theme>
     </GestureHandlerRootView>
   );
 };

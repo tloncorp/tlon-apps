@@ -6,7 +6,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { handleImagePicked, useUploader } from '@tloncorp/shared/dist/store';
 import type { Story } from '@tloncorp/shared/dist/urbit';
-import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
+import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui/src';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

@@ -1,12 +1,10 @@
 import { sync, useStorage } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
-import { AppContextProvider, ZStack } from '@tloncorp/ui';
+import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
 import { useShip } from '../contexts/ship';
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
 import { RootStack } from '../navigation/RootStack';
@@ -38,16 +36,9 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
 export default function ConnectedAuthenticatedApp(
   props: AuthenticatedAppProps
 ) {
-  const currentUserId = useCurrentUserId();
-  const dark = useIsDarkMode();
-
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContextProvider
-        value={{ currentUserId, theme: dark ? 'dark' : 'light' }}
-      >
-        <AuthenticatedApp {...props} />
-      </AppContextProvider>
+      <AuthenticatedApp {...props} />
     </QueryClientProvider>
   );
 }

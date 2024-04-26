@@ -16,10 +16,10 @@ const ActionListFrame = styled(YStack, {
 const ActionFrame = styled(ListItemFrame, {
   borderRadius: 'unset',
   borderBottomWidth: 0.5,
-  borderBottomColor: '$gray700',
+  borderBottomColor: '$secondaryBorder',
   backgroundColor: 'transparent',
   pressStyle: {
-    backgroundColor: '$gray200',
+    backgroundColor: '$secondaryBorder',
   },
   variants: {
     last: {
