@@ -6,6 +6,7 @@ import {
   ReactElement,
   useMemo,
 } from 'react';
+import { Platform } from 'react-native';
 import { ColorProp, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
@@ -276,7 +277,7 @@ const ListItemCount = ({ children }: PropsWithChildren) => {
     >
       <SizableText
         size="$s"
-        lineHeight={0}
+        lineHeight={Platform.OS === 'ios' ? 0 : 17}
         color="$secondaryText"
         textAlign="center"
       >

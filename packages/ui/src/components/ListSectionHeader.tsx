@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { View, styled } from 'tamagui';
 
 import { SizableText } from '../core';
@@ -18,5 +19,5 @@ const ListSectionHeaderContainer = styled(View, {
 const Text = styled(SizableText, {
   size: '$s',
   color: '$secondaryText',
-  lineHeight: 0,
+  lineHeight: Platform.OS === 'ios' ? 0 : undefined,
 });
