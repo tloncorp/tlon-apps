@@ -15,6 +15,7 @@ import CodeBlock from '@tiptap/extension-code-block';
 import { EditorContent } from '@tiptap/react';
 
 import { ShortcutsBridge } from './bridges/shortcut';
+import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
   const editor = useTenTap({
@@ -45,6 +46,7 @@ export const MessageInputEditor = () => {
   return (
     <EditorContent
       style={{
+        color: useIsDark() ? 'white' : 'black',
         flex: 1,
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
