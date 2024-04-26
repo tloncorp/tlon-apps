@@ -61,7 +61,12 @@ function ChannelListItemIcon({
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
-    return <ListItem.SystemIcon icon={icon} backgroundColor={'$gray50'} />;
+    return (
+      <ListItem.SystemIcon
+        icon={icon}
+        backgroundColor={'$secondaryBackground'}
+      />
+    );
   } else if (model.type === 'dm' && model.members?.[0]?.contactId) {
     return (
       <ListItem.AvatarIcon
