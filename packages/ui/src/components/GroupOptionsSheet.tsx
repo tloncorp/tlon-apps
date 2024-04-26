@@ -1,7 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
-import { Stack, Text, View } from '../core';
-import { Sheet } from './Sheet';
+import { ActionSheet } from './ActionSheet';
 
 interface Props {
   open: boolean;
@@ -9,145 +8,70 @@ interface Props {
   channel?: db.Channel;
 }
 
+const actions = [
+  {
+    title: 'Connected',
+    variant: 'success',
+    action: () => {},
+  },
+  {
+    title: 'Invite People',
+    variant: 'primary',
+    action: () => {},
+  },
+  {
+    title: 'Group settings',
+    description: 'Configure group details and privacy',
+    action: () => {},
+  },
+  {
+    title: 'Copy group reference',
+    description: 'Copy an in-Urbit link to this group',
+    action: () => {},
+  },
+  {
+    title: 'Group members',
+    description: 'View all members and roles',
+    action: () => {},
+  },
+  {
+    title: 'Channels',
+    description: 'View all channels you have access to',
+    action: () => {},
+  },
+  {
+    title: 'Group notification settings',
+    description: 'Configure your notifications for this group',
+    action: () => {},
+  },
+  // TODO: channel pin state
+];
+
 export function ChatOptionsSheet({ open, onOpenChange, channel }: Props) {
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      modal
-      dismissOnSnapToBottom
-      snapPointsMode="fit"
-      animation="quick"
-    >
-      <Sheet.Overlay animation="quick" />
-      <Sheet.Frame>
-        <Sheet.Handle paddingTop="$xl" />
-        <View
-          gap="$xl"
-          paddingHorizontal="$2xl"
-          paddingTop="$xl"
-          paddingBottom="$4xl"
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <ActionSheet.Header>
+        <ActionSheet.Title>
+          {channel?.title ?? 'Group Options'}
+        </ActionSheet.Title>
+        <ActionSheet.Description>Quick actions</ActionSheet.Description>
+      </ActionSheet.Header>
+      {actions.map((action, index) => (
+        <ActionSheet.Action
+          key={index}
+          action={action.action}
+          primary={action.variant === 'primary'}
+          success={action.variant === 'success'}
+          destructive={action.variant === 'destructive'}
         >
-          <Stack paddingBottom="$m" flexDirection="column">
-            <Text fontSize="$l" fontWeight="500">
-              {/* TODO: Handle titles of group dms + dms */}
-              {channel?.title}
-            </Text>
-            <Text fontSize="$l" color="$secondaryText">
-              Quick actions
-            </Text>
-          </Stack>
-
-          <Stack
-            padding="$l"
-            backgroundColor="$greenSoft"
-            borderWidth={1}
-            borderColor="$green"
-            borderRadius="$l"
-          >
-            <Text fontSize="$l" color="$green" fontWeight="500">
-              Connected
-            </Text>
-          </Stack>
-
-          <Stack
-            padding="$l"
-            borderWidth={1}
-            borderColor="$blueSoft"
-            borderRadius="$l"
-          >
-            <Text fontSize="$l" color="$blue" fontWeight="500">
-              Invite People
-            </Text>
-          </Stack>
-
-          <Stack
-            padding="$l"
-            borderWidth={1}
-            borderColor="rgb(229, 229, 229)"
-            borderRadius="$l"
-          >
-            <Text fontSize="$l" fontWeight="500">
-              Group settings
-            </Text>
-            <Text color="$secondaryText" fontSize="$s">
-              Configure group details and privacy
-            </Text>
-          </Stack>
-
-          <Stack
-            borderWidth={1}
-            borderColor="rgb(229, 229, 229)"
-            borderRadius="$l"
-          >
-            {
-              // TODO: channel pin state
-              /* <Stack
-              padding="$l"
-              borderBottomWidth={1}
-              borderBottomColor="rgb(229, 229, 229)"
-            >
-              <Text fontSize="$l" fontWeight="500">
-                {group?.pin ? 'Unpin' : 'Pin'}
-              </Text>
-              <Text color="$secondaryText" fontSize="$s">
-                {group?.pin ? 'Unpin' : 'Pin'} this group{' '}
-                {group?.pin ? 'from' : 'to'} the top of your
-                Groups list
-              </Text>
-            </Stack> */
-            }
-
-            <Stack
-              padding="$l"
-              borderBottomWidth={1}
-              borderBottomColor="rgb(229, 229, 229)"
-            >
-              <Text fontSize="$l" fontWeight="500">
-                Copy group reference
-              </Text>
-              <Text color="$secondaryText" fontSize="$s">
-                Copy an in-Urbit link to this group
-              </Text>
-            </Stack>
-
-            <Stack
-              padding="$l"
-              borderBottomWidth={1}
-              borderBottomColor="rgb(229, 229, 229)"
-            >
-              <Text fontSize="$l" fontWeight="500">
-                Group members
-              </Text>
-              <Text color="$secondaryText" fontSize="$s">
-                View all members and roles
-              </Text>
-            </Stack>
-
-            <Stack
-              padding="$l"
-              borderBottomWidth={1}
-              borderBottomColor="rgb(229, 229, 229)"
-            >
-              <Text fontSize="$l" fontWeight="500">
-                Channels
-              </Text>
-              <Text color="$secondaryText" fontSize="$s">
-                View all channels you have access to
-              </Text>
-            </Stack>
-
-            <Stack padding="$l">
-              <Text fontSize="$l" fontWeight="500">
-                Group notification settings
-              </Text>
-              <Text color="$secondaryText" fontSize="$s">
-                Configure your notifications for this group
-              </Text>
-            </Stack>
-          </Stack>
-        </View>
-      </Sheet.Frame>
-    </Sheet>
+          <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheet.Action>
+      ))}
+    </ActionSheet>
   );
 }

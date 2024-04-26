@@ -60,7 +60,6 @@ export function MessageInput({
   channelId,
   setImageAttachment,
   uploadedImage,
-  paddingBottom,
   canUpload,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(0);
@@ -167,7 +166,6 @@ export function MessageInput({
       setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
       uploadedImage={uploadedImage}
-      paddingBottom={paddingBottom}
       canUpload={canUpload}
     >
       <XStack
