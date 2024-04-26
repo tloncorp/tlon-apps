@@ -1,30 +1,150 @@
-import { ColorTokens, Stack, Text, View } from '../core';
+import { ComponentProps, PropsWithChildren } from 'react';
+import { TouchableOpacity, Vibration } from 'react-native';
+import {
+  SheetProps,
+  createStyledContext,
+  styled,
+  withStaticProperties,
+} from 'tamagui';
+
+import { Stack, Text, View } from '../core';
 import { Sheet } from './Sheet';
 
-export type Action = {
-  title: string;
-  description?: string;
-  backgroundColor?: ColorTokens;
-  borderColor?: ColorTokens;
-  titleColor?: ColorTokens;
-  action?: () => void;
-};
+const ActionSheetActionContext = createStyledContext<{
+  success?: boolean;
+  primary?: boolean;
+  destructive?: boolean;
+  default?: boolean;
+}>({
+  default: true,
+  success: false,
+  primary: false,
+  destructive: false,
+});
 
-type Props = {
+type ActionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  actions: Action[];
-  sheetTitle?: string;
-  sheetDescription?: string;
 };
 
-export default function ActionSheet({
+const ActionSheetFrame = styled(View, {
+  gap: '$xl',
+  paddingHorizontal: '$2xl',
+  paddingTop: '$xl',
+  paddingBottom: '$4xl',
+});
+
+const ActionSheetHeader = styled(Stack, {
+  paddingBottom: '$m',
+  flexDirection: 'column',
+});
+
+const ActionSheetActionFrame = styled(Stack, {
+  context: ActionSheetActionContext,
+  padding: '$l',
+  borderWidth: 1,
+  borderRadius: '$l',
+  pressStyle: {
+    backgroundColor: '$positiveBackground',
+  },
+  variants: {
+    default: {
+      true: {
+        backgroundColor: '$background',
+        borderColor: 'rgb(229, 229, 229)',
+      },
+    },
+    success: {
+      true: {
+        backgroundColor: '$greenSoft',
+        borderColor: '$green',
+      },
+    },
+    primary: {
+      true: {
+        backgroundColor: '$blueSoft',
+        borderColor: '$blue',
+      },
+    },
+    destructive: {
+      true: {
+        backgroundColor: '$redSoft',
+        borderColor: '$red',
+      },
+    },
+  } as const,
+});
+
+const ActionSheetTitle = styled(Text, {
+  fontSize: '$l',
+  fontWeight: '500',
+});
+
+const ActionSheetDescription = styled(Text, {
+  fontSize: '$l',
+  color: '$secondaryText',
+});
+
+const ActionSheetActionTitle = styled(Text, {
+  context: ActionSheetActionContext,
+  fontSize: '$l',
+  fontWeight: '500',
+  variants: {
+    default: {
+      true: {
+        color: '$primaryText',
+      },
+    },
+    success: {
+      true: {
+        color: '$green',
+      },
+    },
+    primary: {
+      true: {
+        color: '$blue',
+      },
+    },
+    destructive: {
+      true: {
+        color: '$red',
+      },
+    },
+  } as const,
+});
+
+const ActionSheetActionDescription = styled(Text, {
+  color: '$secondaryText',
+  fontSize: '$s',
+});
+
+function ActionSheetAction({
+  children,
+  action,
+  ...props
+}: PropsWithChildren<ComponentProps<typeof ActionSheetActionFrame>> & {
+  action: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        action();
+        Vibration.vibrate(400);
+      }}
+    >
+      <ActionSheetActionFrame onPress={action} {...props}>
+        {children}
+      </ActionSheetActionFrame>
+    </TouchableOpacity>
+  );
+}
+
+const ActionSheetFrameComponent = ({
   open,
   onOpenChange,
-  sheetTitle,
-  sheetDescription,
-  actions,
-}: Props) {
+  children,
+  ...props
+}: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   return (
     <Sheet
       open={open}
@@ -33,53 +153,22 @@ export default function ActionSheet({
       dismissOnSnapToBottom
       snapPointsMode="fit"
       animation="quick"
+      {...props}
     >
       <Sheet.Overlay animation="quick" />
       <Sheet.Frame>
         <Sheet.Handle paddingTop="$xl" />
-        <View
-          gap="$xl"
-          paddingHorizontal="$2xl"
-          paddingTop="$xl"
-          paddingBottom="$4xl"
-        >
-          {sheetTitle || sheetDescription ? (
-            <Stack paddingBottom="$m" flexDirection="column">
-              {sheetTitle ? (
-                <Text fontSize="$l" fontWeight="500">
-                  {sheetTitle}
-                </Text>
-              ) : null}
-              {sheetDescription ? (
-                <Text fontSize="$l" color="$secondaryText">
-                  {sheetDescription}
-                </Text>
-              ) : null}
-            </Stack>
-          ) : null}
-
-          {actions.map((action, index) => (
-            <Stack
-              key={index}
-              padding="$l"
-              backgroundColor={action.backgroundColor}
-              borderWidth={1}
-              borderColor={action.borderColor ?? 'rgb(229, 229, 229)'}
-              borderRadius="$l"
-              onPress={action.action}
-            >
-              <Text fontSize="$l" color={action.titleColor} fontWeight="500">
-                {action.title}
-              </Text>
-              {action.description ? (
-                <Text color="$secondaryText" fontSize="$s">
-                  {action.description}
-                </Text>
-              ) : null}
-            </Stack>
-          ))}
-        </View>
+        <ActionSheetFrame>{children}</ActionSheetFrame>
       </Sheet.Frame>
     </Sheet>
   );
-}
+};
+
+export const ActionSheet = withStaticProperties(ActionSheetFrameComponent, {
+  Action: ActionSheetAction,
+  Header: ActionSheetHeader,
+  Title: ActionSheetTitle,
+  Description: ActionSheetDescription,
+  ActionTitle: ActionSheetActionTitle,
+  ActionDescription: ActionSheetActionDescription,
+});

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Add } from '../../assets/icons';
 import { Spinner, View } from '../../core';
-import ActionSheet, { Action } from '../ActionSheet';
+import { ActionSheet } from '../ActionSheet';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
@@ -64,6 +64,19 @@ export default function AttachmentButton({
     requestCameraPermission,
   ]);
 
+  const actions = [
+    {
+      title: 'Photo Library',
+      description: 'Choose a photo from your library',
+      action: pickImage,
+    },
+    {
+      title: 'Take a Photo',
+      description: 'Use your camera to take a photo',
+      action: takePicture,
+    },
+  ];
+
   return (
     <>
       {uploadedImage && uploadedImage.url === '' ? (
@@ -78,22 +91,22 @@ export default function AttachmentButton({
       <ActionSheet
         open={showInputSelector}
         onOpenChange={(open: boolean) => setShowInputSelector(open)}
-        sheetTitle="Add an attachment"
-        actions={
-          [
-            {
-              title: 'Photo Library',
-              description: 'Choose a photo from your library',
-              action: pickImage,
-            },
-            {
-              title: 'Take a Photo',
-              description: 'Use your camera to take a photo',
-              action: takePicture,
-            },
-          ] as Action[]
-        }
-      />
+      >
+        <ActionSheet.Header>
+          <ActionSheet.Title>Attach a file</ActionSheet.Title>
+          <ActionSheet.Description>
+            Choose a file to attach
+          </ActionSheet.Description>
+        </ActionSheet.Header>
+        {actions.map((action, index) => (
+          <ActionSheet.Action key={index} action={action.action}>
+            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          </ActionSheet.Action>
+        ))}
+      </ActionSheet>
     </>
   );
 }

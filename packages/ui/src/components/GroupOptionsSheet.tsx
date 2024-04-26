@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
-import ActionSheet, { Action } from './ActionSheet';
+import { ActionSheet } from './ActionSheet';
 
 interface Props {
   open: boolean;
@@ -8,19 +8,15 @@ interface Props {
   channel?: db.Channel;
 }
 
-const actions: Action[] = [
+const actions = [
   {
     title: 'Connected',
-    backgroundColor: '$greenSoft',
-    borderColor: '$green',
-    titleColor: '$green',
+    variant: 'success',
     action: () => {},
   },
   {
     title: 'Invite People',
-    backgroundColor: '$blueSoft',
-    borderColor: '$blue',
-    titleColor: '$blue',
+    variant: 'primary',
     action: () => {},
   },
   {
@@ -53,12 +49,29 @@ const actions: Action[] = [
 
 export function ChatOptionsSheet({ open, onOpenChange, channel }: Props) {
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      actions={actions}
-      sheetTitle={channel?.title ?? undefined}
-      sheetDescription="Quick actions"
-    />
+    <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <ActionSheet.Header>
+        <ActionSheet.Title>
+          {channel?.title ?? 'Group Options'}
+        </ActionSheet.Title>
+        <ActionSheet.Description>Quick actions</ActionSheet.Description>
+      </ActionSheet.Header>
+      {actions.map((action, index) => (
+        <ActionSheet.Action
+          key={index}
+          action={action.action}
+          primary={action.variant === 'primary'}
+          success={action.variant === 'success'}
+          destructive={action.variant === 'destructive'}
+        >
+          <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
+          {action.description && (
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          )}
+        </ActionSheet.Action>
+      ))}
+    </ActionSheet>
   );
 }
