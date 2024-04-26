@@ -10,7 +10,7 @@ export interface ReactionDetails {
   list: { value: string; count: number; users: string[] }[];
 }
 export function useReactionDetails(
-  reactions: db.PostReaction[],
+  reactions: db.Reaction[],
   ourId: string
 ): ReactionDetails {
   return useMemo(() => {

@@ -67,7 +67,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }),
     count: 50,
   });
-  const posts = useMemo<db.PostWithRelations[]>(
+  const posts = useMemo<db.Post[]>(
     () => postsData?.pages.flatMap((p) => p) ?? [],
     [postsData]
   );
@@ -158,14 +158,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   const handleGoToPost = useCallback(
-    (post: db.PostInsert) => {
+    (post: db.Post) => {
       props.navigation.push('Post', { post });
     },
     [props.navigation]
   );
 
   const handleGoToImage = useCallback(
-    (post: db.PostInsert, uri?: string) => {
+    (post: db.Post, uri?: string) => {
       // @ts-expect-error TODO: fix typing for nested stack navigation
       props.navigation.navigate('ImageViewer', { post, uri });
     },

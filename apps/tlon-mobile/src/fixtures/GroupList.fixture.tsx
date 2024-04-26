@@ -20,10 +20,10 @@ function makeChannelSummary({
   members,
 }: {
   channel?: Partial<db.Channel>;
-  group?: db.GroupSummary;
+  group?: db.Group;
   lastPost?: db.Post;
   members?: (db.ChatMember & { contact: db.Contact | null })[];
-}): db.ChannelSummary {
+}): db.Channel {
   return {
     id: 'channel-' + id++,
     type: 'chat',

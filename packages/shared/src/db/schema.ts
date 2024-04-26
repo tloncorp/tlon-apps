@@ -33,7 +33,7 @@ export const contacts = sqliteTable('contacts', {
   coverImage: text('coverImage'),
 });
 
-export const contactsRelations = relations(contacts, ({ one, many }) => ({
+export const contactsRelations = relations(contacts, ({ many }) => ({
   pinnedGroups: many(contactGroups),
 }));
 
@@ -125,6 +125,17 @@ export const pins = sqliteTable(
   }
 );
 
+export const pinRelations = relations(pins, ({ one }) => ({
+  group: one(groups, {
+    fields: [pins.itemId],
+    references: [groups.id],
+  }),
+  channel: one(channels, {
+    fields: [pins.itemId],
+    references: [channels.id],
+  }),
+}));
+
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
@@ -135,6 +146,7 @@ export const groups = sqliteTable('groups', {
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
+  pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
   navSections: many(groupNavSections),
@@ -309,6 +321,7 @@ export const channels = sqliteTable('channels', {
 });
 
 export const channelRelations = relations(channels, ({ one, many }) => ({
+  pin: one(pins),
   group: one(groups, {
     fields: [channels.groupId],
     references: [groups.id],

@@ -40,22 +40,16 @@ import {
   unreads as $unreads,
 } from './schema';
 import {
-  ChannelInsert,
-  ChannelSummary,
-  ChannelWithLastPostAndMembers,
+  Channel,
   ChatMember,
   Contact,
-  ContactInsert,
-  GroupInsert,
-  GroupSummary,
+  Group,
   Pin,
   PinType,
-  PostInsert,
-  PostWithRelations,
-  ReactionInsert,
+  Post,
+  Reaction,
   TableName,
   Unread,
-  UnreadInsert,
 } from './types';
 
 export interface GetGroupsOptions {
@@ -70,7 +64,7 @@ export const getGroups = createReadQuery(
     includeUnjoined,
     includeLastPost,
     includeUnreads,
-  }: GetGroupsOptions = {}): Promise<GroupSummary[]> => {
+  }: GetGroupsOptions = {}): Promise<Group[]> => {
     const unreadCounts = client
       .select({
         groupId: $channels.groupId,
@@ -108,7 +102,7 @@ export const getGroups = createReadQuery(
 
 export const getChats = createReadQuery(
   'getChats',
-  async (): Promise<ChannelSummary[]> => {
+  async (): Promise<Channel[]> => {
     const partitionedGroupsQuery = client
       .select({
         ...getTableColumns($channels),
@@ -195,7 +189,7 @@ export const getChats = createReadQuery(
 
 export const insertGroups = createWriteQuery(
   'insertGroups',
-  async (groupData: GroupInsert[]) => {
+  async (groupData: Group[]) => {
     await client.transaction(async (tx) => {
       for (const group of groupData) {
         await tx
@@ -444,9 +438,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
   'getChannelWithLastPostAndMembers',
   async ({
     id,
-  }: GetChannelWithLastPostAndMembersOptions): Promise<
-    ChannelWithLastPostAndMembers | undefined
-  > => {
+  }: GetChannelWithLastPostAndMembersOptions): Promise<Channel | undefined> => {
     return await client.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
@@ -490,7 +482,7 @@ export const getStaleChannels = createReadQuery(
 
 export const insertChannels = createWriteQuery(
   'insertChannels',
-  async (channels: ChannelInsert[]) => {
+  async (channels: Channel[]) => {
     if (channels.length === 0) {
       return;
     }
@@ -519,7 +511,7 @@ export const insertChannels = createWriteQuery(
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: Partial<ChannelInsert> & { id: string }) => {
+  (update: Partial<Channel> & { id: string }) => {
     if (update.type) {
       console.log('update channel type', update.id, update.type);
     }
@@ -560,7 +552,7 @@ export const getChannelPosts = createReadQuery(
     direction,
     count = 50,
     date,
-  }: GetChannelPostsOptions): Promise<PostWithRelations[]> => {
+  }: GetChannelPostsOptions): Promise<Post[]> => {
     if (direction === 'around') {
       const result = await Promise.all([
         getChannelPosts({
@@ -674,7 +666,7 @@ export const getChannelSearchResults = createReadQuery(
 
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
-  async (channelId: string, posts: PostInsert[]) => {
+  async (channelId: string, posts: Post[]) => {
     if (!posts.length) {
       return;
     }
@@ -727,7 +719,7 @@ export const insertChannelPosts = createWriteQuery(
 
 export const updatePost = createWriteQuery(
   'updateChannelPost',
-  async (post: Partial<PostInsert> & { id: string }) => {
+  async (post: Partial<Post> & { id: string }) => {
     return client.update($posts).set(post).where(eq($posts.id, post.id));
   },
   ['posts']
@@ -758,7 +750,7 @@ export const getPostReaction = createReadQuery(
 
 export const insertPostReactions = createWriteQuery(
   'insertPostReactions',
-  async ({ reactions, our }: { reactions: ReactionInsert[]; our?: string }) => {
+  async ({ reactions }: { reactions: Reaction[] }) => {
     return client
       .insert($postReactions)
       .values(reactions)
@@ -915,7 +907,7 @@ export const getContact = createReadQuery(
 
 export const insertContact = createWriteQuery(
   'insertContact',
-  async (contact: ContactInsert) => {
+  async (contact: Contact) => {
     return client
       .insert($contacts)
       .values(contact)
@@ -929,12 +921,12 @@ export const insertContact = createWriteQuery(
 
 export const insertContacts = createWriteQuery(
   'insertContacts',
-  async (contactsData: ContactInsert[]) => {
+  async (contactsData: Contact[]) => {
     const contactGroups = contactsData.flatMap(
       (contact) => contact.pinnedGroups || []
     );
     const targetGroups = contactGroups.map(
-      (g): GroupInsert => ({
+      (g): Group => ({
         id: g.groupId,
         isSecret: false,
       })
@@ -960,7 +952,7 @@ export const insertContacts = createWriteQuery(
 
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
-  async (unreads: UnreadInsert[]) => {
+  async (unreads: Unread[]) => {
     return client.transaction(async (tx) => {
       await tx
         .insert($unreads)
@@ -1033,14 +1025,8 @@ export const deletePinnedItem = createWriteQuery(
 
 export const getPinnedItems = createReadQuery(
   'getPinnedItems',
-  async (params?: { orderBy?: keyof Pin; direction?: 'asc' | 'desc' }) => {
-    return client.query.pins.findMany({
-      orderBy: params?.orderBy
-        ? (pins, { asc, desc }) => [
-            (params.direction === 'asc' ? asc : desc)(pins[params.orderBy!]),
-          ]
-        : undefined,
-    });
+  async () => {
+    return client.query.pins.findMany({});
   },
   ['pins']
 );

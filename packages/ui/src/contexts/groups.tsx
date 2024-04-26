@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { createContext, useContext, useMemo } from 'react';
 
 type State = {
-  groups: db.GroupWithRelations[] | null;
+  groups: db.Group[] | null;
 };
 
 type ContextValue = State;
@@ -31,7 +31,7 @@ export const GroupsProvider = ({
   groups,
 }: {
   children: React.ReactNode;
-  groups: db.GroupWithRelations[] | null;
+  groups: db.Group[] | null;
 }) => {
   const value = useMemo(() => ({ groups }), [groups]);
   return <Context.Provider value={value}>{children}</Context.Provider>;

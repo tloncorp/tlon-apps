@@ -11,9 +11,7 @@ export const getContacts = async () => {
   return toClientContacts(results);
 };
 
-export const toClientContacts = (
-  contacts: ub.ContactRolodex
-): db.ContactInsert[] => {
+export const toClientContacts = (contacts: ub.ContactRolodex): db.Contact[] => {
   return Object.entries(contacts).flatMap(([ship, contact]) =>
     contact === null ? [] : [toClientContact(ship, contact)]
   );
@@ -22,7 +20,7 @@ export const toClientContacts = (
 export const toClientContact = (
   id: string,
   contact: ub.Contact | null
-): db.ContactInsert => {
+): db.Contact => {
   return {
     id,
     nickname: contact?.nickname ?? null,

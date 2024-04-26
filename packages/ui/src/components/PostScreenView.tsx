@@ -14,7 +14,7 @@ export function PostScreenView({
 }: {
   currentUserId: string;
   channel: db.Channel | null;
-  posts: db.PostWithRelations[] | null;
+  posts: db.Post[] | null;
   goBack?: () => void;
 }) {
   return (

@@ -127,7 +127,7 @@ export function normalizeUrbitColor(color: string): string {
   return `#${lengthAdjustedColor}`;
 }
 
-export function getPinPartial(channel: db.ChannelSummary): {
+export function getPinPartial(channel: db.Channel): {
   type: db.PinType;
   itemId: string;
 } {
