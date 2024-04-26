@@ -1,5 +1,6 @@
+import * as Haptics from 'expo-haptics';
 import { ComponentProps, PropsWithChildren } from 'react';
-import { TouchableOpacity, Vibration } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import {
   SheetProps,
   createStyledContext,
@@ -127,9 +128,9 @@ function ActionSheetAction({
 }) {
   return (
     <TouchableOpacity
-      onPress={() => {
+      onPress={async () => {
+        await Haptics.selectionAsync();
         action();
-        Vibration.vibrate(400);
       }}
     >
       <ActionSheetActionFrame onPress={action} {...props}>
