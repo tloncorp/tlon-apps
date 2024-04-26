@@ -94,7 +94,6 @@ const ChannelFixture = () => {
         messageSender={() => {}}
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
-        paddingBottom={bottom}
         canUpload={true}
         navigateToChannelOrPost={() => {}}
       />
@@ -180,7 +179,6 @@ const ChannelFixtureWithImage = () => {
         uploadedImage={uploadedImage}
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
-        paddingBottom={bottom}
         canUpload={true}
         navigateToChannelOrPost={() => {}}
       />

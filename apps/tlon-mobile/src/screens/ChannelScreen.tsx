@@ -207,7 +207,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         resetImageAttachment={resetImageAttachment}
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
-        paddingBottom={bottom}
         canUpload={!!uploader}
         navigateToChannelOrPost={(channel: db.Channel, post: db.Post) => {
           props.navigation.push('Channel', { channel, selectedPost: post });

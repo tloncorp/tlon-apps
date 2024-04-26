@@ -14,7 +14,6 @@ export interface MessageInputProps {
   channelId: string;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
-  paddingBottom?: number;
   canUpload?: boolean;
 }
 
@@ -23,13 +22,11 @@ export const MessageInputContainer = ({
   onPressSend,
   setImageAttachment,
   uploadedImage,
-  paddingBottom,
   canUpload,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
-  paddingBottom?: number;
   canUpload?: boolean;
 }>) => {
   const hasUploadedImage = useMemo(
@@ -58,7 +55,6 @@ export const MessageInputContainer = ({
             <AttachmentButton
               uploadedImage={uploadedImage}
               setImage={setImageAttachment}
-              paddingBottom={paddingBottom ?? 0}
             />
           </XStack>
         ) : null}
