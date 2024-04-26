@@ -11,14 +11,12 @@ export function MessageInput({
   channelId,
   setImageAttachment,
   uploadedImage,
-  paddingBottom,
   canUpload,
 }: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <MessageInputContainer
-      paddingBottom={paddingBottom}
       setImageAttachment={setImageAttachment}
       canUpload={canUpload}
     >

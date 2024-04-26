@@ -2,20 +2,17 @@ import { Upload } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 
-import { Add, Camera, ChannelGalleries } from '../../assets/icons';
-import { Spinner, View, YStack } from '../../core';
-import { Button } from '../Button';
+import { Add } from '../../assets/icons';
+import { Spinner, View } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import { IconButton } from '../IconButton';
-import { Sheet } from '../Sheet';
 
 export default function AttachmentButton({
   setImage,
   uploadedImage,
-  paddingBottom,
 }: {
   setImage: (uri: string | null) => void;
   uploadedImage?: Upload | null;
-  paddingBottom: number;
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
@@ -67,6 +64,19 @@ export default function AttachmentButton({
     requestCameraPermission,
   ]);
 
+  const actions = [
+    {
+      title: 'Photo Library',
+      description: 'Choose a photo from your library',
+      action: pickImage,
+    },
+    {
+      title: 'Take a Photo',
+      description: 'Use your camera to take a photo',
+      action: takePicture,
+    },
+  ];
+
   return (
     <>
       {uploadedImage && uploadedImage.url === '' ? (
@@ -78,50 +88,25 @@ export default function AttachmentButton({
           <Add />
         </IconButton>
       )}
-      <Sheet
+      <ActionSheet
         open={showInputSelector}
         onOpenChange={(open: boolean) => setShowInputSelector(open)}
-        modal
-        animation="quick"
-        dismissOnSnapToBottom
-        snapPointsMode="fit"
       >
-        <Sheet.Overlay animation="quick" />
-        <Sheet.Frame>
-          <Sheet.Handle paddingTop="$xl" />
-          <YStack
-            paddingBottom={paddingBottom}
-            gap="$xl"
-            paddingHorizontal="$xl"
-            paddingTop="$xl"
-          >
-            <Button
-              borderWidth={0}
-              alignItems="center"
-              gap="$s"
-              onPress={pickImage}
-              padding="$xs"
-            >
-              <Button.Icon>
-                <ChannelGalleries />
-              </Button.Icon>
-              <Button.Text size="$s">Photo Library</Button.Text>
-            </Button>
-            <Button
-              borderWidth={0}
-              alignItems="center"
-              gap="$s"
-              onPress={takePicture}
-              padding="$xs"
-            >
-              <Button.Icon>
-                <Camera />
-              </Button.Icon>
-              <Button.Text size="$s">Take a Photo</Button.Text>
-            </Button>
-          </YStack>
-        </Sheet.Frame>
-      </Sheet>
+        <ActionSheet.Header>
+          <ActionSheet.Title>Attach a file</ActionSheet.Title>
+          <ActionSheet.Description>
+            Choose a file to attach
+          </ActionSheet.Description>
+        </ActionSheet.Header>
+        {actions.map((action, index) => (
+          <ActionSheet.Action key={index} action={action.action}>
+            <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
+            <ActionSheet.ActionDescription>
+              {action.description}
+            </ActionSheet.ActionDescription>
+          </ActionSheet.Action>
+        ))}
+      </ActionSheet>
     </>
   );
 }

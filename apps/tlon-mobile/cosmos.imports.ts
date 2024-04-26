@@ -3,6 +3,7 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
+import * as fixture15 from './src/fixtures/ActionSheet.fixture';
 import * as fixture14 from './src/fixtures/Button.fixture';
 import * as fixture13 from './src/fixtures/Channel.fixture';
 import * as fixture12 from './src/fixtures/ChannelHeader.fixture';
@@ -40,6 +41,7 @@ const fixtures = {
   'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture12 },
   'src/fixtures/Channel.fixture.tsx': { module: fixture13 },
   'src/fixtures/Button.fixture.tsx': { module: fixture14 },
+  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture15 },
 };
 
 const decorators = {
