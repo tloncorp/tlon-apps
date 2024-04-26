@@ -1,9 +1,10 @@
-import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist';
 import { PostContent } from '@tloncorp/shared/dist/api';
 import { useMemo } from 'react';
 
 import { useNavigation } from '../../contexts';
+import { useRequests } from '../../contexts/requests';
 import ChatReference from './ChatReference';
+import ReferenceSkeleton from './ReferenceSkeleton';
 
 export default function ChatReferenceWrapper({
   channelId,
@@ -12,7 +13,8 @@ export default function ChatReferenceWrapper({
   channelId: string;
   postId: string;
 }) {
-  const { data: post } = usePostWithRelations({ id: postId });
+  const { usePost, useChannel } = useRequests();
+  const { data: post } = usePost({ id: postId });
   const { data: channel } = useChannel({ id: channelId });
 
   const { navigate } = useNavigation();
@@ -23,7 +25,7 @@ export default function ChatReferenceWrapper({
   );
 
   if (!post || !channel) {
-    return null;
+    return <ReferenceSkeleton />;
   }
 
   return (

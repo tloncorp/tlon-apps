@@ -1,6 +1,7 @@
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
+import { useChannel, usePostWithRelations } from 'packages/shared/dist';
 import { useEffect, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -96,6 +97,8 @@ const ChannelFixture = () => {
         resetImageAttachment={() => {}}
         canUpload={true}
         navigateToChannelOrPost={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -181,6 +184,8 @@ const ChannelFixtureWithImage = () => {
         resetImageAttachment={resetImageAttachment}
         canUpload={true}
         navigateToChannelOrPost={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
