@@ -2,7 +2,7 @@ import * as db from '../db';
 import type * as ub from '../urbit';
 import { getChannelType } from '../urbit';
 import { toClientMeta } from './converters';
-import { scry } from './urbit';
+import { poke, scry } from './urbit';
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -38,6 +38,30 @@ export const getPinnedItemType = (rawItem: string) => {
     }
     return 'groupDm';
   }
+};
+
+export const unpinItem = async (itemId: string) => {
+  return await poke({
+    app: 'groups-ui',
+    mark: 'ui-action',
+    json: {
+      pins: {
+        del: itemId,
+      },
+    },
+  });
+};
+
+export const pinItem = async (itemId: string) => {
+  return await poke({
+    app: 'groups-ui',
+    mark: 'ui-action',
+    json: {
+      pins: {
+        add: itemId,
+      },
+    },
+  });
 };
 
 export const getGroups = async (

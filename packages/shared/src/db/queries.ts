@@ -15,6 +15,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  max,
   not,
   or,
   sql,
@@ -48,6 +49,7 @@ import {
   GroupInsert,
   GroupSummary,
   Pin,
+  PinType,
   PostInsert,
   PostWithRelations,
   ReactionInsert,
@@ -995,6 +997,38 @@ export const insertPinnedItems = createWriteQuery(
     });
   },
   ['pins', 'groups']
+);
+
+export const insertPinnedItem = createWriteQuery(
+  'insertPinnedItem',
+  async ({
+    itemId,
+    type,
+    index,
+  }: {
+    itemId: string;
+    type: PinType;
+    index?: number;
+  }) => {
+    return client.transaction(async (tx) => {
+      const maxResult = await tx
+        .select({ value: max($pins.index) })
+        .from($pins);
+      const maxIndex = maxResult[0]?.value ?? 0;
+      await tx
+        .insert($pins)
+        .values({ itemId, type, index: index ?? maxIndex + 1 });
+    });
+  },
+  ['pins', 'groups', 'channels']
+);
+
+export const deletePinnedItem = createWriteQuery(
+  'deletePinnedItem',
+  async ({ itemId }: { itemId: string }) => {
+    return client.delete($pins).where(eq($pins.itemId, itemId));
+  },
+  ['pins', 'groups', 'channels']
 );
 
 export const getPinnedItems = createReadQuery(
