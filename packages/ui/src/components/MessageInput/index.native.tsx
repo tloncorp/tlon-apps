@@ -20,6 +20,11 @@ import type { WebViewMessageEvent } from 'react-native-webview';
 import { XStack } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
+type MessageEditorMessage = {
+  type: 'contentHeight';
+  payload: number;
+} & EditorMessage;
+
 // This function and the one below it are taken from RichText.tsx
 // in the tentap-editor package.
 // We need this because we're overriding the injectedJavaScript prop
@@ -62,7 +67,7 @@ export function MessageInput({
   uploadedImage,
   canUpload,
 }: MessageInputProps) {
-  const [containerHeight, setContainerHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(52);
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
@@ -81,23 +86,13 @@ export function MessageInput({
       editor.blur();
       setShouldBlur(false);
     }
-  }, [shouldBlur, editor, editorState]);
+  }, [shouldBlur, editor, editorState, setShouldBlur]);
 
-  editor._onContentUpdate = () => {
-    editor.getText().then((text) => {
-      if (text.length < 25) {
-        setContainerHeight(48);
-        return;
-      }
-
-      // set the height of the container based on the text length.
-      // every 36 characters, add 16px to the height
-      // TODO: do this a better way
-      // TODO: account for line breaks
-      const height = Math.max(64, 64 + Math.floor(text.length / 25) * 16);
-      setContainerHeight(height);
-    });
-  };
+  // We'll need this when we need to read the editor content.
+  // editor._onContentUpdate = () => {
+  // editor.getJSON().then((json: JSONContent) => {
+  // });
+  // };
 
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
@@ -148,7 +143,13 @@ export function MessageInput({
         return;
       }
 
-      const { type, payload } = JSON.parse(data) as EditorMessage;
+      const { type, payload } = JSON.parse(data) as MessageEditorMessage;
+
+      if (type === 'contentHeight') {
+        setContainerHeight(payload);
+        return;
+      }
+
       editor.bridgeExtensions?.forEach((e) => {
         e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
       });
@@ -170,7 +171,6 @@ export function MessageInput({
     >
       <XStack
         borderRadius="$xl"
-        minHeight="$4xl"
         height={containerHeight}
         backgroundColor="$secondaryBackground"
         paddingHorizontal="$l"
@@ -199,6 +199,29 @@ export function MessageInput({
                 }
 
               });
+
+              function updateContentHeight() {
+                const editorElement = document.querySelector('#root div .ProseMirror');
+                editorElement.style.height = 'auto';
+                editorElement.style.overflow = 'auto';
+                const newHeight = editorElement.scrollHeight;
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'contentHeight', payload: newHeight }));
+              }
+
+              function setupMutationObserver() {
+                // watch for changes in the content
+
+                const observer = new MutationObserver(updateContentHeight);
+                observer.observe(document.querySelector('#root'), { childList: true, subtree: true, attributes: true});
+
+                updateContentHeight(); // this sets initial height
+              }
+
+              // wait for the editor to load
+              setTimeout(() => {
+               setupMutationObserver();
+              }, 300);
+
             `}
         />
       </XStack>

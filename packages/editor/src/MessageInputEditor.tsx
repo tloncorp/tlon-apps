@@ -45,7 +45,8 @@ export const MessageInputEditor = () => {
   return (
     <EditorContent
       style={{
-        flex: 1,
+        overflow: 'auto',
+        height: 'auto',
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
       }}

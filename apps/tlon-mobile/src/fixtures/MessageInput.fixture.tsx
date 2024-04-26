@@ -15,6 +15,7 @@ const MessageInputFixture = () => {
           send={() => {}}
           channelId="channel-id"
           setImageAttachment={() => {}}
+          canUpload={true}
         />
       </View>
     </FixtureWrapper>
