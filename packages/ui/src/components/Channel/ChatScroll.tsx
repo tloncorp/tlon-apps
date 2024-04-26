@@ -27,7 +27,7 @@ import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import ChatMessage from '../ChatMessage';
-import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 
 export default function ChatScroll({
   posts,
