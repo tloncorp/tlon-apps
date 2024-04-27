@@ -80,8 +80,6 @@ target 'Landscape-preview' do
   shared(podfile_properties)
 end
 
-Pod::UI.puts "INSPECTTTTT: #{$config[:reactNativePath]}"
-
 post_install do |installer|
   react_native_post_install(
     installer,
