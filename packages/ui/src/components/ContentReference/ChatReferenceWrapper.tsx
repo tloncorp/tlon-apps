@@ -14,7 +14,7 @@ export default function ChatReferenceWrapper({
   postId: string;
 }) {
   const { usePost, useChannel } = useRequests();
-  const { data: post } = usePost({ id: postId });
+  const { data: post, isError, error, isLoading } = usePost({ id: postId });
   const { data: channel } = useChannel({ id: channelId });
 
   const { navigate } = useNavigation();
@@ -24,8 +24,25 @@ export default function ChatReferenceWrapper({
     [post]
   );
 
+  if (isError) {
+    return (
+      <ReferenceSkeleton
+        message={error?.message || 'Error loading content'}
+        messageType="error"
+      />
+    );
+  }
+
   if (!post || !channel) {
-    return <ReferenceSkeleton />;
+    if (isLoading) {
+      return <ReferenceSkeleton />;
+    }
+    return (
+      <ReferenceSkeleton
+        messageType="not-found"
+        message="This content could not be found"
+      />
+    );
   }
 
   return (

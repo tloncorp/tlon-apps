@@ -2,7 +2,13 @@ import { Text, XStack, YStack } from '../../core';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 
-export default function ReferenceSkeleton() {
+export default function ReferenceSkeleton({
+  message = 'Loading',
+  messageType = 'loading',
+}: {
+  message?: string;
+  messageType?: 'loading' | 'error' | 'not-found';
+}) {
   return (
     <YStack
       borderRadius="$s"
@@ -17,9 +23,14 @@ export default function ReferenceSkeleton() {
         justifyContent="space-between"
       >
         <XStack padding="$l" gap="$l" alignItems="center">
-          <LoadingSpinner />
+          {messageType === 'loading' ? (
+            <LoadingSpinner />
+          ) : (
+            // TODO: Replace with proper error icon when available
+            <Icon type="Placeholder" color="$tertiaryText" size="$l" />
+          )}
           <Text fontSize="$l" color="$tertiaryText">
-            Loading
+            {message}
           </Text>
         </XStack>
         <Icon type="ArrowRef" color="$tertiaryText" size="$m" />

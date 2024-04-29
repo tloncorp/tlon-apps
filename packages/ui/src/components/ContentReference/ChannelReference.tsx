@@ -1,7 +1,7 @@
 import { getChannelType } from '@tloncorp/shared/dist/urbit';
 
-import { Text } from '../../core';
 import ChatReferenceWrapper from './ChatReferenceWrapper';
+import ReferenceSkeleton from './ReferenceSkeleton';
 
 export default function ChannelReference({
   channelId,
@@ -17,12 +17,26 @@ export default function ChannelReference({
   }
 
   if (channelType === 'notebook') {
-    return <Text>Notebook reference</Text>;
+    // TODO: Implement notebook reference
+    return (
+      <ReferenceSkeleton
+        message="Notebook references are not yet supported"
+        messageType="error"
+      />
+    );
   }
 
   if (channelType === 'gallery') {
-    return <Text>Gallery reference</Text>;
+    // TODO: Implement gallery reference
+    return (
+      <ReferenceSkeleton
+        message="Gallery references are not yet supported"
+        messageType="error"
+      />
+    );
   }
 
-  return <Text>Unknown channel type</Text>;
+  return (
+    <ReferenceSkeleton message="Unsupported channel type" messageType="error" />
+  );
 }

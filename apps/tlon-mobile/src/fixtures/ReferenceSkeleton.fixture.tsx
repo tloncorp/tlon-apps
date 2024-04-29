@@ -10,6 +10,30 @@ const ReferenceSkeletonFixture = () => {
   );
 };
 
+const ReferenceSkeletonErrorFixture = () => {
+  return (
+    <FixtureWrapper fillWidth>
+      <ReferenceSkeleton
+        messageType="error"
+        message="An error has occurred while fetching this content"
+      />
+    </FixtureWrapper>
+  );
+};
+
+const ReferenceSkeletonNotFoundFixture = () => {
+  return (
+    <FixtureWrapper fillWidth>
+      <ReferenceSkeleton
+        messageType="not-found"
+        message="This content could not be found"
+      />
+    </FixtureWrapper>
+  );
+};
+
 export default {
   default: <ReferenceSkeletonFixture />,
+  error: <ReferenceSkeletonErrorFixture />,
+  notFound: <ReferenceSkeletonNotFoundFixture />,
 };
