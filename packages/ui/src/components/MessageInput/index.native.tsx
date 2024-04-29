@@ -58,6 +58,10 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
   return injectJS;
 };
 
+// 52 accounts for the 16px padding around the text within the input
+// and the 20px line height of the text. 16 + 20 + 16 = 52
+const DEFAULT_CONTAINER_HEIGHT = 52;
+
 export function MessageInput({
   shouldBlur,
   setShouldBlur,
@@ -67,7 +71,9 @@ export function MessageInput({
   uploadedImage,
   canUpload,
 }: MessageInputProps) {
-  const [containerHeight, setContainerHeight] = useState(52);
+  const [containerHeight, setContainerHeight] = useState(
+    DEFAULT_CONTAINER_HEIGHT
+  );
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
