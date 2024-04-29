@@ -1,7 +1,7 @@
 import { ContentReference as ContentReferenceType } from '@tloncorp/shared/dist/api';
-import { TouchableOpacity } from 'react-native';
 
 import { Text } from '../../core';
+import Pressable from '../Pressable';
 import ChannelReference from './ChannelReference';
 
 export default function ContentReference({
@@ -20,29 +20,29 @@ export default function ContentReference({
 
   if (reference.referenceType === 'group') {
     return (
-      <TouchableOpacity>
+      <Pressable>
         <Text fontSize="$m" color="$primaryText" marginLeft="$s">
           Group
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   if (reference.referenceType === 'app') {
     return (
-      <TouchableOpacity>
+      <Pressable>
         <Text fontSize="$m" color="$primaryText" marginLeft="$s">
           App
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   return (
-    <TouchableOpacity>
+    <Pressable>
       <Text fontSize="$m" color="$primaryText" marginLeft="$s">
         Unhandled reference type
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }

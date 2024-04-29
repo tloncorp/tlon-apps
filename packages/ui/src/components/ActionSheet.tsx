@@ -1,6 +1,5 @@
 import * as Haptics from 'expo-haptics';
 import { ComponentProps, PropsWithChildren } from 'react';
-import { TouchableOpacity } from 'react-native';
 import {
   SheetProps,
   createStyledContext,
@@ -9,6 +8,7 @@ import {
 } from 'tamagui';
 
 import { Stack, Text, View } from '../core';
+import Pressable from './Pressable';
 import { Sheet } from './Sheet';
 
 const ActionSheetActionContext = createStyledContext<{
@@ -127,7 +127,7 @@ function ActionSheetAction({
   action: () => void;
 }) {
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={async () => {
         await Haptics.selectionAsync();
         action();
@@ -136,7 +136,7 @@ function ActionSheetAction({
       <ActionSheetActionFrame onPress={action} {...props}>
         {children}
       </ActionSheetActionFrame>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

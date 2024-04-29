@@ -1,13 +1,13 @@
 import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
-import { TouchableOpacity } from 'react-native';
 
 import { View, XStack, YStack } from '../../core';
 import { Avatar } from '../Avatar';
 import ChatContent from '../ChatMessage/ChatContent';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 
 export default function ChatReference({
   channel,
@@ -31,7 +31,7 @@ export default function ChatReference({
   }
 
   return (
-    <TouchableOpacity onPress={() => navigateToChannel()}>
+    <Pressable onPress={() => navigateToChannel()}>
       <YStack
         borderRadius="$s"
         padding="$s"
@@ -61,6 +61,6 @@ export default function ChatReference({
           <ChatContent story={content} />
         </View>
       </YStack>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
