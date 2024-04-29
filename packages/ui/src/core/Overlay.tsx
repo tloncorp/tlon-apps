@@ -41,13 +41,12 @@ function OverlayDisplayAndroid(props: ComponentProps<typeof View>) {
 
 function OverlayDisplayIos(props: ComponentProps<typeof View>) {
   const theme = useTheme();
-  console.log('overlay blur tint', theme.overlayBlurTint);
   return (
     <View flex={1} {...props}>
       <BlurView
         style={{ flex: 1 }}
         intensity={30}
-        tint={theme.overlayBlurTint as unknown as BlurTint}
+        tint={theme.overlayBlurTint.val as BlurTint}
       />
     </View>
   );

@@ -108,7 +108,7 @@ export const themes = {
     negativeBorder: '#814444',
     darkBackground: '#4C4C4C',
     overlayBackground: '#FFFFFF',
-    overlayBlurTint: 'extraLight',
+    overlayBlurTint: 'light',
   },
   light: {
     primaryText: '#1A1818',
