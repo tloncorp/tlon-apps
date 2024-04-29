@@ -16,6 +16,7 @@ export {
   TextArea,
   Text,
   Dialog,
+  Theme,
 } from 'tamagui';
 
 export type {

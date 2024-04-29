@@ -8,6 +8,7 @@ export * from './components/MessageInput';
 export * from './components/Icon';
 export * from './components/ListItem';
 export * from './components/TamaguiProvider';
+export * from './components/ChatMessage/ChatMessageActions/Component';
 export * from './components/UrbitSigil';
 export * from './components/View';
 export * from './components/Sheet';

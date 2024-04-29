@@ -43,7 +43,7 @@ export function ReactionsDisplay({
               : '$border'
           }
           borderWidth={1}
-          gap={'$xs'}
+          gap={'$s'}
           disabled={
             reactionDetails.self.didReact &&
             reaction.value !== reactionDetails.self.value
@@ -60,7 +60,7 @@ export function ReactionsDisplay({
             fontSize="$s"
           />
           {reaction.count > 0 && (
-            <SizableText color="$secondaryText" lineHeight={0}>
+            <SizableText color="$secondaryText" lineHeight="$m" height="$2xl">
               {reaction.count}
             </SizableText>
           )}

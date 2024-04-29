@@ -31,7 +31,7 @@ export const ScreenHeaderComponent = ({
         alignItems="center"
       >
         <HeaderControls side="left">{leftControls}</HeaderControls>
-        <HeaderTitle lineHeight={0}>{title}</HeaderTitle>
+        <HeaderTitle>{title}</HeaderTitle>
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}
       </XStack>
