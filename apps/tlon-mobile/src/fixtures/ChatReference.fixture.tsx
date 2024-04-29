@@ -13,7 +13,7 @@ const ChatReferenceFixture = () => (
       post={fakePost}
       channel={tlonLocalSupport}
       content={fakeContent}
-      navigate={() => ({})}
+      onPress={() => ({})}
     />
   </FixtureWrapper>
 );

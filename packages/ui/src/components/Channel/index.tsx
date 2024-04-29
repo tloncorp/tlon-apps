@@ -47,7 +47,7 @@ export function Channel({
   type,
   isLoadingPosts,
   canUpload,
-  navigateToChannelOrPost,
+  onPressRef,
   usePost,
   useChannel,
 }: {
@@ -73,7 +73,7 @@ export function Channel({
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
   canUpload: boolean;
-  navigateToChannelOrPost: (channel: db.Channel, post: db.Post) => void;
+  onPressRef: (channel: db.Channel, post: db.Post) => void;
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelFromStore;
 }) {
@@ -90,7 +90,7 @@ export function Channel({
             useGroup={() => null}
             useApp={() => null}
           >
-            <NavigationProvider navigate={navigateToChannelOrPost}>
+            <NavigationProvider onPressRef={onPressRef}>
               <YStack justifyContent="space-between" width="100%" height="100%">
                 <ChannelHeader
                   title={title}

@@ -96,7 +96,7 @@ const ChannelFixture = () => {
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
         canUpload={true}
-        navigateToChannelOrPost={() => {}}
+        onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
       />
@@ -183,7 +183,7 @@ const ChannelFixtureWithImage = () => {
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
         canUpload={true}
-        navigateToChannelOrPost={() => {}}
+        onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
       />

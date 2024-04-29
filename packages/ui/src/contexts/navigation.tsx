@@ -2,13 +2,13 @@ import * as db from '@tloncorp/shared/dist/db';
 import { createContext, useContext, useMemo } from 'react';
 
 type State = {
-  navigate: (channel: db.Channel, post: db.Post) => void;
+  onPressRef: (channel: db.Channel, post: db.Post) => void;
 };
 
 type ContextValue = State;
 
 const Context = createContext<ContextValue>({
-  navigate: () => {},
+  onPressRef: () => {},
 });
 
 export const useNavigation = () => {
@@ -23,11 +23,11 @@ export const useNavigation = () => {
 
 export const NavigationProvider = ({
   children,
-  navigate,
+  onPressRef,
 }: {
   children: React.ReactNode;
-  navigate: (channel: db.Channel, post: db.Post) => void;
+  onPressRef: (channel: db.Channel, post: db.Post) => void;
 }) => {
-  const value = useMemo(() => ({ navigate }), [navigate]);
+  const value = useMemo(() => ({ onPressRef }), [onPressRef]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

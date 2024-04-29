@@ -213,7 +213,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
         canUpload={!!uploader}
-        navigateToChannelOrPost={(channel: db.Channel, post: db.Post) => {
+        onPressRef={(channel: db.Channel, post: db.Post) => {
           props.navigation.push('Channel', { channel, selectedPost: post });
         }}
         usePost={usePostWithRelations}

@@ -17,7 +17,7 @@ export default function ChatReferenceWrapper({
   const { data: post, isError, error, isLoading } = usePost({ id: postId });
   const { data: channel } = useChannel({ id: channelId });
 
-  const { navigate } = useNavigation();
+  const { onPressRef } = useNavigation();
 
   const content = useMemo(
     () => (post ? (JSON.parse(post.content as string) as PostContent) : null),
@@ -50,7 +50,7 @@ export default function ChatReferenceWrapper({
       post={post}
       channel={channel}
       content={content}
-      navigate={navigate}
+      onPress={onPressRef}
     />
   );
 }
