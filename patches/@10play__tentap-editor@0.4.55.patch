@@ -1,0 +1,13 @@
+diff --git a/src/RichText/RichText.tsx b/src/RichText/RichText.tsx
+index b878f5382cd64a62a6c4a66b52b6a32a9e2cf96a..c95d3513806d85560115d35d12ecf08480ed2e1a 100644
+--- a/src/RichText/RichText.tsx
++++ b/src/RichText/RichText.tsx
+@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
+ const DEV_SERVER_URL = 'http://localhost:3000';
+ 
+ // TODO: make it a prop
+-const TOOLBAR_HEIGHT = 44;
++const TOOLBAR_HEIGHT = 0;
+ 
+ export const RichText = ({ editor, ...props }: RichTextProps) => {
+   const [loaded, setLoaded] = useState(isFabric());
