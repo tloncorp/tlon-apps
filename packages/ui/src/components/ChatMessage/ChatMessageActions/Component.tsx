@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { RefObject, useCallback, useEffect, useState } from 'react';
+import { RefObject, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -11,14 +10,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { View, XStack, YStack } from '../../core';
-import { ReactionDetails, useReactionDetails } from '../../utils/postUtils';
-import { Button } from '../Button';
-import ChatMessage from '../ChatMessage';
-import { EmojiPickerSheet } from '../Emoji/EmojiPickerSheet';
-import { SizableEmoji } from '../Emoji/SizableEmoji';
-import { Icon } from '../Icon';
-import ChatMessageActionsList from './ChatMessageActionsList';
+import { View, YStack } from '../../../core';
+import { EmojiToolbar } from './EmojiToolbar';
+import MessageActions from './MessageActions';
+import { MessageContainer } from './MessageContainer';
 
 interface LayoutStruct {
   x: number;
@@ -139,7 +134,7 @@ export function ChatMessageActions({
             currentUserId={currentUserId}
           />
           <MessageContainer post={post} currentUserId={currentUserId} />
-          <ChatMessageActionsList
+          <MessageActions
             post={post}
             channelType={channelType}
             dismiss={onDismiss}
@@ -147,128 +142,5 @@ export function ChatMessageActions({
         </YStack>
       </View>
     </Animated.View>
-  );
-}
-
-export function EmojiToolbar({
-  post,
-  currentUserId,
-  onDismiss,
-}: {
-  post: db.Post;
-  currentUserId: string;
-  onDismiss: () => void;
-}) {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const details = useReactionDetails(post.reactions ?? [], currentUserId);
-
-  const handlePress = useCallback(async (shortCode: string) => {
-    details.self.didReact && details.self.value.includes(shortCode)
-      ? store.removePostReaction(post, currentUserId)
-      : store.addPostReaction(post, shortCode, currentUserId);
-
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTimeout(() => onDismiss(), 50);
-  }, []);
-
-  const lastShortCode =
-    details.self.didReact &&
-    !['+1', 'heart', 'cyclone', 'seedling'].some((code) =>
-      details.self.value.includes(code)
-    )
-      ? details.self.value
-      : 'seedling';
-
-  return (
-    <>
-      <XStack
-        padding="$l"
-        backgroundColor="$background"
-        borderRadius="$l"
-        justifyContent="space-between"
-        alignItems="center"
-        width={256}
-      >
-        <EmojiToolbarButton
-          details={details}
-          shortCode="+1"
-          handlePress={handlePress}
-        />
-        <EmojiToolbarButton
-          details={details}
-          shortCode="heart"
-          handlePress={handlePress}
-        />
-        <EmojiToolbarButton
-          details={details}
-          shortCode="cyclone"
-          handlePress={handlePress}
-        />
-        <EmojiToolbarButton
-          details={details}
-          shortCode={lastShortCode}
-          handlePress={handlePress}
-        />
-        <Button
-          padding="$xs"
-          borderWidth={0}
-          onPress={() => setSheetOpen(true)}
-        >
-          <Icon type="ChevronDown" size="$l" />
-        </Button>
-      </XStack>
-      <EmojiPickerSheet
-        open={sheetOpen}
-        onOpenChange={() => setSheetOpen(false)}
-        onEmojiSelect={handlePress}
-      />
-    </>
-  );
-}
-
-function EmojiToolbarButton({
-  shortCode,
-  details,
-  handlePress,
-}: {
-  shortCode: string;
-  details: ReactionDetails;
-  handlePress: (shortCode: string) => void;
-}) {
-  return (
-    <Button
-      padding="$xs"
-      borderWidth={0}
-      backgroundColor={
-        details.self.didReact && details.self.value.includes(shortCode)
-          ? '$positiveBackground'
-          : undefined
-      }
-      onPress={() => handlePress(shortCode)}
-    >
-      <SizableEmoji shortCode={shortCode} fontSize={32} />
-    </Button>
-  );
-}
-
-const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
-function MessageContainer({
-  post,
-  currentUserId,
-}: {
-  post: db.Post;
-  currentUserId: string;
-}) {
-  const screenHeight = Dimensions.get('window').height;
-  return (
-    <View
-      maxHeight={screenHeight * MAX_MESSAGE_TO_SCREEN_RATIO}
-      overflow="hidden"
-      backgroundColor="$background"
-      padding="$l"
-      borderRadius="$l"
-    >
-      <ChatMessage post={post} currentUserId={currentUserId} />
-    </View>
   );
 }

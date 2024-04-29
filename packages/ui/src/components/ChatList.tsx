@@ -94,46 +94,49 @@ function getChannelKey(channel: db.Channel) {
   return channel.id + channel.pin?.itemId ?? '';
 }
 
-const ChatListItem = React.memo(
-  ({ model, onPress, onLongPress, ...props }: ListItemProps<db.Channel>) => {
-    const handlePress = useCallback(() => {
-      onPress?.(model);
-    }, [onPress]);
+const ChatListItem = React.memo(function ChatListItemComponent({
+  model,
+  onPress,
+  onLongPress,
+  ...props
+}: ListItemProps<db.Channel>) {
+  const handlePress = useCallback(() => {
+    onPress?.(model);
+  }, [model, onPress]);
 
-    const handleLongPress = useCallback(() => {
-      onLongPress?.(model);
-    }, [onLongPress]);
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(model);
+  }, [model, onLongPress]);
 
-    if (
-      model.type === 'dm' ||
-      model.type === 'groupDm' ||
-      model.pin?.type === 'channel'
-    ) {
-      return (
-        <ChannelListItem
-          model={model}
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          {...props}
-        />
-      );
-    } else if (model.group) {
-      return (
-        <GroupListItem
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          model={{
-            ...model.group,
-            unreadCount: model.unread?.count,
-            lastPost: model.lastPost,
-          }}
-          borderRadius="$m"
-          {...props}
-        />
-      );
-    } else {
-      console.warn('unable to render chat list item', model.id);
-      return null;
-    }
+  if (
+    model.type === 'dm' ||
+    model.type === 'groupDm' ||
+    model.pin?.type === 'channel'
+  ) {
+    return (
+      <ChannelListItem
+        model={model}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        {...props}
+      />
+    );
+  } else if (model.group) {
+    return (
+      <GroupListItem
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        model={{
+          ...model.group,
+          unreadCount: model.unread?.count,
+          lastPost: model.lastPost,
+        }}
+        borderRadius="$m"
+        {...props}
+      />
+    );
+  } else {
+    console.warn('unable to render chat list item', model.id);
+    return null;
   }
-);
+});
