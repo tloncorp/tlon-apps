@@ -4,7 +4,7 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 
-import { ActionList } from '../../ActionList';
+import ActionList from '../../ActionList';
 
 export default function MessageActions({
   dismiss,

@@ -1,25 +1,16 @@
 import { ComponentProps, PropsWithChildren } from 'react';
-import { YStack, styled, withStaticProperties } from 'tamagui';
+import { styled, withStaticProperties } from 'tamagui';
 
-import { ListItem, ListItemFrame } from './ListItem';
-
-const ActionListFrame = styled(YStack, {
-  overflow: 'hidden',
-  backgroundColor: '$secondaryBackground',
-  shadowColor: '$black',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.25,
-  shadowRadius: 3.84,
-  elevation: 5,
-});
+import { ListItem, ListItemFrame } from '../ListItem';
+import ListFrame from './ListFrame';
 
 const ActionFrame = styled(ListItemFrame, {
   borderRadius: 'unset',
   borderBottomWidth: 0.5,
-  borderBottomColor: '$secondaryBorder',
+  borderBottomColor: '$gray200',
   backgroundColor: 'transparent',
   pressStyle: {
-    backgroundColor: '$secondaryBorder',
+    backgroundColor: '$gray200',
   },
   variants: {
     last: {
@@ -45,6 +36,8 @@ function Action(
   );
 }
 
-export const ActionList = withStaticProperties(ActionListFrame, {
+const ActionList = withStaticProperties(ListFrame, {
   Action,
 });
+
+export default ActionList;
