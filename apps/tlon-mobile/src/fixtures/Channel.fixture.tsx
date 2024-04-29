@@ -1,3 +1,4 @@
+import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
@@ -94,6 +95,9 @@ const ChannelFixture = () => {
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
         canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -177,6 +181,9 @@ const ChannelFixtureWithImage = () => {
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
         canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}

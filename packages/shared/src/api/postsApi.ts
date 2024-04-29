@@ -19,6 +19,10 @@ import {
 import { formatDateParam, formatUd, udToDate } from './converters';
 import { BadResponseError, poke, scry } from './urbit';
 
+export type PostContent = (ub.Verse | ContentReference)[] | null;
+
+export type PostContentAndFlags = [PostContent, db.PostFlags | null];
+
 export function channelAction(
   nest: ub.Nest,
   action: ub.Action
@@ -475,9 +479,7 @@ function getReplyData(
   });
 }
 
-export function toPostContent(
-  story?: ub.Story
-): [(ub.Verse | ContentReference)[] | null, db.PostFlags | null] {
+export function toPostContent(story?: ub.Story): PostContentAndFlags {
   if (!story) {
     return [null, null];
   }

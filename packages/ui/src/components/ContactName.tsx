@@ -41,17 +41,22 @@ export default function ContactName({
       size={props.size}
     >
       {contact?.nickname && !calm.disableNicknames && showAlias ? (
-        <Text accessibilityHint={citedName}>{contact.nickname}</Text>
+        <Text color={props.color} accessibilityHint={citedName}>
+          {contact.nickname}
+        </Text>
       ) : (
         <>
-          <Text aria-hidden>~</Text>
-          <Text>{first}</Text>
+          <Text color={props.color} aria-hidden>
+            ~
+          </Text>
+          <Text color={props.color}>{first}</Text>
           {parts.length > 1 && (
             <>
               {parts.map((piece, index) => (
                 <Text
                   key={`${piece}-${index}`}
                   aria-hidden={separator.test(piece)}
+                  color={props.color}
                 >
                   {piece}
                 </Text>

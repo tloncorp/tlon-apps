@@ -1,5 +1,5 @@
+import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit/channel';
 import { memo, useCallback, useMemo } from 'react';
 
 import { SizableText, View, YStack } from '../../core';
@@ -33,7 +33,7 @@ const ChatMessage = ({
   );
 
   const content = useMemo(
-    () => JSON.parse(post.content as string) as Story,
+    () => JSON.parse(post.content as string) as PostContent,
     [post.content]
   );
 
