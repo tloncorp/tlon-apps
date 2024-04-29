@@ -18,13 +18,13 @@ const ChatMessage = ({
   showReplies,
   currentUserId,
 }: {
-  post: db.PostWithRelations | db.PostInsertWithAuthor;
+  post: db.Post;
   firstUnread?: string;
   unreadCount?: number;
   showReplies?: boolean;
   currentUserId: string;
-  onPressReplies?: (post: db.PostInsert) => void;
-  onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: () => void;
 }) => {
   const isUnread = useMemo(

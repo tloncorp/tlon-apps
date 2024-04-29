@@ -2,7 +2,7 @@ import * as api from '../api';
 import * as db from '../db';
 import * as sync from './sync';
 
-export async function hidePost({ post }: { post: db.PostInsert }) {
+export async function hidePost({ post }: { post: db.Post }) {
   // optimistic update
   await db.updatePost({ id: post.id, hidden: true });
 
@@ -16,7 +16,7 @@ export async function hidePost({ post }: { post: db.PostInsert }) {
   }
 }
 
-export async function showPost({ post }: { post: db.PostInsert }) {
+export async function showPost({ post }: { post: db.Post }) {
   // optimistic update
   await db.updatePost({ id: post.id, hidden: false });
 
@@ -30,7 +30,7 @@ export async function showPost({ post }: { post: db.PostInsert }) {
   }
 }
 
-export async function deletePost({ post }: { post: db.PostInsert }) {
+export async function deletePost({ post }: { post: db.Post }) {
   // optimistic update
   await db.deletePost(post.id);
 
@@ -45,7 +45,7 @@ export async function deletePost({ post }: { post: db.PostInsert }) {
 }
 
 export async function addPostReaction(
-  post: db.PostInsert,
+  post: db.Post,
   shortCode: string,
   currentUserId: string
 ) {
@@ -74,10 +74,7 @@ export async function addPostReaction(
   }
 }
 
-export async function removePostReaction(
-  post: db.PostInsert,
-  currentUserId: string
-) {
+export async function removePostReaction(post: db.Post, currentUserId: string) {
   const existingReaction = await db.getPostReaction({
     postId: post.id,
     contactId: currentUserId,

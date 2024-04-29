@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, expect, test } from 'vitest';
 
-import { PostInsert } from '../db';
+import { Post } from '../db';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
 import rawChannelPostsData from '../test/channelPosts.json';
 import rawDmPostWithRepliesData from '../test/dmPostWithReplies.json';
@@ -20,7 +20,7 @@ beforeEach(async () => {
 test('toPostData', async () => {
   const postsData = rawChannelPostsData as unknown as PagedPosts;
   const { posts } = toPostsData('testChannielId', postsData.posts);
-  const oldestPost = posts.reduce<PostInsert>((acc, post) => {
+  const oldestPost = posts.reduce<Post>((acc, post) => {
     const time = post.receivedAt ?? 0;
     return time < (acc.receivedAt ?? 0) ? post : acc;
   }, posts[0]);

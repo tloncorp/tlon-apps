@@ -34,7 +34,7 @@ export function ChatMessageActions({
   channelType,
   onDismiss,
 }: {
-  post: db.PostWithRelations;
+  post: db.Post;
   currentUserId: string;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;
@@ -155,7 +155,7 @@ export function EmojiToolbar({
   currentUserId,
   onDismiss,
 }: {
-  post: db.PostWithRelations;
+  post: db.Post;
   currentUserId: string;
   onDismiss: () => void;
 }) {
@@ -256,7 +256,7 @@ function MessageContainer({
   post,
   currentUserId,
 }: {
-  post: db.PostWithRelations;
+  post: db.Post;
   currentUserId: string;
 }) {
   const screenHeight = Dimensions.get('window').height;

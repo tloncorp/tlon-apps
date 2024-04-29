@@ -2,7 +2,7 @@ import * as api from '../api';
 import * as db from '../db';
 import * as logic from '../logic';
 
-export async function pinItem(channel: db.ChannelSummary) {
+export async function pinItem(channel: db.Channel) {
   // optimistic update
   const partialPin = logic.getPinPartial(channel);
   db.insertPinnedItem(partialPin);

@@ -10,7 +10,7 @@ import { XStack } from '../core';
 import { Icon, IconType } from './Icon';
 
 export function SwipableChatRow(
-  props: PropsWithChildren<{ model: db.ChannelSummary; jailBroken?: boolean }>
+  props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
 ) {
   async function handleAction(actionId: 'pin' | 'placeholder') {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -57,7 +57,7 @@ function LeftActions({
   progress,
   drag,
 }: {
-  model: db.ChannelSummary;
+  model: db.Channel;
   progress: Animated.AnimatedInterpolation<string | number>;
   drag: Animated.AnimatedInterpolation<string | number>;
 }) {
@@ -110,7 +110,7 @@ function RightActions({
   jailBroken,
 }: {
   jailBroken?: boolean;
-  model: db.ChannelSummary;
+  model: db.Channel;
   progress: Animated.AnimatedInterpolation<string | number>;
   drag: Animated.AnimatedInterpolation<string | number>;
   handleAction: (actionId: 'pin') => void;

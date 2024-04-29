@@ -28,14 +28,14 @@ export type HomeStackParamList = {
     channel: db.Channel;
   };
   Post: {
-    post: db.PostInsert;
+    post: db.Post;
   };
 };
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
   ImageViewer: {
-    post: db.PostInsert;
+    post: db.Post;
     uri?: string;
   };
 };

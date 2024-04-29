@@ -17,7 +17,7 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
   }, []);
   return useInfiniteQuery({
     initialPageParam: options,
-    queryFn: async (ctx): Promise<db.PostWithRelations[]> => {
+    queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log(
         'start',

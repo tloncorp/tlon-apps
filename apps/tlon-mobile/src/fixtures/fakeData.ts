@@ -204,7 +204,7 @@ const emptyChannel: db.Channel = {
   remoteUpdatedAt: null,
 };
 
-export const tlonLocalIntros: db.ChannelWithLastPostAndMembers = {
+export const tlonLocalIntros: db.Channel = {
   ...emptyChannel,
   id: '~nibset-napwyn/intros',
   type: 'chat',
@@ -240,7 +240,7 @@ export const tlonLocalIntros: db.ChannelWithLastPostAndMembers = {
   },
 };
 
-export const tlonLocalWaterCooler: db.ChannelWithLastPostAndMembers = {
+export const tlonLocalWaterCooler: db.Channel = {
   ...emptyChannel,
   id: '~nibset-napwyn/water-cooler',
   type: 'chat',
@@ -275,7 +275,7 @@ export const tlonLocalWaterCooler: db.ChannelWithLastPostAndMembers = {
   },
 };
 
-export const tlonLocalSupport: db.ChannelWithLastPostAndMembers = {
+export const tlonLocalSupport: db.Channel = {
   ...emptyChannel,
   id: '~nibset-napwyn/support',
   type: 'chat',
@@ -310,7 +310,7 @@ export const tlonLocalSupport: db.ChannelWithLastPostAndMembers = {
   },
 };
 
-export const tlonLocalBulletinBoard: db.ChannelWithLastPostAndMembers = {
+export const tlonLocalBulletinBoard: db.Channel = {
   ...emptyChannel,
   id: '~nibset-napwyn/bulletin-board',
   type: 'gallery',
@@ -345,7 +345,7 @@ export const tlonLocalBulletinBoard: db.ChannelWithLastPostAndMembers = {
   },
 };
 
-export const tlonLocalCommunityCatalog: db.ChannelWithLastPostAndMembers = {
+export const tlonLocalCommunityCatalog: db.Channel = {
   ...emptyChannel,
   id: '~nibset-napwyn/community-catalog',
   type: 'gallery',
@@ -379,7 +379,7 @@ export const tlonLocalCommunityCatalog: db.ChannelWithLastPostAndMembers = {
   },
 };
 
-export const tlonLocalGettingStarted: db.ChannelWithLastPostAndMembers = {
+export const tlonLocalGettingStarted: db.Channel = {
   ...emptyChannel,
   id: '~nibset-napwyn/getting-started',
   type: 'notebook',
@@ -413,7 +413,7 @@ export const tlonLocalGettingStarted: db.ChannelWithLastPostAndMembers = {
   },
 };
 
-const tlonLocalChannels: db.ChannelWithLastPostAndMembers[] = [
+const tlonLocalChannels: db.Channel[] = [
   tlonLocalIntros,
   tlonLocalWaterCooler,
   tlonLocalSupport,
@@ -422,7 +422,7 @@ const tlonLocalChannels: db.ChannelWithLastPostAndMembers[] = [
   tlonLocalCommunityCatalog,
 ];
 
-const tlonLocalNavSections: db.GroupNavSectionWithRelations[] = [
+const tlonLocalNavSections: db.GroupNavSection[] = [
   {
     index: 0,
     id: 'welcome-zone-id',
@@ -494,7 +494,7 @@ const tlonLocalNavSections: db.GroupNavSectionWithRelations[] = [
   },
 ];
 
-export const group: db.GroupWithRelations = {
+export const group: db.Group = {
   id: '~nibset-napwyn/tlon',
   title: 'Tlon Local',
   channels: tlonLocalChannels,
@@ -589,7 +589,7 @@ const getRandomFakeContact = () => {
   return initialContacts[Math.floor(Math.random() * keys.length)];
 };
 
-export const createFakePost = (): db.PostWithRelations => {
+export const createFakePost = (): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
   const id = Math.random().toString(36).substring(7);
@@ -665,7 +665,7 @@ function getRandomTimeOnSameDay() {
   ).getTime();
 }
 
-export const createFakePosts = (count: number): db.PostWithRelations[] => {
+export const createFakePosts = (count: number): db.Post[] => {
   const posts = [];
   for (let i = 0; i < count; i++) {
     posts.push(createFakePost());
@@ -687,7 +687,7 @@ const dates = {
   lastMonth: Date.now() - 1000 * 60 * 60 * 24 * 30,
 };
 
-export const groupWithColorAndNoImage: db.GroupSummary = {
+export const groupWithColorAndNoImage: db.Group = {
   id: '1',
   title: 'Test Group',
   isSecret: false,
@@ -703,10 +703,9 @@ export const groupWithColorAndNoImage: db.GroupSummary = {
   lastPost: { ...createFakePost() },
 };
 
-export const groupWithLongTitle = {
+export const groupWithLongTitle: db.Group = {
   ...groupWithColorAndNoImage,
   title: 'And here, a reallly long title, wazzup, ok',
-  textContent: 'HIIIIIIIIIII',
   lastPostAt: dates.earlierToday,
   lastPost: {
     ...createFakePost(),
@@ -715,7 +714,7 @@ export const groupWithLongTitle = {
   },
 };
 
-export const groupWithNoColorOrImage = {
+export const groupWithNoColorOrImage: db.Group = {
   ...groupWithColorAndNoImage,
   iconImageColor: null,
   lastPost: createFakePost(),
@@ -723,7 +722,7 @@ export const groupWithNoColorOrImage = {
   unreadCount: Math.floor(Math.random() * 20),
 };
 
-export const groupWithImage = {
+export const groupWithImage: db.Group = {
   ...groupWithColorAndNoImage,
   iconImage:
     'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2024.4.6..15.49.54..4a7e.f9db.22d0.e560-IMG_4770.jpg',
@@ -732,7 +731,7 @@ export const groupWithImage = {
   unreadCount: Math.floor(Math.random() * 20),
 };
 
-export const groupWithSvgImage = {
+export const groupWithSvgImage: db.Group = {
   ...groupWithColorAndNoImage,
   iconImage: 'https://tlon.io/local-icon.svg',
   lastPost: createFakePost(),

@@ -9,10 +9,10 @@ import { Sheet } from './Sheet';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  group: db.GroupWithRelations;
-  channels: db.ChannelWithLastPostAndMembers[];
+  group: db.Group;
+  channels: db.Channel[];
   contacts: db.Contact[];
-  onSelect: (channel: db.ChannelWithLastPostAndMembers) => void;
+  onSelect: (channel: db.Channel) => void;
   paddingBottom?: number;
 }
 

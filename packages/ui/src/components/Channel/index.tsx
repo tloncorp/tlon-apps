@@ -42,17 +42,17 @@ export function Channel({
   isLoadingPosts,
   canUpload,
 }: {
-  channel: db.ChannelWithLastPostAndMembers;
+  channel: db.Channel;
   currentUserId: string;
   selectedPost?: string;
-  posts: db.PostWithRelations[] | null;
+  posts: db.Post[] | null;
   contacts: db.Contact[] | null;
-  group: db.GroupWithRelations | null;
+  group: db.Group | null;
   calmSettings: CalmState;
   goBack: () => void;
   goToChannels: () => void;
-  goToPost: (post: db.PostInsert) => void;
-  goToImageViewer: (post: db.PostInsert, imageUri?: string) => void;
+  goToPost: (post: db.Post) => void;
+  goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => void;
   imageAttachment?: string | null;

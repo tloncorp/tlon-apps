@@ -9,7 +9,7 @@ export function ReactionsDisplay({
   post,
   currentUserId,
 }: {
-  post: db.PostWithRelations | db.PostInsertWithAuthor;
+  post: db.Post;
   currentUserId: string;
 }) {
   const reactionDetails = useReactionDetails(
