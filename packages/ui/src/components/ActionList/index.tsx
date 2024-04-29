@@ -7,10 +7,10 @@ import ListFrame from './ListFrame';
 const ActionFrame = styled(ListItemFrame, {
   borderRadius: 'unset',
   borderBottomWidth: 0.5,
-  borderBottomColor: '$gray200',
+  borderBottomColor: '$secondaryBorder',
   backgroundColor: 'transparent',
   pressStyle: {
-    backgroundColor: '$gray200',
+    backgroundColor: '$secondaryBorder',
   },
   variants: {
     last: {
