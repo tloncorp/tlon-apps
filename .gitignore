@@ -10,3 +10,4 @@ bin
 gha-creds-*
 .turbo
 tsconfig.tsbuildinfo
+launch.json

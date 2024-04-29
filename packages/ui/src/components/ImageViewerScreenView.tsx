@@ -3,18 +3,21 @@ import * as db from '@tloncorp/shared/dist/db';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
-import { Dimensions } from 'react-native';
+import { Dimensions, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { View, XStack, YStack, ZStack } from '../core';
+import { Close } from '../assets/icons';
+import { Stack, View, XStack, YStack, ZStack } from '../core';
 import { Button } from './Button';
+import { Icon } from './Icon';
+import { IconButton } from './IconButton';
 
 interface ImageZoomRef {
   reset: () => void;
 }
 
 export function ImageViewerScreenView(props: {
-  post?: db.PostWithRelations;
+  post?: db.Post;
   uri?: string;
   goBack: () => void;
 }) {
@@ -67,27 +70,20 @@ export function ImageViewerScreenView(props: {
         </View>
 
         {/* overlay */}
-        <YStack>
-          <XStack opacity={showOverlay ? 1 : 0}>
-            <BlurView style={{ flex: 1 }} tint="extraLight" intensity={70}>
-              <ZStack height={100}>
-                <View flex={1} backgroundColor="$white" opacity={0.6} />
-                <XStack
-                  zIndex="$m"
-                  paddingTop={top}
-                  paddingBottom="$s"
-                  paddingRight="$m"
-                >
-                  <XStack flex={1} justifyContent="flex-end">
-                    <Button minimal onPress={() => props.goBack()}>
-                      <Button.Text color="$positiveActionText" fontWeight="500">
-                        Done
-                      </Button.Text>
-                    </Button>
-                  </XStack>
-                </XStack>
-              </ZStack>
-            </BlurView>
+        <YStack padding="$xl" paddingTop={top}>
+          <XStack opacity={showOverlay ? 1 : 0} justifyContent="flex-end">
+            <TouchableOpacity
+              onPress={() => props.goBack()}
+              activeOpacity={0.8}
+            >
+              <Stack
+                padding="$m"
+                backgroundColor="$darkOverlay"
+                borderRadius="$l"
+              >
+                <Icon type="Close" size="$l" color="$white" />
+              </Stack>
+            </TouchableOpacity>
           </XStack>
         </YStack>
       </ZStack>

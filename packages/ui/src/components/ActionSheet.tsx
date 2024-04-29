@@ -52,7 +52,7 @@ const ActionSheetActionFrame = styled(Stack, {
     default: {
       true: {
         backgroundColor: '$background',
-        borderColor: 'rgb(229, 229, 229)',
+        borderColor: '$tertiaryText',
       },
     },
     success: {

@@ -8,7 +8,7 @@ export default {
       open
       onOpenChange={() => {}}
       group={group}
-      channels={group.channels}
+      channels={group.channels!}
       contacts={initialContacts}
       onSelect={(channel) => console.debug(`Selected ${channel.title}`)}
     />

@@ -2,7 +2,7 @@
   <string name="app_name">Tlon</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
-  <string name="expo_runtime_version">4.0.0</string>
+  <string name="expo_runtime_version">4.0.1</string>
   <string name="landscape_notification_channel_name">Tlon Notifications</string>
   <string name="landscape_notification_channel_description">Channel for receiving push notifications from your Tlon app.</string>
   <string name="landscape_notification_mark_as_read">Mark as read</string>

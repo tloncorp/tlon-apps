@@ -46,7 +46,8 @@
       "usehooks-ts@2.6.0": "patches/usehooks-ts@2.6.0.patch",
       "react-native-storage@1.0.1": "patches/react-native-storage@1.0.1.patch",
       "react-native-reanimated@3.8.1": "patches/react-native-reanimated@3.8.1.patch",
-      "drizzle-orm@0.30.9": "patches/drizzle-orm@0.30.9.patch"
+      "drizzle-orm@0.30.9": "patches/drizzle-orm@0.30.9.patch",
+      "@10play/tentap-editor@0.4.55": "patches/@10play__tentap-editor@0.4.55.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

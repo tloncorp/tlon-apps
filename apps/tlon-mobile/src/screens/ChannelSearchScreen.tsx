@@ -39,7 +39,7 @@ export default function ChannelSearch({
   }, [navigation]);
 
   const navigateToPost = useCallback(
-    (post: db.PostWithRelations) => {
+    (post: db.Post) => {
       navigation.navigate('Channel', {
         channel,
         selectedPost: post,

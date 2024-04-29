@@ -53,8 +53,7 @@ const ChannelFixtureWrapper = ({ children }: PropsWithChildren) => {
 
 const ChannelFixture = () => {
   const [open, setOpen] = useState(false);
-  const [currentChannel, setCurrentChannel] =
-    useState<db.ChannelWithLastPostAndMembers | null>(null);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
 
   const tlonLocalChannelWithUnreads = {
@@ -65,7 +64,7 @@ const ChannelFixture = () => {
 
   useEffect(() => {
     if (group) {
-      const firstChatChannel = group.channels.find((c) => c.type === 'chat');
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
       if (firstChatChannel) {
         setCurrentChannel(firstChatChannel);
       }
@@ -106,7 +105,7 @@ const ChannelFixture = () => {
         group={group}
         channels={group.channels || []}
         paddingBottom={bottom}
-        onSelect={(channel: db.ChannelWithLastPostAndMembers) => {
+        onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);
         }}
@@ -120,8 +119,7 @@ const ChannelFixtureWithImage = () => {
   const [open, setOpen] = useState(false);
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [uploadedImage, setUploadedImage] = useState<Upload | null>(null);
-  const [currentChannel, setCurrentChannel] =
-    useState<db.ChannelWithLastPostAndMembers | null>(null);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
   const mostRecentFile = fakeMostRecentFile;
 
@@ -151,7 +149,7 @@ const ChannelFixtureWithImage = () => {
 
   useEffect(() => {
     if (group) {
-      const firstChatChannel = group.channels.find((c) => c.type === 'chat');
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
       if (firstChatChannel) {
         setCurrentChannel(firstChatChannel);
       }
@@ -193,7 +191,7 @@ const ChannelFixtureWithImage = () => {
         group={group}
         channels={group.channels || []}
         paddingBottom={bottom}
-        onSelect={(channel: db.ChannelWithLastPostAndMembers) => {
+        onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);
         }}

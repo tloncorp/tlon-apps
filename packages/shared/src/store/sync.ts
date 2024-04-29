@@ -46,7 +46,7 @@ export const syncUnreads = async () => {
   await resetUnreads(unreads);
 };
 
-const resetUnreads = async (unreads: db.UnreadInsert[]) => {
+const resetUnreads = async (unreads: db.Unread[]) => {
   await db.insertUnreads(unreads);
   await db.setJoinedGroupChannels({
     channelIds: unreads
@@ -63,9 +63,7 @@ async function handleUnreadUpdate(unread: db.Unread) {
 
 type StaleChannel = db.Channel & { unread: db.Unread };
 
-export const syncStaleChannels = async ({
-  type,
-}: { type?: 'channel' | 'dm' } = {}) => {
+export const syncStaleChannels = async () => {
   const channels: StaleChannel[] = optimizeChannelLoadOrder(
     await db.getStaleChannels()
   );
@@ -178,7 +176,7 @@ async function persistPagedPostData(
     const reactions = data.posts
       .map((p) => p.reactions)
       .flat()
-      .filter(Boolean) as db.ReactionInsert[];
+      .filter(Boolean) as db.Reaction[];
     if (reactions.length) {
       await db.insertPostReactions({ reactions });
     }

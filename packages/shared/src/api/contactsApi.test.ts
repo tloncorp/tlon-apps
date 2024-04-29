@@ -28,7 +28,7 @@ const outputContact = {
   bio: 'happy to chat, send a dm any time',
   nickname: 'galen',
   status: 'listening to music',
-  color: '#ffffff',
+  color: '#FFFFFF',
   pinnedGroups: [
     { groupId: '~ravmel-ropdyl/audio-video-images', contactId: 'test' },
     { groupId: '~nibset-napwyn/tlon', contactId: 'test' },
