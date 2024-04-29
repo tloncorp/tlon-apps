@@ -16,9 +16,9 @@ export default function ChatReference({
   onPress,
 }: {
   channel: db.Channel;
-  post: db.PostWithRelations;
+  post: db.Post;
   content: PostContent;
-  onPress: (channel: db.Channel, post: db.PostWithRelations) => void;
+  onPress: (channel: db.Channel, post: db.Post) => void;
 }) {
   const navigateToChannel = useCallback(() => {
     if (channel && post) {
