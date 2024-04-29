@@ -9,6 +9,9 @@ overrides:
   '@urbit/http-api': 3.1.0-dev-2
 
 patchedDependencies:
+  '@10play/tentap-editor@0.4.55':
+    hash: s2uo542ywkfolgcnjwqbuh6ps4
+    path: patches/@10play__tentap-editor@0.4.55.patch
   '@tiptap/react@2.0.3':
     hash: tt2duu22fpwhmhaws3iaoig4mu
     path: patches/@tiptap__react@2.0.3.patch
@@ -76,7 +79,7 @@ importers:
     dependencies:
       '@10play/tentap-editor':
         specifier: ^0.4.55
-        version: 0.4.55(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 0.4.55(patch_hash=s2uo542ywkfolgcnjwqbuh6ps4)(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@aws-sdk/client-s3':
         specifier: ^3.190.0
         version: 3.190.0
@@ -885,7 +888,7 @@ importers:
     dependencies:
       '@10play/tentap-editor':
         specifier: ^0.4.55
-        version: 0.4.55(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 0.4.55(patch_hash=s2uo542ywkfolgcnjwqbuh6ps4)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tiptap/core':
         specifier: ^2.0.3
         version: 2.0.3(@tiptap/pm@2.0.3)
@@ -990,7 +993,7 @@ importers:
     dependencies:
       '@10play/tentap-editor':
         specifier: ^0.4.55
-        version: 0.4.55(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 0.4.55(patch_hash=s2uo542ywkfolgcnjwqbuh6ps4)(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@emoji-mart/data':
         specifier: ^1.1.2
         version: 1.1.2
@@ -12154,7 +12157,7 @@ packages:
 
 snapshots:
 
-  '@10play/tentap-editor@0.4.55(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@10play/tentap-editor@0.4.55(patch_hash=s2uo542ywkfolgcnjwqbuh6ps4)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tiptap/extension-blockquote': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
       '@tiptap/extension-bold': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
@@ -12190,7 +12193,7 @@ snapshots:
     transitivePeerDependencies:
       - '@tiptap/core'
 
-  '@10play/tentap-editor@0.4.55(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@10play/tentap-editor@0.4.55(patch_hash=s2uo542ywkfolgcnjwqbuh6ps4)(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tiptap/extension-blockquote': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-bold': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
