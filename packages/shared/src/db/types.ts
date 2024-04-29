@@ -136,4 +136,5 @@ export type PostReaction = typeof schema.postReactions.$inferSelect;
 export type Reaction = typeof schema.postReactions.$inferSelect;
 export type ReactionInsert = typeof schema.postReactions.$inferInsert;
 export type Pin = typeof schema.pins.$inferSelect;
+export type PinType = schema.PinType;
 export type PinInsert = typeof schema.pins.$inferInsert;

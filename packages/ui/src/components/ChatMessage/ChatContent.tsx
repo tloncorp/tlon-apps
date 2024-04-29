@@ -174,9 +174,11 @@ export function InlineContent({ story }: { story: Inline | null }) {
 export function BlockContent({
   story,
   onPressImage,
+  onLongPress,
 }: {
   story: Block;
   onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
 }) {
   // TODO add support for other embeds and refs
 
@@ -200,6 +202,7 @@ export function BlockContent({
     return (
       <TouchableOpacity
         onPress={onPressImage ? () => onPressImage(story.image.src) : undefined}
+        onLongPress={onLongPress}
         activeOpacity={0.9}
       >
         <Image
@@ -303,9 +306,11 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
 export default function ChatContent({
   story,
   onPressImage,
+  onLongPress,
 }: {
   story: Story;
   onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
 }) {
   const storyInlines = useMemo(
     () =>
@@ -351,6 +356,7 @@ export default function ChatContent({
                   key={key}
                   story={storyItem.block}
                   onPressImage={onPressImage}
+                  onLongPress={onLongPress}
                 />
               );
             })}

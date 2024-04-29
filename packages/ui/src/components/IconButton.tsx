@@ -1,5 +1,5 @@
 import { Button } from '../components/Button';
-import { SizeTokens, ThemeTokens, useTheme } from '../core';
+import { ColorTokens, SizeTokens, ThemeTokens, useTheme } from '../core';
 
 export function IconButton({
   children,
@@ -11,7 +11,7 @@ export function IconButton({
   children: React.ReactNode;
   onPress?: () => void;
   size?: SizeTokens;
-  color?: ThemeTokens;
+  color?: ThemeTokens | ColorTokens;
   disabled?: boolean;
 }) {
   const theme = useTheme();

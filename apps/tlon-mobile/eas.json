@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 3.8.1",
-    "promptToConfigurePushNotifications": false
+    "promptToConfigurePushNotifications": false,
+    "appVersionSource": "remote"
   },
   "build": {
     "base": {
@@ -10,6 +11,7 @@
     "preview": {
       "extends": "base",
       "channel": "preview",
+      "autoIncrement": true,
       "env": {
         "APP_VARIANT": "preview"
       },
@@ -23,11 +25,27 @@
     "production": {
       "extends": "base",
       "channel": "production",
+      "autoIncrement": true,
       "android": {
         "gradleCommand": ":app:bundleProductionRelease"
       },
       "ios": {
         "scheme": "Landscape"
+      }
+    },
+    "demo": {
+      "extends": "base",
+      "channel": "demo",
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": {
+        "gradleCommand": ":app:bundlePreviewRelease",
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "ios": {
+        "scheme": "Landscape-preview",
+        "image": "latest"
       }
     },
     "local": {

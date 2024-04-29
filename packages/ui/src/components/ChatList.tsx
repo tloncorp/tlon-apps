@@ -14,6 +14,7 @@ import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
 import { ListSectionHeader } from './ListSectionHeader';
+import { SwipableChatRow } from './SwipableChatListItem';
 
 export function ChatList({
   pinned,
@@ -49,11 +50,13 @@ export function ChatList({
       item,
     }: SectionListRenderItemInfo<db.ChannelSummary, { title: string }>) => {
       return (
-        <ChatListItem
-          model={item}
-          onPress={onPressItem}
-          onLongPress={onLongPressItem}
-        />
+        <SwipableChatRow model={item}>
+          <ChatListItem
+            model={item}
+            onPress={onPressItem}
+            onLongPress={onLongPressItem}
+          />
+        </SwipableChatRow>
       );
     },
     []
@@ -131,6 +134,7 @@ const ChatListItem = React.memo(
             unreadCount: model.unread?.count,
             lastPost: model.lastPost,
           }}
+          borderRadius="$m"
           {...props}
         />
       );

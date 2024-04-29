@@ -14,6 +14,7 @@ const ChatMessage = ({
   unreadCount,
   onPressReplies,
   onPressImage,
+  onLongPress,
   showReplies,
   currentUserId,
 }: {
@@ -24,6 +25,7 @@ const ChatMessage = ({
   currentUserId: string;
   onPressReplies?: (post: db.PostInsert) => void;
   onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
+  onLongPress?: () => void;
 }) => {
   const isUnread = useMemo(
     () => firstUnread && post.id === firstUnread,
@@ -86,6 +88,7 @@ const ChatMessage = ({
                 ? (uri?: string) => onPressImage(post, uri)
                 : undefined
             }
+            onLongPress={onLongPress}
           />
         )}
       </View>
