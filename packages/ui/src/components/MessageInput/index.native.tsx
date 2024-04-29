@@ -86,6 +86,7 @@ export function MessageInput({
     ],
   });
   const editorState = useBridgeState(editor);
+  const webviewRef = editor.webviewRef;
 
   useEffect(() => {
     if (editor && shouldBlur && editorState.isFocused) {
@@ -151,6 +152,31 @@ export function MessageInput({
 
       const { type, payload } = JSON.parse(data) as MessageEditorMessage;
 
+      if (type === 'editor-ready') {
+        webviewRef.current?.injectJavaScript(
+          `
+              function updateContentHeight() {
+                const editorElement = document.querySelector('#root div .ProseMirror');
+                editorElement.style.height = 'auto';
+                editorElement.style.overflow = 'auto';
+                const newHeight = editorElement.scrollHeight;
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'contentHeight', payload: newHeight }));
+              }
+
+              function setupMutationObserver() {
+                // watch for changes in the content
+
+                const observer = new MutationObserver(updateContentHeight);
+                observer.observe(document.querySelector('#root'), { childList: true, subtree: true, attributes: true});
+
+                updateContentHeight(); // this sets initial height
+              }
+
+              setupMutationObserver();
+          `
+        );
+      }
+
       if (type === 'contentHeight') {
         setContainerHeight(payload);
         return;
@@ -160,7 +186,7 @@ export function MessageInput({
         e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
       });
     },
-    [editor, handleAddNewLine]
+    [editor, handleAddNewLine, webviewRef]
   );
 
   const tentapInjectedJs = useMemo(
@@ -206,28 +232,12 @@ export function MessageInput({
 
               });
 
-              function updateContentHeight() {
-                const editorElement = document.querySelector('#root div .ProseMirror');
-                editorElement.style.height = 'auto';
-                editorElement.style.overflow = 'auto';
-                const newHeight = editorElement.scrollHeight;
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'contentHeight', payload: newHeight }));
-              }
-
-              function setupMutationObserver() {
-                // watch for changes in the content
-
-                const observer = new MutationObserver(updateContentHeight);
-                observer.observe(document.querySelector('#root'), { childList: true, subtree: true, attributes: true});
-
-                updateContentHeight(); // this sets initial height
-              }
-
-              // wait for the editor to load
-              setTimeout(() => {
-               setupMutationObserver();
-              }, 300);
-
+              window.addEventListener('message', (event) => {
+                const message = event.data;
+                if (message === 'ready') {
+                  setupMutationObserver();
+                }
+              });
             `}
         />
       </XStack>
