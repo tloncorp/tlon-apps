@@ -186,7 +186,7 @@ export function MessageInput({
         e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
       });
     },
-    [editor, handleAddNewLine, webviewRef]
+    [editor, handleAddNewLine]
   );
 
   const tentapInjectedJs = useMemo(
