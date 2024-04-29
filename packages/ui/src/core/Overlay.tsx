@@ -1,8 +1,9 @@
-import { BlurView } from 'expo-blur';
+import { BlurTint, BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import { ComponentProps } from 'react';
+import { Platform } from 'react-native';
 
-import { View } from './tamagui';
+import { View, useTheme } from './tamagui';
 
 export function Overlay(props: ComponentProps<typeof View>) {
   return (
@@ -18,9 +19,36 @@ export function Overlay(props: ComponentProps<typeof View>) {
         },
       }}
     >
-      <View flex={1} {...props}>
-        <BlurView style={{ flex: 1 }} intensity={40} />
-      </View>
+      {Platform.OS === 'android' ? (
+        <OverlayDisplayAndroid {...props} />
+      ) : (
+        <OverlayDisplayIos {...props} />
+      )}
     </MotiView>
+  );
+}
+
+function OverlayDisplayAndroid(props: ComponentProps<typeof View>) {
+  return (
+    <View
+      flex={1}
+      opacity={0.4}
+      backgroundColor="$overlayBackground"
+      {...props}
+    ></View>
+  );
+}
+
+function OverlayDisplayIos(props: ComponentProps<typeof View>) {
+  const theme = useTheme();
+  console.log('overlay blur tint', theme.overlayBlurTint);
+  return (
+    <View flex={1} {...props}>
+      <BlurView
+        style={{ flex: 1 }}
+        intensity={30}
+        tint={theme.overlayBlurTint as unknown as BlurTint}
+      />
+    </View>
   );
 }

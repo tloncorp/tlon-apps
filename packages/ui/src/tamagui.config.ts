@@ -108,6 +108,7 @@ export const themes = {
     negativeBorder: '#814444',
     darkBackground: '#4C4C4C',
     overlayBackground: '#FFFFFF',
+    overlayBlurTint: 'extraLight',
   },
   light: {
     primaryText: '#1A1818',
@@ -127,6 +128,7 @@ export const themes = {
     negativeBorder: '#FCD0D0',
     darkBackground: '#333333',
     overlayBackground: '#000000',
+    overlayBlurTint: 'dark',
   },
   ocean: {
     primaryText: '#D2F1F9',
@@ -146,6 +148,7 @@ export const themes = {
     negativeBorder: '#FF8575',
     darkBackground: '#024E6C',
     overlayBackground: '#000000',
+    overlayBlurTint: 'light',
   },
   desert: {
     primaryText: '#4A3F35',
@@ -165,6 +168,7 @@ export const themes = {
     negativeBorder: '#ECD9D2',
     darkBackground: '#C9B79C',
     overlayBackground: '#000000',
+    overlayBlurTint: 'light',
   },
   forest: {
     primaryText: '#A3BFA8',
@@ -184,6 +188,7 @@ export const themes = {
     negativeBorder: '#F0A891',
     darkBackground: '#335233',
     overlayBackground: '#000000',
+    overlayBlurTint: 'light',
   },
   mountain: {
     primaryText: '#D9D5C3',
@@ -203,6 +208,7 @@ export const themes = {
     negativeBorder: '#D3CBAA',
     darkBackground: '#2E3130',
     overlayBackground: '#000000',
+    overlayBlurTint: 'light',
   },
 };
 
