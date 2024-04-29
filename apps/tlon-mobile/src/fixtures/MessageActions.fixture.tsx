@@ -10,13 +10,12 @@ import { createFakePosts, group } from './fakeData';
 const post = createFakePosts(1)[0];
 
 function MessageActions() {
-  const [currentChannel, setCurrentChannel] =
-    useState<db.ChannelWithLastPostAndMembers | null>(null);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const refStub = createRef<View>();
 
   useEffect(() => {
     if (group) {
-      const firstChatChannel = group.channels.find((c) => c.type === 'chat');
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
       if (firstChatChannel) {
         setCurrentChannel(firstChatChannel);
       }

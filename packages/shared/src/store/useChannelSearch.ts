@@ -4,7 +4,7 @@ import bigInt from 'big-integer';
 import { useEffect, useMemo } from 'react';
 
 import { searchChatChannel } from '../api/channelsApi';
-import { useAttachAuthorToPostInserts } from './useAttachAuthorToPostInserts';
+import { useAttachAuthorToPosts } from './useAttachAuthorToPosts';
 
 const MIN_RESULT_LOAD_THRESHOLD = 20;
 
@@ -18,7 +18,7 @@ export function useChannelSearch(channelId: string, query: string) {
     fetchNextPage,
   } = useInfiniteChannelSearch(channelId, query);
 
-  const posts = useAttachAuthorToPostInserts(results);
+  const posts = useAttachAuthorToPosts(results);
 
   // Makes sure we load enough results to fill the screen before relying on infinite scroll
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
@@ -55,8 +56,7 @@ const ChannelFixtureWrapper = ({
 
 export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   const [open, setOpen] = useState(false);
-  const [currentChannel, setCurrentChannel] =
-    useState<db.ChannelWithLastPostAndMembers | null>(null);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
 
   const tlonLocalChannelWithUnreads = {
@@ -67,7 +67,7 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
 
   useEffect(() => {
     if (group) {
-      const firstChatChannel = group.channels.find((c) => c.type === 'chat');
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
       if (firstChatChannel) {
         setCurrentChannel(firstChatChannel);
       }
@@ -98,6 +98,9 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
         canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -105,7 +108,7 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         group={group}
         channels={group.channels || []}
         paddingBottom={bottom}
-        onSelect={(channel: db.ChannelWithLastPostAndMembers) => {
+        onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);
         }}
@@ -119,8 +122,7 @@ const ChannelFixtureWithImage = () => {
   const [open, setOpen] = useState(false);
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [uploadedImage, setUploadedImage] = useState<Upload | null>(null);
-  const [currentChannel, setCurrentChannel] =
-    useState<db.ChannelWithLastPostAndMembers | null>(null);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
   const mostRecentFile = fakeMostRecentFile;
 
@@ -150,7 +152,7 @@ const ChannelFixtureWithImage = () => {
 
   useEffect(() => {
     if (group) {
-      const firstChatChannel = group.channels.find((c) => c.type === 'chat');
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
       if (firstChatChannel) {
         setCurrentChannel(firstChatChannel);
       }
@@ -182,6 +184,9 @@ const ChannelFixtureWithImage = () => {
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
         canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -189,7 +194,7 @@ const ChannelFixtureWithImage = () => {
         group={group}
         channels={group.channels || []}
         paddingBottom={bottom}
-        onSelect={(channel: db.ChannelWithLastPostAndMembers) => {
+        onSelect={(channel: db.Channel) => {
           setCurrentChannel(channel);
           setOpen(false);
         }}

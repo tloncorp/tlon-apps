@@ -15,7 +15,7 @@ export function EmojiToolbar({
   currentUserId,
   onDismiss,
 }: {
-  post: db.PostWithRelations;
+  post: db.Post;
   currentUserId: string;
   onDismiss: () => void;
 }) {

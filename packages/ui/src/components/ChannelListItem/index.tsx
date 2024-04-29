@@ -13,7 +13,7 @@ export default function ChannelListItem({
   ...props
 }: {
   useTypeIcon?: boolean;
-} & ListItemProps<db.ChannelWithLastPostAndMembers>) {
+} & ListItemProps<db.Channel>) {
   const title = utils.getChannelTitle(model);
 
   return (
@@ -55,13 +55,18 @@ function ChannelListItemIcon({
   model,
   useTypeIcon,
 }: {
-  model: db.ChannelWithLastPostAndMembers;
+  model: db.Channel;
   useTypeIcon?: boolean;
 }) {
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
-    return <ListItem.SystemIcon icon={icon} backgroundColor={'$gray50'} />;
+    return (
+      <ListItem.SystemIcon
+        icon={icon}
+        backgroundColor={'$secondaryBackground'}
+      />
+    );
   } else if (model.type === 'dm' && model.members?.[0]?.contactId) {
     return (
       <ListItem.AvatarIcon
@@ -96,6 +101,8 @@ function ChannelListItemIcon({
   }
 }
 
-function hasGroup(channel: db.Channel): channel is db.ChannelWithGroup {
+function hasGroup(
+  channel: db.Channel
+): channel is db.Channel & { group: db.Group } {
   return 'group' in channel && !!channel.group;
 }

@@ -97,7 +97,7 @@
     "react-native-screens": "~3.29.0",
     "react-native-sse": "^1.2.1",
     "react-native-storage": "^1.0.1",
-    "react-native-svg": "^14.1.0",
+    "react-native-svg": "^15.0.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-webview": "13.6.4",
     "tailwind-rn": "^4.2.0",

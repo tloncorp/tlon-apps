@@ -14,6 +14,7 @@ import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
 import { ListSectionHeader } from './ListSectionHeader';
+import { SwipableChatRow } from './SwipableChatListItem';
 
 export function ChatList({
   pinned,
@@ -21,8 +22,8 @@ export function ChatList({
   onLongPressItem,
   onPressItem,
 }: store.CurrentChats & {
-  onPressItem?: (chat: db.ChannelSummary) => void;
-  onLongPressItem?: (chat: db.ChannelSummary) => void;
+  onPressItem?: (chat: db.Channel) => void;
+  onLongPressItem?: (chat: db.Channel) => void;
 }) {
   const data = useMemo(() => {
     if (pinned.length === 0) {
@@ -45,15 +46,15 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({
-      item,
-    }: SectionListRenderItemInfo<db.ChannelSummary, { title: string }>) => {
+    ({ item }: SectionListRenderItemInfo<db.Channel, { title: string }>) => {
       return (
-        <ChatListItem
-          model={item}
-          onPress={onPressItem}
-          onLongPress={onLongPressItem}
-        />
+        <SwipableChatRow model={item}>
+          <ChatListItem
+            model={item}
+            onPress={onPressItem}
+            onLongPress={onLongPressItem}
+          />
+        </SwipableChatRow>
       );
     },
     []
@@ -63,7 +64,7 @@ export function ChatList({
     ({
       section,
     }: {
-      section: SectionListData<db.ChannelSummary, { title: string }>;
+      section: SectionListData<db.Channel, { title: string }>;
     }) => {
       return <ListSectionHeader>{section.title}</ListSectionHeader>;
     },
@@ -89,7 +90,7 @@ export function ChatList({
   );
 }
 
-function getChannelKey(channel: db.ChannelSummary) {
+function getChannelKey(channel: db.Channel) {
   return channel.id + channel.pin?.itemId ?? '';
 }
 
@@ -98,14 +99,14 @@ const ChatListItem = React.memo(function ChatListItemComponent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.ChannelSummary>) {
+}: ListItemProps<db.Channel>) {
   const handlePress = useCallback(() => {
     onPress?.(model);
-  }, [onPress]);
+  }, [model, onPress]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(model);
-  }, [onLongPress]);
+  }, [model, onLongPress]);
 
   if (
     model.type === 'dm' ||
@@ -130,6 +131,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
           unreadCount: model.unread?.count,
           lastPost: model.lastPost,
         }}
+        borderRadius="$m"
         {...props}
       />
     );

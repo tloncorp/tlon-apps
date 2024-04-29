@@ -2,12 +2,9 @@ import _ from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 
 import * as db from '../db';
-import { getFallbackContact } from '../db/fallback';
 
-export function useAttachAuthorToPostInserts(posts: db.PostInsert[]) {
-  const [postsWithAuthor, setPostsWithAuthor] = useState<
-    db.PostInsertWithAuthor[]
-  >([]);
+export function useAttachAuthorToPosts(posts: db.Post[]) {
+  const [postsWithAuthor, setPostsWithAuthor] = useState<db.Post[]>([]);
   const [authorsCache, setAuthorsCache] = useState<
     Record<string, db.Contact | null>
   >({});

@@ -12,7 +12,7 @@ export default function MessageActions({
   post,
 }: {
   dismiss: () => void;
-  post: db.PostInsert;
+  post: db.Post;
   channelType: db.ChannelType;
 }) {
   const postActions = getPostActions(post, channelType);
@@ -40,7 +40,7 @@ interface ChannelAction {
   actionType?: 'destructive';
 }
 function getPostActions(
-  post: db.PostInsert,
+  post: db.Post,
   channelType: db.ChannelType
 ): ChannelAction[] {
   switch (channelType) {
@@ -91,7 +91,7 @@ async function handleAction({
   dismiss,
 }: {
   id: string;
-  post: db.PostInsert;
+  post: db.Post;
   dismiss: () => void;
 }) {
   switch (id) {

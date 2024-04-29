@@ -19,6 +19,10 @@ import {
 import { formatDateParam, formatUd, udToDate } from './converters';
 import { BadResponseError, poke, scry } from './urbit';
 
+export type PostContent = (ub.Verse | ContentReference)[] | null;
+
+export type PostContentAndFlags = [PostContent, db.PostFlags | null];
+
 export function channelAction(
   nest: ub.Nest,
   action: ub.Action
@@ -320,7 +324,7 @@ async function with404Handler<T>(scryRequest: Promise<any>, defaultValue: T) {
 export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
-  posts: db.PostInsert[];
+  posts: db.Post[];
   deletedPosts?: string[];
   totalPosts?: number;
 }
@@ -371,7 +375,7 @@ export function toPostsData(
   posts: ub.Posts | Record<string, ub.Reply>
 ) {
   const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
-    [string[], db.PostInsert[]]
+    [string[], db.Post[]]
   >(
     (memo, [id, post]) => {
       if (post === null) {
@@ -394,7 +398,7 @@ export function toPostsData(
 export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostDataResponse
-): db.PostInsert {
+): db.Post {
   const type = isNotice(post)
     ? 'notice'
     : (channelId.split('/')[0] as db.PostType);
@@ -453,7 +457,7 @@ function getReplyData(
   postId: string,
   channelId: string,
   post: ub.PostDataResponse
-): db.PostInsert[] {
+): db.Post[] {
   return Object.entries(post.seal.replies ?? {}).map(([, reply]) => {
     const [content, flags] = toPostContent(reply.memo.content);
     const id = reply.seal.id;
@@ -475,9 +479,7 @@ function getReplyData(
   });
 }
 
-export function toPostContent(
-  story?: ub.Story
-): [(ub.Verse | ContentReference)[] | null, db.PostFlags | null] {
+export function toPostContent(story?: ub.Story): PostContentAndFlags {
   if (!story) {
     return [null, null];
   }

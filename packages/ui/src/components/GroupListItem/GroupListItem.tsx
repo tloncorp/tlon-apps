@@ -9,7 +9,7 @@ export const GroupListItem = ({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.GroupSummary>) => {
+}: ListItemProps<db.Group>) => {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [onPress, model]);

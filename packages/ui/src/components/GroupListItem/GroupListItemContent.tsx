@@ -7,7 +7,7 @@ export default function GroupListItemContent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.GroupSummary>) {
+}: ListItemProps<db.Group>) {
   return (
     <ListItem
       {...props}

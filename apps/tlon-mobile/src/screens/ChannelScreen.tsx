@@ -4,7 +4,12 @@ import { sendPost } from '@tloncorp/shared/dist/api';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { handleImagePicked, useUploader } from '@tloncorp/shared/dist/store';
+import {
+  handleImagePicked,
+  useChannel,
+  usePostWithRelations,
+  useUploader,
+} from '@tloncorp/shared/dist/store';
 import type { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
@@ -67,7 +72,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }),
     count: 50,
   });
-  const posts = useMemo<db.PostWithRelations[]>(
+  const posts = useMemo<db.Post[]>(
     () => postsData?.pages.flatMap((p) => p) ?? [],
     [postsData]
   );
@@ -158,14 +163,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   const handleGoToPost = useCallback(
-    (post: db.PostInsert) => {
+    (post: db.Post) => {
       props.navigation.push('Post', { post });
     },
     [props.navigation]
   );
 
   const handleGoToImage = useCallback(
-    (post: db.PostInsert, uri?: string) => {
+    (post: db.Post, uri?: string) => {
       // @ts-expect-error TODO: fix typing for nested stack navigation
       props.navigation.navigate('ImageViewer', { post, uri });
     },
@@ -208,6 +213,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
         canUpload={!!uploader}
+        onPressRef={(channel: db.Channel, post: db.Post) => {
+          props.navigation.push('Channel', { channel, selectedPost: post });
+        }}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       {group && (
         <ChannelSwitcherSheet

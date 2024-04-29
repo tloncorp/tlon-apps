@@ -43,7 +43,7 @@ export default function ChatScroll({
   onPressReplies,
   showReplies = true,
 }: {
-  posts: db.PostWithRelations[];
+  posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
   unreadCount?: number;
@@ -52,12 +52,12 @@ export default function ChatScroll({
   selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
-  onPressImage?: (post: db.PostInsert, imageUri?: string) => void;
-  onPressReplies?: (post: db.PostInsert) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
-  const flatListRef = useRef<FlatList<db.PostWithRelations>>(null);
+  const flatListRef = useRef<FlatList<db.Post>>(null);
 
   const pressedGoToBottom = () => {
     setHasPressedGoToBottom(true);
@@ -92,16 +92,15 @@ export default function ChatScroll({
     }
   }, [selectedPost]);
 
-  const [activeMessage, setActiveMessage] =
-    useState<db.PostWithRelations | null>(null);
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
-  const handleSetActive = useCallback((active: db.PostWithRelations) => {
+  const handleSetActive = useCallback((active: db.Post) => {
     activeMessageRefs.current[active.id] = createRef();
     setActiveMessage(active);
   }, []);
 
-  const renderItem: ListRenderItem<db.PostWithRelations> = useCallback(
+  const renderItem: ListRenderItem<db.Post> = useCallback(
     ({ item }) => {
       return (
         <PressableMessage
@@ -117,6 +116,7 @@ export default function ChatScroll({
             showReplies={showReplies}
             onPressReplies={onPressReplies}
             onPressImage={onPressImage}
+            onLongPress={() => handleSetActive(item)}
           />
         </PressableMessage>
       );
@@ -152,7 +152,7 @@ export default function ChatScroll({
       {unreadCount && !hasPressedGoToBottom && (
         <UnreadsButton onPress={pressedGoToBottom} />
       )}
-      <FlatList<db.PostWithRelations>
+      <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
         renderItem={renderItem}
@@ -191,7 +191,7 @@ function getPostId(post: db.Post) {
 const PressableMessage = forwardRef<
   RNView,
   PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
->(({ isActive, onLongPress, children }, ref) => {
+>(function PressableMessageComponent({ isActive, onLongPress, children }, ref) {
   return isActive ? (
     // need the extra React Native View for ref measurement
     <MotiView

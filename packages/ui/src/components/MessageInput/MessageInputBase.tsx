@@ -1,9 +1,9 @@
+import { Upload } from '@tloncorp/shared/dist/api';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { Upload } from 'packages/shared/dist/api';
-import { PropsWithChildren, useCallback, useMemo } from 'react';
+import { PropsWithChildren, useMemo } from 'react';
 
 import { ArrowUp } from '../../assets/icons';
-import { XStack, YStack } from '../../core';
+import { View, XStack, YStack } from '../../core';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
 
@@ -48,18 +48,19 @@ export const MessageInputContainer = ({
         paddingHorizontal="$m"
         paddingVertical="$s"
         gap="$l"
-        alignItems="center"
+        alignItems="flex-end"
+        justifyContent="space-between"
       >
         {hasUploadedImage ? null : canUpload ? (
-          <XStack gap="$l" animation="quick">
+          <View paddingBottom="$m">
             <AttachmentButton
               uploadedImage={uploadedImage}
               setImage={setImageAttachment}
             />
-          </XStack>
+          </View>
         ) : null}
-        <XStack flex={1} gap="$l" alignItems="center">
-          {children}
+        {children}
+        <View paddingBottom="$m">
           <IconButton
             color={sendIconColor}
             disabled={uploadIsLoading}
@@ -68,7 +69,7 @@ export const MessageInputContainer = ({
             {/* TODO: figure out what send button should look like */}
             <ArrowUp />
           </IconButton>
-        </XStack>
+        </View>
       </XStack>
     </YStack>
   );

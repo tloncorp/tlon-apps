@@ -43,7 +43,7 @@ type ChannelUnreadData = {
   postCount?: number;
   unreadCount?: number;
   firstUnreadPostId?: string;
-  unreadThreads?: db.ThreadUnreadStateInsert[];
+  unreadThreads?: db.ThreadUnreadState[];
   lastPostAt?: number;
 };
 
@@ -63,9 +63,7 @@ function toUnreadData(channelId: string, unread: ub.Unread): ChannelUnreadData {
   };
 }
 
-function toThreadUnreadStateData(
-  unread: ub.Unread
-): db.ThreadUnreadStateInsert[] {
+function toThreadUnreadStateData(unread: ub.Unread): db.ThreadUnreadState[] {
   return Object.entries(unread.threads).map(([threadId, unreadState]) => {
     return {
       threadId,

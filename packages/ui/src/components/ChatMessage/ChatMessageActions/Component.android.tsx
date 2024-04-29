@@ -30,7 +30,7 @@ export function ChatMessageActions({
   channelType,
   onDismiss,
 }: {
-  post: db.PostWithRelations;
+  post: db.Post;
   currentUserId: string;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;

@@ -10,7 +10,7 @@ export function MessageContainer({
   post,
   currentUserId,
 }: {
-  post: db.PostWithRelations;
+  post: db.Post;
   currentUserId: string;
 }) {
   const screenHeight = Dimensions.get('window').height;
