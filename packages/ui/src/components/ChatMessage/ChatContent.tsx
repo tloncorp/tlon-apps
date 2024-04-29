@@ -304,6 +304,8 @@ const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
   );
 });
 
+LineRenderer.displayName = 'LineRenderer';
+
 export default function ChatContent({
   story,
   onPressImage,
