@@ -32,6 +32,7 @@ import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
+import { Icon } from '../Icon';
 import ChatEmbedContent from './ChatEmbedContent';
 
 function ShipMention({ ship }: { ship: string }) {
@@ -217,88 +218,112 @@ export function BlockContent({
   );
 }
 
-const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
-  const inlineElements: ReactElement[][] = [];
-  let currentLine: ReactElement[] = [];
+const LineRenderer = memo(
+  ({
+    storyInlines,
+    isNotice = false,
+  }: {
+    storyInlines: Inline[];
+    isNotice?: boolean;
+  }) => {
+    const inlineElements: ReactElement[][] = [];
+    let currentLine: ReactElement[] = [];
 
-  storyInlines.forEach((inline, index) => {
-    if (isBreak(inline)) {
-      inlineElements.push(currentLine);
-      currentLine = [];
-    } else if (typeof inline === 'string') {
-      if (utils.isSingleEmoji(inline)) {
+    if (isNotice) {
+      currentLine.push(
+        <Icon
+          type="AddPerson"
+          color="$secondaryText"
+          backgroundColor="$secondaryBackground"
+          borderRadius="$s"
+          marginRight="$s"
+        />
+      );
+    }
+
+    storyInlines.forEach((inline, index) => {
+      if (isBreak(inline)) {
+        inlineElements.push(currentLine);
+        currentLine = [];
+      } else if (typeof inline === 'string') {
+        if (utils.isSingleEmoji(inline)) {
+          currentLine.push(
+            <Text key={`emoji-${inline}-${index}`} fontSize="$xl">
+              {inline}
+            </Text>
+          );
+        } else {
+          currentLine.push(
+            <Text
+              key={`string-${inline}-${index}`}
+              color={isNotice ? '$tertiaryText' : '$primaryText'}
+              fontSize="$m"
+              fontWeight={isNotice ? '600' : 'normal'}
+              lineHeight="$m"
+            >
+              {inline}
+            </Text>
+          );
+        }
+      } else if (isBlockquote(inline)) {
         currentLine.push(
-          <Text key={`emoji-${inline}-${index}`} fontSize="$xl">
-            {inline}
-          </Text>
+          <YStack
+            key={`blockquote-${index}`}
+            borderLeftWidth={2}
+            borderColor="$border"
+            paddingLeft="$l"
+          >
+            {Array.isArray(inline.blockquote) ? (
+              <LineRenderer storyInlines={inline.blockquote} />
+            ) : (
+              // not clear if this is necessary
+              <InlineContent story={inline.blockquote} />
+            )}
+          </YStack>
         );
       } else {
         currentLine.push(
-          <Text
-            key={`string-${inline}-${index}`}
-            fontSize="$m"
-            lineHeight={'$m'}
-          >
-            {inline}
-          </Text>
+          <InlineContent key={`inline-${index}`} story={inline} />
         );
       }
-    } else if (isBlockquote(inline)) {
-      currentLine.push(
-        <YStack
-          key={`blockquote-${index}`}
-          borderLeftWidth={2}
-          borderColor="$border"
-          paddingLeft="$l"
-        >
-          {Array.isArray(inline.blockquote) ? (
-            <LineRenderer storyInlines={inline.blockquote} />
-          ) : (
-            // not clear if this is necessary
-            <InlineContent story={inline.blockquote} />
-          )}
-        </YStack>
-      );
-    } else {
-      currentLine.push(
-        <InlineContent key={`inline-${index}`} story={inline} />
-      );
+    });
+
+    if (currentLine.length > 0) {
+      inlineElements.push(currentLine);
     }
-  });
 
-  if (currentLine.length > 0) {
-    inlineElements.push(currentLine);
-  }
+    return (
+      <>
+        {inlineElements.map((line, index) => {
+          if (line.length === 0) {
+            return (
+              <XStack alignItems="center" key={`line-${index}`}>
+                <Text height="$xl">{'\n'}</Text>
+              </XStack>
+            );
+          }
 
-  return (
-    <>
-      {inlineElements.map((line, index) => {
-        if (line.length === 0) {
           return (
-            <XStack alignItems="center" key={`line-${index}`}>
-              <Text height="$xl">{'\n'}</Text>
+            <XStack alignItems="center" key={`line-${index}`} flexWrap="wrap">
+              {line}
             </XStack>
           );
-        }
-
-        return (
-          <XStack alignItems="center" key={`line-${index}`} flexWrap="wrap">
-            {line}
-          </XStack>
-        );
-      })}
-    </>
-  );
-});
+        })}
+      </>
+    );
+  }
+);
 
 LineRenderer.displayName = 'LineRenderer';
 
 export default function ChatContent({
   story,
+  isNotice = false,
   onPressImage,
   onLongPress,
 }: {
   story: PostContent;
+  isNotice?: boolean;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
@@ -375,7 +400,9 @@ export default function ChatContent({
             })}
         </YStack>
       ) : null}
-      {inlineLength > 0 ? <LineRenderer storyInlines={storyInlines} /> : null}
+      {inlineLength > 0 ? (
+        <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
+      ) : null}
     </YStack>
   );
 }
