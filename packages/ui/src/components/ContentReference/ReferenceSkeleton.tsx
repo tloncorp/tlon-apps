@@ -13,7 +13,6 @@ export default function ReferenceSkeleton({
     <YStack
       borderRadius="$s"
       padding="$s"
-      marginBottom="$s"
       borderColor="$border"
       borderWidth={1}
     >
@@ -29,11 +28,11 @@ export default function ReferenceSkeleton({
             // TODO: Replace with proper error icon when available
             <Icon type="Placeholder" color="$tertiaryText" size="$l" />
           )}
-          <Text fontSize="$l" color="$tertiaryText">
+          <Text fontSize="$l" color="$tertiaryText" flex={1}>
             {message}
           </Text>
+          <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
         </XStack>
-        <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
       </XStack>
     </YStack>
   );

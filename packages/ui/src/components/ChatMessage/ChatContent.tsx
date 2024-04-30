@@ -371,7 +371,7 @@ export default function ChatContent({
   return (
     <YStack>
       {referenceLength > 0 ? (
-        <YStack gap="$s">
+        <YStack gap="$s" paddingBottom="$l">
           {storyReferences.map((ref, key) => {
             return <ContentReference key={key} reference={ref} />;
           })}

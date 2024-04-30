@@ -31,13 +31,13 @@ export default function ChatReference({
   }
 
   return (
-    <Pressable onPress={() => navigateToChannel()}>
+    <Pressable onPress={navigateToChannel}>
       <YStack
         borderRadius="$s"
-        padding={0}
         marginBottom="$s"
         borderColor="$border"
         borderWidth={1}
+        backgroundColor={'$secondaryBackground'}
       >
         <XStack
           alignItems="center"
@@ -46,12 +46,11 @@ export default function ChatReference({
           borderBottomColor="$border"
           borderBottomWidth={1}
         >
-          <XStack>
+          <XStack alignItems="center" gap="$m">
             <Avatar
               contact={post.author}
               contactId={post.authorId}
-              borderRadius="$s"
-              marginRight="$s"
+              size="$xl"
             />
             <ContactName
               color="$tertiaryText"

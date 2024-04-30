@@ -107,7 +107,9 @@ export default function ChatScroll({
   );
 
   const renderItem: ListRenderItem<db.Post> = useCallback(
-    ({ item }) => {
+    ({ item, index }) => {
+      const previousItem = posts[index + 1];
+      const bySameAuthor = previousItem?.authorId === item.authorId;
       return (
         <PressableMessage
           ref={activeMessageRefs.current[item.id]}
@@ -118,6 +120,7 @@ export default function ChatScroll({
             post={item}
             firstUnread={firstUnread}
             unreadCount={unreadCount}
+            showAuthor={!bySameAuthor}
             showReplies={showReplies}
             onPressReplies={onPressReplies}
             onPressImage={onPressImage}
@@ -134,6 +137,7 @@ export default function ChatScroll({
       unreadCount,
       currentUserId,
       onPressImage,
+      posts,
       handlePostLongPressed,
     ]
   );
@@ -154,7 +158,6 @@ export default function ChatScroll({
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
-    gap: '$m',
   }) as StyleProp<ViewStyle>;
 
   const handleContainerPressed = useCallback(() => {
