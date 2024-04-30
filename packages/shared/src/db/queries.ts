@@ -218,15 +218,11 @@ export const insertGroups = createWriteQuery(
                 $channels.title,
                 $channels.description,
                 $channels.addedToGroupAt,
-                $channels.currentUserIsMember,
                 $channels.type
               ),
             });
         }
         if (group.navSections) {
-          const navSectionChannels = group.navSections.flatMap(
-            (s) => s.channels
-          );
           await tx
             .insert($groupNavSections)
             .values(
@@ -236,11 +232,6 @@ export const insertGroups = createWriteQuery(
                 title: s.title,
                 description: s.description,
                 index: s.index,
-                channels: s.channels?.map((c) => ({
-                  groupNavSectionId: s.id,
-                  channelId: c.channelId,
-                  index: s.index,
-                })),
               }))
             )
             .onConflictDoUpdate({
@@ -253,6 +244,9 @@ export const insertGroups = createWriteQuery(
               ),
             });
 
+          const navSectionChannels = group.navSections.flatMap(
+            (s) => s.channels
+          );
           if (navSectionChannels.length) {
             await tx
               .insert($groupNavSectionChannels)
