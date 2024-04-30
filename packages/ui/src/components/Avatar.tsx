@@ -68,6 +68,11 @@ const AvatarFrame = styled(View, {
         width: '$4xl',
         borderRadius: '$s',
       },
+      $5xl: {
+        height: '$5xl',
+        width: '$5xl',
+        borderRadius: '$m',
+      },
     },
   } as const,
 });
