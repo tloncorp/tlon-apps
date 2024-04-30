@@ -22,7 +22,10 @@ export function ProfileScreenView(props: Props) {
       <YStack flex={1} paddingHorizontal="$xl">
         <View marginTop="$l">
           {contact ? (
-            <ProfilePreview profile={contact} contactId={props.currentUserId} />
+            <ProfileDisplayWidget
+              contact={contact}
+              contactId={props.currentUserId}
+            />
           ) : (
             <View backgroundColor="$secondaryBackground" borderRadius="$m">
               <ProfileRow dark contactId={props.currentUserId} />
@@ -41,26 +44,26 @@ export function ProfileScreenView(props: Props) {
   );
 }
 
-function ProfilePreview({
-  profile,
+export function ProfileDisplayWidget({
+  contact,
   contactId,
 }: {
-  profile: db.Contact;
+  contact: db.Contact;
   contactId: string;
 }) {
   const coverSize =
     Dimensions.get('window').width - getTokens().space.$xl.val * 2;
-  if (profile.coverImage) {
+  if (contact.coverImage) {
     return (
-      <ProfileCover uri={profile.coverImage}>
+      <ProfileCover uri={contact.coverImage}>
         <YStack height={coverSize} width={coverSize} justifyContent="flex-end">
-          <ProfileRow contactId={contactId} contact={profile} />
+          <ProfileRow contactId={contactId} contact={contact} />
         </YStack>
       </ProfileCover>
     );
   }
 
-  return <ProfileRow dark contactId={contactId} contact={profile} />;
+  return <ProfileRow dark contactId={contactId} contact={contact} />;
 }
 
 function ProfileCover({ uri, children }: PropsWithChildren<{ uri: string }>) {
