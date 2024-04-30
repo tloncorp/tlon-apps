@@ -17,7 +17,7 @@ interface ImageZoomRef {
 }
 
 export function ImageViewerScreenView(props: {
-  post?: db.Post;
+  post?: db.Post | null;
   uri?: string;
   goBack: () => void;
 }) {

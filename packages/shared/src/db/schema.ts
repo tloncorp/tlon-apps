@@ -221,9 +221,7 @@ export const chatMemberGroupRoles = sqliteTable(
     groupId: text('group_id')
       .references(() => groups.id)
       .notNull(),
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     roleId: text('role_id').notNull(),
   },
   (table) => {

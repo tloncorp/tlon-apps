@@ -42,24 +42,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [resizedImage, setResizedImage] = React.useState<string | null>(null);
   const uploader = useUploader(`channel-${currentChannelId}`, imageSize);
   const mostRecentFile = uploader?.getMostRecent();
-  const { data: channel } = store.useChannelWithLastPostAndMembers({
+  const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
-  const { data: group, error } = store.useGroup({
-    id: channel?.groupId ?? '',
+  const groupQuery = store.useGroup({
+    id: channelQuery.data?.groupId ?? '',
   });
   const selectedPost = props.route.params.selectedPost;
   const hasSelectedPost = !!selectedPost;
 
-  const {
-    data: postsData,
-    fetchNextPage,
-    fetchPreviousPage,
-    hasNextPage,
-    hasPreviousPage,
-    isFetchingNextPage,
-    isFetchingPreviousPage,
-  } = store.useChannelPosts({
+  const postsQuery = store.useChannelPosts({
     channelId: currentChannelId,
     ...(hasSelectedPost
       ? {
@@ -72,12 +64,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }),
     count: 50,
   });
+
   const posts = useMemo<db.Post[]>(
-    () => postsData?.pages.flatMap((p) => p) ?? [],
-    [postsData]
+    () => postsQuery.data?.pages.flatMap((p) => p) ?? [],
+    [postsQuery.data]
   );
 
-  const { data: contacts } = store.useContacts();
+  const contactsQuery = store.useContacts();
 
   const { bottom } = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
@@ -92,21 +85,21 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const messageSender = useCallback(
     async (content: Story, channelId: string) => {
-      if (!currentUserId || !channel) {
+      if (!currentUserId || !channelQuery.data) {
         return;
       }
 
       await sendPost(channelId, content, currentUserId);
       resetImageAttachment();
     },
-    [currentUserId, channel, resetImageAttachment]
+    [currentUserId, channelQuery.data, resetImageAttachment]
   );
 
   useEffect(() => {
-    if (error) {
-      console.error(error);
+    if (groupQuery.error) {
+      console.error(groupQuery.error);
     }
-  }, [error]);
+  }, [groupQuery.error]);
 
   useEffect(() => {
     const getResizedImage = async (uri: string) => {
@@ -151,16 +144,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
   const handleScrollEndReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
+      postsQuery.fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [postsQuery]);
 
   const handleScrollStartReached = useCallback(() => {
-    if (hasPreviousPage && !isFetchingPreviousPage) {
-      fetchPreviousPage();
+    if (postsQuery.hasPreviousPage && !postsQuery.isFetchingPreviousPage) {
+      postsQuery.fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
+  }, [postsQuery]);
 
   const handleGoToPost = useCallback(
     (post: db.Post) => {
@@ -177,14 +170,23 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [props.navigation]
   );
 
-  if (!channel) {
+  const handleGoToSearch = useCallback(() => {
+    if (!channelQuery.data) {
+      return;
+    }
+    props.navigation.push('ChannelSearch', {
+      channel: channelQuery.data ?? null,
+    });
+  }, [props.navigation, channelQuery.data]);
+
+  if (!channelQuery.data) {
     return null;
   }
 
   return (
     <View backgroundColor="$background" flex={1}>
       <Channel
-        channel={channel}
+        channel={channelQuery.data}
         currentUserId={currentUserId}
         calmSettings={{
           disableAppTileUnreads: false,
@@ -193,9 +195,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           disableRemoteContent: false,
           disableSpellcheck: false,
         }}
-        isLoadingPosts={isFetchingNextPage || isFetchingPreviousPage}
-        group={group ?? null}
-        contacts={contacts ?? null}
+        isLoadingPosts={
+          postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
+        }
+        group={groupQuery.data ?? null}
+        contacts={contactsQuery.data ?? null}
         posts={posts}
         selectedPost={
           hasSelectedPost && posts?.length ? selectedPost?.id : undefined
@@ -205,7 +209,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToPost={handleGoToPost}
         goToImageViewer={handleGoToImage}
         goToChannels={() => setChannelNavOpen(true)}
-        goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
+        goToSearch={handleGoToSearch}
         uploadedImage={uploadedImage}
         imageAttachment={resizedImage}
         setImageAttachment={setImageAttachment}
@@ -219,13 +223,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         usePost={usePostWithRelations}
         useChannel={useChannel}
       />
-      {group && (
+      {groupQuery.data && (
         <ChannelSwitcherSheet
           open={channelNavOpen}
           onOpenChange={(open) => setChannelNavOpen(open)}
-          group={group}
-          channels={group?.channels || []}
-          contacts={contacts ?? []}
+          group={groupQuery.data}
+          channels={groupQuery.data.channels || []}
+          contacts={contactsQuery.data ?? []}
           paddingBottom={bottom}
           onSelect={(channel: db.Channel) => {
             setCurrentChannelId(channel.id);
