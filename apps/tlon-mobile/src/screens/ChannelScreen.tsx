@@ -21,6 +21,15 @@ import { imageSize, resizeImage } from '../utils/images';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
+// TODO: Pull from actual settings
+const defaultCalmSettings = {
+  disableAppTileUnreads: false,
+  disableAvatars: false,
+  disableNicknames: false,
+  disableRemoteContent: false,
+  disableSpellcheck: false,
+};
+
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
@@ -162,6 +171,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [props.navigation]
   );
 
+  const handleGoToRef = useCallback(
+    (channel: db.Channel, post: db.Post) => {
+      props.navigation.push('Channel', { channel, selectedPost: post });
+    },
+    [props.navigation]
+  );
+
   const handleGoToImage = useCallback(
     (post: db.Post, uri?: string) => {
       // @ts-expect-error TODO: fix typing for nested stack navigation
@@ -179,6 +195,15 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     });
   }, [props.navigation, channelQuery.data]);
 
+  const handleChannelNavButtonPressed = useCallback(() => {
+    setChannelNavOpen(true);
+  }, []);
+
+  const handleChannelSelected = useCallback((channel: db.Channel) => {
+    setCurrentChannelId(channel.id);
+    setChannelNavOpen(false);
+  }, []);
+
   if (!channelQuery.data) {
     return null;
   }
@@ -188,13 +213,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       <Channel
         channel={channelQuery.data}
         currentUserId={currentUserId}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
+        calmSettings={defaultCalmSettings}
         isLoadingPosts={
           postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
         }
@@ -208,7 +227,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         messageSender={messageSender}
         goToPost={handleGoToPost}
         goToImageViewer={handleGoToImage}
-        goToChannels={() => setChannelNavOpen(true)}
+        goToChannels={handleChannelNavButtonPressed}
         goToSearch={handleGoToSearch}
         uploadedImage={uploadedImage}
         imageAttachment={resizedImage}
@@ -217,9 +236,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
         canUpload={!!uploader}
-        onPressRef={(channel: db.Channel, post: db.Post) => {
-          props.navigation.push('Channel', { channel, selectedPost: post });
-        }}
+        onPressRef={handleGoToRef}
         usePost={usePostWithRelations}
         useChannel={useChannel}
       />
@@ -231,10 +248,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           channels={groupQuery.data.channels || []}
           contacts={contactsQuery.data ?? []}
           paddingBottom={bottom}
-          onSelect={(channel: db.Channel) => {
-            setCurrentChannelId(channel.id);
-            setChannelNavOpen(false);
-          }}
+          onSelect={handleChannelSelected}
         />
       )}
     </View>
