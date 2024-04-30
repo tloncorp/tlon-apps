@@ -34,14 +34,14 @@ export default function ChatReference({
     <Pressable onPress={() => navigateToChannel()}>
       <YStack
         borderRadius="$s"
-        padding="$s"
+        padding={0}
         marginBottom="$s"
         borderColor="$border"
         borderWidth={1}
       >
         <XStack
           alignItems="center"
-          paddingBottom="$s"
+          padding="$l"
           justifyContent="space-between"
           borderBottomColor="$border"
           borderBottomWidth={1}
@@ -57,7 +57,7 @@ export default function ChatReference({
           </XStack>
           <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
         </XStack>
-        <View>
+        <View padding="$l">
           <ChatContent story={content} />
         </View>
       </YStack>
