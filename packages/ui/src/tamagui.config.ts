@@ -66,6 +66,7 @@ export const tokens = createTokens({
     '2xl': 24,
     '3xl': 32,
     '4xl': 48,
+    '5xl': 64,
   },
   radius: {
     '2xs': 2,
