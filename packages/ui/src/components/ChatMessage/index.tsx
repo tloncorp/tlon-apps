@@ -25,7 +25,7 @@ const ChatMessage = ({
   currentUserId: string;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onLongPress?: () => void;
+  onLongPress?: (post: db.Post) => void;
 }) => {
   const isNotice = post.type === 'notice';
 
@@ -42,6 +42,10 @@ const ChatMessage = ({
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
+
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(post);
+  }, [post, onLongPress]);
 
   if (!post) {
     return null;
@@ -95,7 +99,7 @@ const ChatMessage = ({
                 ? (uri?: string) => onPressImage(post, uri)
                 : undefined
             }
-            onLongPress={onLongPress}
+            onLongPress={handleLongPress}
           />
         )}
       </View>
