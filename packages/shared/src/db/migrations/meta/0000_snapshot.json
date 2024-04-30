@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "e23487d2-fb61-49e7-aafb-308a5a537d0d",
+  "id": "1064d329-4b33-49f0-a1ef-c8c8e743c5cf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -186,19 +186,6 @@
           "tableTo": "groups",
           "columnsFrom": [
             "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "chat_member_roles_contact_id_contacts_id_fk": {
-          "name": "chat_member_roles_contact_id_contacts_id_fk",
-          "tableFrom": "chat_member_roles",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
           ],
           "columnsTo": [
             "id"

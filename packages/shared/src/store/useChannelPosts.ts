@@ -1,10 +1,9 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as sync from './sync';
-import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', true);
 
@@ -43,10 +42,7 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       );
       return secondResult ?? [];
     },
-    queryKey: [
-      ['channel', options.channelId],
-      useKeyFromQueryDeps(db.getChannelPosts),
-    ],
+    queryKey: [['channel', options.channelId]],
     getNextPageParam: (lastPage): db.GetChannelPostsOptions | undefined => {
       if (!lastPage[lastPage.length - 1]?.id) return undefined;
       return {

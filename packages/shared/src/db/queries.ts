@@ -277,10 +277,6 @@ export const insertGroups = createWriteQuery(
         }
         if (group.members) {
           await tx
-            .insert($contacts)
-            .values(group.members.map((m) => ({ id: m.contactId })))
-            .onConflictDoNothing();
-          await tx
             .insert($chatMembers)
             .values(group.members)
             .onConflictDoNothing();
@@ -790,13 +786,15 @@ export const getPosts = createReadQuery(
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
   async ({ id }: { id: string }) => {
-    return client.query.posts.findFirst({
-      where: eq($posts.id, id),
-      with: {
-        author: true,
-        reactions: true,
-      },
-    });
+    return client.query.posts
+      .findFirst({
+        where: eq($posts.id, id),
+        with: {
+          author: true,
+          reactions: true,
+        },
+      })
+      .then(returnNullIfUndefined);
   },
   ['posts']
 );

@@ -38,7 +38,7 @@ export default function ChatListScreen(props: ChatListScreenProps) {
           </>
         }
       />
-      {chats && (chats.unpinned.length || !isFetchingInitData) && (
+      {chats && (chats.unpinned.length || !isFetchingInitData) ? (
         <ChatList
           pinned={chats.pinned ?? []}
           unpinned={chats.unpinned ?? []}
@@ -47,7 +47,7 @@ export default function ChatListScreen(props: ChatListScreenProps) {
             props.navigation.navigate('Channel', { channel });
           }}
         />
-      )}
+      ) : null}
       <ChatOptionsSheet
         open={longPressedItem !== null}
         onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
