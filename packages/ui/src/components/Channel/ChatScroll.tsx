@@ -96,8 +96,10 @@ export default function ChatScroll({
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
   const handleSetActive = useCallback((active: db.Post) => {
-    activeMessageRefs.current[active.id] = createRef();
-    setActiveMessage(active);
+    if (active.type !== 'notice') {
+      activeMessageRefs.current[active.id] = createRef();
+      setActiveMessage(active);
+    }
   }, []);
 
   const renderItem: ListRenderItem<db.Post> = useCallback(

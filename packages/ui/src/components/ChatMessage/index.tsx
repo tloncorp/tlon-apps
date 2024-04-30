@@ -27,6 +27,8 @@ const ChatMessage = ({
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: () => void;
 }) => {
+  const isNotice = post.type === 'notice';
+
   const isUnread = useMemo(
     () => firstUnread && post.id === firstUnread,
     [firstUnread, post.id]
@@ -60,21 +62,25 @@ const ChatMessage = ({
 
   return (
     <YStack key={post.id} gap="$l" paddingVertical="$l">
-      {isUnread && unreadCount && (
-        <YStack alignItems="center">
-          <SizableText size="$s" fontWeight="$l">
-            {unreadCount} unread messages • &quot;Today&quot;
-          </SizableText>
-        </YStack>
+      {!isNotice && (
+        <>
+          {isUnread && !!unreadCount && (
+            <YStack alignItems="center">
+              <SizableText size="$s" fontWeight="$l">
+                {unreadCount} unread messages • &quot;Today&quot;
+              </SizableText>
+            </YStack>
+          )}
+          <View paddingLeft="$l">
+            <AuthorRow
+              author={post.author}
+              authorId={post.authorId}
+              sent={post.sentAt ?? 0}
+              // roles={roles}
+            />
+          </View>
+        </>
       )}
-      <View paddingLeft="$l">
-        <AuthorRow
-          author={post.author}
-          authorId={post.authorId}
-          sent={post.sentAt ?? 0}
-          // roles={roles}
-        />
-      </View>
       <View paddingLeft="$4xl">
         {post.hidden ? (
           <SizableText color="$secondaryText">
@@ -83,6 +89,7 @@ const ChatMessage = ({
         ) : (
           <ChatContent
             story={content}
+            isNotice={isNotice}
             onPressImage={
               onPressImage
                 ? (uri?: string) => onPressImage(post, uri)
