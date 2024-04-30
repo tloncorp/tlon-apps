@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
 import ContactName from '../ContactName';
+import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
 const RoleBadge = ({ role }: { role: string }) => {
   return (
@@ -25,11 +26,13 @@ export default function AuthorRow({
   authorId,
   sent,
   roles,
+  deliveryStatus,
 }: {
   author?: db.Contact | null;
   authorId: string;
   sent: number;
   roles?: string[];
+  deliveryStatus?: db.PostDeliveryStatus | null;
 }) {
   const timeDisplay = useMemo(() => {
     const date = new Date(sent);
@@ -45,6 +48,7 @@ export default function AuthorRow({
         {timeDisplay}
       </SizableText>
       {firstRole && <RoleBadge role={firstRole} />}
+      {deliveryStatus && <ChatMessageDeliveryStatus status={deliveryStatus} />}
     </XStack>
   );
 }

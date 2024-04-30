@@ -59,6 +59,7 @@ export type PostFlags = Pick<
 >;
 export type PostMetadata = Pick<Post, 'title' | 'image'>;
 export type PostImage = BaseModel<'postImages'>;
+export type PostDeliveryStatus = schema.PostDeliveryStatus;
 export type Reaction = BaseModel<'postReactions'>;
 export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;

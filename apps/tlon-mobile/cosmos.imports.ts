@@ -3,19 +3,21 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
-import * as fixture16 from './src/fixtures/ActionSheet.fixture';
-import * as fixture15 from './src/fixtures/Button.fixture';
-import * as fixture14 from './src/fixtures/Channel.fixture';
-import * as fixture13 from './src/fixtures/ChannelHeader.fixture';
-import * as fixture12 from './src/fixtures/ChannelSwitcherSheet.fixture';
-import * as fixture11 from './src/fixtures/GroupList.fixture';
-import * as fixture10 from './src/fixtures/GroupListItem.fixture';
-import * as fixture9 from './src/fixtures/HeaderButton.fixture';
-import * as fixture8 from './src/fixtures/ImageViewer.fixture';
-import * as fixture7 from './src/fixtures/Input.fixture';
-import * as fixture6 from './src/fixtures/MessageActions.fixture';
-import * as fixture5 from './src/fixtures/MessageInput.fixture';
-import * as fixture4 from './src/fixtures/PostScreen.fixture';
+import * as fixture18 from './src/fixtures/ActionSheet.fixture';
+import * as fixture17 from './src/fixtures/Button.fixture';
+import * as fixture16 from './src/fixtures/Channel.fixture';
+import * as fixture15 from './src/fixtures/ChannelHeader.fixture';
+import * as fixture14 from './src/fixtures/ChannelSwitcherSheet.fixture';
+import * as fixture13 from './src/fixtures/ChatReference.fixture';
+import * as fixture12 from './src/fixtures/GroupList.fixture';
+import * as fixture11 from './src/fixtures/GroupListItem.fixture';
+import * as fixture10 from './src/fixtures/HeaderButton.fixture';
+import * as fixture9 from './src/fixtures/ImageViewer.fixture';
+import * as fixture8 from './src/fixtures/Input.fixture';
+import * as fixture7 from './src/fixtures/MessageActions.fixture';
+import * as fixture6 from './src/fixtures/MessageInput.fixture';
+import * as fixture5 from './src/fixtures/PostScreen.fixture';
+import * as fixture4 from './src/fixtures/ReferenceSkeleton.fixture';
 import * as fixture3 from './src/fixtures/ScreenHeader.fixture';
 import * as fixture2 from './src/fixtures/SearchBar.fixture';
 import * as fixture1 from './src/fixtures/TlonButton.fixture';
@@ -31,19 +33,21 @@ const fixtures = {
   'src/fixtures/TlonButton.fixture.tsx': { module: fixture1 },
   'src/fixtures/SearchBar.fixture.tsx': { module: fixture2 },
   'src/fixtures/ScreenHeader.fixture.tsx': { module: fixture3 },
-  'src/fixtures/PostScreen.fixture.tsx': { module: fixture4 },
-  'src/fixtures/MessageInput.fixture.tsx': { module: fixture5 },
-  'src/fixtures/MessageActions.fixture.tsx': { module: fixture6 },
-  'src/fixtures/Input.fixture.tsx': { module: fixture7 },
-  'src/fixtures/ImageViewer.fixture.tsx': { module: fixture8 },
-  'src/fixtures/HeaderButton.fixture.tsx': { module: fixture9 },
-  'src/fixtures/GroupListItem.fixture.tsx': { module: fixture10 },
-  'src/fixtures/GroupList.fixture.tsx': { module: fixture11 },
-  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture12 },
-  'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture13 },
-  'src/fixtures/Channel.fixture.tsx': { module: fixture14 },
-  'src/fixtures/Button.fixture.tsx': { module: fixture15 },
-  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture16 },
+  'src/fixtures/ReferenceSkeleton.fixture.tsx': { module: fixture4 },
+  'src/fixtures/PostScreen.fixture.tsx': { module: fixture5 },
+  'src/fixtures/MessageInput.fixture.tsx': { module: fixture6 },
+  'src/fixtures/MessageActions.fixture.tsx': { module: fixture7 },
+  'src/fixtures/Input.fixture.tsx': { module: fixture8 },
+  'src/fixtures/ImageViewer.fixture.tsx': { module: fixture9 },
+  'src/fixtures/HeaderButton.fixture.tsx': { module: fixture10 },
+  'src/fixtures/GroupListItem.fixture.tsx': { module: fixture11 },
+  'src/fixtures/GroupList.fixture.tsx': { module: fixture12 },
+  'src/fixtures/ChatReference.fixture.tsx': { module: fixture13 },
+  'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture14 },
+  'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture15 },
+  'src/fixtures/Channel.fixture.tsx': { module: fixture16 },
+  'src/fixtures/Button.fixture.tsx': { module: fixture17 },
+  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture18 },
 };
 
 const decorators = {

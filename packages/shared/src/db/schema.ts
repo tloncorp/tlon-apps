@@ -339,6 +339,8 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   members: many(chatMembers),
 }));
 
+export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
+
 export const posts = sqliteTable('posts', {
   id: text('id').primaryKey().notNull(),
   authorId: text('author_id').notNull(),
@@ -366,6 +368,7 @@ export const posts = sqliteTable('posts', {
   hasLink: boolean('has_link'),
   hasImage: boolean('has_image'),
   hidden: boolean('hidden').default(false),
+  deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
 });
 
 export const postsRelations = relations(posts, ({ one, many }) => ({

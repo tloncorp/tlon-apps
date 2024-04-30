@@ -84,18 +84,24 @@ export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   });
 }
 
-export const sendPost = async (
-  channelId: string,
-  content: Story,
-  author: string
-) => {
+export const sendPost = async ({
+  channelId,
+  authorId,
+  sentAt,
+  content,
+}: {
+  channelId: string;
+  authorId: string;
+  sentAt: number;
+  content: Story;
+}) => {
   if (isDmChannelId(channelId)) {
     const delta: WritDeltaAdd = {
       add: {
         memo: {
           content,
-          sent: Date.now(),
-          author,
+          sent: sentAt,
+          author: authorId,
         },
         kind: null,
         time: null,
@@ -113,11 +119,11 @@ export const sendPost = async (
 
   const essay: ub.PostEssay = {
     content,
-    sent: Date.now(),
+    sent: sentAt,
     'kind-data': {
       chat: null,
     },
-    author,
+    author: authorId,
   };
 
   await poke(
@@ -427,6 +433,41 @@ export function toPostData(
       ? getReplyData(id, channelId, post)
       : null,
     ...flags,
+  };
+}
+
+export function buildCachePost({
+  authorId,
+  channel,
+  content,
+}: {
+  authorId: string;
+  channel: db.Channel;
+  content: ub.Story;
+}): db.Post {
+  const sentAt = Date.now();
+  const id = unixToDa(sentAt).toString();
+  const [postContent, postFlags] = toPostContent(content);
+
+  return {
+    id,
+    authorId,
+    channelId: channel.id,
+    groupId: channel.groupId,
+    type: channel.id.split('/')[0] as db.PostType,
+    sentAt,
+    receivedAt: sentAt,
+    title: '',
+    image: '',
+    content: JSON.stringify(postContent),
+    textContent: getTextContent(content),
+    images: getContentImages(id, content),
+    reactions: [],
+    replies: [],
+    replyContactIds: [],
+    replyCount: 0,
+    hidden: false,
+    ...postFlags,
   };
 }
 

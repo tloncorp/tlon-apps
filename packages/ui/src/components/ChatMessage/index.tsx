@@ -76,6 +76,7 @@ const ChatMessage = ({
               author={post.author}
               authorId={post.authorId}
               sent={post.sentAt ?? 0}
+              deliveryStatus={post.deliveryStatus}
               // roles={roles}
             />
           </View>

@@ -149,7 +149,8 @@ CREATE TABLE `posts` (
 	`has_group_reference` integer,
 	`has_link` integer,
 	`has_image` integer,
-	`hidden` integer DEFAULT false
+	`hidden` integer DEFAULT false,
+	`delivery_status` text
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (
