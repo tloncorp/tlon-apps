@@ -21,12 +21,9 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
+import { ImageLoadEventData } from 'expo-image';
 import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
-import {
-  ImageLoadEventData,
-  NativeSyntheticEvent,
-  TouchableOpacity,
-} from 'react-native';
+import { TouchableOpacity } from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
@@ -169,13 +166,9 @@ export function BlockContent({
 }) {
   const [aspect, setAspect] = useState<number | null>(null);
 
-  const handleImageLoaded = useCallback(
-    (e: NativeSyntheticEvent<ImageLoadEventData>) => {
-      //@ts-expect-error TODO: figure out why the type is wrong here.
-      setAspect(e.nativeEvent.width / e.nativeEvent.height);
-    },
-    []
-  );
+  const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
+    setAspect(e.source.width / e.source.height);
+  }, []);
 
   if (isImage(story)) {
     const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
