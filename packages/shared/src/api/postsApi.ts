@@ -432,6 +432,7 @@ export function toPostData(
     replies: isPostDataResponse(post)
       ? getReplyData(id, channelId, post)
       : null,
+    deliveryStatus: null,
     ...flags,
   };
 }
@@ -446,7 +447,8 @@ export function buildCachePost({
   content: ub.Story;
 }): db.Post {
   const sentAt = Date.now();
-  const id = unixToDa(sentAt).toString();
+  const id = getCanonicalPostId(unixToDa(sentAt).toString());
+  console.log(`creating cache post [${id}]`);
   const [postContent, postFlags] = toPostContent(content);
 
   return {
@@ -467,6 +469,7 @@ export function buildCachePost({
     replyContactIds: [],
     replyCount: 0,
     hidden: false,
+    deliveryStatus: 'pending',
     ...postFlags,
   };
 }
