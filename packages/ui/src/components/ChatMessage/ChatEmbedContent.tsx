@@ -28,7 +28,6 @@ export default function ChatEmbedContent({
   url: string;
   content: string;
 }) {
-  const supported = Linking.canOpenURL(url);
   const isAudio = utils.AUDIO_REGEX.test(url);
   const isVideo = utils.VIDEO_REGEX.test(url);
   const isTrusted = trustedProviders.some((provider) =>
@@ -57,14 +56,6 @@ export default function ChatEmbedContent({
     if (isOembed) {
       return <OutsideEmbed url={url} />;
     }
-  }
-
-  if (!supported) {
-    return (
-      <Text textDecorationLine="underline">
-        <InlineContent story={content} />
-      </Text>
-    );
   }
 
   return (
