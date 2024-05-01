@@ -91,7 +91,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }, [uploader]);
 
   const messageSender = useCallback(
-    async (content: Story, channelId: string) => {
+    async (content: Story) => {
       if (!currentUserId || !channel) {
         return;
       }

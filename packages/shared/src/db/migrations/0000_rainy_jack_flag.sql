@@ -171,3 +171,5 @@ CREATE TABLE `unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);

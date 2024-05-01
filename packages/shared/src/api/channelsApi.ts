@@ -4,7 +4,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { toPostData } from './postsApi';
+import { toPostData, toPostReplyData } from './postsApi';
 import { scry, subscribe } from './urbit';
 
 const logger = createDevLogger('channelsSub', true);
@@ -17,6 +17,10 @@ export const getUnreadChannels = async () => {
   return toUnreadsData(response);
 };
 
+export type AddPostUpdate = { type: 'addPost'; post: db.Post };
+export type UnknownUpdate = { type: 'unknown' };
+export type ChannelsUpdate = AddPostUpdate | UnknownUpdate;
+
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {
@@ -28,14 +32,22 @@ export const subscribeToChannelsUpdates = async (
   );
 };
 
-export type AddPostUpdate = { type: 'addPost'; post: db.Post };
-export type UnknownUpdate = { type: 'unknown' };
-export type ChannelsUpdate = AddPostUpdate | UnknownUpdate;
+export const subscribeToDmsUpdates = async (
+  eventHandler: (update: ChannelsUpdate) => void
+) => {
+  subscribe(
+    { app: 'channels', path: '/dm-v1' },
+    (rawEvent: ub.ChannelsSubscribeResponse) => {
+      eventHandler(toChannelsUpdate(rawEvent));
+    }
+  );
+};
 
 export const toChannelsUpdate = (
   channelEvent: ub.ChannelsSubscribeResponse
 ): ChannelsUpdate => {
   const channelId = channelEvent.nest;
+  // post events
   if (
     'response' in channelEvent &&
     'post' in channelEvent.response &&
@@ -46,10 +58,26 @@ export const toChannelsUpdate = (
 
     if ('set' in postResponse && postResponse.set !== null) {
       const postToAdd = { id: postId, ...postResponse.set };
-      const post = toPostData(channelId, postToAdd);
 
-      logger.log(`add post event [${post.id}]`);
+      logger.log(`add post event`);
       return { type: 'addPost', post: toPostData(channelId, postToAdd) };
+    }
+  }
+
+  // reply events
+  if (
+    'response' in channelEvent &&
+    'post' in channelEvent.response &&
+    'reply' in channelEvent.response.post['r-post']
+  ) {
+    const postId = channelEvent.response.post.id;
+    const replyResponse = channelEvent.response.post['r-post'].reply['r-reply'];
+    if ('set' in replyResponse && replyResponse.set !== null) {
+      logger.log(`add reply event`);
+      return {
+        type: 'addPost',
+        post: toPostReplyData(channelId, postId, replyResponse.set),
+      };
     }
   }
 

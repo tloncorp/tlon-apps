@@ -3,26 +3,39 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
 
 import ActionList from '../../ActionList';
 
 export default function MessageActions({
   dismiss,
+  onReply,
   channelType,
   post,
 }: {
   dismiss: () => void;
+  onReply?: (post: db.Post) => void;
   post: db.Post;
   channelType: db.ChannelType;
 }) {
-  const postActions = getPostActions(post, channelType);
+  const postActions = useMemo(() => {
+    return getPostActions(post, channelType).filter((action) => {
+      // if undelivered or already in a thread, don't show reply
+      if ((action.id === 'reply' && post.deliveryStatus) || post.parentId) {
+        return false;
+      }
+      return true;
+    });
+  }, [post, channelType]);
 
   return (
     // arbitrary width that looks reasonable given labels
     <ActionList width={220}>
       {postActions.map((action, index) => (
         <ActionList.Action
-          onPress={() => handleAction({ id: action.id, post, dismiss })}
+          onPress={() =>
+            handleAction({ id: action.id, post, dismiss, onReply })
+          }
           key={action.id}
           actionType={action.actionType}
           last={index === postActions.length - 1}
@@ -89,12 +102,18 @@ async function handleAction({
   id,
   post,
   dismiss,
+  onReply,
 }: {
   id: string;
   post: db.Post;
   dismiss: () => void;
+  onReply?: (post: db.Post) => void;
 }) {
   switch (id) {
+    case 'reply':
+      // give the actions time to fade out before navigating
+      setTimeout(() => onReply?.(post), 50);
+      break;
     case 'copyRef':
       Clipboard.setString(logic.getPostReferencePath(post));
       break;

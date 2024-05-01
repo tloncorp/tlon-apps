@@ -28,12 +28,14 @@ export function ChatMessageActions({
   postRef,
   channelType,
   onDismiss,
+  onReply,
 }: {
   post: db.Post;
   currentUserId: string;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;
   onDismiss: () => void;
+  onReply?: (post: db.Post) => void;
 }) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -138,6 +140,7 @@ export function ChatMessageActions({
             post={post}
             channelType={channelType}
             dismiss={onDismiss}
+            onReply={onReply}
           />
         </YStack>
       </View>

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "c3759c98-719c-4bf6-bf90-f0f2a33a61b9",
+  "id": "be9f41f4-a8c6-48fc-8002-d0c2f051974c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -1011,7 +1011,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "posts_sent_at_unique": {
+          "name": "posts_sent_at_unique",
+          "columns": [
+            "sent_at"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}

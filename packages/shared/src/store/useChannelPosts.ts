@@ -6,7 +6,7 @@ import { createDevLogger } from '../debug';
 import * as sync from './sync';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
-const postsLogger = createDevLogger('useChannelPosts', true);
+const postsLogger = createDevLogger('useChannelPosts', false);
 
 export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
   useEffect(() => {

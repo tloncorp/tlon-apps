@@ -354,7 +354,7 @@ export const posts = sqliteTable('posts', {
   image: text('image'),
   content: text('content', { mode: 'json' }),
   receivedAt: timestamp('received_at').notNull(),
-  sentAt: timestamp('sent_at').notNull(),
+  sentAt: timestamp('sent_at').unique().notNull(),
   // client-side time
   replyCount: integer('reply_count'),
   replyTime: timestamp('reply_time'),

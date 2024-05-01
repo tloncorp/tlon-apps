@@ -29,6 +29,40 @@ export async function sendPost({
   }
 }
 
+export async function sendReply({
+  parentId,
+  authorId,
+  content,
+  channel,
+}: {
+  channel: db.Channel;
+  parentId: string;
+  authorId: string;
+  content: urbit.Story;
+}) {
+  // optimistic update
+  const cachePost = api.buildCachePost({
+    authorId,
+    channel: channel,
+    content,
+    parentId,
+  });
+  await db.insertChannelPosts(channel.id, [cachePost]);
+
+  try {
+    api.sendReply({
+      channelId: channel.id,
+      parentId,
+      authorId,
+      content,
+      sentAt: cachePost.sentAt,
+    });
+  } catch (e) {
+    console.error('Failed to send reply', e);
+    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+  }
+}
+
 export async function hidePost({ post }: { post: db.Post }) {
   // optimistic update
   await db.updatePost({ id: post.id, hidden: true });

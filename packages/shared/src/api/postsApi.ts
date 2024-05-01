@@ -133,6 +133,91 @@ export const sendPost = async ({
   );
 };
 
+export const sendReply = async ({
+  channelId,
+  parentId,
+  content,
+  sentAt,
+  authorId,
+}: {
+  authorId: string;
+  channelId: string;
+  parentId: string;
+  content: Story;
+  sentAt: number;
+}) => {
+  if (isDmChannelId(channelId)) {
+    // handle DM case
+    const delta: ub.ReplyDelta = {
+      reply: {
+        id: `${authorId}/${formatUd(unixToDa(sentAt).toString())}`,
+        meta: null,
+        delta: {
+          add: {
+            memo: {
+              content,
+              author: authorId,
+              sent: sentAt,
+            },
+            time: null,
+          },
+        },
+      },
+    };
+
+    const action = chatAction(channelId, parentId, delta);
+    await poke(action);
+  }
+
+  const postAction: ub.PostAction = {
+    reply: {
+      id: parentId,
+      action: {
+        add: {
+          content,
+          author: authorId,
+          sent: sentAt,
+        },
+      },
+    },
+  };
+
+  const action = channelPostAction(channelId, postAction);
+  await poke(action);
+};
+
+// export interface DmAction {
+//   ship: string;
+//   diff: WritDiff;
+// }
+
+// export type WritDelta =
+//   | WritDeltaAdd
+//   | WritDeltaDel
+//   | WritDeltaAddReact
+//   | WritDeltaDelReact
+//   | ReplyDelta;
+
+// export interface WritDiff {
+//   id: string;
+//   delta: WritDelta;
+// }
+
+// interface WritDeltaAddReact {
+//   'add-react': {
+//     react: string;
+//     ship: string;
+//   };
+// }
+
+// nest: `chat/${whom}`,
+// postId: replying,
+// memo: {
+//   ...memo,
+//   content,
+// },
+// cacheId,
+
 export const getChannelPosts = async ({
   channelId,
   cursor,
@@ -441,14 +526,16 @@ export function buildCachePost({
   authorId,
   channel,
   content,
+  parentId,
 }: {
   authorId: string;
   channel: db.Channel;
   content: ub.Story;
+  parentId?: string;
 }): db.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(unixToDa(sentAt).toString());
-  console.log(`creating cache post [${id}]`);
+  console.log(`BL: creating cache post [${sentAt}]`);
   const [postContent, postFlags] = toPostContent(content);
 
   return {
@@ -469,6 +556,7 @@ export function buildCachePost({
     replyContactIds: [],
     replyCount: 0,
     hidden: false,
+    parentId,
     deliveryStatus: 'pending',
     ...postFlags,
   };
@@ -502,25 +590,33 @@ function getReplyData(
   channelId: string,
   post: ub.PostDataResponse
 ): db.Post[] {
-  return Object.entries(post.seal.replies ?? {}).map(([, reply]) => {
-    const [content, flags] = toPostContent(reply.memo.content);
-    const id = reply.seal.id;
-    return {
-      id,
-      channelId,
-      type: 'reply',
-      authorId: reply.memo.author,
-      parentId: postId,
-      reactions: toReactionsData(reply.seal.reacts, id),
-      content: JSON.stringify(content),
-      textContent: getTextContent(reply.memo.content),
-      sentAt: reply.memo.sent,
-      receivedAt: getReceivedAtFromId(id),
-      replyCount: 0,
-      images: getContentImages(id, reply.memo.content),
-      ...flags,
-    };
-  });
+  return Object.entries(post.seal.replies ?? {}).map(([, reply]) =>
+    toPostReplyData(channelId, postId, reply)
+  );
+}
+
+export function toPostReplyData(
+  channelId: string,
+  postId: string,
+  reply: ub.Reply
+): db.Post {
+  const [content, flags] = toPostContent(reply.memo.content);
+  const id = reply.seal.id;
+  return {
+    id,
+    channelId,
+    type: 'reply',
+    authorId: reply.memo.author,
+    parentId: postId,
+    reactions: toReactionsData(reply.seal.reacts, id),
+    content: JSON.stringify(content),
+    textContent: getTextContent(reply.memo.content),
+    sentAt: reply.memo.sent,
+    receivedAt: getReceivedAtFromId(id),
+    replyCount: 0,
+    images: getContentImages(id, reply.memo.content),
+    ...flags,
+  };
 }
 
 export function toPostContent(story?: ub.Story): PostContentAndFlags {
