@@ -119,7 +119,9 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
 
 export async function syncPosts(options: db.GetChannelPostsOptions) {
   const response = await api.getChannelPosts(options);
-  await persistPagedPostData(options.channelId, response);
+  if (response.posts.length) {
+    await db.insertChannelPosts(options.channelId, response.posts);
+  }
   return response;
 }
 
@@ -146,7 +148,6 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       `posts for channel ${id} in `,
       Date.now() - startTime + 'ms'
     );
-
     await db.updateChannel({
       id,
       remoteUpdatedAt,

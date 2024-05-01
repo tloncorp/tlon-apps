@@ -7,16 +7,13 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import React from 'react';
 import {
   Dimensions,
   FlatList,
   ListRenderItem,
-  Pressable,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -78,7 +75,7 @@ export default function ChatScroll({
         animated: true,
       });
     }
-  }, [firstUnread]);
+  }, [firstUnread, posts]);
 
   useEffect(() => {
     if (selectedPost && flatListRef.current) {
@@ -90,7 +87,7 @@ export default function ChatScroll({
         });
       }
     }
-  }, [selectedPost]);
+  }, [selectedPost, posts]);
 
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
@@ -102,12 +99,20 @@ export default function ChatScroll({
     }
   }, []);
 
+  const handlePostLongPressed = useCallback(
+    (post: db.Post) => {
+      handleSetActive(post);
+    },
+    [handleSetActive]
+  );
+
   const renderItem: ListRenderItem<db.Post> = useCallback(
-    ({ item }) => {
+    ({ item, index }) => {
+      const previousItem = posts[index + 1];
+      const bySameAuthor = previousItem?.authorId === item.authorId;
       return (
         <PressableMessage
           ref={activeMessageRefs.current[item.id]}
-          onLongPress={() => handleSetActive(item)}
           isActive={activeMessage?.id === item.id}
         >
           <ChatMessage
@@ -115,15 +120,26 @@ export default function ChatScroll({
             post={item}
             firstUnread={firstUnread}
             unreadCount={unreadCount}
+            showAuthor={!bySameAuthor}
             showReplies={showReplies}
             onPressReplies={onPressReplies}
             onPressImage={onPressImage}
-            onLongPress={() => handleSetActive(item)}
+            onLongPress={handlePostLongPressed}
           />
         </PressableMessage>
       );
     },
-    [activeMessage, showReplies, firstUnread, onPressReplies, unreadCount]
+    [
+      activeMessage,
+      showReplies,
+      firstUnread,
+      onPressReplies,
+      unreadCount,
+      currentUserId,
+      onPressImage,
+      posts,
+      handlePostLongPressed,
+    ]
   );
 
   const handleScrollToIndexFailed = useCallback(
@@ -142,7 +158,6 @@ export default function ChatScroll({
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
-    gap: '$m',
   }) as StyleProp<ViewStyle>;
 
   const handleContainerPressed = useCallback(() => {
@@ -193,8 +208,8 @@ function getPostId(post: db.Post) {
 
 const PressableMessage = forwardRef<
   RNView,
-  PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
->(function PressableMessageComponent({ isActive, onLongPress, children }, ref) {
+  PropsWithChildren<{ isActive: boolean }>
+>(function PressableMessageComponent({ isActive, children }, ref) {
   return isActive ? (
     // need the extra React Native View for ref measurement
     <MotiView
@@ -211,9 +226,7 @@ const PressableMessage = forwardRef<
       <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
-    <Pressable onLongPress={onLongPress} delayLongPress={250}>
-      {children}
-    </Pressable>
+    children
   );
 });
 

@@ -16,16 +16,18 @@ const ChatMessage = ({
   onPressImage,
   onLongPress,
   showReplies,
+  showAuthor,
   currentUserId,
 }: {
   post: db.Post;
   firstUnread?: string;
   unreadCount?: number;
   showReplies?: boolean;
+  showAuthor?: boolean;
   currentUserId: string;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onLongPress?: () => void;
+  onLongPress?: (post: db.Post) => void;
 }) => {
   const isNotice = post.type === 'notice';
 
@@ -42,6 +44,17 @@ const ChatMessage = ({
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
+
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(post);
+  }, [post, onLongPress]);
+
+  const handleImagePressed = useCallback(
+    (uri: string) => {
+      onPressImage?.(post, uri);
+    },
+    [onPressImage, post]
+  );
 
   if (!post) {
     return null;
@@ -61,7 +74,7 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   return (
-    <YStack key={post.id} gap="$l" paddingVertical="$l">
+    <YStack key={post.id}>
       {!isNotice && (
         <>
           {isUnread && !!unreadCount && (
@@ -71,18 +84,20 @@ const ChatMessage = ({
               </SizableText>
             </YStack>
           )}
-          <View paddingLeft="$l">
-            <AuthorRow
-              author={post.author}
-              authorId={post.authorId}
-              sent={post.sentAt ?? 0}
-              deliveryStatus={post.deliveryStatus}
-              // roles={roles}
-            />
-          </View>
         </>
       )}
-      <View paddingLeft="$4xl">
+      {showAuthor ? (
+        <View paddingTop="$l" paddingBottom="$xs" paddingLeft="$l">
+          <AuthorRow
+            author={post.author}
+            authorId={post.authorId}
+            sent={post.sentAt ?? 0}
+            deliveryStatus={post.deliveryStatus}
+            // roles={roles}
+          />
+        </View>
+      ) : null}
+      <View paddingLeft="$4xl" paddingVertical="$l" paddingRight="$l">
         {post.hidden ? (
           <SizableText color="$secondaryText">
             You have hidden or flagged this message.
@@ -91,15 +106,12 @@ const ChatMessage = ({
           <ChatContent
             story={content}
             isNotice={isNotice}
-            onPressImage={
-              onPressImage
-                ? (uri?: string) => onPressImage(post, uri)
-                : undefined
-            }
-            onLongPress={onLongPress}
+            onPressImage={handleImagePressed}
+            onLongPress={handleLongPress}
           />
         )}
       </View>
+
       <ReactionsDisplay post={post} currentUserId={currentUserId} />
 
       {showReplies &&

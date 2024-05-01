@@ -218,15 +218,11 @@ export const insertGroups = createWriteQuery(
                 $channels.title,
                 $channels.description,
                 $channels.addedToGroupAt,
-                $channels.currentUserIsMember,
                 $channels.type
               ),
             });
         }
         if (group.navSections) {
-          const navSectionChannels = group.navSections.flatMap(
-            (s) => s.channels
-          );
           await tx
             .insert($groupNavSections)
             .values(
@@ -236,11 +232,6 @@ export const insertGroups = createWriteQuery(
                 title: s.title,
                 description: s.description,
                 index: s.index,
-                channels: s.channels?.map((c) => ({
-                  groupNavSectionId: s.id,
-                  channelId: c.channelId,
-                  index: s.index,
-                })),
               }))
             )
             .onConflictDoUpdate({
@@ -253,6 +244,9 @@ export const insertGroups = createWriteQuery(
               ),
             });
 
+          const navSectionChannels = group.navSections.flatMap(
+            (s) => s.channels
+          );
           if (navSectionChannels.length) {
             await tx
               .insert($groupNavSectionChannels)
@@ -282,10 +276,6 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.members) {
-          await tx
-            .insert($contacts)
-            .values(group.members.map((m) => ({ id: m.contactId })))
-            .onConflictDoNothing();
           await tx
             .insert($chatMembers)
             .values(group.members)
@@ -800,13 +790,15 @@ export const getPosts = createReadQuery(
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
   async ({ id }: { id: string }) => {
-    return client.query.posts.findFirst({
-      where: eq($posts.id, id),
-      with: {
-        author: true,
-        reactions: true,
-      },
-    });
+    return client.query.posts
+      .findFirst({
+        where: eq($posts.id, id),
+        with: {
+          author: true,
+          reactions: true,
+        },
+      })
+      .then(returnNullIfUndefined);
   },
   ['posts']
 );

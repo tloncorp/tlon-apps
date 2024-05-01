@@ -60,15 +60,16 @@ export const createQuery = <Args extends any[], T>(
   // Wrap query function to trigger table events
   const wrappedQuery = async (...args: Args) => {
     const startTime = Date.now();
-    logger.log(meta.label + ':', 'start');
+    logger.log(meta.label + ':start', ...args);
     const result = await queryFn(...args);
-    logger.log(meta.label + ':', Date.now() - startTime + 'ms');
+    logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
     // Trigger table effects if necessary.
     if (meta?.tableEffects?.length) {
       const effects =
         typeof meta.tableEffects === 'function'
           ? meta.tableEffects(...args)
           : meta.tableEffects;
+      logger.log((meta.label ?? '') + ':invalidating', ...effects);
       queryClient.invalidateQueries({
         predicate: (query) => {
           const tableKey = query.queryKey[1];
