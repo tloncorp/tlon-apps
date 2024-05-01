@@ -2,8 +2,8 @@ import { getSize } from '@tamagui/get-token';
 import * as db from '@tloncorp/shared/dist/db';
 import { Dimensions } from 'react-native';
 
-import ChatMessage from '..';
 import { View } from '../../../core';
+import ChatMessage from '../ChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
 export function MessageContainer({
