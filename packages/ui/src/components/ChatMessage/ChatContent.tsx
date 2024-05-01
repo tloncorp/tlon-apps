@@ -47,7 +47,7 @@ function ShipMention({ ship }: { ship: string }) {
       borderRadius="$s"
     >
       <Text color="$positiveActionText" fontSize="$m">
-        <ContactName name={ship} showAlias />
+        <ContactName userId={ship} showAlias />
       </Text>
     </Button>
   );

@@ -53,7 +53,11 @@ export default function ChatReference({
               borderRadius="$s"
               marginRight="$s"
             />
-            <ContactName color="$tertiaryText" name={post.authorId} showAlias />
+            <ContactName
+              color="$tertiaryText"
+              userId={post.authorId}
+              showAlias
+            />
           </XStack>
           <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
         </XStack>

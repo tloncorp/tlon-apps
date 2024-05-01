@@ -31,7 +31,7 @@ export default function ChannelListItem({
               <>
                 <ContactName
                   showAlias
-                  name={model.lastPost.authorId}
+                  userId={model.lastPost.authorId}
                   size="$s"
                 />
                 :{' '}

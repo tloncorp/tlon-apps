@@ -135,6 +135,8 @@ export const brianContact: db.Contact = {
   nickname: 'brian',
   avatarImage:
     'https://d2w9rnfcy7mm78.cloudfront.net/24933700/original_92dc8654172254b5422d0d6249270afe.png?1701105163?bc=0',
+  coverImage:
+    'https://d1z5o5vuzqe9y4.cloudfront.net/uploads/39683a_Airy-living-room-at-Castle-Rock-the-Lowell-and-Agnes-Walter-House_Photographs-in-the-Carol-M.-Highsmith-Archive-Library-of-Congress-Prints-and-Photographs-Division.jpg',
 };
 
 export const markContact: db.Contact = {
