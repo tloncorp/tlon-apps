@@ -33,6 +33,7 @@ export function Avatar({
           }}
           height="100%"
           width="100%"
+          contentFit="cover"
         />
       ) : !isNaN(sigilSize) ? (
         <UrbitSigil colors={colors} size={sigilSize} contactId={contactId} />

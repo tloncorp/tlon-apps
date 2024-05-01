@@ -25,8 +25,7 @@ CREATE TABLE `chat_member_roles` (
 	`contact_id` text NOT NULL,
 	`role_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `group_members` (
