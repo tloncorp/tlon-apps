@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { MotiView } from 'moti';
 import {
   PropsWithChildren,
@@ -25,6 +26,7 @@ import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessage } from '../ChatMessage';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ChannelDivider } from './ChannelDivider';
 
 export default function ChatScroll({
   posts,
@@ -70,10 +72,13 @@ export default function ChatScroll({
         firstUnread,
         posts.findIndex((post) => post.id === firstUnread)
       );
-      flatListRef.current.scrollToIndex({
-        index: posts.findIndex((post) => post.id === firstUnread),
-        animated: true,
-      });
+      const unreadIndex = posts.findIndex((post) => post.id === firstUnread);
+      if (unreadIndex !== -1) {
+        flatListRef.current.scrollToIndex({
+          index: unreadIndex,
+          animated: true,
+        });
+      }
     }
   }, [firstUnread, posts]);
 
@@ -109,24 +114,41 @@ export default function ChatScroll({
   const renderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts[index + 1];
-      const bySameAuthor = previousItem?.authorId === item.authorId;
+      const isFirstPostOfDay = !isSameDay(
+        item.receivedAt ?? 0,
+        previousItem?.receivedAt ?? 0
+      );
+      const showAuthor =
+        previousItem?.authorId !== item.authorId ||
+        previousItem?.type === 'notice' ||
+        (item.replyCount ?? 0) > 0 ||
+        isFirstPostOfDay;
+      const isFirstUnread = !!unreadCount && item.id === firstUnread;
       return (
-        <PressableMessage
-          ref={activeMessageRefs.current[item.id]}
-          isActive={activeMessage?.id === item.id}
-        >
-          <ChatMessage
-            currentUserId={currentUserId}
-            post={item}
-            firstUnread={firstUnread}
-            unreadCount={unreadCount}
-            showAuthor={!bySameAuthor}
-            showReplies={showReplies}
-            onPressReplies={onPressReplies}
-            onPressImage={onPressImage}
-            onLongPress={handlePostLongPressed}
-          />
-        </PressableMessage>
+        <>
+          {isFirstUnread ? (
+            <ChannelDivider
+              timestamp={item.receivedAt}
+              unreadCount={unreadCount ?? 0}
+            />
+          ) : isFirstPostOfDay ? (
+            <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
+          ) : null}
+          <PressableMessage
+            ref={activeMessageRefs.current[item.id]}
+            isActive={activeMessage?.id === item.id}
+          >
+            <ChatMessage
+              currentUserId={currentUserId}
+              post={item}
+              showAuthor={showAuthor}
+              showReplies={showReplies}
+              onPressReplies={onPressReplies}
+              onPressImage={onPressImage}
+              onLongPress={handlePostLongPressed}
+            />
+          </PressableMessage>
+        </>
       );
     },
     [
@@ -166,9 +188,9 @@ export default function ChatScroll({
 
   return (
     <View flex={1}>
-      {unreadCount && !hasPressedGoToBottom && (
+      {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
-      )}
+      ) : null}
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}

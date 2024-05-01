@@ -23,10 +23,11 @@ import * as fixture16 from './src/fixtures/ChatReference.fixture';
 import * as fixture17 from './src/fixtures/ChatMessage.fixture';
 import * as fixture18 from './src/fixtures/ChannelSwitcherSheet.fixture';
 import * as fixture19 from './src/fixtures/ChannelHeader.fixture';
-import * as fixture20 from './src/fixtures/Channel.fixture';
-import * as fixture21 from './src/fixtures/Button.fixture';
-import * as fixture22 from './src/fixtures/AudioEmbed.fixture';
-import * as fixture23 from './src/fixtures/ActionSheet.fixture';
+import * as fixture20 from './src/fixtures/ChannelDivider.fixture';
+import * as fixture21 from './src/fixtures/Channel.fixture';
+import * as fixture22 from './src/fixtures/Button.fixture';
+import * as fixture23 from './src/fixtures/AudioEmbed.fixture';
+import * as fixture24 from './src/fixtures/ActionSheet.fixture';
 
 import * as decorator0 from './src/fixtures/cosmos.decorator';
 
@@ -56,10 +57,11 @@ const fixtures = {
   'src/fixtures/ChatMessage.fixture.tsx': { module: fixture17 },
   'src/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture18 },
   'src/fixtures/ChannelHeader.fixture.tsx': { module: fixture19 },
-  'src/fixtures/Channel.fixture.tsx': { module: fixture20 },
-  'src/fixtures/Button.fixture.tsx': { module: fixture21 },
-  'src/fixtures/AudioEmbed.fixture.tsx': { module: fixture22 },
-  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture23 }
+  'src/fixtures/ChannelDivider.fixture.tsx': { module: fixture20 },
+  'src/fixtures/Channel.fixture.tsx': { module: fixture21 },
+  'src/fixtures/Button.fixture.tsx': { module: fixture22 },
+  'src/fixtures/AudioEmbed.fixture.tsx': { module: fixture23 },
+  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture24 }
 };
 
 const decorators = {
