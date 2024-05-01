@@ -25,10 +25,10 @@ import { useStyle } from 'tamagui';
 import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
-import ChatMessage from '../ChatMessage';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { NotebookPost } from '../NotebookPost';
 
-export default function ChatScroll({
+export default function NotesScroll({
   posts,
   currentUserId,
   channelType,
@@ -96,6 +96,7 @@ export default function ChatScroll({
 
   const handleSetActive = useCallback((active: db.Post) => {
     if (active.type !== 'notice') {
+      console.log('setting active message', { active });
       activeMessageRefs.current[active.id] = createRef();
       setActiveMessage(active);
     }
@@ -109,14 +110,12 @@ export default function ChatScroll({
           onLongPress={() => handleSetActive(item)}
           isActive={activeMessage?.id === item.id}
         >
-          <ChatMessage
+          <NotebookPost
             currentUserId={currentUserId}
             post={item}
             firstUnread={firstUnread}
             unreadCount={unreadCount}
             showReplies={showReplies}
-            onPressReplies={onPressReplies}
-            onPressImage={onPressImage}
             onLongPress={() => handleSetActive(item)}
           />
         </PressableMessage>
@@ -162,7 +161,6 @@ export default function ChatScroll({
         contentContainerStyle={contentContainerStyle}
         onScrollBeginDrag={handleContainerPressed}
         onScrollToIndexFailed={handleScrollToIndexFailed}
-        inverted
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
@@ -173,6 +171,7 @@ export default function ChatScroll({
       >
         {activeMessage !== null && (
           <ChatMessageActions
+            width={Dimensions.get('window').width}
             currentUserId={currentUserId}
             post={activeMessage}
             postRef={activeMessageRefs.current[activeMessage!.id]}

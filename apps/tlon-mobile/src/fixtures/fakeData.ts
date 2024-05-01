@@ -363,7 +363,7 @@ export const tlonLocalCommunityCatalog: db.Channel = {
     replyCount: 0,
     replyContactIds: null,
     replyTime: null,
-    type: 'chat',
+    type: 'block',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/community-catalog',
     title: null,
@@ -397,10 +397,10 @@ export const tlonLocalGettingStarted: db.Channel = {
     replyCount: 0,
     replyContactIds: null,
     replyTime: null,
-    type: 'chat',
+    type: 'note',
     groupId: '~nibset-napwyn/tlon',
     channelId: '~nibset-napwyn/getting-started',
-    title: null,
+    title: 'Getting Started',
     hasImage: null,
     image: null,
     receivedAt: 0,
@@ -589,7 +589,7 @@ const getRandomFakeContact = () => {
   return initialContacts[Math.floor(Math.random() * keys.length)];
 };
 
-export const createFakePost = (): db.Post => {
+export const createFakePost = (type?: db.PostType): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
   const id = Math.random().toString(36).substring(7);
@@ -607,12 +607,15 @@ export const createFakePost = (): db.Post => {
     content,
     sentAt: randomSentAtSameDay,
     ...createFakeReplyMeta(),
-    type: 'chat',
+    type: type ?? 'chat',
     groupId: group.id,
     channelId: tlonLocalIntros.id,
-    title: null,
+    title: type === 'note' ? 'Some Note' : null,
     hasImage: null,
-    image: null,
+    image:
+      type === 'note'
+        ? 'https://d2w9rnfcy7mm78.cloudfront.net/22598921/original_169ab0e6543007827061859134a0c402.jpg'
+        : null,
     parentId: null,
     receivedAt: randomSentAtSameDay,
     textContent: getTextContent(JSON.parse(content)) ?? null,
@@ -665,10 +668,13 @@ function getRandomTimeOnSameDay() {
   ).getTime();
 }
 
-export const createFakePosts = (count: number): db.Post[] => {
+export const createFakePosts = (
+  count: number,
+  type?: db.PostType
+): db.Post[] => {
   const posts = [];
   for (let i = 0; i < count; i++) {
-    posts.push(createFakePost());
+    posts.push(createFakePost(type));
   }
 
   // sort by timestamp
