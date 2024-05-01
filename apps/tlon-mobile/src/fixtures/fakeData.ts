@@ -10,6 +10,27 @@ export const createSimpleContent = (str: string): string => {
   ] as Story);
 };
 
+export const createContentWithMention = (
+  str: string,
+  contactId: string
+): string => {
+  const beforeOrAfter = Math.random() < 0.5 ? 'before' : 'after';
+
+  if (beforeOrAfter === 'before') {
+    return JSON.stringify([
+      {
+        inline: [{ ship: contactId }, ' ' + str],
+      },
+    ] as Story);
+  }
+
+  return JSON.stringify([
+    {
+      inline: [str + ' ', { ship: contactId }],
+    },
+  ] as Story);
+};
+
 export const createImageContent = (url: string): string => {
   return JSON.stringify([
     {
@@ -24,6 +45,18 @@ export const createImageContent = (url: string): string => {
   ] as Story);
 };
 
+export const createMentionContent = (contactId: string): string => {
+  return JSON.stringify([
+    {
+      inline: [
+        {
+          ship: contactId,
+        },
+      ],
+    },
+  ] as Story);
+};
+
 export const createCodeContent = (code: string): string => {
   return JSON.stringify([
     {
@@ -31,6 +64,19 @@ export const createCodeContent = (code: string): string => {
         {
           code,
         },
+      ],
+    },
+  ] as Story);
+};
+
+export const createBlockquoteContent = (str: string, str2?: string): string => {
+  return JSON.stringify([
+    {
+      inline: [
+        {
+          blockquote: [str],
+        },
+        str2,
       ],
     },
   ] as Story);
@@ -545,31 +591,34 @@ export const group: db.Group = {
   isSecret: false,
 };
 
-export const fakeContent: Record<string, db.Post['content']> = {
-  yo: createSimpleContent('yo'),
-  hey: createSimpleContent('hey'),
-  lol: createSimpleContent('lol'),
-  sup: createSimpleContent('sup'),
-  hi: createSimpleContent('hi'),
-  hello: createSimpleContent('hello'),
-  howdy: createSimpleContent('howdy'),
-  greetings: createSimpleContent('greetings'),
-  salutations: createSimpleContent('salutations'),
-  why: createSimpleContent('why?'),
-  what: createSimpleContent('what?'),
-  where: createSimpleContent('where?'),
-  when: createSimpleContent('when?'),
-  how: createSimpleContent('how?'),
-  who: createSimpleContent('who?'),
-  whom: createSimpleContent('whom?'),
-  whose: createSimpleContent('whose?'),
-  '😧': createSimpleContent('😧'),
-  '😨': createSimpleContent('😨'),
-  '😩': createSimpleContent('😩'),
-  '😪': createSimpleContent('😪'),
-};
+export const fakeStrings: string[] = [
+  'yo',
+  'hey',
+  'lol',
+  'sup',
+  'hi',
+  'hello',
+  'howdy',
+  'greetings',
+  'why?',
+  'what?',
+  'where?',
+  'when?',
+  'how?',
+  'who?',
+  '😧',
+  '😨',
+  '😩',
+  '😪',
+  'Officia proident consequat sint et laboris aliquip ipsum ex sit in nulla ullamco veniam. Occaecat laboris ad irure eiusmod dolor. Consectetur velit ad est reprehenderit non pariatur do consequat reprehenderit pariatur eiusmod duis reprehenderit eiusmod aliqua. Non aute excepteur nisi laboris reprehenderit velit minim nulla veniam laboris nostrud cillum. Sit adipisicing laboris Lorem sunt officia fugiat.',
+  'Enim labore officia aute eu. Adipisicing officia veniam minim mollit. Consectetur qui duis minim et. Laboris ad sit laboris cillum. Incididunt in in qui officia. Exercitation dolore ad occaecat nulla. Quis cillum laborum minim amet.',
+  'Exercitation ex non ad ex. Tempor dolore ad id laborum. Exercitation non minim laborum. Ullamco cillum et sit. Elit laboris est non in. Quis duis laborum minim. Aliquip laborum laborum laborum.',
+  'Consectetur est laborum ut. Exercitation sit ad non. Adipisicing irure in laborum. Exercitation laborum laborum ad. Aute labore do in. Exercitation dolor ad laborum. Consectetur in non laborum.',
+];
 
 const getRandomFakeContent = () => {
+  const fakeTextContent = pickRandom(fakeStrings);
+
   // randomly add an image
   if (Math.random() < 0.2) {
     return createImageContent(
@@ -582,8 +631,12 @@ const getRandomFakeContent = () => {
     return createCodeContent('console.log("hello world");');
   }
 
-  const keys = Object.keys(fakeContent);
-  return fakeContent[keys[Math.floor(Math.random() * keys.length)]];
+  // randomly add a mention
+  if (Math.random() < 0.2) {
+    return createContentWithMention(fakeTextContent, randomContactId());
+  }
+
+  return createSimpleContent(fakeTextContent);
 };
 
 const getRandomFakeContact = () => {
@@ -591,7 +644,7 @@ const getRandomFakeContact = () => {
   return initialContacts[Math.floor(Math.random() * keys.length)];
 };
 
-export const createFakePost = (): db.Post => {
+export const createFakePost = (content?: string): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
   const id = Math.random().toString(36).substring(7);
@@ -600,13 +653,16 @@ export const createFakePost = (): db.Post => {
     new Date().getTime() - Math.floor(Math.random() * 10000000)
   ).getTime();
 
-  const content = getRandomFakeContent() as unknown as string;
+  const fakeRandomContent = getRandomFakeContent() as unknown as string;
+  const contentOrFake = content ?? fakeRandomContent;
+
+  const textContent = getTextContent(JSON.parse(contentOrFake)) ?? null;
 
   return {
     id: `${ship}-${id}`,
     authorId: ship,
     author: fakeContact,
-    content,
+    content: contentOrFake,
     sentAt: randomSentAtSameDay,
     ...createFakeReplyMeta(),
     type: 'chat',
@@ -617,7 +673,7 @@ export const createFakePost = (): db.Post => {
     image: null,
     parentId: null,
     receivedAt: randomSentAtSameDay,
-    textContent: getTextContent(JSON.parse(content)) ?? null,
+    textContent,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
