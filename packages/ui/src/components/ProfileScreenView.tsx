@@ -1,9 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { PropsWithChildren } from 'react';
 import { Dimensions, ImageBackground } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, XStack, getTokens } from 'tamagui';
 
-import { useContact } from '../contexts';
+import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
@@ -14,12 +15,24 @@ interface Props {
   currentUserId: string;
 }
 
-export function ProfileScreenView(props: Props) {
+export function ProfileScreenView({
+  contacts,
+  ...rest
+}: Props & { contacts: db.Contact[] }) {
+  return (
+    <ContactsProvider contacts={contacts ?? []}>
+      <Wrapped {...rest} />
+    </ContactsProvider>
+  );
+}
+
+export function Wrapped(props: Props) {
+  const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
 
   return (
     <ScrollView>
-      <YStack flex={1} paddingHorizontal="$xl">
+      <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
         <View marginTop="$l">
           {contact ? (
             <ProfileDisplayWidget
@@ -132,7 +145,11 @@ function ProfileAction({
 }) {
   return (
     <ListItem onPress={onPress}>
-      <ListItem.Icon icon={icon} />
+      <ListItem.Icon
+        icon={icon}
+        backgroundColor="$secondaryBackground"
+        rounded
+      />
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
       </ListItem.MainContent>

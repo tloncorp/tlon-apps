@@ -1,6 +1,6 @@
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import * as store from '@tloncorp/shared/dist/store';
-import { ContactsProvider, ProfileScreenView, View } from '@tloncorp/ui/src';
+import { ProfileScreenView, View } from '@tloncorp/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
@@ -13,12 +13,11 @@ export default function ProfileScreen(props: Props) {
   const { data: contacts } = store.useContacts();
 
   return (
-    <ContactsProvider contacts={contacts ?? []}>
-      <View backgroundColor="$background" flex={1}>
-        <SafeAreaView style={{ flex: 1 }}>
-          <ProfileScreenView currentUserId={currentUserId} />
-        </SafeAreaView>
-      </View>
-    </ContactsProvider>
+    <View backgroundColor="$background" flex={1}>
+      <ProfileScreenView
+        contacts={contacts ?? []}
+        currentUserId={currentUserId}
+      />
+    </View>
   );
 }
