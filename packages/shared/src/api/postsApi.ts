@@ -95,7 +95,7 @@ export const sendPost = async ({
   sentAt: number;
   content: Story;
 }) => {
-  if (isDmChannelId(channelId)) {
+  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     const delta: WritDeltaAdd = {
       add: {
         memo: {
