@@ -16,12 +16,51 @@ export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
+export function isValidUrl(str?: string): boolean {
+  return str ? !!URL_REGEX.test(str) : false;
+}
+
+export async function jsonFetch<T>(
+  info: RequestInfo,
+  init?: RequestInit
+): Promise<T> {
+  const res = await fetch(info, init);
+  if (!res.ok) {
+    throw new Error('Bad Fetch Response');
+  }
+  const data = await res.json();
+  return data as T;
+}
+
+const isFacebookGraphDependent = (url: string) => {
+  const caseDesensitizedURL = url.toLowerCase();
+  return (
+    caseDesensitizedURL.includes('facebook.com') ||
+    caseDesensitizedURL.includes('instagram.com')
+  );
+};
+
+export const validOembedCheck = (embed: any, url: string) => {
+  if (!isFacebookGraphDependent(url)) {
+    if (embed?.html) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export function isImageUrl(url: string) {
   return IMAGE_URL_REGEX.test(url);
 }
 
 export function makePrettyTime(date: Date) {
   return format(date, 'HH:mm');
+}
+
+export function makePrettyTimeFromMs(ms: number) {
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 export function makePrettyDay(date: Date) {
