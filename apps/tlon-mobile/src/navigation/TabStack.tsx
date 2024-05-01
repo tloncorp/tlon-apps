@@ -6,6 +6,7 @@ import { Avatar } from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
+import ProfileScreen from '../screens/ProfileScreen';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 
@@ -83,7 +84,7 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Profile"
-        component={View}
+        component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
             <AvatarTabIcon id={currentUserId!} focused={focused} />
