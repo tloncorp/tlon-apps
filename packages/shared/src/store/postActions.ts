@@ -31,12 +31,14 @@ export async function sendPost({
 
 export async function sendReply({
   parentId,
+  parentAuthor,
   authorId,
   content,
   channel,
 }: {
   channel: db.Channel;
   parentId: string;
+  parentAuthor: string;
   authorId: string;
   content: urbit.Story;
 }) {
@@ -53,6 +55,7 @@ export async function sendReply({
     api.sendReply({
       channelId: channel.id,
       parentId,
+      parentAuthor,
       authorId,
       content,
       sentAt: cachePost.sentAt,

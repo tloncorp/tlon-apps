@@ -136,6 +136,7 @@ export const sendPost = async ({
 export const sendReply = async ({
   channelId,
   parentId,
+  parentAuthor,
   content,
   sentAt,
   authorId,
@@ -143,10 +144,12 @@ export const sendReply = async ({
   authorId: string;
   channelId: string;
   parentId: string;
+  parentAuthor: string;
   content: Story;
   sentAt: number;
 }) => {
-  if (isDmChannelId(channelId)) {
+  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+    console.log(`sending dm reply`);
     // handle DM case
     const delta: ub.ReplyDelta = {
       reply: {
@@ -165,8 +168,9 @@ export const sendReply = async ({
       },
     };
 
-    const action = chatAction(channelId, parentId, delta);
+    const action = chatAction(channelId, `${parentAuthor}/${parentId}`, delta);
     await poke(action);
+    return;
   }
 
   const postAction: ub.PostAction = {
@@ -185,38 +189,6 @@ export const sendReply = async ({
   const action = channelPostAction(channelId, postAction);
   await poke(action);
 };
-
-// export interface DmAction {
-//   ship: string;
-//   diff: WritDiff;
-// }
-
-// export type WritDelta =
-//   | WritDeltaAdd
-//   | WritDeltaDel
-//   | WritDeltaAddReact
-//   | WritDeltaDelReact
-//   | ReplyDelta;
-
-// export interface WritDiff {
-//   id: string;
-//   delta: WritDelta;
-// }
-
-// interface WritDeltaAddReact {
-//   'add-react': {
-//     react: string;
-//     ship: string;
-//   };
-// }
-
-// nest: `chat/${whom}`,
-// postId: replying,
-// memo: {
-//   ...memo,
-//   content,
-// },
-// cacheId,
 
 export const getChannelPosts = async ({
   channelId,
@@ -538,6 +510,13 @@ export function buildCachePost({
   console.log(`BL: creating cache post [${sentAt}]`);
   const [postContent, postFlags] = toPostContent(content);
 
+  // TODO: punt on DM delivery status until we have a single subscription
+  // to lean on
+  const deliveryStatus =
+    isDmChannelId(channel.id) || isGroupDmChannelId(channel.id)
+      ? null
+      : 'pending';
+
   return {
     id,
     authorId,
@@ -557,7 +536,7 @@ export function buildCachePost({
     replyCount: 0,
     hidden: false,
     parentId,
-    deliveryStatus: 'pending',
+    deliveryStatus,
     ...postFlags,
   };
 }
@@ -601,13 +580,13 @@ export function toPostReplyData(
   reply: ub.Reply
 ): db.Post {
   const [content, flags] = toPostContent(reply.memo.content);
-  const id = reply.seal.id;
+  const id = getCanonicalPostId(reply.seal.id);
   return {
     id,
     channelId,
     type: 'reply',
     authorId: reply.memo.author,
-    parentId: postId,
+    parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),
     textContent: getTextContent(reply.memo.content),

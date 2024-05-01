@@ -2,7 +2,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
-import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   handleImagePicked,
@@ -11,7 +10,7 @@ import {
   useUploader,
 } from '@tloncorp/shared/dist/store';
 import type { Story } from '@tloncorp/shared/dist/urbit';
-import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
+import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui/src';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -50,7 +49,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   });
   const selectedPost = props.route.params.selectedPost;
   const hasSelectedPost = !!selectedPost;
-
   const {
     data: postsData,
     fetchNextPage,
@@ -68,7 +66,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
       : {
           direction: 'older',
-          date: new Date(),
+          // date: new Date(),
         }),
     count: 50,
   });
@@ -95,14 +93,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!currentUserId || !channel) {
         return;
       }
-
-      // const post = logic.buildCachePost({
-      //   content,
-      //   channel,
-      //   authorId: currentUserId,
-      // });
       store.sendPost({ channel, authorId: currentUserId, content });
-      // console.log(`sending post`, post);
       resetImageAttachment();
     },
     [currentUserId, channel, resetImageAttachment]

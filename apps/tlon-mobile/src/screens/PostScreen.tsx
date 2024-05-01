@@ -32,6 +32,7 @@ export default function PostScreen(props: PostScreenProps) {
       content,
       channel: channel!,
       parentId: post!.id,
+      parentAuthor: post!.authorId,
     });
   };
 

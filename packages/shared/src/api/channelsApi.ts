@@ -32,17 +32,6 @@ export const subscribeToChannelsUpdates = async (
   );
 };
 
-export const subscribeToDmsUpdates = async (
-  eventHandler: (update: ChannelsUpdate) => void
-) => {
-  subscribe(
-    { app: 'channels', path: '/dm-v1' },
-    (rawEvent: ub.ChannelsSubscribeResponse) => {
-      eventHandler(toChannelsUpdate(rawEvent));
-    }
-  );
-};
-
 export const toChannelsUpdate = (
   channelEvent: ub.ChannelsSubscribeResponse
 ): ChannelsUpdate => {

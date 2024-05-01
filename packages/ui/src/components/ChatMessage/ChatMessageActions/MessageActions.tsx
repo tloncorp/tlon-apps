@@ -21,7 +21,7 @@ export default function MessageActions({
   const postActions = useMemo(() => {
     return getPostActions(post, channelType).filter((action) => {
       // if undelivered or already in a thread, don't show reply
-      if ((action.id === 'reply' && post.deliveryStatus) || post.parentId) {
+      if (action.id === 'reply' && (post.deliveryStatus || post.parentId)) {
         return false;
       }
       return true;
