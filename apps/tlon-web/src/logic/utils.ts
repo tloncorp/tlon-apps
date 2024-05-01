@@ -35,6 +35,7 @@ import {
   unixToDa,
 } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
+import { Atom, Noun, cue } from '@urbit/nockjs';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
@@ -364,7 +365,7 @@ export function preSig(ship: string): string {
 }
 
 export function newUv(seed = Date.now()) {
-  return formatUv(unixToDa(seed));
+  return formatUv(unixToDa(seed).toString());
 }
 
 export function getSectTitle(cabals: Cabals, sect: string) {
@@ -1295,4 +1296,13 @@ export function cacheIdFromString(str: string): CacheId {
     author,
     sent: parseInt(udToDec(sentStr), 10),
   };
+}
+
+export async function unpackJamBytes(buf: ArrayBufferLike) {
+  const hex = [...new Uint8Array(buf)]
+    .reverse() //  endianness shenanigans
+    .map((x) => x.toString(16).padStart(2, '0'))
+    .join('');
+
+  return cue(Atom.fromString(hex, 16));
 }

@@ -13,7 +13,12 @@ import _ from 'lodash';
 
 import { useLocalState } from '@/state/local';
 
-import { actionDrill, isHosted, parseKind } from './logic/utils';
+import {
+  actionDrill,
+  isHosted,
+  parseKind,
+  unpackJamBytes,
+} from './logic/utils';
 import { useEyreState } from './state/eyre';
 import useSchedulerStore from './state/scheduler';
 
@@ -192,6 +197,28 @@ class API {
     return this.withClient((client) => {
       useLocalState.getState().log(`scry ${params.app} ${params.path}`);
       return client.scry<T>(params);
+    });
+  }
+
+  async scryNoun(params: Scry) {
+    return this.withClient(async (client) => {
+      useLocalState.getState().log(`scry ${params.app} ${params.path}`);
+      const response = await fetch(
+        `${client.url}/~/scry/${params.app}${params.path}.noun`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to scry ${params.app}${params.path}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const unpacked = unpackJamBytes(buffer);
+
+      return unpacked;
     });
   }
 
