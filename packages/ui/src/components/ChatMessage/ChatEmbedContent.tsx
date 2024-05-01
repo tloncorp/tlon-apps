@@ -37,6 +37,13 @@ export default function ChatEmbedContent({
   const embed = useEmbed(url);
   const isOembed = isTrusted && validOembedCheck(embed, url);
   const calm = useCalm();
+  const openLink = async () => {
+    const supported = await Linking.canOpenURL(url);
+
+    if (supported) {
+      await Linking.openURL(url);
+    }
+  };
 
   if (!calm.disableRemoteContent) {
     if (isVideo) {
@@ -47,7 +54,7 @@ export default function ChatEmbedContent({
       return <AudioEmbed url={url} />;
     }
 
-    if (isTrusted && isOembed) {
+    if (isOembed) {
       return <OutsideEmbed url={url} />;
     }
   }
@@ -61,7 +68,7 @@ export default function ChatEmbedContent({
   }
 
   return (
-    <Text textDecorationLine="underline" onPress={() => Linking.openURL(url)}>
+    <Text textDecorationLine="underline" onPress={openLink}>
       <InlineContent story={content} />
     </Text>
   );

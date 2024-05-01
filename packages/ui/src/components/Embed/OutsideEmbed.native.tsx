@@ -90,7 +90,7 @@ const TwitterEmbed = ({
         onDismiss={() => setShowModal(false)}
         onPress={openLink}
         height="auto"
-        width={300}
+        width={250}
       >
         <YStack gap="$s">
           <YStack

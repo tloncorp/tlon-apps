@@ -22,19 +22,16 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     maxwidth: isMobile ? '320' : '600',
     url,
   });
-  let embed;
   const isSpotify = url.startsWith('https://open.spotify.com');
   if (isSpotify) {
     // noembed doesn't support spotify
     const urlWithoutTracker = url?.split('?')[0];
-    embed = await jsonFetch(
+    return jsonFetch(
       `https://open.spotify.com/oembed?url=${urlWithoutTracker}`
     );
-    return embed;
   }
 
-  embed = await jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
-  return embed;
+  return jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
 }
 
 export function useEmbed(url: string, isMobile?: boolean) {
