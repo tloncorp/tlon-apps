@@ -47,7 +47,7 @@ exports[`single post responses 1`] = `
       "sentAt": 1681771617715,
       "textContent": "when you say "it's always sent," do you mean we can't actually differentiate between pending (host offline) and sent?",
       "title": "",
-      "type": "testChannelId",
+      "type": "chat",
     },
     {
       "authorId": "~fabled-faster",
@@ -92,7 +92,7 @@ exports[`single post responses 1`] = `
       "sentAt": 1700583957054,
       "textContent": "it certainly makes for a more focused navigation scheme, but when you have 1:1 dms co-located with groups with 100s of people, we'd need to do more work making this entry point more useful",
       "title": "",
-      "type": "testChannelId",
+      "type": "chat",
     },
     {
       "authorId": "~roslet-tanner",
@@ -178,7 +178,7 @@ exports[`single post responses 1`] = `
       "sentAt": 1713197231581,
       "textContent": "I’m a little under the weather, going to be afk this morning",
       "title": "",
-      "type": "testChannelId",
+      "type": "chat",
     },
   ],
 }
