@@ -149,8 +149,6 @@ export const sendReply = async ({
   sentAt: number;
 }) => {
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
-    console.log(`sending dm reply`);
-    // handle DM case
     const delta: ub.ReplyDelta = {
       reply: {
         id: `${authorId}/${formatUd(unixToDa(sentAt).toString())}`,
@@ -507,7 +505,6 @@ export function buildCachePost({
 }): db.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(unixToDa(sentAt).toString());
-  console.log(`BL: creating cache post [${sentAt}]`);
   const [postContent, postFlags] = toPostContent(content);
 
   // TODO: punt on DM delivery status until we have a single subscription
