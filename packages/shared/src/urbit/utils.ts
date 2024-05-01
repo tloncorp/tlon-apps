@@ -32,6 +32,14 @@ export function preSig(ship: string): string {
   return '~'.concat(ship.trim());
 }
 
+export function desig(ship: string): string {
+  if (!ship) {
+    return '';
+  }
+
+  return ship.trim().replace('~', '');
+}
+
 export function getFirstInline(content: ub.Story) {
   const inlines = content.filter((v) => 'inline' in v) as ub.VerseInline[];
   if (inlines.length === 0) {

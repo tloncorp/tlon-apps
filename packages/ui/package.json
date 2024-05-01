@@ -13,6 +13,7 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
     "lint:format": "prettier src/ --write",
+    "test": "vitest",
     "tsc": "tsc --noEmit"
   },
   "lint-staged": {
@@ -40,6 +41,7 @@
     "react-native-reanimated": "^3.8.1",
     "react-native-safe-area-context": "^4.9.0",
     "react-native-svg": "^15.0.0",
+    "react-tweet": "^3.0.4",
     "tamagui": "1.93.2"
   },
   "peerDependencies": {

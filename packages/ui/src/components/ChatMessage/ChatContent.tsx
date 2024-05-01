@@ -24,7 +24,6 @@ import {
 import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import {
   ImageLoadEventData,
-  Linking,
   NativeSyntheticEvent,
   TouchableOpacity,
 } from 'react-native';
@@ -34,7 +33,7 @@ import { Button } from '../Button';
 import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
 import { Icon } from '../Icon';
-import Video from '../Video';
+import ChatEmbedContent from './ChatEmbedContent';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
@@ -47,7 +46,7 @@ function ShipMention({ ship }: { ship: string }) {
       borderRadius="$s"
     >
       <Text color="$positiveActionText" fontSize="$m">
-        <ContactName name={ship} showAlias />
+        <ContactName userId={ship} showAlias />
       </Text>
     </Button>
   );
@@ -142,23 +141,8 @@ export function InlineContent({ story }: { story: Inline | null }) {
   }
 
   if (isLink(story)) {
-    const supported = Linking.canOpenURL(story.link.href);
-
-    if (!supported) {
-      return (
-        <Text textDecorationLine="underline">
-          <InlineContent story={story.link.content} />
-        </Text>
-      );
-    }
-
     return (
-      <Text
-        textDecorationLine="underline"
-        onPress={() => Linking.openURL(story.link.href)}
-      >
-        <InlineContent story={story.link.content} />
-      </Text>
+      <ChatEmbedContent url={story.link.href} content={story.link.content} />
     );
   }
 
@@ -185,8 +169,6 @@ export function BlockContent({
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
-  // TODO add support for other embeds and refs
-
   const [aspect, setAspect] = useState<number | null>(null);
 
   const handleImageLoaded = useCallback(
@@ -201,7 +183,9 @@ export function BlockContent({
     const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
 
     if (isVideoFile) {
-      return <Video block={story} />;
+      return (
+        <ChatEmbedContent url={story.image.src} content={story.image.src} />
+      );
     }
 
     return (
