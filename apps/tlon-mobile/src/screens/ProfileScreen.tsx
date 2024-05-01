@@ -1,7 +1,6 @@
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { TabParamList } from '../types';
