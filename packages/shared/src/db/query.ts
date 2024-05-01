@@ -69,7 +69,7 @@ export const createQuery = <Args extends any[], T>(
         typeof meta.tableEffects === 'function'
           ? meta.tableEffects(...args)
           : meta.tableEffects;
-      logger.log(meta.label ?? '' + ':invalidating', ...effects);
+      logger.log((meta.label ?? '') + ':invalidating', ...effects);
       queryClient.invalidateQueries({
         predicate: (query) => {
           const tableKey = query.queryKey[1];

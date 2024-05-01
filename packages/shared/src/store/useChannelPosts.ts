@@ -16,10 +16,11 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
   }, []);
   return useInfiniteQuery({
     initialPageParam: options,
+    refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log(
-        'start',
+        'loading posts',
         queryOptions.channelId,
         queryOptions.cursor,
         queryOptions.direction,
@@ -43,8 +44,26 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       return secondResult ?? [];
     },
     queryKey: [['channel', options.channelId]],
-    getNextPageParam: (lastPage): db.GetChannelPostsOptions | undefined => {
-      if (!lastPage[lastPage.length - 1]?.id) return undefined;
+    getNextPageParam: (
+      lastPage,
+      allPages,
+      lastPageParam
+    ): db.GetChannelPostsOptions | undefined => {
+      if (!lastPage[lastPage.length - 1]?.id) {
+        // If we've only tried to get newer posts + that's failed, try using the
+        // same cursor to get older posts instead. This can happen when the
+        // first cached page is empty.
+        if (lastPageParam?.direction === 'newer') {
+          return {
+            ...options,
+            direction: 'older',
+            cursor: lastPageParam.cursor,
+            date: undefined,
+          };
+        } else {
+          return undefined;
+        }
+      }
       return {
         ...options,
         direction: 'older',
