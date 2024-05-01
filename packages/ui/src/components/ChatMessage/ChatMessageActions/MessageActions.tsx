@@ -21,7 +21,10 @@ export default function MessageActions({
   const postActions = useMemo(() => {
     return getPostActions(post, channelType).filter((action) => {
       // if undelivered or already in a thread, don't show reply
-      if (action.id === 'reply' && (post.deliveryStatus || post.parentId)) {
+      if (
+        action.id === 'startThread' &&
+        (post.deliveryStatus || post.parentId)
+      ) {
         return false;
       }
       return true;
@@ -110,7 +113,7 @@ async function handleAction({
   onReply?: (post: db.Post) => void;
 }) {
   switch (id) {
-    case 'reply':
+    case 'startThread':
       // give the actions time to fade out before navigating
       setTimeout(() => onReply?.(post), 50);
       break;

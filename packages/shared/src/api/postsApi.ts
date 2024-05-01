@@ -341,8 +341,8 @@ export const getPostWithReplies = async ({
   authorId: string;
 }) => {
   if (
-    (!authorId && isDmChannelId(channelId)) ||
-    isGroupDmChannelId(channelId)
+    !authorId &&
+    (isDmChannelId(channelId) || isGroupDmChannelId(channelId))
   ) {
     throw new Error(
       'author id is required to fetch posts for a dm or group dm'
