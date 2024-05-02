@@ -12,7 +12,7 @@ export function ChatMessageDeliveryStatus({
       ? 'Failed'
       : status === 'pending'
         ? 'Pending...'
-        : 'Sent';
+        : 'Sent...';
   return (
     <SizableText
       color={status === 'failed' ? '$negativeActionText' : '$secondaryText'}
