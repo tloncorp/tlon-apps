@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { Dimensions } from 'react-native';
 
 import { View } from '../../../core';
+import AuthorRow from '../AuthorRow';
 import ChatMessage from '../ChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
@@ -24,6 +25,12 @@ export function MessageContainer({
       padding="$l"
       borderRadius="$l"
     >
+      <AuthorRow
+        author={post.author}
+        authorId={post.authorId}
+        sent={post.sentAt ?? 0}
+        // roles={roles}
+      />
       <ChatMessage post={post} currentUserId={currentUserId} />
     </View>
   );

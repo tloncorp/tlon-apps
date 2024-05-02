@@ -1,10 +1,10 @@
-import { decToUd } from '@urbit/api';
+import { decToUd, unixToDa } from '@urbit/api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { toPostData, toPostReplyData } from './postsApi';
+import { getCanonicalPostId, toPostData, toPostReplyData } from './postsApi';
 import { scry, subscribe } from './urbit';
 
 const logger = createDevLogger('channelsSub', true);
@@ -19,7 +19,8 @@ export const getUnreadChannels = async () => {
 
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
 export type UnknownUpdate = { type: 'unknown' };
-export type ChannelsUpdate = AddPostUpdate | UnknownUpdate;
+export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
+export type ChannelsUpdate = AddPostUpdate | UnknownUpdate | PendingUpdate;
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -68,6 +69,15 @@ export const toChannelsUpdate = (
         post: toPostReplyData(channelId, postId, replyResponse.set),
       };
     }
+  }
+
+  // pending messages (on ship, not on group)
+  if ('response' in channelEvent && 'pending' in channelEvent.response) {
+    const cacheId = channelEvent.response.pending.id;
+    return {
+      type: 'markPostSent',
+      cacheId: getCanonicalPostId(unixToDa(cacheId.sent).toString()),
+    };
   }
 
   logger.log(`unknown event`);
