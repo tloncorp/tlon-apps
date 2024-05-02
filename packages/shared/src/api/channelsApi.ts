@@ -7,7 +7,7 @@ import { stringToTa } from '../urbit/utils';
 import { getCanonicalPostId, toPostData, toPostReplyData } from './postsApi';
 import { scry, subscribe } from './urbit';
 
-const logger = createDevLogger('channelsSub', true);
+const logger = createDevLogger('channelsSub', false);
 
 export const getUnreadChannels = async () => {
   const response = await scry<ub.Unreads>({
