@@ -15,6 +15,7 @@ import {
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
+import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
 import { Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
@@ -91,61 +92,67 @@ export function Channel({
             useApp={() => null}
           >
             <NavigationProvider onPressRef={onPressRef}>
-              <YStack justifyContent="space-between" width="100%" height="100%">
-                <ChannelHeader
-                  title={title}
-                  goBack={goBack}
-                  goToChannels={goToChannels}
-                  goToSearch={goToSearch}
-                  showPickerButton={!!group}
-                  showSpinner={isLoadingPosts}
-                />
-                <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{ flex: 1 }}
+              <ReferencesProvider>
+                <YStack
+                  justifyContent="space-between"
+                  width="100%"
+                  height="100%"
                 >
-                  <YStack flex={1}>
-                    {imageAttachment ? (
-                      <UploadedImagePreview
-                        imageAttachment={imageAttachment}
-                        resetImageAttachment={resetImageAttachment}
+                  <ChannelHeader
+                    title={title}
+                    goBack={goBack}
+                    goToChannels={goToChannels}
+                    goToSearch={goToSearch}
+                    showPickerButton={!!group}
+                    showSpinner={isLoadingPosts}
+                  />
+                  <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ flex: 1 }}
+                  >
+                    <YStack flex={1}>
+                      {imageAttachment ? (
+                        <UploadedImagePreview
+                          imageAttachment={imageAttachment}
+                          resetImageAttachment={resetImageAttachment}
+                        />
+                      ) : !posts || !contacts ? (
+                        <View
+                          flex={1}
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Spinner />
+                        </View>
+                      ) : (
+                        <ChatScroll
+                          currentUserId={currentUserId}
+                          unreadCount={channel.unreadCount ?? undefined}
+                          selectedPost={selectedPost}
+                          firstUnread={channel.firstUnreadPostId ?? undefined}
+                          posts={posts}
+                          channelType={channel.type}
+                          onPressReplies={goToPost}
+                          onPressImage={goToImageViewer}
+                          setInputShouldBlur={setInputShouldBlur}
+                          onEndReached={onScrollEndReached}
+                          onStartReached={onScrollStartReached}
+                        />
+                      )}
+                      <MessageInput
+                        shouldBlur={inputShouldBlur}
+                        setShouldBlur={setInputShouldBlur}
+                        send={messageSender}
+                        channelId={channel.id}
+                        setImageAttachment={setImageAttachment}
+                        uploadedImage={uploadedImage}
+                        canUpload={canUpload}
                       />
-                    ) : !posts || !contacts ? (
-                      <View
-                        flex={1}
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Spinner />
-                      </View>
-                    ) : (
-                      <ChatScroll
-                        currentUserId={currentUserId}
-                        unreadCount={channel.unreadCount ?? undefined}
-                        selectedPost={selectedPost}
-                        firstUnread={channel.firstUnreadPostId ?? undefined}
-                        posts={posts}
-                        channelType={channel.type}
-                        onPressReplies={goToPost}
-                        onPressImage={goToImageViewer}
-                        setInputShouldBlur={setInputShouldBlur}
-                        onEndReached={onScrollEndReached}
-                        onStartReached={onScrollStartReached}
-                      />
-                    )}
-                    <MessageInput
-                      shouldBlur={inputShouldBlur}
-                      setShouldBlur={setInputShouldBlur}
-                      send={messageSender}
-                      channelId={channel.id}
-                      setImageAttachment={setImageAttachment}
-                      uploadedImage={uploadedImage}
-                      canUpload={canUpload}
-                    />
-                  </YStack>
-                </KeyboardAvoidingView>
-              </YStack>
+                    </YStack>
+                  </KeyboardAvoidingView>
+                </YStack>
+              </ReferencesProvider>
             </NavigationProvider>
           </RequestsProvider>
         </ContactsProvider>

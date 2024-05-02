@@ -2,6 +2,7 @@ import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 
+import { useReferences } from '../../contexts/references';
 import { View, XStack, YStack } from '../../core';
 import { Avatar } from '../Avatar';
 import ChatContent from '../ChatMessage/ChatContent';
@@ -14,17 +15,22 @@ export default function ChatReference({
   post,
   content,
   onPress,
+  asAttachment = false,
 }: {
   channel: db.Channel;
   post: db.Post;
   content: PostContent;
   onPress: (channel: db.Channel, post: db.Post) => void;
+  asAttachment?: boolean;
 }) {
   const navigateToChannel = useCallback(() => {
+    if (asAttachment) {
+      return;
+    }
     if (channel && post) {
       onPress(channel, post);
     }
-  }, [channel, onPress, post]);
+  }, [channel, onPress, post, asAttachment]);
 
   if (!post) {
     return null;
@@ -33,11 +39,12 @@ export default function ChatReference({
   return (
     <Pressable onPress={() => navigateToChannel()}>
       <YStack
-        borderRadius="$s"
+        borderRadius={asAttachment ? undefined : '$s'}
         padding={0}
         marginBottom="$s"
         borderColor="$border"
         borderWidth={1}
+        width={asAttachment ? '100%' : undefined}
       >
         <XStack
           alignItems="center"
@@ -45,6 +52,7 @@ export default function ChatReference({
           justifyContent="space-between"
           borderBottomColor="$border"
           borderBottomWidth={1}
+          width={asAttachment ? '100%' : undefined}
         >
           <XStack>
             <Avatar
@@ -59,7 +67,11 @@ export default function ChatReference({
               showAlias
             />
           </XStack>
-          <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
+          {asAttachment ? (
+            <View />
+          ) : (
+            <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
+          )}
         </XStack>
         <View padding="$l">
           <ChatContent story={content} />

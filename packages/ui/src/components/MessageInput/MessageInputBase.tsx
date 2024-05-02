@@ -1,9 +1,14 @@
-import { Upload } from '@tloncorp/shared/dist/api';
+import {
+  ContentReference as ContentReferenceType,
+  Upload,
+} from '@tloncorp/shared/dist/api';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
-import { ArrowUp } from '../../assets/icons';
+import { ArrowUp, Close } from '../../assets/icons';
+import { useReferences } from '../../contexts/references';
 import { View, XStack, YStack } from '../../core';
+import ContentReference from '../ContentReference';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
 
@@ -23,12 +28,15 @@ export const MessageInputContainer = ({
   setImageAttachment,
   uploadedImage,
   canUpload,
+  containerHeight,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   canUpload?: boolean;
+  containerHeight: number;
 }>) => {
+  const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
     () => !!(uploadedImage && uploadedImage.url !== ''),
     [uploadedImage]
@@ -43,7 +51,39 @@ export const MessageInputContainer = ({
   );
 
   return (
-    <YStack>
+    <YStack width="100%">
+      {Object.keys(references).length ? (
+        <YStack
+          gap="$s"
+          width="100%"
+          position="absolute"
+          bottom={containerHeight + 4}
+          zIndex={10}
+          backgroundColor="$background"
+        >
+          {Object.keys(references).map((ref) =>
+            references[ref] !== null ? (
+              <XStack position="relative" key={ref} width="100%" height="auto">
+                <ContentReference
+                  asAttachment
+                  reference={references[ref]!}
+                  key={ref}
+                />
+                <View position="absolute" top={8} right={8}>
+                  <IconButton
+                    onPress={() => {
+                      setReferences({ ...references, [ref]: null });
+                    }}
+                    color="$secondaryText"
+                  >
+                    <Close />
+                  </IconButton>
+                </View>
+              </XStack>
+            ) : null
+          )}
+        </YStack>
+      ) : null}
       <XStack
         paddingHorizontal="$m"
         paddingVertical="$s"

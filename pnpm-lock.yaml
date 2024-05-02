@@ -901,6 +901,9 @@ importers:
       '@tiptap/react':
         specifier: ^2.0.3
         version: 2.0.3(patch_hash=tt2duu22fpwhmhaws3iaoig4mu)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@tloncorp/shared':
+        specifier: workspace:*
+        version: link:../shared
       react:
         specifier: ^18.2.0
         version: 18.2.0
