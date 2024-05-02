@@ -2,7 +2,6 @@ import { sync, useStorage } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
-import { LogBox } from 'react-native';
 
 import { useShip } from '../contexts/ship';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
