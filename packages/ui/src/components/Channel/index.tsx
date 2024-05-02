@@ -82,6 +82,10 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
+  const isChat = useMemo(
+    () => ['chat', 'dm', 'groupDm'].includes(channel.type),
+    [channel.type]
+  );
 
   return (
     <CalmProvider initialCalm={calmSettings}>
@@ -122,7 +126,7 @@ export function Channel({
                       >
                         <Spinner />
                       </View>
-                    ) : channel.type === 'chat' ? (
+                    ) : isChat ? (
                       <ChatScroll
                         currentUserId={currentUserId}
                         unreadCount={channel.unread?.count ?? undefined}
@@ -153,7 +157,7 @@ export function Channel({
                         onStartReached={onScrollStartReached}
                       />
                     ) : null}
-                    {channel.type === 'chat' && (
+                    {isChat && (
                       <MessageInput
                         shouldBlur={inputShouldBlur}
                         setShouldBlur={setInputShouldBlur}
