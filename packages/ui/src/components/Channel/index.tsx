@@ -127,9 +127,11 @@ export function Channel({
                     ) : (
                       <ChatScroll
                         currentUserId={currentUserId}
-                        unreadCount={channel.unreadCount ?? undefined}
+                        unreadCount={channel.unread?.count ?? undefined}
                         selectedPost={selectedPost}
-                        firstUnread={channel.firstUnreadPostId ?? undefined}
+                        firstUnread={
+                          channel.unread?.firstUnreadPostId ?? undefined
+                        }
                         posts={posts}
                         channelType={channel.type}
                         onPressReplies={goToPost}

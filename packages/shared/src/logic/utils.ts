@@ -1,4 +1,9 @@
-import { differenceInDays, endOfToday, format } from 'date-fns';
+import {
+  differenceInCalendarDays,
+  differenceInDays,
+  endOfToday,
+  format,
+} from 'date-fns';
 import emojiRegex from 'emoji-regex';
 
 import * as db from '../db';
@@ -184,3 +189,11 @@ export function getPinPartial(channel: db.Channel): {
 
   return { type: 'channel', itemId: channel.id };
 }
+
+export const isSameDay = (a: number, b: number) => {
+  return differenceInCalendarDays(a, b) === 0;
+};
+
+export const isToday = (date: number) => {
+  return isSameDay(date, Date.now());
+};

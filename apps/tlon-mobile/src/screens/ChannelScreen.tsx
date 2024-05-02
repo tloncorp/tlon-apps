@@ -73,10 +73,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     count: 50,
   });
 
-  // console.log(
-  //   `SCREEN pages=${postsQuery.data?.pages.length} ${postsQuery.data?.pages.flatMap((p) => p).length}`
-  // );
-
   const posts = useMemo<db.Post[]>(
     () => postsQuery.data?.pages.flatMap((p) => p) ?? [],
     [postsQuery.data]
