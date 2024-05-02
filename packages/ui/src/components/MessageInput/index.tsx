@@ -19,6 +19,7 @@ export function MessageInput({
     <MessageInputContainer
       setImageAttachment={setImageAttachment}
       canUpload={canUpload}
+      containerHeight={0}
     >
       <TextArea
         flexGrow={1}
