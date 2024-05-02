@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
+import { config as tamaguiConfig } from '../tamagui.config';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { BranchProvider, useBranch } from './contexts/branch';
@@ -193,7 +194,10 @@ export default function ConnectedApp(props: Props) {
   const tailwind = useTailwind();
 
   return (
-    <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+    <TamaguiProvider
+      defaultTheme={isDarkMode ? 'dark' : 'light'}
+      config={tamaguiConfig}
+    >
       <ShipProvider>
         <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
           <BranchProvider>
