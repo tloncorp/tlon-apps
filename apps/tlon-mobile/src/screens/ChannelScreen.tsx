@@ -68,8 +68,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
       : {
           direction: 'older',
-          // TODO: how chill is this?
-          // date: new Date(),
         }),
     count: 50,
   });
