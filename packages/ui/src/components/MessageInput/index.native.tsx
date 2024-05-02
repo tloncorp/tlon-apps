@@ -214,6 +214,7 @@ export function MessageInput({
       await send(story, channelId);
 
       editor.setContent('');
+      setReferences({});
     });
   }, [editor, send, channelId, uploadedImage]);
 
