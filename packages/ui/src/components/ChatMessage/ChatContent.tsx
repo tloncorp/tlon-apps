@@ -21,12 +21,9 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
+import { ImageLoadEventData } from 'expo-image';
 import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
-import {
-  ImageLoadEventData,
-  NativeSyntheticEvent,
-  TouchableOpacity,
-} from 'react-native';
+import { TouchableOpacity } from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
@@ -37,18 +34,16 @@ import ChatEmbedContent from './ChatEmbedContent';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
-    <Button
-      // TODO: implement this once we have a profile screen or sheet
-      // onPress={() => naivigate('Profile', { ship })}
+    <ContactName
+      onPress={() => {}}
       backgroundColor="$positiveBackground"
-      paddingHorizontal="$xs"
-      paddingVertical={0}
       borderRadius="$s"
-    >
-      <Text color="$positiveActionText" fontSize="$m">
-        <ContactName userId={ship} showAlias />
-      </Text>
-    </Button>
+      borderWidth={1}
+      borderColor="$border"
+      color="$positiveActionText"
+      userId={ship}
+      showAlias
+    />
   );
 }
 
@@ -171,13 +166,9 @@ export function BlockContent({
 }) {
   const [aspect, setAspect] = useState<number | null>(null);
 
-  const handleImageLoaded = useCallback(
-    (e: NativeSyntheticEvent<ImageLoadEventData>) => {
-      //@ts-expect-error TODO: figure out why the type is wrong here.
-      setAspect(e.nativeEvent.width / e.nativeEvent.height);
-    },
-    []
-  );
+  const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
+    setAspect(e.source.width / e.source.height);
+  }, []);
 
   if (isImage(story)) {
     const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
@@ -248,7 +239,11 @@ const LineRenderer = memo(
       } else if (typeof inline === 'string') {
         if (utils.isSingleEmoji(inline)) {
           currentLine.push(
-            <Text key={`emoji-${inline}-${index}`} fontSize="$xl">
+            <Text
+              key={`emoji-${inline}-${index}`}
+              fontSize="$xl"
+              flexWrap="wrap"
+            >
               {inline}
             </Text>
           );
@@ -281,6 +276,10 @@ const LineRenderer = memo(
             )}
           </YStack>
         );
+      } else if (isShip(inline)) {
+        currentLine.push(
+          <ShipMention key={`ship-${index}`} ship={inline.ship} />
+        );
       } else {
         currentLine.push(
           <InlineContent key={`inline-${index}`} story={inline} />
@@ -297,16 +296,16 @@ const LineRenderer = memo(
         {inlineElements.map((line, index) => {
           if (line.length === 0) {
             return (
-              <XStack alignItems="center" key={`line-${index}`}>
+              <XStack key={`line-${index}`}>
                 <Text height="$xl">{'\n'}</Text>
               </XStack>
             );
           }
 
           return (
-            <XStack alignItems="center" key={`line-${index}`} flexWrap="wrap">
+            <Text key={`line-${index}`} flexWrap="wrap">
               {line}
-            </XStack>
+            </Text>
           );
         })}
       </>
@@ -378,7 +377,7 @@ export default function ChatContent({
   return (
     <YStack width="100%">
       {referenceLength > 0 ? (
-        <YStack gap="$s">
+        <YStack gap="$s" paddingBottom="$l">
           {storyReferences.map((ref, key) => {
             return <ContentReference key={key} reference={ref} />;
           })}

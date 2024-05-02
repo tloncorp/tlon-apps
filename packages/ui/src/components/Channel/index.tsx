@@ -5,7 +5,7 @@ import {
 import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import {
@@ -23,6 +23,10 @@ import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
 import UploadedImagePreview from './UploadedImagePreview';
+
+//TODO implement usePost and useChannel
+const useGroup = () => {};
+const useApp = () => {};
 
 export function Channel({
   channel,
@@ -80,16 +84,17 @@ export function Channel({
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
+  const groups = useMemo(() => (group ? [group] : null), [group]);
 
   return (
     <CalmProvider initialCalm={calmSettings}>
-      <GroupsProvider groups={group ? [group] : null}>
+      <GroupsProvider groups={groups}>
         <ContactsProvider contacts={contacts ?? null}>
           <RequestsProvider
             usePost={usePost}
             useChannel={useChannel}
-            useGroup={() => null}
-            useApp={() => null}
+            useGroup={useGroup}
+            useApp={useApp}
           >
             <NavigationProvider onPressRef={onPressRef}>
               <ReferencesProvider>
@@ -128,9 +133,11 @@ export function Channel({
                       ) : (
                         <ChatScroll
                           currentUserId={currentUserId}
-                          unreadCount={channel.unreadCount ?? undefined}
+                          unreadCount={channel.unread?.count ?? undefined}
                           selectedPost={selectedPost}
-                          firstUnread={channel.firstUnreadPostId ?? undefined}
+                          firstUnread={
+                            channel.unread?.firstUnreadPostId ?? undefined
+                          }
                           posts={posts}
                           channelType={channel.type}
                           onPressReplies={goToPost}

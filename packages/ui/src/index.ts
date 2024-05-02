@@ -24,6 +24,8 @@ export * from './components/Button';
 export * from './components/ScreenHeader';
 export * from './components/IconButton';
 export * from './components/Channel/ChannelHeader';
+export * from './components/ChatMessage';
+export * from './components/Channel/ChannelDivider';
 export * from './components/Embed';
 export * from './tamagui.config';
 export * from './contexts';

@@ -5,7 +5,7 @@ import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
 
 export const ChatMessageReplySummary = React.memo(
-  ({
+  function ChatMessageReplySummary({
     replyCount,
     replyTime,
     replyContactIds,
@@ -15,7 +15,7 @@ export const ChatMessageReplySummary = React.memo(
     replyTime: number;
     replyContactIds: string[];
     onPress?: () => void;
-  }) => {
+  }) {
     const time = useMemo(() => {
       return formatDistanceToNow(replyTime);
     }, [replyTime]);
@@ -23,7 +23,7 @@ export const ChatMessageReplySummary = React.memo(
     // TODO: Load contacts
 
     return replyCount && replyContactIds && replyTime ? (
-      <XStack gap="$m" paddingLeft="$4xl" onPress={onPress}>
+      <XStack paddingBottom="$l" gap="$m" paddingLeft="$4xl" onPress={onPress}>
         <XStack alignItems="center">
           {replyContactIds?.map((c, i) => (
             <View
