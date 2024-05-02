@@ -2,11 +2,14 @@ import { getSize } from '@tamagui/get-token';
 import * as db from '@tloncorp/shared/dist/db';
 import { Dimensions } from 'react-native';
 
-import { View } from '../../../core';
+import { ScrollView, View } from '../../../core';
+import { NotebookPost } from '../../NotebookPost';
 import AuthorRow from '../AuthorRow';
 import ChatMessage from '../ChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
+const MAX_MESSAGE_TO_SCREEN_RATIO_NOTE = 0.5;
+
 export function MessageContainer({
   post,
   currentUserId,
@@ -16,6 +19,28 @@ export function MessageContainer({
 }) {
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
+
+  if (post.type === 'note') {
+    return (
+      <ScrollView
+        maxHeight={screenHeight * MAX_MESSAGE_TO_SCREEN_RATIO_NOTE}
+        overflow="hidden"
+        backgroundColor="$background"
+        padding="$l"
+        borderRadius="$l"
+      >
+        <NotebookPost
+          showAuthorRow={false}
+          smallImage
+          smallTitle
+          post={post}
+          currentUserId={currentUserId}
+          showReplies={false}
+        />
+      </ScrollView>
+    );
+  }
+
   return (
     <View
       maxHeight={screenHeight * MAX_MESSAGE_TO_SCREEN_RATIO}

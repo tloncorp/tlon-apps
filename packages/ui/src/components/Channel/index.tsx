@@ -21,6 +21,7 @@ import * as utils from '../../utils';
 import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
+import NotesScroll from './NotesScroll';
 import UploadedImagePreview from './UploadedImagePreview';
 
 //TODO implement usePost and useChannel
@@ -47,8 +48,6 @@ export function Channel({
   uploadedImage,
   imageAttachment,
   resetImageAttachment,
-  // TODO: implement gallery and notebook
-  type,
   isLoadingPosts,
   canUpload,
   onPressRef,
@@ -72,7 +71,6 @@ export function Channel({
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   resetImageAttachment: () => void;
-  type?: 'chat' | 'gallery' | 'notebook';
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -124,7 +122,7 @@ export function Channel({
                       >
                         <Spinner />
                       </View>
-                    ) : (
+                    ) : channel.type === 'chat' ? (
                       <ChatScroll
                         currentUserId={currentUserId}
                         unreadCount={channel.unread?.count ?? undefined}
@@ -140,16 +138,32 @@ export function Channel({
                         onEndReached={onScrollEndReached}
                         onStartReached={onScrollStartReached}
                       />
+                    ) : channel.type === 'notebook' ? (
+                      <NotesScroll
+                        currentUserId={currentUserId}
+                        unreadCount={channel.unreadCount ?? undefined}
+                        selectedPost={selectedPost}
+                        firstUnread={channel.firstUnreadPostId ?? undefined}
+                        posts={posts}
+                        channelType={channel.type}
+                        onPressReplies={goToPost}
+                        onPressImage={goToImageViewer}
+                        setInputShouldBlur={setInputShouldBlur}
+                        onEndReached={onScrollEndReached}
+                        onStartReached={onScrollStartReached}
+                      />
+                    ) : null}
+                    {channel.type === 'chat' && (
+                      <MessageInput
+                        shouldBlur={inputShouldBlur}
+                        setShouldBlur={setInputShouldBlur}
+                        send={messageSender}
+                        channelId={channel.id}
+                        setImageAttachment={setImageAttachment}
+                        uploadedImage={uploadedImage}
+                        canUpload={canUpload}
+                      />
                     )}
-                    <MessageInput
-                      shouldBlur={inputShouldBlur}
-                      setShouldBlur={setInputShouldBlur}
-                      send={messageSender}
-                      channelId={channel.id}
-                      setImageAttachment={setImageAttachment}
-                      uploadedImage={uploadedImage}
-                      canUpload={canUpload}
-                    />
                   </YStack>
                 </KeyboardAvoidingView>
               </YStack>

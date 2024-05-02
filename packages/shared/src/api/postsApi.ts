@@ -460,9 +460,27 @@ export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostDataResponse
 ): db.Post {
-  const type = isNotice(post)
-    ? 'notice'
-    : (channelId.split('/')[0] as db.PostType);
+  const getPostType = (
+    channelId: string,
+    post: ub.Post | ub.PostDataResponse
+  ) => {
+    if (isNotice(post)) {
+      return 'notice';
+    }
+
+    const channelType = channelId.split('/')[0];
+
+    if (channelType === 'chat') {
+      return 'chat';
+    } else if (channelType === 'diary') {
+      return 'note';
+    } else if (channelType === 'heap') {
+      return 'block';
+    } else {
+      return 'chat';
+    }
+  };
+  const type = getPostType(channelId, post);
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
