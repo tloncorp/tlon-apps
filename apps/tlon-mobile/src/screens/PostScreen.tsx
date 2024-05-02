@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { PostScreenView } from '@tloncorp/ui/src';
+import { PostScreenView } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
 import { useShip } from '../contexts/ship';
