@@ -31,33 +31,36 @@ export default function ChatReference({
   }
 
   return (
-    <Pressable onPress={() => navigateToChannel()}>
+    <Pressable onPress={navigateToChannel}>
       <YStack
         borderRadius="$s"
-        padding="$s"
         marginBottom="$s"
         borderColor="$border"
         borderWidth={1}
+        backgroundColor={'$secondaryBackground'}
       >
         <XStack
           alignItems="center"
-          paddingBottom="$s"
+          padding="$l"
           justifyContent="space-between"
           borderBottomColor="$border"
           borderBottomWidth={1}
         >
-          <XStack>
+          <XStack alignItems="center" gap="$m">
             <Avatar
               contact={post.author}
               contactId={post.authorId}
-              borderRadius="$s"
-              marginRight="$s"
+              size="$xl"
             />
-            <ContactName color="$tertiaryText" name={post.authorId} showAlias />
+            <ContactName
+              color="$tertiaryText"
+              userId={post.authorId}
+              showAlias
+            />
           </XStack>
           <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
         </XStack>
-        <View>
+        <View padding="$l">
           <ChatContent story={content} />
         </View>
       </YStack>

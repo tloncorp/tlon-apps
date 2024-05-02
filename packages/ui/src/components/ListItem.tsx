@@ -53,6 +53,7 @@ export const ListItemFrame = styled(XStack, {
 function ListItemIcon({
   imageUrl,
   icon,
+  rounded,
   contactId,
   contact,
   backgroundColor,
@@ -63,6 +64,7 @@ function ListItemIcon({
   contactId?: string | null;
   contact?: db.Contact | null;
   backgroundColor?: ColorProp;
+  rounded?: boolean;
   /**
    * Text to display when there's no image set. Should be a single character.
    */
@@ -76,7 +78,13 @@ function ListItemIcon({
       />
     );
   } else if (icon) {
-    return <ListItemTypeIcon icon={icon} backgroundColor={backgroundColor} />;
+    return (
+      <ListItemTypeIcon
+        icon={icon}
+        backgroundColor={backgroundColor}
+        rounded={rounded}
+      />
+    );
   } else if (contactId) {
     return (
       <ListItemAvatarIcon
@@ -107,6 +115,7 @@ const ListItemImageIcon = ({
       <Image
         width={'100%'}
         height={'100%'}
+        contentFit="cover"
         source={{
           uri: imageUrl,
         }}
@@ -152,12 +161,17 @@ const ListItemAvatarIcon = ({
 const ListItemTypeIcon = ({
   icon,
   backgroundColor,
+  rounded,
 }: {
   icon?: IconType;
   backgroundColor?: ColorProp;
+  rounded?: boolean;
 }) => {
   return (
-    <ListItemIconContainer backgroundColor={backgroundColor ?? 'transparent'}>
+    <ListItemIconContainer
+      backgroundColor={backgroundColor ?? 'transparent'}
+      rounded={rounded}
+    >
       <Icon type={icon || 'Channel'} width="$4xl" height="$4xl" />
     </ListItemIconContainer>
   );
@@ -165,15 +179,17 @@ const ListItemTypeIcon = ({
 
 const ListItemIconContainer = ({
   backgroundColor,
+  rounded,
   children,
 }: PropsWithChildren<{
   backgroundColor: ColorProp;
+  rounded?: boolean;
 }>) => {
   return (
     <View
       width="$4xl"
       height="$4xl"
-      borderRadius="$s"
+      borderRadius={rounded ? '$2xl' : '$s'}
       overflow="hidden"
       flex={0}
       // @ts-expect-error user-supplied color

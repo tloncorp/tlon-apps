@@ -2,7 +2,7 @@ import { getSize } from '@tamagui/get-token';
 import * as db from '@tloncorp/shared/dist/db';
 import { Dimensions } from 'react-native';
 
-import ChatMessage from '..';
+import { ChatMessage } from '..';
 import { ScrollView, View } from '../../../core';
 import { NotebookPost } from '../../NotebookPost';
 
@@ -29,7 +29,7 @@ export function MessageContainer({
         borderRadius="$l"
       >
         <NotebookPost
-          showAuthorRow={false}
+          showAuthor={false}
           smallImage
           smallTitle
           post={post}

@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { View, YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
-import ChatMessage from './ChatMessage';
+import { ChatMessage } from './ChatMessage';
 import { MessageInput } from './MessageInput';
 
 export function PostScreenView({

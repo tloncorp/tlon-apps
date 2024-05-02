@@ -1,6 +1,6 @@
 import { makePrettyShortDate, makePrettyTime } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { Image, Text, XStack, YStack } from '../../core';
 import { Avatar } from '../Avatar';
@@ -12,8 +12,6 @@ const IMAGE_HEIGHT = 268;
 
 export default function NotebookPost({
   post,
-  firstUnread,
-  unreadCount,
   onPress,
   onLongPress,
   currentUserId,
@@ -21,30 +19,23 @@ export default function NotebookPost({
   // In general, there are a lot of boolean props here that I *think*
   // could be handled by making a separate component for headline vs full post
   expanded = false,
-  showReactions,
+  showReactions = false,
   showReplies = true,
-  showAuthorRow = true,
+  showAuthor = true,
   smallImage = false,
   smallTitle = false,
 }: {
   post: db.Post;
-  firstUnread?: string;
-  unreadCount?: number;
   showReplies?: boolean;
   currentUserId: string;
   onPress?: () => void;
-  onLongPress?: () => void;
+  onLongPress?: (post: db.Post) => void;
   expanded?: boolean;
   showReactions?: boolean;
-  showAuthorRow?: boolean;
+  showAuthor?: boolean;
   smallImage?: boolean;
   smallTitle?: boolean;
 }) {
-  const isUnread = useMemo(
-    () => firstUnread && post.id === firstUnread,
-    [firstUnread, post.id]
-  );
-
   const dateDisplay = useMemo(() => {
     const date = new Date(post.sentAt);
 
@@ -57,20 +48,21 @@ export default function NotebookPost({
     return makePrettyTime(date);
   }, [post.sentAt]);
 
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(post);
+  }, [post, onLongPress]);
+
   if (!post) {
     return null;
   }
 
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={250}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={handleLongPress}
+      delayLongPress={250}
+    >
       <YStack key={post.id} gap="$2xl" padding="$m">
-        {isUnread && !!unreadCount && (
-          <YStack alignItems="center">
-            <Text fontSize="$s" fontWeight="$l">
-              {unreadCount} unread post • &quot;Today&quot;
-            </Text>
-          </YStack>
-        )}
         {post.image && (
           <Image
             source={{
@@ -92,14 +84,14 @@ export default function NotebookPost({
           </Text>
         </YStack>
         <XStack gap="$l" alignItems="center" justifyContent="space-between">
-          {showAuthorRow && (
+          {showAuthor && (
             <XStack gap="$s" alignItems="center">
               <Avatar
                 size="$2xl"
                 contact={post.author}
                 contactId={post.authorId}
               />
-              <ContactName showAlias name={post.authorId} />
+              <ContactName showAlias userId={post.authorId} />
               <Text color="$secondaryText" fontSize="$s">
                 {timeDisplay}
               </Text>

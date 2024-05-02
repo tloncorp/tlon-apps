@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { MotiView } from 'moti';
 import {
   PropsWithChildren,
@@ -15,7 +16,6 @@ import {
   Dimensions,
   FlatList,
   ListRenderItem,
-  Pressable,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -26,6 +26,7 @@ import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ChannelDivider } from './ChannelDivider';
 
 export default function Scroller({
   inverted,
@@ -47,12 +48,11 @@ export default function Scroller({
   postComponent: (props: {
     currentUserId: string;
     post: db.Post;
-    firstUnread?: string;
-    unreadCount?: number;
+    showAuthor?: boolean;
     showReplies?: boolean;
     onPressReplies?: (post: db.Post) => void;
     onPressImage?: (post: db.Post, imageUri?: string) => void;
-    onLongPress?: () => void;
+    onLongPress?: (post: db.Post) => void;
   }) => ReactNode | null;
   posts: db.Post[];
   currentUserId: string;
@@ -85,10 +85,13 @@ export default function Scroller({
         firstUnread,
         posts.findIndex((post) => post.id === firstUnread)
       );
-      flatListRef.current.scrollToIndex({
-        index: posts.findIndex((post) => post.id === firstUnread),
-        animated: true,
-      });
+      const unreadIndex = posts.findIndex((post) => post.id === firstUnread);
+      if (unreadIndex !== -1) {
+        flatListRef.current.scrollToIndex({
+          index: unreadIndex,
+          animated: true,
+        });
+      }
     }
   }, [firstUnread, posts]);
 
@@ -114,24 +117,52 @@ export default function Scroller({
     }
   }, []);
 
+  const handlePostLongPressed = useCallback(
+    (post: db.Post) => {
+      handleSetActive(post);
+    },
+    [handleSetActive]
+  );
+
   const renderItem: ListRenderItem<db.Post> = useCallback(
-    ({ item }) => {
+    ({ item, index }) => {
+      const previousItem = posts[index + 1];
+      const isFirstPostOfDay = !isSameDay(
+        item.receivedAt ?? 0,
+        previousItem?.receivedAt ?? 0
+      );
+      const showAuthor =
+        previousItem?.authorId !== item.authorId ||
+        previousItem?.type === 'notice' ||
+        (item.replyCount ?? 0) > 0 ||
+        isFirstPostOfDay;
+      const isFirstUnread = !!unreadCount && item.id === firstUnread;
       return (
-        <PressableMessage
-          ref={activeMessageRefs.current[item.id]}
-          onLongPress={() => handleSetActive(item)}
-          isActive={activeMessage?.id === item.id}
-        >
-          <PostComponent
-            currentUserId={currentUserId}
-            post={item}
-            firstUnread={firstUnread}
-            unreadCount={unreadCount}
-            showReplies={showReplies}
-            onPressReplies={onPressReplies}
-            onPressImage={onPressImage}
-          />
-        </PressableMessage>
+        <>
+          {isFirstUnread ? (
+            <ChannelDivider
+              timestamp={item.receivedAt}
+              unreadCount={unreadCount ?? 0}
+            />
+          ) : isFirstPostOfDay && item.type === 'chat' ? (
+            <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
+          ) : null}
+          <PressableMessage
+            ref={activeMessageRefs.current[item.id]}
+            isActive={activeMessage?.id === item.id}
+          >
+            {/* ts may yell at you in the editor, but this is fine */}
+            <PostComponent
+              currentUserId={currentUserId}
+              post={item}
+              showAuthor={showAuthor}
+              showReplies={showReplies}
+              onPressReplies={onPressReplies}
+              onPressImage={onPressImage}
+              onLongPress={handlePostLongPressed}
+            />
+          </PressableMessage>
+        </>
       );
     },
     [
@@ -142,8 +173,9 @@ export default function Scroller({
       onPressReplies,
       unreadCount,
       currentUserId,
-      handleSetActive,
       onPressImage,
+      posts,
+      handlePostLongPressed,
     ]
   );
 
@@ -163,7 +195,6 @@ export default function Scroller({
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
-    gap: '$m',
   }) as StyleProp<ViewStyle>;
 
   const handleContainerPressed = useCallback(() => {
@@ -172,9 +203,9 @@ export default function Scroller({
 
   return (
     <View flex={1}>
-      {unreadCount && !hasPressedGoToBottom && (
+      {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
-      )}
+      ) : null}
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
@@ -213,8 +244,9 @@ function getPostId(post: db.Post) {
 
 const PressableMessage = forwardRef<
   RNView,
-  PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
->(function PressableMessageComponent({ isActive, onLongPress, children }, ref) {
+  PropsWithChildren<{ isActive: boolean }>
+  // ts in the editor may tell you this is an error, but this is fine
+>(function PressableMessageComponent({ isActive, children }, ref) {
   return isActive ? (
     // need the extra React Native View for ref measurement
     <MotiView
@@ -231,9 +263,7 @@ const PressableMessage = forwardRef<
       <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
-    <Pressable onLongPress={onLongPress} delayLongPress={250}>
-      {children}
-    </Pressable>
+    children
   );
 });
 
