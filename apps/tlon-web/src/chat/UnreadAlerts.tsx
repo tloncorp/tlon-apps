@@ -6,8 +6,9 @@ import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 import XIcon from '@/components/icons/XIcon';
-import { pluralize, whomIsDm, whomIsFlag } from '@/logic/utils';
-import { useMarkReadMutation } from '@/state/activity';
+import { useMarkChannelRead } from '@/logic/channel';
+import { pluralize, whomIsFlag } from '@/logic/utils';
+import { useMarkDmReadMutation } from '@/state/chat';
 
 import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 import { useChatInfo, useChatStore } from './useChatStore';
@@ -19,14 +20,16 @@ interface UnreadAlertsProps {
 
 export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
-  const { mutate: markReadMut } = useMarkReadMutation();
+  const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
+  const { markDmRead } = useMarkDmReadMutation(whom);
   const markRead = useCallback(() => {
-    const source = whomIsFlag(whom)
-      ? { channel: `chat/${whom}` }
-      : { dm: whomIsDm(whom) ? { ship: whom } : { club: whom } };
-    markReadMut({ source });
+    if (whomIsFlag(whom)) {
+      markReadChannel();
+    } else {
+      markDmRead();
+    }
     useChatStore.getState().read(whom);
-  }, [whom, markReadMut]);
+  }, [whom, markReadChannel, markDmRead]);
 
   if (!chatInfo?.unread || chatInfo.unread.seen) {
     return null;

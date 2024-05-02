@@ -828,8 +828,8 @@
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
-            [%flag-post key=message-key =nest:c]
-            [%flag-reply key=message-key parent=message-key =nest:c]
+            [%flag-post key=message-key =nest:c group=flag:g]
+            [%flag-reply key=message-key parent=message-key =nest:c group=flag:g]
             [%role =ship roles=(set sect:g)]
             [%ask =ship]
         ==
@@ -837,13 +837,14 @@
     =.  cor
       %-  submit-activity
       ^-  event
+      =,  concern
       ?-  -.concern
-        %join  [%group-join ^flag ship.concern]
-        %kick  [%group-kick ^flag ship.concern]
-        %flag-post  [%flag-post key.concern nest.concern]
-        %flag-reply  [%flag-reply parent.concern key.concern nest.concern]
-        %role  [%group-role ^flag [ship roles]:concern]
-        %ask   [%group-ask ^flag ship.concern]
+        %ask   [%group-ask ^flag ship]
+        %join  [%group-join ^flag ship]
+        %kick  [%group-kick ^flag ship]
+        %role  [%group-role ^flag ship roles]
+        %flag-post  [%flag-post key nest group]
+        %flag-reply  [%flag-reply key parent nest group]
       ==
     go-core
   ::

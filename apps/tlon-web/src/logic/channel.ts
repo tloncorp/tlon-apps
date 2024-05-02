@@ -1,4 +1,8 @@
-import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  MessageKey,
+  Source,
+  Unreads,
+} from '@tloncorp/shared/dist/urbit/activity';
 import { Perm, Story } from '@tloncorp/shared/dist/urbit/channel';
 import { isLink } from '@tloncorp/shared/dist/urbit/content';
 import {
@@ -19,7 +23,7 @@ import {
   RECENT_SORT,
   SortMode,
 } from '@/constants';
-import { useUnreads } from '@/state/activity';
+import { useMarkReadMutation, useUnreads } from '@/state/activity';
 import { useChannel, useJoinMutation, usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
@@ -386,4 +390,23 @@ export function linkUrlFromContent(content: Story) {
   }
 
   return undefined;
+}
+
+export function useMarkChannelRead(nest: string, thread?: MessageKey) {
+  const group = useRouteGroup();
+  const { mutateAsync, ...rest } = useMarkReadMutation();
+  const markRead = useCallback(() => {
+    const source: Source = thread
+      ? {
+          thread: {
+            group,
+            channel: nest,
+            key: thread,
+          },
+        }
+      : { channel: { group, nest } };
+    return mutateAsync({ source });
+  }, [group, nest, thread, mutateAsync]);
+
+  return { markRead, ...rest };
 }

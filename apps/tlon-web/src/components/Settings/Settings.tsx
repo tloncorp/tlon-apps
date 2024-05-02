@@ -100,7 +100,7 @@ export default function Settings() {
         </div>
         <section>
           <div className="flex space-x-2">
-            <VolumeSetting />
+            <VolumeSetting source={{ base: null }} />
           </div>
         </section>
       </div>

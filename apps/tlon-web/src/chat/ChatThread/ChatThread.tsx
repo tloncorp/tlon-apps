@@ -1,4 +1,5 @@
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
@@ -17,12 +18,15 @@ import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import {
+  useChannelCompatibility,
+  useChannelFlag,
+  useMarkChannelRead,
+} from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { useMarkReadMutation } from '@/state/activity';
 import {
   useAddReplyMutation,
   useMyLastReply,
@@ -57,7 +61,6 @@ export default function ChatThread() {
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('reply');
-  const { mutate: markRead } = useMarkReadMutation();
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
   const replyId = useMemo(() => searchParams.get('replyTo'), [searchParams]);
@@ -68,6 +71,12 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
+  const { markRead } = useMarkChannelRead(nest, {
+    id: note
+      ? `${note?.essay.author}/${formatUd(unixToDa(note.essay.sent))}`
+      : '',
+    time: formatUd(bigInt(idTime!)),
+  });
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
   if (note && replies !== null && idTimeIsNumber) {
@@ -113,7 +122,12 @@ export default function ChatThread() {
   const { paddingBottom } = useBottomPadding();
   const readTimeout = useChatInfo(flag).unread?.readTimeout;
   const isSmall = useMedia('(max-width: 1023px)');
-  const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
+  const clearOnNavRef = useRef({
+    isSmall,
+    readTimeout,
+    flag,
+    markRead,
+  });
   const activeTab = useActiveTab();
 
   const returnURL = useCallback(
@@ -135,8 +149,8 @@ export default function ChatThread() {
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(flag, () => markRead({ source: { channel: nest } }));
-  }, [nest, flag, markRead]);
+    delayedRead(flag, markRead);
+  }, [flag, markRead]);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -150,8 +164,13 @@ export default function ChatThread() {
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { isSmall, readTimeout, nest, flag, markRead };
-  }, [readTimeout, nest, flag, isSmall, markRead]);
+    clearOnNavRef.current = {
+      isSmall,
+      readTimeout,
+      flag,
+      markRead,
+    };
+  }, [readTimeout, flag, isSmall, markRead]);
 
   useEffect(
     () => () => {
@@ -163,7 +182,7 @@ export default function ChatThread() {
       ) {
         chatStoreLogger.log('unmount read from thread');
         useChatStore.getState().read(curr.flag);
-        curr.markRead({ source: { channel: curr.nest } });
+        curr.markRead();
       }
     },
     []

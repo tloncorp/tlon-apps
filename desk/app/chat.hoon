@@ -748,8 +748,8 @@
   !>  ^-  action
   :-  %add
   ?-  -.concern
-    %post    [%dm-post whom key.concern content mention]
-    %reply   [%dm-reply whom key.concern top.concern content mention]
+    %post    [%dm-post key.concern whom content mention]
+    %reply   [%dm-reply key.concern top.concern whom content mention]
     %invite  [%dm-invite whom]
   ==
 ::

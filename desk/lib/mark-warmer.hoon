@@ -30,4 +30,5 @@
 /$  full-info   %activity-full        %json
 /$  act-update  %activity-update      %json
 /$  act-unread  %activity-unreads     %json
+/$  act-vol     %activity-settings  %json
 ~

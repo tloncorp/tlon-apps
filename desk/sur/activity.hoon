@@ -5,14 +5,18 @@
 ::  $stream: the activity stream comprised of events from various agents
 +$  stream  ((mop time event) lte)
 ::  $indices: the stream and its read data split into various indices
-+$  indices  (map source [=stream =reads])
++$  indices  (map source index)
 ::  $volume-settings: the volume settings for each source
-+$  volume-settings  (map source volume)
++$  volume-settings  (map source volume-map)
 ::  $unreads: the current unread state for each source
 +$  unreads  (map source unread-summary)
 ::  TODO: kill?
 ::  $full-info: the full state of the activity stream
-+$  full-info  [=stream =indices =unreads]
++$  full-info  [=indices =unreads]
+::  $volume-map: how to badge and notify for each event type
++$  volume-map
+  $~  default
+  (map event-type volume)
 +|  %actions
 ::  $action: how to interact with our activity stream
 ::
@@ -25,18 +29,16 @@
 +$  action
   $%  [%add =event]
       [%read =source =read-action]
-      [%adjust =source =volume]
+      [%adjust =source =volume-map]
   ==
 ::
 ::  $read-action: mark activity read
 ::
-::    $thread: mark a whole thread as read
-::    $post: mark an individual post as read
+::    $item: mark an individual activity as read
 ::    $all: mark _everything_ as read for this source
 ::
 +$  read-action
-  $%  [%thread id=time-id]
-      [%post id=time-id]
+  $%  [%item id=time-id]
       [%all ~]
   ==
 ::
@@ -51,7 +53,7 @@
 +$  update
   $%  [%add time-event]
       [%read =source =unread-summary]
-      [%adjust =source =volume]
+      [%adjust =source =volume-map]
   ==
 ::
 +|  %basics
@@ -67,60 +69,65 @@
       [%group-join group=flag:g =ship]
       [%group-invite group=flag:g =ship]
       [%group-role group=flag:g =ship roles=(set sect:g)]
-      [%flag-post key=message-key channel=nest:c]
-      [%flag-reply key=message-key parent=message-key channel=nest:c]
+      [%flag-post key=message-key channel=nest:c group=flag:g]
+      [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
   ==
 ::
 +$  post-event
-  $:  channel=nest:c
-      key=message-key
+  $:  key=message-key
+      channel=nest:c
+      group=flag:g
       content=story:c
       mention=?
   ==
 ::
 +$  reply-event
-  $:  channel=nest:c
-      key=message-key
+  $:  key=message-key
       parent=message-key
+      channel=nest:c
+      group=flag:g
       content=story:c
       mention=?
   ==
 ::
 +$  dm-post-event
-  $:  =whom
-      key=message-key
+  $:  key=message-key
+      =whom
       content=story:c
       mention=?
   ==
 ::
 +$  dm-reply-event
-  $:  =whom
-      key=message-key
+  $:  key=message-key
       parent=message-key
+      =whom
       content=story:c
       mention=?
   ==
 ::
 ::  $source: where the activity is happening
 +$  source
-  $%  [%channel =nest:c]
+  $%  [%base ~]
+      [%group =flag:g]
+      [%channel =nest:c group=flag:g]
+      [%thread key=message-key channel=nest:c group=flag:g]
       [%dm =whom]
+      [%dm-thread key=message-key =whom]
   ==
+::
+::  $index: the stream of activity and read state for a source
++$  index  [=stream =reads]
 ::
 ::  $reads: the read state for a source
 ::
 ::    $floor: the time of the latest event that was read
-::    $posts: the set of posts above the floor that have been read or
-::            had their threads read
+::    $items: the set of events above the floor that have been read
 ::
 +$  reads
   $:  floor=time
-      posts=post-reads
+      items=read-items
   ==
-::
-::  $post-read: whether a post has been read and the point of read replies
-+$  post-read  [seen=? floor=time]
-+$  post-reads  ((mop time-id post-read) lte)
++$  read-items  ((mop time-id ?) lte)
 ::  $unread-summary: the summary of unread activity for a source
 ::
 ::    $newest: the time of the latest activity read or unread
@@ -133,9 +140,11 @@
   $:  newest=time
       count=@ud
       unread=(unit [message-key count=@ud])
+      notify=?
       threads=unread-threads
   ==
 +$  unread-threads  (map message-key [message-key count=@ud])
++$  volume  [unreads=? notify=?]
 +|  %primitives
 +$  whom
   $%  [%ship p=ship]
@@ -144,20 +153,6 @@
 +$  time-id  time
 +$  message-id   (pair ship time-id)
 +$  message-key  [id=message-id =time]
-::  $volume: how much we alert and badge for a given source
-::
-::    $loud: always notify, show loud unreads
-::    $default: sometimes notify, show soft unreads
-::    $soft: never notify, show soft unreads
-::    $hush: never notify, show no unreads
-::
-+$  volume
-  $~  %default
-  $?  %loud
-      %default
-      %soft
-      %hush
-  ==
 ::
 +$  event-type
   $?  %post
@@ -177,10 +172,31 @@
       %flag-post
       %flag-reply
   ==
-+$  notify-level  ?(%notify %default)
 +|  %helpers
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
 ++  ex-event        ((mp time event) lte)
-++  on-post-reads   ((on time post-read) lte)
+++  on-read-items   ((on time ?) lte)
++|  %constants
+++  default
+  ^~
+  %-  malt
+  ^-  (list [event-type volume])
+  :~  [%post & &]
+      [%reply & |]
+      [%dm-reply & &]
+      [%post-mention & &]
+      [%reply-mention & &]
+      [%dm-invite & &]
+      [%dm-post & &]
+      [%dm-post-mention & &]
+      [%dm-reply-mention & &]
+      [%group-invite & &]
+      [%group-ask & &]
+      [%flag-post & &]
+      [%flag-reply & &]
+      [%group-kick & |]
+      [%group-join & |]
+      [%group-role & |]
+  ==
 --

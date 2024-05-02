@@ -48,7 +48,7 @@ export default function GroupVolumeDialog({ title }: ViewProps) {
         <div className="flex flex-col space-y-1">
           <span className="text-lg text-gray-800">Notification Settings</span>
         </div>
-        <VolumeSetting scope={{ group: flag }} />
+        <VolumeSetting source={{ group: flag }} />
       </div>
     </Dialog>
   );

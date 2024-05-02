@@ -5,10 +5,10 @@ import ob from 'urbit-ob';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { ShipOption } from '@/components/ShipSelector';
+import { useUnreads } from '@/state/activity';
 import {
   SendMessageVariables,
   useCreateMultiDm,
-  useDmUnreads,
   useMultiDms,
   useSendMessage,
 } from '@/state/chat';
@@ -30,7 +30,7 @@ export default function useMessageSelector() {
   const isMultiDm = ships.length > 1;
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
-  const { data: unreads } = useDmUnreads();
+  const unreads = useUnreads();
   const { mutate: sendMessage } = useSendMessage();
   const { mutateAsync: createMultiDm } = useCreateMultiDm();
 

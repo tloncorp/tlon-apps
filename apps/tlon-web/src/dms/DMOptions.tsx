@@ -13,10 +13,9 @@ import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
 import BulletIcon from '@/components/icons/BulletIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useCheckChannelUnread } from '@/logic/channel';
+import { useCheckChannelUnread, useMarkChannelRead } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useMarkReadMutation } from '@/state/activity';
 import { useLeaveMutation } from '@/state/channel/channel';
 import {
   useArchiveDm,
@@ -25,6 +24,7 @@ import {
   useMarkDmReadMutation,
   useMutliDmRsvpMutation,
 } from '@/state/chat';
+import { useRouteGroup } from '@/state/groups';
 import {
   useAddPinMutation,
   useDeletePinMutation,
@@ -72,7 +72,8 @@ export default function DmOptions({
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
-  const { mutate: markReadMut } = useMarkReadMutation();
+  const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
+  const { markDmRead } = useMarkDmReadMutation(whom);
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
 
@@ -96,15 +97,14 @@ export default function DmOptions({
   };
 
   const markRead = useCallback(async () => {
-    const source = isDMorMultiDm
-      ? whomIsDm(whom)
-        ? { dm: { ship: whom } }
-        : { dm: { club: whom } }
-      : { channel: `chat/${whom}` };
-    markReadMut({ source });
+    if (isDMorMultiDm) {
+      markDmRead();
+    } else {
+      markReadChannel();
+    }
 
     useChatStore.getState().read(whom);
-  }, [whom, markReadMut, isDMorMultiDm]);
+  }, [whom, markReadChannel, markDmRead, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);
 

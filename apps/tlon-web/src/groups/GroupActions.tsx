@@ -303,7 +303,7 @@ const GroupActions = React.memo(
               {group?.meta.title || `~${flag}`}
             </span>
           </div>
-          <VolumeSetting scope={{ group: flag }} />
+          <VolumeSetting source={{ group: flag }} />
         </div>
       ),
       keepOpenOnClick: true,

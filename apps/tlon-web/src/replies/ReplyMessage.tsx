@@ -38,16 +38,11 @@ import {
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import { useMarkChannelRead } from '@/logic/channel';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  useIsDmOrMultiDm,
-  whomIsDm,
-  whomIsFlag,
-  whomIsNest,
-} from '@/logic/utils';
-import { useMarkReadMutation } from '@/state/activity';
+import { useIsDmOrMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
 import {
   useEditReplyMutation,
   useIsEdited,
@@ -55,7 +50,11 @@ import {
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { useMessageToggler, useTrackedMessageStatus } from '@/state/chat';
+import {
+  useMarkDmReadMutation,
+  useMessageToggler,
+  useTrackedMessageStatus,
+} from '@/state/chat';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';
@@ -79,11 +78,7 @@ function amUnread(unread?: Unread, parent?: string, id?: string) {
   }
 
   const thread = unread.threads[parent];
-  if (typeof thread === 'object') {
-    return thread.id === id;
-  }
-
-  return thread === id;
+  return thread.id === id;
 }
 
 const mergeRefs =
@@ -142,11 +137,10 @@ const ReplyMessage = React.memo<
       const chatInfo = useChatInfo(whom);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
-      const parentId = !whomIsFlag(whom)
-        ? seal['parent-id']
-        : parent
-          ? `${parent.essay.author}/${formatUd(unixToDa(parent.essay.sent))}`
-          : seal['parent-id'];
+      const id = parent
+        ? `${parent.essay.author}/${formatUd(unixToDa(parent.essay.sent))}`
+        : seal['parent-id'];
+      const parentId = !whomIsFlag(whom) ? seal['parent-id'] : id;
       const isUnread = !whomIsFlag(whom)
         ? amUnread(unread?.unread, parentId, seal.id)
         : amUnread(
@@ -156,7 +150,12 @@ const ReplyMessage = React.memo<
           );
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const { mutate: markRead } = useMarkReadMutation();
+      const key = { id, time: formatUd(time) };
+      const { markRead: markChannelRead } = useMarkChannelRead(
+        `chat/${whom}`,
+        key
+      );
+      const { markDmRead } = useMarkDmReadMutation(whom, key);
       const { mutate: editReply } = useEditReplyMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
@@ -191,16 +190,15 @@ const ReplyMessage = React.memo<
             if (inView && isUnread && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
-                const source = isDMOrMultiDM
-                  ? whomIsDm(whom)
-                    ? { dm: { ship: whom } }
-                    : { dm: { club: whom } }
-                  : { channel: `chat/${whom}` };
-                markRead({ source });
+                if (isDMOrMultiDM) {
+                  markDmRead();
+                } else {
+                  markChannelRead();
+                }
               });
             }
           },
-          [unread, whom, isDMOrMultiDM, markRead, isUnread]
+          [unread, whom, isDMOrMultiDM, markChannelRead, markDmRead, isUnread]
         ),
       });
 

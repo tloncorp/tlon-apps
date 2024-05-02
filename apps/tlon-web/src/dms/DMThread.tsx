@@ -68,7 +68,7 @@ export default function DMThread() {
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
-  const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { markDmRead } = useMarkDmReadMutation(whom);
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, whom, markDmRead });
 
@@ -116,7 +116,7 @@ export default function DMThread() {
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(whom, () => markDmRead({ whom }));
+    delayedRead(whom, markDmRead);
   }, [whom, markDmRead]);
 
   useEventListener('keydown', onEscape, threadRef);
@@ -136,7 +136,7 @@ export default function DMThread() {
       ) {
         chatStoreLogger.log('unmount read from thread');
         useChatStore.getState().read(curr.whom);
-        curr.markDmRead({ whom: curr.whom });
+        curr.markDmRead();
       }
     },
     []

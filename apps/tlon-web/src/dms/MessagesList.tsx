@@ -15,12 +15,7 @@ import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
 
-import {
-  useDmUnreads,
-  useMultiDms,
-  usePendingDms,
-  usePendingMultiDms,
-} from '../state/chat';
+import { useMultiDms, usePendingDms, usePendingMultiDms } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 type MessagesListProps = PropsWithChildren<{

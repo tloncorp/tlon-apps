@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Editor } from '@tiptap/react';
-import { Source, Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
@@ -34,6 +34,7 @@ import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import { useMarkChannelRead } from '@/logic/channel';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
@@ -43,17 +44,19 @@ import {
   whomIsFlag,
   whomIsMultiDm,
 } from '@/logic/utils';
-import { useMarkReadMutation } from '@/state/activity';
 import {
   useEditPostMutation,
   useIsEdited,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { useMessageToggler, useTrackedMessageStatus } from '@/state/chat';
+import {
+  useMarkDmReadMutation,
+  useMessageToggler,
+  useTrackedMessageStatus,
+} from '@/state/chat';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
-import { getUnreadStatus, threadIsOlderThanLastRead } from '../unreadUtils';
 import {
   useChatDialog,
   useChatDialogs,
@@ -81,25 +84,30 @@ export interface ChatMessageProps {
 function getUnreadDisplay(
   unread: Unread | undefined,
   id: string
-): 'none' | 'top' | 'thread' {
+): 'none' | 'top' | 'thread' | 'top-with-thread' {
   if (!unread) {
     return 'none';
   }
 
   const { unread: mainChat, threads } = unread;
-  const { hasMainChatUnreads } = getUnreadStatus(unread);
-  const threadIsOlder = threadIsOlderThanLastRead(unread, id);
-  const hasThread = !!threads[id];
+  const hasUnreadThread = !!threads[id];
+  const isTop = mainChat?.id === id;
+
+  // if this message is the oldest unread in the main chat,
+  // and has an unread thread, show the divider and thread indicator
+  if (hasUnreadThread && isTop) {
+    return 'top-with-thread';
+  }
 
   // if we have a thread, only mark it as explicitly unread
   // if it's not nested under main chat unreads
-  if (hasThread && (!hasMainChatUnreads || threadIsOlder)) {
+  if (hasUnreadThread) {
     return 'thread';
   }
 
   // if this message is the oldest unread in the main chat,
   // show the divider
-  if (hasMainChatUnreads && mainChat!.id === id) {
+  if (isTop) {
     return 'top';
   }
 
@@ -176,9 +184,14 @@ const ChatMessage = React.memo<
           ),
         [unread, seal.id, whom, essay]
       );
+      const topUnread =
+        unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
+      const threadUnread =
+        unreadDisplay === 'thread' || unreadDisplay === 'top-with-thread';
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const { mutate: markRead } = useMarkReadMutation();
+      const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
+      const { markDmRead } = useMarkDmReadMutation(whom);
       const { mutate: editPost } = useEditPostMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
@@ -213,16 +226,22 @@ const ChatMessage = React.memo<
             if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
-                const source: Source = isDMOrMultiDM
-                  ? whomIsDm(whom)
-                    ? { dm: { ship: whom } }
-                    : { dm: { club: whom } }
-                  : { channel: `chat/${whom}` };
-                markRead({ source });
+                if (isDMOrMultiDM) {
+                  markDmRead();
+                } else {
+                  markReadChannel();
+                }
               });
             }
           },
-          [unreadDisplay, unread, whom, isDMOrMultiDM, markRead]
+          [
+            unreadDisplay,
+            unread,
+            whom,
+            isDMOrMultiDM,
+            markReadChannel,
+            markDmRead,
+          ]
         ),
       });
 
@@ -411,7 +430,7 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && unreadDisplay === 'top' ? (
+          {unread && topUnread ? (
             <DateDivider
               date={unix}
               unreadCount={unread.unread.unread?.count || 0}
@@ -536,12 +555,16 @@ const ChatMessage = React.memo<
 
                         <span
                           className={cn(
-                            unreadDisplay === 'thread' ? 'text-blue' : 'mr-2'
+                            threadUnread
+                              ? unread?.unread.notify
+                                ? 'text-blue'
+                                : 'text-gray-600'
+                              : 'mr-2'
                           )}
                         >
                           {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                         </span>
-                        {unreadDisplay === 'thread' ? (
+                        {threadUnread ? (
                           <UnreadIndicator
                             className="h-6 w-6 text-blue transition-opacity"
                             aria-label="Unread replies in this thread"

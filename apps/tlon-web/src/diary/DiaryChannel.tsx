@@ -13,9 +13,8 @@ import api from '@/api';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import Layout from '@/components/Layout/Layout';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import { useFullChannel } from '@/logic/channel';
+import { useFullChannel, useMarkChannelRead } from '@/logic/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { useMarkReadMutation } from '@/state/activity';
 import {
   useArrangedPosts,
   useDisplayMode,
@@ -47,7 +46,7 @@ function DiaryChannel({ title }: ViewProps) {
     hasNextPage,
     fetchNextPage,
   } = useInfinitePosts(nest);
-  const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
+  const { markRead, isLoading: isMarking } = useMarkChannelRead(nest);
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
@@ -133,10 +132,7 @@ function DiaryChannel({ title }: ViewProps) {
 
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(
-      () => markRead({ source: { channel: `diary/${chFlag}` } }),
-      [markRead, chFlag]
-    ),
+    markRead,
     isMarking,
   });
 
