@@ -102,10 +102,10 @@ const colors = [
 export default function Colors() {
   return (
     <div className="flex gap-4">
-      {colors.map((group) => (
-        <div className="w-full">
-          {group.map((c) => (
-            <div>
+      {colors.map((group, groupIndex) => (
+        <div key={groupIndex} className="w-full">
+          {group.map((c, colorIndex) => (
+            <div key={colorIndex}>
               <label className="mb-1 mt-3 block text-xs text-gray-400">
                 {c}
               </label>

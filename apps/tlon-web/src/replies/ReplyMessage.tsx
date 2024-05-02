@@ -1,5 +1,3 @@
-/* eslint-disable react/no-unused-prop-types */
-// eslint-disable-next-line import/no-cycle
 import { Editor } from '@tiptap/core';
 import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {

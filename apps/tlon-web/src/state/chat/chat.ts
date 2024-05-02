@@ -15,7 +15,6 @@ import {
   ClubDelta,
   Clubs,
   DMInit,
-  DMUnreadUpdate,
   DMUnreads,
   DmAction,
   HiddenMessages,
@@ -31,7 +30,6 @@ import {
   WritResponse,
   WritResponseDelta,
   WritSeal,
-  WritTuple,
   Writs,
   newWritTupleArray,
 } from '@tloncorp/shared/dist/urbit/dms';
@@ -57,7 +55,6 @@ import { whomIsDm, whomIsNest } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { useMarkReadMutation, useUnreads } from '../activity';
-// eslint-disable-next-line import/no-cycle
 import { PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
 import emptyMultiDm, {
@@ -179,13 +176,10 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
   };
 }
 
-export function initializeChat({ dms, clubs, invited, unreads }: DMInit) {
+export function initializeChat({ dms, clubs, invited }: DMInit) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
-  queryClient.setQueryData(ChatKeys.unreads(), () => unreads || {});
-
-  useChatStore.getState().update(unreads);
 }
 
 interface PageParam {

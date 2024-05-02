@@ -1,46 +1,76 @@
-import { JSONContent } from '@tiptap/core';
-import { PropsWithChildren } from 'react';
+import { Upload } from '@tloncorp/shared/dist/api';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { PropsWithChildren, useMemo } from 'react';
 
-import { Attachment, Camera, ChannelGalleries, Send } from '../../assets/icons';
-import { XStack } from '../../core';
+import { ArrowUp } from '../../assets/icons';
+import { View, XStack, YStack } from '../../core';
 import { IconButton } from '../IconButton';
+import AttachmentButton from './AttachmentButton';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: JSONContent, channelId: string) => void;
+  send: (content: Story, channelId: string) => void;
   channelId: string;
+  setImageAttachment: (image: string | null) => void;
+  uploadedImage?: Upload | null;
+  canUpload?: boolean;
 }
 
 export const MessageInputContainer = ({
   children,
   onPressSend,
-}: PropsWithChildren<{ onPressSend?: () => void }>) => {
+  setImageAttachment,
+  uploadedImage,
+  canUpload,
+}: PropsWithChildren<{
+  onPressSend?: () => void;
+  setImageAttachment: (image: string | null) => void;
+  uploadedImage?: Upload | null;
+  canUpload?: boolean;
+}>) => {
+  const hasUploadedImage = useMemo(
+    () => !!(uploadedImage && uploadedImage.url !== ''),
+    [uploadedImage]
+  );
+  const uploadIsLoading = useMemo(
+    () => uploadedImage?.status === 'loading',
+    [uploadedImage]
+  );
+  const sendIconColor = useMemo(
+    () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
+    [uploadIsLoading]
+  );
+
   return (
-    <XStack
-      paddingHorizontal="$m"
-      paddingVertical="$s"
-      gap="$l"
-      alignItems="center"
-    >
-      <XStack gap="$l">
-        <IconButton onPress={() => {}}>
-          <Camera />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <Attachment />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <ChannelGalleries />
-        </IconButton>
-      </XStack>
-      <XStack flex={1} gap="$l" alignItems="center">
+    <YStack>
+      <XStack
+        paddingHorizontal="$m"
+        paddingVertical="$s"
+        gap="$l"
+        alignItems="flex-end"
+        justifyContent="space-between"
+      >
+        {hasUploadedImage ? null : canUpload ? (
+          <View paddingBottom="$m">
+            <AttachmentButton
+              uploadedImage={uploadedImage}
+              setImage={setImageAttachment}
+            />
+          </View>
+        ) : null}
         {children}
-        <IconButton onPress={onPressSend}>
-          {/* TODO: figure out what send button should look like */}
-          <Send />
-        </IconButton>
+        <View paddingBottom="$m">
+          <IconButton
+            color={sendIconColor}
+            disabled={uploadIsLoading}
+            onPress={onPressSend}
+          >
+            {/* TODO: figure out what send button should look like */}
+            <ArrowUp />
+          </IconButton>
+        </View>
       </XStack>
-    </XStack>
+    </YStack>
   );
 };

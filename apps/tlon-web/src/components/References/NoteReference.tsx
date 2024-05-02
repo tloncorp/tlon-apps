@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
-// eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
 import useGroupJoin from '@/groups/useGroupJoin';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
@@ -181,6 +180,7 @@ function NoteReference({
             <div className="relative flex items-center">
               {note.seal.meta.lastRepliers.map((author, index) => (
                 <Avatar
+                  key={author}
                   ship={author}
                   size="xs"
                   className="relative outline outline-2 outline-white"

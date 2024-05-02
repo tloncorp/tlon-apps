@@ -3,7 +3,7 @@ import { Urbit } from '@urbit/http-api';
 
 import { createDevLogger } from '../debug';
 
-const logger = createDevLogger('urbit', true);
+const logger = createDevLogger('urbit', false);
 
 const config = {
   shipName: '',
@@ -69,6 +69,8 @@ export function subscribe<T>(
   if (!clientInstance) {
     throw new Error('Tied to subscribe, but Urbit client is not initialized');
   }
+
+  logger.debug('subscribing to', printEndpoint(endpoint));
 
   clientInstance.subscribe({
     app: endpoint.app,

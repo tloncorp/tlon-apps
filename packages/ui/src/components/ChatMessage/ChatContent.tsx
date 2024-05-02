@@ -1,7 +1,10 @@
 import { utils } from '@tloncorp/shared';
 import {
+  ContentReference as ContentReferenceType,
+  PostContent,
+} from '@tloncorp/shared/dist/api';
+import {
   Block,
-  Story,
   VerseBlock,
   VerseInline,
   isImage,
@@ -18,28 +21,29 @@ import {
   isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
-import { ReactElement, memo, useMemo } from 'react';
-import { Linking } from 'react-native';
+import { ImageLoadEventData } from 'expo-image';
+import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import { TouchableOpacity } from 'react-native';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Button } from '../Button';
 import ContactName from '../ContactName';
-import Video from '../Video';
+import ContentReference from '../ContentReference';
+import { Icon } from '../Icon';
+import ChatEmbedContent from './ChatEmbedContent';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
-    <Button
-      // TODO: implement this once we have a profile screen or sheet
-      // onPress={() => naivigate('Profile', { ship })}
+    <ContactName
+      onPress={() => {}}
       backgroundColor="$positiveBackground"
-      paddingHorizontal="$xs"
-      paddingVertical={0}
-      borderRadius="$m"
-    >
-      <Text color="$positiveActionText" fontSize="$m">
-        <ContactName name={ship} showAlias />
-      </Text>
-    </Button>
+      borderRadius="$s"
+      borderWidth={1}
+      borderColor="$border"
+      color="$positiveActionText"
+      userId={ship}
+      showAlias
+    />
   );
 }
 
@@ -102,9 +106,9 @@ export function InlineContent({ story }: { story: Inline | null }) {
     return (
       <Text
         fontFamily="$mono"
-        backgroundColor="$gray100"
+        backgroundColor="$secondaryBackground"
         padding="$xs"
-        borderRadius="$xl"
+        borderRadius="$s"
       >
         {story['inline-code']}
       </Text>
@@ -114,16 +118,16 @@ export function InlineContent({ story }: { story: Inline | null }) {
   if (isBlockCode(story)) {
     return (
       <View
-        backgroundColor="$gray100"
+        backgroundColor="$secondaryBackground"
         padding="$m"
-        borderRadius="$xl"
+        borderRadius="$s"
         marginBottom="$m"
       >
         <Text
           fontFamily="$mono"
           padding="$m"
-          borderRadius="$xl"
-          backgroundColor="$gray100"
+          borderRadius="$s"
+          backgroundColor="$secondaryBackground"
         >
           {story.code}
         </Text>
@@ -132,23 +136,8 @@ export function InlineContent({ story }: { story: Inline | null }) {
   }
 
   if (isLink(story)) {
-    const supported = Linking.canOpenURL(story.link.href);
-
-    if (!supported) {
-      return (
-        <Text textDecorationLine="underline">
-          <InlineContent story={story.link.content} />
-        </Text>
-      );
-    }
-
     return (
-      <Text
-        textDecorationLine="underline"
-        onPress={() => Linking.openURL(story.link.href)}
-      >
-        <InlineContent story={story.link.content} />
-      </Text>
+      <ChatEmbedContent url={story.link.href} content={story.link.content} />
     );
   }
 
@@ -166,29 +155,50 @@ export function InlineContent({ story }: { story: Inline | null }) {
   );
 }
 
-export function BlockContent({ story }: { story: Block }) {
-  // TODO add support for other embeds and refs
+export function BlockContent({
+  story,
+  onPressImage,
+  onLongPress,
+}: {
+  story: Block;
+  onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
+}) {
+  const [aspect, setAspect] = useState<number | null>(null);
+
+  const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
+    setAspect(e.source.width / e.source.height);
+  }, []);
 
   if (isImage(story)) {
     const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
 
     if (isVideoFile) {
-      return <Video block={story} />;
+      return (
+        <ChatEmbedContent url={story.image.src} content={story.image.src} />
+      );
     }
 
     return (
-      <Image
-        source={{
-          uri: story.image.src,
-          width: story.image.height,
-          height: story.image.width,
-        }}
-        alt={story.image.alt}
-        borderRadius="$m"
-        height={200}
-        width={200}
-        resizeMode="contain"
-      />
+      <TouchableOpacity
+        onPress={onPressImage ? () => onPressImage(story.image.src) : undefined}
+        onLongPress={onLongPress}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{
+            uri: story.image.src,
+            width: story.image.height,
+            height: story.image.width,
+          }}
+          alt={story.image.alt}
+          borderRadius="$m"
+          onLoad={handleImageLoaded}
+          width={200}
+          height={aspect ? 200 / aspect : 100}
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
     );
   }
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
@@ -199,94 +209,152 @@ export function BlockContent({ story }: { story: Block }) {
   );
 }
 
-const LineRenderer = memo(({ storyInlines }: { storyInlines: Inline[] }) => {
-  const inlineElements: ReactElement[][] = [];
-  let currentLine: ReactElement[] = [];
+const LineRenderer = memo(
+  ({
+    storyInlines,
+    isNotice = false,
+  }: {
+    storyInlines: Inline[];
+    isNotice?: boolean;
+  }) => {
+    const inlineElements: ReactElement[][] = [];
+    let currentLine: ReactElement[] = [];
 
-  storyInlines.forEach((inline, index) => {
-    if (isBreak(inline)) {
-      inlineElements.push(currentLine);
-      currentLine = [];
-    } else if (typeof inline === 'string') {
-      if (utils.isSingleEmoji(inline)) {
+    if (isNotice) {
+      currentLine.push(
+        <Icon
+          type="AddPerson"
+          color="$secondaryText"
+          backgroundColor="$secondaryBackground"
+          borderRadius="$s"
+          marginRight="$s"
+        />
+      );
+    }
+
+    storyInlines.forEach((inline, index) => {
+      if (isBreak(inline)) {
+        inlineElements.push(currentLine);
+        currentLine = [];
+      } else if (typeof inline === 'string') {
+        if (utils.isSingleEmoji(inline)) {
+          currentLine.push(
+            <Text
+              key={`emoji-${inline}-${index}`}
+              fontSize="$xl"
+              flexWrap="wrap"
+            >
+              {inline}
+            </Text>
+          );
+        } else {
+          currentLine.push(
+            <Text
+              key={`string-${inline}-${index}`}
+              color={isNotice ? '$tertiaryText' : '$primaryText'}
+              fontSize="$m"
+              fontWeight={isNotice ? '600' : 'normal'}
+              lineHeight="$m"
+            >
+              {inline}
+            </Text>
+          );
+        }
+      } else if (isBlockquote(inline)) {
         currentLine.push(
-          <Text
-            key={`emoji-${inline}-${index}`}
-            paddingTop="$xl"
-            fontSize="$xl"
+          <YStack
+            key={`blockquote-${index}`}
+            borderLeftWidth={2}
+            borderColor="$border"
+            paddingLeft="$l"
           >
-            {inline}
-          </Text>
+            {Array.isArray(inline.blockquote) ? (
+              <LineRenderer storyInlines={inline.blockquote} />
+            ) : (
+              // not clear if this is necessary
+              <InlineContent story={inline.blockquote} />
+            )}
+          </YStack>
+        );
+      } else if (isShip(inline)) {
+        currentLine.push(
+          <ShipMention key={`ship-${index}`} ship={inline.ship} />
         );
       } else {
         currentLine.push(
-          <Text key={`string-${inline}-${index}`} fontSize="$m">
-            {inline}
-          </Text>
+          <InlineContent key={`inline-${index}`} story={inline} />
         );
       }
-    } else if (isBlockquote(inline)) {
-      currentLine.push(
-        <YStack
-          key={`blockquote-${index}`}
-          borderLeftWidth={2}
-          borderColor="$gray100"
-          paddingLeft="$l"
-        >
-          {Array.isArray(inline.blockquote) ? (
-            <LineRenderer storyInlines={inline.blockquote} />
-          ) : (
-            // not clear if this is necessary
-            <InlineContent story={inline.blockquote} />
-          )}
-        </YStack>
-      );
-    } else {
-      currentLine.push(
-        <InlineContent key={`inline-${index}`} story={inline} />
-      );
+    });
+
+    if (currentLine.length > 0) {
+      inlineElements.push(currentLine);
     }
-  });
 
-  if (currentLine.length > 0) {
-    inlineElements.push(currentLine);
-  }
+    return (
+      <>
+        {inlineElements.map((line, index) => {
+          if (line.length === 0) {
+            return (
+              <XStack key={`line-${index}`}>
+                <Text height="$xl">{'\n'}</Text>
+              </XStack>
+            );
+          }
 
-  return (
-    <>
-      {inlineElements.map((line, index) => {
-        if (line.length === 0) {
           return (
-            <XStack alignItems="center" key={`line-${index}`}>
-              <Text height="$xl">{'\n'}</Text>
-            </XStack>
+            <Text key={`line-${index}`} flexWrap="wrap">
+              {line}
+            </Text>
           );
-        }
+        })}
+      </>
+    );
+  }
+);
 
-        return (
-          <XStack alignItems="center" key={`line-${index}`} flexWrap="wrap">
-            {line}
-          </XStack>
-        );
-      })}
-    </>
-  );
-});
+LineRenderer.displayName = 'LineRenderer';
 
-export default function ChatContent({ story }: { story: Story }) {
+export default function ChatContent({
+  story,
+  isNotice = false,
+  onPressImage,
+  onLongPress,
+}: {
+  story: PostContent;
+  isNotice?: boolean;
+  onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
+}) {
   const storyInlines = useMemo(
     () =>
-      (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
-        (i) => i.inline
-      ),
+      story !== null
+        ? (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
+            (i) => i.inline
+          )
+        : [],
     [story]
   );
   const storyBlocks = useMemo(
-    () => story.filter((s) => 'block' in s) as VerseBlock[],
+    () =>
+      story !== null ? (story.filter((s) => 'block' in s) as VerseBlock[]) : [],
+    [story]
+  );
+  const storyReferences = useMemo(
+    () =>
+      story !== null
+        ? (story.filter(
+            (s) => 'type' in s && s.type == 'reference'
+          ) as ContentReferenceType[])
+        : [],
     [story]
   );
   const inlineLength = useMemo(() => storyInlines.length, [storyInlines]);
   const blockLength = useMemo(() => storyBlocks.length, [storyBlocks]);
+  const referenceLength = useMemo(
+    () => storyReferences.length,
+    [storyReferences]
+  );
   const blockContent = useMemo(
     () =>
       storyBlocks.sort((a, b) => {
@@ -302,22 +370,38 @@ export default function ChatContent({ story }: { story: Story }) {
     [storyBlocks]
   );
 
-  if (blockLength === 0 && inlineLength === 0) {
+  if (blockLength === 0 && inlineLength === 0 && referenceLength === 0) {
     return null;
   }
 
   return (
     <YStack>
+      {referenceLength > 0 ? (
+        <YStack gap="$s" paddingBottom="$l">
+          {storyReferences.map((ref, key) => {
+            return <ContentReference key={key} reference={ref} />;
+          })}
+        </YStack>
+      ) : null}
       {blockLength > 0 ? (
         <YStack>
           {blockContent
             .filter((a) => !!a)
             .map((storyItem, key) => {
-              return <BlockContent key={key} story={storyItem.block} />;
+              return (
+                <BlockContent
+                  key={key}
+                  story={storyItem.block}
+                  onPressImage={onPressImage}
+                  onLongPress={onLongPress}
+                />
+              );
             })}
         </YStack>
       ) : null}
-      {inlineLength > 0 ? <LineRenderer storyInlines={storyInlines} /> : null}
+      {inlineLength > 0 ? (
+        <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
+      ) : null}
     </YStack>
   );
 }

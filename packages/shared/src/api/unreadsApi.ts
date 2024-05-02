@@ -61,7 +61,7 @@ export const subscribeUnreads = async (
 export const toClientUnreads = (
   unreads: ub.Unreads,
   type: db.Unread['type']
-): (db.Unread & { threadUnreads: db.ThreadUnreadState[] })[] => {
+): db.Unread[] => {
   return Object.entries(unreads).map(([id, contact]) =>
     toClientUnread(id, contact, type)
   );

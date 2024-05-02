@@ -4,7 +4,7 @@ import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SizableText, Stack, View, XStack, YStack } from '../../core';
-import ChatMessage from '../ChatMessage';
+import { ChatMessage } from '../ChatMessage';
 import { SearchStatus } from './SearchStatus';
 import { SearchState } from './types';
 
@@ -14,9 +14,9 @@ export function SearchResults({
   navigateToPost,
   search,
 }: {
-  posts: db.PostInsertWithAuthor[];
+  posts: db.Post[];
   currentUserId: string;
-  navigateToPost: (post: db.PostWithRelations) => void;
+  navigateToPost: (post: db.Post) => void;
   search: SearchState;
 }) {
   const insets = useSafeAreaInsets();
@@ -72,9 +72,7 @@ export function SearchResults({
                 renderItem={({ item: post }) => (
                   <View
                     marginBottom="$m"
-                    onPress={() =>
-                      navigateToPost(post as unknown as db.PostWithRelations)
-                    }
+                    onPress={() => navigateToPost(post as unknown as db.Post)}
                   >
                     <ChatMessage post={post} currentUserId={currentUserId} />
                   </View>

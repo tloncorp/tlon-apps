@@ -4,15 +4,10 @@ import React from 'react';
 
 import { nestToFlag } from '@/logic/utils';
 
-// eslint-disable-next-line import/no-cycle
 import AppReference from './AppReference';
-// eslint-disable-next-line import/no-cycle
 import CurioReference from './CurioReference';
-// eslint-disable-next-line import/no-cycle
 import GroupReference from './GroupReference';
-// eslint-disable-next-line import/no-cycle
 import NoteReference from './NoteReference';
-// eslint-disable-next-line import/no-cycle
 import WritChanReference from './WritChanReference';
 
 function ContentReference({

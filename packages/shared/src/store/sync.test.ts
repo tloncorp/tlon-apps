@@ -64,10 +64,9 @@ const outputData = [
 test('syncs pins', async () => {
   setScryOutput(inputData);
   await syncPinnedItems();
-  const savedItems = await db.getPinnedItems({
-    orderBy: 'index',
-    direction: 'asc',
-  });
+  const savedItems = (await db.getPinnedItems()).sort(
+    (a, b) => a.index - b.index
+  );
   expect(savedItems).toEqual(outputData);
 });
 
@@ -231,7 +230,7 @@ const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 const unreadTime = 1712091148002;
 
-const testGroupData: db.GroupInsert = {
+const testGroupData: db.Group = {
   ...toClientGroup(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,

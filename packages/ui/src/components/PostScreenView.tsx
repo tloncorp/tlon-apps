@@ -14,13 +14,13 @@ export function PostScreenView({
 }: {
   currentUserId: string;
   channel: db.Channel | null;
-  posts: db.PostWithRelations[] | null;
+  posts: db.Post[] | null;
   goBack?: () => void;
 }) {
   return (
     <YStack flex={1} backgroundColor={'$background'}>
       <ChannelHeader
-        title={'Thread: ' + channel?.title ?? null}
+        title={'Thread: ' + (channel?.title ?? null)}
         goBack={goBack}
         showPickerButton={false}
         showSearchButton={false}
@@ -48,6 +48,7 @@ export function PostScreenView({
               setShouldBlur={() => {}}
               send={() => {}}
               channelId={channel.id}
+              setImageAttachment={() => {}}
             />
           </View>
         )}

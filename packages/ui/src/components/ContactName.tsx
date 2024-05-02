@@ -1,62 +1,36 @@
-import { cite } from '@urbit/aura';
-import { useMemo } from 'react';
+import { ComponentProps, useMemo } from 'react';
 
 import { useCalm } from '../contexts/calm';
 import { useContact } from '../contexts/contacts';
-import { FontSizeTokens, SizableText, Text } from '../core';
+import { SizableText } from '../core';
+import { formatUserId } from '../utils/user';
 
 export default function ContactName({
-  name,
+  userId,
   full = false,
   showAlias = false,
-  ...props
-}: {
-  name: string;
+  ...rest
+}: ComponentProps<typeof SizableText> & {
+  userId: string;
   full?: boolean;
   showAlias?: boolean;
-  size?: FontSizeTokens;
 }) {
-  const contact = useContact(name);
-  const separator = /([_^-])/;
-  const citedName = useMemo(() => (full ? name : cite(name)), [name, full]);
   const calm = useCalm();
+  const contact = useContact(userId);
 
-  if (!citedName) {
+  const showNickname = useMemo(
+    () => contact?.nickname && !calm.disableNicknames && showAlias,
+    [contact, calm.disableNicknames, showAlias]
+  );
+
+  const formattedId = formatUserId(userId, full);
+  if (!formattedId) {
     return null;
   }
 
-  const parts = citedName.replace('~', '').split(separator);
-  const first = parts.shift();
-
   return (
-    <SizableText
-      accessibilityHint={
-        !calm.disableNicknames && contact?.nickname
-          ? contact.nickname
-          : undefined
-      }
-      size={props.size}
-    >
-      {contact?.nickname && !calm.disableNicknames && showAlias ? (
-        <Text accessibilityHint={citedName}>{contact.nickname}</Text>
-      ) : (
-        <>
-          <Text aria-hidden>~</Text>
-          <Text>{first}</Text>
-          {parts.length > 1 && (
-            <>
-              {parts.map((piece, index) => (
-                <Text
-                  key={`${piece}-${index}`}
-                  aria-hidden={separator.test(piece)}
-                >
-                  {piece}
-                </Text>
-              ))}
-            </>
-          )}
-        </>
-      )}
+    <SizableText aria-label={formattedId.ariaLabel} {...rest}>
+      {showNickname ? contact!.nickname : formattedId.display}
     </SizableText>
   );
 }

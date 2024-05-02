@@ -1,4 +1,3 @@
-/* eslint-disable import/no-cycle */
 import { faker } from '@faker-js/faker';
 import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
 import {

@@ -12,7 +12,10 @@ export default function IconButtonFixture() {
   return (
     <div className={'wrap flex flex-wrap gap-2'}>
       {Object.entries(icons).map(([name, Icon]) => (
-        <div className="flex h-[75px] w-[75px] flex-col items-center justify-center rounded border border-gray-50 bg-white">
+        <div
+          key={name}
+          className="flex h-[75px] w-[75px] flex-col items-center justify-center rounded border border-gray-50 bg-white"
+        >
           <label className="mb-1 block text-xs text-gray-400">
             {name.replace('Icon', '')}
           </label>

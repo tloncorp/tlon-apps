@@ -1,23 +1,27 @@
-import type { JSONContent } from '@tiptap/core';
+import { unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
-import { JSONToInlines } from '../logic/tiptap';
 import * as ub from '../urbit';
 import {
+  ClubAction,
+  DmAction,
   KindData,
   KindDataChat,
+  Story,
+  WritDelta,
+  WritDeltaAdd,
+  WritDiff,
   checkNest,
-  constructStory,
   getTextContent,
+  whomIsDm,
 } from '../urbit';
-import {
-  formatDateParam,
-  formatPostIdParam,
-  formatUd,
-  udToDate,
-} from './converters';
+import { formatDateParam, formatUd, udToDate } from './converters';
 import { BadResponseError, poke, scry } from './urbit';
+
+export type PostContent = (ub.Verse | ContentReference)[] | null;
+
+export type PostContentAndFlags = [PostContent, db.PostFlags | null];
 
 export function channelAction(
   nest: ub.Nest,
@@ -36,6 +40,42 @@ export function channelAction(
   };
 }
 
+export function chatAction(
+  whom: string,
+  id: string,
+  delta: WritDelta
+): Poke<DmAction | ClubAction> {
+  if (whomIsDm(whom)) {
+    const action: Poke<DmAction> = {
+      app: 'chat',
+      mark: 'chat-dm-action',
+      json: {
+        ship: whom,
+        diff: {
+          id,
+          delta,
+        },
+      },
+    };
+    return action;
+  }
+
+  const diff: WritDiff = { id, delta };
+  const action: Poke<ClubAction> = {
+    app: 'chat',
+    mark: 'chat-club-action-0',
+    json: {
+      id: whom,
+      diff: {
+        uid: '0v3',
+        delta: { writ: diff },
+      },
+    },
+  };
+
+  return action;
+}
+
 export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   checkNest(nest);
 
@@ -46,14 +86,33 @@ export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
 
 export const sendPost = async (
   channelId: string,
-  content: JSONContent,
+  content: Story,
   author: string
 ) => {
-  const inlines = JSONToInlines(content);
-  const story = constructStory(inlines);
+  if (isDmChannelId(channelId)) {
+    const delta: WritDeltaAdd = {
+      add: {
+        memo: {
+          content,
+          sent: Date.now(),
+          author,
+        },
+        kind: null,
+        time: null,
+      },
+    };
+
+    const action = chatAction(
+      channelId,
+      `${delta.add.memo.author}/${formatUd(unixToDa(delta.add.memo.sent).toString())}`,
+      delta
+    );
+    await poke(action);
+    return;
+  }
 
   const essay: ub.PostEssay = {
-    content: story,
+    content,
     sent: Date.now(),
     'kind-data': {
       chat: null,
@@ -265,7 +324,7 @@ async function with404Handler<T>(scryRequest: Promise<any>, defaultValue: T) {
 export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
-  posts: db.PostInsert[];
+  posts: db.Post[];
   deletedPosts?: string[];
   totalPosts?: number;
 }
@@ -316,7 +375,7 @@ export function toPostsData(
   posts: ub.Posts | Record<string, ub.Reply>
 ) {
   const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
-    [string[], db.PostInsert[]]
+    [string[], db.Post[]]
   >(
     (memo, [id, post]) => {
       if (post === null) {
@@ -339,7 +398,7 @@ export function toPostsData(
 export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostDataResponse
-): db.PostInsert {
+): db.Post {
   const type = isNotice(post)
     ? 'notice'
     : (channelId.split('/')[0] as db.PostType);
@@ -398,7 +457,7 @@ function getReplyData(
   postId: string,
   channelId: string,
   post: ub.PostDataResponse
-): db.PostInsert[] {
+): db.Post[] {
   return Object.entries(post.seal.replies ?? {}).map(([, reply]) => {
     const [content, flags] = toPostContent(reply.memo.content);
     const id = reply.seal.id;
@@ -420,9 +479,7 @@ function getReplyData(
   });
 }
 
-export function toPostContent(
-  story?: ub.Story
-): [(ub.Verse | ContentReference)[] | null, db.PostFlags | null] {
+export function toPostContent(story?: ub.Story): PostContentAndFlags {
   if (!story) {
     return [null, null];
   }

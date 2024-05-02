@@ -11,7 +11,6 @@ import { usePike } from '@/state/kiln';
 import BulletIcon from '../icons/BulletIcon';
 import Spinner from './Spinner';
 import TileMenu from './TileMenu';
-// eslint-disable-next-line import/no-cycle
 import { dragTypes, useRecentsStore } from './grid';
 import useTileColor from './useTileColor';
 

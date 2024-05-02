@@ -9,8 +9,8 @@ export default function ChannelNavSection({
   channels,
   onSelect,
 }: {
-  section: db.GroupNavSectionWithRelations;
-  channels: db.ChannelWithLastPostAndMembers[];
+  section: db.GroupNavSection;
+  channels: db.Channel[];
   onSelect: (channel: any) => void;
 }) {
   const sectionChannels = useMemo(
@@ -24,7 +24,7 @@ export default function ChannelNavSection({
   );
 
   const getChannel = useCallback(
-    (channelId: string | null) => {
+    (channelId?: string | null) => {
       return channels.find((c) => c.id === channelId);
     },
     [channels]

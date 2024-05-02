@@ -6,6 +6,8 @@
 	<string>Tlon needs camera access to take photos for sharing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tlon needs access to your photo library to upload photos for sharing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tlon needs access to your microphone to allow you to share audio.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

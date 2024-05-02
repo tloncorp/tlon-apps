@@ -1,4 +1,13 @@
 import * as api from '@tloncorp/shared/dist/api';
+//@ts-expect-error no typedefs
+import { fetch as streamingFetch } from 'react-native-fetch-api';
+//@ts-expect-error no typedefs
+import { polyfill as polyfillEncoding } from 'react-native-polyfill-globals/src/encoding';
+//@ts-expect-error no typedefs
+import { polyfill as polyfillReadableStream } from 'react-native-polyfill-globals/src/readable-stream';
+
+polyfillReadableStream();
+polyfillEncoding();
 
 const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   const headers = new Headers(init.headers);
@@ -18,7 +27,7 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     // to stream the request.
     reactNative: { textStreaming: true },
   };
-  return fetch(input, newInit);
+  return streamingFetch(input, newInit);
 };
 
 export function configureClient(shipName: string, shipUrl: string) {

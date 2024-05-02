@@ -95,13 +95,13 @@ export default defineConfig({
     {
       command: `cross-env SHIP_URL=${
         (shipManifest as Record<string, any>)['~habduc-patbud'].url
-      } npm run dev-no-ssl`,
+      } pnpm dev-no-ssl`,
       url: 'http://127.0.0.1:3000/apps/groups/',
     },
     {
       command: `cross-env SHIP_URL=${
         (shipManifest as Record<string, any>)['~naldeg-mardev'].url
-      } E2E_PORT_3001=true npm run dev-no-ssl`,
+      } E2E_PORT_3001=true pnpm dev-no-ssl`,
       url: 'http://127.0.0.1:3001/apps/groups/',
     },
   ],
