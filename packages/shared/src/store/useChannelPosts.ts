@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as sync from './sync';
+import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
@@ -43,7 +44,10 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       );
       return secondResult ?? [];
     },
-    queryKey: [['channel', options.channelId]],
+    queryKey: [
+      ['channels', options.channelId],
+      useKeyFromQueryDeps(db.getChannelPosts),
+    ],
     getNextPageParam: (
       lastPage,
       allPages,

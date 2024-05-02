@@ -7,10 +7,15 @@ export function ChatMessageDeliveryStatus({
 }: {
   status: db.PostDeliveryStatus;
 }) {
-  const statusDisplay = status.charAt(0).toUpperCase() + status.slice(1);
+  const statusDisplay =
+    status === 'failed'
+      ? 'Failed'
+      : status === 'pending'
+        ? 'Pending...'
+        : 'Sent';
   return (
     <SizableText
-      color={status === 'failed' ? '$negativeActionText' : '$primaryText'}
+      color={status === 'failed' ? '$negativeActionText' : '$secondaryText'}
     >
       {statusDisplay}
     </SizableText>

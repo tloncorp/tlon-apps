@@ -74,7 +74,7 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   return (
-    <YStack key={post.id}>
+    <YStack key={post.id} onLongPress={handleLongPress}>
       {!isNotice && (
         <>
           {isUnread && !!unreadCount && (
@@ -92,7 +92,6 @@ const ChatMessage = ({
             author={post.author}
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
-            deliveryStatus={post.deliveryStatus}
             // roles={roles}
           />
         </View>
@@ -108,6 +107,7 @@ const ChatMessage = ({
             isNotice={isNotice}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
+            deliveryStatus={post.deliveryStatus}
           />
         )}
       </View>
