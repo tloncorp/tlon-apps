@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { MotiView } from 'moti';
 import {
   PropsWithChildren,
+  ReactNode,
   RefObject,
   createRef,
   forwardRef,
@@ -10,7 +11,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import React from 'react';
 import {
   Dimensions,
   FlatList,
@@ -26,9 +26,10 @@ import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { NotebookPost } from '../NotebookPost';
 
-export default function NotesScroll({
+export default function Scroller({
+  inverted,
+  postComponent,
   posts,
   currentUserId,
   channelType,
@@ -42,6 +43,17 @@ export default function NotesScroll({
   onPressReplies,
   showReplies = true,
 }: {
+  inverted: boolean;
+  postComponent: (props: {
+    currentUserId: string;
+    post: db.Post;
+    firstUnread?: string;
+    unreadCount?: number;
+    showReplies?: boolean;
+    onPressReplies?: (post: db.Post) => void;
+    onPressImage?: (post: db.Post, imageUri?: string) => void;
+    onLongPress?: () => void;
+  }) => ReactNode | null;
   posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
@@ -55,6 +67,7 @@ export default function NotesScroll({
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
 }) {
+  const PostComponent = postComponent;
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -77,7 +90,7 @@ export default function NotesScroll({
         animated: true,
       });
     }
-  }, [firstUnread]);
+  }, [firstUnread, posts]);
 
   useEffect(() => {
     if (selectedPost && flatListRef.current) {
@@ -89,14 +102,13 @@ export default function NotesScroll({
         });
       }
     }
-  }, [selectedPost]);
+  }, [selectedPost, posts]);
 
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
   const handleSetActive = useCallback((active: db.Post) => {
     if (active.type !== 'notice') {
-      console.log('setting active message', { active });
       activeMessageRefs.current[active.id] = createRef();
       setActiveMessage(active);
     }
@@ -110,18 +122,29 @@ export default function NotesScroll({
           onLongPress={() => handleSetActive(item)}
           isActive={activeMessage?.id === item.id}
         >
-          <NotebookPost
+          <PostComponent
             currentUserId={currentUserId}
             post={item}
             firstUnread={firstUnread}
             unreadCount={unreadCount}
             showReplies={showReplies}
-            onLongPress={() => handleSetActive(item)}
+            onPressReplies={onPressReplies}
+            onPressImage={onPressImage}
           />
         </PressableMessage>
       );
     },
-    [activeMessage, showReplies, firstUnread, onPressReplies, unreadCount]
+    [
+      PostComponent,
+      activeMessage,
+      showReplies,
+      firstUnread,
+      onPressReplies,
+      unreadCount,
+      currentUserId,
+      handleSetActive,
+      onPressImage,
+    ]
   );
 
   const handleScrollToIndexFailed = useCallback(
@@ -161,6 +184,7 @@ export default function NotesScroll({
         contentContainerStyle={contentContainerStyle}
         onScrollBeginDrag={handleContainerPressed}
         onScrollToIndexFailed={handleScrollToIndexFailed}
+        inverted={inverted}
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
@@ -171,7 +195,6 @@ export default function NotesScroll({
       >
         {activeMessage !== null && (
           <ChatMessageActions
-            width={Dimensions.get('window').width}
             currentUserId={currentUserId}
             post={activeMessage}
             postRef={activeMessageRefs.current[activeMessage!.id]}

@@ -18,10 +18,11 @@ import {
 import { RequestsProvider } from '../../contexts/requests';
 import { Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
+import ChatMessage from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
+import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
-import ChatScroll from './ChatScroll';
-import NotesScroll from './NotesScroll';
+import Scroller from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
 export function Channel({
@@ -78,6 +79,13 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
 
+  const chatChannel =
+    channel.type === 'chat' ||
+    channel.type === 'dm' ||
+    channel.type === 'groupDm';
+
+  const postComponent = chatChannel ? ChatMessage : NotebookPost;
+
   return (
     <CalmProvider initialCalm={calmSettings}>
       <GroupsProvider groups={group ? [group] : null}>
@@ -117,8 +125,10 @@ export function Channel({
                       >
                         <Spinner />
                       </View>
-                    ) : channel.type === 'chat' ? (
-                      <ChatScroll
+                    ) : (
+                      <Scroller
+                        inverted={chatChannel ? true : false}
+                        postComponent={postComponent}
                         currentUserId={currentUserId}
                         unreadCount={channel.unreadCount ?? undefined}
                         selectedPost={selectedPost}
@@ -131,22 +141,8 @@ export function Channel({
                         onEndReached={onScrollEndReached}
                         onStartReached={onScrollStartReached}
                       />
-                    ) : channel.type === 'notebook' ? (
-                      <NotesScroll
-                        currentUserId={currentUserId}
-                        unreadCount={channel.unreadCount ?? undefined}
-                        selectedPost={selectedPost}
-                        firstUnread={channel.firstUnreadPostId ?? undefined}
-                        posts={posts}
-                        channelType={channel.type}
-                        onPressReplies={goToPost}
-                        onPressImage={goToImageViewer}
-                        setInputShouldBlur={setInputShouldBlur}
-                        onEndReached={onScrollEndReached}
-                        onStartReached={onScrollStartReached}
-                      />
-                    ) : null}
-                    {channel.type === 'chat' && (
+                    )}
+                    {chatChannel && (
                       <MessageInput
                         shouldBlur={inputShouldBlur}
                         setShouldBlur={setInputShouldBlur}

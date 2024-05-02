@@ -3,7 +3,8 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import { View, YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
-import ChatScroll from './Channel/ChatScroll';
+import Scroller from './Channel/Scroller';
+import ChatMessage from './ChatMessage';
 import { MessageInput } from './MessageInput';
 
 export function PostScreenView({
@@ -32,7 +33,9 @@ export function PostScreenView({
         style={{ flex: 1 }}
       >
         {posts && channel && (
-          <ChatScroll
+          <Scroller
+            inverted
+            postComponent={ChatMessage}
             channelType={channel.type}
             currentUserId={currentUserId}
             posts={posts}
