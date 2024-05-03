@@ -4,6 +4,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
 const boolean = (name: string) => {
@@ -339,35 +340,41 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
 
 export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
 
-export const posts = sqliteTable('posts', {
-  id: text('id').primaryKey().notNull(),
-  authorId: text('author_id').notNull(),
-  channelId: text('channel_id').notNull(),
-  groupId: text('group_id'),
-  parentId: text('parent_id'),
-  type: text('type')
-    .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
-    .notNull(),
-  title: text('title'),
-  image: text('image'),
-  content: text('content', { mode: 'json' }),
-  receivedAt: timestamp('received_at').notNull(),
-  sentAt: timestamp('sent_at').unique().notNull(),
-  // client-side time
-  replyCount: integer('reply_count'),
-  replyTime: timestamp('reply_time'),
-  replyContactIds: text('reply_contact_ids', {
-    mode: 'json',
-  }).$type<string[]>(),
-  textContent: text('text_content'),
-  hasAppReference: boolean('has_app_reference'),
-  hasChannelReference: boolean('has_channel_reference'),
-  hasGroupReference: boolean('has_group_reference'),
-  hasLink: boolean('has_link'),
-  hasImage: boolean('has_image'),
-  hidden: boolean('hidden').default(false),
-  deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
-});
+export const posts = sqliteTable(
+  'posts',
+  {
+    id: text('id').primaryKey().notNull(),
+    authorId: text('author_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    groupId: text('group_id'),
+    parentId: text('parent_id'),
+    type: text('type')
+      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
+      .notNull(),
+    title: text('title'),
+    image: text('image'),
+    content: text('content', { mode: 'json' }),
+    receivedAt: timestamp('received_at').notNull(),
+    sentAt: timestamp('sent_at').unique().notNull(),
+    // client-side time
+    replyCount: integer('reply_count'),
+    replyTime: timestamp('reply_time'),
+    replyContactIds: text('reply_contact_ids', {
+      mode: 'json',
+    }).$type<string[]>(),
+    textContent: text('text_content'),
+    hasAppReference: boolean('has_app_reference'),
+    hasChannelReference: boolean('has_channel_reference'),
+    hasGroupReference: boolean('has_group_reference'),
+    hasLink: boolean('has_link'),
+    hasImage: boolean('has_image'),
+    hidden: boolean('hidden').default(false),
+    deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+  },
+  (table) => ({
+    cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
+  })
+);
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
   channel: one(channels, {

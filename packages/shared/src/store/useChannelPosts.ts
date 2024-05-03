@@ -6,7 +6,7 @@ import { createDevLogger } from '../debug';
 import * as sync from './sync';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
 type UseChanelPostsParams = db.GetChannelPostsOptions & {
   anchorToNewest?: boolean;

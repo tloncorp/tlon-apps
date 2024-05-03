@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "caf22e5a-5f36-4b49-ad15-8a0ddfd9e7a4",
+  "id": "f1010117-2191-4949-bce8-a3276aa816a6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -1002,6 +1002,14 @@
         "posts_sent_at_unique": {
           "name": "posts_sent_at_unique",
           "columns": [
+            "sent_at"
+          ],
+          "isUnique": true
+        },
+        "cache_id": {
+          "name": "cache_id",
+          "columns": [
+            "author_id",
             "sent_at"
           ],
           "isUnique": true

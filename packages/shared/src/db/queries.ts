@@ -703,7 +703,7 @@ export const insertChannelPosts = createWriteQuery(
           set: conflictUpdateSetAll($posts),
         })
         .onConflictDoUpdate({
-          target: $posts.sentAt,
+          target: [$posts.authorId, $posts.sentAt],
           set: conflictUpdateSetAll($posts),
         });
     });
