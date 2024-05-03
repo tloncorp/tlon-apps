@@ -22,6 +22,7 @@ import {
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
+import { PostDeliveryStatus } from 'packages/shared/dist/db';
 import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 
@@ -30,6 +31,7 @@ import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
 import { Icon } from '../Icon';
 import ChatEmbedContent from './ChatEmbedContent';
+import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
@@ -332,11 +334,13 @@ LineRenderer.displayName = 'LineRenderer';
 export default function ChatContent({
   story,
   isNotice = false,
+  deliveryStatus,
   onPressImage,
   onLongPress,
 }: {
   story: PostContent;
   isNotice?: boolean;
+  deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
@@ -416,6 +420,17 @@ export default function ChatContent({
       {inlineLength > 0 ? (
         <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
       ) : null}
+      {deliveryStatus && (
+        <XStack
+          justifyContent="flex-end"
+          position="absolute"
+          right={0}
+          bottom={0}
+        >
+          <ChatMessageDeliveryStatus status={deliveryStatus} />
+        </XStack>
+      )}
     </YStack>
   );
+  1;
 }

@@ -1,7 +1,9 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as urbit from '@tloncorp/shared/dist/urbit';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
-import { View, YStack } from '../core';
+import { YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import ChatScroll from './Channel/ChatScroll';
 import { MessageInput } from './MessageInput';
@@ -10,13 +12,16 @@ export function PostScreenView({
   currentUserId,
   channel,
   posts,
+  sendReply,
   goBack,
 }: {
   currentUserId: string;
   channel: db.Channel | null;
   posts: db.Post[] | null;
+  sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
 }) {
+  const [inputShouldBlur, setInputShouldBlur] = useState(false);
   return (
     <YStack flex={1} backgroundColor={'$background'}>
       <ChannelHeader
@@ -33,6 +38,7 @@ export function PostScreenView({
       >
         {posts && channel && (
           <ChatScroll
+            setInputShouldBlur={setInputShouldBlur}
             channelType={channel.type}
             currentUserId={currentUserId}
             posts={posts}
@@ -40,17 +46,13 @@ export function PostScreenView({
           />
         )}
         {channel && (
-          // Interaction disabled for now, will implement whatever blur solution
-          // we end up with.
-          <View pointerEvents="none">
-            <MessageInput
-              shouldBlur={false}
-              setShouldBlur={() => {}}
-              send={() => {}}
-              channelId={channel.id}
-              setImageAttachment={() => {}}
-            />
-          </View>
+          <MessageInput
+            shouldBlur={inputShouldBlur}
+            setShouldBlur={setInputShouldBlur}
+            send={sendReply}
+            channelId={channel.id}
+            setImageAttachment={() => {}}
+          />
         )}
       </KeyboardAvoidingView>
     </YStack>

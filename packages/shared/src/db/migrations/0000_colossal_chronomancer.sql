@@ -148,7 +148,8 @@ CREATE TABLE `posts` (
 	`has_group_reference` integer,
 	`has_link` integer,
 	`has_image` integer,
-	`hidden` integer DEFAULT false
+	`hidden` integer DEFAULT false,
+	`delivery_status` text
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (
@@ -169,3 +170,6 @@ CREATE TABLE `unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);

@@ -2,7 +2,7 @@ import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
 import { TableName } from './types';
 
-const logger = createDevLogger('query', false);
+const logger = createDevLogger('query', true);
 
 export interface QueryMeta<Args extends any[]> {
   /**

@@ -216,6 +216,7 @@ export default function ChatScroll({
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
+            onReply={onPressReplies}
           />
         )}
       </Modal>

@@ -30,6 +30,7 @@ export default function AuthorRow({
   authorId: string;
   sent: number;
   roles?: string[];
+  deliveryStatus?: db.PostDeliveryStatus | null;
 }) {
   const timeDisplay = useMemo(() => {
     const date = new Date(sent);

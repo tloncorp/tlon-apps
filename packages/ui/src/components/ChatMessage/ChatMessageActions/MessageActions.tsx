@@ -4,21 +4,35 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
 
 import { useReferences } from '../../../contexts/references';
 import ActionList from '../../ActionList';
 
 export default function MessageActions({
   dismiss,
+  onReply,
   channelType,
   post,
 }: {
   dismiss: () => void;
+  onReply?: (post: db.Post) => void;
   post: db.Post;
   channelType: db.ChannelType;
 }) {
-  const postActions = getPostActions(post, channelType);
   const { setReferences } = useReferences();
+  const postActions = useMemo(() => {
+    return getPostActions(post, channelType).filter((action) => {
+      // if undelivered or already in a thread, don't show reply
+      if (
+        action.id === 'startThread' &&
+        (post.deliveryStatus || post.parentId)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [post, channelType]);
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -26,7 +40,13 @@ export default function MessageActions({
       {postActions.map((action, index) => (
         <ActionList.Action
           onPress={() =>
-            handleAction({ id: action.id, post, dismiss, setReferences })
+            handleAction({
+              id: action.id,
+              post,
+              dismiss,
+              onReply,
+              setReferences,
+            })
           }
           key={action.id}
           actionType={action.actionType}
@@ -94,16 +114,22 @@ async function handleAction({
   id,
   post,
   dismiss,
+  onReply,
   setReferences,
 }: {
   id: string;
   post: db.Post;
   dismiss: () => void;
+  onReply?: (post: db.Post) => void;
   setReferences: (references: Record<string, ContentReference | null>) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
   switch (id) {
+    case 'startThread':
+      // give the actions time to fade out before navigating
+      setTimeout(() => onReply?.(post), 50);
+      break;
     case 'quote':
       setReferences({ [path]: reference });
       break;
