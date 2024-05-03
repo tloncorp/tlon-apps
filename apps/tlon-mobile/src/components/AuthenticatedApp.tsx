@@ -1,4 +1,4 @@
-import { sync } from '@tloncorp/shared';
+import { sync, useStorage } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
@@ -7,7 +7,7 @@ import { useShip } from '../contexts/ship';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
-import { TabStack } from '../navigation/TabStack';
+import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
   initialNotificationPath?: string;
@@ -23,11 +23,12 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
     sync.start().catch((e) => {
       console.warn('Sync failed', e);
     });
+    useStorage.getState().start();
   }, [ship, shipUrl]);
 
   return (
     <ZStack flex={1}>
-      <TabStack />
+      <RootStack />
     </ZStack>
   );
 }

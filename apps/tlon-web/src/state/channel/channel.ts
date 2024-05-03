@@ -70,7 +70,6 @@ import {
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-// eslint-disable-next-line import/no-cycle
 import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';

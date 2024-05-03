@@ -437,7 +437,6 @@ export interface ChannelPostResponse {
   };
 }
 
-
 export type PendingResponse =
   | { post: PostEssay }
   | {
@@ -445,14 +444,14 @@ export type PendingResponse =
         top: string;
         meta: ReplyMeta;
         memo: Memo;
-      }
-    }
+      };
+    };
 
 export interface ChannelPendingResponse {
   pending: {
     id: CacheId;
     pending: PendingResponse;
-  }
+  };
 }
 
 export type Response =
@@ -596,6 +595,28 @@ export const emptyReply: Reply = {
     sent: 0,
   },
 };
+
+export function isInline(c: Inline | Block): c is Inline {
+  return (
+    typeof 'c' === 'string' ||
+    [
+      'text',
+      'mention',
+      'url',
+      'color',
+      'italics',
+      'bold',
+      'strike',
+      'blockquote',
+      'inline-code',
+      'block',
+      'code',
+      'tag',
+      'link',
+      'break',
+    ].some((k) => typeof c === 'object' && k in c)
+  );
+}
 
 export function constructStory(
   data: (Inline | Block)[],

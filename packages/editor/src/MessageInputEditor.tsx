@@ -15,6 +15,7 @@ import CodeBlock from '@tiptap/extension-code-block';
 import { EditorContent } from '@tiptap/react';
 
 import { ShortcutsBridge } from './bridges/shortcut';
+import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
   const editor = useTenTap({
@@ -30,9 +31,7 @@ export const MessageInputEditor = () => {
       }),
       CodeBridge,
       UnderlineBridge,
-      PlaceholderBridge.configureExtension({
-        placeholder: 'Message',
-      }),
+      PlaceholderBridge,
       LinkBridge.configureExtension({
         openOnClick: false,
       }).extendExtension({
@@ -47,10 +46,15 @@ export const MessageInputEditor = () => {
   return (
     <EditorContent
       style={{
-        flex: 1,
+        overflow: 'auto',
+        height: 'auto',
+        // making this explicit
+        fontSize: 16,
+        color: useIsDark() ? 'white' : 'black',
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
       }}
+      // @ts-expect-error bad
       editor={editor}
     />
   );

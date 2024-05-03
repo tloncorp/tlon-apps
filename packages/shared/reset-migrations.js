@@ -26,7 +26,8 @@ if (shouldWatch) {
 function reset() {
   console.log('checking for schema changes');
   // Bail if nothing has changed
-  const initialGenerateResult = spawnSync('npx', [
+  const initialGenerateResult = spawnSync('pnpm', [
+    'exec',
     'drizzle-kit',
     'generate:sqlite',
     '--config',
@@ -55,7 +56,8 @@ function reset() {
   }
 
   // Spawn drizzle kit to reset migrations
-  spawnSync('npx', [
+  spawnSync('pnpm', [
+    'exec',
     'drizzle-kit',
     'generate:sqlite',
     '--config',

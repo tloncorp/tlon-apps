@@ -9,15 +9,15 @@ export * from './useChannelSearch';
 // Can break em out as they get bigger.
 
 export interface CurrentChats {
-  pinned: db.ChannelSummary[];
-  unpinned: db.ChannelSummary[];
+  pinned: db.Channel[];
+  unpinned: db.Channel[];
 }
 
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: db.getChats,
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getGroup)],
-    select(channels: db.ChannelSummary[]) {
+    select(channels: db.Channel[]) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
           return {

@@ -1,5 +1,4 @@
-import { Icon } from '@tloncorp/ui';
-import { Input } from '@tloncorp/ui/src/components/Input';
+import { Icon, Input } from '@tloncorp/ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 

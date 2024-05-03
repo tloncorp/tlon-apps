@@ -28,16 +28,22 @@ export type HomeStackParamList = {
     channel: db.Channel;
   };
   Post: {
-    post: db.PostInsert;
+    post: db.Post;
+  };
+};
+
+export type RootStackParamList = {
+  Tabs: NavigatorScreenParams<TabParamList>;
+  ImageViewer: {
+    post: db.Post;
+    uri?: string;
   };
 };
 
 export type TabParamList = {
   Groups: NavigatorScreenParams<HomeStackParamList>;
-  Messages: NavigatorScreenParams<WebViewStackParamList>;
   Activity: NavigatorScreenParams<WebViewStackParamList>;
   Profile: NavigatorScreenParams<WebViewStackParamList>;
-  Discover: NavigatorScreenParams<WebViewStackParamList>;
 };
 
 export type TabName = keyof TabParamList;

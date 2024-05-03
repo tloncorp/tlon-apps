@@ -33,7 +33,7 @@ export const contacts = sqliteTable('contacts', {
   coverImage: text('coverImage'),
 });
 
-export const contactsRelations = relations(contacts, ({ one, many }) => ({
+export const contactsRelations = relations(contacts, ({ many }) => ({
   pinnedGroups: many(contactGroups),
 }));
 
@@ -110,10 +110,11 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   }),
 }));
 
+export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
 export const pins = sqliteTable(
   'pins',
   {
-    type: text('type').$type<'group' | 'dm' | 'groupDm'>().notNull(),
+    type: text('type').$type<PinType>().notNull(),
     index: integer('index').notNull(),
     itemId: text('item_id').notNull(),
   },
@@ -123,6 +124,17 @@ export const pins = sqliteTable(
     };
   }
 );
+
+export const pinRelations = relations(pins, ({ one }) => ({
+  group: one(groups, {
+    fields: [pins.itemId],
+    references: [groups.id],
+  }),
+  channel: one(channels, {
+    fields: [pins.itemId],
+    references: [channels.id],
+  }),
+}));
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
@@ -134,6 +146,7 @@ export const groups = sqliteTable('groups', {
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
+  pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
   navSections: many(groupNavSections),
@@ -208,9 +221,7 @@ export const chatMemberGroupRoles = sqliteTable(
     groupId: text('group_id')
       .references(() => groups.id)
       .notNull(),
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     roleId: text('role_id').notNull(),
   },
   (table) => {
@@ -308,6 +319,7 @@ export const channels = sqliteTable('channels', {
 });
 
 export const channelRelations = relations(channels, ({ one, many }) => ({
+  pin: one(pins),
   group: one(groups, {
     fields: [channels.groupId],
     references: [groups.id],
@@ -371,8 +383,9 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   parent: one(posts, {
     fields: [posts.parentId],
     references: [posts.id],
+    relationName: 'parent',
   }),
-  replies: many(posts),
+  replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
 }));
 

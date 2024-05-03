@@ -40,8 +40,8 @@ export default function AuthorRow({
   return (
     <XStack gap="$l" alignItems="center">
       <Avatar size="$2xl" contact={author} contactId={authorId} />
-      <ContactName showAlias name={authorId} />
-      <SizableText color="$secondaryText" size="$s">
+      <ContactName showAlias userId={authorId} />
+      <SizableText color="$secondaryText" size="$s" position="relative" top={1}>
         {timeDisplay}
       </SizableText>
       {firstRole && <RoleBadge role={firstRole} />}

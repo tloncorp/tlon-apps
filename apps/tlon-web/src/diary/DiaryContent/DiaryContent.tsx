@@ -24,7 +24,6 @@ import React from 'react';
 import hoon from 'refractor/lang/hoon.js';
 import { refractor } from 'refractor/lib/common.js';
 
-// eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 import { useIsDark } from '@/logic/useMedia';
 
@@ -208,7 +207,7 @@ export function ListingContent({ content }: { content: Listing }) {
         ))}
         <ul className="list-none">
           {content.list.items.map((con, i) => (
-            <li>
+            <li key={i}>
               <ListingContent key={i} content={con} />
             </li>
           ))}
@@ -226,7 +225,7 @@ export function ListingContent({ content }: { content: Listing }) {
       ))}
       <List>
         {content.list.items.map((con, i) => (
-          <li>
+          <li key={i}>
             <ListingContent key={i} content={con} />
           </li>
         ))}

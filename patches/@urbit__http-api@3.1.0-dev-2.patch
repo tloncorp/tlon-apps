@@ -1,0 +1,31 @@
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 5575d46c18b32bd86fe7167abf8500e4e919386e..640d3f05f95d49eeb93d86a88028f75d7c1aafa3 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -446,10 +446,11 @@ class Urbit {
+      * be the empty string.
+      * @param code The access code for the ship at that address
+      */
+-    constructor(url, code, desk, fetchFn) {
++    constructor(url, code, desk, fetchFn, urlTransformer = (url) => url) {
+         this.url = url;
+         this.code = code;
+         this.desk = desk;
++        this.urlTransformer = urlTransformer;
+         if (isBrowser_1) {
+             window.addEventListener('beforeunload', this.delete);
+         }
+@@ -784,11 +785,12 @@ class Urbit {
+         return eventId;
+     }
+     async sendJSONtoChannel(...json) {
+-        const response = await this.fetchFn(this.channelUrl, {
++        const response = await this.fetchFn(this.urlTransformer(this.channelUrl, json), {
+             ...this.fetchOptions,
+             method: 'PUT',
+             body: JSON.stringify(json),
+         });
++        
+         if (!response.ok) {
+             throw new Error('Failed to PUT channel');
+         }

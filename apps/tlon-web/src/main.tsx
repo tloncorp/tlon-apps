@@ -1,4 +1,3 @@
-/* eslint-disable import/first */
 // if (import.meta.env.VITE_ENABLE_WDYR) {
 //   import.meta.glob('./wdyr.ts', { eager: true });
 // }

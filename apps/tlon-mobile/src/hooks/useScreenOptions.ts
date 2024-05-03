@@ -1,6 +1,5 @@
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-
-import { useIsDarkMode } from './useIsDarkMode';
+import { useStyle } from '@tloncorp/ui';
 
 type Props = {
   overrides?: NativeStackNavigationOptions;
@@ -9,15 +8,17 @@ type Props = {
 export const useScreenOptions = (
   props?: Props
 ): NativeStackNavigationOptions => {
-  const isDarkMode = useIsDarkMode();
+  const contentStyle = useStyle({
+    backgroundColor: '$background',
+  });
   return {
     headerTitle: '',
     headerBackTitleVisible: false,
     headerShadowVisible: false,
-    headerStyle: {
-      backgroundColor: isDarkMode ? '#000' : '#fff',
-    },
-    headerTintColor: isDarkMode ? '#fff' : '#333',
+    gestureEnabled: true,
+    headerStyle: contentStyle,
+    contentStyle,
+    headerTintColor: contentStyle.backgroundColor,
     ...props?.overrides,
   };
 };

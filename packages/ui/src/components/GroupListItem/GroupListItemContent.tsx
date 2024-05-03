@@ -7,7 +7,7 @@ export default function GroupListItemContent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.GroupSummary>) {
+}: ListItemProps<db.Group>) {
   return (
     <ListItem
       {...props}
@@ -26,7 +26,7 @@ export default function GroupListItemContent({
         </ListItem.Subtitle>
       </ListItem.MainContent>
       <ListItem.EndContent>
-        {true ? <ListItem.Time time={model.lastPostAt} /> : null}
+        <ListItem.Time time={model.lastPostAt} />
         {model.unreadCount && model.unreadCount > 0 ? (
           <ListItem.Count>{model.unreadCount}</ListItem.Count>
         ) : null}

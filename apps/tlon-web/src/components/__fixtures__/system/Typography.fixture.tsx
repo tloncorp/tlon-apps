@@ -26,7 +26,7 @@ export default function Typography() {
   return (
     <div>
       {sizes.map((s) => (
-        <div className="mb-5">
+        <div key={s} className="mb-5">
           <label className={'mb-1 text-sm text-gray-400'}>text-{s}</label>
           <p className={`text-${s} text-${color} font-${weight}`}>
             {longSampleText}

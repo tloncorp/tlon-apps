@@ -2,7 +2,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 
 import type { IconType } from '../components/Icon';
 
-export function getChannelTitle(channel: db.ChannelWithLastPostAndMembers) {
+export function getChannelTitle(channel: db.Channel) {
   if (channel.type === 'dm') {
     const member = channel.members?.[0];
     if (!member) {
@@ -19,9 +19,7 @@ export function getChannelTitle(channel: db.ChannelWithLastPostAndMembers) {
   }
 }
 
-export function getChannelMemberName(
-  member: db.ChatMember & { contact: db.Contact | null }
-) {
+export function getChannelMemberName(member: db.ChatMember) {
   return member.contact?.nickname ? member.contact.nickname : member.contactId;
 }
 

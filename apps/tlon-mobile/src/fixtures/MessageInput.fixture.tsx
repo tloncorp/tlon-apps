@@ -1,4 +1,4 @@
-import { MessageInput, View } from '@tloncorp/ui/';
+import { MessageInput, View } from '@tloncorp/ui';
 import { useState } from 'react';
 
 import { FixtureWrapper } from './FixtureWrapper';
@@ -14,6 +14,8 @@ const MessageInputFixture = () => {
           setShouldBlur={setInputShouldBlur}
           send={() => {}}
           channelId="channel-id"
+          setImageAttachment={() => {}}
+          canUpload={true}
         />
       </View>
     </FixtureWrapper>

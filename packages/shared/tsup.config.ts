@@ -15,14 +15,14 @@ export default defineConfig({
   ],
   format: ['esm'],
   minify: false,
-  external: ['react'],
+  external: ['react', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {
     '.sql': 'text',
   },
   onSuccess() {
     return new Promise((resolve, reject) => {
-      exec('npm run types', (err) => {
+      exec('pnpm types', (err) => {
         err ? reject(err) : resolve();
       });
     });
