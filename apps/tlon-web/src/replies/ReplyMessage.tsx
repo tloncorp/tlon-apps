@@ -1,5 +1,4 @@
 import { Editor } from '@tiptap/core';
-import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Reply,
   Story,
@@ -12,6 +11,7 @@ import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
 import debounce from 'lodash/debounce';
+import { MessageKey } from 'packages/shared/dist/urbit';
 import React, {
   useCallback,
   useEffect,
@@ -44,7 +44,6 @@ import { useIsDmOrMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
 import {
   useEditReplyMutation,
   useIsEdited,
-  usePost,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
@@ -52,6 +51,7 @@ import {
   useMarkDmReadMutation,
   useMessageToggler,
   useTrackedMessageStatus,
+  useWrit,
 } from '@/state/chat';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
@@ -59,6 +59,7 @@ import ReplyReactions from './ReplyReactions/ReplyReactions';
 
 export interface ReplyMessageProps {
   whom: string;
+  parent: MessageKey;
   time: BigInteger;
   reply: Reply;
   newAuthor?: boolean;
@@ -68,15 +69,6 @@ export interface ReplyMessageProps {
   isLinked?: boolean;
   isScrolling?: boolean;
   showReply?: boolean;
-}
-
-function amUnread(unread?: Unread, parent?: string, id?: string) {
-  if (!unread || !parent || !id) {
-    return false;
-  }
-
-  const thread = unread.threads[parent];
-  return thread.id === id;
 }
 
 const mergeRefs =
@@ -108,6 +100,7 @@ const ReplyMessage = React.memo<
     (
       {
         whom,
+        parent,
         time,
         reply,
         newAuthor = false,
@@ -129,31 +122,23 @@ const ReplyMessage = React.memo<
       const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = seal['parent-id'] === seal.id;
-      const { post: parent } = usePost(nest, seal['parent-id'], true);
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
-      const chatInfo = useChatInfo(whom);
+      const id = !whomIsFlag(whom)
+        ? seal.id
+        : `${memo.author}/${formatUd(unixToDa(memo.sent))}`;
+      const threadKey = `${whom}/${parent.id}`;
+      const chatInfo = useChatInfo(threadKey);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
-      const id = parent
-        ? `${parent.essay.author}/${formatUd(unixToDa(parent.essay.sent))}`
-        : seal['parent-id'];
-      const parentId = !whomIsFlag(whom) ? seal['parent-id'] : id;
-      const isUnread = !whomIsFlag(whom)
-        ? amUnread(unread?.unread, parentId, seal.id)
-        : amUnread(
-            unread?.unread,
-            parentId,
-            `${memo.author}/${formatUd(unixToDa(memo.sent))}`
-          );
+      const isUnread = unread?.unread && unread.unread.unread?.id === id;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const key = { id, time: formatUd(time) };
       const { markRead: markChannelRead } = useMarkChannelRead(
         `chat/${whom}`,
-        key
+        parent
       );
-      const { markDmRead } = useMarkDmReadMutation(whom, key);
+      const { markDmRead } = useMarkDmReadMutation(whom, parent);
       const { mutate: editReply } = useEditReplyMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
@@ -186,8 +171,8 @@ const ReplyMessage = React.memo<
                the state has changed
             */
             if (inView && isUnread && !seen) {
-              markSeen(whom);
-              delayedRead(whom, () => {
+              markSeen(threadKey);
+              delayedRead(threadKey, () => {
                 if (isDMOrMultiDM) {
                   markDmRead();
                 } else {
@@ -359,7 +344,8 @@ const ReplyMessage = React.memo<
           {unread && isUnread ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.threads[parentId]?.count || 0}
+              notify={unread.unread.notify}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}

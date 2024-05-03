@@ -1135,6 +1135,7 @@ export function useChannelsFirehose() {
   }, []);
 
   const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
+    console.log('received channel update', event);
     setEventQueue((prev) => [...prev, event]);
   }, []);
 
@@ -1149,7 +1150,9 @@ export function useChannelsFirehose() {
   const processQueue = useRef(
     _.debounce(
       (events: ChannelsSubscribeResponse[]) => {
+        console.log('processing channel queue', events);
         eventProcessor(events);
+        setEventQueue([]);
       },
       300,
       { leading: true, trailing: true }
@@ -1157,10 +1160,12 @@ export function useChannelsFirehose() {
   );
 
   useEffect(() => {
+    console.log('checking channel queue', eventQueue.length);
     if (eventQueue.length === 0) {
       return;
     }
 
+    console.log('attempting to process channel queue', eventQueue.length);
     processQueue.current(eventQueue);
   }, [eventQueue]);
 }

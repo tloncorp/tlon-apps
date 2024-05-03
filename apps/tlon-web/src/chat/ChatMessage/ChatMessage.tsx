@@ -62,6 +62,7 @@ import {
   useChatDialogs,
   useChatHovering,
   useChatInfo,
+  useChatKeys,
   useChatStore,
 } from '../useChatStore';
 
@@ -83,25 +84,21 @@ export interface ChatMessageProps {
 
 function getUnreadDisplay(
   unread: Unread | undefined,
-  id: string
+  id: string,
+  thread: Unread | undefined
 ): 'none' | 'top' | 'thread' | 'top-with-thread' {
-  if (!unread) {
-    return 'none';
-  }
-
-  const { unread: mainChat, threads } = unread;
-  const hasUnreadThread = !!threads[id];
+  const mainChat = unread?.unread;
   const isTop = mainChat?.id === id;
 
   // if this message is the oldest unread in the main chat,
   // and has an unread thread, show the divider and thread indicator
-  if (hasUnreadThread && isTop) {
+  if (thread && isTop) {
     return 'top-with-thread';
   }
 
   // if we have a thread, only mark it as explicitly unread
   // if it's not nested under main chat unreads
-  if (hasUnreadThread) {
+  if (thread) {
     return 'thread';
   }
 
@@ -172,22 +169,27 @@ const ChatMessage = React.memo<
       const isMobile = useIsMobile();
       const isThreadOnMobile = isThread && isMobile;
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+      const unreadId = !whomIsFlag(whom)
+        ? seal.id
+        : `${essay.author}/${formatUd(unixToDa(essay.sent))}`;
+      const keys = useChatKeys();
       const chatInfo = useChatInfo(whom);
+      const threadInfo = useChatInfo(`${whom}/${unreadId}`);
       const unread = chatInfo?.unread;
       const unreadDisplay = useMemo(
         () =>
           getUnreadDisplay(
             unread?.unread,
-            !whomIsFlag(whom)
-              ? seal.id
-              : `${essay.author}/${formatUd(unixToDa(essay.sent))}`
+            unreadId,
+            threadInfo?.unread?.unread
           ),
-        [unread, seal.id, whom, essay]
+        [unread, threadInfo, seal.id, whom, essay]
       );
       const topUnread =
         unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
       const threadUnread =
         unreadDisplay === 'thread' || unreadDisplay === 'top-with-thread';
+      const threadNotify = threadInfo?.unread?.unread?.notify;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
@@ -434,6 +436,7 @@ const ChatMessage = React.memo<
             <DateDivider
               date={unix}
               unreadCount={unread.unread.unread?.count || 0}
+              notify={unread.unread.unread?.notify}
               ref={viewRef}
             />
           ) : null}
@@ -556,9 +559,9 @@ const ChatMessage = React.memo<
                         <span
                           className={cn(
                             threadUnread
-                              ? unread?.unread.notify
+                              ? threadNotify
                                 ? 'text-blue'
-                                : 'text-gray-600'
+                                : 'text-gray-400'
                               : 'mr-2'
                           )}
                         >
@@ -566,7 +569,8 @@ const ChatMessage = React.memo<
                         </span>
                         {threadUnread ? (
                           <UnreadIndicator
-                            className="h-6 w-6 text-blue transition-opacity"
+                            notify={threadNotify}
+                            className="h-6 w-6 transition-opacity"
                             aria-label="Unread replies in this thread"
                           />
                         ) : null}

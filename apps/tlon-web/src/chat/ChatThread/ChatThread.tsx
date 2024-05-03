@@ -71,12 +71,15 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
-  const { markRead } = useMarkChannelRead(nest, {
-    id: note
-      ? `${note?.essay.author}/${formatUd(unixToDa(note.essay.sent))}`
-      : '',
+  const id = note
+    ? `${note.essay.author}/${formatUd(unixToDa(note.essay.sent))}`
+    : '';
+  const msgKey = {
+    id,
     time: formatUd(bigInt(idTime!)),
-  });
+  };
+  const chatUnreadsKey = `${flag}/${id}`;
+  const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
   if (note && replies !== null && idTimeIsNumber) {
@@ -120,12 +123,10 @@ export default function ChatThread() {
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useChatInfo(flag).unread?.readTimeout;
-  const isSmall = useMedia('(max-width: 1023px)');
+  const readTimeout = useChatInfo(chatUnreadsKey).unread?.readTimeout;
   const clearOnNavRef = useRef({
-    isSmall,
     readTimeout,
-    flag,
+    chatUnreadsKey,
     markRead,
   });
   const activeTab = useActiveTab();
@@ -165,23 +166,19 @@ export default function ChatThread() {
   // read the messages once navigated away
   useEffect(() => {
     clearOnNavRef.current = {
-      isSmall,
       readTimeout,
-      flag,
+      chatUnreadsKey,
       markRead,
     };
-  }, [readTimeout, flag, isSmall, markRead]);
+  }, [readTimeout, chatUnreadsKey, markRead]);
 
   useEffect(
     () => () => {
       const curr = clearOnNavRef.current;
-      if (
-        curr.isSmall &&
-        curr.readTimeout !== undefined &&
-        curr.readTimeout !== 0
-      ) {
+      debugger;
+      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
         chatStoreLogger.log('unmount read from thread');
-        useChatStore.getState().read(curr.flag);
+        useChatStore.getState().read(curr.chatUnreadsKey);
         curr.markRead();
       }
     },
@@ -266,6 +263,7 @@ export default function ChatThread() {
             key={idTime}
             messages={orderedReplies || []}
             whom={flag}
+            parent={msgKey}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}

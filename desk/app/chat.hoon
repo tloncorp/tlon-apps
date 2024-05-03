@@ -574,6 +574,12 @@
     %-  (slog 'Failed to do chat data migration' u.p.sign)
     cor
   ::
+      [%activity %submit ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog 'Failed to send activity' u.p.sign)
+    cor
+  ::
       [%said *]
     ::  old chat used to fetch previews, we don't do those here anymore
     ::
@@ -1627,7 +1633,7 @@
         (emit (pass-yarn new-yarn))
       =/  concern
         ?:  =(net.dm %invited)  [%invite ~]
-        [%post [. q]:p.diff]
+        [%post p.diff now.bowl]
       =/  mention  (was-mentioned:utils content.memo our.bowl)
       =.  di-core  (di-activity concern content.memo mention)
       (di-give-writs-diff diff)
@@ -1660,8 +1666,8 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
-        =/  top-con  [. q]:p.diff
-        =/  concern  [%reply [. q]:id.q.diff top-con]
+        =/  top-con  [id.writ.u.entry time.writ.u.entry]
+        =/  concern  [%reply [id.q.diff now.bowl] top-con]
         =/  mention  (was-mentioned:utils content.memo our.bowl)
         =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)

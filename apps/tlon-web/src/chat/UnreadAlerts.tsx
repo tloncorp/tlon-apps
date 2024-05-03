@@ -1,4 +1,4 @@
-import { Unread, UnreadThread } from '@tloncorp/shared/dist/urbit/activity';
+import { Unread } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -10,7 +10,6 @@ import { useMarkChannelRead } from '@/logic/channel';
 import { pluralize, whomIsFlag } from '@/logic/utils';
 import { useMarkDmReadMutation } from '@/state/chat';
 
-import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 import { useChatInfo, useChatStore } from './useChatStore';
 
 interface UnreadAlertsProps {
@@ -36,35 +35,14 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
   }
 
   const unread = chatInfo.unread.unread as Unread;
-  const { unread: mainChat, threads } = unread;
-  const { isEmpty, hasThreadUnreads } = getUnreadStatus(unread);
-  if (isEmpty) {
+  const { unread: mainChat } = unread;
+  const isEmpty = mainChat?.count === 0;
+  if (isEmpty || mainChat === null) {
     return null;
   }
 
-  const sortedThreads = Object.entries(threads).sort(([, a], [, b]) =>
-    bigInt(a['parent-time']).compare(bigInt(b['parent-time']))
-  );
-  const oldestThread = sortedThreads[0] as [string, UnreadThread] | undefined;
-  const threadIsOlder = threadIsOlderThanLastRead(
-    unread,
-    oldestThread ? oldestThread[0] : null
-  );
-
-  /* if we have thread unreads that are older than what's unseen
-     in the main chat, we should link to them in the banner instead of
-     just scrolling up
-  */
-  let to = '';
-  let date = new Date();
-  if (hasThreadUnreads && threadIsOlder) {
-    const [id, thread] = oldestThread!;
-    to = `${root}/message/${id}?reply=${thread.time}`;
-    date = new Date(daToUnix(bigInt(thread.time)));
-  } else {
-    to = `${root}?msg=${mainChat!.time}`;
-    date = new Date(daToUnix(bigInt(mainChat!.time)));
-  }
+  const to = `${root}?msg=${mainChat.time}`;
+  const date = new Date(daToUnix(bigInt(mainChat.time)));
 
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`

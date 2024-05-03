@@ -43,7 +43,7 @@
     ^-  cord
     ?-  -.s
       %base  'base'
-      %group  (flag:enjs:gj flag.s)
+      %group  (rap 3 'group/' (flag:enjs:gj flag.s) ~)
       %channel  (rap 3 'channel/' (nest:enjs:gj nest.s) ~)
     ::
         %dm
@@ -126,31 +126,22 @@
     |=  [id=time-id:a seen=?]
     [(scot %ud id) b/seen]
   ::
+  ++  unread-point
+    |=  up=unread-point:a
+    %-  pairs
+    :~  id/s+(msg-id id.up)
+        time+(time-id time.up)
+        count/(numb count.up)
+        notify/b/notify.up
+    ==
   ++  unread
     |=  sum=unread-summary:a
     %-  pairs
     :~  recency+(time newest.sum)
         count+(numb count.sum)
         notify+b+notify.sum
-        :-  %unread
-        ?~  unread.sum  ~
-        %-  pairs
-        :~  id/s+(msg-id id.u.unread.sum)
-            time+(time-id time.u.unread.sum)
-            count/(numb count.u.unread.sum)
-        ==
-        :-  %threads
-        %-  pairs
-        %+  turn
-          ~(tap by threads.sum)
-        |=  [top=message-key:a last=message-key:a count=@ud]
-        :-  (msg-id id.top)
-        %-  pairs
-        :~  parent-time/(time-id time.top)
-            id/s/(msg-id id.last)
-            time/(time-id time.last)
-            count+(numb count)
-        ==
+        unread/?~(unread.sum ~ (unread-point u.unread.sum))
+        children+a+(turn children.sum |=(s=source:a s/(string-source s)))
     ==
   ::
   ++  event

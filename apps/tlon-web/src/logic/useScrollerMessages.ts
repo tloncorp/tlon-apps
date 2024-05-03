@@ -2,6 +2,7 @@ import { Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
 import { Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
+import { MessageKey } from 'packages/shared/dist/urbit/activity';
 import { useMemo, useRef } from 'react';
 
 import getKindDataFromEssay from './getKindData';
@@ -93,9 +94,11 @@ export type ChatMessageListItemData = {
 
 function useMessageItems({
   messages,
+  parent,
 }: {
   scrollTo?: bigInt.BigInteger;
   messages: WritArray;
+  parent?: MessageKey;
 }): [
   bigInt.BigInteger[],
   {
@@ -138,6 +141,7 @@ function useMessageItems({
           time: key,
           newAuthor,
           newDay,
+          parent,
         };
       }
 
@@ -163,16 +167,19 @@ function useMessageItems({
 export function useMessageData({
   whom,
   scrollTo,
+  parent,
   messages,
   replying,
 }: {
   whom: string;
+  parent?: MessageKey;
   scrollTo?: bigInt.BigInteger;
   messages: WritArray;
   replying: boolean;
 }) {
   const [activeMessageKeys, messageEntries, activeMessages] = useMessageItems({
     messages,
+    parent,
   });
 
   const activeMessageEntries: ChatMessageListItemData[] = useMemo(

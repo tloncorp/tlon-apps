@@ -7,10 +7,10 @@ import {
   Source,
   Unread,
   Unreads,
-  Volume,
   VolumeMap,
   VolumeSettings,
   sourceToString,
+  stripPrefixes,
 } from '@tloncorp/shared/dist/urbit/activity';
 import _ from 'lodash';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,8 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { nestToFlag, sourceToUnreadKey } from '@/logic/utils';
+import { nestToFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 export const unreadsKey = ['activity', 'unreads'];
@@ -39,23 +38,49 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
 
   events.forEach((event) => {
     const { source, unread } = event.read;
-    if (!('dm' in source) && !('channel' in source)) {
+    if ('base' in source || 'group' in source) {
       return;
     }
 
+    debugger;
     if ('dm' in source) {
       const whom = 'club' in source.dm ? source.dm.club : source.dm.ship;
+      chat[whom] = unread;
       unreads[whom] = unread;
       return;
     }
 
-    const { nest } = source.channel;
-    const [app, flag] = nestToFlag(nest);
+    if ('dm-thread' in source) {
+      const { key, whom } = source['dm-thread'];
+      const prefix = 'club' in whom ? whom.club : whom.ship;
+      const srcStr = `${prefix}/${key.id}`;
 
-    if (app === 'chat') {
-      chat[flag] = unread;
-    } else {
+      chat[srcStr] = unread;
+      unreads[srcStr] = unread;
+    }
+
+    if ('channel' in source) {
+      const { nest } = source.channel;
+      const [app, flag] = nestToFlag(nest);
+
+      if (app === 'chat') {
+        chat[flag] = unread;
+      }
+
       unreads[nest] = unread;
+    }
+
+    if ('thread' in source) {
+      console.log(source, unread);
+      const { key, channel } = source.thread;
+      const [app, flag] = nestToFlag(channel);
+      const srcStr = `${flag}/${key.id}`;
+
+      if (app === 'chat') {
+        chat[srcStr] = unread;
+      }
+
+      unreads[`${app}/${srcStr}`] = unread;
     }
   });
 
@@ -76,6 +101,7 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
 
 function processActivityUpdates(updates: ActivityUpdate[]) {
   const readEvents = updates.filter((e) => 'read' in e) as ActivityReadUpdate[];
+  console.log('checking read events', readEvents);
   if (readEvents.length > 0) {
     const { chat, unreads } = activityReadUpdates(readEvents);
     useChatStore.getState().update(chat);
@@ -102,8 +128,10 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
 export function useActivityFirehose() {
   const [eventQueue, setEventQueue] = useState<ActivityUpdate[]>([]);
   const eventHandler = useCallback((event: ActivityUpdate) => {
+    console.log('received activity', event);
     setEventQueue((prev) => [...prev, event]);
   }, []);
+  console.log('events', eventQueue);
 
   useEffect(() => {
     api.subscribe({
@@ -116,7 +144,9 @@ export function useActivityFirehose() {
   const processQueue = useRef(
     _.debounce(
       (events: ActivityUpdate[]) => {
+        console.log('processing events', events);
         processActivityUpdates(events);
+        setEventQueue([]);
       },
       300,
       { leading: true, trailing: true }
@@ -124,10 +154,12 @@ export function useActivityFirehose() {
   );
 
   useEffect(() => {
+    console.log('checking queue', eventQueue.length);
     if (eventQueue.length === 0) {
       return;
     }
 
+    console.log('attempting to process queue', eventQueue.length);
     processQueue.current(eventQueue);
   }, [eventQueue]);
 }
@@ -151,71 +183,11 @@ export function useMarkReadMutation() {
 
 const emptyUnreads: Unreads = {};
 export function useUnreads(): Unreads {
-  const { mutate: markRead } = useMarkReadMutation();
-  const invalidate = useRef(
-    _.debounce(
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: unreadsKey,
-          refetchType: 'none',
-        });
-      },
-      300,
-      { leading: true, trailing: true }
-    )
-  );
-
-  const eventHandler = (event: ActivityReadUpdate) => {
-    const { source, unread } = event.read;
-    let whom = '';
-
-    if ('dm' in source) {
-      whom = 'club' in source.dm ? source.dm.club : source.dm.ship;
-      useChatStore.getState().handleUnread(whom, unread);
-    }
-
-    if ('channel' in source) {
-      const { nest } = source.channel;
-      const [app, flag] = nestToFlag(nest);
-      whom = nest;
-
-      if (app === 'chat') {
-        useChatStore.getState().handleUnread(flag, unread);
-      }
-    }
-
-    if (whom === '') {
-      return;
-    }
-
-    queryClient.setQueryData(unreadsKey, (d: Unreads | undefined) => {
-      if (d === undefined) {
-        return undefined;
-      }
-
-      const newUnreads = { ...d };
-      newUnreads[whom] = unread;
-
-      return newUnreads;
-    });
-
-    invalidate.current();
-  };
-
-  const { data, ...rest } = useReactQuerySubscription<
-    Unreads,
-    ActivityReadUpdate
-  >({
+  const { data, ...rest } = useReactQueryScry<Unreads>({
     queryKey: unreadsKey,
     app: 'activity',
     path: '/unreads',
-    scry: '/unreads',
-    onEvent: eventHandler,
-    onScry: (d) => {
-      return _.mapKeys(d, (v, key) =>
-        key.replace(/^(channel|ship|club)\//, '')
-      );
-    },
+    onScry: stripPrefixes,
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -223,10 +195,6 @@ export function useUnreads(): Unreads {
   }
 
   return data as Unreads;
-}
-
-export function useNotifications() {
-  return {};
 }
 
 const emptySettings: VolumeSettings = {};

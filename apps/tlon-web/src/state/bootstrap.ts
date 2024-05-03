@@ -1,4 +1,8 @@
-import { FullActivity } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  FullActivity,
+  onlyChats,
+  stripPrefixes,
+} from '@tloncorp/shared/dist/urbit/activity';
 import { GroupsInit } from '@tloncorp/shared/dist/urbit/ui';
 import Urbit from '@urbit/http-api';
 import _ from 'lodash';
@@ -56,16 +60,13 @@ async function startGroups() {
   initializeChat(chat);
 
   // strip channel/ship/club from start
-  const unreads = _.mapKeys(full.unreads, (v, k) => k.replace(/\w*\//, ''));
+  const unreads = stripPrefixes(full.unreads);
   queryClient.setQueryData(['unreads'], unreads);
   // make sure we remove the app part from the nest before handing it over
   useChatStore.getState().update(
     _.mapKeys(
-      _.pickBy(
-        unreads,
-        (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)
-        // strip kind from start
-      ),
+      onlyChats(unreads),
+      // strip kind from start
       (v, k) => k.replace(/\w*\//, '')
     )
   );

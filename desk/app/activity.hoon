@@ -145,7 +145,7 @@
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
       [%x ~]
-    ``activity-full+!>([indices (~(run by indices) summarize-unreads)])
+    ``activity-full+!>([indices (~(urn by indices) summarize-unreads)])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
@@ -211,7 +211,7 @@
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
       [%x %unreads ~]
-    ``activity-unreads+!>((~(run by indices) summarize-unreads))
+    ``activity-unreads+!>((~(urn by indices) summarize-unreads))
   ::
       [%x %volume-settings ~]
     ``activity-settings+!>(volume-settings)
@@ -241,7 +241,7 @@
     (add-to-index source time-id event)
   ::
       %dm-reply
-    =/  src  [%dm-thread key.event whom.event]
+    =/  src  [%dm-thread parent.event whom.event]
     =/  parent-src  [%dm whom.event]
     =.  cor  (add-to-index src time-id event)
     (add-to-index parent-src time-id event)
@@ -253,7 +253,7 @@
     (add-to-index parent-src time-id event)
   ::
       %reply
-    =/  source  [%thread key.event channel.event group.event]
+    =/  source  [%thread parent.event channel.event group.event]
     =/  chan-src  [%channel channel.event group.event]
     =/  group-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
@@ -267,13 +267,13 @@
   =/  new=index:a
     :-  (put:on-event:a stream.index time-id event)
     reads.index
-  (update-indices source new |)
-++  update-indices
+  (update-index source new |)
+++  update-index
   |=  [=source:a new=[stream:a reads:a] new-floor=?]
+  =?  new  new-floor
+    (update-floor source new)
   =.  indices
     (~(put by indices) source new)
-  =?  cor  new-floor
-    (update-floor source)
   (give-unreads source new)
 ++  get-volumes
   |=  =source:a
@@ -345,7 +345,8 @@
     ::  otherwise, continue our walk towards the present
     ::
     $(new-floor `time, stream rest)
-  ?+  -.event  !!
+  ::  treat all other events as read
+  ?+  -.event  &
       ?(%dm-post %dm-reply %post %reply)
     =*  id=time-id:a  q.id.key.event
     =/  par=(unit ?)  (get:on-read-items:a items.reads id)
@@ -353,14 +354,11 @@
   ==
 ::
 ++  update-floor
-  |=  =source:a
-  ^+  cor
+  |=  [=source:a =index:a]
+  ^-  index:a
   =/  new-floor=(unit time)  (find-floor source)
-  =?  indices  ?=(^ new-floor)
-    %+  ~(jab by indices)  source
-    |=  [=stream:a =reads:a]
-    [stream reads(floor u.new-floor)]
-  cor
+  ?~  new-floor  index
+  index(floor.reads u.new-floor)
 ::
 ++  read
   |=  [=source:a action=read-action:a]
@@ -378,12 +376,12 @@
     =/  latest=(unit [=time event:a])
     ::REVIEW  is this taking the item from the correct end? lol
       (ram:on-event:a stream.index)
-    ?~  latest  index
-    index(reads [time.u.latest ~])
+    index(reads [?~(latest now.bowl time.u.latest) ~])
   ==
 ::
 ++  update-reads
   |=  [=source:a updater=$-(index:a index:a)]
+  ^+  cor
   =/  sources=(list source:a)
       %+  welp  ~[source]
       ?+  -.source  ~
@@ -397,18 +395,15 @@
       ==
     |-
     ?~  sources  cor
-    =/  next  $(sources t.sources)
     =/  [src=source:a rest=(list source:a)]  sources
-    =/  indy  (~(get by indices) src)
-    ?~  indy  next
-    =/  new
-      (updater u.indy)
-    =.  cor  (update-indices src new &)
-    next
+    =/  indy  (~(gut by indices) src *index:a)
+    =/  new  (updater indy)
+    =.  cor  (update-index src new &)
+    $(sources rest)
 ++  give-unreads
   |=  [=source:a =stream:a =reads:a]
   ^+  cor
-  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (summarize-unreads [stream reads])]))
+  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (summarize-unreads source [stream reads])]))
 ::
 ++  adjust
   |=  [=source:a =volume-map:a]
@@ -418,8 +413,20 @@
     (~(put by volume-settings) source (~(uni by target) volume-map))
   cor
 ::
+++  get-children
+  |=  =source:a
+  ^-  (list source:a)
+  %+  skim
+    ~(tap in ~(key by indices))
+  |=  src=source:a
+  ?+  -.source  |
+      %base  &
+      %group  ?=(%channel -.src)
+      %channel  ?=(%thread -.src)
+      %dm  ?=(%dm-thread -.src)
+  ==
 ++  summarize-unreads
-  |=  [=stream:a =reads:a]
+  |=  [=source:a [=stream:a =reads:a]]
   ^-  unread-summary:a
   =.  stream  (lot:on-event:a stream `floor.reads ~)
   =/  read-items  items.reads
@@ -434,7 +441,7 @@
   ::        and segment replies for unread threads tracking
   |-
   ?~  read-items
-    (stream-to-unreads stream floor.reads)
+    (stream-to-unreads stream floor.reads (get-children source))
   =/  [[=time seen=?] rest=read-items:a]  (pop:on-read-items:a read-items)
   %=  $
       read-items
@@ -451,20 +458,20 @@
     [`event | ~]
   ==
 ++  stream-to-unreads
-  |=  [=stream:a floor=time]
+  |=  [=stream:a floor=time children=(list source:a)]
   ^-  unread-summary:a
   =/  newest=time  floor
   =/  total  0
   =/  main  0
-  =/  threads=unread-threads:a  ~
   =/  notified=?  |
+  =/  main-notified=?  |
   =|  last=(unit message-key:a)
   ::  for each event
   ::  update count and newest
   ::  if reply, update thread state
   |-
   ?~  stream
-    [newest total ?~(last ~ `[u.last main]) notified threads]
+    [newest total notified ?~(last ~ `[u.last main main-notified]) children]
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume event)
   =?  notified  notify:volume  &
@@ -475,19 +482,11 @@
   ?>  ?=(?(%dm-post %dm-reply %post %reply) -.event)
   =.  total  +(total)
   =?  main  ?=(?(%post %dm-post) -.event)  +(main)
+  =?  main-notified  &(?=(?(%post %dm-post) -.event) notify:volume)  &
   =.  newest  time.key.event
   =.  last
     ?~  last  `key.event
     ?:  (gte time.key.event time.u.last)  last
     `key.event
-  =?  threads  ?=(?(%reply %dm-reply) -.event)
-    =/  old
-      %+  ~(gut by threads)  parent.event
-      [key.event count=0]
-    %+  ~(put by threads)  parent.event
-    ::  we don't need to update the timestamp, because we always process the
-    ::  oldest message first
-    ::
-    [[id.old time.old] +(count.old)]
   $(stream rest)
 --

@@ -2,6 +2,7 @@ import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
 import { PostTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
+import { MessageKey } from 'packages/shared/dist/urbit/activity';
 import React, {
   PropsWithChildren,
   ReactElement,
@@ -168,6 +169,7 @@ const loaderPadding = {
 
 export interface ChatScrollerProps {
   whom: string;
+  parent?: MessageKey;
   messages: PostTuple[] | WritTuple[] | ReplyTuple[];
   onAtTop?: () => void;
   onAtBottom?: () => void;
@@ -189,6 +191,7 @@ export interface ChatScrollerProps {
 
 export default function ChatScroller({
   whom,
+  parent,
   messages,
   onAtTop,
   onAtBottom,
@@ -231,6 +234,7 @@ export default function ChatScroller({
     scrollTo,
     messages,
     replying,
+    parent,
   });
 
   const topItem: CustomScrollItemData | null = useMemo(

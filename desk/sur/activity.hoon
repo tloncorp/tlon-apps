@@ -128,22 +128,23 @@
       items=read-items
   ==
 +$  read-items  ((mop time-id ?) lte)
-::  $unread-summary: the summary of unread activity for a source
+::  $activity-summary: the summary of activity for a source
 ::
 ::    $newest: the time of the latest activity read or unread
-::    $count: the total number of unread events including threads
+::    $count: the total number of unread events including children
+::    $notify: if there are any notifications here or in children
 ::    $unread: if the main stream of source is unread, which starting
-::             message, and how many there are
-::    $threads: the threads that are unread
+::             message, how many there are, and if any are notifications
+::    $children: the sources nested under this source
 ::
 +$  unread-summary
   $:  newest=time
       count=@ud
-      unread=(unit [message-key count=@ud])
       notify=?
-      threads=unread-threads
+      unread=(unit unread-point)
+      children=(list source)
   ==
-+$  unread-threads  (map message-key [message-key count=@ud])
++$  unread-point  [message-key count=@ud notify=?]
 +$  volume  [unreads=? notify=?]
 +|  %primitives
 +$  whom

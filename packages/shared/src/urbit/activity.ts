@@ -1,6 +1,7 @@
 import _ from 'lodash';
 
 import { Story } from './channel';
+import { whomIsDm, whomIsMultiDm } from './utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -148,6 +149,7 @@ export interface MessageKey {
 
 export interface UnreadPoint extends MessageKey {
   count: number;
+  notify: boolean;
 }
 
 export interface UnreadThread extends UnreadPoint {
@@ -159,7 +161,7 @@ export interface Unread {
   count: number;
   notify: boolean;
   unread: UnreadPoint | null;
-  threads: Record<string, UnreadThread>;
+  children: string[];
 }
 
 export type Unreads = Record<string, Unread>;
@@ -430,4 +432,15 @@ export function getDefaultVolumeOption(
     label: def,
     volume: 'default',
   };
+}
+
+export function stripPrefixes(unreads: Unreads) {
+  return _.mapKeys(unreads, (v, k) => k.replace(/^\w*\//, ''));
+}
+
+export function onlyChats(unreads: Unreads) {
+  return _.pickBy(
+    unreads,
+    (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)
+  );
 }

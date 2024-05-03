@@ -1,6 +1,8 @@
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
+import { MessageKey } from 'packages/shared/dist/urbit/activity';
 import React, {
   useCallback,
   useEffect,
@@ -39,10 +41,8 @@ import {
 } from '@/state/chat';
 
 export default function DMThread() {
-  const { chShip, ship, chName, idTime, idShip } = useParams<{
-    chShip: string;
+  const { ship, idTime, idShip } = useParams<{
     ship: string;
-    chName: string;
     idShip: string;
     idTime: string;
   }>();
@@ -71,6 +71,10 @@ export default function DMThread() {
   const { markDmRead } = useMarkDmReadMutation(whom);
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, whom, markDmRead });
+  const msgKey: MessageKey = {
+    id,
+    time: formatUd(bigInt(time)),
+  };
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -216,6 +220,7 @@ export default function DMThread() {
             key={idTime}
             messages={replies}
             whom={whom}
+            parent={msgKey}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}

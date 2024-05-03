@@ -112,6 +112,7 @@ import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ShareDMLure from './profiles/ShareDMLure';
+import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
@@ -619,6 +620,7 @@ const App = React.memo(() => {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
 
+  useActivityFirehose();
   useChannelsFirehose();
   useEffect(() => {
     if (isNativeApp()) {

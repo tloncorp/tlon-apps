@@ -60,8 +60,7 @@ const emptyInfo: () => ChatInfo = () => ({
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
 export function isUnread(unread: Unread): boolean {
-  const hasThreads = Object.keys(unread.threads || {}).length > 0;
-  return unread.count > 0 && (!!unread.unread || hasThreads);
+  return unread.count > 0;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -179,8 +178,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           unread: {
             recency: 0,
             count: 0,
-            unread: { id: '', time: '', count: 0 },
-            threads: {},
+            notify: false,
+            unread: null,
+            children: [],
           },
           readTimeout: 0,
         };
@@ -292,6 +292,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 const defaultInfo = { replying: null, blocks: [] };
 export function useChatInfo(flag: string): ChatInfo {
   return useChatStore(useCallback((s) => s.chats[flag] || defaultInfo, [flag]));
+}
+
+export function useChatKeys(): string[] {
+  return useChatStore(useCallback((s) => Object.keys(s.chats), []));
 }
 
 export function fetchChatBlocks(whom: string): Block[] {
