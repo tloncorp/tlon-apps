@@ -67,7 +67,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           cursor: selectedPost.id,
         }
       : {
-          direction: 'older',
+          anchorToNewest: true,
         }),
     count: 50,
   });
