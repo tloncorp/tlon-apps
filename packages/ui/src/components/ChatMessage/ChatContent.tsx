@@ -173,7 +173,11 @@ export function BlockContent({
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
-  const [aspect, setAspect] = useState<number | null>(null);
+  const [aspect, setAspect] = useState<number | null>(() => {
+    return isImage(story) && story.image.height && story.image.width
+      ? story.image.width / story.image.height
+      : null;
+  });
 
   const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
     setAspect(e.source.width / e.source.height);
@@ -204,8 +208,8 @@ export function BlockContent({
           borderRadius="$m"
           onLoad={handleImageLoaded}
           width={200}
+          backgroundColor={'$secondaryBackground'}
           height={aspect ? 200 / aspect : 100}
-          resizeMode="contain"
         />
       </TouchableOpacity>
     );
