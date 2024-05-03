@@ -25,8 +25,7 @@ import { ImageLoadEventData } from 'expo-image';
 import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 
-import { Image, Text, View, XStack, YStack } from '../../core';
-import { Button } from '../Button';
+import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
 import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
 import { Icon } from '../Icon';
@@ -47,7 +46,13 @@ function ShipMention({ ship }: { ship: string }) {
   );
 }
 
-export function InlineContent({ story }: { story: Inline | null }) {
+export function InlineContent({
+  story,
+  color = '$primaryText',
+}: {
+  story: Inline | null;
+  color?: ColorTokens;
+}) {
   if (story === null) {
     return null;
   }
@@ -60,7 +65,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       );
     }
     return (
-      <Text color="$primaryText" fontSize="$m">
+      <Text color={color} fontSize="$m">
         {story}
       </Text>
     );
@@ -71,7 +76,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <>
         {story.bold.map((s, k) => (
           <Text fontSize="$m" fontWeight="bold" key={k}>
-            <InlineContent story={s} />
+            <InlineContent story={s} color={color} />
           </Text>
         ))}
       </>
@@ -83,7 +88,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <>
         {story.italics.map((s, k) => (
           <Text fontSize="$m" fontStyle="italic" key={k}>
-            <InlineContent story={s} />
+            <InlineContent story={s} color={color} />
           </Text>
         ))}
       </>
@@ -95,7 +100,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
       <>
         {story.strike.map((s, k) => (
           <Text fontSize="$m" textDecorationLine="line-through" key={k}>
-            <InlineContent story={s} />
+            <InlineContent story={s} color={color} />
           </Text>
         ))}
       </>
@@ -106,6 +111,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
     return (
       <Text
         fontFamily="$mono"
+        color={color}
         backgroundColor="$secondaryBackground"
         padding="$xs"
         borderRadius="$s"
@@ -127,6 +133,7 @@ export function InlineContent({ story }: { story: Inline | null }) {
           fontFamily="$mono"
           padding="$m"
           borderRadius="$s"
+          color={color}
           backgroundColor="$secondaryBackground"
         >
           {story.code}
@@ -212,9 +219,11 @@ export function BlockContent({
 const LineRenderer = memo(
   ({
     storyInlines,
+    color = '$primaryText',
     isNotice = false,
   }: {
     storyInlines: Inline[];
+    color?: ColorTokens;
     isNotice?: boolean;
   }) => {
     const inlineElements: ReactElement[][] = [];
@@ -251,7 +260,7 @@ const LineRenderer = memo(
           currentLine.push(
             <Text
               key={`string-${inline}-${index}`}
-              color={isNotice ? '$tertiaryText' : '$primaryText'}
+              color={isNotice ? '$tertiaryText' : color}
               fontSize="$m"
               fontWeight={isNotice ? '600' : 'normal'}
               lineHeight="$m"
@@ -269,20 +278,25 @@ const LineRenderer = memo(
             paddingLeft="$l"
           >
             {Array.isArray(inline.blockquote) ? (
-              <LineRenderer storyInlines={inline.blockquote} />
+              <LineRenderer
+                storyInlines={inline.blockquote}
+                color="$secondaryText"
+              />
             ) : (
               // not clear if this is necessary
-              <InlineContent story={inline.blockquote} />
+              <InlineContent story={inline.blockquote} color="$secondaryText" />
             )}
           </YStack>
         );
+        inlineElements.push(currentLine);
+        currentLine = [];
       } else if (isShip(inline)) {
         currentLine.push(
           <ShipMention key={`ship-${index}`} ship={inline.ship} />
         );
       } else {
         currentLine.push(
-          <InlineContent key={`inline-${index}`} story={inline} />
+          <InlineContent key={`inline-${index}`} story={inline} color={color} />
         );
       }
     });
