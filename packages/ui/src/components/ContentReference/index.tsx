@@ -6,14 +6,17 @@ import ChannelReference from './ChannelReference';
 
 export default function ContentReference({
   reference,
+  asAttachment = false,
 }: {
   reference: ContentReferenceType;
+  asAttachment?: boolean;
 }) {
   if (reference.referenceType === 'channel') {
     return (
       <ChannelReference
         channelId={reference.channelId}
         postId={reference.postId}
+        asAttachment={asAttachment}
       />
     );
   }

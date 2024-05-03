@@ -1,10 +1,12 @@
 import Clipboard from '@react-native-clipboard/clipboard';
+import { ContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 
+import { useReferences } from '../../../contexts/references';
 import ActionList from '../../ActionList';
 
 export default function MessageActions({
@@ -18,6 +20,7 @@ export default function MessageActions({
   post: db.Post;
   channelType: db.ChannelType;
 }) {
+  const { setReferences } = useReferences();
   const postActions = useMemo(() => {
     return getPostActions(post, channelType).filter((action) => {
       // if undelivered or already in a thread, don't show reply
@@ -37,7 +40,13 @@ export default function MessageActions({
       {postActions.map((action, index) => (
         <ActionList.Action
           onPress={() =>
-            handleAction({ id: action.id, post, dismiss, onReply })
+            handleAction({
+              id: action.id,
+              post,
+              dismiss,
+              onReply,
+              setReferences,
+            })
           }
           key={action.id}
           actionType={action.actionType}
@@ -62,7 +71,7 @@ function getPostActions(
   switch (channelType) {
     case 'gallery':
       return [
-        { id: 'reply', label: 'Comment on post' },
+        { id: 'startThread', label: 'Comment on post' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: 'Hide' },
@@ -70,7 +79,7 @@ function getPostActions(
       ];
     case 'notebook':
       return [
-        { id: 'reply', label: 'Comment on post' },
+        { id: 'startThread', label: 'Comment on post' },
         { id: 'pin', label: 'Pin post' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
@@ -80,7 +89,7 @@ function getPostActions(
     case 'dm':
     case 'groupDm':
       return [
-        { id: 'reply', label: 'Reply' },
+        // { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },
@@ -90,7 +99,7 @@ function getPostActions(
     case 'chat':
     default:
       return [
-        { id: 'reply', label: 'Reply' },
+        { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
@@ -106,17 +115,25 @@ async function handleAction({
   post,
   dismiss,
   onReply,
+  setReferences,
 }: {
   id: string;
   post: db.Post;
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
+  setReferences: (references: Record<string, ContentReference | null>) => void;
 }) {
+  const [path, reference] = logic.postToContentReference(post);
+
   switch (id) {
     case 'startThread':
       // give the actions time to fade out before navigating
       setTimeout(() => onReply?.(post), 50);
       break;
+    case 'quote':
+      setReferences({ [path]: reference });
+      break;
+
     case 'copyRef':
       Clipboard.setString(logic.getPostReferencePath(post));
       break;
