@@ -22,6 +22,7 @@ import * as utils from '../../utils';
 import { MessageInput } from '../MessageInput';
 import { ChannelHeader } from './ChannelHeader';
 import ChatScroll from './ChatScroll';
+import { EmptyChannelNotice } from './EmptyChannelNotice';
 import UploadedImagePreview from './UploadedImagePreview';
 
 //TODO implement usePost and useChannel
@@ -85,6 +86,7 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
+  const canWrite = utils.useCanWrite(channel, currentUserId);
 
   return (
     <CalmProvider initialCalm={calmSettings}>
@@ -130,6 +132,11 @@ export function Channel({
                         >
                           <Spinner />
                         </View>
+                      ) : posts.length === 0 && group !== null ? (
+                        <EmptyChannelNotice
+                          channel={channel}
+                          userId={currentUserId}
+                        />
                       ) : (
                         <ChatScroll
                           currentUserId={currentUserId}
@@ -147,15 +154,17 @@ export function Channel({
                           onStartReached={onScrollStartReached}
                         />
                       )}
-                      <MessageInput
-                        shouldBlur={inputShouldBlur}
-                        setShouldBlur={setInputShouldBlur}
-                        send={messageSender}
-                        channelId={channel.id}
-                        setImageAttachment={setImageAttachment}
-                        uploadedImage={uploadedImage}
-                        canUpload={canUpload}
-                      />
+                      {canWrite && (
+                        <MessageInput
+                          shouldBlur={inputShouldBlur}
+                          setShouldBlur={setInputShouldBlur}
+                          send={messageSender}
+                          channelId={channel.id}
+                          setImageAttachment={setImageAttachment}
+                          uploadedImage={uploadedImage}
+                          canUpload={canUpload}
+                        />
+                      )}
                     </YStack>
                   </KeyboardAvoidingView>
                 </YStack>
