@@ -1,5 +1,4 @@
 import * as db from 'packages/shared/dist/db';
-import React, { useMemo } from 'react';
 
 import { ScrollView, SizableText, View } from '../../core';
 import { useIsAdmin } from '../../utils';
