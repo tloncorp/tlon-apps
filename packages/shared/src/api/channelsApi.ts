@@ -33,6 +33,24 @@ export const subscribeToChannelsUpdates = async (
   );
 };
 
+export function toClientChannelsInit(channels: ub.Channels) {
+  return Object.entries(channels).map(([id, channel]) => {
+    return toClientChannelInit(id, channel);
+  });
+}
+
+export type ChannelInit = {
+  channelId: string;
+  writers: string[];
+};
+
+export function toClientChannelInit(
+  id: string,
+  channel: ub.Channel
+): ChannelInit {
+  return { channelId: id, writers: channel.perms.writers ?? [] };
+}
+
 export const toChannelsUpdate = (
   channelEvent: ub.ChannelsSubscribeResponse
 ): ChannelsUpdate => {

@@ -24,6 +24,7 @@ import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
+import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
@@ -85,6 +86,7 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
+  const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const chatChannel = isChatChannel(channel);
   const renderItem = chatChannel ? ChatMessage : NotebookPost;
@@ -133,6 +135,11 @@ export function Channel({
                         >
                           <Spinner />
                         </View>
+                      ) : posts.length === 0 && group !== null ? (
+                        <EmptyChannelNotice
+                          channel={channel}
+                          userId={currentUserId}
+                        />
                       ) : (
                         <Scroller
                           inverted={chatChannel ? true : false}
@@ -152,7 +159,7 @@ export function Channel({
                           onStartReached={onScrollStartReached}
                         />
                       )}
-                      {chatChannel && (
+                      {chatChannel && canWrite && (
                         <MessageInput
                           shouldBlur={inputShouldBlur}
                           setShouldBlur={setInputShouldBlur}
