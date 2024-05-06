@@ -80,6 +80,13 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   switch (update.type) {
     case 'addPost':
       await db.insertChannelPosts(update.post.channelId, [update.post]);
+      if (update.post.parentId) {
+        await db.addReplyToPost({
+          parentId: update.post.parentId,
+          replyAuthor: update.post.authorId,
+          replyTime: update.post.sentAt,
+        });
+      }
       break;
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
