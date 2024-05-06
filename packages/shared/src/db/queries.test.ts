@@ -77,3 +77,113 @@ test('gets chat list', async () => {
     '~rilfun-lidlen',
   ]);
 });
+
+const windowA = {
+  channelId: 'tst',
+  oldestPostAt: 10,
+  newestPostAt: 100,
+};
+
+const windowB = {
+  channelId: 'tst',
+  oldestPostAt: 200,
+  newestPostAt: 300,
+};
+
+const windowBefore = {
+  channelId: 'tst',
+  oldestPostAt: 0,
+  newestPostAt: 5,
+};
+
+const windowIntersectingA = {
+  channelId: 'tst',
+  oldestPostAt: 5,
+  newestPostAt: 50,
+};
+
+const windowFillingGap = {
+  channelId: 'tst',
+  oldestPostAt: 95,
+  newestPostAt: 205,
+};
+
+const windowIntersectingB = {
+  channelId: 'tst',
+  oldestPostAt: 250,
+  newestPostAt: 350,
+};
+
+const windowCoveringAll = {
+  channelId: 'tst',
+  oldestPostAt: 0,
+  newestPostAt: 400,
+};
+
+const testCases = [
+  {
+    label: 'two identical windows',
+    window: windowA,
+    expected: [windowA, windowB],
+  },
+  {
+    label: 'before A',
+    window: windowBefore,
+    expected: [windowBefore, windowA, windowB],
+  },
+  {
+    label: 'intersecting A (before)',
+    window: windowIntersectingA,
+    expected: [
+      {
+        channelId: 'tst',
+        oldestPostAt: windowIntersectingA.oldestPostAt,
+        newestPostAt: windowA.newestPostAt,
+      },
+      windowB,
+    ],
+  },
+  {
+    label: 'fill gap between A and B',
+    window: windowFillingGap,
+    expected: [
+      {
+        channelId: 'tst',
+        oldestPostAt: windowA.oldestPostAt,
+        newestPostAt: windowB.newestPostAt,
+      },
+    ],
+  },
+  {
+    label: 'intersecting B (after)',
+    window: windowIntersectingB,
+    expected: [
+      windowA,
+      {
+        channelId: 'tst',
+        oldestPostAt: windowB.oldestPostAt,
+        newestPostAt: windowIntersectingB.newestPostAt,
+      },
+    ],
+  },
+  {
+    label: 'covering all',
+    window: windowCoveringAll,
+    expected: [windowCoveringAll],
+  },
+];
+
+test.each(testCases)('insert window: $label', async ({ window, expected }) => {
+  await setupWindows();
+  await queries.insertPostWindow(window);
+  const windows = await queries.getPostWindows({ orderBy: 'windowStart' });
+  expect(windows).toEqual(expected);
+});
+
+async function setupWindows() {
+  await Promise.all([
+    queries.insertChannels([{ id: 'tst', type: 'chat' }]),
+    queries.insertPostWindow(windowA),
+    queries.insertPostWindow(windowB),
+  ]);
+}

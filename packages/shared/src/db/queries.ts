@@ -11,10 +11,12 @@ import {
   eq,
   getTableColumns,
   gt,
+  gte,
   inArray,
   isNotNull,
   isNull,
   lt,
+  lte,
   max,
   not,
   or,
@@ -39,6 +41,7 @@ import {
   groups as $groups,
   pins as $pins,
   postReactions as $postReactions,
+  postWindows as $postWindows,
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
@@ -52,6 +55,7 @@ import {
   Pin,
   PinType,
   Post,
+  PostWindow,
   Reaction,
   Settings,
   TableName,
@@ -1191,6 +1195,95 @@ export const getPinnedItems = createReadQuery(
     return client.query.pins.findMany({});
   },
   ['pins']
+);
+
+export const insertPostWindow = createWriteQuery(
+  'insertPostWindow',
+  async (window: PostWindow) => {
+    const intersectingWindows = await client.query.postWindows.findMany({
+      where: (table) => {
+        return and(
+          eq(table.channelId, window.channelId),
+          or(
+            and(
+              gte(table.oldestPostAt, window.newestPostAt),
+              lt(table.newestPostAt, window.oldestPostAt)
+            ),
+            and(
+              gte(table.newestPostAt, window.oldestPostAt),
+              lte(table.oldestPostAt, window.newestPostAt)
+            )
+          )
+        );
+      },
+    });
+
+    if (intersectingWindows.length === 1) {
+      const intersecting = intersectingWindows[0];
+
+      await client
+        .update($postWindows)
+        .set({
+          oldestPostAt: Math.min(
+            intersecting.oldestPostAt,
+            window.oldestPostAt
+          ),
+          newestPostAt: Math.max(
+            intersecting.newestPostAt,
+            window.newestPostAt
+          ),
+        })
+        .where(windowEq(intersecting));
+    } else if (intersectingWindows.length > 1) {
+      const allWindows = [window, ...intersectingWindows];
+      const oldestPostAt = Math.min(...allWindows.map((w) => w.oldestPostAt));
+      const newestPostAt = Math.max(...allWindows.map((w) => w.newestPostAt));
+      const finalWindow = intersectingWindows[0];
+      const windowsToDelete = intersectingWindows.slice(1);
+      await client.transaction(async (tx) => {
+        await tx.delete($postWindows).where(
+          inArray(
+            $postWindows.oldestPostAt,
+            windowsToDelete.map((w) => w.oldestPostAt)
+          )
+        );
+        await tx
+          .update($postWindows)
+          .set({ oldestPostAt, newestPostAt })
+          .where(windowEq(finalWindow));
+      });
+    } else {
+      await client.insert($postWindows).values(window);
+    }
+  },
+  ['postWindows', 'posts']
+);
+
+const windowEq = (window: PostWindow) => {
+  return and(
+    eq($postWindows.channelId, window.channelId),
+    eq($postWindows.oldestPostAt, window.oldestPostAt),
+    eq($postWindows.newestPostAt, window.newestPostAt)
+  );
+};
+
+export const getPostWindows = createReadQuery(
+  'getPostWindows',
+  async ({
+    channelId,
+    orderBy,
+  }: { channelId?: string; orderBy?: 'windowStart' | 'windowEnd' } = {}) => {
+    return client.query.postWindows.findMany({
+      where: channelId ? eq($postWindows.channelId, channelId) : undefined,
+      orderBy:
+        orderBy === 'windowStart'
+          ? asc($postWindows.oldestPostAt)
+          : orderBy === 'windowEnd'
+            ? asc($postWindows.newestPostAt)
+            : undefined,
+    });
+  },
+  ['postWindows']
 );
 
 // Helpers
