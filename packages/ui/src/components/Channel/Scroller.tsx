@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { MotiView } from 'moti';
-import {
+import React, {
   PropsWithChildren,
-  ReactNode,
+  ReactElement,
   RefObject,
   createRef,
   forwardRef,
@@ -28,9 +28,21 @@ import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChannelDivider } from './ChannelDivider';
 
+type RenderItemFunction = (props: {
+  currentUserId: string;
+  post: db.Post;
+  showAuthor?: boolean;
+  showReplies?: boolean;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onLongPress?: (post: db.Post) => void;
+}) => ReactElement | null;
+
+type RenderItemType = RenderItemFunction | React.MemoExoticComponent<RenderItemFunction>;
+
 export default function Scroller({
   inverted,
-  postComponent,
+  renderItem,
   posts,
   currentUserId,
   channelType,
@@ -45,15 +57,7 @@ export default function Scroller({
   showReplies = true,
 }: {
   inverted: boolean;
-  postComponent: (props: {
-    currentUserId: string;
-    post: db.Post;
-    showAuthor?: boolean;
-    showReplies?: boolean;
-    onPressReplies?: (post: db.Post) => void;
-    onPressImage?: (post: db.Post, imageUri?: string) => void;
-    onLongPress?: (post: db.Post) => void;
-  }) => ReactNode | null;
+  renderItem: RenderItemType;
   posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
@@ -67,7 +71,6 @@ export default function Scroller({
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
 }) {
-  const PostComponent = postComponent;
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -124,7 +127,7 @@ export default function Scroller({
     [handleSetActive]
   );
 
-  const renderItem: ListRenderItem<db.Post> = useCallback(
+  const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts[index + 1];
       const isFirstPostOfDay = !isSameDay(
@@ -137,6 +140,9 @@ export default function Scroller({
         (item.replyCount ?? 0) > 0 ||
         isFirstPostOfDay;
       const isFirstUnread = !!unreadCount && item.id === firstUnread;
+      // this is necessary because we can't call memoized components as functions
+      // (they are objects, not functions)
+      const RenderItem = renderItem;
       return (
         <>
           {isFirstUnread ? (
@@ -151,22 +157,21 @@ export default function Scroller({
             ref={activeMessageRefs.current[item.id]}
             isActive={activeMessage?.id === item.id}
           >
-            {/* ts may yell at you in the editor, but this is fine */}
-            <PostComponent
+            <RenderItem
               currentUserId={currentUserId}
               post={item}
               showAuthor={showAuthor}
               showReplies={showReplies}
               onPressReplies={onPressReplies}
               onPressImage={onPressImage}
-              onLongPress={handlePostLongPressed}
+              onLongPress={() => handlePostLongPressed(item)}
             />
           </PressableMessage>
         </>
       );
     },
     [
-      PostComponent,
+      renderItem,
       activeMessage,
       showReplies,
       firstUnread,
@@ -209,7 +214,7 @@ export default function Scroller({
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
-        renderItem={renderItem}
+        renderItem={listRenderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
         contentContainerStyle={contentContainerStyle}
@@ -245,7 +250,6 @@ function getPostId(post: db.Post) {
 const PressableMessage = forwardRef<
   RNView,
   PropsWithChildren<{ isActive: boolean }>
-  // ts in the editor may tell you this is an error, but this is fine
 >(function PressableMessageComponent({ isActive, children }, ref) {
   return isActive ? (
     // need the extra React Native View for ref measurement
@@ -263,7 +267,9 @@ const PressableMessage = forwardRef<
       <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
-    children
+    // this fragment is necessary to avoid the TS error about not being able to
+    // return undefined
+    <>{children}</>
   );
 });
 

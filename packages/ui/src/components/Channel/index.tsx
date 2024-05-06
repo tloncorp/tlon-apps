@@ -1,4 +1,5 @@
 import {
+  isChatChannel,
   useChannel as useChannelFromStore,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
@@ -85,12 +86,8 @@ export function Channel({
   const title = utils.getChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
 
-  const chatChannel =
-    channel.type === 'chat' ||
-    channel.type === 'dm' ||
-    channel.type === 'groupDm';
-
-  const postComponent = chatChannel ? ChatMessage : NotebookPost;
+  const chatChannel = isChatChannel(channel);
+  const renderItem = chatChannel ? ChatMessage : NotebookPost;
 
   return (
     <CalmProvider initialCalm={calmSettings}>
@@ -139,7 +136,7 @@ export function Channel({
                       ) : (
                         <Scroller
                           inverted={chatChannel ? true : false}
-                          postComponent={postComponent}
+                          renderItem={renderItem}
                           currentUserId={currentUserId}
                           unreadCount={channel.unread?.count ?? undefined}
                           selectedPost={selectedPost}

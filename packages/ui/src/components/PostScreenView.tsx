@@ -35,7 +35,7 @@ export function PostScreenView({
         {posts && channel && (
           <Scroller
             inverted
-            postComponent={ChatMessage}
+            renderItem={ChatMessage}
             channelType={channel.type}
             currentUserId={currentUserId}
             posts={posts}
