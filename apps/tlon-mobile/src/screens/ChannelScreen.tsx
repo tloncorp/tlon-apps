@@ -174,7 +174,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const handleGoToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
-      props.navigation.push('Channel', { channel, selectedPost: post });
+      props.navigation.navigate('Channel', { channel, selectedPost: post });
     },
     [props.navigation]
   );
