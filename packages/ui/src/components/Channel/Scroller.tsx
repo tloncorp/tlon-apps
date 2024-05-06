@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { MotiView } from 'moti';
-import {
+import React, {
   PropsWithChildren,
+  ReactElement,
   RefObject,
   createRef,
   forwardRef,
@@ -24,11 +25,26 @@ import { useStyle } from 'tamagui';
 import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
-import { ChatMessage } from '../ChatMessage';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChannelDivider } from './ChannelDivider';
 
-export default function ChatScroll({
+type RenderItemFunction = (props: {
+  currentUserId: string;
+  post: db.Post;
+  showAuthor?: boolean;
+  showReplies?: boolean;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onLongPress?: (post: db.Post) => void;
+}) => ReactElement | null;
+
+type RenderItemType =
+  | RenderItemFunction
+  | React.MemoExoticComponent<RenderItemFunction>;
+
+export default function Scroller({
+  inverted,
+  renderItem,
   posts,
   currentUserId,
   channelType,
@@ -42,6 +58,8 @@ export default function ChatScroll({
   onPressReplies,
   showReplies = true,
 }: {
+  inverted: boolean;
+  renderItem: RenderItemType;
   posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
@@ -111,7 +129,7 @@ export default function ChatScroll({
     [handleSetActive]
   );
 
-  const renderItem: ListRenderItem<db.Post> = useCallback(
+  const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts[index + 1];
       const isFirstPostOfDay = !isSameDay(
@@ -124,6 +142,9 @@ export default function ChatScroll({
         (item.replyCount ?? 0) > 0 ||
         isFirstPostOfDay;
       const isFirstUnread = !!unreadCount && item.id === firstUnread;
+      // this is necessary because we can't call memoized components as functions
+      // (they are objects, not functions)
+      const RenderItem = renderItem;
       return (
         <>
           {isFirstUnread ? (
@@ -131,27 +152,28 @@ export default function ChatScroll({
               timestamp={item.receivedAt}
               unreadCount={unreadCount ?? 0}
             />
-          ) : isFirstPostOfDay ? (
+          ) : isFirstPostOfDay && item.type === 'chat' ? (
             <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
           ) : null}
           <PressableMessage
             ref={activeMessageRefs.current[item.id]}
             isActive={activeMessage?.id === item.id}
           >
-            <ChatMessage
+            <RenderItem
               currentUserId={currentUserId}
               post={item}
               showAuthor={showAuthor}
               showReplies={showReplies}
               onPressReplies={onPressReplies}
               onPressImage={onPressImage}
-              onLongPress={handlePostLongPressed}
+              onLongPress={() => handlePostLongPressed(item)}
             />
           </PressableMessage>
         </>
       );
     },
     [
+      renderItem,
       activeMessage,
       showReplies,
       firstUnread,
@@ -194,13 +216,13 @@ export default function ChatScroll({
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
-        renderItem={renderItem}
+        renderItem={listRenderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
         contentContainerStyle={contentContainerStyle}
         onScrollBeginDrag={handleContainerPressed}
         onScrollToIndexFailed={handleScrollToIndexFailed}
-        inverted
+        inverted={inverted}
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
@@ -248,7 +270,9 @@ const PressableMessage = forwardRef<
       <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
-    children
+    // this fragment is necessary to avoid the TS error about not being able to
+    // return undefined
+    <>{children}</>
   );
 });
 

@@ -1,4 +1,5 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import * as db from '../db';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -84,6 +85,20 @@ export const useGroupByChannel = (channelId: string) => {
     queryKey: [['group', channelId]],
     queryFn: () => db.getGroupByChannel(channelId).then((r) => r ?? null),
   });
+};
+
+export const useMemberRoles = (chatId: string, userId: string) => {
+  const { data: chatMember } = useQuery({
+    queryKey: ['memberRoles', chatId, userId],
+    queryFn: () => db.getChatMember({ chatId, contactId: userId }),
+  });
+
+  const memberRoles = useMemo(
+    () => chatMember?.roles.map((role) => role.roleId) ?? [],
+    [chatMember]
+  );
+
+  return memberRoles;
 };
 
 export const useChannelPostsAround = (

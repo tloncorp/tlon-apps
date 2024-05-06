@@ -1,9 +1,40 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "f1010117-2191-4949-bce8-a3276aa816a6",
+  "id": "0026bec3-f096-4df7-ac76-bf47bba6492b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "channel_writers": {
+      "name": "channel_writers",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role_id": {
+          "name": "role_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "channel_writers_channel_id_role_id_pk": {
+          "columns": [
+            "channel_id",
+            "role_id"
+          ],
+          "name": "channel_writers_channel_id_role_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "channels": {
       "name": "channels",
       "columns": {

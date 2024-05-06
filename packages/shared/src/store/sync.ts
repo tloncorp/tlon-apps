@@ -13,6 +13,7 @@ export const syncInitData = async () => {
     await db.insertGroups(initData.groups);
     await resetUnreads(initData.unreads);
     await db.insertChannels(initData.channels);
+    await db.insertChannelPerms(initData.channelPerms);
   });
 };
 

@@ -21,9 +21,11 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { ChannelInit } from '../api';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
+  channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
@@ -318,6 +320,20 @@ export const insertGroups = createWriteQuery(
   ]
 );
 
+export const insertChannelPerms = createWriteQuery(
+  'insertChannelPerms',
+  (channelsInit: ChannelInit[]) => {
+    const writers = channelsInit.flatMap((chanInit) =>
+      chanInit.writers.map((writer) => ({
+        channelId: chanInit.channelId,
+        roleId: writer,
+      }))
+    );
+    return client.insert($channelWriters).values(writers);
+  },
+  ['channelWriters', 'channels']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }) => {
@@ -349,6 +365,24 @@ export const getGroupRoles = createReadQuery(
     return client.query.groupRoles.findMany();
   },
   ['groupRoles']
+);
+
+export const getChatMember = createReadQuery(
+  'getChatMember',
+  async ({ chatId, contactId }: { chatId: string; contactId: string }) => {
+    return client.query.chatMembers
+      .findFirst({
+        where: and(
+          eq($chatMembers.chatId, chatId),
+          eq($chatMembers.contactId, contactId)
+        ),
+        with: {
+          roles: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['chatMembers', 'chatMemberGroupRoles']
 );
 
 export const getUnreadsCount = createReadQuery(
@@ -439,6 +473,11 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
           },
         },
         unread: true,
+        writerRoles: {
+          with: {
+            role: true,
+          },
+        },
       },
     });
   },

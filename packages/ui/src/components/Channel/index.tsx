@@ -1,4 +1,5 @@
 import {
+  isChatChannel,
   useChannel as useChannelFromStore,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
@@ -19,9 +20,12 @@ import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
 import { Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
+import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
+import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
-import ChatScroll from './ChatScroll';
+import { EmptyChannelNotice } from './EmptyChannelNotice';
+import Scroller from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
 //TODO implement usePost and useChannel
@@ -48,8 +52,6 @@ export function Channel({
   uploadedImage,
   imageAttachment,
   resetImageAttachment,
-  // TODO: implement gallery and notebook
-  type,
   isLoadingPosts,
   canUpload,
   onPressRef,
@@ -73,7 +75,6 @@ export function Channel({
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   resetImageAttachment: () => void;
-  type?: 'chat' | 'gallery' | 'notebook';
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -85,6 +86,10 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
+  const canWrite = utils.useCanWrite(channel, currentUserId);
+
+  const chatChannel = isChatChannel(channel);
+  const renderItem = chatChannel ? ChatMessage : NotebookPost;
 
   return (
     <CalmProvider initialCalm={calmSettings}>
@@ -130,8 +135,15 @@ export function Channel({
                         >
                           <Spinner />
                         </View>
+                      ) : posts.length === 0 && group !== null ? (
+                        <EmptyChannelNotice
+                          channel={channel}
+                          userId={currentUserId}
+                        />
                       ) : (
-                        <ChatScroll
+                        <Scroller
+                          inverted={chatChannel ? true : false}
+                          renderItem={renderItem}
                           currentUserId={currentUserId}
                           unreadCount={channel.unread?.count ?? undefined}
                           selectedPost={selectedPost}
@@ -147,16 +159,18 @@ export function Channel({
                           onStartReached={onScrollStartReached}
                         />
                       )}
-                      <MessageInput
-                        shouldBlur={inputShouldBlur}
-                        setShouldBlur={setInputShouldBlur}
-                        send={messageSender}
-                        channelId={channel.id}
-                        groupMembers={group?.members ?? []}
-                        setImageAttachment={setImageAttachment}
-                        uploadedImage={uploadedImage}
-                        canUpload={canUpload}
-                      />
+                      {chatChannel && canWrite && (
+                        <MessageInput
+                          shouldBlur={inputShouldBlur}
+                          setShouldBlur={setInputShouldBlur}
+                          send={messageSender}
+                          channelId={channel.id}
+                          groupMembers={group?.members ?? []}
+                          setImageAttachment={setImageAttachment}
+                          uploadedImage={uploadedImage}
+                          canUpload={canUpload}
+                        />
+                      )}
                     </YStack>
                   </KeyboardAvoidingView>
                 </YStack>
