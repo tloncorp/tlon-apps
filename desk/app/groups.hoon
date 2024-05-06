@@ -97,12 +97,12 @@
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
 ++  submit-activity
-  |=  =event:activity
+  |=  =incoming-event:activity
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  [%activity-action !>(`action:activity`[%add event])]
+  =/  =cage  [%activity-action !>(`action:activity`[%add incoming-event])]
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::
 ++  check-known
@@ -836,7 +836,7 @@
     ^+  go-core
     =.  cor
       %-  submit-activity
-      ^-  event
+      ^-  incoming-event
       =,  concern
       ?-  -.concern
         %ask   [%group-ask ^flag ship]
@@ -1871,7 +1871,7 @@
     ^+  ga-core
     =.  cor
       %-  submit-activity
-      ^-  event
+      ^-  incoming-event
       [%group-invite ^flag ship.concern]
     ga-core
   ::

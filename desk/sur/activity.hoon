@@ -27,7 +27,7 @@
 ::    $adjust: adjust the volume of an source
 ::
 +$  action
-  $%  [%add =event]
+  $%  [%add =incoming-event]
       [%read =source =read-action]
       [%adjust =source =volume-map]
   ==
@@ -58,7 +58,8 @@
 ::
 +|  %basics
 ::  $event: a single point of activity, from one of our sources
-+$  event
++$  event  [incoming-event notified=?]
++$  incoming-event
   $%  [%post post-event]
       [%reply reply-event]
       [%dm-invite =whom]

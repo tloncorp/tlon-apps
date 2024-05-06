@@ -146,8 +146,8 @@
   ::
   ++  event
     |=  e=event:a
-    %+  frond  -.e
-    ?-  -.e
+    %+  frond  -<.e
+    ?-  -<.e
       %dm-invite  (whom whom.e)
     ::
         ?(%group-kick %group-join %group-ask %group-invite)
@@ -345,7 +345,7 @@
     ==
   ::
   ++  add
-    ^-  $-(json event:a)
+    ^-  $-(json incoming-event:a)
     %-  of
     :~  post/post-event
         reply/reply-event

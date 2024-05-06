@@ -221,28 +221,30 @@
   ^-  [=stream:a =reads:a]
   (~(got by indices) [%base ~])
 ++  add
-  |=  =event:a
+  |=  event=incoming-event:a
   ^+  cor
   =/  =time-id:a
     =/  t  now.bowl
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
+  =/  notify  notify:(get-volume event)
+  =.  event  [event notify]
   =.  cor
     (give %fact ~[/] activity-update+!>([%add time-id event]))
-  =?  cor  notify:(get-volume event)
+  =?  cor  notify
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
-  ?+  -.event  cor
+  ?+  -<.event  cor
       %dm-post
-    =/  source  [%dm whom.event]
+    =/  source  [%dm whom.data.event]
     (add-to-index source time-id event)
   ::
       %dm-reply
-    =/  src  [%dm-thread parent.event whom.event]
-    =/  parent-src  [%dm whom.event]
+    =/  src  [%dm-thread parent.data.event whom.data.event]
+    =/  parent-src  [%dm whom.data.event]
     =.  cor  (add-to-index src time-id event)
     (add-to-index parent-src time-id event)
   ::
@@ -289,13 +291,13 @@
     %thread     (get-volumes %channel channel.source group.source)
   ==
 ++  get-volume
-  |=  =event:a
+  |=  event=incoming-event:a
   ^-  volume:a
   =/  source  (determine-index event)
   =/  loudness=volume-map:a  (get-volumes source)
   (~(gut by loudness) (determine-event-type event) [unreads=& notify=|])
 ++  determine-index
-  |=  =event:a
+  |=  event=incoming-event:a
   ^-  source:a
   ?-  -.event
     %post           [%channel channel.event group.event]
@@ -314,7 +316,7 @@
 ++  determine-event-type
   |=  =event:a
   ^-  event-type:a
-  ?+  -.event  -.event
+  ?+  -<.event  -<.event
       %post      ?:(mention.event %post-mention %post)
       %reply     ?:(mention.event %reply-mention %reply)
       %dm-post   ?:(mention.event %dm-post-mention %dm-post)
@@ -346,7 +348,7 @@
     ::
     $(new-floor `time, stream rest)
   ::  treat all other events as read
-  ?+  -.event  &
+  ?+  -<.event  &
       ?(%dm-post %dm-reply %post %reply)
     =*  id=time-id:a  q.id.key.event
     =/  par=(unit ?)  (get:on-read-items:a items.reads id)
@@ -473,16 +475,16 @@
   ?~  stream
     [newest total notified ?~(last ~ `[u.last main main-notified]) children]
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
-  =/  volume  (get-volume event)
+  =/  volume  (get-volume -.event)
   =?  notified  notify:volume  &
   ?.  ?|  unreads:volume
-          ?!(?=(?(%dm-post %dm-reply %post %reply) -.event))
+          ?!(?=(?(%dm-post %dm-reply %post %reply) -<.event))
       ==
     $(stream rest)
-  ?>  ?=(?(%dm-post %dm-reply %post %reply) -.event)
+  ?>  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
   =.  total  +(total)
-  =?  main  ?=(?(%post %dm-post) -.event)  +(main)
-  =?  main-notified  &(?=(?(%post %dm-post) -.event) notify:volume)  &
+  =?  main  ?=(?(%post %dm-post) -<.event)  +(main)
+  =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume)  &
   =.  newest  time.key.event
   =.  last
     ?~  last  `key.event
