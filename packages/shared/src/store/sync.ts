@@ -1,6 +1,7 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as urbit from '../urbit';
 import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
@@ -71,6 +72,20 @@ export const syncStaleChannels = async () => {
     syncQueue.add(channel.id, () => {
       return syncChannel(channel.id, channel.unread.updatedAt);
     });
+  }
+};
+
+export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+  switch (update.type) {
+    case 'addPost':
+      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      break;
+    case 'markPostSent':
+      await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
+      break;
+    case 'unknown':
+    default:
+      break;
   }
 };
 
@@ -189,6 +204,7 @@ async function persistPagedPostData(
 
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
+  api.subscribeToChannelsUpdates(handleChannelsUpdate);
 };
 
 async function runOperation(name: string, fn: () => Promise<void>) {

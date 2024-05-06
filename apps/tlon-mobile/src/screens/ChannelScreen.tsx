@@ -1,6 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sendPost } from '@tloncorp/shared/dist/api';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -68,8 +67,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           cursor: selectedPost.id,
         }
       : {
-          direction: 'older',
-          date: new Date(),
+          anchorToNewest: true,
         }),
     count: 50,
   });
@@ -97,8 +95,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!currentUserId || !channelQuery.data) {
         return;
       }
-
-      await sendPost(channelId, content, currentUserId);
+      store.sendPost({
+        channel: channelQuery.data,
+        authorId: currentUserId,
+        content,
+      });
       resetImageAttachment();
     },
     [currentUserId, channelQuery.data, resetImageAttachment]

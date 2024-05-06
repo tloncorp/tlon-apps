@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "1064d329-4b33-49f0-a1ef-c8c8e743c5cf",
+  "id": "f1010117-2191-4949-bce8-a3276aa816a6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channels": {
@@ -989,9 +989,32 @@
           "notNull": false,
           "autoincrement": false,
           "default": false
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "posts_sent_at_unique": {
+          "name": "posts_sent_at_unique",
+          "columns": [
+            "sent_at"
+          ],
+          "isUnique": true
+        },
+        "cache_id": {
+          "name": "cache_id",
+          "columns": [
+            "author_id",
+            "sent_at"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}

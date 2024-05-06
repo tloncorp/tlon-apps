@@ -10,6 +10,7 @@ export default (
       currentUserId="~solfer-magfed"
       channel={tlonLocalBulletinBoard}
       posts={posts}
+      sendReply={() => {}}
     />
   </>
 );

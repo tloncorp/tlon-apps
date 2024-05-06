@@ -38,7 +38,9 @@ type RenderItemFunction = (props: {
   onLongPress?: (post: db.Post) => void;
 }) => ReactElement | null;
 
-type RenderItemType = RenderItemFunction | React.MemoExoticComponent<RenderItemFunction>;
+type RenderItemType =
+  | RenderItemFunction
+  | React.MemoExoticComponent<RenderItemFunction>;
 
 export default function Scroller({
   inverted,
@@ -236,6 +238,7 @@ export default function Scroller({
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
+            onReply={onPressReplies}
           />
         )}
       </Modal>

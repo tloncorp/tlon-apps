@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
+import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
@@ -25,12 +26,23 @@ export default function PostScreen(props: PostScreenProps) {
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);
 
+  const sendReply = async (content: urbit.Story) => {
+    store.sendReply({
+      authorId: contactId!,
+      content,
+      channel: channel!,
+      parentId: post!.id,
+      parentAuthor: post!.authorId,
+    });
+  };
+
   return contactId ? (
     <PostScreenView
       currentUserId={contactId}
       posts={posts}
       channel={channel ?? null}
       goBack={props.navigation.goBack}
+      sendReply={sendReply}
     />
   ) : null;
 }
