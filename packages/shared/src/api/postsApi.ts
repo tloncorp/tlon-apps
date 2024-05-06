@@ -537,7 +537,7 @@ export function buildCachePost({
     authorId,
     channelId: channel.id,
     groupId: channel.groupId,
-    type: channel.id.split('/')[0] as db.PostType,
+    type: parentId ? 'reply' : (channel.id.split('/')[0] as db.PostType),
     sentAt,
     receivedAt: sentAt,
     title: '',
