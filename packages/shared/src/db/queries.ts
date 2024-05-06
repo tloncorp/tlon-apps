@@ -385,20 +385,6 @@ export const getChatMember = createReadQuery(
   ['chatMembers', 'chatMemberGroupRoles']
 );
 
-export const getGroupMembers = createReadQuery(
-  'getGroupMembers',
-  async ({ groupId }: { groupId: string }) => {
-    return client.query.chatMembers.findMany({
-      where: eq($chatMembers.chatId, groupId),
-      with: {
-        contact: true,
-        roles: true,
-      },
-    });
-  },
-  ['chatMembers', 'contacts']
-);
-
 export const getUnreadsCount = createReadQuery(
   'getUnreadsCount',
   async ({ type }: { type?: Unread['type'] }) => {

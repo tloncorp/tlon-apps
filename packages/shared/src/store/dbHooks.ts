@@ -93,7 +93,12 @@ export const useMemberRoles = (chatId: string, userId: string) => {
     queryFn: () => db.getChatMember({ chatId, contactId: userId }),
   });
 
-  return chatMember?.roles.map((role) => role.roleId) ?? [];
+  const memberRoles = useMemo(
+    () => chatMember?.roles.map((role) => role.roleId) ?? [],
+    [chatMember]
+  );
+
+  return memberRoles;
 };
 
 export const useChannelPostsAround = (
