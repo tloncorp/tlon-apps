@@ -20,6 +20,12 @@ export default (
         disableRemoteContent: false,
         disableSpellcheck: false,
       }}
+      uploadInfo={{
+        imageAttachment: null,
+        resetImageAttachment: () => {},
+        setImageAttachment: () => {},
+        canUpload: true,
+      }}
       channel={tlonLocalBulletinBoard}
       posts={posts}
       sendReply={() => {}}

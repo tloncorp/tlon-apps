@@ -3,7 +3,7 @@ import {
   useChannel as useChannelFromStore,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
-import { Upload } from '@tloncorp/shared/dist/api';
+import { Upload, UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
@@ -46,14 +46,10 @@ export function Channel({
   goToImageViewer,
   goToPost,
   messageSender,
-  setImageAttachment,
   onScrollEndReached,
   onScrollStartReached,
-  uploadedImage,
-  imageAttachment,
-  resetImageAttachment,
+  uploadInfo,
   isLoadingPosts,
-  canUpload,
   onPressRef,
   usePost,
   useChannel,
@@ -71,14 +67,10 @@ export function Channel({
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => void;
-  imageAttachment?: string | null;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  resetImageAttachment: () => void;
+  uploadInfo: UploadInfo;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
-  canUpload: boolean;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelFromStore;
@@ -122,10 +114,10 @@ export function Channel({
                     contentContainerStyle={{ flex: 1 }}
                   >
                     <YStack flex={1}>
-                      {imageAttachment ? (
+                      {uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
-                          imageAttachment={imageAttachment}
-                          resetImageAttachment={resetImageAttachment}
+                          imageAttachment={uploadInfo.imageAttachment}
+                          resetImageAttachment={uploadInfo.resetImageAttachment}
                         />
                       ) : !posts || !contacts ? (
                         <View
@@ -165,9 +157,9 @@ export function Channel({
                           setShouldBlur={setInputShouldBlur}
                           send={messageSender}
                           channelId={channel.id}
-                          setImageAttachment={setImageAttachment}
-                          uploadedImage={uploadedImage}
-                          canUpload={canUpload}
+                          setImageAttachment={uploadInfo.setImageAttachment}
+                          uploadedImage={uploadInfo.uploadedImage}
+                          canUpload={uploadInfo.canUpload}
                         />
                       )}
                     </YStack>

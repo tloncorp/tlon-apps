@@ -1,3 +1,4 @@
+import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
@@ -7,6 +8,7 @@ import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
+import UploadedImagePreview from './Channel/UploadedImagePreview';
 import { ChatMessage } from './ChatMessage';
 import { MessageInput } from './MessageInput';
 
@@ -18,6 +20,8 @@ export function PostScreenView({
   sendReply,
   goBack,
   calmSettings,
+  uploadInfo,
+  handleGoToImage,
 }: {
   currentUserId: string;
   contacts: db.Contact[] | null;
@@ -25,7 +29,9 @@ export function PostScreenView({
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
+  handleGoToImage?: (post: db.Post, uri?: string) => void;
   calmSettings: CalmState;
+  uploadInfo: api.UploadInfo;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
@@ -45,16 +51,25 @@ export function PostScreenView({
             keyboardVerticalOffset={70}
             style={{ flex: 1 }}
           >
-            {posts && channel && (
-              <Scroller
-                setInputShouldBlur={setInputShouldBlur}
-                inverted
-                renderItem={ChatMessage}
-                channelType={channel.type}
-                currentUserId={currentUserId}
-                posts={posts}
-                showReplies={false}
+            {uploadInfo.imageAttachment ? (
+              <UploadedImagePreview
+                imageAttachment={uploadInfo.imageAttachment}
+                resetImageAttachment={uploadInfo.resetImageAttachment}
               />
+            ) : (
+              posts &&
+              channel && (
+                <Scroller
+                  setInputShouldBlur={setInputShouldBlur}
+                  inverted
+                  renderItem={ChatMessage}
+                  channelType={channel.type}
+                  currentUserId={currentUserId}
+                  posts={posts}
+                  showReplies={false}
+                  onPressImage={handleGoToImage}
+                />
+              )
             )}
             {channel && (
               <MessageInput
@@ -62,7 +77,9 @@ export function PostScreenView({
                 setShouldBlur={setInputShouldBlur}
                 send={sendReply}
                 channelId={channel.id}
-                setImageAttachment={() => {}}
+                setImageAttachment={uploadInfo.setImageAttachment}
+                uploadedImage={uploadInfo.uploadedImage}
+                canUpload={uploadInfo.canUpload}
               />
             )}
           </KeyboardAvoidingView>
