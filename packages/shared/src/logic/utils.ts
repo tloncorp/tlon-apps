@@ -25,6 +25,14 @@ export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
 }
 
+export function isChatChannel(channel: db.Channel): boolean {
+  return (
+    channel.type === 'chat' ||
+    channel.type === 'dm' ||
+    channel.type === 'groupDm'
+  );
+}
+
 export async function jsonFetch<T>(
   info: RequestInfo,
   init?: RequestInit

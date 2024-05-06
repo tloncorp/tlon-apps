@@ -11,10 +11,12 @@ import {
   createFakePosts,
   group,
   initialContacts,
+  tlonLocalGettingStarted,
   tlonLocalIntros,
 } from './fakeData';
 
 const posts = createFakePosts(100);
+const notebookPosts = createFakePosts(5, 'note');
 
 const fakeMostRecentFile: Upload = {
   key: 'key',
@@ -80,6 +82,70 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         posts={posts}
         currentUserId="~zod"
         channel={currentChannel || tlonLocalChannelWithUnreads}
+        contacts={initialContacts}
+        group={group}
+        calmSettings={{
+          disableAppTileUnreads: false,
+          disableAvatars: false,
+          disableNicknames: false,
+          disableRemoteContent: false,
+          disableSpellcheck: false,
+        }}
+        goBack={() => {}}
+        goToSearch={() => {}}
+        goToChannels={() => setOpen(true)}
+        goToPost={() => {}}
+        goToImageViewer={() => {}}
+        messageSender={() => {}}
+        setImageAttachment={() => {}}
+        resetImageAttachment={() => {}}
+        canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
+      />
+      <ChannelSwitcherSheet
+        open={open}
+        onOpenChange={(open) => setOpen(open)}
+        group={group}
+        channels={group.channels || []}
+        paddingBottom={bottom}
+        onSelect={(channel: db.Channel) => {
+          setCurrentChannel(channel);
+          setOpen(false);
+        }}
+        contacts={initialContacts}
+      />
+    </ChannelFixtureWrapper>
+  );
+};
+
+export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
+  const [open, setOpen] = useState(false);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
+  const { bottom } = useSafeAreaInsets();
+
+  const tlonLocalChannelWithUnreads = {
+    ...tlonLocalGettingStarted,
+    // unreadCount: 40,
+    // firstUnreadPostId: posts[10].id,
+  };
+
+  useEffect(() => {
+    if (group) {
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
+      if (firstChatChannel) {
+        setCurrentChannel(firstChatChannel);
+      }
+    }
+  }, []);
+
+  return (
+    <ChannelFixtureWrapper theme={props.theme}>
+      <Channel
+        posts={notebookPosts}
+        currentUserId="~zod"
+        channel={tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
         calmSettings={{
@@ -205,6 +271,7 @@ const ChannelFixtureWithImage = () => {
 };
 
 export default {
-  basic: <ChannelFixture />,
-  withImage: <ChannelFixtureWithImage />,
+  chat: <ChannelFixture />,
+  notebook: <NotebookChannelFixture />,
+  chatWithImage: <ChannelFixtureWithImage />,
 };
