@@ -152,6 +152,7 @@ export function Channel({
                         setShouldBlur={setInputShouldBlur}
                         send={messageSender}
                         channelId={channel.id}
+                        groupMembers={group?.members ?? []}
                         setImageAttachment={setImageAttachment}
                         uploadedImage={uploadedImage}
                         canUpload={canUpload}

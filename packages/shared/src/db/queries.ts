@@ -818,7 +818,11 @@ export const getGroup = createReadQuery(
             },
           },
           roles: true,
-          members: true,
+          members: {
+            with: {
+              contact: true,
+            },
+          },
           navSections: {
             with: {
               channels: true,

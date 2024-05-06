@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { sync } from '@tloncorp/shared';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -104,6 +105,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     },
     [currentUserId, channelQuery.data, resetImageAttachment]
   );
+
+  useEffect(() => {
+    sync.syncGroup(channelQuery.data?.groupId ?? '');
+  }, [channelQuery.data?.groupId]);
 
   useEffect(() => {
     if (groupQuery.error) {

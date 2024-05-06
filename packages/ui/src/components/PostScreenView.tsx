@@ -14,12 +14,14 @@ export function PostScreenView({
   posts,
   sendReply,
   goBack,
+  groupMembers,
 }: {
   currentUserId: string;
   channel: db.Channel | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
+  groupMembers: db.ChatMember[];
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   return (
@@ -52,6 +54,7 @@ export function PostScreenView({
             send={sendReply}
             channelId={channel.id}
             setImageAttachment={() => {}}
+            groupMembers={groupMembers}
           />
         )}
       </KeyboardAvoidingView>

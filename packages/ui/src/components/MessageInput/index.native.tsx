@@ -9,12 +9,13 @@ import {
 } from '@10play/tentap-editor';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import { ShortcutsBridge } from '@tloncorp/editor/src/bridges';
+import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
 import {
   ContentReference,
   toContentReference,
 } from '@tloncorp/shared/dist/api';
+import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
   Inline,
@@ -81,10 +82,13 @@ export function MessageInput({
   setImageAttachment,
   uploadedImage,
   canUpload,
+  groupMembers,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
   );
+  const [mentionText, setMentionText] = useState<string>();
+  const [showMentionPopup, setShowMentionPopup] = useState(false);
   const { references, setReferences } = useReferences();
   const editor = useEditorBridge({
     customSource: editorHtml,
@@ -94,6 +98,7 @@ export function MessageInput({
       PlaceholderBridge.configureExtension({
         placeholder: 'Message',
       }),
+      MentionsBridge,
       ShortcutsBridge,
     ],
   });
@@ -167,6 +172,37 @@ export function MessageInput({
         setReferences(newRefs);
       }
 
+      const paragraphsWithSigs = inlinesWithOutRefs.filter((inline) => {
+        return typeof inline === 'string' && inline.match(/~/);
+      });
+
+      const paragraphsWithAts = inlinesWithOutRefs.filter((inline) => {
+        return typeof inline === 'string' && inline.match(/@/);
+      });
+
+      const sigText = paragraphsWithSigs.map((paragraph) => {
+        const sigIndex = paragraph.indexOf('~');
+        return paragraph.slice(sigIndex + 1);
+      });
+
+      const atText = paragraphsWithAts.map((paragraph) => {
+        const atIndex = paragraph.indexOf('@');
+        return paragraph.slice(atIndex + 1);
+      });
+
+      if (atText.length || sigText.length) {
+        setShowMentionPopup(true);
+        if (atText.length) {
+          setMentionText(atText[0]);
+        }
+
+        if (sigText.length) {
+          setMentionText(sigText[0]);
+        }
+      } else {
+        setShowMentionPopup(false);
+      }
+
       const newStory = constructStory(inlinesWithOutRefs);
 
       if (blocks && blocks.length > 0) {
@@ -179,6 +215,71 @@ export function MessageInput({
       editor.setContent(newJson);
     });
   };
+
+  const onSelectMention = useCallback(
+    (contact: db.Contact) => {
+      editor.getJSON().then(async (json) => {
+        const inlines = tiptap.JSONToInlines(json);
+
+        let textBeforeSig = '';
+        let textBeforeAt = '';
+
+        const newInlines = inlines.map((inline) => {
+          if (typeof inline === 'string') {
+            if (inline.match(`~`)) {
+              textBeforeSig = inline.split('~')[0];
+
+              return {
+                ship: contact.id,
+              };
+            }
+
+            if (inline.match(`@`)) {
+              textBeforeAt = inline.split('@')[0];
+              return {
+                ship: contact.id,
+              };
+            }
+
+            return inline;
+          }
+          return inline;
+        });
+
+        if (textBeforeSig) {
+          const indexOfMention = newInlines.findIndex(
+            (inline) =>
+              typeof inline === 'object' &&
+              'ship' in inline &&
+              inline.ship === contact.id
+          );
+
+          newInlines.splice(indexOfMention, 0, textBeforeSig);
+        }
+
+        if (textBeforeAt) {
+          const indexOfMention = newInlines.findIndex(
+            (inline) =>
+              typeof inline === 'object' &&
+              'ship' in inline &&
+              inline.ship === contact.id
+          );
+
+          newInlines.splice(indexOfMention, 0, textBeforeAt);
+        }
+
+        const newStory = constructStory(newInlines);
+
+        const newJson = tiptap.diaryMixedToJSON(newStory);
+
+        // @ts-expect-error setContent does accept JSONContent
+        editor.setContent(newJson);
+      });
+      setMentionText('');
+      setShowMentionPopup(false);
+    },
+    [editor]
+  );
 
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
@@ -291,6 +392,10 @@ export function MessageInput({
       uploadedImage={uploadedImage}
       canUpload={canUpload}
       containerHeight={containerHeight}
+      mentionText={mentionText}
+      groupMembers={groupMembers}
+      onSelectMention={onSelectMention}
+      showMentionPopup={showMentionPopup}
     >
       <XStack
         borderRadius="$xl"

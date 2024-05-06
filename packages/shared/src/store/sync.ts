@@ -159,6 +159,15 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   }
 }
 
+export async function syncGroup(id: string) {
+  const group = await db.getGroup({ id });
+  if (!group) {
+    throw new Error('no local group for' + id);
+  }
+  const response = await api.getGroup(id);
+  await db.insertGroups([response]);
+}
+
 export async function syncThreadPosts({
   postId,
   authorId,
