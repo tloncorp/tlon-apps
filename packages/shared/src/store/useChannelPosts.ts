@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -8,7 +8,11 @@ import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', true);
 
-export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
+type UseChanelPostsParams = db.GetChannelPostsOptions & {
+  anchorToNewest?: boolean;
+};
+
+export const useChannelPosts = (options: UseChanelPostsParams) => {
   useEffect(() => {
     postsLogger.log('mount', options);
     return () => {
@@ -17,15 +21,17 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
   }, []);
   return useInfiniteQuery({
     initialPageParam: options,
+    refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log(
-        'start',
+        'loading posts',
         queryOptions.channelId,
         queryOptions.cursor,
         queryOptions.direction,
-        queryOptions.date,
-        queryOptions.count
+        queryOptions.date ? queryOptions.date.toISOString() : undefined,
+        queryOptions.count,
+        queryOptions.anchorToNewest
       );
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
@@ -44,11 +50,30 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       return secondResult ?? [];
     },
     queryKey: [
-      ['channel', options.channelId],
+      ['channels', options.channelId],
       useKeyFromQueryDeps(db.getChannelPosts),
     ],
-    getNextPageParam: (lastPage): db.GetChannelPostsOptions | undefined => {
-      if (!lastPage[lastPage.length - 1]?.id) return undefined;
+    getNextPageParam: (
+      lastPage,
+      _allPages,
+      lastPageParam
+    ): UseChanelPostsParams | undefined => {
+      const reachedEnd = !lastPage[lastPage.length - 1]?.id;
+      if (reachedEnd) {
+        // If we've only tried to get newer posts + that's failed, try using the
+        // same cursor to get older posts instead. This can happen when the
+        // first cached page is empty.
+        if (lastPageParam?.direction === 'newer') {
+          return {
+            ...options,
+            direction: 'older',
+            cursor: lastPageParam.cursor,
+            date: undefined,
+          };
+        } else {
+          return undefined;
+        }
+      }
       return {
         ...options,
         direction: 'older',
@@ -57,9 +82,13 @@ export const useChannelPosts = (options: db.GetChannelPostsOptions) => {
       };
     },
     getPreviousPageParam: (
-      firstPage
-    ): db.GetChannelPostsOptions | undefined => {
-      if (!firstPage[0]?.id) return undefined;
+      firstPage,
+      _allPages,
+      firstPageParam
+    ): UseChanelPostsParams | undefined => {
+      const reachedEnd = firstPage[0]?.id;
+      const alreadyAtNewest = firstPageParam?.anchorToNewest;
+      if (reachedEnd || alreadyAtNewest) return undefined;
       return {
         ...options,
         direction: 'newer',

@@ -4,6 +4,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
 const boolean = (name: string) => {
@@ -178,6 +179,7 @@ export const groupRolesRelations = relations(groupRoles, ({ one, many }) => ({
     fields: [groupRoles.groupId],
     references: [groups.id],
   }),
+  writeChannels: many(channelWriters),
 }));
 
 export const chatMembers = sqliteTable(
@@ -198,6 +200,34 @@ export const chatMembers = sqliteTable(
     };
   }
 );
+
+export const channelWriters = sqliteTable(
+  'channel_writers',
+  {
+    channelId: text('channel_id').notNull(),
+    roleId: text('role_id').notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.channelId, table.roleId],
+      }),
+    };
+  }
+);
+
+export const channelWriterRelations = relations(channelWriters, ({ one }) => {
+  return {
+    channel: one(channels, {
+      fields: [channelWriters.channelId],
+      references: [channels.id],
+    }),
+    role: one(groupRoles, {
+      fields: [channelWriters.roleId],
+      references: [groupRoles.id],
+    }),
+  };
+});
 
 export const chatMembersRelations = relations(chatMembers, ({ one, many }) => ({
   roles: many(chatMemberGroupRoles),
@@ -221,9 +251,7 @@ export const chatMemberGroupRoles = sqliteTable(
     groupId: text('group_id')
       .references(() => groups.id)
       .notNull(),
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     roleId: text('role_id').notNull(),
   },
   (table) => {
@@ -337,36 +365,46 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
   threadUnreads: many(threadUnreads),
   members: many(chatMembers),
+  writerRoles: many(channelWriters),
 }));
 
-export const posts = sqliteTable('posts', {
-  id: text('id').primaryKey().notNull(),
-  authorId: text('author_id').notNull(),
-  channelId: text('channel_id').notNull(),
-  groupId: text('group_id'),
-  parentId: text('parent_id'),
-  type: text('type')
-    .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
-    .notNull(),
-  title: text('title'),
-  image: text('image'),
-  content: text('content', { mode: 'json' }),
-  receivedAt: timestamp('received_at').notNull(),
-  sentAt: timestamp('sent_at').notNull(),
-  // client-side time
-  replyCount: integer('reply_count'),
-  replyTime: timestamp('reply_time'),
-  replyContactIds: text('reply_contact_ids', {
-    mode: 'json',
-  }).$type<string[]>(),
-  textContent: text('text_content'),
-  hasAppReference: boolean('has_app_reference'),
-  hasChannelReference: boolean('has_channel_reference'),
-  hasGroupReference: boolean('has_group_reference'),
-  hasLink: boolean('has_link'),
-  hasImage: boolean('has_image'),
-  hidden: boolean('hidden').default(false),
-});
+export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
+
+export const posts = sqliteTable(
+  'posts',
+  {
+    id: text('id').primaryKey().notNull(),
+    authorId: text('author_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    groupId: text('group_id'),
+    parentId: text('parent_id'),
+    type: text('type')
+      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
+      .notNull(),
+    title: text('title'),
+    image: text('image'),
+    content: text('content', { mode: 'json' }),
+    receivedAt: timestamp('received_at').notNull(),
+    sentAt: timestamp('sent_at').unique().notNull(),
+    // client-side time
+    replyCount: integer('reply_count'),
+    replyTime: timestamp('reply_time'),
+    replyContactIds: text('reply_contact_ids', {
+      mode: 'json',
+    }).$type<string[]>(),
+    textContent: text('text_content'),
+    hasAppReference: boolean('has_app_reference'),
+    hasChannelReference: boolean('has_channel_reference'),
+    hasGroupReference: boolean('has_group_reference'),
+    hasLink: boolean('has_link'),
+    hasImage: boolean('has_image'),
+    hidden: boolean('hidden').default(false),
+    deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+  },
+  (table) => ({
+    cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
+  })
+);
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
   channel: one(channels, {

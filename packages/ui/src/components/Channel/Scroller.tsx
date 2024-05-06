@@ -1,22 +1,21 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { MotiView } from 'moti';
-import {
+import React, {
   PropsWithChildren,
+  ReactElement,
   RefObject,
   createRef,
   forwardRef,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import React from 'react';
 import {
   Dimensions,
   FlatList,
   ListRenderItem,
-  Pressable,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -26,10 +25,26 @@ import { useStyle } from 'tamagui';
 import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
-import ChatMessage from '../ChatMessage';
-import { ChatMessageActions } from '../ChatMessage/ChatMessageActions';
+import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ChannelDivider } from './ChannelDivider';
 
-export default function ChatScroll({
+type RenderItemFunction = (props: {
+  currentUserId: string;
+  post: db.Post;
+  showAuthor?: boolean;
+  showReplies?: boolean;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onLongPress?: (post: db.Post) => void;
+}) => ReactElement | null;
+
+type RenderItemType =
+  | RenderItemFunction
+  | React.MemoExoticComponent<RenderItemFunction>;
+
+export default function Scroller({
+  inverted,
+  renderItem,
   posts,
   currentUserId,
   channelType,
@@ -43,6 +58,8 @@ export default function ChatScroll({
   onPressReplies,
   showReplies = true,
 }: {
+  inverted: boolean;
+  renderItem: RenderItemType;
   posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
@@ -73,12 +90,15 @@ export default function ChatScroll({
         firstUnread,
         posts.findIndex((post) => post.id === firstUnread)
       );
-      flatListRef.current.scrollToIndex({
-        index: posts.findIndex((post) => post.id === firstUnread),
-        animated: true,
-      });
+      const unreadIndex = posts.findIndex((post) => post.id === firstUnread);
+      if (unreadIndex !== -1) {
+        flatListRef.current.scrollToIndex({
+          index: unreadIndex,
+          animated: true,
+        });
+      }
     }
-  }, [firstUnread]);
+  }, [firstUnread, posts]);
 
   useEffect(() => {
     if (selectedPost && flatListRef.current) {
@@ -90,38 +110,80 @@ export default function ChatScroll({
         });
       }
     }
-  }, [selectedPost]);
+  }, [selectedPost, posts]);
 
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
   const handleSetActive = useCallback((active: db.Post) => {
-    activeMessageRefs.current[active.id] = createRef();
-    setActiveMessage(active);
+    if (active.type !== 'notice') {
+      activeMessageRefs.current[active.id] = createRef();
+      setActiveMessage(active);
+    }
   }, []);
 
-  const renderItem: ListRenderItem<db.Post> = useCallback(
-    ({ item }) => {
+  const handlePostLongPressed = useCallback(
+    (post: db.Post) => {
+      handleSetActive(post);
+    },
+    [handleSetActive]
+  );
+
+  const listRenderItem: ListRenderItem<db.Post> = useCallback(
+    ({ item, index }) => {
+      const previousItem = posts[index + 1];
+      const isFirstPostOfDay = !isSameDay(
+        item.receivedAt ?? 0,
+        previousItem?.receivedAt ?? 0
+      );
+      const showAuthor =
+        previousItem?.authorId !== item.authorId ||
+        previousItem?.type === 'notice' ||
+        (item.replyCount ?? 0) > 0 ||
+        isFirstPostOfDay;
+      const isFirstUnread = !!unreadCount && item.id === firstUnread;
+      // this is necessary because we can't call memoized components as functions
+      // (they are objects, not functions)
+      const RenderItem = renderItem;
       return (
-        <PressableMessage
-          ref={activeMessageRefs.current[item.id]}
-          onLongPress={() => handleSetActive(item)}
-          isActive={activeMessage?.id === item.id}
-        >
-          <ChatMessage
-            currentUserId={currentUserId}
-            post={item}
-            firstUnread={firstUnread}
-            unreadCount={unreadCount}
-            showReplies={showReplies}
-            onPressReplies={onPressReplies}
-            onPressImage={onPressImage}
-            onLongPress={() => handleSetActive(item)}
-          />
-        </PressableMessage>
+        <>
+          {isFirstUnread ? (
+            <ChannelDivider
+              timestamp={item.receivedAt}
+              unreadCount={unreadCount ?? 0}
+            />
+          ) : isFirstPostOfDay && item.type === 'chat' ? (
+            <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
+          ) : null}
+          <PressableMessage
+            ref={activeMessageRefs.current[item.id]}
+            isActive={activeMessage?.id === item.id}
+          >
+            <RenderItem
+              currentUserId={currentUserId}
+              post={item}
+              showAuthor={showAuthor}
+              showReplies={showReplies}
+              onPressReplies={onPressReplies}
+              onPressImage={onPressImage}
+              onLongPress={() => handlePostLongPressed(item)}
+            />
+          </PressableMessage>
+        </>
       );
     },
-    [activeMessage, showReplies, firstUnread, onPressReplies, unreadCount]
+    [
+      renderItem,
+      activeMessage,
+      showReplies,
+      firstUnread,
+      onPressReplies,
+      unreadCount,
+      currentUserId,
+      onPressImage,
+      posts,
+      handlePostLongPressed,
+    ]
   );
 
   const handleScrollToIndexFailed = useCallback(
@@ -140,7 +202,6 @@ export default function ChatScroll({
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
-    gap: '$m',
   }) as StyleProp<ViewStyle>;
 
   const handleContainerPressed = useCallback(() => {
@@ -149,19 +210,19 @@ export default function ChatScroll({
 
   return (
     <View flex={1}>
-      {unreadCount && !hasPressedGoToBottom && (
+      {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
-      )}
+      ) : null}
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
-        renderItem={renderItem}
+        renderItem={listRenderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
         contentContainerStyle={contentContainerStyle}
         onScrollBeginDrag={handleContainerPressed}
         onScrollToIndexFailed={handleScrollToIndexFailed}
-        inverted
+        inverted={inverted}
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
@@ -177,6 +238,7 @@ export default function ChatScroll({
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
+            onReply={onPressReplies}
           />
         )}
       </Modal>
@@ -190,8 +252,8 @@ function getPostId(post: db.Post) {
 
 const PressableMessage = forwardRef<
   RNView,
-  PropsWithChildren<{ isActive: boolean; onLongPress: () => void }>
->(function PressableMessageComponent({ isActive, onLongPress, children }, ref) {
+  PropsWithChildren<{ isActive: boolean }>
+>(function PressableMessageComponent({ isActive, children }, ref) {
   return isActive ? (
     // need the extra React Native View for ref measurement
     <MotiView
@@ -208,9 +270,9 @@ const PressableMessage = forwardRef<
       <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
-    <Pressable onLongPress={onLongPress} delayLongPress={250}>
-      {children}
-    </Pressable>
+    // this fragment is necessary to avoid the TS error about not being able to
+    // return undefined
+    <>{children}</>
   );
 });
 

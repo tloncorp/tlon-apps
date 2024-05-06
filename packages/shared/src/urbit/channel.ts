@@ -596,6 +596,28 @@ export const emptyReply: Reply = {
   },
 };
 
+export function isInline(c: Inline | Block): c is Inline {
+  return (
+    typeof 'c' === 'string' ||
+    [
+      'text',
+      'mention',
+      'url',
+      'color',
+      'italics',
+      'bold',
+      'strike',
+      'blockquote',
+      'inline-code',
+      'block',
+      'code',
+      'tag',
+      'link',
+      'break',
+    ].some((k) => typeof c === 'object' && k in c)
+  );
+}
+
 export function constructStory(
   data: (Inline | Block)[],
   codeAsBlock?: boolean

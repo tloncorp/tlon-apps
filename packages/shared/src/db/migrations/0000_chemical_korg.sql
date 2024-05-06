@@ -1,3 +1,9 @@
+CREATE TABLE `channel_writers` (
+	`channel_id` text NOT NULL,
+	`role_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `role_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `channels` (
 	`id` text PRIMARY KEY NOT NULL,
 	`type` text NOT NULL,
@@ -25,8 +31,7 @@ CREATE TABLE `chat_member_roles` (
 	`contact_id` text NOT NULL,
 	`role_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `group_members` (
@@ -149,7 +154,8 @@ CREATE TABLE `posts` (
 	`has_group_reference` integer,
 	`has_link` integer,
 	`has_image` integer,
-	`hidden` integer DEFAULT false
+	`hidden` integer DEFAULT false,
+	`delivery_status` text
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (
@@ -170,3 +176,6 @@ CREATE TABLE `unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);

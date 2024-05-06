@@ -1,5 +1,6 @@
 export { default as Stop } from './Stop.svg';
 export { default as Add } from './Add.svg';
+export { default as AddPerson } from './AddPerson.svg';
 export { default as ArrowRef } from './ArrowRef.svg';
 export { default as ArrowUp } from './ArrowUp.svg';
 export { default as Attachment } from './Attachment.svg';

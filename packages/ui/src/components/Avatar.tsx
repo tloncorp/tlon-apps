@@ -33,6 +33,7 @@ export function Avatar({
           }}
           height="100%"
           width="100%"
+          contentFit="cover"
         />
       ) : !isNaN(sigilSize) ? (
         <UrbitSigil colors={colors} size={sigilSize} contactId={contactId} />
@@ -67,6 +68,11 @@ const AvatarFrame = styled(View, {
         height: '$4xl',
         width: '$4xl',
         borderRadius: '$s',
+      },
+      $5xl: {
+        height: '$5xl',
+        width: '$5xl',
+        borderRadius: '$m',
       },
     },
   } as const,

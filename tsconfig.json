@@ -30,5 +30,19 @@
       "dom",
       "esnext"
     ]
-  }
+  },
+  "references": [
+    {
+      "path": "./packages/shared/tsconfig.json"
+    },
+    {
+      "path": "./packages/ui/tsconfig.json"
+    },
+    {
+      "path": "./packages/editor/tsconfig.json"
+    },
+    {
+      "path": "./apps/tlon-mobile/tsconfig.json"
+    }
+  ]
 }

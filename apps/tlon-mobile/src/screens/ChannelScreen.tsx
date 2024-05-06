@@ -1,10 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sendPost } from '@tloncorp/shared/dist/api';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { handleImagePicked, useUploader } from '@tloncorp/shared/dist/store';
+import {
+  handleImagePicked,
+  useChannel,
+  usePostWithRelations,
+  useUploader,
+} from '@tloncorp/shared/dist/store';
 import type { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
@@ -15,6 +19,15 @@ import type { HomeStackParamList } from '../types';
 import { imageSize, resizeImage } from '../utils/images';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
+
+// TODO: Pull from actual settings
+const defaultCalmSettings = {
+  disableAppTileUnreads: false,
+  disableAvatars: false,
+  disableNicknames: false,
+  disableRemoteContent: false,
+  disableSpellcheck: false,
+};
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
@@ -37,24 +50,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [resizedImage, setResizedImage] = React.useState<string | null>(null);
   const uploader = useUploader(`channel-${currentChannelId}`, imageSize);
   const mostRecentFile = uploader?.getMostRecent();
-  const { data: channel } = store.useChannelWithLastPostAndMembers({
+  const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
-  const { data: group, error } = store.useGroup({
-    id: channel?.groupId ?? '',
+  const groupQuery = store.useGroup({
+    id: channelQuery.data?.groupId ?? '',
   });
   const selectedPost = props.route.params.selectedPost;
   const hasSelectedPost = !!selectedPost;
 
-  const {
-    data: postsData,
-    fetchNextPage,
-    fetchPreviousPage,
-    hasNextPage,
-    hasPreviousPage,
-    isFetchingNextPage,
-    isFetchingPreviousPage,
-  } = store.useChannelPosts({
+  const postsQuery = store.useChannelPosts({
     channelId: currentChannelId,
     ...(hasSelectedPost
       ? {
@@ -62,17 +67,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           cursor: selectedPost.id,
         }
       : {
-          direction: 'older',
-          date: new Date(),
+          anchorToNewest: true,
         }),
     count: 50,
   });
+
   const posts = useMemo<db.Post[]>(
-    () => postsData?.pages.flatMap((p) => p) ?? [],
-    [postsData]
+    () => postsQuery.data?.pages.flatMap((p) => p) ?? [],
+    [postsQuery.data]
   );
 
-  const { data: contacts } = store.useContacts();
+  const contactsQuery = store.useContacts();
 
   const { bottom } = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
@@ -87,21 +92,24 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const messageSender = useCallback(
     async (content: Story, channelId: string) => {
-      if (!currentUserId || !channel) {
+      if (!currentUserId || !channelQuery.data) {
         return;
       }
-
-      await sendPost(channelId, content, currentUserId);
+      store.sendPost({
+        channel: channelQuery.data,
+        authorId: currentUserId,
+        content,
+      });
       resetImageAttachment();
     },
-    [currentUserId, channel, resetImageAttachment]
+    [currentUserId, channelQuery.data, resetImageAttachment]
   );
 
   useEffect(() => {
-    if (error) {
-      console.error(error);
+    if (groupQuery.error) {
+      console.error(groupQuery.error);
     }
-  }, [error]);
+  }, [groupQuery.error]);
 
   useEffect(() => {
     const getResizedImage = async (uri: string) => {
@@ -146,20 +154,27 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
   const handleScrollEndReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
+      postsQuery.fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [postsQuery]);
 
   const handleScrollStartReached = useCallback(() => {
-    if (hasPreviousPage && !isFetchingPreviousPage) {
-      fetchPreviousPage();
+    if (postsQuery.hasPreviousPage && !postsQuery.isFetchingPreviousPage) {
+      postsQuery.fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
+  }, [postsQuery]);
 
   const handleGoToPost = useCallback(
     (post: db.Post) => {
       props.navigation.push('Post', { post });
+    },
+    [props.navigation]
+  );
+
+  const handleGoToRef = useCallback(
+    (channel: db.Channel, post: db.Post) => {
+      props.navigation.push('Channel', { channel, selectedPost: post });
     },
     [props.navigation]
   );
@@ -172,25 +187,39 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [props.navigation]
   );
 
-  if (!channel) {
+  const handleGoToSearch = useCallback(() => {
+    if (!channelQuery.data) {
+      return;
+    }
+    props.navigation.push('ChannelSearch', {
+      channel: channelQuery.data ?? null,
+    });
+  }, [props.navigation, channelQuery.data]);
+
+  const handleChannelNavButtonPressed = useCallback(() => {
+    setChannelNavOpen(true);
+  }, []);
+
+  const handleChannelSelected = useCallback((channel: db.Channel) => {
+    setCurrentChannelId(channel.id);
+    setChannelNavOpen(false);
+  }, []);
+
+  if (!channelQuery.data) {
     return null;
   }
 
   return (
     <View backgroundColor="$background" flex={1}>
       <Channel
-        channel={channel}
+        channel={channelQuery.data}
         currentUserId={currentUserId}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
-        isLoadingPosts={isFetchingNextPage || isFetchingPreviousPage}
-        group={group ?? null}
-        contacts={contacts ?? null}
+        calmSettings={defaultCalmSettings}
+        isLoadingPosts={
+          postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
+        }
+        group={groupQuery.data ?? null}
+        contacts={contactsQuery.data ?? null}
         posts={posts}
         selectedPost={
           hasSelectedPost && posts?.length ? selectedPost?.id : undefined
@@ -199,8 +228,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         messageSender={messageSender}
         goToPost={handleGoToPost}
         goToImageViewer={handleGoToImage}
-        goToChannels={() => setChannelNavOpen(true)}
-        goToSearch={() => props.navigation.push('ChannelSearch', { channel })}
+        goToChannels={handleChannelNavButtonPressed}
+        goToSearch={handleGoToSearch}
         uploadedImage={uploadedImage}
         imageAttachment={resizedImage}
         setImageAttachment={setImageAttachment}
@@ -208,19 +237,19 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
         canUpload={!!uploader}
+        onPressRef={handleGoToRef}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
-      {group && (
+      {groupQuery.data && (
         <ChannelSwitcherSheet
           open={channelNavOpen}
           onOpenChange={(open) => setChannelNavOpen(open)}
-          group={group}
-          channels={group?.channels || []}
-          contacts={contacts ?? []}
+          group={groupQuery.data}
+          channels={groupQuery.data.channels || []}
+          contacts={contactsQuery.data ?? []}
           paddingBottom={bottom}
-          onSelect={(channel: db.Channel) => {
-            setCurrentChannelId(channel.id);
-            setChannelNavOpen(false);
-          }}
+          onSelect={handleChannelSelected}
         />
       )}
     </View>

@@ -1,6 +1,7 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as urbit from '../urbit';
 import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
@@ -12,6 +13,7 @@ export const syncInitData = async () => {
     await db.insertGroups(initData.groups);
     await resetUnreads(initData.unreads);
     await db.insertChannels(initData.channels);
+    await db.insertChannelPerms(initData.channelPerms);
   });
 };
 
@@ -74,6 +76,20 @@ export const syncStaleChannels = async () => {
   }
 };
 
+export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+  switch (update.type) {
+    case 'addPost':
+      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      break;
+    case 'markPostSent':
+      await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
+      break;
+    case 'unknown':
+    default:
+      break;
+  }
+};
+
 export const clearSyncQueue = () => {
   // TODO: Model all sync functions as syncQueue.add calls so that this works on
   // more than just `syncStaleChannels`
@@ -107,7 +123,9 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
 
 export async function syncPosts(options: db.GetChannelPostsOptions) {
   const response = await api.getChannelPosts(options);
-  await persistPagedPostData(options.channelId, response);
+  if (response.posts.length) {
+    await db.insertChannelPosts(options.channelId, response.posts);
+  }
   return response;
 }
 
@@ -134,7 +152,6 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       `posts for channel ${id} in `,
       Date.now() - startTime + 'ms'
     );
-
     await db.updateChannel({
       id,
       remoteUpdatedAt,
@@ -188,6 +205,7 @@ async function persistPagedPostData(
 
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
+  api.subscribeToChannelsUpdates(handleChannelsUpdate);
 };
 
 async function runOperation(name: string, fn: () => Promise<void>) {

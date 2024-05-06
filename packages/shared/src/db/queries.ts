@@ -21,9 +21,11 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { ChannelInit } from '../api';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
+  channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
@@ -218,15 +220,11 @@ export const insertGroups = createWriteQuery(
                 $channels.title,
                 $channels.description,
                 $channels.addedToGroupAt,
-                $channels.currentUserIsMember,
                 $channels.type
               ),
             });
         }
         if (group.navSections) {
-          const navSectionChannels = group.navSections.flatMap(
-            (s) => s.channels
-          );
           await tx
             .insert($groupNavSections)
             .values(
@@ -236,11 +234,6 @@ export const insertGroups = createWriteQuery(
                 title: s.title,
                 description: s.description,
                 index: s.index,
-                channels: s.channels?.map((c) => ({
-                  groupNavSectionId: s.id,
-                  channelId: c.channelId,
-                  index: s.index,
-                })),
               }))
             )
             .onConflictDoUpdate({
@@ -253,6 +246,9 @@ export const insertGroups = createWriteQuery(
               ),
             });
 
+          const navSectionChannels = group.navSections.flatMap(
+            (s) => s.channels
+          );
           if (navSectionChannels.length) {
             await tx
               .insert($groupNavSectionChannels)
@@ -282,10 +278,6 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.members) {
-          await tx
-            .insert($contacts)
-            .values(group.members.map((m) => ({ id: m.contactId })))
-            .onConflictDoNothing();
           await tx
             .insert($chatMembers)
             .values(group.members)
@@ -328,6 +320,20 @@ export const insertGroups = createWriteQuery(
   ]
 );
 
+export const insertChannelPerms = createWriteQuery(
+  'insertChannelPerms',
+  (channelsInit: ChannelInit[]) => {
+    const writers = channelsInit.flatMap((chanInit) =>
+      chanInit.writers.map((writer) => ({
+        channelId: chanInit.channelId,
+        roleId: writer,
+      }))
+    );
+    return client.insert($channelWriters).values(writers);
+  },
+  ['channelWriters', 'channels']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }) => {
@@ -359,6 +365,24 @@ export const getGroupRoles = createReadQuery(
     return client.query.groupRoles.findMany();
   },
   ['groupRoles']
+);
+
+export const getChatMember = createReadQuery(
+  'getChatMember',
+  async ({ chatId, contactId }: { chatId: string; contactId: string }) => {
+    return client.query.chatMembers
+      .findFirst({
+        where: and(
+          eq($chatMembers.chatId, chatId),
+          eq($chatMembers.contactId, contactId)
+        ),
+        with: {
+          roles: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['chatMembers', 'chatMemberGroupRoles']
 );
 
 export const getUnreadsCount = createReadQuery(
@@ -449,6 +473,11 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
           },
         },
         unread: true,
+        writerRoles: {
+          with: {
+            role: true,
+          },
+        },
       },
     });
   },
@@ -711,6 +740,10 @@ export const insertChannelPosts = createWriteQuery(
         .onConflictDoUpdate({
           target: $posts.id,
           set: conflictUpdateSetAll($posts),
+        })
+        .onConflictDoUpdate({
+          target: [$posts.authorId, $posts.sentAt],
+          set: conflictUpdateSetAll($posts),
         });
     });
   },
@@ -796,13 +829,15 @@ export const getPosts = createReadQuery(
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
   async ({ id }: { id: string }) => {
-    return client.query.posts.findFirst({
-      where: eq($posts.id, id),
-      with: {
-        author: true,
-        reactions: true,
-      },
-    });
+    return client.query.posts
+      .findFirst({
+        where: eq($posts.id, id),
+        with: {
+          author: true,
+          reactions: true,
+        },
+      })
+      .then(returnNullIfUndefined);
   },
   ['posts']
 );

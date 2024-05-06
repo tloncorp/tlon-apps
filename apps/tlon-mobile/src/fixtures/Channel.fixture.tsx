@@ -1,3 +1,4 @@
+import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
@@ -10,10 +11,12 @@ import {
   createFakePosts,
   group,
   initialContacts,
+  tlonLocalGettingStarted,
   tlonLocalIntros,
 } from './fakeData';
 
 const posts = createFakePosts(100);
+const notebookPosts = createFakePosts(5, 'note');
 
 const fakeMostRecentFile: Upload = {
   key: 'key',
@@ -39,10 +42,13 @@ const fakeLoadingMostRecentFile: Upload = {
   size: [100, 100],
 };
 
-const ChannelFixtureWrapper = ({ children }: PropsWithChildren) => {
+const ChannelFixtureWrapper = ({
+  children,
+  theme,
+}: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   const { bottom } = useSafeAreaInsets();
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <FixtureWrapper fillWidth fillHeight theme={theme}>
       <View paddingBottom={bottom} backgroundColor="$background">
         {children}
       </View>
@@ -50,7 +56,7 @@ const ChannelFixtureWrapper = ({ children }: PropsWithChildren) => {
   );
 };
 
-const ChannelFixture = () => {
+export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   const [open, setOpen] = useState(false);
   const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
@@ -71,7 +77,7 @@ const ChannelFixture = () => {
   }, []);
 
   return (
-    <ChannelFixtureWrapper>
+    <ChannelFixtureWrapper theme={props.theme}>
       <Channel
         posts={posts}
         currentUserId="~zod"
@@ -94,6 +100,73 @@ const ChannelFixture = () => {
         setImageAttachment={() => {}}
         resetImageAttachment={() => {}}
         canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
+      />
+      <ChannelSwitcherSheet
+        open={open}
+        onOpenChange={(open) => setOpen(open)}
+        group={group}
+        channels={group.channels || []}
+        paddingBottom={bottom}
+        onSelect={(channel: db.Channel) => {
+          setCurrentChannel(channel);
+          setOpen(false);
+        }}
+        contacts={initialContacts}
+      />
+    </ChannelFixtureWrapper>
+  );
+};
+
+export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
+  const [open, setOpen] = useState(false);
+  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
+  const { bottom } = useSafeAreaInsets();
+
+  const tlonLocalChannelWithUnreads = {
+    ...tlonLocalGettingStarted,
+    // unreadCount: 40,
+    // firstUnreadPostId: posts[10].id,
+  };
+
+  useEffect(() => {
+    if (group) {
+      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
+      if (firstChatChannel) {
+        setCurrentChannel(firstChatChannel);
+      }
+    }
+  }, []);
+
+  return (
+    <ChannelFixtureWrapper theme={props.theme}>
+      <Channel
+        posts={notebookPosts}
+        currentUserId="~zod"
+        channel={tlonLocalChannelWithUnreads}
+        contacts={initialContacts}
+        group={group}
+        calmSettings={{
+          disableAppTileUnreads: false,
+          disableAvatars: false,
+          disableNicknames: false,
+          disableRemoteContent: false,
+          disableSpellcheck: false,
+        }}
+        goBack={() => {}}
+        goToSearch={() => {}}
+        goToChannels={() => setOpen(true)}
+        goToPost={() => {}}
+        goToImageViewer={() => {}}
+        messageSender={() => {}}
+        setImageAttachment={() => {}}
+        resetImageAttachment={() => {}}
+        canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -177,6 +250,9 @@ const ChannelFixtureWithImage = () => {
         setImageAttachment={fakeSetImageAttachment}
         resetImageAttachment={resetImageAttachment}
         canUpload={true}
+        onPressRef={() => {}}
+        usePost={usePostWithRelations}
+        useChannel={useChannel}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -195,6 +271,7 @@ const ChannelFixtureWithImage = () => {
 };
 
 export default {
-  basic: <ChannelFixture />,
-  withImage: <ChannelFixtureWithImage />,
+  chat: <ChannelFixture />,
+  notebook: <NotebookChannelFixture />,
+  chatWithImage: <ChannelFixtureWithImage />,
 };
