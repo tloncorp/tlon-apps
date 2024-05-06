@@ -9,6 +9,15 @@ import type { HomeStackParamList } from '../types';
 
 type PostScreenProps = NativeStackScreenProps<HomeStackParamList, 'Post'>;
 
+// TODO: Pull from actual settings
+const defaultCalmSettings = {
+  disableAppTileUnreads: false,
+  disableAvatars: false,
+  disableNicknames: false,
+  disableRemoteContent: false,
+  disableSpellcheck: false,
+};
+
 export default function PostScreen(props: PostScreenProps) {
   const postParam = props.route.params.post;
   const { data: post } = store.usePostWithRelations({
@@ -19,7 +28,9 @@ export default function PostScreen(props: PostScreenProps) {
     authorId: postParam.authorId,
     channelId: postParam.channelId,
   });
+
   const { data: channel } = store.useChannel({ id: postParam.channelId });
+  const { data: contacts } = store.useContacts();
   const { contactId } = useShip();
 
   const posts = useMemo(() => {
@@ -38,6 +49,8 @@ export default function PostScreen(props: PostScreenProps) {
 
   return contactId ? (
     <PostScreenView
+      contacts={contacts ?? null}
+      calmSettings={defaultCalmSettings}
       currentUserId={contactId}
       posts={posts}
       channel={channel ?? null}

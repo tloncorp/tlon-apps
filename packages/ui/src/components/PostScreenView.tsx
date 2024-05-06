@@ -3,6 +3,7 @@ import * as urbit from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
+import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
@@ -11,53 +12,62 @@ import { MessageInput } from './MessageInput';
 
 export function PostScreenView({
   currentUserId,
+  contacts,
   channel,
   posts,
   sendReply,
   goBack,
+  calmSettings,
 }: {
   currentUserId: string;
+  contacts: db.Contact[] | null;
   channel: db.Channel | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
+  calmSettings: CalmState;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+
   return (
-    <YStack flex={1} backgroundColor={'$background'}>
-      <ChannelHeader
-        title={'Thread: ' + (channel?.title ?? null)}
-        goBack={goBack}
-        showPickerButton={false}
-        showSearchButton={false}
-      />
-      <KeyboardAvoidingView
-        //TODO: Standardize this component, account for tab bar in a better way
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={70}
-        style={{ flex: 1 }}
-      >
-        {posts && channel && (
-          <Scroller
-            setInputShouldBlur={setInputShouldBlur}
-            inverted
-            renderItem={ChatMessage}
-            channelType={channel.type}
-            currentUserId={currentUserId}
-            posts={posts}
-            showReplies={false}
+    <CalmProvider initialCalm={calmSettings}>
+      <ContactsProvider contacts={contacts}>
+        <YStack flex={1} backgroundColor={'$background'}>
+          <ChannelHeader
+            title={'Thread: ' + (channel?.title ?? null)}
+            goBack={goBack}
+            showPickerButton={false}
+            showSearchButton={false}
           />
-        )}
-        {channel && (
-          <MessageInput
-            shouldBlur={inputShouldBlur}
-            setShouldBlur={setInputShouldBlur}
-            send={sendReply}
-            channelId={channel.id}
-            setImageAttachment={() => {}}
-          />
-        )}
-      </KeyboardAvoidingView>
-    </YStack>
+          <KeyboardAvoidingView
+            //TODO: Standardize this component, account for tab bar in a better way
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={70}
+            style={{ flex: 1 }}
+          >
+            {posts && channel && (
+              <Scroller
+                setInputShouldBlur={setInputShouldBlur}
+                inverted
+                renderItem={ChatMessage}
+                channelType={channel.type}
+                currentUserId={currentUserId}
+                posts={posts}
+                showReplies={false}
+              />
+            )}
+            {channel && (
+              <MessageInput
+                shouldBlur={inputShouldBlur}
+                setShouldBlur={setInputShouldBlur}
+                send={sendReply}
+                channelId={channel.id}
+                setImageAttachment={() => {}}
+              />
+            )}
+          </KeyboardAvoidingView>
+        </YStack>
+      </ContactsProvider>
+    </CalmProvider>
   );
 }
