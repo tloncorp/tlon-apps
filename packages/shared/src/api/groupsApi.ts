@@ -1,7 +1,6 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
 import { getChannelType } from '../urbit';
-import { ChannelInit } from './channelsApi';
 import { toClientMeta } from './converters';
 import { poke, scry } from './urbit';
 
