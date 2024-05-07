@@ -417,12 +417,7 @@ export default function ChatContent({
             })}
         </YStack>
       ) : null}
-      <XStack
-        justifyContent="space-between"
-        alignItems="flex-start"
-        // borderWidth={1}
-        // borderColor="orange"
-      >
+      <XStack justifyContent="space-between" alignItems="flex-start">
         {inlineLength > 0 ? (
           <View flexGrow={1} flexShrink={1}>
             <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
@@ -436,5 +431,4 @@ export default function ChatContent({
       </XStack>
     </YStack>
   );
-  1;
 }
