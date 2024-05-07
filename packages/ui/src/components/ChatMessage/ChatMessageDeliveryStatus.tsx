@@ -10,21 +10,13 @@ export function ChatMessageDeliveryStatus({
 }) {
   const theme = useTheme();
 
-  const firstArrowColor = useMemo(
-    () =>
-      status === 'pending' ? theme.tertiaryText.val : theme.primaryText.val,
-    [status, theme.primaryText.val, theme.tertiaryText.val]
-  );
-  const secondArrowColor = useMemo(
-    () => theme.tertiaryText.val,
-    [theme.tertiaryText.val]
-  );
-
   return (
     <Svg fill="none" viewBox="0 0 24 24" height="24" width="24">
       <Path
         d="M7 8L11 12L7 16"
-        stroke={status === 'pending' ? theme.tertiaryText.val : theme.primaryText.val}
+        stroke={
+          status === 'pending' ? theme.tertiaryText.val : theme.primaryText.val
+        }
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
