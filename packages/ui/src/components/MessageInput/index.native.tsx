@@ -172,33 +172,15 @@ export function MessageInput({
         setReferences(newRefs);
       }
 
-      const paragraphsWithSigs = inlinesWithOutRefs.filter((inline) => {
-        return typeof inline === 'string' && inline.match(/~/);
-      });
-
-      const paragraphsWithAts = inlinesWithOutRefs.filter((inline) => {
-        return typeof inline === 'string' && inline.match(/@/);
-      });
-
-      const sigText = paragraphsWithSigs.map((paragraph) => {
-        const sigIndex = paragraph.indexOf('~');
-        return paragraph.slice(sigIndex + 1);
-      });
-
-      const atText = paragraphsWithAts.map((paragraph) => {
-        const atIndex = paragraph.indexOf('@');
-        return paragraph.slice(atIndex + 1);
-      });
-
-      if (atText.length || sigText.length) {
+      const mentionInline = inlinesWithOutRefs.find(
+        (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
+      );
+      const mentionText = mentionInline
+        ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
+        : null;
+      if (mentionText !== null) {
         setShowMentionPopup(true);
-        if (atText.length) {
-          setMentionText(atText[0]);
-        }
-
-        if (sigText.length) {
-          setMentionText(sigText[0]);
-        }
+        setMentionText(mentionText);
       } else {
         setShowMentionPopup(false);
       }
