@@ -83,23 +83,6 @@ export default function Scroller({
   };
 
   useEffect(() => {
-    if (firstUnread && flatListRef.current) {
-      console.log(
-        'scrolling to',
-        firstUnread,
-        posts.findIndex((post) => post.id === firstUnread)
-      );
-      const unreadIndex = posts.findIndex((post) => post.id === firstUnread);
-      if (unreadIndex !== -1) {
-        flatListRef.current.scrollToIndex({
-          index: unreadIndex,
-          animated: true,
-        });
-      }
-    }
-  }, [firstUnread, posts]);
-
-  useEffect(() => {
     if (selectedPost && flatListRef.current) {
       const scrollToIndex = posts.findIndex((post) => post.id === selectedPost);
       if (scrollToIndex > -1) {
