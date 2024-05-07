@@ -22,6 +22,7 @@ import {
 } from 'drizzle-orm';
 
 import { ChannelInit } from '../api';
+import { desig } from '../urbit';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -81,7 +82,7 @@ export const getSettings = createReadQuery(
   async (userId: string) => {
     return client.query.settings.findFirst({
       where(fields) {
-        return eq(fields.userId, userId);
+        return eq(fields.userId, desig(userId));
       },
     });
   },
