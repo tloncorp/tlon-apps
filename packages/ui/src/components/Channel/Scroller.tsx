@@ -192,9 +192,9 @@ export default function Scroller({
 
   return (
     <View flex={1}>
-      {unreadCount && !hasPressedGoToBottom ? (
+      {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
-      ) : null}
+      ) : null} */}
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
