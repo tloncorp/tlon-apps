@@ -1,7 +1,8 @@
+import { backOff } from 'exponential-backoff';
+
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import * as urbit from '../urbit';
 import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
@@ -173,6 +174,68 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       id,
       remoteUpdatedAt,
       syncedAt: Date.now(),
+    });
+  }
+}
+
+const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
+export async function syncChannelMessageDelivery({
+  channelId,
+}: {
+  channelId: string;
+}) {
+  if (currentPendingMessageSyncs.has(channelId)) {
+    logger.log(`message delivery sync already in progress for ${channelId}`);
+  }
+
+  try {
+    logger.log(`syncing messsage delivery for ${channelId}`);
+    const syncPromise = syncChannelWithBackoff({ channelId });
+    currentPendingMessageSyncs.set(channelId, syncPromise);
+    await syncPromise;
+    logger.log(`all messages in ${channelId} are delivered`);
+  } catch (e) {
+    logger.error(
+      `some messages in ${channelId} still undelivered, is the channel offline?`
+    );
+  } finally {
+    currentPendingMessageSyncs.delete(channelId);
+  }
+}
+
+export async function syncChannelWithBackoff({
+  channelId,
+}: {
+  channelId: string;
+}): Promise<boolean> {
+  const checkDelivered = async () => {
+    const hasPendingBefore = (await db.getPendingPosts(channelId)).length > 0;
+    if (!hasPendingBefore) {
+      return true;
+    }
+
+    logger.log(`still have undelivered messages, syncing...`);
+    await syncChannel(channelId, Date.now());
+
+    const hasPendingAfter = (await db.getPendingPosts(channelId)).length > 0;
+    if (hasPendingAfter) {
+      throw new Error('Keep going');
+    }
+
+    return true;
+  };
+
+  try {
+    // try checking delivery status immediately
+    await checkDelivered();
+    return true;
+  } catch (e) {
+    // thereafter, try checking with exponential backoff. Config values
+    // are arbitrary reasonable sounding defaults
+    return backOff(checkDelivered, {
+      startingDelay: 2000, // 2 seconds
+      maxDelay: 3 * 60 * 1000, // 3 minutes
+      numOfAttempts: 20,
     });
   }
 }

@@ -43,7 +43,7 @@ export default function ChatReference({
         <Reference.Icon type="ArrowRef" />
       </Reference.Header>
       <Reference.Body>
-        <ChatContent story={content} />
+        <ChatContent shortened={asAttachment} story={content} />
       </Reference.Body>
     </Reference>
   );
