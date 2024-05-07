@@ -79,14 +79,24 @@ export const syncStaleChannels = async () => {
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   switch (update.type) {
     case 'addPost':
-      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      // first check if it's a reply. If it is and we haven't already cached
+      // it, we need to add it to the parent post
       if (update.post.parentId) {
-        await db.addReplyToPost({
-          parentId: update.post.parentId,
-          replyAuthor: update.post.authorId,
-          replyTime: update.post.sentAt,
+        const cachedReply = await db.getPostByCacheId({
+          sentAt: update.post.sentAt,
+          authorId: update.post.authorId,
         });
+        if (!cachedReply) {
+          await db.addReplyToPost({
+            parentId: update.post.parentId,
+            replyAuthor: update.post.authorId,
+            replyTime: update.post.sentAt,
+          });
+        }
       }
+
+      // finally, always insert the post itself
+      await db.insertChannelPosts(update.post.channelId, [update.post]);
       break;
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });

@@ -829,11 +829,24 @@ export const getPosts = createReadQuery(
 
 export const getPost = createReadQuery(
   'getPost',
-  async (postId: string) => {
+  async ({ postId }) => {
     const postData = await client
       .select()
       .from($posts)
       .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByCacheId = createReadQuery(
+  'getPostByCacheId',
+  async ({ sentAt, authorId }: { sentAt: number; authorId: string }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
     if (!postData.length) return null;
     return postData[0];
   },
