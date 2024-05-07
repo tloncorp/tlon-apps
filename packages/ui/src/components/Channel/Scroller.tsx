@@ -13,7 +13,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  Dimensions,
   FlatList,
   ListRenderItem,
   View as RNView,
@@ -22,7 +21,6 @@ import {
 } from 'react-native';
 import { useStyle } from 'tamagui';
 
-import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -281,7 +279,7 @@ const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (
     <XStack position="absolute" zIndex={50} bottom="5%" width="40%" left="30%">
       <Button
-        backgroundColor="$blueSoft"
+        backgroundColor="$positiveBackground"
         paddingVertical="$s"
         paddingHorizontal="$m"
         borderRadius="$l"
@@ -292,8 +290,14 @@ const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
         onPress={onPress}
         size="$s"
       >
-        <Button.Text color="$blue">Scroll to latest</Button.Text>
-        <Icon type="ArrowDown" color="$blue" width="$s" height="$s" size="$l" />
+        <Button.Text color="$positiveActionText">Scroll to latest</Button.Text>
+        <Icon
+          type="ArrowDown"
+          color="$positiveActionText"
+          width="$s"
+          height="$s"
+          size="$l"
+        />
       </Button>
     </XStack>
   );
