@@ -26,6 +26,7 @@ import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { Icon } from '../Icon';
 import { ChannelDivider } from './ChannelDivider';
 
 type RenderItemFunction = (props: {
@@ -278,29 +279,21 @@ const PressableMessage = forwardRef<
 
 const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (
-    <XStack
-      position="absolute"
-      bottom="5%"
-      left={Dimensions.get('window').width / 2 - 60}
-      zIndex={50}
-      width="40%"
-    >
+    <XStack position="absolute" zIndex={50} bottom="5%" width="40%" left="30%">
       <Button
         backgroundColor="$blueSoft"
         padding="$s"
+        paddingHorizontal="$m"
         borderRadius="$l"
-        height="$4xl"
         width="100%"
         alignItems="center"
+        justifyContent="center"
+        gap="$s"
         onPress={onPress}
         size="$s"
       >
-        <Button.Text>Scroll to latest</Button.Text>
-        <Button.Icon>
-          <XStack width="$s" height="$s">
-            <ArrowDown />
-          </XStack>
-        </Button.Icon>
+        <Button.Text color="$blue">Scroll to latest</Button.Text>
+        <Icon type="ArrowDown" color="$blue" width="$s" height="$s" size="$l" />
       </Button>
     </XStack>
   );
