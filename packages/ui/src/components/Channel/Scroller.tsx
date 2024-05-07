@@ -282,7 +282,7 @@ const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
     <XStack position="absolute" zIndex={50} bottom="5%" width="40%" left="30%">
       <Button
         backgroundColor="$blueSoft"
-        padding="$s"
+        paddingVertical="$s"
         paddingHorizontal="$m"
         borderRadius="$l"
         width="100%"
