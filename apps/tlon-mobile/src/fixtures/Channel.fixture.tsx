@@ -84,13 +84,6 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         channel={currentChannel || tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => setOpen(true)}
@@ -148,13 +141,6 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         channel={tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => setOpen(true)}
@@ -233,13 +219,6 @@ const ChannelFixtureWithImage = () => {
         channel={currentChannel || tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => setOpen(true)}

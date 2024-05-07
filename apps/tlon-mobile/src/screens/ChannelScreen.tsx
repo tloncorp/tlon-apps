@@ -20,15 +20,6 @@ import { imageSize, resizeImage } from '../utils/images';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
-// TODO: Pull from actual settings
-const defaultCalmSettings = {
-  disableAppTileUnreads: false,
-  disableAvatars: false,
-  disableNicknames: false,
-  disableRemoteContent: false,
-  disableSpellcheck: false,
-};
-
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
@@ -50,6 +41,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [resizedImage, setResizedImage] = React.useState<string | null>(null);
   const uploader = useUploader(`channel-${currentChannelId}`, imageSize);
   const mostRecentFile = uploader?.getMostRecent();
+  const calmSettingsQuery = store.useCalmSettings({
+    userId: useCurrentUserId(),
+  });
   const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
@@ -214,7 +208,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       <Channel
         channel={channelQuery.data}
         currentUserId={currentUserId}
-        calmSettings={defaultCalmSettings}
+        calmSettings={calmSettingsQuery.data}
         isLoadingPosts={
           postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
         }

@@ -12,3 +12,4 @@ export * from './postsApi';
 export * from '../store/reactQuery';
 export * from './initApi';
 export * from './upload';
+export * from './settingsApi';

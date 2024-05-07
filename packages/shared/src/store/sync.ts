@@ -17,6 +17,13 @@ export const syncInitData = async () => {
   });
 };
 
+export const syncSettings = async () => {
+  return syncQueue.add('settings', async () => {
+    const settings = await api.getSettings();
+    await db.insertSettings(settings);
+  });
+};
+
 export const syncContacts = async () => {
   return syncQueue.add('contacts', async () => {
     const contacts = await api.getContacts();
