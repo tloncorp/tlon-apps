@@ -24,14 +24,14 @@ export function ChatMessageDeliveryStatus({
     <Svg fill="none" viewBox="0 0 24 24" height="24" width="24">
       <Path
         d="M7 8L11 12L7 16"
-        stroke={firstArrowColor}
+        stroke={status === 'pending' ? theme.tertiaryText.val : theme.primaryText.val}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
         d="M15 8L19 12L15 16"
-        stroke={secondArrowColor}
+        stroke={theme.tertiaryText.val}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
