@@ -417,19 +417,23 @@ export default function ChatContent({
             })}
         </YStack>
       ) : null}
-      {inlineLength > 0 ? (
-        <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
-      ) : null}
-      {deliveryStatus && (
-        <XStack
-          justifyContent="flex-end"
-          position="absolute"
-          right={0}
-          bottom={0}
-        >
-          <ChatMessageDeliveryStatus status={deliveryStatus} />
-        </XStack>
-      )}
+      <XStack
+        justifyContent="space-between"
+        alignItems="flex-start"
+        // borderWidth={1}
+        // borderColor="orange"
+      >
+        {inlineLength > 0 ? (
+          <View flexGrow={1} flexShrink={1}>
+            <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
+          </View>
+        ) : null}
+        {deliveryStatus ? (
+          <View flexShrink={1}>
+            <ChatMessageDeliveryStatus status={deliveryStatus} />
+          </View>
+        ) : null}
+      </XStack>
     </YStack>
   );
   1;

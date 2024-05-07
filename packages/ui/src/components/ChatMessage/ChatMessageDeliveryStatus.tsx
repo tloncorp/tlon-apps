@@ -1,23 +1,41 @@
 import * as db from '@tloncorp/shared/dist/db';
-
-import { SizableText } from '../../core';
+import { useMemo } from 'react';
+import { Path, Svg } from 'react-native-svg';
+import { useTheme } from 'tamagui';
 
 export function ChatMessageDeliveryStatus({
   status,
 }: {
   status: db.PostDeliveryStatus;
 }) {
-  const statusDisplay =
-    status === 'failed'
-      ? 'Failed'
-      : status === 'pending'
-        ? 'Pending...'
-        : 'Sent...';
+  const theme = useTheme();
+
+  const firstArrowColor = useMemo(
+    () =>
+      status === 'pending' ? theme.tertiaryText.val : theme.primaryText.val,
+    [status, theme.primaryText.val, theme.tertiaryText.val]
+  );
+  const secondArrowColor = useMemo(
+    () => theme.tertiaryText.val,
+    [theme.tertiaryText.val]
+  );
+
   return (
-    <SizableText
-      color={status === 'failed' ? '$negativeActionText' : '$secondaryText'}
-    >
-      {statusDisplay}
-    </SizableText>
+    <Svg fill="none" viewBox="0 0 24 24" height="24" width="24">
+      <Path
+        d="M7 8L11 12L7 16"
+        stroke={firstArrowColor}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15 8L19 12L15 16"
+        stroke={secondArrowColor}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
