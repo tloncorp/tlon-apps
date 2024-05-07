@@ -1,4 +1,5 @@
 import { ComponentProps, PropsWithChildren } from 'react';
+import { Dimensions } from 'react-native';
 import { createStyledContext, styled, withStaticProperties } from 'tamagui';
 
 import { View, XStack, YStack } from '../../core';
@@ -28,7 +29,7 @@ const ReferenceFrame = styled(YStack, {
     asAttachment: {
       true: {
         borderRadius: 0,
-        width: '100%',
+        width: Dimensions.get('window').width - 40,
       },
     },
   } as const,
@@ -44,7 +45,7 @@ const ReferenceHeader = styled(XStack, {
   variants: {
     asAttachment: {
       true: {
-        width: '100%',
+        width: Dimensions.get('window').width - 40,
       },
     },
   } as const,

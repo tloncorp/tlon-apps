@@ -826,6 +826,19 @@ export const getPosts = createReadQuery(
   ['posts']
 );
 
+export const getPendingPosts = createReadQuery(
+  'getPendingPosts',
+  (channelId: string) => {
+    return client.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        isNotNull($posts.deliveryStatus)
+      ),
+    });
+  },
+  []
+);
+
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
   async ({ id }: { id: string }) => {

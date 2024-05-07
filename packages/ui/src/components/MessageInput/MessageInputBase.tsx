@@ -74,13 +74,19 @@ export const MessageInputContainer = ({
         >
           {Object.keys(references).map((ref) =>
             references[ref] !== null ? (
-              <XStack position="relative" key={ref} width="100%" height="auto">
+              <XStack
+                left={20}
+                position="relative"
+                key={ref}
+                width="100%"
+                height="auto"
+              >
                 <ContentReference
                   asAttachment
                   reference={references[ref]!}
                   key={ref}
                 />
-                <View position="absolute" top={8} right={8}>
+                <View position="absolute" top={8} right={48}>
                   <IconButton
                     onPress={() => {
                       setReferences({ ...references, [ref]: null });
