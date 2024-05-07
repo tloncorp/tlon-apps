@@ -48,7 +48,7 @@ export default function useGroupJoin(
     location.pathname.includes('gangs/');
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
-  const group = useGroup(flag, inModal);
+  const group = useGroup(flag, false);
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;

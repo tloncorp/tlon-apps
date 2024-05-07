@@ -1734,7 +1734,10 @@
   ^+  cor
   =/  =wire  /gangs/index/(scot %p ship)
   =/  =dock  [ship dap.bowl]
-  (emit %pass wire %agent dock %watch `path`wire)
+  %-  emil
+  :~  [%pass wire %agent dock %leave ~]
+      [%pass wire %agent dock %watch `path`wire]
+  ==
 ::
 ++  hi-and-req-gang-index
   |=  =ship
@@ -1827,9 +1830,16 @@
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
       (poke-host /rescind act:mar:g !>(action))
     ++  get-preview
-      %^  subscribe  (welp ga-area /preview)
-        [p.flag dap.bowl]
-      /groups/(scot %p p.flag)/[q.flag]/preview
+      |=  delay=?
+      =/  =wire  (welp ga-area /preview)
+      =/  =dock  [p.flag dap.bowl]
+      =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
+      ^+  cor
+      =^  caz=(list card)  subs
+        (~(unsubscribe s [subs bowl]) wire dock)
+      =^  crds=(list card)  subs
+        (~(subscribe s [subs bowl]) wire dock path delay)
+      (emil (welp caz crds))
     --
   ++  ga-start-join
     ^+  ga-core
