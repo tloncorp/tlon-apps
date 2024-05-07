@@ -145,7 +145,7 @@ export default function Scroller({
       // (they are objects, not functions)
       const RenderItem = renderItem;
       return (
-        <>
+        <View>
           {isFirstUnread ? (
             <ChannelDivider
               timestamp={item.receivedAt}
@@ -168,7 +168,7 @@ export default function Scroller({
               onLongPress={() => handlePostLongPressed(item)}
             />
           </PressableMessage>
-        </>
+        </View>
       );
     },
     [
