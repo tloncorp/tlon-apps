@@ -105,7 +105,10 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       }
 
       // finally, always insert the post itself
-      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      await db.insertChannelPosts({
+        channelId: update.post.channelId,
+        posts: [update.post],
+      });
       break;
     case 'deletePost':
       await db.deletePosts({ ids: [update.postId] });
@@ -165,7 +168,12 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
 export async function syncPosts(options: db.GetChannelPostsOptions) {
   const response = await api.getChannelPosts(options);
   if (response.posts.length) {
-    await db.insertChannelPosts(options.channelId, response.posts);
+    await db.insertChannelPosts({
+      channelId: options.channelId,
+      posts: response.posts,
+      newerCursor: response.newer,
+      olderCursor: response.older,
+    });
   }
   return response;
 }
@@ -286,10 +294,10 @@ export async function syncThreadPosts({
     authorId,
     channelId,
   });
-  await db.insertChannelPosts(channelId, [
-    response,
-    ...(response.replies ?? []),
-  ]);
+  await db.insertChannelPosts({
+    channelId,
+    posts: [response, ...(response.replies ?? [])],
+  });
 }
 
 async function persistPagedPostData(
@@ -301,7 +309,12 @@ async function persistPagedPostData(
     postCount: data.totalPosts,
   });
   if (data.posts.length) {
-    await db.insertChannelPosts(channelId, data.posts);
+    await db.insertChannelPosts({
+      channelId,
+      posts: data.posts,
+      newerCursor: data.newer,
+      olderCursor: data.older,
+    });
     const reactions = data.posts
       .map((p) => p.reactions)
       .flat()
@@ -320,10 +333,3 @@ export const start = async () => {
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
   useStorage.getState().start();
 };
-
-async function runOperation(name: string, fn: () => Promise<void>) {
-  const startTime = Date.now();
-  logger.log('starting', name, Date.now());
-  await fn();
-  logger.log('synced', name, 'in', Date.now() - startTime + 'ms');
-}

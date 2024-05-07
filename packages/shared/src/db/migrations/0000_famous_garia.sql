@@ -133,12 +133,11 @@ CREATE TABLE `post_reactions` (
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE TABLE `post_window` (
+CREATE TABLE `post_windows` (
 	`channel_id` text NOT NULL,
-	`oldest_post_at` integer NOT NULL,
-	`newest_post_at` integer NOT NULL,
-	PRIMARY KEY(`channel_id`, `newest_post_at`, `oldest_post_at`),
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+	`oldest_post_id` text NOT NULL,
+	`newest_post_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `newest_post_id`, `oldest_post_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `posts` (

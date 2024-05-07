@@ -14,7 +14,7 @@ export async function sendPost({
 }) {
   // optimistic update
   const cachePost = api.buildCachePost({ authorId, channel, content });
-  await db.insertChannelPosts(channel.id, [cachePost]);
+  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
 
   try {
     await api.sendPost({
@@ -80,7 +80,7 @@ export async function sendReply({
     content,
     parentId,
   });
-  await db.insertChannelPosts(channel.id, [cachePost]);
+  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
   await db.addReplyToPost({
     parentId,
     replyAuthor: cachePost.authorId,
@@ -141,7 +141,7 @@ export async function deletePost({ post }: { post: db.Post }) {
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
-    await db.insertChannelPosts(post.channelId, [post]);
+    await db.insertChannelPosts({ channelId: post.channelId, posts: [post] });
   }
 }
 

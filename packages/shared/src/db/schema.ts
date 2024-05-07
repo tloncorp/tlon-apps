@@ -504,18 +504,16 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
 }));
 
 export const postWindows = sqliteTable(
-  'post_window',
+  'post_windows',
   {
-    channelId: text('channel_id')
-      .references(() => channels.id)
-      .notNull(),
-    oldestPostAt: timestamp('oldest_post_at').notNull(),
-    newestPostAt: timestamp('newest_post_at').notNull(),
+    channelId: text('channel_id').notNull(),
+    oldestPostId: text('oldest_post_id').notNull(),
+    newestPostId: text('newest_post_id').notNull(),
   },
   (table) => {
     return {
       pk: primaryKey({
-        columns: [table.channelId, table.oldestPostAt, table.newestPostAt],
+        columns: [table.channelId, table.oldestPostId, table.newestPostId],
       }),
     };
   }

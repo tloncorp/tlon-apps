@@ -78,11 +78,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     channelId: currentChannelId,
     ...(hasSelectedPost
       ? {
-          direction: 'around',
+          mode: 'around',
           cursor: selectedPost.id,
         }
       : {
-          anchorToNewest: true,
+          mode: 'older',
+          cursor: 'newest',
         }),
     count: 50,
   });
@@ -98,7 +99,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const currentUserId = useCurrentUserId();
 
   const messageSender = useCallback(
-    async (content: Story, channelId: string) => {
+    async (content: Story, _channelId: string) => {
       if (!currentUserId || !channelQuery.data) {
         return;
       }

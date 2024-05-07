@@ -60,7 +60,7 @@ export const createQuery = <Args extends any[], T>(
   // Wrap query function to trigger table events
   const wrappedQuery = async (...args: Args) => {
     const startTime = Date.now();
-    logger.log(meta.label + ':start', ...args);
+    logger.log(meta.label + ':start');
     const result = await queryFn(...args);
     logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
     // Trigger table effects if necessary.

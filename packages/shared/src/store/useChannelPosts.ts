@@ -19,6 +19,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       postsLogger.log('unmount', options);
     };
   }, []);
+
   return useInfiniteQuery({
     initialPageParam: options,
     refetchOnMount: false,
@@ -28,8 +29,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         'loading posts',
         queryOptions.channelId,
         queryOptions.cursor,
-        queryOptions.direction,
-        queryOptions.date ? queryOptions.date.toISOString() : undefined,
+        queryOptions.mode,
         queryOptions.count,
         queryOptions.anchorToNewest
       );
@@ -63,12 +63,11 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         // If we've only tried to get newer posts + that's failed, try using the
         // same cursor to get older posts instead. This can happen when the
         // first cached page is empty.
-        if (lastPageParam?.direction === 'newer') {
+        if (lastPageParam?.mode === 'newer') {
           return {
             ...options,
-            direction: 'older',
+            mode: 'older',
             cursor: lastPageParam.cursor,
-            date: undefined,
           };
         } else {
           return undefined;
@@ -76,9 +75,8 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       }
       return {
         ...options,
-        direction: 'older',
+        mode: 'older',
         cursor: lastPage[lastPage.length - 1]?.id,
-        date: undefined,
       };
     },
     getPreviousPageParam: (
@@ -91,9 +89,8 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       if (reachedEnd || alreadyAtNewest) return undefined;
       return {
         ...options,
-        direction: 'newer',
+        mode: 'newer',
         cursor: firstPage[0]?.id,
-        date: undefined,
       };
     },
   });

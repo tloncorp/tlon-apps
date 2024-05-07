@@ -18,6 +18,7 @@ import { resetDb, setScryOutputs, setupDb } from '../test/helpers';
 import pinsResponse from '../test/pins.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
+import { Post, PostWindow } from './types';
 
 const groupsData = toClientGroups(
   groupsResponse as unknown as Record<string, ub.Group>,
@@ -78,49 +79,77 @@ test('gets chat list', async () => {
   ]);
 });
 
+const refDate = Date.now();
+
 const windowA = {
   channelId: 'tst',
-  oldestPostAt: 10,
-  newestPostAt: 100,
+  oldestPostId: '010',
+  newestPostId: '100',
+  newerCursor: '101',
+  olderCursor: '009',
 };
 
 const windowB = {
   channelId: 'tst',
-  oldestPostAt: 200,
-  newestPostAt: 300,
+  oldestPostId: '200',
+  newestPostId: '300',
+  newerCursor: '301',
+  olderCursor: '199',
+};
+
+const windowImmediatelyBeforeA = {
+  channelId: 'tst',
+  oldestPostId: '000',
+  newestPostId: '009',
+  newerCursor: '010',
+  olderCursor: undefined,
 };
 
 const windowBefore = {
   channelId: 'tst',
-  oldestPostAt: 0,
-  newestPostAt: 5,
+  oldestPostId: '000',
+  newestPostId: '005',
+  newerCursor: '006',
+  olderCursor: undefined,
 };
 
 const windowIntersectingA = {
   channelId: 'tst',
-  oldestPostAt: 5,
-  newestPostAt: 50,
+  oldestPostId: '005',
+  newestPostId: '050',
+  newerCursor: '051',
+  olderCursor: '004',
 };
 
 const windowFillingGap = {
   channelId: 'tst',
-  oldestPostAt: 95,
-  newestPostAt: 205,
+  oldestPostId: '095',
+  newestPostId: '205',
+  newerCursor: '206',
+  olderCursor: '094',
 };
 
 const windowIntersectingB = {
   channelId: 'tst',
-  oldestPostAt: 250,
-  newestPostAt: 350,
+  oldestPostId: '250',
+  newestPostId: '350',
+  newerCursor: '351',
+  olderCursor: '249',
 };
 
 const windowCoveringAll = {
   channelId: 'tst',
-  oldestPostAt: 0,
-  newestPostAt: 400,
+  oldestPostId: '000',
+  newestPostId: '400',
+  newerCursor: '401',
+  olderCursor: undefined,
 };
 
-const testCases = [
+const testCases: {
+  label: string;
+  window: PostWindow;
+  expected: PostWindow[];
+}[] = [
   {
     label: 'two identical windows',
     window: windowA,
@@ -132,13 +161,25 @@ const testCases = [
     expected: [windowBefore, windowA, windowB],
   },
   {
+    label: 'contiguous with A',
+    window: windowImmediatelyBeforeA,
+    expected: [
+      {
+        channelId: 'tst',
+        oldestPostId: windowImmediatelyBeforeA.oldestPostId,
+        newestPostId: windowA.newestPostId,
+      },
+      windowB,
+    ],
+  },
+  {
     label: 'intersecting A (before)',
     window: windowIntersectingA,
     expected: [
       {
         channelId: 'tst',
-        oldestPostAt: windowIntersectingA.oldestPostAt,
-        newestPostAt: windowA.newestPostAt,
+        oldestPostId: windowIntersectingA.oldestPostId,
+        newestPostId: windowA.newestPostId,
       },
       windowB,
     ],
@@ -149,8 +190,8 @@ const testCases = [
     expected: [
       {
         channelId: 'tst',
-        oldestPostAt: windowA.oldestPostAt,
-        newestPostAt: windowB.newestPostAt,
+        oldestPostId: windowA.oldestPostId,
+        newestPostId: windowB.newestPostId,
       },
     ],
   },
@@ -161,8 +202,8 @@ const testCases = [
       windowA,
       {
         channelId: 'tst',
-        oldestPostAt: windowB.oldestPostAt,
-        newestPostAt: windowIntersectingB.newestPostAt,
+        oldestPostId: windowB.oldestPostId,
+        newestPostId: windowIntersectingB.newestPostId,
       },
     ],
   },
@@ -173,17 +214,160 @@ const testCases = [
   },
 ];
 
+function insertPostsForWindow(
+  window: PostWindow & { olderCursor?: string; newerCursor?: string }
+) {
+  return queries.insertChannelPosts({
+    channelId: window.channelId,
+    olderCursor: window.olderCursor,
+    newerCursor: window.newerCursor,
+    posts: [
+      {
+        id: window.oldestPostId,
+        type: 'chat',
+        channelId: window.channelId,
+        authorId: 'test',
+        receivedAt: 0,
+        sentAt: 0,
+      },
+      {
+        id: window.newestPostId,
+        type: 'chat',
+        channelId: window.channelId,
+        authorId: 'test',
+        receivedAt: 0,
+        sentAt: 0,
+      },
+    ],
+  });
+}
+
 test.each(testCases)('insert window: $label', async ({ window, expected }) => {
   await setupWindows();
-  await queries.insertPostWindow(window);
+  await insertPostsForWindow(window);
   const windows = await queries.getPostWindows({ orderBy: 'windowStart' });
-  expect(windows).toEqual(expected);
+  expect(windows).toEqual(
+    expected.map((w) => ({
+      channelId: w.channelId,
+      oldestPostId: w.oldestPostId,
+      newestPostId: w.newestPostId,
+    }))
+  );
+});
+
+const filterTestCases = [
+  {
+    label: 'before first window',
+    startPostId: '0005',
+    count: 5,
+    newer: 0,
+    older: 0,
+  },
+  {
+    label: 'within first window',
+    startPostId: '0010',
+    count: 5,
+    newer: 5,
+    older: 0,
+  },
+  {
+    label: 'to exact end of first window',
+    startPostId: '0014',
+    count: 5,
+    newer: 5,
+    older: 4,
+  },
+  {
+    label: 'past end of first window',
+    startPostId: '0017',
+    count: 5,
+    newer: 2,
+    older: 5,
+  },
+  {
+    label: 'into second window',
+    startPostId: '0021',
+    count: 5,
+    newer: 0,
+    older: 0,
+  },
+  {
+    label: 'within second window',
+    startPostId: '0025',
+    count: 5,
+    newer: 5,
+    older: 0,
+  },
+  {
+    label: 'outside of any window',
+    startPostId: '0040',
+    count: 5,
+    newer: 0,
+    older: 0,
+  },
+  {
+    label: 'before first window, into first window',
+    startPostId: '0005',
+    count: 5,
+    newer: 0,
+    older: 0,
+  },
+];
+
+test.each(filterTestCases)('filter posts: $label', async (testCase) => {
+  const channelId = 'tst';
+  const firstRange = getRangedPosts(channelId, 10, 20);
+  const secondRange = getRangedPosts(channelId, 25, 35);
+  await queries.insertChannelPosts({
+    channelId,
+    posts: firstRange,
+    newerCursor: null,
+    olderCursor: null,
+  });
+  await queries.insertChannelPosts({
+    channelId,
+    posts: secondRange,
+    newerCursor: null,
+    olderCursor: null,
+  });
+
+  const newestPosts = await queries.getChannelPosts({
+    channelId,
+    count: 5,
+    mode: 'newest',
+  });
+  expect(newestPosts.length).toEqual(5);
+
+  for (const mode of ['newer', 'older'] as const) {
+    const posts = await queries.getChannelPosts({
+      channelId,
+      count: testCase.count,
+      cursor: testCase.startPostId,
+      mode,
+    });
+    expect(posts.length).toEqual(testCase[mode]);
+  }
 });
 
 async function setupWindows() {
   await Promise.all([
     queries.insertChannels([{ id: 'tst', type: 'chat' }]),
-    queries.insertPostWindow(windowA),
-    queries.insertPostWindow(windowB),
+    insertPostsForWindow(windowA),
+    insertPostsForWindow(windowB),
   ]);
+}
+
+function getRangedPosts(channelId: string, start: number, end: number): Post[] {
+  const posts: Post[] = [];
+  for (let i = start; i < end; i++) {
+    posts.push({
+      id: i.toString().padStart(4, '0'),
+      type: 'chat',
+      channelId,
+      receivedAt: refDate + i,
+      sentAt: refDate + i,
+      authorId: 'test',
+    });
+  }
+  return posts;
 }

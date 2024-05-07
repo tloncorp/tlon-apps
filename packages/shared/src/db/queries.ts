@@ -18,6 +18,7 @@ import {
   lt,
   lte,
   max,
+  min,
   not,
   or,
   sql,
@@ -55,7 +56,6 @@ import {
   Pin,
   PinType,
   Post,
-  PostWindow,
   Reaction,
   Settings,
   TableName,
@@ -608,8 +608,7 @@ export const setJoinedGroupChannels = createWriteQuery(
 export interface GetChannelPostsOptions {
   channelId: string;
   cursor?: string;
-  date?: Date;
-  direction?: 'older' | 'newer' | 'around';
+  mode?: 'newest' | 'older' | 'newer' | 'around';
   count?: number;
 }
 
@@ -618,46 +617,62 @@ export const getChannelPosts = createReadQuery(
   async ({
     channelId,
     cursor,
-    direction,
+    mode,
     count = 50,
-    date,
   }: GetChannelPostsOptions): Promise<Post[]> => {
-    if (direction === 'around') {
+    if (mode === 'around') {
       const result = await Promise.all([
         getChannelPosts({
           channelId,
           cursor,
-          direction: 'older',
+          mode: 'older',
           count: Math.floor(count / 2),
         }),
         getChannelPosts({
           channelId,
           cursor,
-          direction: 'newer',
+          mode: 'newer',
           count: Math.ceil(count / 2),
         }),
       ]);
       return result.flatMap((r) => r);
     }
+
+    const window = await client.query.postWindows.findFirst({
+      where: and(
+        eq($postWindows.channelId, channelId),
+        ...(cursor && mode !== 'newest'
+          ? [
+              lte($postWindows.oldestPostId, cursor),
+              gte($postWindows.newestPostId, cursor),
+            ]
+          : [])
+      ),
+      orderBy: [desc($postWindows.newestPostId)],
+    });
+    if (!window) return [];
+
+    const finalCursor =
+      !cursor || cursor === 'newest' ? window.newestPostId : cursor;
+    console.log('Final cursor', finalCursor, window);
+
     return client.query.posts.findMany({
       where: and(
         eq($posts.channelId, channelId),
+        gte($posts.id, window.oldestPostId),
+        lte($posts.id, window.newestPostId),
         not(eq($posts.type, 'reply')),
-        cursor
-          ? direction === 'older'
-            ? lt($posts.id, cursor)
-            : gt($posts.id, cursor)
-          : date
-            ? direction === 'older'
-              ? lt($posts.receivedAt, date.getTime())
-              : gt($posts.receivedAt, date.getTime())
-            : undefined
+        mode === 'newest'
+          ? lte($posts.id, finalCursor)
+          : mode === 'older'
+            ? lt($posts.id, finalCursor)
+            : gt($posts.id, finalCursor)
       ),
       with: {
         author: true,
         reactions: true,
       },
-      orderBy: [desc($posts.receivedAt)],
+      orderBy: [desc($posts.id)],
       limit: count,
     });
   },
@@ -735,7 +750,17 @@ export const getChannelSearchResults = createReadQuery(
 
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
-  async (channelId: string, posts: Post[]) => {
+  async ({
+    channelId,
+    posts,
+    newerCursor,
+    olderCursor,
+  }: {
+    channelId: string;
+    posts: Post[];
+    newerCursor?: string | null;
+    olderCursor?: string | null;
+  }) => {
     if (!posts.length) {
       return;
     }
@@ -785,9 +810,72 @@ export const insertChannelPosts = createWriteQuery(
           target: [$posts.authorId, $posts.sentAt],
           set: conflictUpdateSetAll($posts),
         });
+
+      // Update post window
+      const window = {
+        channelId,
+        newestPostId: lastPost.id,
+        oldestPostId: posts[0].id,
+      };
+      console.log('newest', lastPost.id);
+      console.log('oldest', posts[0].id);
+      console.log('ncurso', newerCursor ?? window.newestPostId);
+      console.log('ocurso', olderCursor ?? window.oldestPostId);
+
+      const { startId, endId } = (
+        await client
+          .select({
+            startId: min($postWindows.oldestPostId),
+            endId: max($postWindows.newestPostId),
+          })
+          .from($postWindows)
+          .where(
+            and(
+              eq($postWindows.channelId, window.channelId),
+              lte(
+                $postWindows.oldestPostId,
+                newerCursor ?? window.newestPostId
+              ),
+              gte($postWindows.newestPostId, olderCursor ?? window.oldestPostId)
+            )
+          )
+      )[0];
+      const resolvedStart =
+        startId && startId < window.oldestPostId
+          ? startId
+          : window.oldestPostId;
+      const resolvedEnd =
+        endId && endId > window.newestPostId ? endId : window.newestPostId;
+      console.log('startId', startId);
+      console.log('endId', endId);
+      const deleted = await client
+        .delete($postWindows)
+        .where(
+          and(
+            eq($postWindows.channelId, window.channelId),
+            lte($postWindows.oldestPostId, endId ?? window.newestPostId),
+            gte($postWindows.newestPostId, startId ?? window.oldestPostId)
+          )
+        )
+        .returning({
+          channelId: $postWindows.channelId,
+          oldestPostId: $postWindows.oldestPostId,
+          newestPostId: $postWindows.newestPostId,
+        });
+      console.log('deleted', deleted);
+      console.log('inserting', {
+        channelId: window.channelId,
+        oldestPostId: resolvedStart,
+        newestPostId: resolvedEnd,
+      });
+      await client.insert($postWindows).values({
+        channelId: window.channelId,
+        oldestPostId: resolvedStart,
+        newestPostId: resolvedEnd,
+      });
     });
   },
-  ['posts', 'channels', 'groups']
+  ['posts', 'channels', 'groups', 'postWindows']
 );
 
 export const updatePost = createWriteQuery(
@@ -1197,76 +1285,6 @@ export const getPinnedItems = createReadQuery(
   ['pins']
 );
 
-export const insertPostWindow = createWriteQuery(
-  'insertPostWindow',
-  async (window: PostWindow) => {
-    const intersectingWindows = await client.query.postWindows.findMany({
-      where: (table) => {
-        return and(
-          eq(table.channelId, window.channelId),
-          or(
-            and(
-              gte(table.oldestPostAt, window.newestPostAt),
-              lt(table.newestPostAt, window.oldestPostAt)
-            ),
-            and(
-              gte(table.newestPostAt, window.oldestPostAt),
-              lte(table.oldestPostAt, window.newestPostAt)
-            )
-          )
-        );
-      },
-    });
-
-    if (intersectingWindows.length === 1) {
-      const intersecting = intersectingWindows[0];
-
-      await client
-        .update($postWindows)
-        .set({
-          oldestPostAt: Math.min(
-            intersecting.oldestPostAt,
-            window.oldestPostAt
-          ),
-          newestPostAt: Math.max(
-            intersecting.newestPostAt,
-            window.newestPostAt
-          ),
-        })
-        .where(windowEq(intersecting));
-    } else if (intersectingWindows.length > 1) {
-      const allWindows = [window, ...intersectingWindows];
-      const oldestPostAt = Math.min(...allWindows.map((w) => w.oldestPostAt));
-      const newestPostAt = Math.max(...allWindows.map((w) => w.newestPostAt));
-      const finalWindow = intersectingWindows[0];
-      const windowsToDelete = intersectingWindows.slice(1);
-      await client.transaction(async (tx) => {
-        await tx.delete($postWindows).where(
-          inArray(
-            $postWindows.oldestPostAt,
-            windowsToDelete.map((w) => w.oldestPostAt)
-          )
-        );
-        await tx
-          .update($postWindows)
-          .set({ oldestPostAt, newestPostAt })
-          .where(windowEq(finalWindow));
-      });
-    } else {
-      await client.insert($postWindows).values(window);
-    }
-  },
-  ['postWindows', 'posts']
-);
-
-const windowEq = (window: PostWindow) => {
-  return and(
-    eq($postWindows.channelId, window.channelId),
-    eq($postWindows.oldestPostAt, window.oldestPostAt),
-    eq($postWindows.newestPostAt, window.newestPostAt)
-  );
-};
-
 export const getPostWindows = createReadQuery(
   'getPostWindows',
   async ({
@@ -1277,9 +1295,9 @@ export const getPostWindows = createReadQuery(
       where: channelId ? eq($postWindows.channelId, channelId) : undefined,
       orderBy:
         orderBy === 'windowStart'
-          ? asc($postWindows.oldestPostAt)
+          ? asc($postWindows.oldestPostId)
           : orderBy === 'windowEnd'
-            ? asc($postWindows.newestPostAt)
+            ? asc($postWindows.newestPostId)
             : undefined,
     });
   },

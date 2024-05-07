@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "6f807ef3-2908-4e42-994e-7c3ecd06662f",
+  "id": "c08dfc00-5bd1-4278-bf37-65dd608897fb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -870,8 +870,8 @@
       },
       "uniqueConstraints": {}
     },
-    "post_window": {
-      "name": "post_window",
+    "post_windows": {
+      "name": "post_windows",
       "columns": {
         "channel_id": {
           "name": "channel_id",
@@ -880,45 +880,31 @@
           "notNull": true,
           "autoincrement": false
         },
-        "oldest_post_at": {
-          "name": "oldest_post_at",
-          "type": "integer",
+        "oldest_post_id": {
+          "name": "oldest_post_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "newest_post_at": {
-          "name": "newest_post_at",
-          "type": "integer",
+        "newest_post_id": {
+          "name": "newest_post_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "post_window_channel_id_channels_id_fk": {
-          "name": "post_window_channel_id_channels_id_fk",
-          "tableFrom": "post_window",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
-        "post_window_channel_id_oldest_post_at_newest_post_at_pk": {
+        "post_windows_channel_id_oldest_post_id_newest_post_id_pk": {
           "columns": [
             "channel_id",
-            "newest_post_at",
-            "oldest_post_at"
+            "newest_post_id",
+            "oldest_post_id"
           ],
-          "name": "post_window_channel_id_oldest_post_at_newest_post_at_pk"
+          "name": "post_windows_channel_id_oldest_post_id_newest_post_id_pk"
         }
       },
       "uniqueConstraints": {}
