@@ -83,23 +83,6 @@ export default function Scroller({
   };
 
   useEffect(() => {
-    if (firstUnread && flatListRef.current) {
-      console.log(
-        'scrolling to',
-        firstUnread,
-        posts.findIndex((post) => post.id === firstUnread)
-      );
-      const unreadIndex = posts.findIndex((post) => post.id === firstUnread);
-      if (unreadIndex !== -1) {
-        flatListRef.current.scrollToIndex({
-          index: unreadIndex,
-          animated: true,
-        });
-      }
-    }
-  }, [firstUnread, posts]);
-
-  useEffect(() => {
     if (selectedPost && flatListRef.current) {
       const scrollToIndex = posts.findIndex((post) => post.id === selectedPost);
       if (scrollToIndex > -1) {
@@ -145,7 +128,7 @@ export default function Scroller({
       // (they are objects, not functions)
       const RenderItem = renderItem;
       return (
-        <>
+        <View>
           {isFirstUnread ? (
             <ChannelDivider
               timestamp={item.receivedAt}
@@ -168,7 +151,7 @@ export default function Scroller({
               onLongPress={() => handlePostLongPressed(item)}
             />
           </PressableMessage>
-        </>
+        </View>
       );
     },
     [
@@ -209,9 +192,9 @@ export default function Scroller({
 
   return (
     <View flex={1}>
-      {unreadCount && !hasPressedGoToBottom ? (
+      {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
-      ) : null}
+      ) : null} */}
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
