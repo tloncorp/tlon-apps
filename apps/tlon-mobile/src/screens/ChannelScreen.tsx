@@ -177,8 +177,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (channel.id === currentChannelId) {
         props.navigation.navigate('Channel', { channel, selectedPost: post });
       } else {
-        props.navigation.pop();
-        props.navigation.push('Channel', { channel, selectedPost: post });
+        props.navigation.replace('Channel', { channel, selectedPost: post });
       }
     },
     [props.navigation, currentChannelId]
