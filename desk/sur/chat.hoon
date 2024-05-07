@@ -81,6 +81,7 @@
       total=@ud
   ==
 ::
++$  chat-heads  (list [=whom recency=time latest=(unit writ)])
 ::  $writs: a set of time ordered chat messages
 ::
 ++  writs
