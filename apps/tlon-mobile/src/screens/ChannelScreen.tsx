@@ -1,22 +1,16 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import {
-  handleImagePicked,
-  useChannel,
-  usePostWithRelations,
-  useUploader,
-} from '@tloncorp/shared/dist/store';
+import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
 import type { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
+import { useImageUpload } from '../hooks/useImageUpload';
 import type { HomeStackParamList } from '../types';
-import { imageSize, resizeImage } from '../utils/images';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
@@ -40,16 +34,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
   );
-  const [imageAttachment, setImageAttachment] = React.useState<string | null>(
-    null
-  );
-  const [startedImageUpload, setStartedImageUpload] = React.useState(false);
-  const [uploadedImage, setUploadedImage] = React.useState<
-    Upload | null | undefined
-  >(null);
-  const [resizedImage, setResizedImage] = React.useState<string | null>(null);
-  const uploader = useUploader(`channel-${currentChannelId}`, imageSize);
-  const mostRecentFile = uploader?.getMostRecent();
   const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
@@ -58,6 +42,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   });
   const selectedPost = props.route.params.selectedPost;
   const hasSelectedPost = !!selectedPost;
+
+  const uploadInfo = useImageUpload({
+    uploaderKey: `${props.route.params.channel.id}`,
+  });
 
   const postsQuery = store.useChannelPosts({
     channelId: currentChannelId,
@@ -82,14 +70,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const { bottom } = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
 
-  const resetImageAttachment = useCallback(() => {
-    setResizedImage(null);
-    setImageAttachment(null);
-    setUploadedImage(null);
-    setStartedImageUpload(false);
-    uploader?.clear();
-  }, [uploader]);
-
   const messageSender = useCallback(
     async (content: Story, channelId: string) => {
       if (!currentUserId || !channelQuery.data) {
@@ -100,9 +80,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         authorId: currentUserId,
         content,
       });
-      resetImageAttachment();
+      uploadInfo.resetImageAttachment();
     },
-    [currentUserId, channelQuery.data, resetImageAttachment]
+    [currentUserId, channelQuery.data, uploadInfo]
   );
 
   useEffect(() => {
@@ -110,46 +90,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       console.error(groupQuery.error);
     }
   }, [groupQuery.error]);
-
-  useEffect(() => {
-    const getResizedImage = async (uri: string) => {
-      const manipulated = await resizeImage(uri);
-      if (manipulated) {
-        setResizedImage(manipulated);
-      }
-    };
-
-    if (imageAttachment && !startedImageUpload) {
-      if (!resizedImage) {
-        getResizedImage(imageAttachment);
-      }
-
-      if (uploader && resizedImage) {
-        handleImagePicked(resizedImage, uploader);
-        setStartedImageUpload(true);
-      }
-    }
-  }, [
-    imageAttachment,
-    mostRecentFile,
-    uploader,
-    startedImageUpload,
-    resizedImage,
-  ]);
-
-  useEffect(() => {
-    if (
-      mostRecentFile &&
-      (mostRecentFile.status === 'success' ||
-        mostRecentFile.status === 'loading')
-    ) {
-      setUploadedImage(mostRecentFile);
-
-      if (mostRecentFile.status === 'success' && mostRecentFile.url !== '') {
-        uploader?.clear();
-      }
-    }
-  }, [mostRecentFile, uploader]);
 
   // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
@@ -234,13 +174,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToImageViewer={handleGoToImage}
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={handleGoToSearch}
-        uploadedImage={uploadedImage}
-        imageAttachment={resizedImage}
-        setImageAttachment={setImageAttachment}
-        resetImageAttachment={resetImageAttachment}
+        uploadInfo={uploadInfo}
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
-        canUpload={!!uploader}
         onPressRef={handleGoToRef}
         usePost={usePostWithRelations}
         useChannel={useChannel}
