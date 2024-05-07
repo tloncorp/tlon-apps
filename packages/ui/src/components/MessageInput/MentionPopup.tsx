@@ -30,6 +30,10 @@ export default function MentionPopup({
     })
     .slice(0, 7);
 
+  if (subSet.length === 0) {
+    return null;
+  }
+
   return (
     <ContactList>
       {subSet.map((contact) =>
@@ -47,7 +51,8 @@ export default function MentionPopup({
             key={contact.id}
             contact={contact}
             matchText={matchText ? desig(matchText) : undefined}
-            showBoth
+            showNickname
+            showUserId
           />
         ) : null
       )}

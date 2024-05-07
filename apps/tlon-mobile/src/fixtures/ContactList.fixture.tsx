@@ -28,8 +28,8 @@ const ContactListFixture = ({
             {initialContacts.map((contact) => (
               <ContactList.Item
                 alignItems="center"
-                showBoth={showBoth}
-                showAlias={showAlias}
+                showNickname={showAlias}
+                showUserId={showBoth}
                 justifyContent="flex-start"
                 padding="$s"
                 key={contact.id}

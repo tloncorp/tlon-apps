@@ -8,9 +8,11 @@ import { formatUserId } from '../utils/user';
 const NickNameWithMatch = ({
   nickname,
   matchText,
+  secondary = false,
 }: {
   nickname: string;
   matchText: string;
+  secondary?: boolean;
 }) => {
   const matchedNickname =
     matchText && nickname?.match(new RegExp(matchText, 'i'));
@@ -18,7 +20,10 @@ const NickNameWithMatch = ({
   return matchedNickname && matchedNickname.index !== undefined ? (
     <>
       {nickname.slice(0, matchedNickname.index)}
-      <SizableText fontWeight="bold">
+      <SizableText
+        color={secondary ? '$secondaryText' : undefined}
+        fontWeight="bold"
+      >
         {nickname.slice(
           matchedNickname.index,
           matchedNickname.index + matchedNickname[0].length
@@ -27,7 +32,9 @@ const NickNameWithMatch = ({
       {nickname.slice(matchedNickname.index + matchedNickname[0].length)}
     </>
   ) : (
-    <SizableText>{nickname}</SizableText>
+    <SizableText color={secondary ? '$secondaryText' : undefined}>
+      {nickname}
+    </SizableText>
   );
 };
 
@@ -55,28 +62,30 @@ const UserIdWithMatch = ({
 export default function ContactName({
   userId,
   full = false,
-  showAlias = false,
-  showBoth = false,
+  showNickname = false,
+  showUserId = false,
   matchText,
   ...rest
 }: ComponentProps<typeof SizableText> & {
   userId: string;
   full?: boolean;
   matchText?: string;
-  showAlias?: boolean;
-  showBoth?: boolean;
+  showNickname?: boolean;
+  showUserId?: boolean;
 }) {
   const calm = useCalm();
   const contact = useContact(userId);
-  const showNickname = useMemo(
-    () => contact?.nickname && !calm.disableNicknames && showAlias,
-    [contact, calm.disableNicknames, showAlias]
+  const shouldShowNickname = useMemo(
+    () => contact?.nickname && !calm.disableNicknames && showNickname,
+    [contact, calm.disableNicknames, showNickname]
   );
 
   const formattedId = formatUserId(userId, full);
   if (!formattedId) {
     return null;
   }
+
+  const showBoth = showUserId && shouldShowNickname;
 
   if (showBoth) {
     return (
@@ -93,16 +102,16 @@ export default function ContactName({
         )}
         {!calm.disableNicknames && contact?.nickname ? (
           matchText ? (
-            <>
-              {' ('}
+            <SizableText color="$secondaryText">
+              {' '}
               <NickNameWithMatch
                 nickname={contact.nickname}
                 matchText={matchText}
+                secondary
               />
-              {')'}
-            </>
+            </SizableText>
           ) : (
-            ` (${contact.nickname})`
+            <SizableText color="$secondaryText">{` ${contact.nickname}`}</SizableText>
           )
         ) : null}
       </SizableText>
@@ -117,7 +126,7 @@ export default function ContactName({
         aria-label={formattedId.ariaLabel}
         {...rest}
       >
-        {showNickname ? (
+        {shouldShowNickname ? (
           <NickNameWithMatch
             nickname={contact!.nickname!}
             matchText={matchText}
@@ -131,7 +140,7 @@ export default function ContactName({
 
   return (
     <SizableText aria-label={formattedId.ariaLabel} {...rest}>
-      {showNickname ? contact!.nickname : formattedId.display}
+      {shouldShowNickname ? contact!.nickname : formattedId.display}
     </SizableText>
   );
 }

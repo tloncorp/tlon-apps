@@ -10,8 +10,8 @@ const ContactListItem = ({
   contact,
   onPress,
   onLongPress,
-  showAlias = false,
-  showBoth = false,
+  showNickname = false,
+  showUserId = false,
   full = false,
   showIcon = true,
   matchText,
@@ -20,8 +20,8 @@ const ContactListItem = ({
   contact: db.Contact;
   onPress?: (contact: db.Contact) => void;
   onLongPress?: () => void;
-  showAlias?: boolean;
-  showBoth?: boolean;
+  showNickname?: boolean;
+  showUserId?: boolean;
   full?: boolean;
   showIcon?: boolean;
   matchText?: string;
@@ -46,8 +46,8 @@ const ContactListItem = ({
     <ListItem.Title>
       <ContactName
         matchText={matchText}
-        showAlias={showAlias}
-        showBoth={showBoth}
+        showNickname={showNickname}
+        showUserId={showUserId}
         full={full}
         userId={contact.id}
       />
