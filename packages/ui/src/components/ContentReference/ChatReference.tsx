@@ -38,7 +38,11 @@ export default function ChatReference({
       <Reference.Header>
         <Reference.Title>
           <Avatar contact={post.author} contactId={post.authorId} size="$xl" />
-          <ContactName color="$tertiaryText" userId={post.authorId} showAlias />
+          <ContactName
+            color="$tertiaryText"
+            userId={post.authorId}
+            showNickname
+          />
         </Reference.Title>
         <Reference.Icon type="ArrowRef" />
       </Reference.Header>
