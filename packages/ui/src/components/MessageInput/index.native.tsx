@@ -9,14 +9,26 @@ import {
 } from '@10play/tentap-editor';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import { ShortcutsBridge } from '@tloncorp/editor/src/bridges';
+import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
-import type * as ub from '@tloncorp/shared/dist/urbit';
-import { constructStory } from '@tloncorp/shared/dist/urbit';
+import {
+  ContentReference,
+  toContentReference,
+} from '@tloncorp/shared/dist/api';
+import * as db from '@tloncorp/shared/dist/db';
+import {
+  Block,
+  Inline,
+  JSONContent,
+  constructStory,
+  isInline,
+  pathToCite,
+} from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import type { WebViewMessageEvent } from 'react-native-webview';
 
+import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
@@ -70,10 +82,14 @@ export function MessageInput({
   setImageAttachment,
   uploadedImage,
   canUpload,
+  groupMembers,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
   );
+  const [mentionText, setMentionText] = useState<string>();
+  const [showMentionPopup, setShowMentionPopup] = useState(false);
+  const { references, setReferences } = useReferences();
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
@@ -82,6 +98,7 @@ export function MessageInput({
       PlaceholderBridge.configureExtension({
         placeholder: 'Message',
       }),
+      MentionsBridge,
       ShortcutsBridge,
     ],
   });
@@ -95,17 +112,181 @@ export function MessageInput({
     }
   }, [shouldBlur, editor, editorState, setShouldBlur]);
 
-  // We'll need this when we need to read the editor content.
-  // editor._onContentUpdate = () => {
-  // editor.getJSON().then((json: JSONContent) => {
-  // });
-  // };
+  editor._onContentUpdate = () => {
+    editor.getJSON().then((json: JSONContent) => {
+      const inlines = tiptap
+        .JSONToInlines(json)
+        .filter(
+          (c) => typeof c === 'string' || (typeof c === 'object' && isInline(c))
+        ) as Inline[];
+      const blocks =
+        (tiptap
+          .JSONToInlines(json)
+          .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
+        [];
+      // first we need to find all the refs in the inlines
+      const inlinesWithRefs = inlines.filter((inline) => {
+        if (typeof inline === 'string') {
+          return inline.match(tiptap.REF_REGEX);
+        }
+        return false;
+      });
+
+      // then we need to find all the inlines without refs
+      const inlinesWithOutRefs = inlines
+        .map((inline) => {
+          if (typeof inline === 'string') {
+            const inlineLength = inline.length;
+            const refLength = inline.match(tiptap.REF_REGEX)?.[0].length || 0;
+
+            if (inlineLength === refLength) {
+              return null;
+            }
+
+            return inline.replace(tiptap.REF_REGEX, '');
+          }
+          return inline;
+        })
+        .filter((inline) => inline !== null) as string[];
+
+      // we create a new refs object that we can use to
+      // update the references context
+      const newRefs: Record<string, ContentReference | null> = {};
+
+      // now we grab all the refs that are in the inlines
+      // and add them to the refs object
+      inlinesWithRefs.forEach((inline: string) => {
+        const matches = inline.match(tiptap.REF_REGEX);
+        const ref = matches?.[0];
+
+        if (!ref) {
+          return;
+        }
+
+        const cite = pathToCite(ref);
+
+        if (cite) {
+          const reference = toContentReference(cite);
+          newRefs[ref] = reference;
+        }
+      });
+
+      if (Object.keys(newRefs).length) {
+        // if we have refs, we update the references context
+        setReferences(newRefs);
+      }
+
+      // find the first mention in the inlines without refs
+      const mentionInline = inlinesWithOutRefs.find(
+        (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
+      );
+      // extract the mention text from the mention inline
+      const mentionText = mentionInline
+        ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
+        : null;
+      if (mentionText !== null) {
+        // if we have a mention text, we show the mention popup
+        setShowMentionPopup(true);
+        setMentionText(mentionText);
+      } else {
+        setShowMentionPopup(false);
+      }
+
+      // we construct a story here so we can insert blocks back in
+      // and then convert it back to tiptap's JSON format
+      const newStory = constructStory(inlinesWithOutRefs);
+
+      if (blocks && blocks.length > 0) {
+        newStory.push(...blocks.map((block) => ({ block })));
+      }
+
+      const newJson = tiptap.diaryMixedToJSON(newStory);
+
+      // @ts-expect-error setContent does accept JSONContent
+      editor.setContent(newJson);
+    });
+  };
+
+  const onSelectMention = useCallback(
+    (contact: db.Contact) => {
+      editor.getJSON().then(async (json) => {
+        const inlines = tiptap.JSONToInlines(json);
+
+        let textBeforeSig = '';
+        let textBeforeAt = '';
+
+        const newInlines = inlines.map((inline) => {
+          if (typeof inline === 'string') {
+            if (inline.match(`~`)) {
+              textBeforeSig = inline.split('~')[0];
+
+              return {
+                ship: contact.id,
+              };
+            }
+
+            if (inline.match(`@`)) {
+              textBeforeAt = inline.split('@')[0];
+              return {
+                ship: contact.id,
+              };
+            }
+
+            return inline;
+          }
+          return inline;
+        });
+
+        if (textBeforeSig) {
+          const indexOfMention = newInlines.findIndex(
+            (inline) =>
+              typeof inline === 'object' &&
+              'ship' in inline &&
+              inline.ship === contact.id
+          );
+
+          newInlines.splice(indexOfMention, 0, textBeforeSig);
+        }
+
+        if (textBeforeAt) {
+          const indexOfMention = newInlines.findIndex(
+            (inline) =>
+              typeof inline === 'object' &&
+              'ship' in inline &&
+              inline.ship === contact.id
+          );
+
+          newInlines.splice(indexOfMention, 0, textBeforeAt);
+        }
+
+        const newStory = constructStory(newInlines);
+
+        const newJson = tiptap.diaryMixedToJSON(newStory);
+
+        // @ts-expect-error setContent does accept JSONContent
+        editor.setContent(newJson);
+      });
+      setMentionText('');
+      setShowMentionPopup(false);
+    },
+    [editor]
+  );
 
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
-      const blocks: ub.Block[] = [];
+      const blocks: Block[] = [];
       const inlines = tiptap.JSONToInlines(json);
       const story = constructStory(inlines);
+
+      if (Object.keys(references).length) {
+        Object.keys(references).forEach((ref) => {
+          const cite = pathToCite(ref);
+          if (!cite) {
+            return;
+          }
+          blocks.push({ cite });
+        });
+      }
 
       if (uploadedImage) {
         blocks.push({
@@ -125,8 +306,9 @@ export function MessageInput({
       await send(story, channelId);
 
       editor.setContent('');
+      setReferences({});
     });
-  }, [editor, send, channelId, uploadedImage]);
+  }, [editor, send, channelId, uploadedImage, references, setReferences]);
 
   const handleSend = useCallback(() => {
     Keyboard.dismiss();
@@ -200,6 +382,11 @@ export function MessageInput({
       onPressSend={handleSend}
       uploadedImage={uploadedImage}
       canUpload={canUpload}
+      containerHeight={containerHeight}
+      mentionText={mentionText}
+      groupMembers={groupMembers}
+      onSelectMention={onSelectMention}
+      showMentionPopup={showMentionPopup}
     >
       <XStack
         borderRadius="$xl"

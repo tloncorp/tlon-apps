@@ -1,3 +1,3 @@
-import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
+import { TamaguiProvider } from 'tamagui';
 
 export { TamaguiProvider };

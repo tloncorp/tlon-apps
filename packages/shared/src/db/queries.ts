@@ -21,9 +21,13 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { ChannelInit } from '../api';
+import { appendContactIdToReplies } from '../logic';
+import { desig } from '../urbit';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
+  channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
@@ -36,6 +40,7 @@ import {
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
+  settings as $settings,
   threadUnreads as $threadUnreads,
   unreads as $unreads,
 } from './schema';
@@ -48,6 +53,7 @@ import {
   PinType,
   Post,
   Reaction,
+  Settings,
   TableName,
   Unread,
 } from './types';
@@ -57,6 +63,32 @@ export interface GetGroupsOptions {
   includeUnreads?: boolean;
   includeLastPost?: boolean;
 }
+
+export const insertSettings = createWriteQuery(
+  'insertSettings',
+  async (settings: Settings) => {
+    return client
+      .insert($settings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: $settings.userId,
+        set: conflictUpdateSetAll($settings),
+      });
+  },
+  ['settings']
+);
+
+export const getSettings = createReadQuery(
+  'getSettings',
+  async (userId: string) => {
+    return client.query.settings.findFirst({
+      where(fields) {
+        return eq(fields.userId, desig(userId));
+      },
+    });
+  },
+  ['settings']
+);
 
 export const getGroups = createReadQuery(
   'getGroups',
@@ -318,6 +350,26 @@ export const insertGroups = createWriteQuery(
   ]
 );
 
+export const insertChannelPerms = createWriteQuery(
+  'insertChannelPerms',
+  (channelsInit: ChannelInit[]) => {
+    const writers = channelsInit.flatMap((chanInit) =>
+      chanInit.writers.map((writer) => ({
+        channelId: chanInit.channelId,
+        roleId: writer,
+      }))
+    );
+    return client
+      .insert($channelWriters)
+      .values(writers)
+      .onConflictDoUpdate({
+        target: [$channelWriters.channelId, $channelWriters.roleId],
+        set: conflictUpdateSetAll($channelWriters),
+      });
+  },
+  ['channelWriters', 'channels']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }) => {
@@ -349,6 +401,24 @@ export const getGroupRoles = createReadQuery(
     return client.query.groupRoles.findMany();
   },
   ['groupRoles']
+);
+
+export const getChatMember = createReadQuery(
+  'getChatMember',
+  async ({ chatId, contactId }: { chatId: string; contactId: string }) => {
+    return client.query.chatMembers
+      .findFirst({
+        where: and(
+          eq($chatMembers.chatId, chatId),
+          eq($chatMembers.contactId, contactId)
+        ),
+        with: {
+          roles: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['chatMembers', 'chatMemberGroupRoles']
 );
 
 export const getUnreadsCount = createReadQuery(
@@ -439,6 +509,11 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
           },
         },
         unread: true,
+        writerRoles: {
+          with: {
+            role: true,
+          },
+        },
       },
     });
   },
@@ -701,6 +776,10 @@ export const insertChannelPosts = createWriteQuery(
         .onConflictDoUpdate({
           target: $posts.id,
           set: conflictUpdateSetAll($posts),
+        })
+        .onConflictDoUpdate({
+          target: [$posts.authorId, $posts.sentAt],
+          set: conflictUpdateSetAll($posts),
         });
     });
   },
@@ -783,6 +862,81 @@ export const getPosts = createReadQuery(
   ['posts']
 );
 
+export const getPost = createReadQuery(
+  'getPost',
+  async ({ postId }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByCacheId = createReadQuery(
+  'getPostByCacheId',
+  async ({ sentAt, authorId }: { sentAt: number; authorId: string }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const addReplyToPost = createWriteQuery(
+  'addReplyToPost',
+  ({
+    parentId,
+    replyAuthor,
+    replyTime,
+  }: {
+    parentId: string;
+    replyAuthor: string;
+    replyTime: number;
+  }) => {
+    return client.transaction(async (tx) => {
+      const parentData = await tx
+        .select()
+        .from($posts)
+        .where(eq($posts.id, parentId));
+      if (parentData.length) {
+        const parentPost = parentData[0];
+        const newReplyContacts = appendContactIdToReplies(
+          parentPost.replyContactIds ?? [],
+          replyAuthor
+        );
+        await tx
+          .update($posts)
+          .set({
+            replyCount: (parentPost.replyCount ?? 0) + 1,
+            replyTime,
+            replyContactIds: newReplyContacts,
+          })
+          .where(eq($posts.id, parentId));
+      }
+    });
+  },
+  ['posts']
+);
+
+export const getPendingPosts = createReadQuery(
+  'getPendingPosts',
+  (channelId: string) => {
+    return client.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        isNotNull($posts.deliveryStatus)
+      ),
+    });
+  },
+  []
+);
+
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
   async ({ id }: { id: string }) => {
@@ -814,7 +968,11 @@ export const getGroup = createReadQuery(
             },
           },
           roles: true,
-          members: true,
+          members: {
+            with: {
+              contact: true,
+            },
+          },
           navSections: {
             with: {
               channels: true,

@@ -2,68 +2,53 @@ import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 
-import { View, XStack, YStack } from '../../core';
 import { Avatar } from '../Avatar';
 import ChatContent from '../ChatMessage/ChatContent';
 import ContactName from '../ContactName';
-import { Icon } from '../Icon';
-import Pressable from '../Pressable';
+import { Reference } from './Reference';
 
 export default function ChatReference({
   channel,
   post,
   content,
   onPress,
+  asAttachment = false,
 }: {
   channel: db.Channel;
   post: db.Post;
   content: PostContent;
   onPress: (channel: db.Channel, post: db.Post) => void;
+  asAttachment?: boolean;
 }) {
   const navigateToChannel = useCallback(() => {
+    if (asAttachment) {
+      return;
+    }
     if (channel && post) {
       onPress(channel, post);
     }
-  }, [channel, onPress, post]);
+  }, [channel, onPress, post, asAttachment]);
 
   if (!post) {
     return null;
   }
 
   return (
-    <Pressable onPress={navigateToChannel}>
-      <YStack
-        borderRadius="$s"
-        marginBottom="$s"
-        borderColor="$border"
-        borderWidth={1}
-        backgroundColor={'$secondaryBackground'}
-      >
-        <XStack
-          alignItems="center"
-          padding="$l"
-          justifyContent="space-between"
-          borderBottomColor="$border"
-          borderBottomWidth={1}
-        >
-          <XStack alignItems="center" gap="$m">
-            <Avatar
-              contact={post.author}
-              contactId={post.authorId}
-              size="$xl"
-            />
-            <ContactName
-              color="$tertiaryText"
-              userId={post.authorId}
-              showAlias
-            />
-          </XStack>
-          <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
-        </XStack>
-        <View padding="$l">
-          <ChatContent story={content} />
-        </View>
-      </YStack>
-    </Pressable>
+    <Reference asAttachment={asAttachment} onPress={navigateToChannel}>
+      <Reference.Header>
+        <Reference.Title>
+          <Avatar contact={post.author} contactId={post.authorId} size="$xl" />
+          <ContactName
+            color="$tertiaryText"
+            userId={post.authorId}
+            showNickname
+          />
+        </Reference.Title>
+        <Reference.Icon type="ArrowRef" />
+      </Reference.Header>
+      <Reference.Body>
+        <ChatContent shortened={asAttachment} story={content} />
+      </Reference.Body>
+    </Reference>
   );
 }

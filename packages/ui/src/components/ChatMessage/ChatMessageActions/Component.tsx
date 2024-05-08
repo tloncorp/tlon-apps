@@ -1,7 +1,12 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as Haptics from 'expo-haptics';
 import { RefObject, useEffect, useState } from 'react';
-import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
+import {
+  DimensionValue,
+  Dimensions,
+  LayoutChangeEvent,
+  View as RNView,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -28,12 +33,18 @@ export function ChatMessageActions({
   postRef,
   channelType,
   onDismiss,
+  width,
+  height,
+  onReply,
 }: {
   post: db.Post;
   currentUserId: string;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;
   onDismiss: () => void;
+  width?: DimensionValue;
+  height?: DimensionValue;
+  onReply?: (post: db.Post) => void;
 }) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -126,7 +137,12 @@ export function ChatMessageActions({
 
   return (
     <Animated.View style={animatedStyles}>
-      <View onLayout={handleLayout} paddingHorizontal="$xl">
+      <View
+        width={width}
+        height={height}
+        onLayout={handleLayout}
+        paddingHorizontal="$xl"
+      >
         <YStack gap="$xs">
           <EmojiToolbar
             post={post}
@@ -138,6 +154,7 @@ export function ChatMessageActions({
             post={post}
             channelType={channelType}
             dismiss={onDismiss}
+            onReply={onReply}
           />
         </YStack>
       </View>

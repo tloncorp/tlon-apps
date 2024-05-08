@@ -84,18 +84,24 @@ export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
   });
 }
 
-export const sendPost = async (
-  channelId: string,
-  content: Story,
-  author: string
-) => {
-  if (isDmChannelId(channelId)) {
+export const sendPost = async ({
+  channelId,
+  authorId,
+  sentAt,
+  content,
+}: {
+  channelId: string;
+  authorId: string;
+  sentAt: number;
+  content: Story;
+}) => {
+  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     const delta: WritDeltaAdd = {
       add: {
         memo: {
           content,
-          sent: Date.now(),
-          author,
+          sent: sentAt,
+          author: authorId,
         },
         kind: null,
         time: null,
@@ -113,11 +119,11 @@ export const sendPost = async (
 
   const essay: ub.PostEssay = {
     content,
-    sent: Date.now(),
+    sent: sentAt,
     'kind-data': {
       chat: null,
     },
-    author,
+    author: authorId,
   };
 
   await poke(
@@ -125,6 +131,61 @@ export const sendPost = async (
       add: essay,
     })
   );
+};
+
+export const sendReply = async ({
+  channelId,
+  parentId,
+  parentAuthor,
+  content,
+  sentAt,
+  authorId,
+}: {
+  authorId: string;
+  channelId: string;
+  parentId: string;
+  parentAuthor: string;
+  content: Story;
+  sentAt: number;
+}) => {
+  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+    const delta: ub.ReplyDelta = {
+      reply: {
+        id: `${authorId}/${formatUd(unixToDa(sentAt).toString())}`,
+        meta: null,
+        delta: {
+          add: {
+            memo: {
+              content,
+              author: authorId,
+              sent: sentAt,
+            },
+            time: null,
+          },
+        },
+      },
+    };
+
+    const action = chatAction(channelId, `${parentAuthor}/${parentId}`, delta);
+    await poke(action);
+    return;
+  }
+
+  const postAction: ub.PostAction = {
+    reply: {
+      id: parentId,
+      action: {
+        add: {
+          content,
+          author: authorId,
+          sent: sentAt,
+        },
+      },
+    },
+  };
+
+  const action = channelPostAction(channelId, postAction);
+  await poke(action);
 };
 
 export const getChannelPosts = async ({
@@ -278,8 +339,8 @@ export const getPostWithReplies = async ({
   authorId: string;
 }) => {
   if (
-    (!authorId && isDmChannelId(channelId)) ||
-    isGroupDmChannelId(channelId)
+    !authorId &&
+    (isDmChannelId(channelId) || isGroupDmChannelId(channelId))
   ) {
     throw new Error(
       'author id is required to fetch posts for a dm or group dm'
@@ -399,9 +460,27 @@ export function toPostData(
   channelId: string,
   post: ub.Post | ub.PostDataResponse
 ): db.Post {
-  const type = isNotice(post)
-    ? 'notice'
-    : (channelId.split('/')[0] as db.PostType);
+  const getPostType = (
+    channelId: string,
+    post: ub.Post | ub.PostDataResponse
+  ) => {
+    if (isNotice(post)) {
+      return 'notice';
+    }
+
+    const channelType = channelId.split('/')[0];
+
+    if (channelType === 'chat') {
+      return 'chat';
+    } else if (channelType === 'diary') {
+      return 'note';
+    } else if (channelType === 'heap') {
+      return 'block';
+    } else {
+      return 'chat';
+    }
+  };
+  const type = getPostType(channelId, post);
   const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
@@ -426,7 +505,54 @@ export function toPostData(
     replies: isPostDataResponse(post)
       ? getReplyData(id, channelId, post)
       : null,
+    deliveryStatus: null,
     ...flags,
+  };
+}
+
+export function buildCachePost({
+  authorId,
+  channel,
+  content,
+  parentId,
+}: {
+  authorId: string;
+  channel: db.Channel;
+  content: ub.Story;
+  parentId?: string;
+}): db.Post {
+  const sentAt = Date.now();
+  const id = getCanonicalPostId(unixToDa(sentAt).toString());
+  const [postContent, postFlags] = toPostContent(content);
+
+  // TODO: punt on DM delivery status until we have a single subscription
+  // to lean on
+  const deliveryStatus =
+    isDmChannelId(channel.id) || isGroupDmChannelId(channel.id)
+      ? null
+      : 'pending';
+
+  return {
+    id,
+    authorId,
+    channelId: channel.id,
+    groupId: channel.groupId,
+    type: parentId ? 'reply' : (channel.id.split('/')[0] as db.PostType),
+    sentAt,
+    receivedAt: sentAt,
+    title: '',
+    image: '',
+    content: JSON.stringify(postContent),
+    textContent: getTextContent(content),
+    images: getContentImages(id, content),
+    reactions: [],
+    replies: [],
+    replyContactIds: [],
+    replyCount: 0,
+    hidden: false,
+    parentId,
+    deliveryStatus,
+    ...postFlags,
   };
 }
 
@@ -458,25 +584,33 @@ function getReplyData(
   channelId: string,
   post: ub.PostDataResponse
 ): db.Post[] {
-  return Object.entries(post.seal.replies ?? {}).map(([, reply]) => {
-    const [content, flags] = toPostContent(reply.memo.content);
-    const id = reply.seal.id;
-    return {
-      id,
-      channelId,
-      type: 'reply',
-      authorId: reply.memo.author,
-      parentId: postId,
-      reactions: toReactionsData(reply.seal.reacts, id),
-      content: JSON.stringify(content),
-      textContent: getTextContent(reply.memo.content),
-      sentAt: reply.memo.sent,
-      receivedAt: getReceivedAtFromId(id),
-      replyCount: 0,
-      images: getContentImages(id, reply.memo.content),
-      ...flags,
-    };
-  });
+  return Object.entries(post.seal.replies ?? {}).map(([, reply]) =>
+    toPostReplyData(channelId, postId, reply)
+  );
+}
+
+export function toPostReplyData(
+  channelId: string,
+  postId: string,
+  reply: ub.Reply
+): db.Post {
+  const [content, flags] = toPostContent(reply.memo.content);
+  const id = getCanonicalPostId(reply.seal.id);
+  return {
+    id,
+    channelId,
+    type: 'reply',
+    authorId: reply.memo.author,
+    parentId: getCanonicalPostId(postId),
+    reactions: toReactionsData(reply.seal.reacts, id),
+    content: JSON.stringify(content),
+    textContent: getTextContent(reply.memo.content),
+    sentAt: reply.memo.sent,
+    receivedAt: getReceivedAtFromId(id),
+    replyCount: 0,
+    images: getContentImages(id, reply.memo.content),
+    ...flags,
+  };
 }
 
 export function toPostContent(story?: ub.Story): PostContentAndFlags {

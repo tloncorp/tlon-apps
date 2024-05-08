@@ -117,7 +117,7 @@ function ProfileRow({
               color={color}
               fontWeight="500"
               userId={contactId}
-              showAlias
+              showNickname
             />
             <ContactName
               fontFamily="$mono"

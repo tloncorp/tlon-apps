@@ -2,6 +2,7 @@ import { MessageInput, View } from '@tloncorp/ui';
 import { useState } from 'react';
 
 import { FixtureWrapper } from './FixtureWrapper';
+import { group } from './fakeData';
 
 const MessageInputFixture = () => {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -16,6 +17,7 @@ const MessageInputFixture = () => {
           channelId="channel-id"
           setImageAttachment={() => {}}
           canUpload={true}
+          groupMembers={group.members ?? []}
         />
       </View>
     </FixtureWrapper>

@@ -6,14 +6,22 @@ import ReferenceSkeleton from './ReferenceSkeleton';
 export default function ChannelReference({
   channelId,
   postId,
+  asAttachment = false,
 }: {
   channelId: string;
   postId: string;
+  asAttachment?: boolean;
 }) {
   const channelType = getChannelType(channelId);
 
   if (channelType === 'chat') {
-    return <ChatReferenceWrapper channelId={channelId} postId={postId} />;
+    return (
+      <ChatReferenceWrapper
+        asAttachment={asAttachment}
+        channelId={channelId}
+        postId={postId}
+      />
+    );
   }
 
   if (channelType === 'notebook') {

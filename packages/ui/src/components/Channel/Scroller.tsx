@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { MotiView } from 'moti';
-import {
+import React, {
   PropsWithChildren,
+  ReactElement,
   RefObject,
   createRef,
   forwardRef,
@@ -12,7 +13,6 @@ import {
   useState,
 } from 'react';
 import {
-  Dimensions,
   FlatList,
   ListRenderItem,
   View as RNView,
@@ -21,14 +21,29 @@ import {
 } from 'react-native';
 import { useStyle } from 'tamagui';
 
-import { ArrowDown } from '../../assets/icons';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
-import { ChatMessage } from '../ChatMessage';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { Icon } from '../Icon';
 import { ChannelDivider } from './ChannelDivider';
 
-export default function ChatScroll({
+type RenderItemFunction = (props: {
+  currentUserId: string;
+  post: db.Post;
+  showAuthor?: boolean;
+  showReplies?: boolean;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onLongPress?: (post: db.Post) => void;
+}) => ReactElement | null;
+
+type RenderItemType =
+  | RenderItemFunction
+  | React.MemoExoticComponent<RenderItemFunction>;
+
+export default function Scroller({
+  inverted,
+  renderItem,
   posts,
   currentUserId,
   channelType,
@@ -42,6 +57,8 @@ export default function ChatScroll({
   onPressReplies,
   showReplies = true,
 }: {
+  inverted: boolean;
+  renderItem: RenderItemType;
   posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
@@ -64,23 +81,6 @@ export default function ChatScroll({
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
     }
   };
-
-  useEffect(() => {
-    if (firstUnread && flatListRef.current) {
-      console.log(
-        'scrolling to',
-        firstUnread,
-        posts.findIndex((post) => post.id === firstUnread)
-      );
-      const unreadIndex = posts.findIndex((post) => post.id === firstUnread);
-      if (unreadIndex !== -1) {
-        flatListRef.current.scrollToIndex({
-          index: unreadIndex,
-          animated: true,
-        });
-      }
-    }
-  }, [firstUnread, posts]);
 
   useEffect(() => {
     if (selectedPost && flatListRef.current) {
@@ -111,7 +111,7 @@ export default function ChatScroll({
     [handleSetActive]
   );
 
-  const renderItem: ListRenderItem<db.Post> = useCallback(
+  const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts[index + 1];
       const isFirstPostOfDay = !isSameDay(
@@ -124,34 +124,38 @@ export default function ChatScroll({
         (item.replyCount ?? 0) > 0 ||
         isFirstPostOfDay;
       const isFirstUnread = !!unreadCount && item.id === firstUnread;
+      // this is necessary because we can't call memoized components as functions
+      // (they are objects, not functions)
+      const RenderItem = renderItem;
       return (
-        <>
+        <View>
           {isFirstUnread ? (
             <ChannelDivider
               timestamp={item.receivedAt}
               unreadCount={unreadCount ?? 0}
             />
-          ) : isFirstPostOfDay ? (
+          ) : isFirstPostOfDay && item.type === 'chat' ? (
             <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
           ) : null}
           <PressableMessage
             ref={activeMessageRefs.current[item.id]}
             isActive={activeMessage?.id === item.id}
           >
-            <ChatMessage
+            <RenderItem
               currentUserId={currentUserId}
               post={item}
               showAuthor={showAuthor}
               showReplies={showReplies}
               onPressReplies={onPressReplies}
               onPressImage={onPressImage}
-              onLongPress={handlePostLongPressed}
+              onLongPress={() => handlePostLongPressed(item)}
             />
           </PressableMessage>
-        </>
+        </View>
       );
     },
     [
+      renderItem,
       activeMessage,
       showReplies,
       firstUnread,
@@ -188,19 +192,19 @@ export default function ChatScroll({
 
   return (
     <View flex={1}>
-      {unreadCount && !hasPressedGoToBottom ? (
+      {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
-      ) : null}
+      ) : null} */}
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
-        renderItem={renderItem}
+        renderItem={listRenderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
         contentContainerStyle={contentContainerStyle}
         onScrollBeginDrag={handleContainerPressed}
         onScrollToIndexFailed={handleScrollToIndexFailed}
-        inverted
+        inverted={inverted}
         onEndReached={onEndReached}
         onEndReachedThreshold={2}
         onStartReached={onStartReached}
@@ -216,6 +220,7 @@ export default function ChatScroll({
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
+            onReply={onPressReplies}
           />
         )}
       </Modal>
@@ -247,35 +252,35 @@ const PressableMessage = forwardRef<
       <RNView ref={ref}>{children}</RNView>
     </MotiView>
   ) : (
-    children
+    // this fragment is necessary to avoid the TS error about not being able to
+    // return undefined
+    <>{children}</>
   );
 });
 
 const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (
-    <XStack
-      position="absolute"
-      bottom="5%"
-      left={Dimensions.get('window').width / 2 - 60}
-      zIndex={50}
-      width="40%"
-    >
+    <XStack position="absolute" zIndex={50} bottom="5%" width="40%" left="30%">
       <Button
-        backgroundColor="$blueSoft"
-        padding="$s"
+        backgroundColor="$positiveBackground"
+        paddingVertical="$s"
+        paddingHorizontal="$m"
         borderRadius="$l"
-        height="$4xl"
         width="100%"
         alignItems="center"
+        justifyContent="center"
+        gap="$s"
         onPress={onPress}
         size="$s"
       >
-        <Button.Text>Scroll to latest</Button.Text>
-        <Button.Icon>
-          <XStack width="$s" height="$s">
-            <ArrowDown />
-          </XStack>
-        </Button.Icon>
+        <Button.Text color="$positiveActionText">Scroll to latest</Button.Text>
+        <Icon
+          type="ArrowDown"
+          color="$positiveActionText"
+          width="$s"
+          height="$s"
+          size="$l"
+        />
       </Button>
     </XStack>
   );

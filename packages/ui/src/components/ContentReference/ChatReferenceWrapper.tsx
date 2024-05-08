@@ -9,9 +9,11 @@ import ReferenceSkeleton from './ReferenceSkeleton';
 export default function ChatReferenceWrapper({
   channelId,
   postId,
+  asAttachment = false,
 }: {
   channelId: string;
   postId: string;
+  asAttachment?: boolean;
 }) {
   const { usePost, useChannel } = useRequests();
   const { data: post, isError, error, isLoading } = usePost({ id: postId });
@@ -51,6 +53,7 @@ export default function ChatReferenceWrapper({
       channel={channel}
       content={content}
       onPress={onPressRef}
+      asAttachment={asAttachment}
     />
   );
 }

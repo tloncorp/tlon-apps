@@ -12,6 +12,7 @@ export function MessageInput({
   setImageAttachment,
   uploadedImage,
   canUpload,
+  groupMembers,
 }: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -19,6 +20,9 @@ export function MessageInput({
     <MessageInputContainer
       setImageAttachment={setImageAttachment}
       canUpload={canUpload}
+      containerHeight={0}
+      groupMembers={groupMembers}
+      onSelectMention={() => {}}
     >
       <TextArea
         flexGrow={1}

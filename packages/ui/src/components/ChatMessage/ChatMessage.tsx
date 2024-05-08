@@ -65,7 +65,12 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   return (
-    <YStack key={post.id} gap="$l" paddingVertical="$l">
+    <YStack
+      onLongPress={handleLongPress}
+      key={post.id}
+      gap="$l"
+      paddingVertical="$l"
+    >
       {showAuthor ? (
         <View paddingLeft="$l">
           <AuthorRow
@@ -87,6 +92,7 @@ const ChatMessage = ({
             isNotice={isNotice}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
+            deliveryStatus={post.deliveryStatus}
           />
         )}
       </View>

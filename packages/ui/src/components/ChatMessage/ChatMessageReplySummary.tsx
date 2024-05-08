@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 
+import { useContactGetter, useContacts } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
 
@@ -16,11 +17,10 @@ export const ChatMessageReplySummary = React.memo(
     replyContactIds: string[];
     onPress?: () => void;
   }) {
+    const contactGetter = useContactGetter();
     const time = useMemo(() => {
       return formatDistanceToNow(replyTime);
     }, [replyTime]);
-
-    // TODO: Load contacts
 
     return replyCount && replyContactIds && replyTime ? (
       <XStack paddingBottom="$l" gap="$m" paddingLeft="$4xl" onPress={onPress}>
@@ -33,7 +33,12 @@ export const ChatMessageReplySummary = React.memo(
               borderWidth={2}
               borderRadius={'$2xs'}
             >
-              <Avatar key={c} contactId={c} size="$xl" />
+              <Avatar
+                key={c}
+                contactId={c}
+                contact={contactGetter(c)}
+                size="$xl"
+              />
             </View>
           ))}
         </XStack>

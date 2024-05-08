@@ -25,6 +25,14 @@ export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
 }
 
+export function isChatChannel(channel: db.Channel): boolean {
+  return (
+    channel.type === 'chat' ||
+    channel.type === 'dm' ||
+    channel.type === 'groupDm'
+  );
+}
+
 export async function jsonFetch<T>(
   info: RequestInfo,
   init?: RequestInit
@@ -196,4 +204,17 @@ export const isSameDay = (a: number, b: number) => {
 
 export const isToday = (date: number) => {
   return isSameDay(date, Date.now());
+};
+
+export const appendContactIdToReplies = (
+  existingReplies: string[],
+  contactId: string
+): string[] => {
+  const newArray = [...existingReplies];
+  const index = newArray.indexOf(contactId);
+  if (index !== -1) {
+    newArray.splice(index, 1);
+  }
+  newArray.push(contactId);
+  return newArray;
 };
