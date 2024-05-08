@@ -144,6 +144,7 @@ export function Channel({
                           }
                           posts={posts}
                           channelType={channel.type}
+                          channelId={channel.id}
                           onPressReplies={goToPost}
                           onPressImage={goToImageViewer}
                           setInputShouldBlur={setInputShouldBlur}

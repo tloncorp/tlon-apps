@@ -28,3 +28,13 @@ export async function unpinItem(pin: db.Pin) {
     db.insertPinnedItem(pin);
   }
 }
+
+export async function markChannelRead(
+  channel: db.Channel | { id: string; type: db.ChannelType }
+) {
+  if (channel.type === 'dm' || channel.type === 'groupDm') {
+    await api.markChatRead(channel.id);
+  } else {
+    await api.markChannelRead(channel.id);
+  }
+}

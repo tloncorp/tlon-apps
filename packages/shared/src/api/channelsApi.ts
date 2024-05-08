@@ -4,8 +4,14 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { getCanonicalPostId, toPostData, toPostReplyData } from './postsApi';
-import { scry, subscribe } from './urbit';
+import {
+  channelAction,
+  getCanonicalPostId,
+  toPostData,
+  toPostReplyData,
+  toReactionsData,
+} from './postsApi';
+import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
 
@@ -17,10 +23,24 @@ export const getUnreadChannels = async () => {
   return toUnreadsData(response);
 };
 
+export const markChannelRead = async (channelId: string) => {
+  const action = channelAction(channelId, { read: null });
+  return await poke(action);
+};
+
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
+export type PostReactionsUpdate = {
+  type: 'updateReactions';
+  postId: string;
+  reactions: db.Reaction[];
+};
 export type UnknownUpdate = { type: 'unknown' };
 export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
-export type ChannelsUpdate = AddPostUpdate | UnknownUpdate | PendingUpdate;
+export type ChannelsUpdate =
+  | AddPostUpdate
+  | PostReactionsUpdate
+  | UnknownUpdate
+  | PendingUpdate;
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -61,7 +81,7 @@ export const toChannelsUpdate = (
     'post' in channelEvent.response &&
     !('reply' in channelEvent.response.post['r-post'])
   ) {
-    const postId = channelEvent.response.post.id;
+    const postId = getCanonicalPostId(channelEvent.response.post.id);
     const postResponse = channelEvent.response.post['r-post'];
 
     if ('set' in postResponse && postResponse.set !== null) {
@@ -69,6 +89,10 @@ export const toChannelsUpdate = (
 
       logger.log(`add post event`);
       return { type: 'addPost', post: toPostData(channelId, postToAdd) };
+    } else if ('reacts' in postResponse && postResponse.reacts !== null) {
+      const updatedReacts = toReactionsData(postResponse.reacts, postId);
+      logger.log('update reactions event');
+      return { type: 'updateReactions', postId, reactions: updatedReacts };
     }
   }
 
@@ -78,13 +102,24 @@ export const toChannelsUpdate = (
     'post' in channelEvent.response &&
     'reply' in channelEvent.response.post['r-post']
   ) {
-    const postId = channelEvent.response.post.id;
+    const postId = getCanonicalPostId(channelEvent.response.post.id);
+    const replyId = getCanonicalPostId(
+      channelEvent.response.post['r-post'].reply.id
+    );
     const replyResponse = channelEvent.response.post['r-post'].reply['r-reply'];
     if ('set' in replyResponse && replyResponse.set !== null) {
       logger.log(`add reply event`);
       return {
         type: 'addPost',
         post: toPostReplyData(channelId, postId, replyResponse.set),
+      };
+    } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
+      const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
+      logger.log('update reply reactions event');
+      return {
+        type: 'updateReactions',
+        postId: replyId,
+        reactions: updatedReacts,
       };
     }
   }

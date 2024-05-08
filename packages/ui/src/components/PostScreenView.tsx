@@ -66,6 +66,7 @@ export function PostScreenView({
                   inverted
                   renderItem={ChatMessage}
                   channelType={channel.type}
+                  channelId={channel.id}
                   currentUserId={currentUserId}
                   posts={posts}
                   showReplies={false}
