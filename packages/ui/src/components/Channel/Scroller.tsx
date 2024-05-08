@@ -47,6 +47,7 @@ export default function Scroller({
   posts,
   currentUserId,
   channelType,
+  channelId,
   unreadCount,
   firstUnread,
   setInputShouldBlur,
@@ -62,6 +63,7 @@ export default function Scroller({
   posts: db.Post[];
   currentUserId: string;
   channelType: db.ChannelType;
+  channelId: string;
   unreadCount?: number;
   firstUnread?: string;
   setInputShouldBlur?: (shouldBlur: boolean) => void;
@@ -134,6 +136,7 @@ export default function Scroller({
               timestamp={item.receivedAt}
               unreadCount={unreadCount ?? 0}
               isFirstPostOfDay={isFirstPostOfDay}
+              channelInfo={{ id: channelId, type: channelType }}
             />
           ) : isFirstPostOfDay && item.type === 'chat' ? (
             <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
@@ -156,15 +159,17 @@ export default function Scroller({
       );
     },
     [
-      renderItem,
-      activeMessage,
-      showReplies,
-      firstUnread,
-      onPressReplies,
-      unreadCount,
-      currentUserId,
-      onPressImage,
       posts,
+      unreadCount,
+      firstUnread,
+      renderItem,
+      channelId,
+      channelType,
+      activeMessage?.id,
+      currentUserId,
+      showReplies,
+      onPressReplies,
+      onPressImage,
       handlePostLongPressed,
     ]
   );

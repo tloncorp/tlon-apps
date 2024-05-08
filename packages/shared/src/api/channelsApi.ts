@@ -4,8 +4,13 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { getCanonicalPostId, toPostData, toPostReplyData } from './postsApi';
-import { scry, subscribe } from './urbit';
+import {
+  channelAction,
+  getCanonicalPostId,
+  toPostData,
+  toPostReplyData,
+} from './postsApi';
+import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
 
@@ -15,6 +20,11 @@ export const getUnreadChannels = async () => {
     path: '/unreads',
   });
   return toUnreadsData(response);
+};
+
+export const markChannelRead = async (channelId: string) => {
+  const action = channelAction(channelId, { read: null });
+  return await poke(action);
 };
 
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
