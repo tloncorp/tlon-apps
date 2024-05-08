@@ -221,15 +221,15 @@
   ^-  [=stream:a =reads:a]
   (~(got by indices) [%base ~])
 ++  add
-  |=  event=incoming-event:a
+  |=  inc=incoming-event:a
   ^+  cor
   =/  =time-id:a
     =/  t  now.bowl
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
-  =/  notify  notify:(get-volume event)
-  =.  event  [event notify]
+  =/  notify  notify:(get-volume inc)
+  =/  =event:a  [inc notify]
   =.  cor
     (give %fact ~[/] activity-update+!>([%add time-id event]))
   =?  cor  notify
@@ -239,12 +239,12 @@
     (~(put by indices) [%base ~] [stream reads:base])
   ?+  -<.event  cor
       %dm-post
-    =/  source  [%dm whom.data.event]
+    =/  source  [%dm whom.event]
     (add-to-index source time-id event)
   ::
       %dm-reply
-    =/  src  [%dm-thread parent.data.event whom.data.event]
-    =/  parent-src  [%dm whom.data.event]
+    =/  src  [%dm-thread parent.event whom.event]
+    =/  parent-src  [%dm whom.event]
     =.  cor  (add-to-index src time-id event)
     (add-to-index parent-src time-id event)
   ::
@@ -314,9 +314,9 @@
     %flag-reply     [%group group.event]
   ==
 ++  determine-event-type
-  |=  =event:a
+  |=  event=incoming-event:a
   ^-  event-type:a
-  ?+  -<.event  -<.event
+  ?+  -.event  -.event
       %post      ?:(mention.event %post-mention %post)
       %reply     ?:(mention.event %reply-mention %reply)
       %dm-post   ?:(mention.event %dm-post-mention %dm-post)
@@ -476,7 +476,7 @@
     [newest total notified ?~(last ~ `[u.last main main-notified]) children]
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
-  =?  notified  notify:volume  &
+  =?  notified  &(notify:volume notified.event)  &
   ?.  ?|  unreads:volume
           ?!(?=(?(%dm-post %dm-reply %post %reply) -<.event))
       ==
@@ -484,7 +484,7 @@
   ?>  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
   =.  total  +(total)
   =?  main  ?=(?(%post %dm-post) -<.event)  +(main)
-  =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume)  &
+  =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume notified.event)  &
   =.  newest  time.key.event
   =.  last
     ?~  last  `key.event

@@ -6,7 +6,7 @@ import { useCheckChannelUnread } from './channel';
 
 export default function useIsGroupUnread() {
   const groups = useGroups();
-  const isChannelUnread = useCheckChannelUnread();
+  const { isChannelUnread } = useCheckChannelUnread();
 
   /**
    * A Group is unread if

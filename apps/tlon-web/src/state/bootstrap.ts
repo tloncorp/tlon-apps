@@ -12,6 +12,7 @@ import { useChatStore } from '@/chat/useChatStore';
 import { asyncWithDefault, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { unreadsKey } from './activity';
 import { initializeChat } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -61,7 +62,7 @@ async function startGroups() {
 
   // strip channel/ship/club from start
   const unreads = stripPrefixes(full.unreads);
-  queryClient.setQueryData(['unreads'], unreads);
+  queryClient.setQueryData(unreadsKey, unreads);
   // make sure we remove the app part from the nest before handing it over
   useChatStore.getState().update(
     _.mapKeys(

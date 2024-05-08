@@ -64,7 +64,7 @@ import {
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { useUnreads } from '../activity';
+import { unreadsKey, useUnreads } from '../activity';
 // eslint-disable-next-line import/no-cycle
 import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
@@ -1492,7 +1492,7 @@ export function useLeaveMutation() {
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
       await queryClient.cancelQueries(channelKey());
-      await queryClient.cancelQueries(['unreads']);
+      await queryClient.cancelQueries(unreadsKey);
       await queryClient.cancelQueries([han, 'perms', flag]);
       await queryClient.cancelQueries([han, 'posts', flag]);
       queryClient.removeQueries([han, 'perms', flag]);
@@ -1500,7 +1500,7 @@ export function useLeaveMutation() {
     },
     onSettled: async (_data, _error) => {
       await queryClient.invalidateQueries(channelKey());
-      await queryClient.invalidateQueries(['unreads']);
+      await queryClient.invalidateQueries(unreadsKey);
     },
   });
 }

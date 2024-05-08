@@ -8,9 +8,10 @@ import React, {
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { useChatStore } from '@/chat/useChatStore';
+import { useChatStore, useChatUnread } from '@/chat/useChatStore';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import BulletIcon from '@/components/icons/BulletIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useCheckChannelUnread, useMarkChannelRead } from '@/logic/channel';
@@ -63,11 +64,10 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinnedChats();
-  const isUnread = useIsDmUnread(whom);
-  const isChannelUnread = useCheckChannelUnread();
+  const chatUnread = useChatUnread(whom);
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
-  const hasActivity =
-    isUnread || pending || (!isDMorMultiDm && isChannelUnread(whom));
+  const hasActivity = pending || (chatUnread?.unread && !chatUnread?.seen);
+  const hasNotify = hasActivity && chatUnread?.unread?.notify;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
@@ -157,12 +157,10 @@ export default function DmOptions({
 
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
-      <button className={cn('relative h-6 w-6 appearance-none', className)}>
-        <BulletIcon
-          className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-          aria-label="Has Activity"
-        />
-      </button>
+      <UnreadIndicator
+        notify={hasNotify}
+        className="group-focus-within:opacity-0 group-hover:opacity-0"
+      />
     ) : null;
   }
 
@@ -242,16 +240,16 @@ export default function DmOptions({
         ) : (
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
-              <BulletIcon
-                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-                aria-label="Has Activity"
+              <UnreadIndicator
+                notify={hasNotify}
+                className="group-focus-within:opacity-0 group-hover:opacity-0"
               />
             ) : null}
             {!isMobile && (
               <button
                 className={cn(
                   'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                  hasActivity && 'text-blue',
+                  hasNotify && 'text-blue',
                   isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
                 )}
                 aria-label="Open Message Options"

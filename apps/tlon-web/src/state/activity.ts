@@ -105,12 +105,15 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
   if (readEvents.length > 0) {
     const { chat, unreads } = activityReadUpdates(readEvents);
     useChatStore.getState().update(chat);
-    queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
+    queryClient.setQueryData(unreadsKey, (d: Unreads | undefined) => {
       if (d === undefined) {
         return undefined;
       }
 
-      return unreads;
+      return {
+        ...d,
+        ...unreads,
+      };
     });
   }
 

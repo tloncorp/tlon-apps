@@ -67,6 +67,10 @@ export default function MessagesList({
   const organizedUnreads = useMemo(
     () =>
       sortMessages(unreads).filter(([key]) => {
+        if (key === 'base') {
+          return false;
+        }
+
         const chat = chats[key];
         const groupFlag = chat?.perms.group;
         const group = groups[groupFlag || ''];
@@ -150,6 +154,8 @@ export default function MessagesList({
       clubs,
     ]
   );
+
+  console.log(organizedUnreads);
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);

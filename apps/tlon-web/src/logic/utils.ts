@@ -33,9 +33,8 @@ import {
   DocketHref,
   Treaty,
   udToDec,
-  unixToDa,
 } from '@urbit/api';
-import { formatUv } from '@urbit/aura';
+import { formatUv, unixToDa } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';

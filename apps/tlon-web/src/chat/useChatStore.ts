@@ -6,14 +6,16 @@ import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
 
+export interface ChatInfoUnread {
+  readTimeout: number;
+  seen: boolean;
+  unread: Unread; // lags behind actual unread, only gets update if unread
+}
+
 export interface ChatInfo {
   replying: string | null;
   blocks: Block[];
-  unread?: {
-    readTimeout: number;
-    seen: boolean;
-    unread: Unread; // lags behind actual unread, only gets update if unread
-  };
+  unread?: ChatInfoUnread;
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
   failedToLoadContent: Record<string, Record<number, boolean>>;
@@ -372,4 +374,8 @@ export function useChatFailedToLoadContent(
       setFailedToLoadContent(whom, writId, blockIndex, failed);
     },
   };
+}
+
+export function useChatUnread(whom: string): ChatInfoUnread | undefined {
+  return useChatStore(useCallback((s) => s.chats[whom]?.unread, [whom]));
 }

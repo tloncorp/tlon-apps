@@ -93,7 +93,7 @@ export default function useLeap() {
   const groups = useGroups();
   const currentGroupFlag = useGroupFlag();
   const { isGroupUnread } = useIsGroupUnread();
-  const isChannelUnread = useCheckChannelUnread();
+  const { isChannelUnread } = useCheckChannelUnread();
   const isDMUnread = useCheckDmUnread();
   const pinnedGroups = usePinnedGroups();
   const multiDms = useMultiDms();

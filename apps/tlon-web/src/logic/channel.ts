@@ -119,7 +119,7 @@ export function useCheckChannelUnread() {
   const unreads = useUnreads();
   const chats = useChatStore(selChats);
 
-  return useCallback(
+  const isChannelUnread = useCallback(
     (nest: string) => {
       if (!unreads || !chats) {
         return false;
@@ -129,6 +129,22 @@ export function useCheckChannelUnread() {
     },
     [unreads, chats]
   );
+
+  const getUnread = useCallback(
+    (nest: string) => {
+      if (!unreads) {
+        return null;
+      }
+
+      return unreads[nest];
+    },
+    [unreads]
+  );
+
+  return {
+    isChannelUnread,
+    getUnread,
+  };
 }
 
 export function useIsChannelUnread(nest: string) {
