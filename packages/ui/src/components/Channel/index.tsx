@@ -3,7 +3,7 @@ import {
   useChannel as useChannelFromStore,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
-import { Upload, UploadInfo } from '@tloncorp/shared/dist/api';
+import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
@@ -160,6 +160,7 @@ export function Channel({
                           setImageAttachment={uploadInfo.setImageAttachment}
                           uploadedImage={uploadInfo.uploadedImage}
                           canUpload={uploadInfo.canUpload}
+                          groupMembers={group?.members ?? []}
                         />
                       )}
                     </YStack>

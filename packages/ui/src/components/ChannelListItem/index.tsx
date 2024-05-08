@@ -30,7 +30,7 @@ export default function ChannelListItem({
             {model.type !== 'dm' ? (
               <>
                 <ContactName
-                  showAlias
+                  showNickname
                   userId={model.lastPost.authorId}
                   size="$s"
                 />
