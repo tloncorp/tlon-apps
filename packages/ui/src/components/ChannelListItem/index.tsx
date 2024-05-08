@@ -33,6 +33,7 @@ export default function ChannelListItem({
                   showAlias
                   userId={model.lastPost.authorId}
                   size="$s"
+                  color="$secondaryText"
                 />
                 :{' '}
               </>
