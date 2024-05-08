@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { desig } from '@tloncorp/shared/dist/urbit';
+import { useMemo } from 'react';
 import { Dimensions } from 'react-native';
 
 import { ContactList } from '../ContactList';
@@ -13,22 +14,26 @@ export default function MentionPopup({
   onPress: (contact: db.Contact) => void;
   matchText?: string;
 }) {
-  const subSet = groupMembers
-    .map((member) => member.contact)
-    .filter((contact) => {
-      if (contact === null || contact === undefined) {
-        return false;
-      }
-      if (!matchText) {
-        return true;
-      }
+  const subSet = useMemo(
+    () =>
+      groupMembers
+        .map((member) => member.contact)
+        .filter((contact) => {
+          if (contact === null || contact === undefined) {
+            return false;
+          }
+          if (!matchText) {
+            return true;
+          }
 
-      return (
-        contact.id.match(new RegExp(matchText, 'i')) ||
-        contact.nickname?.match(new RegExp(matchText, 'i'))
-      );
-    })
-    .slice(0, 7);
+          return (
+            contact.id.match(new RegExp(matchText, 'i')) ||
+            contact.nickname?.match(new RegExp(matchText, 'i'))
+          );
+        })
+        .slice(0, 7),
+    [groupMembers, matchText]
+  );
 
   if (subSet.length === 0) {
     return null;
