@@ -52,7 +52,8 @@
     "allowNonAppliedPatches": true,
     "overrides": {
       "typescript": "5.4.5",
-      "@urbit/http-api": "3.1.0-dev-2"
+      "@urbit/http-api": "3.1.0-dev-2",
+      "@urbit/aura": "2.0.0"
     }
   }
 }

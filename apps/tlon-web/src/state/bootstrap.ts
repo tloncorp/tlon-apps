@@ -4,7 +4,8 @@ import _ from 'lodash';
 
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
-import { asyncWithDefault } from '@/logic/utils';
+import { convertInit } from '@/logic/initJsonConversion';
+import { asyncWithDefault, unpackJamBytes } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { initializeChat } from './chat';
@@ -33,16 +34,17 @@ const emptyGroupsInit: GroupsInit = {
 };
 
 async function startGroups() {
+  let start = performance.now();
+  console.log('starting init request');
+  const res = await getInit();
+  console.log('init request took', performance.now() - start);
+
+  start = performance.now();
+  console.log('converting init');
+  const init = convertInit(res);
+  console.log('conversion took', performance.now() - start, init);
   // make sure if this errors we don't kill the entire app
-  const { channels, unreads, groups, gangs, pins, chat } =
-    await asyncWithDefault(
-      () =>
-        api.scry<GroupsInit>({
-          app: 'groups-ui',
-          path: '/v1/init',
-        }),
-      emptyGroupsInit
-    );
+  const { channels, unreads, groups, gangs, pins, chat } = init;
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
@@ -86,6 +88,20 @@ function auxiliaryData() {
     mark: 'ui-vita',
     json: null,
   });
+}
+
+async function getInit() {
+  const response = await fetch('/tlon/v1/ui/init/noun', {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get cached init`);
+  }
+
+  const buffer = await response.arrayBuffer();
+  return unpackJamBytes(buffer);
 }
 
 let auxiliaryTimer = 0;

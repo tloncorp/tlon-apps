@@ -44,19 +44,19 @@ window.addEventListener('error', (e) => {
 const container = document.getElementById('app') as HTMLElement;
 const root = createRoot(container);
 root.render(
-  <React.StrictMode>
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister: indexedDBPersistor(`${window.our}-landscape`),
-        buster: `${window.our}-landscape-4.0.1`,
-      }}
-    >
-      <SafeAreaProvider>
-        <PostHogProvider client={analyticsClient}>
-          <App />
-        </PostHogProvider>
-      </SafeAreaProvider>
-    </PersistQueryClientProvider>
-  </React.StrictMode>
+  // <React.StrictMode>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{
+      persister: indexedDBPersistor(`${window.our}-landscape`),
+      buster: `${window.our}-landscape-4.0.1`,
+    }}
+  >
+    <SafeAreaProvider>
+      <PostHogProvider client={analyticsClient}>
+        <App />
+      </PostHogProvider>
+    </SafeAreaProvider>
+  </PersistQueryClientProvider>
+  // </React.StrictMode>
 );

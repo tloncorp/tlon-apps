@@ -783,6 +783,9 @@
       ?:  gone
         (~(del by groups) flag)
       (~(put by groups) flag net group)
+    =/  =dock  [our.bowl %groups-ui]
+    =.  cor
+      (emit %pass /ui/update %agent dock %poke noun+!>(%update-init))
     ?.  gone  cor
     =?  cor  !=(p.flag our.bowl)  (emil leave:go-pass)
     =/  =action:g  [flag now.bowl %del ~]
@@ -1792,6 +1795,9 @@
   |_  [=flag:g =gang:g]
   ++  ga-core  .
   ++  ga-abet
+    =/  =dock  [our.bowl %groups-ui]
+    =.  cor
+      (emit %pass /ui/update %agent dock %poke noun+!>(%update-init))
     =.  xeno  (~(put by xeno) flag gang)
     ?.  (~(has by groups) flag)  cor
     =/  [=net:g =group:g]  (~(got by groups) flag)

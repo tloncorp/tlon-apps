@@ -1,5 +1,5 @@
 /-  u=ui, g=groups, c=chat, d=channels
-/+  default-agent, dbug, verb, vita-client
+/+  default-agent, dbug, verb, vita-client, cc=cache
 ::  performance, keep warm
 /+  mark-warmer
 ^-  agent:gall
@@ -7,9 +7,10 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         pins=(list whom:u)
         first-load=?
+        =^pending:cc
     ==
   --
 =|  current-state
@@ -88,13 +89,21 @@
       =+  !<(old=versioned-state vase)
       =?  old  ?=(~ old)     *current-state
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-      ?>  ?=(%1 -.old)
+      =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+      ?>  ?=(%2 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-1 state-0))
-  +$  state-1  current-state
+  +$  versioned-state  $@(~ $%(state-2 state-1 state-0))
+  +$  state-2  current-state
+  +$  state-1
+    $:  %1
+        pins=(list whom:u)
+        first-load=?
+    ==
   ::
+  ++  state-1-to-2
+    |=(state-1 [%2 pins first-load ~])
   +$  state-0  [%0 first-load=?]
   ++  state-0-to-1
     |=(state-0 [%1 ~ first-load])
@@ -104,6 +113,9 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
+    [%x %pins ~]  ``ui-pins+!>(pins)
+    [%x %v1 %init ~]  ``ui-init-1+!>(get-v1-init)
+  ::
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
     =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
@@ -119,26 +131,9 @@
           profile
       ==
     ``ui-init+!>(init)
-      [%x %v1 %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
-    =+  .^([=unreads:d =channels:d] (scry %gx %channels /v2/init/noun))
-    =+  .^(=chat:u (scry %gx %chat /init/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
-    =/  =init:u
-      :*  groups-ui
-          gangs
-          channels
-          unreads
-          pins
-          chat
-          profile
-      ==
-    ``ui-init-1+!>(init)
-  ::
-      [%x %pins ~]
-    ``ui-pins+!>(pins)
   ==
 ::
+++  cache  ~(. cc [pending bowl])
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -148,6 +143,19 @@
       %ui-vita-toggle
     =+  !<(=vita-enabled:u vase)
     (emit %pass /vita-toggle %agent [our.bowl dap.bowl] %poke vita-client+!>([%set-enabled vita-enabled]))
+  ::
+      %noun
+    ?+  q.vase  !!
+        %update-init
+      =^  caz=(list card)  pending
+        (update:cache /ui/init get-v1-init)
+      (emil caz)
+    ::
+        %clear-cache
+      =^  caz=(list card)  pending
+        (clear:cache /ui/init)
+      (emil caz)
+    ==
   ::
       %ui-action
     =+  !<(=action:u vase)
@@ -178,9 +186,28 @@
   ==
 ::
 ++  arvo
-  |=  [=wire sign=sign-arvo]
+  |=  [=(pole knot) sign=sign-arvo]
   ^+  cor
-  ?+  wire  !!
+  ?+  pole  !!
     [%build ~]  cor
+  ::
+      [%~.~ %cache rest=*]
+    =^  caz=(list card)  pending
+      (on-arvo:cache rest.pole sign)
+    (emil caz)
+  ==
+++  get-v1-init
+  ^-  init:u
+  =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+  =+  .^([=unreads:d =channels:d] (scry %gx %channels /v2/init/noun))
+  =+  .^(=chat:u (scry %gx %chat /init/noun))
+  =+  .^(profile=? (scry %gx %profile /bound/loob))
+  :*  groups-ui
+      gangs
+      channels
+      unreads
+      pins
+      chat
+      profile
   ==
 --
