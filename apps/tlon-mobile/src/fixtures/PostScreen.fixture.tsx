@@ -2,6 +2,7 @@ import { PostScreenView } from '@tloncorp/ui';
 
 import {
   createFakePosts,
+  group,
   initialContacts,
   tlonLocalBulletinBoard,
 } from './fakeData';
@@ -27,6 +28,7 @@ export default (
       channel={tlonLocalBulletinBoard}
       posts={posts}
       sendReply={() => {}}
+      groupMembers={group.members ?? []}
     />
   </>
 );

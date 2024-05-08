@@ -14,7 +14,7 @@ import {
 import CodeBlock from '@tiptap/extension-code-block';
 import { EditorContent } from '@tiptap/react';
 
-import { ShortcutsBridge } from './bridges/shortcut';
+import { MentionsBridge, ShortcutsBridge } from './bridges';
 import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
@@ -32,6 +32,7 @@ export const MessageInputEditor = () => {
       CodeBridge,
       UnderlineBridge,
       PlaceholderBridge,
+      MentionsBridge,
       LinkBridge.configureExtension({
         openOnClick: false,
       }).extendExtension({

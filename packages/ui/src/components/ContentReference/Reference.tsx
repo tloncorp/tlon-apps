@@ -28,8 +28,7 @@ const ReferenceFrame = styled(YStack, {
   variants: {
     asAttachment: {
       true: {
-        borderRadius: 0,
-        width: Dimensions.get('window').width - 40,
+        width: Dimensions.get('window').width - 30,
       },
     },
   } as const,
@@ -37,7 +36,8 @@ const ReferenceFrame = styled(YStack, {
 
 const ReferenceHeader = styled(XStack, {
   context: ReferenceContext,
-  padding: '$l',
+  paddingHorizontal: '$l',
+  paddingVertical: '$m',
   alignItems: 'center',
   justifyContent: 'space-between',
   borderBottomColor: '$border',
@@ -45,7 +45,7 @@ const ReferenceHeader = styled(XStack, {
   variants: {
     asAttachment: {
       true: {
-        width: Dimensions.get('window').width - 40,
+        width: Dimensions.get('window').width - 30,
       },
     },
   } as const,
@@ -70,7 +70,8 @@ const ReferenceIcon = styled(Icon, {
 });
 
 const ReferenceBody = styled(View, {
-  padding: '$l',
+  paddingHorizontal: '$l',
+  paddingBottom: '$m',
 });
 
 const ReferenceFrameComponent = ({

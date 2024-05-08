@@ -47,6 +47,7 @@ export function ChannelHeader({
             numberOfLines={1}
             color="$primaryText"
             size="$m"
+            fontWeight="500"
           >
             {title}
           </SizableText>

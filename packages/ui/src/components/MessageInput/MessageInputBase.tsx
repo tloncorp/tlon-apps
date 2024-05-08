@@ -2,6 +2,7 @@ import {
   ContentReference as ContentReferenceType,
   Upload,
 } from '@tloncorp/shared/dist/api';
+import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
@@ -11,6 +12,7 @@ import { View, XStack, YStack } from '../../core';
 import ContentReference from '../ContentReference';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
+import MentionPopup from './MentionPopup';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
@@ -20,6 +22,7 @@ export interface MessageInputProps {
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   canUpload?: boolean;
+  groupMembers: db.ChatMember[];
 }
 
 export const MessageInputContainer = ({
@@ -29,12 +32,20 @@ export const MessageInputContainer = ({
   uploadedImage,
   canUpload,
   containerHeight,
+  showMentionPopup = false,
+  mentionText,
+  groupMembers,
+  onSelectMention,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
   uploadedImage?: Upload | null;
   canUpload?: boolean;
   containerHeight: number;
+  showMentionPopup?: boolean;
+  mentionText?: string;
+  groupMembers: db.ChatMember[];
+  onSelectMention: (contact: db.Contact) => void;
 }>) => {
   const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
@@ -64,7 +75,7 @@ export const MessageInputContainer = ({
           {Object.keys(references).map((ref) =>
             references[ref] !== null ? (
               <XStack
-                left={20}
+                left={15}
                 position="relative"
                 key={ref}
                 width="100%"
@@ -75,12 +86,12 @@ export const MessageInputContainer = ({
                   reference={references[ref]!}
                   key={ref}
                 />
-                <View position="absolute" top={8} right={48}>
+                <View position="absolute" top={4} right={36}>
                   <IconButton
                     onPress={() => {
                       setReferences({ ...references, [ref]: null });
                     }}
-                    color="$secondaryText"
+                    color="$primaryText"
                   >
                     <Close />
                   </IconButton>
@@ -88,6 +99,17 @@ export const MessageInputContainer = ({
               </XStack>
             ) : null
           )}
+        </YStack>
+      ) : null}
+      {showMentionPopup ? (
+        <YStack position="absolute" bottom={containerHeight + 4} zIndex={15}>
+          <View position="relative" top={0} left={8}>
+            <MentionPopup
+              onPress={onSelectMention}
+              matchText={mentionText}
+              groupMembers={groupMembers}
+            />
+          </View>
         </YStack>
       ) : null}
       <XStack

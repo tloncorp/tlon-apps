@@ -44,7 +44,7 @@ function ShipMention({ ship }: { ship: string }) {
       borderColor="$border"
       color="$positiveActionText"
       userId={ship}
-      showAlias
+      showNickname
     />
   );
 }

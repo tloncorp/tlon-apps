@@ -19,6 +19,7 @@ export function PostScreenView({
   posts,
   sendReply,
   goBack,
+  groupMembers,
   calmSettings,
   uploadInfo,
   handleGoToImage,
@@ -30,6 +31,7 @@ export function PostScreenView({
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
+  groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   uploadInfo: api.UploadInfo;
 }) {
@@ -81,6 +83,7 @@ export function PostScreenView({
                 setImageAttachment={uploadInfo.setImageAttachment}
                 uploadedImage={uploadInfo.uploadedImage}
                 canUpload={uploadInfo.canUpload}
+                groupMembers={groupMembers}
               />
             )}
           </KeyboardAvoidingView>
