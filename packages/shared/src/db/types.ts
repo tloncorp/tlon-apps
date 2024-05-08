@@ -63,3 +63,4 @@ export type PostDeliveryStatus = schema.PostDeliveryStatus;
 export type Reaction = BaseModel<'postReactions'>;
 export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;
+export type Settings = BaseModel<'settings'>;

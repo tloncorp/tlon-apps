@@ -24,6 +24,31 @@ const metaFields = {
   description: text('description'),
 };
 
+export const settings = sqliteTable('settings', {
+  userId: text('user_id').primaryKey(),
+  theme: text('theme'),
+  disableAppTileUnreads: boolean('disable_app_tile_unreads'),
+  disableAvatars: boolean('disable_avatars'),
+  disableRemoteContent: boolean('disable_remote_content'),
+  disableSpellcheck: boolean('disable_spellcheck'),
+  disableNicknames: boolean('disable_nicknames'),
+  orderedGroupPins: text('ordered_group_pins', { mode: 'json' }),
+  sideBarSort: text('side_bar_sort').$type<
+    'alphabetical' | 'arranged' | 'recent'
+  >(),
+  groupSideBarSort: text('group_side_bar_sort', { mode: 'json' }),
+  showActivityMessage: boolean('show_activity_message'),
+  logActivity: boolean('log_activity'),
+  analyticsId: text('analytics_id'),
+  seenWelcomeCard: boolean('seen_welcome_card'),
+  newGroupFlags: text('new_group_flags', { mode: 'json' }),
+  groupsNavState: text('groups_nav_state'),
+  messagesNavState: text('messages_nav_state'),
+  messagesFilter: text('messages_filter'),
+  gallerySettings: text('gallery_settings'),
+  notebookSettings: text('notebook_settings', { mode: 'json' }),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
   nickname: text('nickname'),

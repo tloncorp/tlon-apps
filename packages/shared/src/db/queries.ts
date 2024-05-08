@@ -22,6 +22,8 @@ import {
 } from 'drizzle-orm';
 
 import { ChannelInit } from '../api';
+import { appendContactIdToReplies } from '../logic';
+import { desig } from '../urbit';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -38,6 +40,7 @@ import {
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
+  settings as $settings,
   threadUnreads as $threadUnreads,
   unreads as $unreads,
 } from './schema';
@@ -50,6 +53,7 @@ import {
   PinType,
   Post,
   Reaction,
+  Settings,
   TableName,
   Unread,
 } from './types';
@@ -59,6 +63,32 @@ export interface GetGroupsOptions {
   includeUnreads?: boolean;
   includeLastPost?: boolean;
 }
+
+export const insertSettings = createWriteQuery(
+  'insertSettings',
+  async (settings: Settings) => {
+    return client
+      .insert($settings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: $settings.userId,
+        set: conflictUpdateSetAll($settings),
+      });
+  },
+  ['settings']
+);
+
+export const getSettings = createReadQuery(
+  'getSettings',
+  async (userId: string) => {
+    return client.query.settings.findFirst({
+      where(fields) {
+        return eq(fields.userId, desig(userId));
+      },
+    });
+  },
+  ['settings']
+);
 
 export const getGroups = createReadQuery(
   'getGroups',
@@ -329,7 +359,13 @@ export const insertChannelPerms = createWriteQuery(
         roleId: writer,
       }))
     );
-    return client.insert($channelWriters).values(writers);
+    return client
+      .insert($channelWriters)
+      .values(writers)
+      .onConflictDoUpdate({
+        target: [$channelWriters.channelId, $channelWriters.roleId],
+        set: conflictUpdateSetAll($channelWriters),
+      });
   },
   ['channelWriters', 'channels']
 );
@@ -822,6 +858,68 @@ export const getPosts = createReadQuery(
   'getPosts',
   () => {
     return client.select().from($posts);
+  },
+  ['posts']
+);
+
+export const getPost = createReadQuery(
+  'getPost',
+  async ({ postId }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByCacheId = createReadQuery(
+  'getPostByCacheId',
+  async ({ sentAt, authorId }: { sentAt: number; authorId: string }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const addReplyToPost = createWriteQuery(
+  'addReplyToPost',
+  ({
+    parentId,
+    replyAuthor,
+    replyTime,
+  }: {
+    parentId: string;
+    replyAuthor: string;
+    replyTime: number;
+  }) => {
+    return client.transaction(async (tx) => {
+      const parentData = await tx
+        .select()
+        .from($posts)
+        .where(eq($posts.id, parentId));
+      if (parentData.length) {
+        const parentPost = parentData[0];
+        const newReplyContacts = appendContactIdToReplies(
+          parentPost.replyContactIds ?? [],
+          replyAuthor
+        );
+        await tx
+          .update($posts)
+          .set({
+            replyCount: (parentPost.replyCount ?? 0) + 1,
+            replyTime,
+            replyContactIds: newReplyContacts,
+          })
+          .where(eq($posts.id, parentId));
+      }
+    });
   },
   ['posts']
 );

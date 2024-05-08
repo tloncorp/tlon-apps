@@ -18,6 +18,13 @@ export const syncInitData = async () => {
   });
 };
 
+export const syncSettings = async () => {
+  return syncQueue.add('settings', async () => {
+    const settings = await api.getSettings();
+    await db.insertSettings(settings);
+  });
+};
+
 export const syncContacts = async () => {
   return syncQueue.add('contacts', async () => {
     const contacts = await api.getContacts();
@@ -80,6 +87,23 @@ export const syncStaleChannels = async () => {
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   switch (update.type) {
     case 'addPost':
+      // first check if it's a reply. If it is and we haven't already cached
+      // it, we need to add it to the parent post
+      if (update.post.parentId) {
+        const cachedReply = await db.getPostByCacheId({
+          sentAt: update.post.sentAt,
+          authorId: update.post.authorId,
+        });
+        if (!cachedReply) {
+          await db.addReplyToPost({
+            parentId: update.post.parentId,
+            replyAuthor: update.post.authorId,
+            replyTime: update.post.sentAt,
+          });
+        }
+      }
+
+      // finally, always insert the post itself
       await db.insertChannelPosts(update.post.channelId, [update.post]);
       break;
     case 'markPostSent':

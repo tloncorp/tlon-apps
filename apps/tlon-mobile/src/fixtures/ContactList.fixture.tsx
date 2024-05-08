@@ -16,12 +16,10 @@ const ContactListFixture = ({
     <FixtureWrapper>
       <ContactsProvider contacts={initialContacts}>
         <CalmProvider
-          initialCalm={{
+          calmSettings={{
             disableNicknames: false,
-            disableAppTileUnreads: false,
             disableAvatars: false,
             disableRemoteContent: false,
-            disableSpellcheck: false,
           }}
         >
           <ContactList>

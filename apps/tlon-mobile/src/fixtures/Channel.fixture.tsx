@@ -84,22 +84,18 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         channel={currentChannel || tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => setOpen(true)}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        setImageAttachment={() => {}}
-        resetImageAttachment={() => {}}
-        canUpload={true}
+        uploadInfo={{
+          imageAttachment: null,
+          resetImageAttachment: () => {},
+          setImageAttachment: () => {},
+          canUpload: true,
+        }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
@@ -148,22 +144,18 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         channel={tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => setOpen(true)}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        setImageAttachment={() => {}}
-        resetImageAttachment={() => {}}
-        canUpload={true}
+        uploadInfo={{
+          imageAttachment: null,
+          resetImageAttachment: () => {},
+          setImageAttachment: () => {},
+          canUpload: true,
+        }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
@@ -233,23 +225,18 @@ const ChannelFixtureWithImage = () => {
         channel={currentChannel || tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         group={group}
-        calmSettings={{
-          disableAppTileUnreads: false,
-          disableAvatars: false,
-          disableNicknames: false,
-          disableRemoteContent: false,
-          disableSpellcheck: false,
-        }}
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => setOpen(true)}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        uploadedImage={uploadedImage}
-        setImageAttachment={fakeSetImageAttachment}
-        resetImageAttachment={resetImageAttachment}
-        canUpload={true}
+        uploadInfo={{
+          imageAttachment: imageAttachment,
+          resetImageAttachment: resetImageAttachment,
+          setImageAttachment: fakeSetImageAttachment,
+          canUpload: true,
+        }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}

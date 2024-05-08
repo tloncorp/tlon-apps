@@ -38,11 +38,16 @@ export function ChannelHeader({
         borderBottomColor="$border"
         height="$4xl"
       >
-        <XStack alignItems="center" gap="$m">
+        <XStack alignItems="center" gap="$m" flex={1}>
           <IconButton onPress={goBack}>
             <ChevronLeft />
           </IconButton>
-          <SizableText color="$primaryText" size="$m">
+          <SizableText
+            flexShrink={1}
+            numberOfLines={1}
+            color="$primaryText"
+            size="$m"
+          >
             {title}
           </SizableText>
         </XStack>

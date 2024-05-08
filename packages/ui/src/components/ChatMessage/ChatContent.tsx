@@ -174,7 +174,11 @@ export function BlockContent({
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
-  const [aspect, setAspect] = useState<number | null>(null);
+  const [aspect, setAspect] = useState<number | null>(() => {
+    return isImage(story) && story.image.height && story.image.width
+      ? story.image.width / story.image.height
+      : null;
+  });
 
   const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
     setAspect(e.source.width / e.source.height);
@@ -205,8 +209,8 @@ export function BlockContent({
           borderRadius="$m"
           onLoad={handleImageLoaded}
           width={200}
+          backgroundColor={'$secondaryBackground'}
           height={aspect ? 200 / aspect : 100}
-          resizeMode="contain"
         />
       </TouchableOpacity>
     );
@@ -451,22 +455,21 @@ export default function ChatContent({
             })}
         </YStack>
       ) : null}
-      {inlineLength > 0 ? (
-        <LineRenderer
-          storyInlines={shortened ? shortenedStoryInlines : storyInlines}
-          isNotice={isNotice}
-        />
-      ) : null}
-      {deliveryStatus && (
-        <XStack
-          justifyContent="flex-end"
-          position="absolute"
-          right={0}
-          bottom={0}
-        >
-          <ChatMessageDeliveryStatus status={deliveryStatus} />
-        </XStack>
-      )}
+      <XStack justifyContent="space-between" alignItems="flex-start">
+        {inlineLength > 0 ? (
+          <View flexGrow={1} flexShrink={1}>
+            <LineRenderer
+              storyInlines={shortened ? shortenedStoryInlines : storyInlines}
+              isNotice={isNotice}
+            />
+          </View>
+        ) : null}
+        {deliveryStatus ? (
+          <View flexShrink={1}>
+            <ChatMessageDeliveryStatus status={deliveryStatus} />
+          </View>
+        ) : null}
+      </XStack>
     </YStack>
   );
 }
