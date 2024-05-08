@@ -30,7 +30,7 @@ export default function ChatListScreen(props: ChatListScreenProps) {
   return (
     <View backgroundColor="$background" flex={1}>
       <ScreenHeader
-        title="Chats"
+        title="Tlon"
         rightControls={
           <>
             {isFetchingInitData && <Spinner />}
