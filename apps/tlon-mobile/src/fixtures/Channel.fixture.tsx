@@ -90,9 +90,12 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        setImageAttachment={() => {}}
-        resetImageAttachment={() => {}}
-        canUpload={true}
+        uploadInfo={{
+          imageAttachment: null,
+          resetImageAttachment: () => {},
+          setImageAttachment: () => {},
+          canUpload: true,
+        }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
@@ -147,9 +150,12 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        setImageAttachment={() => {}}
-        resetImageAttachment={() => {}}
-        canUpload={true}
+        uploadInfo={{
+          imageAttachment: null,
+          resetImageAttachment: () => {},
+          setImageAttachment: () => {},
+          canUpload: true,
+        }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
@@ -225,10 +231,12 @@ const ChannelFixtureWithImage = () => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
-        uploadedImage={uploadedImage}
-        setImageAttachment={fakeSetImageAttachment}
-        resetImageAttachment={resetImageAttachment}
-        canUpload={true}
+        uploadInfo={{
+          imageAttachment: imageAttachment,
+          resetImageAttachment: resetImageAttachment,
+          setImageAttachment: fakeSetImageAttachment,
+          canUpload: true,
+        }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}

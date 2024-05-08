@@ -205,3 +205,16 @@ export const isSameDay = (a: number, b: number) => {
 export const isToday = (date: number) => {
   return isSameDay(date, Date.now());
 };
+
+export const appendContactIdToReplies = (
+  existingReplies: string[],
+  contactId: string
+): string[] => {
+  const newArray = [...existingReplies];
+  const index = newArray.indexOf(contactId);
+  if (index !== -1) {
+    newArray.splice(index, 1);
+  }
+  newArray.push(contactId);
+  return newArray;
+};

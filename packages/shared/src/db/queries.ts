@@ -22,6 +22,7 @@ import {
 } from 'drizzle-orm';
 
 import { ChannelInit } from '../api';
+import { appendContactIdToReplies } from '../logic';
 import { desig } from '../urbit';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
@@ -859,6 +860,81 @@ export const getPosts = createReadQuery(
     return client.select().from($posts);
   },
   ['posts']
+);
+
+export const getPost = createReadQuery(
+  'getPost',
+  async ({ postId }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByCacheId = createReadQuery(
+  'getPostByCacheId',
+  async ({ sentAt, authorId }: { sentAt: number; authorId: string }) => {
+    const postData = await client
+      .select()
+      .from($posts)
+      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const addReplyToPost = createWriteQuery(
+  'addReplyToPost',
+  ({
+    parentId,
+    replyAuthor,
+    replyTime,
+  }: {
+    parentId: string;
+    replyAuthor: string;
+    replyTime: number;
+  }) => {
+    return client.transaction(async (tx) => {
+      const parentData = await tx
+        .select()
+        .from($posts)
+        .where(eq($posts.id, parentId));
+      if (parentData.length) {
+        const parentPost = parentData[0];
+        const newReplyContacts = appendContactIdToReplies(
+          parentPost.replyContactIds ?? [],
+          replyAuthor
+        );
+        await tx
+          .update($posts)
+          .set({
+            replyCount: (parentPost.replyCount ?? 0) + 1,
+            replyTime,
+            replyContactIds: newReplyContacts,
+          })
+          .where(eq($posts.id, parentId));
+      }
+    });
+  },
+  ['posts']
+);
+
+export const getPendingPosts = createReadQuery(
+  'getPendingPosts',
+  (channelId: string) => {
+    return client.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        isNotNull($posts.deliveryStatus)
+      ),
+    });
+  },
+  []
 );
 
 export const getPostWithRelations = createReadQuery(

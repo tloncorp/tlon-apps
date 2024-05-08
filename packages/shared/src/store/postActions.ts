@@ -23,6 +23,7 @@ export async function sendPost({
       content,
       sentAt: cachePost.sentAt,
     });
+    sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
@@ -50,6 +51,11 @@ export async function sendReply({
     parentId,
   });
   await db.insertChannelPosts(channel.id, [cachePost]);
+  await db.addReplyToPost({
+    parentId,
+    replyAuthor: cachePost.authorId,
+    replyTime: cachePost.sentAt,
+  });
 
   try {
     api.sendReply({
@@ -60,6 +66,7 @@ export async function sendReply({
       content,
       sentAt: cachePost.sentAt,
     });
+    sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     console.error('Failed to send reply', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
