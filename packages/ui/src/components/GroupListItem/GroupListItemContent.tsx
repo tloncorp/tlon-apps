@@ -26,7 +26,7 @@ export default function GroupListItemContent({
           <ListItem.Subtitle>
             <ContactName
               userId={model.lastPost.authorId}
-              showAlias
+              showNickname
               color={'$secondaryText'}
               size={'$s'}
             />
