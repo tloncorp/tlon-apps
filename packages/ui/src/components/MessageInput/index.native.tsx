@@ -124,12 +124,15 @@ export function MessageInput({
           .JSONToInlines(json)
           .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
         [];
+      // first we need to find all the refs in the inlines
       const inlinesWithRefs = inlines.filter((inline) => {
         if (typeof inline === 'string') {
           return inline.match(tiptap.REF_REGEX);
         }
         return false;
       });
+
+      // then we need to find all the inlines without refs
       const inlinesWithOutRefs = inlines
         .map((inline) => {
           if (typeof inline === 'string') {
@@ -146,22 +149,22 @@ export function MessageInput({
         })
         .filter((inline) => inline !== null) as string[];
 
-      const refs: Record<string, string> = {};
-
-      inlinesWithRefs.forEach((inline: string) => {
-        const matches = inline.match(tiptap.REF_REGEX);
-        if (matches) {
-          refs[matches[0]] = matches[0];
-        }
-      });
-
-      // const cites: Record<string, Cite> = {};
+      // we create a new refs object that we can use to
+      // update the references context
       const newRefs: Record<string, ContentReference | null> = {};
 
-      Object.keys(refs).forEach((ref) => {
+      // now we grab all the refs that are in the inlines
+      // and add them to the refs object
+      inlinesWithRefs.forEach((inline: string) => {
+        const matches = inline.match(tiptap.REF_REGEX);
+        const ref = matches?.[0];
+
+        if (!ref) {
+          return;
+        }
+
         const cite = pathToCite(ref);
-        // we're limimting the number of refs that can be added to 1
-        // for now. TODO: figure out how we want to render multiple refs
+
         if (cite) {
           const reference = toContentReference(cite);
           newRefs[ref] = reference;
@@ -169,22 +172,28 @@ export function MessageInput({
       });
 
       if (Object.keys(newRefs).length) {
+        // if we have refs, we update the references context
         setReferences(newRefs);
       }
 
+      // find the first mention in the inlines without refs
       const mentionInline = inlinesWithOutRefs.find(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
       );
+      // extract the mention text from the mention inline
       const mentionText = mentionInline
         ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
         : null;
       if (mentionText !== null) {
+        // if we have a mention text, we show the mention popup
         setShowMentionPopup(true);
         setMentionText(mentionText);
       } else {
         setShowMentionPopup(false);
       }
 
+      // we construct a story here so we can insert blocks back in
+      // and then convert it back to tiptap's JSON format
       const newStory = constructStory(inlinesWithOutRefs);
 
       if (blocks && blocks.length > 0) {
@@ -299,7 +308,7 @@ export function MessageInput({
       editor.setContent('');
       setReferences({});
     });
-  }, [editor, send, channelId, uploadedImage]);
+  }, [editor, send, channelId, uploadedImage, references, setReferences]);
 
   const handleSend = useCallback(() => {
     Keyboard.dismiss();
