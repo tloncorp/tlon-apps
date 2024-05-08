@@ -710,7 +710,7 @@ function getContentImages(postId: string, content?: ub.Story | null) {
   }, []);
 }
 
-function toReactionsData(
+export function toReactionsData(
   reacts: Record<string, string>,
   postId: string
 ): db.Reaction[] {

@@ -831,6 +831,18 @@ export const insertPostReactions = createWriteQuery(
   ['posts', 'postReactions', 'contacts']
 );
 
+export const replacePostReactions = createWriteQuery(
+  'setPostReactions',
+  async ({ postId, reactions }: { postId: string; reactions: Reaction[] }) => {
+    return client.transaction(async (tx) => {
+      await tx.delete($postReactions).where(eq($postReactions.postId, postId));
+      if (reactions.length === 0) return;
+      await tx.insert($postReactions).values(reactions);
+    });
+  },
+  ['posts', 'postReactions']
+);
+
 export const deletePostReaction = createWriteQuery(
   'deletePostReaction',
   async ({ postId, contactId }: { postId: string; contactId: string }) => {
