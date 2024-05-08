@@ -1451,7 +1451,7 @@
       go-core
     ::
         %edit
-      =.  cabals.group
+      =?  cabals.group  (~(has by cabals.group) sect)
         %+  ~(jab by cabals.group)  sect
         |=  cabal:g
         +<(meta meta.diff)
