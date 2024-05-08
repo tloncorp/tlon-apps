@@ -30,6 +30,10 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   return streamingFetch(input, newInit);
 };
 
-export function configureClient(shipName: string, shipUrl: string) {
-  api.configureClient({ shipName, shipUrl, fetchFn: apiFetch });
+export function configureClient(
+  shipName: string,
+  shipUrl: string,
+  onReset?: () => void
+) {
+  api.configureClient({ shipName, shipUrl, fetchFn: apiFetch, onReset });
 }

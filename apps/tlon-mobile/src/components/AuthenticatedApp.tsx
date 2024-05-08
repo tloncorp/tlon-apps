@@ -19,11 +19,14 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   useDeepLinkListener();
 
   useEffect(() => {
-    configureClient(ship ?? '', shipUrl ?? '');
-    sync.start().catch((e) => {
-      console.warn('Sync failed', e);
-    });
-    useStorage.getState().start();
+    const start = () => {
+      sync.start().catch((e) => {
+        console.warn('Sync failed', e);
+      });
+      useStorage.getState().start();
+    };
+    configureClient(ship ?? '', shipUrl ?? '', () => start());
+    start();
   }, [ship, shipUrl]);
 
   return (
