@@ -158,6 +158,29 @@ CREATE TABLE `posts` (
 	`delivery_status` text
 );
 --> statement-breakpoint
+CREATE TABLE `settings` (
+	`user_id` text PRIMARY KEY NOT NULL,
+	`theme` text,
+	`disable_app_tile_unreads` integer,
+	`disable_avatars` integer,
+	`disable_remote_content` integer,
+	`disable_spellcheck` integer,
+	`disable_nicknames` integer,
+	`ordered_group_pins` text,
+	`side_bar_sort` text,
+	`group_side_bar_sort` text,
+	`show_activity_message` integer,
+	`log_activity` integer,
+	`analytics_id` text,
+	`seen_welcome_card` integer,
+	`new_group_flags` text,
+	`groups_nav_state` text,
+	`messages_nav_state` text,
+	`messages_filter` text,
+	`gallery_settings` text,
+	`notebook_settings` text
+);
+--> statement-breakpoint
 CREATE TABLE `thread_unreads` (
 	`channel_id` text,
 	`thread_id` text,

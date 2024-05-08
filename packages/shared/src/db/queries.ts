@@ -23,6 +23,7 @@ import {
 
 import { ChannelInit } from '../api';
 import { appendContactIdToReplies } from '../logic';
+import { desig } from '../urbit';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -39,6 +40,7 @@ import {
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
+  settings as $settings,
   threadUnreads as $threadUnreads,
   unreads as $unreads,
 } from './schema';
@@ -51,6 +53,7 @@ import {
   PinType,
   Post,
   Reaction,
+  Settings,
   TableName,
   Unread,
 } from './types';
@@ -60,6 +63,32 @@ export interface GetGroupsOptions {
   includeUnreads?: boolean;
   includeLastPost?: boolean;
 }
+
+export const insertSettings = createWriteQuery(
+  'insertSettings',
+  async (settings: Settings) => {
+    return client
+      .insert($settings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: $settings.userId,
+        set: conflictUpdateSetAll($settings),
+      });
+  },
+  ['settings']
+);
+
+export const getSettings = createReadQuery(
+  'getSettings',
+  async (userId: string) => {
+    return client.query.settings.findFirst({
+      where(fields) {
+        return eq(fields.userId, desig(userId));
+      },
+    });
+  },
+  ['settings']
+);
 
 export const getGroups = createReadQuery(
   'getGroups',
@@ -330,7 +359,13 @@ export const insertChannelPerms = createWriteQuery(
         roleId: writer,
       }))
     );
-    return client.insert($channelWriters).values(writers);
+    return client
+      .insert($channelWriters)
+      .values(writers)
+      .onConflictDoUpdate({
+        target: [$channelWriters.channelId, $channelWriters.roleId],
+        set: conflictUpdateSetAll($channelWriters),
+      });
   },
   ['channelWriters', 'channels']
 );

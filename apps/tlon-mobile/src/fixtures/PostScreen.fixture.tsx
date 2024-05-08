@@ -14,11 +14,9 @@ export default (
       currentUserId="~solfer-magfed"
       contacts={initialContacts}
       calmSettings={{
-        disableAppTileUnreads: false,
         disableAvatars: false,
         disableNicknames: false,
         disableRemoteContent: false,
-        disableSpellcheck: false,
       }}
       uploadInfo={{
         imageAttachment: null,

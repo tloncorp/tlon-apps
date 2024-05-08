@@ -60,7 +60,7 @@ export function Channel({
   posts: db.Post[] | null;
   contacts: db.Contact[] | null;
   group: db.Group | null;
-  calmSettings: CalmState;
+  calmSettings?: CalmState;
   goBack: () => void;
   goToChannels: () => void;
   goToPost: (post: db.Post) => void;
@@ -84,7 +84,7 @@ export function Channel({
   const renderItem = chatChannel ? ChatMessage : NotebookPost;
 
   return (
-    <CalmProvider initialCalm={calmSettings}>
+    <CalmProvider calmSettings={calmSettings}>
       <GroupsProvider groups={groups}>
         <ContactsProvider contacts={contacts ?? null}>
           <RequestsProvider

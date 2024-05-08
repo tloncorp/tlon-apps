@@ -24,19 +24,19 @@ export function PostScreenView({
   handleGoToImage,
 }: {
   currentUserId: string;
+  calmSettings?: CalmState;
   contacts: db.Contact[] | null;
   channel: db.Channel | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
-  calmSettings: CalmState;
   uploadInfo: api.UploadInfo;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
   return (
-    <CalmProvider initialCalm={calmSettings}>
+    <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
         <YStack flex={1} backgroundColor={'$background'}>
           <ChannelHeader
