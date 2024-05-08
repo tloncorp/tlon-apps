@@ -42,7 +42,7 @@ export default function ChatReference({
             color="$tertiaryText"
             size="$s"
             userId={post.authorId}
-            showAlias
+            showNickname
           />
         </Reference.Title>
         <Reference.Icon type="ArrowRef" />
