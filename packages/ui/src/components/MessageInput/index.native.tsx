@@ -9,12 +9,13 @@ import {
 } from '@10play/tentap-editor';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import { ShortcutsBridge } from '@tloncorp/editor/src/bridges';
+import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
 import {
   ContentReference,
   toContentReference,
 } from '@tloncorp/shared/dist/api';
+import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
   Inline,
@@ -81,10 +82,13 @@ export function MessageInput({
   setImageAttachment,
   uploadedImage,
   canUpload,
+  groupMembers,
 }: MessageInputProps) {
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
   );
+  const [mentionText, setMentionText] = useState<string>();
+  const [showMentionPopup, setShowMentionPopup] = useState(false);
   const { references, setReferences } = useReferences();
   const editor = useEditorBridge({
     customSource: editorHtml,
@@ -94,6 +98,7 @@ export function MessageInput({
       PlaceholderBridge.configureExtension({
         placeholder: 'Message',
       }),
+      MentionsBridge,
       ShortcutsBridge,
     ],
   });
@@ -119,12 +124,15 @@ export function MessageInput({
           .JSONToInlines(json)
           .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
         [];
+      // first we need to find all the refs in the inlines
       const inlinesWithRefs = inlines.filter((inline) => {
         if (typeof inline === 'string') {
           return inline.match(tiptap.REF_REGEX);
         }
         return false;
       });
+
+      // then we need to find all the inlines without refs
       const inlinesWithOutRefs = inlines
         .map((inline) => {
           if (typeof inline === 'string') {
@@ -141,22 +149,22 @@ export function MessageInput({
         })
         .filter((inline) => inline !== null) as string[];
 
-      const refs: Record<string, string> = {};
-
-      inlinesWithRefs.forEach((inline: string) => {
-        const matches = inline.match(tiptap.REF_REGEX);
-        if (matches) {
-          refs[matches[0]] = matches[0];
-        }
-      });
-
-      // const cites: Record<string, Cite> = {};
+      // we create a new refs object that we can use to
+      // update the references context
       const newRefs: Record<string, ContentReference | null> = {};
 
-      Object.keys(refs).forEach((ref) => {
+      // now we grab all the refs that are in the inlines
+      // and add them to the refs object
+      inlinesWithRefs.forEach((inline: string) => {
+        const matches = inline.match(tiptap.REF_REGEX);
+        const ref = matches?.[0];
+
+        if (!ref) {
+          return;
+        }
+
         const cite = pathToCite(ref);
-        // we're limimting the number of refs that can be added to 1
-        // for now. TODO: figure out how we want to render multiple refs
+
         if (cite) {
           const reference = toContentReference(cite);
           newRefs[ref] = reference;
@@ -164,9 +172,28 @@ export function MessageInput({
       });
 
       if (Object.keys(newRefs).length) {
+        // if we have refs, we update the references context
         setReferences(newRefs);
       }
 
+      // find the first mention in the inlines without refs
+      const mentionInline = inlinesWithOutRefs.find(
+        (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
+      );
+      // extract the mention text from the mention inline
+      const mentionText = mentionInline
+        ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
+        : null;
+      if (mentionText !== null) {
+        // if we have a mention text, we show the mention popup
+        setShowMentionPopup(true);
+        setMentionText(mentionText);
+      } else {
+        setShowMentionPopup(false);
+      }
+
+      // we construct a story here so we can insert blocks back in
+      // and then convert it back to tiptap's JSON format
       const newStory = constructStory(inlinesWithOutRefs);
 
       if (blocks && blocks.length > 0) {
@@ -179,6 +206,71 @@ export function MessageInput({
       editor.setContent(newJson);
     });
   };
+
+  const onSelectMention = useCallback(
+    (contact: db.Contact) => {
+      editor.getJSON().then(async (json) => {
+        const inlines = tiptap.JSONToInlines(json);
+
+        let textBeforeSig = '';
+        let textBeforeAt = '';
+
+        const newInlines = inlines.map((inline) => {
+          if (typeof inline === 'string') {
+            if (inline.match(`~`)) {
+              textBeforeSig = inline.split('~')[0];
+
+              return {
+                ship: contact.id,
+              };
+            }
+
+            if (inline.match(`@`)) {
+              textBeforeAt = inline.split('@')[0];
+              return {
+                ship: contact.id,
+              };
+            }
+
+            return inline;
+          }
+          return inline;
+        });
+
+        if (textBeforeSig) {
+          const indexOfMention = newInlines.findIndex(
+            (inline) =>
+              typeof inline === 'object' &&
+              'ship' in inline &&
+              inline.ship === contact.id
+          );
+
+          newInlines.splice(indexOfMention, 0, textBeforeSig);
+        }
+
+        if (textBeforeAt) {
+          const indexOfMention = newInlines.findIndex(
+            (inline) =>
+              typeof inline === 'object' &&
+              'ship' in inline &&
+              inline.ship === contact.id
+          );
+
+          newInlines.splice(indexOfMention, 0, textBeforeAt);
+        }
+
+        const newStory = constructStory(newInlines);
+
+        const newJson = tiptap.diaryMixedToJSON(newStory);
+
+        // @ts-expect-error setContent does accept JSONContent
+        editor.setContent(newJson);
+      });
+      setMentionText('');
+      setShowMentionPopup(false);
+    },
+    [editor]
+  );
 
   const sendMessage = useCallback(() => {
     editor.getJSON().then(async (json) => {
@@ -216,7 +308,7 @@ export function MessageInput({
       editor.setContent('');
       setReferences({});
     });
-  }, [editor, send, channelId, uploadedImage]);
+  }, [editor, send, channelId, uploadedImage, references, setReferences]);
 
   const handleSend = useCallback(() => {
     Keyboard.dismiss();
@@ -291,6 +383,10 @@ export function MessageInput({
       uploadedImage={uploadedImage}
       canUpload={canUpload}
       containerHeight={containerHeight}
+      mentionText={mentionText}
+      groupMembers={groupMembers}
+      onSelectMention={onSelectMention}
+      showMentionPopup={showMentionPopup}
     >
       <XStack
         borderRadius="$xl"

@@ -185,6 +185,15 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   }
 }
 
+export async function syncGroup(id: string) {
+  const group = await db.getGroup({ id });
+  if (!group) {
+    throw new Error('no local group for' + id);
+  }
+  const response = await api.getGroup(id);
+  await db.insertGroups([response]);
+}
+
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
 export async function syncChannelMessageDelivery({
   channelId,

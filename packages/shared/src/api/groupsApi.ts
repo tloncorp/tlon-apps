@@ -64,6 +64,13 @@ export const pinItem = async (itemId: string) => {
   });
 };
 
+export const getGroup = async (groupId: string) => {
+  const path = `/groups/${groupId}/v1`;
+
+  const groupData = await scry<ub.Group>({ app: 'groups', path });
+  return toClientGroup(groupId, groupData, true);
+};
+
 export const getGroups = async (
   {
     includeMembers,

@@ -91,7 +91,7 @@ export default function NotebookPost({
                 contact={post.author}
                 contactId={post.authorId}
               />
-              <ContactName showAlias userId={post.authorId} />
+              <ContactName showNickname userId={post.authorId} />
               <Text color="$secondaryText" fontSize="$s">
                 {timeDisplay}
               </Text>

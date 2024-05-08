@@ -7,10 +7,10 @@ import {
   useMemo,
 } from 'react';
 import { Platform } from 'react-native';
-import { ColorProp, styled, withStaticProperties } from 'tamagui';
+import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
-import { Avatar } from './Avatar';
+import { Avatar, AvatarSize } from './Avatar';
 import { Icon, IconType } from './Icon';
 
 export interface BaseListItemProps<T> {
@@ -146,14 +146,17 @@ const ListItemAvatarIcon = ({
   contactId,
   contact,
   backgroundColor,
+  size = '$4xl',
+  ...props
 }: {
   contactId: string;
   contact?: db.Contact | null;
   backgroundColor?: ColorProp;
-}) => {
+  size?: AvatarSize;
+} & ComponentProps<typeof ListItemIconContainer>) => {
   return (
-    <ListItemIconContainer backgroundColor={backgroundColor}>
-      <Avatar size={'$4xl'} contactId={contactId} contact={contact} />
+    <ListItemIconContainer {...props} backgroundColor={backgroundColor}>
+      <Avatar size={size} contactId={contactId} contact={contact} />
     </ListItemIconContainer>
   );
 };
@@ -178,22 +181,26 @@ const ListItemTypeIcon = ({
 };
 
 const ListItemIconContainer = ({
-  backgroundColor,
+  backgroundColor = '$secondaryBackground',
   rounded,
+  width = '$4xl',
+  height = '$4xl',
   children,
 }: PropsWithChildren<{
-  backgroundColor: ColorProp;
+  backgroundColor?: ColorProp;
+  width?: SizeTokens;
+  height?: SizeTokens;
   rounded?: boolean;
 }>) => {
   return (
     <View
-      width="$4xl"
-      height="$4xl"
+      width={width}
+      height={height}
       borderRadius={rounded ? '$2xl' : '$s'}
       overflow="hidden"
       flex={0}
       // @ts-expect-error user-supplied color
-      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+      backgroundColor={backgroundColor}
     >
       {children}
     </View>
