@@ -1,6 +1,77 @@
 import * as api from '../api';
 import * as db from '../db';
+import * as urbit from '../urbit';
 import * as sync from './sync';
+
+export async function sendPost({
+  channel,
+  authorId,
+  content,
+}: {
+  channel: db.Channel;
+  authorId: string;
+  content: urbit.Story;
+}) {
+  // optimistic update
+  const cachePost = api.buildCachePost({ authorId, channel, content });
+  await db.insertChannelPosts(channel.id, [cachePost]);
+
+  try {
+    await api.sendPost({
+      channelId: channel.id,
+      authorId,
+      content,
+      sentAt: cachePost.sentAt,
+    });
+    sync.syncChannelMessageDelivery({ channelId: channel.id });
+  } catch (e) {
+    console.error('Failed to send post', e);
+    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+  }
+}
+
+export async function sendReply({
+  parentId,
+  parentAuthor,
+  authorId,
+  content,
+  channel,
+}: {
+  channel: db.Channel;
+  parentId: string;
+  parentAuthor: string;
+  authorId: string;
+  content: urbit.Story;
+}) {
+  // optimistic update
+  const cachePost = api.buildCachePost({
+    authorId,
+    channel: channel,
+    content,
+    parentId,
+  });
+  await db.insertChannelPosts(channel.id, [cachePost]);
+  await db.addReplyToPost({
+    parentId,
+    replyAuthor: cachePost.authorId,
+    replyTime: cachePost.sentAt,
+  });
+
+  try {
+    api.sendReply({
+      channelId: channel.id,
+      parentId,
+      parentAuthor,
+      authorId,
+      content,
+      sentAt: cachePost.sentAt,
+    });
+    sync.syncChannelMessageDelivery({ channelId: channel.id });
+  } catch (e) {
+    console.error('Failed to send reply', e);
+    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+  }
+}
 
 export async function hidePost({ post }: { post: db.Post }) {
   // optimistic update

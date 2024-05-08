@@ -95,6 +95,18 @@ interface UpdateStatus {
   ): void;
 }
 
+export type UploadParams = {
+  uploaderKey: string;
+};
+
+export type UploadInfo = {
+  uploadedImage?: Upload | null;
+  imageAttachment: string | null;
+  setImageAttachment: (image: string | null) => void;
+  resetImageAttachment: () => void;
+  canUpload: boolean;
+};
+
 export interface Uploader {
   files: Record<string, Upload>;
   getMostRecent: () => Upload | null;

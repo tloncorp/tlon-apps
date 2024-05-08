@@ -1,4 +1,5 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import * as db from '../db';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -12,6 +13,25 @@ export interface CurrentChats {
   pinned: db.Channel[];
   unpinned: db.Channel[];
 }
+
+export const useCalmSettings = (options: { userId: string }) => {
+  return useQuery({
+    queryKey: ['calmSettings'],
+    queryFn: () =>
+      db.getSettings(options.userId).then((r) => ({
+        disableAvatars: r?.disableAvatars ?? false,
+        disableNicknames: r?.disableNicknames ?? false,
+        disableRemoteContent: r?.disableRemoteContent ?? false,
+      })),
+  });
+};
+
+export const useSettings = (options: { userId: string }) => {
+  return useQuery({
+    queryKey: ['settings'],
+    queryFn: () => db.getSettings(options.userId),
+  });
+};
 
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
@@ -84,6 +104,20 @@ export const useGroupByChannel = (channelId: string) => {
     queryKey: [['group', channelId]],
     queryFn: () => db.getGroupByChannel(channelId).then((r) => r ?? null),
   });
+};
+
+export const useMemberRoles = (chatId: string, userId: string) => {
+  const { data: chatMember } = useQuery({
+    queryKey: ['memberRoles', chatId, userId],
+    queryFn: () => db.getChatMember({ chatId, contactId: userId }),
+  });
+
+  const memberRoles = useMemo(
+    () => chatMember?.roles.map((role) => role.roleId) ?? [],
+    [chatMember]
+  );
+
+  return memberRoles;
 };
 
 export const useChannelPostsAround = (

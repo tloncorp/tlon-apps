@@ -92,6 +92,7 @@ const ChatMessage = ({
             isNotice={isNotice}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
+            deliveryStatus={post.deliveryStatus}
           />
         )}
       </View>

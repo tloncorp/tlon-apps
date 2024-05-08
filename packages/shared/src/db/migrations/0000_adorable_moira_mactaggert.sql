@@ -1,3 +1,9 @@
+CREATE TABLE `channel_writers` (
+	`channel_id` text NOT NULL,
+	`role_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `role_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `channels` (
 	`id` text PRIMARY KEY NOT NULL,
 	`type` text NOT NULL,
@@ -148,7 +154,31 @@ CREATE TABLE `posts` (
 	`has_group_reference` integer,
 	`has_link` integer,
 	`has_image` integer,
-	`hidden` integer DEFAULT false
+	`hidden` integer DEFAULT false,
+	`delivery_status` text
+);
+--> statement-breakpoint
+CREATE TABLE `settings` (
+	`user_id` text PRIMARY KEY NOT NULL,
+	`theme` text,
+	`disable_app_tile_unreads` integer,
+	`disable_avatars` integer,
+	`disable_remote_content` integer,
+	`disable_spellcheck` integer,
+	`disable_nicknames` integer,
+	`ordered_group_pins` text,
+	`side_bar_sort` text,
+	`group_side_bar_sort` text,
+	`show_activity_message` integer,
+	`log_activity` integer,
+	`analytics_id` text,
+	`seen_welcome_card` integer,
+	`new_group_flags` text,
+	`groups_nav_state` text,
+	`messages_nav_state` text,
+	`messages_filter` text,
+	`gallery_settings` text,
+	`notebook_settings` text
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (
@@ -169,3 +199,6 @@ CREATE TABLE `unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);

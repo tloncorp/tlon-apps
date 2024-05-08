@@ -1,3 +1,5 @@
+import { backOff } from 'exponential-backoff';
+
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -12,6 +14,14 @@ export const syncInitData = async () => {
     await db.insertGroups(initData.groups);
     await resetUnreads(initData.unreads);
     await db.insertChannels(initData.channels);
+    await db.insertChannelPerms(initData.channelPerms);
+  });
+};
+
+export const syncSettings = async () => {
+  return syncQueue.add('settings', async () => {
+    const settings = await api.getSettings();
+    await db.insertSettings(settings);
   });
 };
 
@@ -71,6 +81,37 @@ export const syncStaleChannels = async () => {
     syncQueue.add(channel.id, () => {
       return syncChannel(channel.id, channel.unread.updatedAt);
     });
+  }
+};
+
+export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+  switch (update.type) {
+    case 'addPost':
+      // first check if it's a reply. If it is and we haven't already cached
+      // it, we need to add it to the parent post
+      if (update.post.parentId) {
+        const cachedReply = await db.getPostByCacheId({
+          sentAt: update.post.sentAt,
+          authorId: update.post.authorId,
+        });
+        if (!cachedReply) {
+          await db.addReplyToPost({
+            parentId: update.post.parentId,
+            replyAuthor: update.post.authorId,
+            replyTime: update.post.sentAt,
+          });
+        }
+      }
+
+      // finally, always insert the post itself
+      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      break;
+    case 'markPostSent':
+      await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
+      break;
+    case 'unknown':
+    default:
+      break;
   }
 };
 
@@ -144,6 +185,77 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
   }
 }
 
+export async function syncGroup(id: string) {
+  const group = await db.getGroup({ id });
+  if (!group) {
+    throw new Error('no local group for' + id);
+  }
+  const response = await api.getGroup(id);
+  await db.insertGroups([response]);
+}
+
+const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
+export async function syncChannelMessageDelivery({
+  channelId,
+}: {
+  channelId: string;
+}) {
+  if (currentPendingMessageSyncs.has(channelId)) {
+    logger.log(`message delivery sync already in progress for ${channelId}`);
+  }
+
+  try {
+    logger.log(`syncing messsage delivery for ${channelId}`);
+    const syncPromise = syncChannelWithBackoff({ channelId });
+    currentPendingMessageSyncs.set(channelId, syncPromise);
+    await syncPromise;
+    logger.log(`all messages in ${channelId} are delivered`);
+  } catch (e) {
+    logger.error(
+      `some messages in ${channelId} still undelivered, is the channel offline?`
+    );
+  } finally {
+    currentPendingMessageSyncs.delete(channelId);
+  }
+}
+
+export async function syncChannelWithBackoff({
+  channelId,
+}: {
+  channelId: string;
+}): Promise<boolean> {
+  const checkDelivered = async () => {
+    const hasPendingBefore = (await db.getPendingPosts(channelId)).length > 0;
+    if (!hasPendingBefore) {
+      return true;
+    }
+
+    logger.log(`still have undelivered messages, syncing...`);
+    await syncChannel(channelId, Date.now());
+
+    const hasPendingAfter = (await db.getPendingPosts(channelId)).length > 0;
+    if (hasPendingAfter) {
+      throw new Error('Keep going');
+    }
+
+    return true;
+  };
+
+  try {
+    // try checking delivery status immediately
+    await checkDelivered();
+    return true;
+  } catch (e) {
+    // thereafter, try checking with exponential backoff. Config values
+    // are arbitrary reasonable sounding defaults
+    return backOff(checkDelivered, {
+      startingDelay: 2000, // 2 seconds
+      maxDelay: 3 * 60 * 1000, // 3 minutes
+      numOfAttempts: 20,
+    });
+  }
+}
+
 export async function syncThreadPosts({
   postId,
   authorId,
@@ -189,6 +301,7 @@ async function persistPagedPostData(
 
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
+  api.subscribeToChannelsUpdates(handleChannelsUpdate);
 };
 
 async function runOperation(name: string, fn: () => Promise<void>) {

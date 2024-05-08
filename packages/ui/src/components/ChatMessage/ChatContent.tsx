@@ -22,6 +22,8 @@ import {
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
+import { truncate } from 'lodash';
+import { PostDeliveryStatus } from 'packages/shared/dist/db';
 import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 
@@ -30,6 +32,7 @@ import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
 import { Icon } from '../Icon';
 import ChatEmbedContent from './ChatEmbedContent';
+import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
 function ShipMention({ ship }: { ship: string }) {
   return (
@@ -41,7 +44,7 @@ function ShipMention({ ship }: { ship: string }) {
       borderColor="$border"
       color="$positiveActionText"
       userId={ship}
-      showAlias
+      showNickname
     />
   );
 }
@@ -171,7 +174,11 @@ export function BlockContent({
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
-  const [aspect, setAspect] = useState<number | null>(null);
+  const [aspect, setAspect] = useState<number | null>(() => {
+    return isImage(story) && story.image.height && story.image.width
+      ? story.image.width / story.image.height
+      : null;
+  });
 
   const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
     setAspect(e.source.width / e.source.height);
@@ -202,8 +209,8 @@ export function BlockContent({
           borderRadius="$m"
           onLoad={handleImageLoaded}
           width={200}
+          backgroundColor={'$secondaryBackground'}
           height={aspect ? 200 / aspect : 100}
-          resizeMode="contain"
         />
       </TouchableOpacity>
     );
@@ -331,12 +338,16 @@ LineRenderer.displayName = 'LineRenderer';
 
 export default function ChatContent({
   story,
+  shortened = false,
   isNotice = false,
+  deliveryStatus,
   onPressImage,
   onLongPress,
 }: {
   story: PostContent;
+  shortened?: boolean;
   isNotice?: boolean;
+  deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
@@ -349,6 +360,37 @@ export default function ChatContent({
         : [],
     [story]
   );
+  const firstInlineIsMention = useMemo(
+    () =>
+      storyInlines.length > 0 &&
+      typeof storyInlines[0] === 'object' &&
+      'ship' in storyInlines[0],
+    [storyInlines]
+  );
+  const shortenedStoryInlines = useMemo(
+    () =>
+      story !== null
+        ? firstInlineIsMention
+          ? storyInlines
+              .map((i) =>
+                typeof i === 'string'
+                  ? truncate(i, { length: 100, omission: '' })
+                  : i
+              )
+              .slice(0, 2)
+              .concat('...')
+          : storyInlines
+              .map((i) =>
+                typeof i === 'string'
+                  ? truncate(i, { length: 100, omission: '' })
+                  : i
+              )
+              .slice(0, 1)
+              .concat('...')
+        : [],
+    [firstInlineIsMention, storyInlines, story]
+  );
+
   const storyBlocks = useMemo(
     () =>
       story !== null ? (story.filter((s) => 'block' in s) as VerseBlock[]) : [],
@@ -390,14 +432,14 @@ export default function ChatContent({
 
   return (
     <YStack width="100%">
-      {referenceLength > 0 ? (
+      {!shortened && referenceLength > 0 ? (
         <YStack gap="$s" paddingBottom="$l">
           {storyReferences.map((ref, key) => {
             return <ContentReference key={key} reference={ref} />;
           })}
         </YStack>
       ) : null}
-      {blockLength > 0 ? (
+      {!shortened && blockLength > 0 ? (
         <YStack>
           {blockContent
             .filter((a) => !!a)
@@ -413,9 +455,21 @@ export default function ChatContent({
             })}
         </YStack>
       ) : null}
-      {inlineLength > 0 ? (
-        <LineRenderer storyInlines={storyInlines} isNotice={isNotice} />
-      ) : null}
+      <XStack justifyContent="space-between" alignItems="flex-start">
+        {inlineLength > 0 ? (
+          <View flexGrow={1} flexShrink={1}>
+            <LineRenderer
+              storyInlines={shortened ? shortenedStoryInlines : storyInlines}
+              isNotice={isNotice}
+            />
+          </View>
+        ) : null}
+        {deliveryStatus ? (
+          <View flexShrink={1}>
+            <ChatMessageDeliveryStatus status={deliveryStatus} />
+          </View>
+        ) : null}
+      </XStack>
     </YStack>
   );
 }

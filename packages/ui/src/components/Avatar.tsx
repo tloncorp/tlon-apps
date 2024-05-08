@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useMemo } from 'react';
 import { SizeTokens, Token, getTokenValue, styled } from 'tamagui';
 
+import { useCalm } from '../contexts';
 import { Image, View } from '../core';
 import { useSigilColors } from '../utils/colorUtils';
 import UrbitSigil from './UrbitSigil';
@@ -17,6 +18,7 @@ export function Avatar({
   size?: AvatarFrameProps['size'];
 } & AvatarFrameProps) {
   const colors = useSigilColors(contact?.color);
+  const { disableAvatars } = useCalm();
   // TODO: check padding values against design
   const sigilSize = useMemo(() => (size ? getTokenValue(size) : 20) / 2, []);
   return (
@@ -26,7 +28,7 @@ export function Avatar({
       // @ts-expect-error custom color
       backgroundColor={colors.backgroundColor}
     >
-      {contact?.avatarImage ? (
+      {contact?.avatarImage && !disableAvatars ? (
         <Image
           source={{
             uri: contact.avatarImage,
