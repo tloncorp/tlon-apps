@@ -35,7 +35,7 @@ export default function ChatListScreen(
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
         <ScreenHeader
-          title="Chats"
+          title="Tlon"
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}

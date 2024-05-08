@@ -40,6 +40,7 @@ export default function ChatReference({
           <Avatar contact={post.author} contactId={post.authorId} size="$xl" />
           <ContactName
             color="$tertiaryText"
+            size="$s"
             userId={post.authorId}
             showNickname
           />
