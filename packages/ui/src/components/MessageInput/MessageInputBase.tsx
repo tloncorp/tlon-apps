@@ -64,7 +64,7 @@ export const MessageInputContainer = ({
           {Object.keys(references).map((ref) =>
             references[ref] !== null ? (
               <XStack
-                left={20}
+                left={15}
                 position="relative"
                 key={ref}
                 width="100%"
@@ -75,12 +75,12 @@ export const MessageInputContainer = ({
                   reference={references[ref]!}
                   key={ref}
                 />
-                <View position="absolute" top={8} right={48}>
+                <View position="absolute" top={4} right={36}>
                   <IconButton
                     onPress={() => {
                       setReferences({ ...references, [ref]: null });
                     }}
-                    color="$secondaryText"
+                    color="$primaryText"
                   >
                     <Close />
                   </IconButton>
