@@ -133,6 +133,7 @@ export default function Scroller({
             <ChannelDivider
               timestamp={item.receivedAt}
               unreadCount={unreadCount ?? 0}
+              isFirstPostOfDay={isFirstPostOfDay}
             />
           ) : isFirstPostOfDay && item.type === 'chat' ? (
             <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
