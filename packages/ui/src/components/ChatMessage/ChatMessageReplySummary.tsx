@@ -23,7 +23,7 @@ export const ChatMessageReplySummary = React.memo(
     }, [replyTime]);
 
     return replyCount && replyContactIds && replyTime ? (
-      <XStack paddingBottom="$l" gap="$m" paddingLeft="$4xl" onPress={onPress}>
+      <XStack gap="$m" paddingLeft="$4xl" onPress={onPress}>
         <XStack alignItems="center">
           {replyContactIds?.map((c, i) => (
             <View

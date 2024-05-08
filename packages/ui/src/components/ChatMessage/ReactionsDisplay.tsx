@@ -22,7 +22,7 @@ export function ReactionsDisplay({
   }
 
   return (
-    <XStack paddingBottom="$l" paddingLeft="$4xl" borderRadius="$m" gap="$xs">
+    <XStack paddingBottom="$m" paddingLeft="$4xl" borderRadius="$m" gap="$xs">
       {reactionDetails.list.map((reaction) => (
         <XStack
           key={reaction.value}
