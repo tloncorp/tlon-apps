@@ -83,7 +83,11 @@ export function MessageInput({
   uploadedImage,
   canUpload,
   groupMembers,
+  storeDraft,
+  clearDraft,
+  getDraft,
 }: MessageInputProps) {
+  const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
   );
@@ -104,6 +108,22 @@ export function MessageInput({
   });
   const editorState = useBridgeState(editor);
   const webviewRef = editor.webviewRef;
+
+  useEffect(() => {
+    if (!hasSetInitialContent && editorState.isReady) {
+      try {
+        getDraft().then((draft) => {
+          if (draft) {
+            // @ts-expect-error setContent does accept JSONContent
+            editor.setContent(draft);
+            setHasSetInitialContent(true);
+          }
+        });
+      } catch (e) {
+        console.error('Error getting draft', e);
+      }
+    }
+  }, [editor, getDraft, hasSetInitialContent, editorState.isReady]);
 
   useEffect(() => {
     if (editor && shouldBlur && editorState.isFocused) {
@@ -204,6 +224,7 @@ export function MessageInput({
 
       // @ts-expect-error setContent does accept JSONContent
       editor.setContent(newJson);
+      storeDraft(newJson);
     });
   };
 
@@ -265,11 +286,12 @@ export function MessageInput({
 
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
+        storeDraft(newJson);
       });
       setMentionText('');
       setShowMentionPopup(false);
     },
-    [editor]
+    [editor, storeDraft]
   );
 
   const sendMessage = useCallback(() => {
@@ -307,8 +329,17 @@ export function MessageInput({
 
       editor.setContent('');
       setReferences({});
+      clearDraft();
     });
-  }, [editor, send, channelId, uploadedImage, references, setReferences]);
+  }, [
+    editor,
+    send,
+    channelId,
+    uploadedImage,
+    references,
+    setReferences,
+    clearDraft,
+  ]);
 
   const handleSend = useCallback(() => {
     Keyboard.dismiss();

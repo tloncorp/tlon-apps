@@ -99,6 +99,9 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
+        getDraft={async () => ({})}
+        storeDraft={() => {}}
+        clearDraft={() => {}}
       />
       <ChannelSwitcherSheet
         open={open}
@@ -150,6 +153,9 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        getDraft={async () => ({})}
+        storeDraft={() => {}}
+        clearDraft={() => {}}
         uploadInfo={{
           imageAttachment: null,
           resetImageAttachment: () => {},
@@ -240,6 +246,9 @@ const ChannelFixtureWithImage = () => {
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
+        getDraft={async () => ({})}
+        storeDraft={() => {}}
+        clearDraft={() => {}}
       />
       <ChannelSwitcherSheet
         open={open}

@@ -29,6 +29,9 @@ export default (
       posts={posts}
       sendReply={() => {}}
       groupMembers={group.members ?? []}
+      getDraft={async () => ({})}
+      storeDraft={() => {}}
+      clearDraft={() => {}}
     />
   </>
 );

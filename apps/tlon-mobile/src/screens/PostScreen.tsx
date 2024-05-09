@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { useShip } from '../contexts/ship';
 import { useImageUpload } from '../hooks/useImageUpload';
+import storage from '../lib/storage';
 import type { HomeStackParamList } from '../types';
 
 type PostScreenProps = NativeStackScreenProps<HomeStackParamList, 'Post'>;
@@ -69,6 +70,22 @@ export default function PostScreen(props: PostScreenProps) {
     [props.navigation]
   );
 
+  const getDraft = useCallback(
+    async () => storage.load({ key: `draft-${postParam.id}` }),
+    [postParam.id]
+  );
+
+  const storeDraft = useCallback(
+    async (draft: urbit.JSONContent) => {
+      await storage.save({ key: `draft-${postParam.id}`, data: draft });
+    },
+    [postParam.id]
+  );
+
+  const clearDraft = useCallback(async () => {
+    await storage.remove({ key: `draft-${postParam.id}` });
+  }, [postParam.id]);
+
   return contactId ? (
     <PostScreenView
       contacts={contacts ?? null}
@@ -81,6 +98,9 @@ export default function PostScreen(props: PostScreenProps) {
       groupMembers={groupQuery.data?.members ?? []}
       uploadInfo={uploadInfo}
       handleGoToImage={handleGoToImage}
+      getDraft={getDraft}
+      storeDraft={storeDraft}
+      clearDraft={clearDraft}
     />
   ) : null;
 }

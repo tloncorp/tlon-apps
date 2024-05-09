@@ -18,6 +18,9 @@ const MessageInputFixture = () => {
           setImageAttachment={() => {}}
           canUpload={true}
           groupMembers={group.members ?? []}
+          getDraft={async () => ({})}
+          storeDraft={() => {}}
+          clearDraft={() => {}}
         />
       </View>
     </FixtureWrapper>
