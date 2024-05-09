@@ -3,6 +3,7 @@ import cookies from 'browser-cookies';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import { getPrivacyFromGang } from '@/logic/utils';
 import {
   useGroupJoinMutation,
@@ -11,7 +12,7 @@ import {
 
 export default function LureAutojoiner(): React.ReactElement {
   const { mutateAsync: joinMutation } = useGroupJoinMutation();
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
 
   const pendingGangsWithoutClaim = usePendingGangsWithoutClaim();
 

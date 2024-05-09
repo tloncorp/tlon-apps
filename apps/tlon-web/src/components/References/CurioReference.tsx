@@ -15,6 +15,7 @@ import getHeapContentType from '@/logic/useHeapContentType';
 import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 
+import { useNavWithinTab } from '../Sidebar/util';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
 import UnavailableReference from './UnavailableReference';
@@ -41,8 +42,7 @@ function CurioReference({
     idReply
   );
   const preview = useChannelPreview(nest, isScrolling);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
@@ -83,9 +83,10 @@ function CurioReference({
 
   const handleOpenReferenceClick = () => {
     if (!group) {
-      navigate(`/gangs/${groupFlag}?type=curio&nest=${nest}&id=${idCurio}`, {
-        state: { backgroundLocation: location },
-      });
+      navigate(
+        `/gangs/${groupFlag}?type=curio&nest=${nest}&id=${idCurio}`,
+        true
+      );
       return;
     }
     navigate(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);

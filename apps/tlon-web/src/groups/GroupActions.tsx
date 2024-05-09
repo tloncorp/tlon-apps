@@ -9,6 +9,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import VolumeSetting from '@/components/VolumeSetting';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
@@ -116,7 +117,7 @@ const GroupActions = React.memo(
     const { isGroupUnread } = useIsGroupUnread();
     const { claim } = useGang(flag);
     const location = useLocation();
-    const navigate = useNavigate();
+    const { navigate } = useNavWithinTab();
     const [host, name] = flag.split('/');
     const hasActivity = isGroupUnread(flag);
     const group = useGroup(flag);
@@ -273,9 +274,7 @@ const GroupActions = React.memo(
           if (isMobile) {
             setShowNotifications(true);
           } else {
-            navigate(`/groups/${flag}/volume`, {
-              state: { backgroundLocation: location },
-            });
+            navigate(`/groups/${flag}/volume`, true);
           }
         },
         containerClassName:
