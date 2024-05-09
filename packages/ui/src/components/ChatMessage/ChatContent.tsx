@@ -38,10 +38,7 @@ function ShipMention({ ship }: { ship: string }) {
   return (
     <ContactName
       onPress={() => {}}
-      backgroundColor="$positiveBackground"
-      borderRadius="$s"
-      borderWidth={1}
-      borderColor="$border"
+      fontWeight={'500'}
       color="$positiveActionText"
       userId={ship}
       showNickname
@@ -62,13 +59,13 @@ export function InlineContent({
   if (typeof story === 'string') {
     if (utils.isSingleEmoji(story)) {
       return (
-        <Text paddingTop="$xl" fontSize="$xl">
+        <Text paddingTop="$xl" lineHeight="$m" fontSize="$xl">
           {story}
         </Text>
       );
     }
     return (
-      <Text color={color} fontSize="$m">
+      <Text color={color} lineHeight="$m" fontSize="$m">
         {story}
       </Text>
     );
@@ -78,7 +75,7 @@ export function InlineContent({
     return (
       <>
         {story.bold.map((s, k) => (
-          <Text fontSize="$m" fontWeight="bold" key={k}>
+          <Text fontSize="$m" lineHeight="$m" fontWeight="bold" key={k}>
             <InlineContent story={s} color={color} />
           </Text>
         ))}
@@ -90,7 +87,7 @@ export function InlineContent({
     return (
       <>
         {story.italics.map((s, k) => (
-          <Text fontSize="$m" fontStyle="italic" key={k}>
+          <Text fontSize="$m" lineHeight="$m" fontStyle="italic" key={k}>
             <InlineContent story={s} color={color} />
           </Text>
         ))}
@@ -102,7 +99,12 @@ export function InlineContent({
     return (
       <>
         {story.strike.map((s, k) => (
-          <Text fontSize="$m" textDecorationLine="line-through" key={k}>
+          <Text
+            fontSize="$m"
+            lineHeight="$m"
+            textDecorationLine="line-through"
+            key={k}
+          >
             <InlineContent story={s} color={color} />
           </Text>
         ))}
@@ -118,6 +120,7 @@ export function InlineContent({
         backgroundColor="$secondaryBackground"
         padding="$xs"
         borderRadius="$s"
+        lineHeight="$m"
       >
         {story['inline-code']}
       </Text>
@@ -138,6 +141,7 @@ export function InlineContent({
           borderRadius="$s"
           color={color}
           backgroundColor="$secondaryBackground"
+          lineHeight="$m"
         >
           {story.code}
         </Text>
@@ -236,18 +240,6 @@ const LineRenderer = memo(
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
 
-    if (isNotice) {
-      currentLine.push(
-        <Icon
-          type="AddPerson"
-          color="$secondaryText"
-          backgroundColor="$secondaryBackground"
-          borderRadius="$s"
-          marginRight="$s"
-        />
-      );
-    }
-
     storyInlines.forEach((inline, index) => {
       if (isBreak(inline)) {
         inlineElements.push(currentLine);
@@ -269,7 +261,7 @@ const LineRenderer = memo(
               key={`string-${inline}-${index}`}
               color={isNotice ? '$tertiaryText' : color}
               fontSize="$m"
-              fontWeight={isNotice ? '600' : 'normal'}
+              fontWeight={isNotice ? '500' : 'normal'}
               lineHeight="$m"
             >
               {inline}
@@ -324,7 +316,7 @@ const LineRenderer = memo(
           }
 
           return (
-            <Text key={`line-${index}`} flexWrap="wrap">
+            <Text key={`line-${index}`} flexWrap="wrap" lineHeight="$m">
               {line}
             </Text>
           );
