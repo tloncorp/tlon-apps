@@ -2,11 +2,35 @@ import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { memo, useCallback, useMemo } from 'react';
 
-import { SizableText, View, YStack } from '../../core';
+import { SizableText, View, XStack, YStack } from '../../core';
+import { Icon } from '../Icon';
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+
+const NoticeWrapper = ({
+  isNotice,
+  children,
+}: {
+  isNotice?: boolean;
+  children: JSX.Element;
+}) => {
+  if (isNotice) {
+    return (
+      <XStack gap="$m">
+        <Icon
+          type="AddPerson"
+          color="$secondaryText"
+          size="$m"
+          backgroundColor={'$secondaryBackground'}
+        />
+        {children}
+      </XStack>
+    );
+  }
+  return children;
+};
 
 const ChatMessage = ({
   post,
@@ -26,6 +50,10 @@ const ChatMessage = ({
   onLongPress?: (post: db.Post) => void;
 }) => {
   const isNotice = post.type === 'notice';
+
+  if (isNotice) {
+    showAuthor = false;
+  }
 
   const content = useMemo(
     () => JSON.parse(post.content as string) as PostContent,
@@ -88,13 +116,15 @@ const ChatMessage = ({
             You have hidden or flagged this message.
           </SizableText>
         ) : (
-          <ChatContent
-            story={content}
-            isNotice={isNotice}
-            onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
-            deliveryStatus={post.deliveryStatus}
-          />
+          <NoticeWrapper isNotice={isNotice}>
+            <ChatContent
+              story={content}
+              isNotice={isNotice}
+              onPressImage={handleImagePressed}
+              onLongPress={handleLongPress}
+              deliveryStatus={post.deliveryStatus}
+            />
+          </NoticeWrapper>
         )}
       </View>
       <ReactionsDisplay post={post} currentUserId={currentUserId} />

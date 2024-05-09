@@ -59,7 +59,7 @@ export default function ChatEmbedContent({
   }
 
   return (
-    <Text textDecorationLine="underline" onPress={openLink}>
+    <Text textDecorationLine="underline" lineHeight="$m" onPress={openLink}>
       <InlineContent story={content} />
     </Text>
   );
