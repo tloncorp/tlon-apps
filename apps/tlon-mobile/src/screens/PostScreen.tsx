@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 
 import { useShip } from '../contexts/ship';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -22,6 +22,24 @@ const defaultCalmSettings = {
 };
 
 export default function PostScreen(props: PostScreenProps) {
+  useLayoutEffect(() => {
+    if (props.navigation.isFocused()) {
+      props.navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: 'none',
+        },
+      });
+    }
+
+    return () => {
+      props.navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: undefined,
+        },
+      });
+    };
+  }, [props.navigation]);
+
   const postParam = props.route.params.post;
   const { data: post } = store.usePostWithRelations({
     id: postParam.id,
