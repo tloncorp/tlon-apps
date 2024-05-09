@@ -29,11 +29,13 @@ export function configureClient({
   shipUrl,
   fetchFn,
   verbose,
+  onReset,
 }: {
   shipName: string;
   shipUrl: string;
   fetchFn?: typeof fetch;
   verbose?: boolean;
+  onReset?: () => void;
 }) {
   logger.log('configuring client', shipName, shipUrl);
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
@@ -43,8 +45,21 @@ export function configureClient({
     logger.log('status-update', status);
   });
 
+  clientInstance.onReconnect = () => {
+    logger.log('client reconnect');
+  };
+
+  clientInstance.on('reset', () => {
+    logger.log('client reset');
+    onReset?.();
+  });
+
+  clientInstance.on('seamless-reset', () => {
+    logger.log('client seamless-reset');
+  });
+
   clientInstance.on('error', (error) => {
-    logger.log('error', error);
+    logger.log('client error', error);
   });
 }
 
@@ -61,16 +76,19 @@ function printEndpoint(endpoint: UrbitEndpoint) {
   return `${endpoint.app}${endpoint.path}`;
 }
 
-// TODO: we need to harden this similar to tlon-web
 export function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T) => void
+  handler: (update: T) => void,
+  resubscribing = false
 ) {
   if (!clientInstance) {
-    throw new Error('Tied to subscribe, but Urbit client is not initialized');
+    throw new Error('Tried to subscribe, but Urbit client is not initialized');
   }
 
-  logger.debug('subscribing to', printEndpoint(endpoint));
+  logger.log(
+    resubscribing ? 'resubscribing to' : 'subscribing to',
+    printEndpoint(endpoint)
+  );
 
   clientInstance.subscribe({
     app: endpoint.app,
@@ -81,6 +99,10 @@ export function subscribe<T>(
         data
       );
       handler(data);
+    },
+    quit: () => {
+      logger.log('subscription quit on', printEndpoint(endpoint));
+      subscribe(endpoint, handler, true);
     },
     err: (error) => {
       logger.error(`subscribe error on ${printEndpoint(endpoint)}:`, error);
