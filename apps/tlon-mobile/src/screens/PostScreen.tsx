@@ -70,20 +70,33 @@ export default function PostScreen(props: PostScreenProps) {
     [props.navigation]
   );
 
-  const getDraft = useCallback(
-    async () => storage.load({ key: `draft-${postParam.id}` }),
-    [postParam.id]
-  );
+  const getDraft = useCallback(async () => {
+    try {
+      const draft = await storage.load({ key: `draft-${postParam.id}` });
+      return draft;
+    } catch (e) {
+      console.log('Error loading draft', e);
+      return null;
+    }
+  }, [postParam.id]);
 
   const storeDraft = useCallback(
     async (draft: urbit.JSONContent) => {
-      await storage.save({ key: `draft-${postParam.id}`, data: draft });
+      try {
+        await storage.save({ key: `draft-${postParam.id}`, data: draft });
+      } catch (e) {
+        console.log('Error saving draft', e);
+      }
     },
     [postParam.id]
   );
 
   const clearDraft = useCallback(async () => {
-    await storage.remove({ key: `draft-${postParam.id}` });
+    try {
+      await storage.remove({ key: `draft-${postParam.id}` });
+    } catch (e) {
+      console.log('Error clearing draft', e);
+    }
   }, [postParam.id]);
 
   return contactId ? (

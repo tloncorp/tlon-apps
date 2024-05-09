@@ -149,20 +149,34 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
-  const getDraft = useCallback(
-    async () => storage.load({ key: `draft-${currentChannelId}` }),
-    [currentChannelId]
-  );
+  const getDraft = useCallback(async () => {
+    try {
+      const draft = await storage.load({ key: `draft-${currentChannelId}` });
+
+      return draft;
+    } catch (e) {
+      console.log('Error loading draft', e);
+      return null;
+    }
+  }, [currentChannelId]);
 
   const storeDraft = useCallback(
     async (draft: JSONContent) => {
-      await storage.save({ key: `draft-${currentChannelId}`, data: draft });
+      try {
+        await storage.save({ key: `draft-${currentChannelId}`, data: draft });
+      } catch (e) {
+        console.log('Error saving draft', e);
+      }
     },
     [currentChannelId]
   );
 
   const clearDraft = useCallback(async () => {
-    await storage.remove({ key: `draft-${currentChannelId}` });
+    try {
+      await storage.remove({ key: `draft-${currentChannelId}` });
+    } catch (e) {
+      console.log('Error clearing draft', e);
+    }
   }, [currentChannelId]);
 
   if (!channelQuery.data) {
