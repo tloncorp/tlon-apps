@@ -3,6 +3,7 @@ import { backOff } from 'exponential-backoff';
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
@@ -308,6 +309,7 @@ async function persistPagedPostData(
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
+  useStorage.getState().start();
 };
 
 async function runOperation(name: string, fn: () => Promise<void>) {
