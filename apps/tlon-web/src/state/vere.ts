@@ -2,6 +2,8 @@ import create, { SetState } from 'zustand';
 
 import api from '@/api';
 
+import useSchedulerStore, { useScheduler } from './scheduler';
+
 interface Vere {
   cur: VereState;
   next?: VereState;
@@ -67,7 +69,7 @@ const fetchRuntimeVersion = () => {
     });
 };
 
-fetchRuntimeVersion();
+useSchedulerStore.getState().wait(fetchRuntimeVersion, 5);
 
 setInterval(fetchRuntimeVersion, 1800000);
 

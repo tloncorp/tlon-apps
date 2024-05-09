@@ -533,6 +533,8 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
+      [%activity %submit *]  cor
+      [%ui %update ~]  cor
       [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)

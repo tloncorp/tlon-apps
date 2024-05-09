@@ -1,11 +1,11 @@
 import { GroupsInit } from '@tloncorp/shared/dist/urbit/ui';
 import Urbit from '@urbit/http-api';
+import { cue_bytes } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import { convertInit } from '@/logic/initJsonConversion';
-import { asyncWithDefault, unpackJamBytes } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { initializeChat } from './chat';
@@ -100,8 +100,13 @@ async function getInit() {
     throw new Error(`Failed to get cached init`);
   }
 
+  let start = performance.now();
   const buffer = await response.arrayBuffer();
-  return unpackJamBytes(buffer);
+  console.log('getting buffer', performance.now() - start);
+  start = performance.now();
+  const noun = cue_bytes(new DataView(buffer));
+  console.log('converting buffer to noun', performance.now() - start);
+  return noun;
 }
 
 let auxiliaryTimer = 0;
