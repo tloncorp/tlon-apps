@@ -6,7 +6,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
 import type { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
@@ -17,6 +17,24 @@ import type { HomeStackParamList } from '../types';
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
+  useLayoutEffect(() => {
+    if (props.navigation.isFocused()) {
+      props.navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: 'none',
+        },
+      });
+    }
+
+    return () => {
+      props.navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: undefined,
+        },
+      });
+    };
+  }, [props.navigation]);
+
   useFocusEffect(
     useCallback(() => {
       store.clearSyncQueue();
@@ -184,7 +202,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   }
 
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
       <Channel
         channel={channelQuery.data}
         currentUserId={currentUserId}
