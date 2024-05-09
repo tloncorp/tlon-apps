@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -53,6 +53,9 @@ export function Channel({
   onPressRef,
   usePost,
   useChannel,
+  storeDraft,
+  clearDraft,
+  getDraft,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -74,6 +77,9 @@ export function Channel({
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelFromStore;
+  storeDraft: (draft: JSONContent) => void;
+  clearDraft: () => void;
+  getDraft: () => Promise<JSONContent>;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -161,6 +167,9 @@ export function Channel({
                           uploadedImage={uploadInfo.uploadedImage}
                           canUpload={uploadInfo.canUpload}
                           groupMembers={group?.members ?? []}
+                          storeDraft={storeDraft}
+                          clearDraft={clearDraft}
+                          getDraft={getDraft}
                         />
                       )}
                     </YStack>

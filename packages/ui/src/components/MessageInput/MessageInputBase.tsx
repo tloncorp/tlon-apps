@@ -3,7 +3,7 @@ import {
   Upload,
 } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
 import { ArrowUp, Close } from '../../assets/icons';
@@ -23,6 +23,9 @@ export interface MessageInputProps {
   uploadedImage?: Upload | null;
   canUpload?: boolean;
   groupMembers: db.ChatMember[];
+  storeDraft: (draft: JSONContent) => void;
+  clearDraft: () => void;
+  getDraft: () => Promise<JSONContent>;
 }
 
 export const MessageInputContainer = ({

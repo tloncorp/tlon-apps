@@ -23,6 +23,9 @@ export function PostScreenView({
   calmSettings,
   uploadInfo,
   handleGoToImage,
+  storeDraft,
+  clearDraft,
+  getDraft,
 }: {
   currentUserId: string;
   calmSettings?: CalmState;
@@ -34,6 +37,9 @@ export function PostScreenView({
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   uploadInfo: api.UploadInfo;
+  storeDraft: (draft: urbit.JSONContent) => void;
+  clearDraft: () => void;
+  getDraft: () => Promise<urbit.JSONContent>;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
@@ -83,6 +89,9 @@ export function PostScreenView({
                 uploadedImage={uploadInfo.uploadedImage}
                 canUpload={uploadInfo.canUpload}
                 groupMembers={groupMembers}
+                storeDraft={storeDraft}
+                clearDraft={clearDraft}
+                getDraft={getDraft}
               />
             )}
           </KeyboardAvoidingView>

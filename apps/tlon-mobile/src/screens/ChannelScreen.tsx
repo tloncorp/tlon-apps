@@ -4,13 +4,14 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
-import type { Story } from '@tloncorp/shared/dist/urbit';
+import type { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useImageUpload } from '../hooks/useImageUpload';
+import storage from '../lib/storage';
 import type { HomeStackParamList } from '../types';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
@@ -148,6 +149,22 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
+  const getDraft = useCallback(
+    async () => storage.load({ key: `draft-${currentChannelId}` }),
+    [currentChannelId]
+  );
+
+  const storeDraft = useCallback(
+    async (draft: JSONContent) => {
+      await storage.save({ key: `draft-${currentChannelId}`, data: draft });
+    },
+    [currentChannelId]
+  );
+
+  const clearDraft = useCallback(async () => {
+    await storage.remove({ key: `draft-${currentChannelId}` });
+  }, [currentChannelId]);
+
   if (!channelQuery.data) {
     return null;
   }
@@ -179,6 +196,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onPressRef={handleGoToRef}
         usePost={usePostWithRelations}
         useChannel={useChannel}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        getDraft={getDraft}
       />
       {groupQuery.data && (
         <ChannelSwitcherSheet
