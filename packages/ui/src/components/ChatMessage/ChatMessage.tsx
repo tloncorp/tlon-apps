@@ -69,7 +69,8 @@ const ChatMessage = ({
       onLongPress={handleLongPress}
       key={post.id}
       gap="$l"
-      paddingVertical="$l"
+      paddingVertical="$m"
+      paddingRight="$l"
     >
       {showAuthor ? (
         <View paddingLeft="$l">

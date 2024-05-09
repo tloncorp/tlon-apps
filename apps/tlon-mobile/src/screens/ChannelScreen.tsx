@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
@@ -14,15 +15,6 @@ import type { HomeStackParamList } from '../types';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
-// TODO: Pull from actual settings
-const defaultCalmSettings = {
-  disableAppTileUnreads: false,
-  disableAvatars: false,
-  disableNicknames: false,
-  disableRemoteContent: false,
-  disableSpellcheck: false,
-};
-
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
@@ -34,6 +26,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
   );
+  const calmSettingsQuery = store.useCalmSettings({
+    userId: useCurrentUserId(),
+  });
   const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
@@ -84,6 +79,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     },
     [currentUserId, channelQuery.data, uploadInfo]
   );
+
+  useEffect(() => {
+    sync.syncGroup(channelQuery.data?.groupId ?? '');
+  }, [channelQuery.data?.groupId]);
 
   useEffect(() => {
     if (groupQuery.error) {
@@ -158,7 +157,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       <Channel
         channel={channelQuery.data}
         currentUserId={currentUserId}
-        calmSettings={defaultCalmSettings}
+        calmSettings={calmSettingsQuery.data}
         isLoadingPosts={
           postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
         }

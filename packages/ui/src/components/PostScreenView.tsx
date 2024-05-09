@@ -19,24 +19,26 @@ export function PostScreenView({
   posts,
   sendReply,
   goBack,
+  groupMembers,
   calmSettings,
   uploadInfo,
   handleGoToImage,
 }: {
   currentUserId: string;
+  calmSettings?: CalmState;
   contacts: db.Contact[] | null;
   channel: db.Channel | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
+  groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
-  calmSettings: CalmState;
   uploadInfo: api.UploadInfo;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
   return (
-    <CalmProvider initialCalm={calmSettings}>
+    <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
         <YStack flex={1} backgroundColor={'$background'}>
           <ChannelHeader
@@ -64,6 +66,7 @@ export function PostScreenView({
                   inverted
                   renderItem={ChatMessage}
                   channelType={channel.type}
+                  channelId={channel.id}
                   currentUserId={currentUserId}
                   posts={posts}
                   showReplies={false}
@@ -80,6 +83,7 @@ export function PostScreenView({
                 setImageAttachment={uploadInfo.setImageAttachment}
                 uploadedImage={uploadInfo.uploadedImage}
                 canUpload={uploadInfo.canUpload}
+                groupMembers={groupMembers}
               />
             )}
           </KeyboardAvoidingView>

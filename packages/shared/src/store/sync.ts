@@ -18,6 +18,13 @@ export const syncInitData = async () => {
   });
 };
 
+export const syncSettings = async () => {
+  return syncQueue.add('settings', async () => {
+    const settings = await api.getSettings();
+    await db.insertSettings(settings);
+  });
+};
+
 export const syncContacts = async () => {
   return syncQueue.add('contacts', async () => {
     const contacts = await api.getContacts();
@@ -99,6 +106,12 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       // finally, always insert the post itself
       await db.insertChannelPosts(update.post.channelId, [update.post]);
       break;
+    case 'updateReactions':
+      await db.replacePostReactions({
+        postId: update.postId,
+        reactions: update.reactions,
+      });
+      break;
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
       break;
@@ -176,6 +189,15 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
       syncedAt: Date.now(),
     });
   }
+}
+
+export async function syncGroup(id: string) {
+  const group = await db.getGroup({ id });
+  if (!group) {
+    throw new Error('no local group for' + id);
+  }
+  const response = await api.getGroup(id);
+  await db.insertGroups([response]);
 }
 
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();

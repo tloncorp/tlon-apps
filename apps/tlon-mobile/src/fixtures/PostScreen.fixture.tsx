@@ -2,6 +2,7 @@ import { PostScreenView } from '@tloncorp/ui';
 
 import {
   createFakePosts,
+  group,
   initialContacts,
   tlonLocalBulletinBoard,
 } from './fakeData';
@@ -14,11 +15,9 @@ export default (
       currentUserId="~solfer-magfed"
       contacts={initialContacts}
       calmSettings={{
-        disableAppTileUnreads: false,
         disableAvatars: false,
         disableNicknames: false,
         disableRemoteContent: false,
-        disableSpellcheck: false,
       }}
       uploadInfo={{
         imageAttachment: null,
@@ -29,6 +28,7 @@ export default (
       channel={tlonLocalBulletinBoard}
       posts={posts}
       sendReply={() => {}}
+      groupMembers={group.members ?? []}
     />
   </>
 );

@@ -1,36 +1,21 @@
-import { ReactNode, createContext, useContext, useState } from 'react';
+import { ReactNode, createContext, useContext } from 'react';
 
 export type CalmState = {
-  disableAppTileUnreads: boolean;
   disableAvatars: boolean;
   disableRemoteContent: boolean;
-  disableSpellcheck: boolean;
   disableNicknames: boolean;
 };
 
-type ContextValue = CalmState & {
-  setDisableAppTileUnreads: (disableAppTileUnreads: boolean) => void;
-  setDisableAvatars: (disableAvatars: boolean) => void;
-  setDisableRemoteContent: (disableRemoteContent: boolean) => void;
-  setDisableSpellcheck: (disableSpellcheck: boolean) => void;
-  setDisableNicknames: (disableNicknames: boolean) => void;
-};
+type ContextValue = CalmState;
 
 const defaultState: CalmState = {
-  disableAppTileUnreads: false,
   disableAvatars: false,
   disableRemoteContent: false,
-  disableSpellcheck: false,
   disableNicknames: false,
 };
 
 const Context = createContext({
   ...defaultState,
-  setDisableAppTileUnreads: () => {},
-  setDisableAvatars: () => {},
-  setDisableRemoteContent: () => {},
-  setDisableSpellcheck: () => {},
-  setDisableNicknames: () => {},
 } as ContextValue);
 
 export const useCalm = () => {
@@ -45,33 +30,13 @@ export const useCalm = () => {
 
 export const CalmProvider = ({
   children,
-  initialCalm = defaultState,
+  calmSettings,
 }: {
   children: ReactNode;
-  initialCalm: CalmState;
+  calmSettings?: CalmState;
 }) => {
-  const [state, setState] = useState<CalmState>(initialCalm);
-
-  const updateState = (key: keyof CalmState, value: boolean) => {
-    setState((prev) => ({ ...prev, [key]: value }));
-  };
-
   return (
-    <Context.Provider
-      value={{
-        ...state,
-        setDisableAppTileUnreads: (disableAppTileUnreads) =>
-          updateState('disableAppTileUnreads', disableAppTileUnreads),
-        setDisableAvatars: (disableAvatars) =>
-          updateState('disableAvatars', disableAvatars),
-        setDisableRemoteContent: (disableRemoteContent) =>
-          updateState('disableRemoteContent', disableRemoteContent),
-        setDisableSpellcheck: (disableSpellcheck) =>
-          updateState('disableSpellcheck', disableSpellcheck),
-        setDisableNicknames: (disableNicknames) =>
-          updateState('disableNicknames', disableNicknames),
-      }}
-    >
+    <Context.Provider value={calmSettings ?? defaultState}>
       {children}
     </Context.Provider>
   );

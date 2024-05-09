@@ -3,7 +3,7 @@ import {
   useChannel as useChannelFromStore,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
-import { Upload, UploadInfo } from '@tloncorp/shared/dist/api';
+import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
@@ -60,7 +60,7 @@ export function Channel({
   posts: db.Post[] | null;
   contacts: db.Contact[] | null;
   group: db.Group | null;
-  calmSettings: CalmState;
+  calmSettings?: CalmState;
   goBack: () => void;
   goToChannels: () => void;
   goToPost: (post: db.Post) => void;
@@ -84,7 +84,7 @@ export function Channel({
   const renderItem = chatChannel ? ChatMessage : NotebookPost;
 
   return (
-    <CalmProvider initialCalm={calmSettings}>
+    <CalmProvider calmSettings={calmSettings}>
       <GroupsProvider groups={groups}>
         <ContactsProvider contacts={contacts ?? null}>
           <RequestsProvider
@@ -144,6 +144,7 @@ export function Channel({
                           }
                           posts={posts}
                           channelType={channel.type}
+                          channelId={channel.id}
                           onPressReplies={goToPost}
                           onPressImage={goToImageViewer}
                           setInputShouldBlur={setInputShouldBlur}
@@ -160,6 +161,7 @@ export function Channel({
                           setImageAttachment={uploadInfo.setImageAttachment}
                           uploadedImage={uploadInfo.uploadedImage}
                           canUpload={uploadInfo.canUpload}
+                          groupMembers={group?.members ?? []}
                         />
                       )}
                     </YStack>

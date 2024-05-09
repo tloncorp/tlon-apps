@@ -186,9 +186,9 @@ export function getTextContent(story?: ub.Story | undefined) {
 
 export function getBlockContent(block: ub.Block) {
   if (ub.isImage(block)) {
-    return '[image]';
+    return '(Image)';
   } else if (ub.isCite(block)) {
-    return '[ref]';
+    return '(Reference)';
   } else if (ubc.isHeader(block)) {
     return block.header.content.map(getInlineContent);
   } else if (ubc.isCode(block)) {

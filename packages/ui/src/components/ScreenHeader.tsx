@@ -50,6 +50,7 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
 const HeaderTitle = styled(SizableText, {
   size: '$l',
   textAlign: 'center',
+  fontWeight: '500',
   flex: 1,
 });
 

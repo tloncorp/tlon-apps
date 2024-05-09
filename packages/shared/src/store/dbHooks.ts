@@ -14,6 +14,25 @@ export interface CurrentChats {
   unpinned: db.Channel[];
 }
 
+export const useCalmSettings = (options: { userId: string }) => {
+  return useQuery({
+    queryKey: ['calmSettings'],
+    queryFn: () =>
+      db.getSettings(options.userId).then((r) => ({
+        disableAvatars: r?.disableAvatars ?? false,
+        disableNicknames: r?.disableNicknames ?? false,
+        disableRemoteContent: r?.disableRemoteContent ?? false,
+      })),
+  });
+};
+
+export const useSettings = (options: { userId: string }) => {
+  return useQuery({
+    queryKey: ['settings'],
+    queryFn: () => db.getSettings(options.userId),
+  });
+};
+
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: db.getChats,
