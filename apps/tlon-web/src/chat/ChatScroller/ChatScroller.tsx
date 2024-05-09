@@ -1,8 +1,8 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { PostTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
-import { MessageKey } from 'packages/shared/dist/urbit/activity';
 import React, {
   PropsWithChildren,
   ReactElement,

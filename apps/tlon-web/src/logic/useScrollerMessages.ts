@@ -1,8 +1,8 @@
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
 import { Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
-import { MessageKey } from 'packages/shared/dist/urbit/activity';
 import { useMemo, useRef } from 'react';
 
 import getKindDataFromEssay from './getKindData';

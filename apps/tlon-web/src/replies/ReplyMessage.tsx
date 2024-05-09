@@ -1,4 +1,5 @@
 import { Editor } from '@tiptap/core';
+import { MessageKey } from '@tloncorp/shared/dist/urbit';
 import {
   Reply,
   Story,
@@ -11,7 +12,6 @@ import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
 import debounce from 'lodash/debounce';
-import { MessageKey } from 'packages/shared/dist/urbit';
 import React, {
   useCallback,
   useEffect,

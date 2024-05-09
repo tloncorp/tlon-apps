@@ -42,7 +42,6 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
       return;
     }
 
-    debugger;
     if ('dm' in source) {
       const whom = 'club' in source.dm ? source.dm.club : source.dm.ship;
       chat[whom] = unread;

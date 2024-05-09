@@ -155,8 +155,6 @@ export default function MessagesList({
     ]
   );
 
-  console.log(organizedUnreads);
-
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
   const head = useMemo(

@@ -55,13 +55,11 @@ export default function VolumeSetting({ source }: { source: Source }) {
   }, [currentVolume, value, isLoading]);
 
   useEffect(() => {
-    console.log(currentVolume, value, isLoading);
     if (
       !(currentVolume === null && value === 'default') &&
       currentVolume !== value &&
       !isLoading
     ) {
-      console.log('setting volume', value);
       setVolume({
         source: source || { base: null },
         volume: getVolumeMapFromLevel(value === '' ? 'default' : value),
