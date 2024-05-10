@@ -2,6 +2,7 @@ import { Gang, Group, PrivacyType } from '@tloncorp/shared/dist/urbit/groups';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import {
@@ -42,7 +43,7 @@ export default function useGroupJoin(
     | undefined = undefined
 ) {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const modalIsOpen =
     !!location.state?.backgroundLocation &&
     location.pathname.includes('gangs/');
@@ -72,9 +73,7 @@ export default function useGroupJoin(
       return navigate(`/groups/${flag}`);
     }
 
-    return navigate(`/gangs/${flag}`, {
-      state: { backgroundLocation: location },
-    });
+    return navigate(`/gangs/${flag}`, true);
   }, [flag, group, location, navigate]);
 
   const join = useCallback(async () => {
@@ -143,9 +142,7 @@ export default function useGroupJoin(
       return;
     }
     if (inModal) {
-      modalNavigate(`/gangs/${flag}/reject`, {
-        state: { backgroundLocation: location },
-      });
+      navigate(`/gangs/${flag}/reject`, true);
     } else {
       navigate(`/gangs/${flag}/reject`);
     }

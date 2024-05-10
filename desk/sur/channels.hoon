@@ -485,6 +485,7 @@
         =remark
     ==
   --
++$  channel-heads  (list [=nest recency=time latest=(unit post)])
 +$  paged-posts
   $:  =posts
       newer=(unit time)

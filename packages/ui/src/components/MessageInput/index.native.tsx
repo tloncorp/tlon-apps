@@ -11,10 +11,7 @@ import {
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
-import {
-  ContentReference,
-  toContentReference,
-} from '@tloncorp/shared/dist/api';
+import { toContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
@@ -132,72 +129,18 @@ export function MessageInput({
     }
   }, [shouldBlur, editor, editorState, setShouldBlur]);
 
-  editor._onContentUpdate = () => {
+  editor._onContentUpdate = async () => {
     editor.getJSON().then((json: JSONContent) => {
-      const inlines = tiptap
-        .JSONToInlines(json)
-        .filter(
-          (c) => typeof c === 'string' || (typeof c === 'object' && isInline(c))
-        ) as Inline[];
-      const blocks =
-        (tiptap
+      const inlines = (
+        tiptap
           .JSONToInlines(json)
-          .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
-        [];
-      // first we need to find all the refs in the inlines
-      const inlinesWithRefs = inlines.filter((inline) => {
-        if (typeof inline === 'string') {
-          return inline.match(tiptap.REF_REGEX);
-        }
-        return false;
-      });
-
-      // then we need to find all the inlines without refs
-      const inlinesWithOutRefs = inlines
-        .map((inline) => {
-          if (typeof inline === 'string') {
-            const inlineLength = inline.length;
-            const refLength = inline.match(tiptap.REF_REGEX)?.[0].length || 0;
-
-            if (inlineLength === refLength) {
-              return null;
-            }
-
-            return inline.replace(tiptap.REF_REGEX, '');
-          }
-          return inline;
-        })
-        .filter((inline) => inline !== null) as string[];
-
-      // we create a new refs object that we can use to
-      // update the references context
-      const newRefs: Record<string, ContentReference | null> = {};
-
-      // now we grab all the refs that are in the inlines
-      // and add them to the refs object
-      inlinesWithRefs.forEach((inline: string) => {
-        const matches = inline.match(tiptap.REF_REGEX);
-        const ref = matches?.[0];
-
-        if (!ref) {
-          return;
-        }
-
-        const cite = pathToCite(ref);
-
-        if (cite) {
-          const reference = toContentReference(cite);
-          newRefs[ref] = reference;
-        }
-      });
-
-      if (Object.keys(newRefs).length) {
-        // if we have refs, we update the references context
-        setReferences(newRefs);
-      }
-
+          .filter(
+            (c) =>
+              typeof c === 'string' || (typeof c === 'object' && isInline(c))
+          ) as Inline[]
+      ).filter((inline) => inline !== null) as string[];
       // find the first mention in the inlines without refs
-      const mentionInline = inlinesWithOutRefs.find(
+      const mentionInline = inlines.find(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
       );
       // extract the mention text from the mention inline
@@ -212,21 +155,76 @@ export function MessageInput({
         setShowMentionPopup(false);
       }
 
-      // we construct a story here so we can insert blocks back in
-      // and then convert it back to tiptap's JSON format
-      const newStory = constructStory(inlinesWithOutRefs);
-
-      if (blocks && blocks.length > 0) {
-        newStory.push(...blocks.map((block) => ({ block })));
-      }
-
-      const newJson = tiptap.diaryMixedToJSON(newStory);
-
-      // @ts-expect-error setContent does accept JSONContent
-      editor.setContent(newJson);
-      storeDraft(newJson);
+      storeDraft(json);
     });
   };
+
+  const handlePaste = useCallback(
+    (pastedText: string) => {
+      if (pastedText) {
+        const isRef = pastedText.match(tiptap.REF_REGEX);
+
+        if (isRef) {
+          const cite = pathToCite(isRef[0]);
+
+          if (cite) {
+            const reference = toContentReference(cite);
+            setReferences({ [isRef[0]]: reference });
+
+            editor.getJSON().then((json: JSONContent) => {
+              const inlines = tiptap
+                .JSONToInlines(json)
+                .filter(
+                  (c) =>
+                    typeof c === 'string' ||
+                    (typeof c === 'object' && isInline(c))
+                ) as Inline[];
+              const blocks =
+                (tiptap
+                  .JSONToInlines(json)
+                  .filter(
+                    (c) => typeof c !== 'string' && 'block' in c
+                  ) as Block[]) || [];
+
+              // then we need to find all the inlines without refs
+              // so we can render the input text without refs
+              const inlinesWithOutRefs = inlines
+                .map((inline) => {
+                  if (typeof inline === 'string') {
+                    const inlineLength = inline.length;
+                    const refLength =
+                      inline.match(tiptap.REF_REGEX)?.[0].length || 0;
+
+                    if (inlineLength === refLength) {
+                      return null;
+                    }
+
+                    return inline.replace(tiptap.REF_REGEX, '');
+                  }
+                  return inline;
+                })
+                .filter((inline) => inline !== null) as string[];
+
+              // we construct a story here so we can insert blocks back in
+              // and then convert it back to tiptap's JSON format
+              const newStory = constructStory(inlinesWithOutRefs);
+
+              if (blocks && blocks.length > 0) {
+                newStory.push(...blocks.map((block) => ({ block })));
+              }
+
+              const newJson = tiptap.diaryMixedToJSON(newStory);
+
+              // @ts-expect-error setContent does accept JSONContent
+              editor.setContent(newJson);
+              // editor.setSelection(initialSelection.from, initialSelection.to);
+            });
+          }
+        }
+      }
+    },
+    [editor, setReferences]
+  );
 
   const onSelectMention = useCallback(
     (contact: db.Contact) => {
@@ -395,11 +393,16 @@ export function MessageInput({
         return;
       }
 
+      if (type === 'paste') {
+        handlePaste(payload);
+        return;
+      }
+
       editor.bridgeExtensions?.forEach((e) => {
         e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
       });
     },
-    [editor, handleAddNewLine]
+    [editor, handleAddNewLine, handlePaste]
   );
 
   const tentapInjectedJs = useMemo(

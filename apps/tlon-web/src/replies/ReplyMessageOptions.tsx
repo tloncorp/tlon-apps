@@ -10,6 +10,7 @@ import ActionMenu, { Action } from '@/components/ActionMenu';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import EmojiPicker from '@/components/EmojiPicker';
 import IconButton from '@/components/IconButton';
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import CautionIcon from '@/components/icons/CautionIcon';
@@ -95,8 +96,7 @@ export default function ReplyMessageOptions(props: {
   const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { navigate } = useNavWithinTab();
   const { mutate: deleteReply, isLoading: isDeleteReplyLoading } =
     useDeleteReplyMutation();
   const { mutate: deleteChatMessage, isLoading: isDeleteChatMessageLoading } =
@@ -247,9 +247,8 @@ export default function ReplyMessageOptions(props: {
   );
 
   const reportContent = useCallback(() => {
-    navigate('/report-content', {
+    navigate('/report-content', true, {
       state: {
-        backgroundLocation: location,
         post: threadParentId,
         reply: seal.id,
         nest,
@@ -277,9 +276,7 @@ export default function ReplyMessageOptions(props: {
         </div>
       ),
       onClick: () => {
-        navigate(`picker/${seal.id}`, {
-          state: { backgroundLocation: location },
-        });
+        navigate(`picker/${seal.id}`, true);
       },
     });
   }

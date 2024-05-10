@@ -66,7 +66,9 @@ export default function PostScreen(props: PostScreenProps) {
   }, [post, threadPosts]);
 
   useEffect(() => {
-    sync.syncGroup(channel?.groupId ?? '');
+    if (channel?.groupId) {
+      sync.syncGroup(channel?.groupId);
+    }
   }, [channel?.groupId]);
 
   const sendReply = async (content: urbit.Story) => {

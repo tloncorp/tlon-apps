@@ -12,12 +12,26 @@ import {
   useTenTap,
 } from '@10play/tentap-editor';
 import CodeBlock from '@tiptap/extension-code-block';
+import { Slice } from '@tiptap/pm/model';
+import { EditorView } from '@tiptap/pm/view';
 import { EditorContent } from '@tiptap/react';
+import { useCallback } from 'react';
 
 import { MentionsBridge, ShortcutsBridge } from './bridges';
 import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
+  const handlePaste = useCallback(
+    (_view: EditorView, event: ClipboardEvent, _slice: Slice) => {
+      const text = event.clipboardData?.getData('text/plain');
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({ type: 'paste', payload: text })
+      );
+    },
+    []
+  );
+
   const editor = useTenTap({
     bridges: [
       CoreBridge,
@@ -41,6 +55,9 @@ export const MessageInputEditor = () => {
     ],
     tiptapOptions: {
       extensions: [CodeBlock],
+      editorProps: {
+        handlePaste,
+      },
     },
   });
 
