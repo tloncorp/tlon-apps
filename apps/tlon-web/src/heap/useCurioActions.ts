@@ -2,6 +2,7 @@ import { decToUd } from '@urbit/api';
 import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import { citeToPath, nestToFlag, useCopy } from '@/logic/utils';
 import { useDeletePostMutation, usePostToggler } from '@/state/channel/channel';
 import { useGroupFlag } from '@/state/groups';
@@ -17,8 +18,7 @@ export default function useCurioActions({
   time,
   refToken,
 }: useCurioActionsProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { navigate } = useNavWithinTab();
   const flag = useGroupFlag();
   const [, chFlag] = nestToFlag(nest);
   const chanPath = citeToPath({
@@ -46,9 +46,10 @@ export default function useCurioActions({
 
   const onEdit = useCallback(() => {
     setMenuOpen(false);
-    navigate(`/groups/${flag}/channels/heap/${chFlag}/curio/${time}/edit`, {
-      state: { backgroundLocation: location },
-    });
+    navigate(
+      `/groups/${flag}/channels/heap/${chFlag}/curio/${time}/edit`,
+      true
+    );
   }, [location, navigate, time, flag, chFlag]);
 
   const navigateToCurio = useCallback(() => {
@@ -71,9 +72,8 @@ export default function useCurioActions({
   }, [isHidden, show, hide]);
 
   const reportContent = useCallback(() => {
-    navigate('/report-content', {
+    navigate('/report-content', true, {
       state: {
-        backgroundLocation: location,
         post: time,
         reply: null,
         nest,
@@ -81,7 +81,7 @@ export default function useCurioActions({
       },
     });
     hide();
-  }, [navigate, hide, location, nest, time, flag]);
+  }, [navigate, hide, nest, time, flag]);
 
   return {
     didCopy,

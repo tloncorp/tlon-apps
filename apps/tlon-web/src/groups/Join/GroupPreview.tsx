@@ -6,6 +6,7 @@ import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipConnection from '@/components/ShipConnection';
 import ShipName from '@/components/ShipName';
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import Globe16Icon from '@/components/icons/Globe16Icon';
 import Lock16Icon from '@/components/icons/Lock16Icon';
@@ -186,7 +187,7 @@ export function MobileGroupPreview({
 }
 
 export function DesktopGroupPreview({ flag }: { flag: string }) {
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const gang = useGang(flag);
   const preview = useGangPreview(flag);
   const { group, reject, button, status } = useGroupJoin(
