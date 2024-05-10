@@ -188,7 +188,11 @@ export const getChats = createReadQuery(
       .leftJoin($posts, eq($posts.id, allChannels.lastPostId))
       .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
       .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
-      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+      .orderBy(
+        ascNullsLast($pins.index),
+        sql`(CASE WHEN ${$groups.inviteStatus} = 'invited' THEN 1 ELSE 0 END) DESC`,
+        desc($unreads.updatedAt)
+      );
 
     const [chatMembers, filteredChannels] = result.reduce<
       [
