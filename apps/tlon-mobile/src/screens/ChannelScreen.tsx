@@ -100,7 +100,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   );
 
   useEffect(() => {
-    sync.syncGroup(channelQuery.data?.groupId ?? '');
+    if (channelQuery.data?.groupId) {
+      sync.syncGroup(channelQuery.data?.groupId);
+    }
   }, [channelQuery.data?.groupId]);
 
   useEffect(() => {
