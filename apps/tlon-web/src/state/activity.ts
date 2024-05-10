@@ -18,8 +18,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { nestToFlag } from '@/logic/utils';
+import { createDevLogger, nestToFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
+
+const actLogger = createDevLogger('activity', false);
 
 export const unreadsKey = ['activity', 'unreads'];
 export const volumeKey = ['activity', 'volume'];
@@ -70,7 +72,6 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
     }
 
     if ('thread' in source) {
-      console.log(source, unread);
       const { key, channel } = source.thread;
       const [app, flag] = nestToFlag(channel);
       const srcStr = `${flag}/${key.id}`;
@@ -100,7 +101,7 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
 
 function processActivityUpdates(updates: ActivityUpdate[]) {
   const readEvents = updates.filter((e) => 'read' in e) as ActivityReadUpdate[];
-  console.log('checking read events', readEvents);
+  actLogger.log('checking read events', readEvents);
   if (readEvents.length > 0) {
     const { chat, unreads } = activityReadUpdates(readEvents);
     useChatStore.getState().update(chat);
@@ -130,10 +131,10 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
 export function useActivityFirehose() {
   const [eventQueue, setEventQueue] = useState<ActivityUpdate[]>([]);
   const eventHandler = useCallback((event: ActivityUpdate) => {
-    console.log('received activity', event);
+    actLogger.log('received activity', event);
     setEventQueue((prev) => [...prev, event]);
   }, []);
-  console.log('events', eventQueue);
+  actLogger.log('events', eventQueue);
 
   useEffect(() => {
     api.subscribe({
@@ -146,7 +147,7 @@ export function useActivityFirehose() {
   const processQueue = useRef(
     _.debounce(
       (events: ActivityUpdate[]) => {
-        console.log('processing events', events);
+        actLogger.log('processing events', events);
         processActivityUpdates(events);
         setEventQueue([]);
       },
@@ -156,12 +157,12 @@ export function useActivityFirehose() {
   );
 
   useEffect(() => {
-    console.log('checking queue', eventQueue.length);
+    actLogger.log('checking queue', eventQueue.length);
     if (eventQueue.length === 0) {
       return;
     }
 
-    console.log('attempting to process queue', eventQueue.length);
+    actLogger.log('attempting to process queue', eventQueue.length);
     processQueue.current(eventQueue);
   }, [eventQueue]);
 }

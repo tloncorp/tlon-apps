@@ -477,8 +477,8 @@
   =/  [[@ =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
   =?  notified  &(notify:volume notified.event)  &
-  ?.  ?|  unreads:volume
-          ?!(?=(?(%dm-post %dm-reply %post %reply) -<.event))
+  ?.  ?&  unreads:volume
+          ?=(?(%dm-post %dm-reply %post %reply) -<.event)
       ==
     $(stream rest)
   ?>  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
