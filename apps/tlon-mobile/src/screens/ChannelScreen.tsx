@@ -155,7 +155,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
       return draft;
     } catch (e) {
-      console.log('Error loading draft', e);
       return null;
     }
   }, [currentChannelId]);
@@ -165,7 +164,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       try {
         await storage.save({ key: `draft-${currentChannelId}`, data: draft });
       } catch (e) {
-        console.log('Error saving draft', e);
+        return;
       }
     },
     [currentChannelId]
@@ -175,7 +174,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     try {
       await storage.remove({ key: `draft-${currentChannelId}` });
     } catch (e) {
-      console.log('Error clearing draft', e);
+      return;
     }
   }, [currentChannelId]);
 
