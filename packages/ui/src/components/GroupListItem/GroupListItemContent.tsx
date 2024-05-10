@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
-import { SizableText, Stack, Text } from '../../core';
+import { SizableText, Stack } from '../../core';
 import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
@@ -24,7 +24,7 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {model.lastPost && (
+        {model.inviteStatus === 'joined' && model.lastPost ? (
           <ListItem.Subtitle>
             <ContactName
               userId={model.lastPost.authorId}
@@ -34,18 +34,18 @@ export default function GroupListItemContent({
             />
             : {model.lastPost?.textContent ?? ''}
           </ListItem.Subtitle>
-        )}
+        ) : null}
       </ListItem.MainContent>
       <ListItem.EndContent>
         {model.inviteStatus === 'invited' ||
         model.inviteStatus === 'joining' ? (
           <Stack
-            backgroundColor="$secondaryBackground"
+            backgroundColor="$positiveBackground"
             paddingVertical="$xs"
             paddingHorizontal="$l"
             borderRadius="$xl"
           >
-            <SizableText size="$s" color="$secondaryText">
+            <SizableText size="$s" color="$positiveActionText">
               {model.inviteStatus === 'joining' ? 'Joining...' : 'Invited'}
             </SizableText>
           </Stack>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Text, View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
+import { ListItem } from './ListItem';
 
 interface Props {
   open: boolean;
@@ -36,11 +37,29 @@ export function GroupInvitationSheet({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.Header>
-        <ActionSheet.Title>Wanna join {group?.title}?</ActionSheet.Title>
+        <View
+          alignItems="center"
+          gap="$l"
+          backgroundColor="$secondaryBackground"
+          borderRadius="$xl"
+          padding="$3xl"
+        >
+          <ListItem.Icon
+            fallbackText={group?.title?.[0]}
+            backgroundColor={group?.iconImageColor ?? undefined}
+            imageUrl={group?.iconImage ?? undefined}
+          />
+          <ActionSheet.Title>{group?.title}</ActionSheet.Title>
+          {group?.description ? (
+            <ActionSheet.Description>
+              {group.description}
+            </ActionSheet.Description>
+          ) : null}
+        </View>
       </ActionSheet.Header>
       <View gap={isJoining ? '$2xl' : '$l'}>
         <Button
-          backgroundColor="$background"
+          backgroundColor="$black"
           justifyContent="center"
           paddingVertical="$xl"
           paddingHorizontal="$2xl"
@@ -48,7 +67,7 @@ export function GroupInvitationSheet({
           disabled={isJoining}
           onPress={() => handleUpdateInvitation(true)}
         >
-          <Button.Text color="$primaryText">
+          <Button.Text color="$white">
             {isJoining ? 'Joining, please wait...' : 'Accept'}
           </Button.Text>
         </Button>

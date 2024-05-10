@@ -189,7 +189,7 @@ export const getChats = createReadQuery(
       .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
       .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
       .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
-    console.log({ result });
+
     const [chatMembers, filteredChannels] = result.reduce<
       [
         Record<string, (ChatMember & { contact: Contact | null })[]>,
@@ -364,9 +364,12 @@ export const updateGroup = createWriteQuery(
 export const deleteGroup = createWriteQuery(
   'deleteGroup',
   async (groupId: string) => {
-    return client.delete($groups).where(eq($groups.id, groupId));
+    return Promise.all([
+      client.delete($channels).where(eq($channels.groupId, groupId)),
+      client.delete($groups).where(eq($groups.id, groupId)),
+    ]);
   },
-  ['groups']
+  ['groups', 'channels']
 );
 
 export const insertChannelPerms = createWriteQuery(
