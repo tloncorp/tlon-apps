@@ -772,6 +772,7 @@
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  ca-give-unread
     =.  ca-core  (ca-response %join group)
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init n group]])
     (ca-safe-sub |)
   ::
   ::  handle an action from the client

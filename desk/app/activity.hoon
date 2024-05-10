@@ -237,6 +237,9 @@
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
+  =?  cor  =(%chan-init -<.event)
+    =/  =source:a  (determine-index inc)
+    (give-unreads source (~(gut by indices) source *index:a))
   ?+  -<.event  cor
       %dm-post
     =/  source  [%dm whom.event]
@@ -300,6 +303,7 @@
   |=  event=incoming-event:a
   ^-  source:a
   ?-  -.event
+    %chan-init      [%channel channel.event group.event]
     %post           [%channel channel.event group.event]
     %reply          [%thread parent.event channel.event group.event]
     %dm-invite          [%dm whom.event]

@@ -69,6 +69,7 @@
       [%group-kick group=flag:g =ship]
       [%group-join group=flag:g =ship]
       [%group-invite group=flag:g =ship]
+      [%chan-init channel=nest:c group=flag:g]
       [%group-role group=flag:g =ship roles=(set sect:g)]
       [%flag-post key=message-key channel=nest:c group=flag:g]
       [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
@@ -157,7 +158,8 @@
 +$  message-key  [id=message-id =time]
 ::
 +$  event-type
-  $?  %post
+  $?  %chan-init
+      %post
       %post-mention
       %reply
       %reply-mention

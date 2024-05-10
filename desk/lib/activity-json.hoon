@@ -150,6 +150,12 @@
     ?-  -<.e
       %dm-invite  (whom whom.e)
     ::
+        %chan-init
+      %-  pairs
+      :~  channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+      ==
+    ::
         ?(%group-kick %group-join %group-ask %group-invite)
       %-  pairs
       :~  group+s+(flag:enjs:gj group.e)
@@ -349,6 +355,7 @@
     %-  of
     :~  post/post-event
         reply/reply-event
+        chan-init/chan-init-event
         dm-invite/whom
         dm-post/dm-post-event
         dm-reply/dm-reply-event
@@ -428,6 +435,13 @@
     :~  unreads/bo
         notify/bo
     ==
+  ::
+  ++  chan-init-event
+    %-  ot
+    :~  channel/nest:dejs:cj
+        group/flag:dejs:gj
+    ==
+  ::
   ++  post-event
     %-  ot
     :~  key/msg-key
