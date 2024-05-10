@@ -11,12 +11,13 @@ import {
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
-import { toContentReference } from '@tloncorp/shared/dist/api';
+import { PostContent, toContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
   Inline,
   JSONContent,
+  Story,
   constructStory,
   isInline,
   pathToCite,
@@ -83,6 +84,9 @@ export function MessageInput({
   storeDraft,
   clearDraft,
   getDraft,
+  editingPost,
+  setEditingPost,
+  editPost
 }: MessageInputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
@@ -115,12 +119,35 @@ export function MessageInput({
             editor.setContent(draft);
             setHasSetInitialContent(true);
           }
+          if (editingPost?.content) {
+            const content = JSON.parse(
+              editingPost.content as string
+            ) as PostContent;
+
+            if (!content) {
+              return;
+            }
+
+            const story =
+              (content.filter((c) => 'inline' in c || 'block' in c) as Story) ??
+              [];
+            const tiptapContent = tiptap.diaryMixedToJSON(story);
+            // @ts-expect-error setContent does accept JSONContent
+            editor.setContent(tiptapContent);
+            setHasSetInitialContent(true);
+          }
         });
       } catch (e) {
         console.error('Error getting draft', e);
       }
     }
-  }, [editor, getDraft, hasSetInitialContent, editorState.isReady]);
+  }, [
+    editor,
+    getDraft,
+    hasSetInitialContent,
+    editorState.isReady,
+    editingPost,
+  ]);
 
   useEffect(() => {
     if (editor && shouldBlur && editorState.isFocused) {
@@ -414,6 +441,7 @@ export function MessageInput({
     <MessageInputContainer
       setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
+      onPressEdit={handleSend}
       uploadedImage={uploadedImage}
       canUpload={canUpload}
       containerHeight={containerHeight}
@@ -421,6 +449,8 @@ export function MessageInput({
       groupMembers={groupMembers}
       onSelectMention={onSelectMention}
       showMentionPopup={showMentionPopup}
+      isEditing={!!editingPost}
+      cancelEditing={() => setEditingPost?.(undefined)}
     >
       <XStack
         borderRadius="$xl"

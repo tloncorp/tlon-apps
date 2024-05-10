@@ -133,6 +133,42 @@ export const sendPost = async ({
   );
 };
 
+export const editPost = async ({
+  channelId,
+  postId,
+  authorId,
+  sentAt,
+  content,
+}: {
+  channelId: string;
+  postId: string;
+  authorId: string;
+  sentAt: number;
+  content: Story;
+}) => {
+  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+    return;
+  }
+
+  const essay: ub.PostEssay = {
+    author: authorId,
+    content,
+    sent: sentAt,
+    'kind-data': {
+      chat: null,
+    },
+  };
+
+  const action = channelPostAction(channelId, {
+    edit: {
+      id: postId,
+      essay,
+    },
+  });
+
+  await poke(action);
+};
+
 export const sendReply = async ({
   channelId,
   parentId,

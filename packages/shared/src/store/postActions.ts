@@ -30,6 +30,33 @@ export async function sendPost({
   }
 }
 
+export async function editPost({
+  post,
+  content,
+}: {
+  post: db.Post;
+  content: urbit.Story;
+}) {
+  // optimistic update
+  await db.updatePost({ id: post.id, content });
+
+  try {
+    await api.editPost({
+      channelId: post.channelId,
+      postId: post.id,
+      authorId: post.authorId,
+      sentAt: post.sentAt,
+      content,
+    });
+    sync.syncChannelMessageDelivery({ channelId: post.channelId });
+  } catch (e) {
+    console.error('Failed to edit post', e);
+
+    // rollback optimistic update
+    await db.updatePost({ id: post.id, content: post.content });
+  }
+}
+
 export async function sendReply({
   parentId,
   parentAuthor,
