@@ -1,7 +1,7 @@
 import { Gangs, Groups } from '@tloncorp/shared/dist/urbit/groups';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
-import _ from 'lodash';
+import _, { result } from 'lodash';
 import { useMemo } from 'react';
 
 import { useGangs, useGroups } from '@/state/groups';
@@ -50,9 +50,10 @@ export default function useSearchFilter(query: string): GroupSearchRecord[] {
     return [];
   }
 
-  return searchSpace.filter(
-    (record) =>
-      record.title.toLowerCase().startsWith(query.toLowerCase()) ||
-      deSig(record.flag)?.startsWith(deSig(query) || '')
-  );
+  const matches = fuzzy.filter(query, searchSpace, {
+    extract: (record) => record.title,
+  });
+  return matches
+    .sort((a, b) => b.score - a.score)
+    .map((result) => result.original);
 }
