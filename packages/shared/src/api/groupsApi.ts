@@ -114,9 +114,9 @@ export function toClientGroup(
   });
   return {
     id,
-    isJoined,
     roles,
     isSecret: group.secret,
+    inviteStatus: isJoined ? 'joined' : undefined,
     ...toClientMeta(group.meta),
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
@@ -151,6 +151,40 @@ export function toClientGroup(
     channels: group.channels
       ? toClientChannels({ channels: group.channels, groupId: id })
       : [],
+  };
+}
+
+export function toClientInvitedGroups(gangs: Record<string, ub.Gang>) {
+  if (!gangs) {
+    return [];
+  }
+
+  return Object.entries(gangs)
+    .filter(
+      ([_, gang]) =>
+        gang.invite && gang.preview && 'shut' in gang.preview.cordon
+    )
+    .map(([id, gang]) => toClientInvitedGroup(id, gang));
+}
+
+export function toClientInvitedGroup(id: string, gang: ub.Gang): db.Group {
+  return {
+    id,
+    isSecret: !!gang.preview?.secret,
+    inviteStatus: 'invited',
+    ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
+    // Create placeholder Channel to show in chat list
+    channels: [
+      {
+        id,
+        groupId: id,
+        type: 'chat',
+        iconImage: omitEmpty(gang.preview?.meta.image ?? ''),
+        title: omitEmpty(gang.preview?.meta.title ?? ''),
+        coverImage: omitEmpty(gang.preview?.meta.cover ?? ''),
+        description: omitEmpty(gang.preview?.meta.description ?? ''),
+      },
+    ],
   };
 }
 
@@ -215,3 +249,20 @@ function omitEmpty(val: string) {
 export function isColor(value: string) {
   return value[0] === '#';
 }
+
+export const joinGroup = async (id: string) =>
+  poke({
+    app: 'groups',
+    mark: 'group-join',
+    json: {
+      flag: id,
+      'join-all': true,
+    },
+  });
+
+export const rejectGroupInvitation = async (id: string) =>
+  poke({
+    app: 'groups',
+    mark: 'invite-decline',
+    json: id,
+  });

@@ -93,7 +93,7 @@ export const getSettings = createReadQuery(
 export const getGroups = createReadQuery(
   'getGroups',
   async ({
-    includeUnjoined,
+    includeUnjoined = false,
     includeLastPost,
     includeUnreads,
   }: GetGroupsOptions = {}): Promise<Group[]> => {
@@ -116,7 +116,9 @@ export const getGroups = createReadQuery(
           : undefined),
       })
       .from($groups)
-      .where(includeUnjoined ? undefined : eq($groups.isJoined, true));
+      .where(() =>
+        includeUnjoined ? undefined : eq($groups.inviteStatus, 'joined')
+      );
     if (includeLastPost) {
       query.leftJoin($posts, eq($groups.lastPostId, $posts.id));
     }
@@ -187,6 +189,7 @@ export const getChats = createReadQuery(
       .leftJoin($chatMembers, eq($chatMembers.chatId, allChannels.id))
       .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
       .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+    console.log({ result });
     const [chatMembers, filteredChannels] = result.reduce<
       [
         Record<string, (ChatMember & { contact: Contact | null })[]>,
@@ -235,7 +238,7 @@ export const insertGroups = createWriteQuery(
               $groups.title,
               $groups.description,
               $groups.isSecret,
-              $groups.isJoined
+              $groups.inviteStatus
             ),
           });
         if (group.channels?.length) {
@@ -348,6 +351,22 @@ export const insertGroups = createWriteQuery(
     'channels',
     'pins',
   ]
+);
+
+export const updateGroup = createWriteQuery(
+  'updateGroup',
+  async (group: Partial<Group> & { id: string }) => {
+    return client.update($groups).set(group).where(eq($groups.id, group.id));
+  },
+  ['groups']
+);
+
+export const deleteGroup = createWriteQuery(
+  'deleteGroup',
+  async (groupId: string) => {
+    return client.delete($groups).where(eq($groups.id, groupId));
+  },
+  ['groups']
 );
 
 export const insertChannelPerms = createWriteQuery(

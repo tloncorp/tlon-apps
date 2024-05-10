@@ -2,7 +2,11 @@ import * as db from '../db';
 import type * as ub from '../urbit';
 import { toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
-import { toClientGroups, toClientPinnedItems } from './groupsApi';
+import {
+  toClientGroups,
+  toClientInvitedGroups,
+  toClientPinnedItems,
+} from './groupsApi';
 import { toClientUnreads } from './unreadsApi';
 import { scry } from './urbit';
 
@@ -18,11 +22,13 @@ export const getInitData = async () => {
     app: 'groups-ui',
     path: '/v1/init',
   });
-  // TODO: handle gangs,possibly handle response.channels, but not sure if
-  // necessary.
+
   const pins = toClientPinnedItems(response.pins);
   const channelsInit = toClientChannelsInit(response.channels);
-  const groups = toClientGroups(response.groups, true);
+  const groups = [
+    ...toClientGroups(response.groups, true),
+    ...toClientInvitedGroups(response.gangs),
+  ];
   const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);
   const groupDmChannels = toClientGroupDms(response.chat.clubs);

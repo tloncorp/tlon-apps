@@ -1,5 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
+import { SizableText, Stack, Text } from '../../core';
 import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
@@ -12,6 +13,7 @@ export default function GroupListItemContent({
   return (
     <ListItem
       {...props}
+      alignItems={model.inviteStatus !== 'joined' ? 'center' : 'stretch'}
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
@@ -35,10 +37,26 @@ export default function GroupListItemContent({
         )}
       </ListItem.MainContent>
       <ListItem.EndContent>
-        <ListItem.Time time={model.lastPostAt} />
-        {model.unreadCount && model.unreadCount > 0 ? (
-          <ListItem.Count>{model.unreadCount}</ListItem.Count>
-        ) : null}
+        {model.inviteStatus === 'invited' ||
+        model.inviteStatus === 'joining' ? (
+          <Stack
+            backgroundColor="$secondaryBackground"
+            paddingVertical="$xs"
+            paddingHorizontal="$l"
+            borderRadius="$xl"
+          >
+            <SizableText size="$s" color="$secondaryText">
+              {model.inviteStatus === 'joining' ? 'Joining...' : 'Invited'}
+            </SizableText>
+          </Stack>
+        ) : (
+          <>
+            <ListItem.Time time={model.lastPostAt} />
+            {model.unreadCount && model.unreadCount > 0 ? (
+              <ListItem.Count>{model.unreadCount}</ListItem.Count>
+            ) : null}
+          </>
+        )}
       </ListItem.EndContent>
     </ListItem>
   );

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "33215800-6606-4adb-bc27-86b6b23e264c",
+  "id": "1abe5581-3fc1-451d-bee4-2282887c9c1b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -695,9 +695,9 @@
           "notNull": false,
           "autoincrement": false
         },
-        "is_joined": {
-          "name": "is_joined",
-          "type": "integer",
+        "invite_status": {
+          "name": "invite_status",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

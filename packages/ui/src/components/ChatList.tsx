@@ -47,6 +47,11 @@ export function ChatList({
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<db.Channel, { title: string }>) => {
+      // Invitation not affected by swipe or long press
+      if (item.group?.inviteStatus !== 'joined') {
+        return <ChatListItem model={item} onPress={onPressItem} />;
+      }
+
       return (
         <SwipableChatRow model={item}>
           <ChatListItem
@@ -57,7 +62,7 @@ export function ChatList({
         </SwipableChatRow>
       );
     },
-    []
+    [onPressItem, onLongPressItem]
   );
 
   const renderSectionHeader = useCallback(

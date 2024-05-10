@@ -5,6 +5,7 @@ import {
   ChatList,
   ChatOptionsSheet,
   ContactsProvider,
+  GroupInvitationSheet,
   ScreenHeader,
   Spinner,
   View,
@@ -25,11 +26,22 @@ export default function ChatListScreen(
 ) {
   const [longPressedItem, setLongPressedItem] =
     React.useState<db.Channel | null>(null);
+  const [selectedGroup, setSelectedGroup] = React.useState<db.Group | null>(
+    null
+  );
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
 
   const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
   useRefetchQueryOnFocus(refetch);
+
+  const handleUpdateInvitation = (group: db.Group, accepted: boolean) => {
+    if (accepted) {
+      store.acceptGroupInvitation(group);
+    } else {
+      store.rejectGroupInvitation(group);
+    }
+  };
 
   return (
     <ContactsProvider contacts={contacts ?? []}>
@@ -49,7 +61,11 @@ export default function ChatListScreen(
             unpinned={chats.unpinned ?? []}
             onLongPressItem={setLongPressedItem}
             onPressItem={(channel) => {
-              props.navigation.navigate('Channel', { channel });
+              if (channel.group?.inviteStatus === 'invited') {
+                setSelectedGroup(channel.group);
+              } else {
+                props.navigation.navigate('Channel', { channel });
+              }
             }}
           />
         ) : null}
@@ -57,6 +73,12 @@ export default function ChatListScreen(
           open={longPressedItem !== null}
           onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
           channel={longPressedItem ?? undefined}
+        />
+        <GroupInvitationSheet
+          open={selectedGroup !== null}
+          onOpenChange={() => setSelectedGroup(null)}
+          group={selectedGroup ?? undefined}
+          onUpdateInvitation={handleUpdateInvitation}
         />
       </View>
     </ContactsProvider>
