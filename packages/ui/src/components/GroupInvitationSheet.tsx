@@ -1,5 +1,5 @@
-import type * as db from '@tloncorp/shared/dist/db';
-import { useState } from 'react';
+import * as db from '@tloncorp/shared/dist/db';
+import { useEffect, useState } from 'react';
 
 import { Text, View } from '../core';
 import { ActionSheet } from './ActionSheet';
@@ -34,6 +34,23 @@ export function GroupInvitationSheet({
     }
   };
 
+  // Dismiss sheet once the group join is complete
+  useEffect(() => {
+    if (group?.id && isJoining) {
+      // In lieu of a reactive update to the `group` prop, poll the database
+      const interval = setInterval(async () => {
+        const nextGroup = await db.getGroup({ id: group.id });
+        if (nextGroup?.inviteStatus === 'joined') {
+          setIsJoining(false);
+          onOpenChange(false);
+          clearInterval(interval);
+        }
+      }, 1_000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isJoining, group?.id, onOpenChange]);
+
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.Header>
@@ -51,7 +68,7 @@ export function GroupInvitationSheet({
           />
           <ActionSheet.Title>{group?.title}</ActionSheet.Title>
           {group?.description ? (
-            <ActionSheet.Description>
+            <ActionSheet.Description textAlign="center">
               {group.description}
             </ActionSheet.Description>
           ) : null}

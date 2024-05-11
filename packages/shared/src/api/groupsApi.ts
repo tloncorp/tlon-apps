@@ -1,8 +1,11 @@
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { getChannelType } from '../urbit';
 import { toClientMeta } from './converters';
-import { poke, scry } from './urbit';
+import { poke, scry, subscribe } from './urbit';
+
+const logger = createDevLogger('groupsSub', false);
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -266,3 +269,70 @@ export const rejectGroupInvitation = async (id: string) =>
     mark: 'invite-decline',
     json: id,
   });
+
+export type GroupsUpdate =
+  | { type: 'unknown' }
+  | { type: 'addGroups'; groups: db.Group[] }
+  | { type: 'deleteGroup'; group: db.Group };
+
+const toGroupsUpdate = (groupEvent: ub.GroupAction): GroupsUpdate => {
+  if ('create' in groupEvent.update.diff) {
+    return {
+      type: 'addGroups',
+      groups: [
+        toClientGroup(groupEvent.flag, groupEvent.update.diff.create, true),
+      ],
+    };
+  }
+
+  if ('del' in groupEvent.update.diff) {
+    return {
+      type: 'deleteGroup',
+      group: { id: groupEvent.flag },
+    };
+  }
+
+  logger.log('Skipping unknown group event:', groupEvent);
+  return { type: 'unknown' };
+};
+
+const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupsUpdate => {
+  const invitedGangs = Object.values(gangsEvent).filter(
+    ({ invite, preview }) =>
+      invite && preview?.cordon && 'shut' in preview.cordon
+  );
+  if (invitedGangs.length > 0) {
+    return {
+      type: 'addGroups',
+      groups: invitedGangs.map((gang) =>
+        toClientInvitedGroup(gang.invite!.flag, gang)
+      ),
+    };
+  }
+
+  logger.log('Skipping unknown gangs event:', gangsEvent);
+  return { type: 'unknown' };
+};
+
+export const subscribeToGroupsUpdates = async (
+  eventHandler: (update: GroupsUpdate) => void
+) => {
+  subscribe(
+    { app: 'groups', path: '/groups/ui' },
+    (rawEvent: ub.GroupAction) => {
+      logger.debug('Received groups update:', rawEvent);
+
+      // Sometimes this event is fired with a string instead
+      if (typeof rawEvent !== 'object') {
+        return;
+      }
+
+      eventHandler(toGroupsUpdate(rawEvent));
+    }
+  );
+
+  subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
+    logger.debug('Received gangs update:', rawEvent);
+    eventHandler(toGangsGroupsUpdate(rawEvent));
+  });
+};
