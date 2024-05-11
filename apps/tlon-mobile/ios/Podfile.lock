@@ -1302,6 +1302,8 @@ PODS:
   - RecaptchaEnterprise (18.4.0):
     - RecaptchaInterop (~> 100.0.0)
   - RecaptchaInterop (100.0.0)
+  - rn-fetch-blob (0.12.0):
+    - React-Core
   - RNCAsyncStorage (1.21.0):
     - React-Core
   - RNCClipboard (1.14.0):
@@ -1442,6 +1444,7 @@ DEPENDENCIES:
   - React-utils (from `../../../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCommon/turbomodule/core (from `../../../node_modules/react-native/ReactCommon`)
   - "recaptcha-enterprise-react-native (from `../../../node_modules/@google-cloud/recaptcha-enterprise-react-native`)"
+  - rn-fetch-blob (from `../../../node_modules/rn-fetch-blob`)
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCClipboard (from `../../../node_modules/@react-native-clipboard/clipboard`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
@@ -1659,6 +1662,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon"
   recaptcha-enterprise-react-native:
     :path: "../../../node_modules/@google-cloud/recaptcha-enterprise-react-native"
+  rn-fetch-blob:
+    :path: "../../../node_modules/rn-fetch-blob"
   RNCAsyncStorage:
     :path: "../../../node_modules/@react-native-async-storage/async-storage"
   RNCClipboard:
@@ -1793,6 +1798,7 @@ SPEC CHECKSUMS:
   recaptcha-enterprise-react-native: 7d63c5bdde3b48996b984a86ac2b536a1d8f5f16
   RecaptchaEnterprise: dc302910b77963a0cc6f6908407e30b35268a755
   RecaptchaInterop: 7d1a4a01a6b2cb1610a47ef3f85f0c411434cb21
+  rn-fetch-blob: f065bb7ab7fb48dd002629f8bdcb0336602d3cba
   RNCAsyncStorage: 618d03a5f52fbccb3d7010076bc54712844c18ef
   RNCClipboard: 090462274cc05b02628bd158baf6d73c3abe8441
   RNDeviceInfo: db5c64a060e66e5db3102d041ebe3ef307a85120

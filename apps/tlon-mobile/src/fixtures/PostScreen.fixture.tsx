@@ -22,8 +22,9 @@ export default (
       uploadInfo={{
         imageAttachment: null,
         resetImageAttachment: () => {},
-        setImageAttachment: () => {},
+        setAttachments: () => {},
         canUpload: true,
+        uploading: false,
       }}
       channel={tlonLocalBulletinBoard}
       posts={posts}

@@ -1,4 +1,5 @@
 import type { S3Client } from '@aws-sdk/client-s3';
+import * as ImagePicker from 'expo-image-picker';
 import type { GetState, SetState } from 'zustand';
 
 export type RNFile = {
@@ -6,6 +7,8 @@ export type RNFile = {
   name: string;
   type: string;
 };
+
+export type MessageAttachments = ImagePicker.ImagePickerAsset[];
 
 export interface FileStoreFile {
   key: string;
@@ -99,12 +102,16 @@ export type UploadParams = {
   uploaderKey: string;
 };
 
+export type UploadedFile = { url: string; width: number; height: number };
+
 export type UploadInfo = {
-  uploadedImage?: Upload | null;
+  uploadedImage?: UploadedFile | null;
   imageAttachment: string | null;
-  setImageAttachment: (image: string | null) => void;
+  // setImageAttachment: (image: string | null) => void;
+  setAttachments: (attachments: MessageAttachments) => void;
   resetImageAttachment: () => void;
   canUpload: boolean;
+  uploading: boolean;
 };
 
 export interface Uploader {

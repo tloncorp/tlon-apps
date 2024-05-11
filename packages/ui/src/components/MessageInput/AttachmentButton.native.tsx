@@ -1,4 +1,8 @@
-import { Upload } from '@tloncorp/shared/dist/api';
+import {
+  MessageAttachments,
+  Upload,
+  UploadInfo,
+} from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 
@@ -8,11 +12,9 @@ import { ActionSheet } from '../ActionSheet';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
-  setImage,
-  uploadedImage,
+  uploadInfo,
 }: {
-  setImage: (uri: string | null) => void;
-  uploadedImage?: Upload | null;
+  uploadInfo: UploadInfo;
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
@@ -27,10 +29,11 @@ export default function AttachmentButton({
       allowsEditing: false,
       quality: 0.5,
       exif: false,
+      base64: true,
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      uploadInfo.setAttachments(result.assets);
     }
   };
 
@@ -44,7 +47,7 @@ export default function AttachmentButton({
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      uploadInfo.setAttachments(result.assets);
     }
   };
 
@@ -79,7 +82,7 @@ export default function AttachmentButton({
 
   return (
     <>
-      {uploadedImage && uploadedImage.url === '' ? (
+      {uploadInfo.uploadedImage && uploadInfo.uploadedImage.url === '' ? (
         <View alignItems="center" padding="$m">
           <Spinner />
         </View>

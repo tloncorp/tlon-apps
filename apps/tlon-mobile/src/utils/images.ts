@@ -23,7 +23,7 @@ export async function resizeImage(url: string) {
   logger.log('image size', size);
 
   if (!size) {
-    return url;
+    return { url: url, width: 0, height: 0 };
   }
 
   const [width, height] = size;
@@ -36,7 +36,11 @@ export async function resizeImage(url: string) {
 
     logger.log('manipulated', manipulated);
 
-    return manipulated.uri;
+    return {
+      url: manipulated.uri,
+      width: manipulated.width,
+      height: manipulated.height,
+    };
   }
 
   if (height > 1200) {
@@ -47,8 +51,16 @@ export async function resizeImage(url: string) {
 
     logger.log('manipulated', manipulated);
 
-    return manipulated.uri;
+    return {
+      url: manipulated.uri,
+      width: manipulated.width,
+      height: manipulated.height,
+    };
   }
 
-  return url;
+  return {
+    url: url,
+    width,
+    height,
+  };
 }

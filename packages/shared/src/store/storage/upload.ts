@@ -158,11 +158,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
         const requestOptions = {
           method: 'PUT',
           headers: {
-            'Content-Type': file.type,
+            'Content-Type': 'text/plain',
           },
-          body: file.blob,
+          body: 'testingg',
         };
-        const { presignedUrl } = config;
+
+        // const { presignedUrl } = config;
+        const presignedUrl = 'https://memex.tlon.network';
         const url = `${presignedUrl}/${key}`;
         const token = await api
           .scry<string>({
@@ -177,13 +179,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
         fetch(urlWithToken, requestOptions)
           .then(async (response) => {
             if (response.status !== 200) {
-              const body = await response.text().catch(() => {
+              try {
+                throw new Error('Incorrect response status');
+              } catch (e) {
                 logger.log(
                   'Error parsing response body, body, response status not 200'
                 );
-                return '';
-              });
-              throw new Error(body || 'Incorrect response status');
+              }
             }
             // When the PUT succeeded, we fetch the actual URL of the file. We do
             // this to avoid having to proxy every single GET request, and to
@@ -198,10 +200,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
             if (isImageFile(file.blob)) {
               imageSizer(fileUrl)
                 .then((s) =>
-                  updateFile(uploader, key, {
-                    size: s,
-                    url: fileUrl,
-                  })
+                  // updateFile(uploader, key, {
+                  //   size: s,
+                  //   url: fileUrl,
+                  // })
+                  console.log('would update file here')
                 )
                 .catch((e) => {
                   logger.log('failed to get image size', { e });
@@ -300,10 +303,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
           if (isImageFile(file.blob)) {
             imageSizer(url)
               .then((s) =>
-                updateFile(uploader, key, {
-                  size: s,
-                  url,
-                })
+                // updateFile(uploader, key, {
+                //   size: s,
+                //   url,
+                // })
+                console.log('would update file here')
               )
               .catch((e) => {
                 logger.log('failed to get image size', { e });

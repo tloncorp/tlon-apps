@@ -1,6 +1,9 @@
 import {
   ContentReference as ContentReferenceType,
+  MessageAttachments,
   Upload,
+  UploadInfo,
+  UploadedFile,
 } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
@@ -19,9 +22,10 @@ export interface MessageInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
   channelId: string;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
+  // setAttachments: (attachments: MessageAttachments) => void;
+  // uploadedImage?: UploadedFile | null;
+  // canUpload?: boolean;
+  uploadInfo: UploadInfo;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
@@ -31,9 +35,10 @@ export interface MessageInputProps {
 export const MessageInputContainer = ({
   children,
   onPressSend,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
+  // setAttachments,
+  // uploadedImage,
+  // canUpload,
+  uploadInfo,
   containerHeight,
   showMentionPopup = false,
   mentionText,
@@ -41,9 +46,10 @@ export const MessageInputContainer = ({
   onSelectMention,
 }: PropsWithChildren<{
   onPressSend?: () => void;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
+  // setAttachments: (attachments: MessageAttachments) => void;
+  // uploadedImage?: UploadedFile | null;
+  // canUpload?: boolean;
+  uploadInfo: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
   mentionText?: string;
@@ -52,13 +58,10 @@ export const MessageInputContainer = ({
 }>) => {
   const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
-    () => !!(uploadedImage && uploadedImage.url !== ''),
-    [uploadedImage]
+    () => !!(uploadInfo.uploadedImage && uploadInfo.uploadedImage.url !== ''),
+    [uploadInfo]
   );
-  const uploadIsLoading = useMemo(
-    () => uploadedImage?.status === 'loading',
-    [uploadedImage]
-  );
+  const uploadIsLoading = useMemo(() => uploadInfo.uploading, [uploadInfo]);
   const sendIconColor = useMemo(
     () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
     [uploadIsLoading]
@@ -122,11 +125,12 @@ export const MessageInputContainer = ({
         alignItems="flex-end"
         justifyContent="space-between"
       >
-        {hasUploadedImage ? null : canUpload ? (
+        {hasUploadedImage ? null : uploadInfo.canUpload ? (
           <View paddingBottom="$m">
             <AttachmentButton
-              uploadedImage={uploadedImage}
-              setImage={setImageAttachment}
+              // uploadedImage={uploadedImage}
+              // setAttachments={setAttachments}
+              uploadInfo={uploadInfo}
             />
           </View>
         ) : null}

@@ -9,17 +9,19 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
+  // setImageAttachment,
+  // uploadedImage,
+  // canUpload,
+  uploadInfo,
   groupMembers,
 }: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <MessageInputContainer
-      setImageAttachment={setImageAttachment}
-      canUpload={canUpload}
+      // setImageAttachment={setImageAttachment}
+      // canUpload={canUpload}
+      uploadInfo={uploadInfo}
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}

@@ -1,11 +1,12 @@
 import { preSig } from '@urbit/api';
+import { deSig, formatDa, unixToDa } from '@urbit/aura';
 
-import { RNFile, Uploader, client } from '../../api';
+import { RNFile, Uploader, client, scry } from '../../api';
 import { createDevLogger } from '../../debug';
 
 const logger = createDevLogger('storage utils', true);
 
-const fetchImageFromUri = async (uri: string) => {
+const fetchImageFromUri = async (uri: string, base64: string) => {
   try {
     logger.log('fetchImageFromUri', uri);
     const response = await fetch(uri);
@@ -25,10 +26,14 @@ const fetchImageFromUri = async (uri: string) => {
   }
 };
 
-export const handleImagePicked = async (uri: string, uploader: Uploader) => {
+export const handleImagePicked = async (
+  uri: string,
+  base64: string,
+  uploader: Uploader
+) => {
   logger.log('handleImagePicked', uri, uploader);
   try {
-    const image = await fetchImageFromUri(uri);
+    const image = await fetchImageFromUri(uri, base64);
     if (!image) {
       logger.log('no image');
       return;
@@ -61,4 +66,30 @@ export const getIsHosted = async () => {
 export const getHostingUploadURL = async () => {
   const isHosted = await getIsHosted();
   return isHosted ? 'https://memex.tlon.network' : '';
+};
+
+export const getMemexUploadUrl = async (ship: string, fileName: string) => {
+  const presignedUrl = 'https://memex.tlon.network';
+  const key = `${ship}/${deSig(formatDa(unixToDa(new Date().getTime())))}-${fileName.split(' ').join('-')}`;
+  const url = `${presignedUrl}/${key}`;
+  const token = await scry<string>({
+    app: 'genuine',
+    path: '/secret',
+  }).catch((e) => {
+    logger.log('failed to get secret', { e });
+    return '';
+  });
+  return `${url}?token=${token}`;
+};
+
+export const getFinalMemexUrl = async (memexUploadUrl: string) => {
+  const fileUrlResponse = await fetch(memexUploadUrl);
+  const fileUrl = await fileUrlResponse.json().catch(() => {
+    logger.log('Error parsing response body, fileUrlResponse');
+    return '';
+  });
+
+  console.log(`final memex url`, fileUrl);
+
+  return fileUrl;
 };

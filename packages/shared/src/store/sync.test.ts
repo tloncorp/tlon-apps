@@ -1,5 +1,5 @@
 import * as $ from 'drizzle-orm';
-import { beforeAll, beforeEach, expect, test, vi } from 'vitest';
+import { beforeAll, beforeEach, expect, test } from 'vitest';
 
 import { toClientGroup, toPagedPostsData } from '../api';
 import * as db from '../db';

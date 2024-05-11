@@ -15,8 +15,13 @@ const MessageInputFixture = () => {
           setShouldBlur={setInputShouldBlur}
           send={() => {}}
           channelId="channel-id"
-          setImageAttachment={() => {}}
-          canUpload={true}
+          uploadInfo={{
+            imageAttachment: null,
+            resetImageAttachment: () => {},
+            setAttachments: () => {},
+            canUpload: true,
+            uploading: false,
+          }}
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
           storeDraft={() => {}}

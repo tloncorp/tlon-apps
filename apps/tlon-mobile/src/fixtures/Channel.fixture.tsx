@@ -93,8 +93,9 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         uploadInfo={{
           imageAttachment: null,
           resetImageAttachment: () => {},
-          setImageAttachment: () => {},
+          setAttachments: () => {},
           canUpload: true,
+          uploading: false,
         }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
@@ -159,8 +160,9 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         uploadInfo={{
           imageAttachment: null,
           resetImageAttachment: () => {},
-          setImageAttachment: () => {},
+          setAttachments: () => {},
           canUpload: true,
+          uploading: false,
         }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
@@ -240,8 +242,9 @@ const ChannelFixtureWithImage = () => {
         uploadInfo={{
           imageAttachment: imageAttachment,
           resetImageAttachment: resetImageAttachment,
-          setImageAttachment: fakeSetImageAttachment,
+          setAttachments: fakeSetImageAttachment,
           canUpload: true,
+          uploading: false,
         }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
