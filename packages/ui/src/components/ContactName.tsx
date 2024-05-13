@@ -139,7 +139,13 @@ export default function ContactName({
   }
 
   return (
-    <SizableText aria-label={formattedId.ariaLabel} {...rest}>
+    <SizableText
+      ellipsizeMode="tail"
+      numberOfLines={1}
+      maxWidth="75%"
+      aria-label={formattedId.ariaLabel}
+      {...rest}
+    >
       {shouldShowNickname ? contact!.nickname : formattedId.display}
     </SizableText>
   );
