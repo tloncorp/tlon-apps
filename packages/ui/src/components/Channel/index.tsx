@@ -58,7 +58,7 @@ export function Channel({
   getDraft,
   editingPost,
   setEditingPost,
-  editPost
+  editPost,
 }: {
   channel: db.Channel;
   currentUserId: string;
