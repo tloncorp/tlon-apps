@@ -13,6 +13,25 @@ export const markChatRead = (whom: string) =>
     },
   });
 
+export const createGroupDm = ({
+  id,
+  members,
+  currentUserId,
+}: {
+  id: string;
+  members: string[];
+  currentUserId: string;
+}) => {
+  return poke({
+    app: 'chat',
+    mark: 'chat-club-create',
+    json: {
+      id,
+      hive: [...members],
+    },
+  });
+};
+
 export type GetDmsResponse = db.Channel[];
 
 export const getDms = async (): Promise<GetDmsResponse> => {
@@ -38,18 +57,29 @@ export const getGroupDms = async (): Promise<GetDmsResponse> => {
 };
 
 export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
-  return Object.entries(groupDms).map(
-    ([id, club]): db.Channel => ({
+  return Object.entries(groupDms).map(([id, club]): db.Channel => {
+    const joinedMembers = club.team.map(
+      (member): db.ChatMember => ({
+        contactId: member,
+        chatId: id,
+        membershipType: 'channel',
+        status: 'joined',
+      })
+    );
+    const invitedMembers = club.hive.map(
+      (member): db.ChatMember => ({
+        contactId: member,
+        chatId: id,
+        membershipType: 'channel',
+        status: 'invited',
+      })
+    );
+
+    return {
       id,
       type: 'groupDm',
       ...toClientMeta(club.meta),
-      members: club.team.map(
-        (member): db.ChatMember => ({
-          contactId: member,
-          chatId: id,
-          membershipType: 'channel',
-        })
-      ),
-    })
-  );
+      members: [...joinedMembers, ...invitedMembers],
+    };
+  });
 };

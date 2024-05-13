@@ -216,6 +216,7 @@ export const chatMembers = sqliteTable(
     chatId: text('chat_id'),
     contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
+    status: text('status').$type<'invited' | 'joined'>(),
   },
   (table) => {
     return {
@@ -362,6 +363,7 @@ export const channels = sqliteTable('channels', {
   firstUnreadPostId: text('first_unread_post_id'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  isPendingChannel: boolean('is_cached_pending_channel'),
   /**
    * Last time we ran a sync, in local time
    */

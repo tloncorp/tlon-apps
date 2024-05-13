@@ -2,7 +2,7 @@ import * as db from '../db';
 import type * as ub from '../urbit';
 import { getChannelType } from '../urbit';
 import { toClientMeta } from './converters';
-import { poke, scry } from './urbit';
+import { poke, scry, subscribe, trackedPoke } from './urbit';
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -61,6 +61,60 @@ export const pinItem = async (itemId: string) => {
         add: itemId,
       },
     },
+  });
+};
+
+export const createGroup = async ({
+  title,
+  shortCode,
+}: {
+  title: string;
+  shortCode: string;
+}) => {
+  const createGroupPayload: ub.GroupCreate = {
+    title,
+    description: '',
+    image: '#999999',
+    cover: '#D9D9D9',
+    name: shortCode,
+    members: {},
+    cordon: {
+      open: {
+        ships: [],
+        ranks: [],
+      },
+    },
+    secret: false,
+  };
+
+  return trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-create',
+      json: createGroupPayload,
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return (
+        'create' in update.diff &&
+        createGroupPayload.title === update.diff.create.meta.title
+      );
+    }
+  );
+};
+
+// TODO transform these events into something client-friendly
+export const subscribeToGroupsUpdates = async (
+  eventHandler: (update: any) => void
+) => {
+  subscribe({ app: 'groups', path: `/groups/ui` }, (rawEvent: any) => {
+    // just return raw event for now
+    eventHandler(rawEvent);
   });
 };
 

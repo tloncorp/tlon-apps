@@ -1,9 +1,12 @@
-import { formatUd, unixToDa } from '@urbit/aura';
+import { formatUd, formatUv, unixToDa } from '@urbit/aura';
 import { useMemo } from 'react';
 
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
+
+// @ts-expect-error TODO: it's there?
+export { isValidPatp } from 'urbit-ob';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -305,4 +308,8 @@ export function whomIsMultiDm(whom: string): boolean {
 
 export function useIsDmOrMultiDm(whom: string) {
   return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function createMultiDmId(seed = Date.now()) {
+  return formatUv(unixToDa(seed));
 }

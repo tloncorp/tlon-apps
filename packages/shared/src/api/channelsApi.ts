@@ -2,7 +2,7 @@ import { decToUd, unixToDa } from '@urbit/api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import type * as ub from '../urbit';
+import * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
 import {
   channelAction,
@@ -11,7 +11,7 @@ import {
   toPostReplyData,
   toReactionsData,
 } from './postsApi';
-import { poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe, trackedPoke } from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
 
@@ -137,6 +137,64 @@ export const toChannelsUpdate = (
   return { type: 'unknown' };
 };
 
+export const createDefaultChannel = async ({
+  groupId,
+  currentUserId,
+}: {
+  groupId: string;
+  currentUserId: string;
+}) => {
+  const randomNumber = Math.floor(Math.random() * 10000);
+  const channelPayload: ub.Create = {
+    kind: 'chat',
+    group: groupId,
+    name: `welcome-${randomNumber}`,
+    title: 'Welcome',
+    description: 'Welcome to your new group!',
+    readers: [],
+    writers: [],
+  };
+
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        create: channelPayload,
+      },
+    },
+    { app: 'channels', path: '/v1' },
+    (event) => {
+      const { response, nest } = event;
+      return (
+        'create' in response &&
+        nest ===
+          `${channelPayload.kind}/${currentUserId}/${channelPayload.name}`
+      );
+    }
+  );
+};
+
+// const mutationFn = async (variables: Create) => {
+//   await api.trackedPoke<ChannelsAction, ChannelsResponse>(
+//     {
+//       app: 'channels',
+//       mark: 'channel-action',
+//       json: {
+//         create: variables,
+//       },
+//     },
+//     { app: 'channels', path: '/v1' },
+//     (event) => {
+//       const { response, nest } = event;
+//       return (
+//         'create' in response &&
+//         nest === `${variables.kind}/${window.our}/${variables.name}`
+//       );
+//     }
+//   );
+// };
+
 export const searchChatChannel = async (params: {
   channelId: string;
   query: string;
@@ -194,4 +252,64 @@ function toThreadUnreadStateData(unread: ub.Unread): db.ThreadUnreadState[] {
       firstUnreadId: unreadState.id,
     };
   });
+}
+
+export function createPendingMultiDmChannel(
+  participants: string[],
+  currentUserId: string
+): db.Channel {
+  const id = ub.createMultiDmId();
+  const pendingMembers: db.ChatMember[] = participants.map((participant) => ({
+    chatId: id,
+    contactId: participant,
+    membershipType: 'channel',
+    status: 'invited',
+  }));
+
+  const currentUserMember: db.ChatMember = {
+    chatId: id,
+    contactId: currentUserId,
+    membershipType: 'channel',
+    status: 'joined',
+  };
+
+  return {
+    id,
+    type: 'groupDm',
+    currentUserIsMember: true,
+    postCount: 0,
+    unreadCount: 0,
+    isPendingChannel: true,
+    members: [...pendingMembers, currentUserMember],
+  };
+}
+
+export function createSingleDmChannel(
+  dmPartnerId: string,
+  currentUserId: string
+): db.Channel {
+  const id = ub.createMultiDmId();
+  const partnerMember: db.ChatMember = {
+    chatId: id,
+    contactId: dmPartnerId,
+    membershipType: 'channel',
+    status: 'invited',
+  };
+
+  const currentUserMember: db.ChatMember = {
+    chatId: id,
+    contactId: currentUserId,
+    membershipType: 'channel',
+    status: 'joined',
+  };
+
+  return {
+    id,
+    type: 'groupDm',
+    currentUserIsMember: true,
+    postCount: 0,
+    unreadCount: 0,
+    isPendingChannel: true,
+    members: [partnerMember, currentUserMember],
+  };
 }

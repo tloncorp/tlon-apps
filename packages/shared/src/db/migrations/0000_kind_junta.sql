@@ -21,6 +21,7 @@ CREATE TABLE `channels` (
 	`first_unread_post_id` text,
 	`last_post_id` text,
 	`last_post_at` integer,
+	`is_cached_pending_channel` integer,
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
@@ -39,6 +40,7 @@ CREATE TABLE `group_members` (
 	`chat_id` text,
 	`contact_id` text NOT NULL,
 	`joined_at` integer,
+	`status` text,
 	PRIMARY KEY(`chat_id`, `contact_id`)
 );
 --> statement-breakpoint

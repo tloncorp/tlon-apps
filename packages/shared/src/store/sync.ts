@@ -122,6 +122,10 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   }
 };
 
+export const handleGroupsUpdate = async (update: any) => {
+  logger.log('received groups update', update);
+};
+
 export const clearSyncQueue = () => {
   // TODO: Model all sync functions as syncQueue.add calls so that this works on
   // more than just `syncStaleChannels`
@@ -198,6 +202,13 @@ export async function syncGroup(id: string) {
     throw new Error('no local group for' + id);
   }
   const response = await api.getGroup(id);
+  await db.insertGroups([response]);
+}
+
+export async function syncNewGroup(id: string) {
+  const response = await api.getGroup(id);
+  console.log(`syncing new group`, response);
+  console.log(`num chans`, response.channels?.length);
   await db.insertGroups([response]);
 }
 
@@ -309,6 +320,7 @@ async function persistPagedPostData(
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
+  api.subscribeToGroupsUpdates(handleGroupsUpdate);
   useStorage.getState().start();
 };
 

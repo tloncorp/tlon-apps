@@ -250,7 +250,8 @@ export const insertGroups = createWriteQuery(
                 $channels.title,
                 $channels.description,
                 $channels.addedToGroupAt,
-                $channels.type
+                $channels.type,
+                $channels.isPendingChannel
               ),
             });
         }
@@ -488,6 +489,32 @@ export const getChannel = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['channels']
+);
+
+export const getAllMultiDms = createReadQuery(
+  'getAllMultiDms',
+  async () => {
+    return client.query.channels.findMany({
+      where: eq($channels.type, 'groupDm'),
+      with: {
+        members: true,
+      },
+    });
+  },
+  []
+);
+
+export const getAllSingleDms = createReadQuery(
+  'getAllSingleDms',
+  async () => {
+    return client.query.channels.findMany({
+      where: eq($channels.type, 'dm'),
+      with: {
+        members: true,
+      },
+    });
+  },
+  []
 );
 
 export interface GetChannelWithLastPostAndMembersOptions {

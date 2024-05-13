@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "33215800-6606-4adb-bc27-86b6b23e264c",
+  "id": "d44ca9bf-46a1-45ce-89a6-5fe460c044f0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -150,6 +150,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "is_cached_pending_channel": {
+          "name": "is_cached_pending_channel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "synced_at": {
           "name": "synced_at",
           "type": "integer",
@@ -264,6 +271,13 @@
         "joined_at": {
           "name": "joined_at",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
