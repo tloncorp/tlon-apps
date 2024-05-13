@@ -89,7 +89,6 @@ export const optReduceState = <S extends Record<string, unknown>, U>(
   });
 };
 
-/* eslint-disable-next-line import/no-mutable-exports */
 export let stateStorageKeys: string[] = [];
 
 export const stateStorageKey = (stateName: string): string => {

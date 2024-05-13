@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+declare const process: {
+  env: Record<string, string | undefined>;
+};
+
 const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
 
@@ -33,16 +37,31 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enabledLoggers: process.env.ENABLED_LOGGERS,
   },
   ios: {
-    runtimeVersion: '4.0.0',
-    buildNumber: '62',
+    runtimeVersion: '4.0.1',
+    // demo builds triggered by GitHub require this to be explicitly set rather than handled
+    // elsewhere
+    bundleIdentifier:
+      process.env.EAS_BUILD_PROFILE === 'demo' ? 'io.tlon.groups' : undefined,
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
-    runtimeVersion: '4.0.0',
-    versionCode: 62,
+    runtimeVersion: '4.0.1',
   },
+  plugins: [
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'The app accesses your photos to allow you to upload images.',
+        cameraPermission:
+          'The app accesses your camera to allow you to take photos.',
+        microphonePermission:
+          'The app accesses your microphone to allow you to record audio.',
+      },
+    ],
+  ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,
   },

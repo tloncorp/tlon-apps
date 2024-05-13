@@ -70,7 +70,6 @@ import {
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-// eslint-disable-next-line import/no-cycle
 import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
@@ -245,7 +244,7 @@ export function useIsPostUndelivered(post: Post | undefined) {
 export function usePostsOnHost(
   nest: Nest,
   enabled: boolean
-): Posts | undefined {
+): PagedPosts | undefined {
   const [han, flag] = nestToFlag(nest);
   const { data } = useReactQueryScry({
     queryKey: [han, 'posts', 'live', flag],
@@ -267,7 +266,7 @@ export function usePostsOnHost(
     return undefined;
   }
 
-  return data as Posts;
+  return data as PagedPosts;
 }
 
 const infinitePostUpdater = (

@@ -17,7 +17,7 @@ Tlon mobile app including React Native-based wrapper around Groups
 Check out the repo and install dependencies:
 
 ```sh
-npm install
+pnpm install
 ```
 
 Create an `.env` file based on the provided `.env.sample` file and fill in environment variables:
@@ -75,17 +75,17 @@ npm run ios
 Run the Preview version of the app by specifying different commands:
 
 ```sh
-npm run ios:preview
+pnpm run ios:preview
 ```
 
 ```sh
-npm run android:preview
+pnpm android:preview
 ```
 
 If your Metro bundler is running the `io.tlon.groups` package instead, you can explicity set the URI scheme:
 
 ```sh
-npm run bundler -- --dev-client --scheme io.tlon.groups.preview
+pnpm bundler --dev-client --scheme io.tlon.groups.preview
 ```
 
 ## Debugging

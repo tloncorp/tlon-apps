@@ -1,5 +1,5 @@
 import { sync } from '@tloncorp/shared';
-import { QueryClient, QueryClientProvider } from '@tloncorp/shared/dist/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -7,13 +7,11 @@ import { useShip } from '../contexts/ship';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
-import { TabStack } from '../navigation/TabStack';
+import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
   initialNotificationPath?: string;
 }
-
-const queryClient = new QueryClient();
 
 function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
@@ -21,15 +19,24 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   useDeepLinkListener();
 
   useEffect(() => {
-    configureClient(ship ?? '', shipUrl ?? '');
-    sync.start().catch((e) => {
-      console.warn('Sync failed', e);
+    const start = () => {
+      sync.start().catch((e) => {
+        console.warn('Sync failed', e);
+      });
+    };
+
+    configureClient({
+      shipName: ship ?? '',
+      shipUrl: shipUrl ?? '',
+      onReset: () => start(),
     });
+
+    start();
   }, [ship, shipUrl]);
 
   return (
     <ZStack flex={1}>
-      <TabStack />
+      <RootStack />
     </ZStack>
   );
 }

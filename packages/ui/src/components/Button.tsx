@@ -4,6 +4,7 @@ import {
   SizeTokens,
   Stack,
   Text,
+  ThemeTokens,
   Variable,
   View,
   createStyledContext,
@@ -14,10 +15,12 @@ import {
 
 export const ButtonContext = createStyledContext<{
   size: SizeTokens;
+  color: ThemeTokens;
   minimal: boolean;
   onPress?: () => void;
 }>({
   size: '$m',
+  color: '$primaryText',
   minimal: false,
 });
 
@@ -39,7 +42,6 @@ export const ButtonFrame = styled(Stack, {
     size: {
       '...size': (name, { tokens }) => {
         return {
-          // @ts-ignore
           // TODO: do we need to set the hight explicitly here? is text size + padding enough? Seems
           // to cause layout issues
           // height: tokens.size[name],
@@ -48,7 +50,6 @@ export const ButtonFrame = styled(Stack, {
           // note the getSpace and getSize helpers will let you shift down/up token sizes
           // whereas with gap we just multiply by 0.2
           // this is a stylistic choice, and depends on your design system values
-          // @ts-ignore
           // gap: (tokens.space[name] as Variable).val * 0.2,
           paddingHorizontal: getSpace(name, {
             shift: -1,
@@ -96,15 +97,15 @@ export const ButtonText = styled(Text, {
   } as const,
 });
 
-const ButtonIcon = (props: { children: any }) => {
-  const { size } = useContext(ButtonContext.context);
+const ButtonIcon = (props: { color?: ThemeTokens; children: any }) => {
+  const { size, color } = useContext(ButtonContext.context);
   const smaller = getSize(size, {
     shift: -2,
   });
   const theme = useTheme();
   return cloneElement(props.children, {
     size: smaller.val * 0.5,
-    color: theme.primaryText?.get(),
+    color: props.color ?? color ?? theme.primaryText?.get(),
   });
 };
 

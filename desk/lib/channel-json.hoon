@@ -134,6 +134,17 @@
       %reacts  (reacts reacts.r-reply)
     ==
   ::
+  ++  channel-heads
+    |=  heads=channel-heads:c
+    :-  %a
+    %+  turn  heads
+    |=  [=nest:c recency=^time latest=(unit post:c)]
+    %-  pairs
+    :~  nest+(^nest nest)
+        recency+(time recency)
+        latest+?~(latest ~ (post u.latest))
+    ==
+  ::
   ++  paged-posts
     |=  pn=paged-posts:c
     %-  pairs

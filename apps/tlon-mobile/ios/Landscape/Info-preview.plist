@@ -46,6 +46,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Tlon needs camera access to take photos for sharing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tlon needs access to your microphone to allow you to share audio.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tlon needs access to your photo library to upload photos for sharing.</string>
 	<key>NSUserActivityTypes</key>

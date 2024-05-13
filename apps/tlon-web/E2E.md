@@ -22,7 +22,7 @@ Specs in one file run in sequence.
 
 ## Running locally
 
-After installing  this project's dependencies with `npm install`,
+After installing this project's dependencies with `pnpm install`,
 
 ```
 npm run e2e

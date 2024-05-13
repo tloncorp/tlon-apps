@@ -11,7 +11,7 @@ import { transformShipURL } from '../utils/string';
 
 const { UrbitModule } = NativeModules;
 
-type ShipInfo = {
+export type ShipInfo = {
   ship: string | undefined;
   shipUrl: string | undefined;
 };

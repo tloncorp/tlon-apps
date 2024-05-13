@@ -38,6 +38,7 @@ const Frame = styled(YStack, {
   borderTopLeftRadius: '$3xl',
   borderTopRightRadius: '$3xl',
   backgroundColor: '$background',
+  zIndex: '$modalSheet',
 });
 
 const HandleIndicator = styled(YStack, {

@@ -2,6 +2,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useModalNavigate } from '@/logic/routing';
 import { useGang, useGangPreview, useGroup } from '@/state/groups';
@@ -17,7 +18,7 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
   const location = useLocation();
   const gang = useGang(noShipGroupFlag);
   const preview = useGangPreview(noShipGroupFlag, !!group);
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const modalNavigate = useModalNavigate();
 
   const data = {
@@ -37,9 +38,7 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
     if (group) {
       navigate(`/groups/${noShipGroupFlag}`);
     } else {
-      modalNavigate(`/gangs/${noShipGroupFlag}`, {
-        state: { backgroundLocation: location },
-      });
+      navigate(`/gangs/${noShipGroupFlag}`, true);
     }
   };
 

@@ -1,9 +1,40 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "2f70dd04-f8d9-44b4-a7e5-8c635500533c",
+  "id": "33215800-6606-4adb-bc27-86b6b23e264c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "channel_writers": {
+      "name": "channel_writers",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role_id": {
+          "name": "role_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "channel_writers_channel_id_role_id_pk": {
+          "columns": [
+            "channel_id",
+            "role_id"
+          ],
+          "name": "channel_writers_channel_id_role_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "channels": {
       "name": "channels",
       "columns": {
@@ -186,19 +217,6 @@
           "tableTo": "groups",
           "columnsFrom": [
             "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "chat_member_roles_contact_id_contacts_id_fk": {
-          "name": "chat_member_roles_contact_id_contacts_id_fk",
-          "tableFrom": "chat_member_roles",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
           ],
           "columnsTo": [
             "id"
@@ -827,19 +845,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "post_reactions_contact_id_contacts_id_fk": {
-          "name": "post_reactions_contact_id_contacts_id_fk",
-          "tableFrom": "post_reactions",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "post_reactions_post_id_posts_id_fk": {
           "name": "post_reactions_post_id_posts_id_fk",
           "tableFrom": "post_reactions",
@@ -896,6 +901,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "type": {
           "name": "type",
           "type": "text",
@@ -945,6 +957,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "reply_time": {
+          "name": "reply_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reply_contact_ids": {
+          "name": "reply_contact_ids",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "text_content": {
           "name": "text_content",
           "type": "text",
@@ -983,6 +1009,186 @@
         "has_image": {
           "name": "has_image",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "posts_sent_at_unique": {
+          "name": "posts_sent_at_unique",
+          "columns": [
+            "sent_at"
+          ],
+          "isUnique": true
+        },
+        "cache_id": {
+          "name": "cache_id",
+          "columns": [
+            "author_id",
+            "sent_at"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "settings": {
+      "name": "settings",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "theme": {
+          "name": "theme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_app_tile_unreads": {
+          "name": "disable_app_tile_unreads",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_avatars": {
+          "name": "disable_avatars",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_remote_content": {
+          "name": "disable_remote_content",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_spellcheck": {
+          "name": "disable_spellcheck",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_nicknames": {
+          "name": "disable_nicknames",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ordered_group_pins": {
+          "name": "ordered_group_pins",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "side_bar_sort": {
+          "name": "side_bar_sort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "group_side_bar_sort": {
+          "name": "group_side_bar_sort",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "show_activity_message": {
+          "name": "show_activity_message",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "log_activity": {
+          "name": "log_activity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "analytics_id": {
+          "name": "analytics_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "seen_welcome_card": {
+          "name": "seen_welcome_card",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_group_flags": {
+          "name": "new_group_flags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "groups_nav_state": {
+          "name": "groups_nav_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "messages_nav_state": {
+          "name": "messages_nav_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "messages_filter": {
+          "name": "messages_filter",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "gallery_settings": {
+          "name": "gallery_settings",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notebook_settings": {
+          "name": "notebook_settings",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

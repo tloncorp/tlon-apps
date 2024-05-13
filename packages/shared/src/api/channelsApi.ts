@@ -1,14 +1,19 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { daToUnix, decToUd } from '@urbit/api';
-import bigInt from 'big-integer';
-import { useMemo } from 'react';
+import { decToUd, unixToDa } from '@urbit/api';
 
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { formatPostIdParam } from './converters';
-import { toPostData } from './postsApi';
-import { scry } from './urbit';
+import {
+  channelAction,
+  getCanonicalPostId,
+  toPostData,
+  toPostReplyData,
+  toReactionsData,
+} from './postsApi';
+import { poke, scry, subscribe } from './urbit';
+
+const logger = createDevLogger('channelsSub', false);
 
 export const getUnreadChannels = async () => {
   const response = await scry<ub.Unreads>({
@@ -18,7 +23,121 @@ export const getUnreadChannels = async () => {
   return toUnreadsData(response);
 };
 
-const searchChatChannel = async (params: {
+export const markChannelRead = async (channelId: string) => {
+  const action = channelAction(channelId, { read: null });
+  return await poke(action);
+};
+
+export type AddPostUpdate = { type: 'addPost'; post: db.Post };
+export type PostReactionsUpdate = {
+  type: 'updateReactions';
+  postId: string;
+  reactions: db.Reaction[];
+};
+export type UnknownUpdate = { type: 'unknown' };
+export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
+export type ChannelsUpdate =
+  | AddPostUpdate
+  | PostReactionsUpdate
+  | UnknownUpdate
+  | PendingUpdate;
+
+export const subscribeToChannelsUpdates = async (
+  eventHandler: (update: ChannelsUpdate) => void
+) => {
+  subscribe(
+    { app: 'channels', path: '/v1' },
+    (rawEvent: ub.ChannelsSubscribeResponse) => {
+      eventHandler(toChannelsUpdate(rawEvent));
+    }
+  );
+};
+
+export function toClientChannelsInit(channels: ub.Channels) {
+  return Object.entries(channels).map(([id, channel]) => {
+    return toClientChannelInit(id, channel);
+  });
+}
+
+export type ChannelInit = {
+  channelId: string;
+  writers: string[];
+};
+
+export function toClientChannelInit(
+  id: string,
+  channel: ub.Channel
+): ChannelInit {
+  return { channelId: id, writers: channel.perms.writers ?? [] };
+}
+
+export const toChannelsUpdate = (
+  channelEvent: ub.ChannelsSubscribeResponse
+): ChannelsUpdate => {
+  const channelId = channelEvent.nest;
+  // post events
+  if (
+    'response' in channelEvent &&
+    'post' in channelEvent.response &&
+    !('reply' in channelEvent.response.post['r-post'])
+  ) {
+    const postId = getCanonicalPostId(channelEvent.response.post.id);
+    const postResponse = channelEvent.response.post['r-post'];
+
+    if ('set' in postResponse && postResponse.set !== null) {
+      const postToAdd = { id: postId, ...postResponse.set };
+
+      logger.log(`add post event`);
+      return { type: 'addPost', post: toPostData(channelId, postToAdd) };
+    } else if ('reacts' in postResponse && postResponse.reacts !== null) {
+      const updatedReacts = toReactionsData(postResponse.reacts, postId);
+      logger.log('update reactions event');
+      return { type: 'updateReactions', postId, reactions: updatedReacts };
+    }
+  }
+
+  // reply events
+  if (
+    'response' in channelEvent &&
+    'post' in channelEvent.response &&
+    'reply' in channelEvent.response.post['r-post']
+  ) {
+    const postId = getCanonicalPostId(channelEvent.response.post.id);
+    const replyId = getCanonicalPostId(
+      channelEvent.response.post['r-post'].reply.id
+    );
+    const replyResponse = channelEvent.response.post['r-post'].reply['r-reply'];
+    if ('set' in replyResponse && replyResponse.set !== null) {
+      logger.log(`add reply event`);
+      return {
+        type: 'addPost',
+        post: toPostReplyData(channelId, postId, replyResponse.set),
+      };
+    } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
+      const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
+      logger.log('update reply reactions event');
+      return {
+        type: 'updateReactions',
+        postId: replyId,
+        reactions: updatedReacts,
+      };
+    }
+  }
+
+  // pending messages (on ship, not on group)
+  if ('response' in channelEvent && 'pending' in channelEvent.response) {
+    const cacheId = channelEvent.response.pending.id;
+    return {
+      type: 'markPostSent',
+      cacheId: getCanonicalPostId(unixToDa(cacheId.sent).toString()),
+    };
+  }
+
+  logger.log(`unknown event`);
+  return { type: 'unknown' };
+};
+
+export const searchChatChannel = async (params: {
   channelId: string;
   query: string;
   cursor?: string;
@@ -36,60 +155,18 @@ const searchChatChannel = async (params: {
   const posts = response.scan
     .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
     .map((scanItem) => (scanItem as { post: ub.Post }).post)
-    .map((post) =>
-      toPostData(formatPostIdParam(post.seal.id), params.channelId, post)
-    );
+    .map((post) => toPostData(params.channelId, post));
   const cursor = response.last;
 
   return { posts, cursor };
 };
-
-export function useInfiniteChannelSearch(channelId: string, query: string) {
-  const { data, ...rest } = useInfiniteQuery({
-    queryKey: ['channel', channelId, 'search', query],
-    enabled: query !== '',
-    queryFn: async ({ pageParam }) => {
-      const response = await searchChatChannel({
-        channelId,
-        query,
-        cursor: pageParam,
-      });
-
-      return response;
-    },
-    initialPageParam: '',
-    getNextPageParam: (lastPage) => {
-      if (lastPage.cursor === null) return undefined;
-      return lastPage.cursor;
-    },
-  });
-
-  const results = useMemo(
-    () => data?.pages.flatMap((page) => page.posts) ?? [],
-    [data]
-  );
-
-  const searchedThroughDate = useMemo(() => {
-    const params = data?.pages ?? [];
-    const lastValidCursor = params.findLast(
-      (page) => page.cursor !== null
-    )?.cursor;
-    return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
-  }, [data]);
-
-  return {
-    ...rest,
-    results,
-    searchedThroughDate,
-  };
-}
 
 type ChannelUnreadData = {
   id: string;
   postCount?: number;
   unreadCount?: number;
   firstUnreadPostId?: string;
-  unreadThreads?: db.ThreadUnreadStateInsert[];
+  unreadThreads?: db.ThreadUnreadState[];
   lastPostAt?: number;
 };
 
@@ -109,9 +186,7 @@ function toUnreadData(channelId: string, unread: ub.Unread): ChannelUnreadData {
   };
 }
 
-function toThreadUnreadStateData(
-  unread: ub.Unread
-): db.ThreadUnreadStateInsert[] {
+function toThreadUnreadStateData(unread: ub.Unread): db.ThreadUnreadState[] {
   return Object.entries(unread.threads).map(([threadId, unreadState]) => {
     return {
       threadId,

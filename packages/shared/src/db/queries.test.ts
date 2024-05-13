@@ -7,7 +7,7 @@ import {
   syncGroups,
   syncPinnedItems,
   syncUnreads,
-} from '../sync';
+} from '../store/sync';
 import channelUnreadsResponse from '../test/channelUnreads.json';
 import clubsResponse from '../test/clubs.json';
 import contactsResponse from '../test/contacts.json';

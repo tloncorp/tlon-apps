@@ -57,7 +57,11 @@ const IconComponent = View.styleable<{
       case '$l':
         return ['$3xl', '$2xl'];
     }
+    // This shouldn't be necessary, but a bug with tamagui's optimizing
+    // compiler caused this to error.
+    return ['$m', '$m'];
   }, [size]);
+
   return (
     <View
       ref={ref}

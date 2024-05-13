@@ -617,6 +617,50 @@
       [%u ?(%v0 %v1) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
+  ::
+      [%x %v2 %heads since=?(~ [u=@ ~])]
+    =/  since=(unit id-post:c)
+      ?~  since.pole  ~
+      ?^  tim=(slaw %da u.since.pole)  `u.tim
+      `(slav %ud u.since.pole)
+    :^  ~  ~  %channel-heads
+    !>  ^-  channel-heads:c
+    %+  murn  ~(tap by v-channels)
+    =/  slip=?  |  ::  slipped past a deleted message
+    |=  [=nest:c v-channel:c]
+    ^-  (unit [_nest time (unit post:c)])
+    ::  if there is no latest post, give nothing
+    ::
+    ?~  vp=(ram:on-v-posts:c posts)  ~
+    ::  if latest was deleted, try the next-latest message instead
+    ::
+    ?~  val.u.vp
+      $(slip &, posts +:(pop:on-v-posts:c posts))
+    =*  result
+      `[nest recency.remark `(uv-post-without-replies:utils u.val.u.vp)]
+    ::  if the request is bounded, check that latest message is "in bounds"
+    ::  (and not presumably already known by the requester)
+    ::
+    ?:  ?|  ?=(~ since)
+            |((gth key.u.vp u.since) (gth recency.remark u.since))
+        ==
+      ::  latest is in range (or recency was changed), give it directly
+      ::
+      result
+    ::  "out of bounds", ...but! latest may have changed itself, or only
+    ::  be latest because something else was deleted. the latter case we
+    ::  already detected, and so easily branch on here:
+    ::
+    ?:  slip  result
+    ::  edits are detected through changelogs. look at the relevant log range,
+    ::  and see if any update affects the latest post.
+    ::NOTE  if our mops were the other way around, we could +dip:on instead
+    ::
+    =;  changed=?
+      ?.(changed ~ result)
+    %+  lien  (bap:log-on:c (lot:log-on:c log since ~))
+    |=  [key=time val=u-channel:c]
+    &(?=([%post * %set *] val) =(id.val key.u.vp))
   ==
 ::
 ++  arvo
@@ -738,7 +782,7 @@
       =/  thread=(pole knot)  ted.rope
       =/  top-id=(unit id-post:c)
         ?+  thread  ~
-          [* * * * id=@ rest=*]  `(slav %ui (cat 3 '0i' id.thread))
+          [* * * * id=@ rest=*]  (slaw %ui (cat 3 '0i' id.thread))
         ==
       ::  look at what post id the notification is coming from, and
       ::  if it's newer than the last read, mark the notification
@@ -1639,6 +1683,51 @@
           ?~  post  (welp older newer)
           (welp (snoc older [time u.post]) newer)
       (give-posts-1 mode.pole posts)
+    ::
+        [%changes before=@ limit=@ ~]
+      =/  before=id-post:c
+        ?^  tim=(slaw %da before.pole)  u.tim
+        (slav %ud before.pole)
+      =/  limit=@ud ::$@([%count @ud] [%time @da])  ::TODO  support?
+        :: ?^  tim=(slaw %da limit.pole)  [%time u.tim]
+        :: [%count (slav %ud limit.pole)]
+        (slav %ud limit.pole)
+      =;  [older=(unit time) posts=v-posts:c]
+        =/  =paged-posts:c
+          [(uv-posts:utils posts) `before older (wyt:on-v-posts:c posts)]
+        ``channel-posts+!>(paged-posts)
+      ::  walk both posts and logs, in chronological order, newest-first,
+      ::  until we accumulate the desired amount of results
+      ::
+      ::NOTE  would manually walk the tree, but logic gets rather confusing,
+      ::      so we just eat the conversion overhead here
+      =/  posts  (bap:on-v-posts:c (lot:on-v-posts:c posts.channel ~ `before))
+      =/  logs   (bap:log-on:c (lot:log-on:c log.channel ~ `before))
+      =|  s=[=_limit older=_`(unit time)`(some before) out=v-posts:c]
+      =<  [older out]
+      |-  ^+  s
+      ?:  =(0 limit.s)  s
+      ?~  posts
+        ::  cannot have logs if posts already empty ::REVIEW right?
+        ::
+        s(older ~)
+      =*  pit  key.i.posts
+      =/  lit  ?~(logs pit key.i.logs)
+      ?:  (gte pit lit)
+        ::  post is newer than logs
+        ::
+        =?  s  !(has:on-v-posts:c out.s pit)
+          [(dec limit.s) `pit (put:on-v-posts:c out.s i.posts)]
+        $(posts t.posts)
+      ::  log is newer than posts
+      ::
+      ?>  ?=(^ logs)
+      ?.  ?=(%post -.val.i.logs)  $(logs t.logs)
+      =*  id  id.val.i.logs
+      =?  s  !(has:on-v-posts:c out.s id)
+        :+  (dec limit.s)  `lit
+        (put:on-v-posts:c out.s id (got:on-v-posts:c posts.channel id))
+      $(logs t.logs)
     ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)

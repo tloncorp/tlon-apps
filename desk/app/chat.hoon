@@ -647,6 +647,38 @@
         pins
     ==
   ::
+      [%x %heads ?(~ [@ ~])]
+    =/  since=(unit time)
+      ?~  t.t.path  ~
+      ?^  tim=(slaw %da i.t.t.path)  `u.tim
+      `(slav %ud i.t.t.path)
+    :^  ~  ~  %chat-heads
+    !>  ^-  chat-heads:c
+    %+  murn
+      %+  welp
+        (turn ~(tap by dms) |=([=@p dm:c] [ship+p pact remark]))
+      (turn ~(tap by clubs) |=([=id:club:c club:c] [club+id pact remark]))
+    |=  [=whom:c =pact:c =remark:c]
+    ^-  (unit [_whom time (unit writ:c)])
+    ::  if there is no latest post, give nothing
+    ::
+    ?~  vp=(ram:on:writs:c wit.pact)  ~
+    =*  result
+      `[whom recency.remark `val.u.vp]
+    ::  if the request is bounded, check that latest message is "in bounds"
+    ::  (and not presumably already known by the requester)
+    ::
+    ?:  ?|  ?=(~ since)
+            |((gth key.u.vp u.since) (gth recency.remark u.since))
+        ==
+      ::  latest is in range (or recency was changed), give it directly
+      ::
+      result
+    ::  unlike in channels, there is no edit or deletion, so we don't need
+    ::  to account for related edge-cases
+    ::
+    ~
+  ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
   ::

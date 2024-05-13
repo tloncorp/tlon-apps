@@ -1,21 +1,29 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import type { IconType } from '@tloncorp/ui';
 import { Circle, Icon, SizableText, View, useStyle } from '@tloncorp/ui';
-import { Avatar } from '@tloncorp/ui/src/index';
+import { Avatar } from '@tloncorp/ui';
 import type { ViewStyle } from 'react-native';
 
-import { useShip } from '../contexts/ship';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
+import ProfileScreen from '../screens/ProfileScreen';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabStack = () => {
-  const { contactId } = useShip();
-  const { result: unreadCount } = db.useAllUnreadsCounts();
+  const currentUserId = useCurrentUserId();
+  const { data: unreadCount } = store.useAllUnreadsCounts();
   const headerStyle = useStyle({
     paddingHorizontal: '$xl',
+  }) as ViewStyle;
+
+  const tabBarStyle = useStyle({
+    backgroundColor: '$background',
+    borderTopWidth: 1,
+    borderTopColor: '$border',
+    paddingTop: '$m',
   }) as ViewStyle;
 
   return (
@@ -24,6 +32,7 @@ export const TabStack = () => {
       initialRouteName="Groups"
       screenOptions={{
         headerShown: false,
+        tabBarStyle: tabBarStyle,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         headerTitle({ style, ...props }) {
           return (
@@ -58,21 +67,7 @@ export const TabStack = () => {
           tabBarShowLabel: false,
         }}
       />
-      <Tab.Screen
-        name="Messages"
-        component={View}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon
-              type={'Messages'}
-              activeType={'MessagesFilled'}
-              isActive={focused}
-              hasUnreads={(unreadCount?.dms ?? 0) > 0}
-            />
-          ),
-          tabBarShowLabel: false,
-        }}
-      />
+
       <Tab.Screen
         name="Activity"
         component={View}
@@ -89,10 +84,10 @@ export const TabStack = () => {
       />
       <Tab.Screen
         name="Profile"
-        component={View}
+        component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <AvatarTabIcon id={contactId!} focused={focused} />
+            <AvatarTabIcon id={currentUserId!} focused={focused} />
           ),
           tabBarShowLabel: false,
         }}
@@ -102,13 +97,13 @@ export const TabStack = () => {
 };
 
 function AvatarTabIcon({ id, focused }: { id: string; focused: boolean }) {
-  const { result: contact, isLoading } = db.useContact({ id });
+  const { data: contact, isLoading } = store.useContact({ id });
   return isLoading && !contact ? null : (
     // Uniquely sized avatar for tab bar
     <Avatar
-      width={20}
-      height={20}
-      borderRadius={3}
+      width={26}
+      height={26}
+      borderRadius={6}
       contact={contact}
       contactId={id}
       opacity={focused ? 1 : 0.6}

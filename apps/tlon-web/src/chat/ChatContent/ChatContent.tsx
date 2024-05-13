@@ -25,11 +25,9 @@ import { Link } from 'react-router-dom';
 
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
-// eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 import ShipName from '@/components/ShipName';
 import { isSingleEmoji } from '@/logic/utils';
-// eslint-disable-next-line import/no-cycle
 import { VIDEO_REGEX } from '@/logic/utils';
 
 interface ChatContentProps {
@@ -315,26 +313,22 @@ function ChatContent({
             if (index === firstBlockCode) {
               return (
                 <div
+                  key={`${storyItem.toString()}-${index}`}
                   className="rounded bg-gray-100 pt-2"
                   style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
-                  <InlineContent
-                    key={`${storyItem.toString()}-${index}`}
-                    story={storyItem}
-                  />
+                  <InlineContent story={storyItem} />
                 </div>
               );
             }
             if (index === lastBlockCode) {
               return (
                 <div
+                  key={`${storyItem.toString()}-${index}`}
                   className="rounded bg-gray-100 pb-2"
                   style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
-                  <InlineContent
-                    key={`${storyItem.toString()}-${index}`}
-                    story={storyItem}
-                  />
+                  <InlineContent story={storyItem} />
                 </div>
               );
             }

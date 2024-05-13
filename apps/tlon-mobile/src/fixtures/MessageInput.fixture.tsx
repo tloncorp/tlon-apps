@@ -1,18 +1,29 @@
-import { MessageInput, View } from '@tloncorp/ui/';
+import { MessageInput, View } from '@tloncorp/ui';
 import { useState } from 'react';
+
+import { FixtureWrapper } from './FixtureWrapper';
+import { group } from './fakeData';
 
 const MessageInputFixture = () => {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
   return (
-    <View backgroundColor="$background">
-      <MessageInput
-        shouldBlur={inputShouldBlur}
-        setShouldBlur={setInputShouldBlur}
-        send={() => {}}
-        channelId="channel-id"
-      />
-    </View>
+    <FixtureWrapper fillWidth>
+      <View backgroundColor="$background">
+        <MessageInput
+          shouldBlur={inputShouldBlur}
+          setShouldBlur={setInputShouldBlur}
+          send={() => {}}
+          channelId="channel-id"
+          setImageAttachment={() => {}}
+          canUpload={true}
+          groupMembers={group.members ?? []}
+          getDraft={async () => ({})}
+          storeDraft={() => {}}
+          clearDraft={() => {}}
+        />
+      </View>
+    </FixtureWrapper>
   );
 };
 

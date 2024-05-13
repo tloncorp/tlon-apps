@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
-// eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
 import useGroupJoin from '@/groups/useGroupJoin';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
@@ -19,6 +18,7 @@ import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 
 import ShipName from '../ShipName';
+import { useNavWithinTab } from '../Sidebar/util';
 import NotebookIcon from '../icons/NotebookIcon';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -42,8 +42,7 @@ function NoteReference({
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
   const { reference, isError } = useRemotePost(nest, id, isScrolling);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { navigate } = useNavWithinTab();
   const note = useMemo(() => {
     if (reference && 'post' in reference) {
       return reference.post;
@@ -75,9 +74,7 @@ function NoteReference({
   const { title, image } = getKindDataFromEssay(note.essay);
   const handleOpenReferenceClick = () => {
     if (!group) {
-      navigate(`/gangs/${groupFlag}?type=note&nest=${nest}&id=${id}`, {
-        state: { backgroundLocation: location },
-      });
+      navigate(`/gangs/${groupFlag}?type=note&nest=${nest}&id=${id}`, true);
       return;
     }
 
@@ -181,6 +178,7 @@ function NoteReference({
             <div className="relative flex items-center">
               {note.seal.meta.lastRepliers.map((author, index) => (
                 <Avatar
+                  key={author}
                   ship={author}
                   size="xs"
                   className="relative outline outline-2 outline-white"

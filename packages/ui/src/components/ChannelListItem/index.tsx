@@ -13,8 +13,9 @@ export default function ChannelListItem({
   ...props
 }: {
   useTypeIcon?: boolean;
-} & ListItemProps<db.ChannelWithLastPostAndMembers>) {
+} & ListItemProps<db.Channel>) {
   const title = utils.getChannelTitle(model);
+
   return (
     <ListItem
       {...props}
@@ -29,9 +30,10 @@ export default function ChannelListItem({
             {model.type !== 'dm' ? (
               <>
                 <ContactName
-                  showAlias
-                  name={model.lastPost.authorId}
+                  showNickname
+                  userId={model.lastPost.authorId}
                   size="$s"
+                  color="$secondaryText"
                 />
                 :{' '}
               </>
@@ -42,8 +44,8 @@ export default function ChannelListItem({
       </ListItem.MainContent>
       <ListItem.EndContent position="relative" top={3}>
         {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-        {model.unreadCount && model.unreadCount > 0 ? (
-          <ListItem.Count>{model.unreadCount}</ListItem.Count>
+        {model.unread?.count && model.unread.count > 0 ? (
+          <ListItem.Count>{model.unread.count}</ListItem.Count>
         ) : null}
       </ListItem.EndContent>
     </ListItem>
@@ -54,20 +56,23 @@ function ChannelListItemIcon({
   model,
   useTypeIcon,
 }: {
-  model: db.ChannelWithLastPostAndMembers;
+  model: db.Channel;
   useTypeIcon?: boolean;
 }) {
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
     return (
-      <ListItem.SystemIcon icon={icon} backgroundColor={backgroundColor} />
+      <ListItem.SystemIcon
+        icon={icon}
+        backgroundColor={'$secondaryBackground'}
+      />
     );
-  } else if (model.type === 'dm') {
+  } else if (model.type === 'dm' && model.members?.[0]?.contactId) {
     return (
       <ListItem.AvatarIcon
         backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId!}
+        contactId={model.members?.[0]?.contactId}
         contact={model.members?.[0]?.contact}
       />
     );
@@ -76,6 +81,13 @@ function ChannelListItemIcon({
       return (
         <ListItem.ImageIcon
           imageUrl={model.iconImage}
+          backgroundColor={backgroundColor}
+        />
+      );
+    } else if (hasGroup(model) && model.group.iconImage) {
+      return (
+        <ListItem.ImageIcon
+          imageUrl={model.group.iconImage}
           backgroundColor={backgroundColor}
         />
       );
@@ -88,4 +100,10 @@ function ChannelListItemIcon({
       );
     }
   }
+}
+
+function hasGroup(
+  channel: db.Channel
+): channel is db.Channel & { group: db.Group } {
+  return 'group' in channel && !!channel.group;
 }

@@ -2,7 +2,7 @@ import * as db from '../db';
 import type * as ub from '../urbit';
 import { getChannelType } from '../urbit';
 import { toClientMeta } from './converters';
-import { scry } from './urbit';
+import { poke, scry } from './urbit';
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -33,8 +33,42 @@ export const getPinnedItemType = (rawItem: string) => {
     }
     return 'dm';
   } else {
+    if (rawItem.split('/').length === 3) {
+      return 'channel';
+    }
     return 'groupDm';
   }
+};
+
+export const unpinItem = async (itemId: string) => {
+  return await poke({
+    app: 'groups-ui',
+    mark: 'ui-action',
+    json: {
+      pins: {
+        del: itemId,
+      },
+    },
+  });
+};
+
+export const pinItem = async (itemId: string) => {
+  return await poke({
+    app: 'groups-ui',
+    mark: 'ui-action',
+    json: {
+      pins: {
+        add: itemId,
+      },
+    },
+  });
+};
+
+export const getGroup = async (groupId: string) => {
+  const path = `/groups/${groupId}/v1`;
+
+  const groupData = await scry<ub.Group>({ app: 'groups', path });
+  return toClientGroup(groupId, groupData, true);
 };
 
 export const getGroups = async (
@@ -67,8 +101,8 @@ export function toClientGroup(
   id: string,
   group: ub.Group,
   isJoined: boolean
-): db.GroupInsert {
-  const rolesById: Record<string, db.GroupRoleInsert> = {};
+): db.Group {
+  const rolesById: Record<string, db.GroupRole> = {};
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
     const data: db.GroupRole = {
       id: roleId,
@@ -90,7 +124,7 @@ export function toClientGroup(
         if (!zone) {
           return;
         }
-        const data: db.GroupNavSectionWithRelations = {
+        const data: db.GroupNavSection = {
           id: zoneId,
           groupId: id,
           ...toClientMeta(zone.meta),
@@ -106,7 +140,7 @@ export function toClientGroup(
         };
         return data;
       })
-      .filter((s): s is db.GroupNavSectionWithRelations => !!s),
+      .filter((s): s is db.GroupNavSection => !!s),
     members: Object.entries(group.fleet).map(([userId, vessel]) => {
       return toClientGroupMember({
         groupId: id,
@@ -126,7 +160,7 @@ function toClientChannels({
 }: {
   channels: Record<string, ub.GroupChannel>;
   groupId: string;
-}): db.ChannelInsert[] {
+}): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
     toClientChannel({ id, channel, groupId })
   );
@@ -140,7 +174,7 @@ function toClientChannel({
   id: string;
   channel: ub.GroupChannel;
   groupId: string;
-}): db.ChannelInsert {
+}): db.Channel {
   return {
     id,
     groupId,
@@ -160,7 +194,7 @@ function toClientGroupMember({
   groupId: string;
   contactId: string;
   vessel: { sects: string[]; joined: number };
-}): db.ChatMemberInsert {
+}): db.ChatMember {
   return {
     membershipType: 'group',
     contactId,
