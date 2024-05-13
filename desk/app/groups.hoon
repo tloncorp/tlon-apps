@@ -1451,7 +1451,9 @@
       go-core
     ::
         %edit
-      ::  TODO: REFACTOR GROUPS PLZ
+      ::  TODO: we don't know why we could be desynced on cabals, but we
+      ::        need to be safe so we don't enter a loop.
+      ::        REFACTOR GROUPS PLZ
       =?  cabals.group  (~(has by cabals.group) sect)
         %+  ~(jab by cabals.group)  sect
         |=  cabal:g
