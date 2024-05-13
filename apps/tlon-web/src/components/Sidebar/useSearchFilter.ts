@@ -1,7 +1,7 @@
 import { Gangs, Groups } from '@tloncorp/shared/dist/urbit/groups';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
-import _, { result } from 'lodash';
+import _ from 'lodash';
 import { useMemo } from 'react';
 
 import { useGangs, useGroups } from '@/state/groups';
