@@ -104,31 +104,27 @@ function RootPane(props: NativeStackScreenProps<StackParamList, 'Root'>) {
         <XStack justifyContent="center">
           <HeroInput />
         </XStack>
-        <Button
-          hero
-          onPress={() =>
-            props.navigation.push('CreateGroup', {
-              currentUserId: props.route.params.currentUserId,
-            })
-          }
-        >
-          <Button.Text>Start a new group</Button.Text>
-        </Button>
         <ShipSelector onSelectedChange={setDmParticipants} />
+        {dmParticipants.length > 0 ? (
+          <XStack justifyContent="center">
+            <StartDMButton
+              participants={dmParticipants}
+              onPress={() => handlers.onStartDm(dmParticipants)}
+            />
+          </XStack>
+        ) : (
+          <Button
+            hero
+            onPress={() =>
+              props.navigation.push('CreateGroup', {
+                currentUserId: props.route.params.currentUserId,
+              })
+            }
+          >
+            <Button.Text>Start a new group</Button.Text>
+          </Button>
+        )}
       </YStack>
-      {dmParticipants.length > 0 && (
-        <View
-          position="absolute"
-          bottom={30}
-          width="100%"
-          paddingHorizontal="$m"
-        >
-          <StartDMButton
-            participants={dmParticipants}
-            onPress={() => handlers.onStartDm(dmParticipants)}
-          />
-        </View>
-      )}
     </ZStack>
   );
 }
