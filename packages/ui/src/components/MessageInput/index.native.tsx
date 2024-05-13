@@ -89,6 +89,7 @@ export function MessageInput({
     DEFAULT_CONTAINER_HEIGHT
   );
   const [mentionText, setMentionText] = useState<string>();
+  const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const { references, setReferences } = useReferences();
   const editor = useEditorBridge({
@@ -114,6 +115,7 @@ export function MessageInput({
             // @ts-expect-error setContent does accept JSONContent
             editor.setContent(draft);
             setHasSetInitialContent(true);
+            setEditorIsEmpty(false);
           }
         });
       } catch (e) {
@@ -129,6 +131,39 @@ export function MessageInput({
     }
   }, [shouldBlur, editor, editorState, setShouldBlur]);
 
+  useEffect(() => {
+    editor.getJSON().then((json: JSONContent) => {
+      const inlines = tiptap
+        .JSONToInlines(json)
+        .filter(
+          (c) => typeof c === 'string' || (typeof c === 'object' && isInline(c))
+        ) as Inline[];
+      const blocks =
+        (tiptap
+          .JSONToInlines(json)
+          .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
+        [];
+
+      const inlineIsJustBreak = !!(
+        inlines.length === 1 &&
+        inlines[0] &&
+        typeof inlines[0] === 'object' &&
+        'break' in inlines[0]
+      );
+
+      const isEmpty =
+        (inlines.length === 0 || inlineIsJustBreak) &&
+        blocks.length === 0 &&
+        !uploadedImage &&
+        Object.entries(references).filter(([, ref]) => ref !== null).length ===
+          0;
+
+      if (isEmpty !== editorIsEmpty) {
+        setEditorIsEmpty(isEmpty);
+      }
+    });
+  }, [editor, references, uploadedImage, editorIsEmpty]);
+
   editor._onContentUpdate = async () => {
     editor.getJSON().then((json: JSONContent) => {
       const inlines = (
@@ -138,11 +173,11 @@ export function MessageInput({
             (c) =>
               typeof c === 'string' || (typeof c === 'object' && isInline(c))
           ) as Inline[]
-      ).filter((inline) => inline !== null) as string[];
+      ).filter((inline) => inline !== null) as Inline[];
       // find the first mention in the inlines without refs
       const mentionInline = inlines.find(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
-      );
+      ) as string | undefined;
       // extract the mention text from the mention inline
       const mentionText = mentionInline
         ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
@@ -421,6 +456,7 @@ export function MessageInput({
       groupMembers={groupMembers}
       onSelectMention={onSelectMention}
       showMentionPopup={showMentionPopup}
+      editorIsEmpty={editorIsEmpty}
     >
       <XStack
         borderRadius="$xl"
