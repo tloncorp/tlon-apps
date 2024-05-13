@@ -348,16 +348,15 @@ export const useGangPreview = (
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
-      enabled: !disabled,
-      initialData: gangs[flag]?.preview || undefined,
+      enabled: !disabled && !!flag,
     },
   });
 
   if (rest.isLoading || rest.isError) {
-    return null;
+    return gangs[flag]?.preview || null;
   }
 
-  return data as GroupPreview;
+  return (data as GroupPreview) || gangs[flag]?.preview || null;
 };
 
 export function useGangList() {
