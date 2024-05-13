@@ -17,7 +17,7 @@ export function useSortedListOfUrbits({
   query: string;
   sortOrder?: UrbitSort[]; // ordered list of priorities in the sort
 }) {
-  const pals = useMemo(() => new Set(['~pondus-watbel', '~fabled-faster']), []);
+  const pals = useMemo(() => new Set([]), []);
   const sortedContacts = useMemo(
     () => sortContacts(contacts, sortOrder, pals),
     [contacts, sortOrder, pals]
