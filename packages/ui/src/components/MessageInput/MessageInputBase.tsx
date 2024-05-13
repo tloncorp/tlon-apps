@@ -28,7 +28,7 @@ export interface MessageInputProps {
   getDraft: () => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: string) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }
 
 export const MessageInputContainer = ({

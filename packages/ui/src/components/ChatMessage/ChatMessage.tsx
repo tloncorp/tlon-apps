@@ -1,4 +1,3 @@
-import { tiptap } from '@tloncorp/shared/';
 import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
@@ -44,6 +43,7 @@ const ChatMessage = ({
   showReplies,
   currentUserId,
   editing,
+  editPost,
   setEditingPost,
 }: {
   post: db.Post;
@@ -54,6 +54,7 @@ const ChatMessage = ({
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
+  editPost?: (post: db.Post, content: Story) => void;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) => {
   const isNotice = post.type === 'notice';
@@ -130,6 +131,7 @@ const ChatMessage = ({
             send={() => {}}
             channelId={post.channelId}
             editingPost={post}
+            editPost={editPost}
             setEditingPost={setEditingPost}
           />
         ) : post.hidden ? (
@@ -144,6 +146,7 @@ const ChatMessage = ({
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}
               deliveryStatus={post.deliveryStatus}
+              isEdited={post.isEdited ?? false}
             />
           </NoticeWrapper>
         )}

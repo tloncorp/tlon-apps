@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import { MotiView } from 'moti';
 import React, {
   PropsWithChildren,
@@ -37,7 +38,7 @@ type RenderItemFunction = (props: {
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: string) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -81,7 +82,7 @@ export default function Scroller({
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: string) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);

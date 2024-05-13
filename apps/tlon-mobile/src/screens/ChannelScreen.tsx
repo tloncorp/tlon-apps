@@ -105,6 +105,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!currentUserId || !channelQuery.data) {
         return;
       }
+
       store.editPost({
         post,
         content,

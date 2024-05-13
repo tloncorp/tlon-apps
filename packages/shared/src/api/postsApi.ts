@@ -529,6 +529,7 @@ export function toPostData(
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     authorId: post.essay.author,
+    isEdited: post.revision !== '0',
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,

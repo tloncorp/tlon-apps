@@ -38,7 +38,7 @@ export async function editPost({
   content: urbit.Story;
 }) {
   // optimistic update
-  await db.updatePost({ id: post.id, content });
+  await db.updatePost({ id: post.id, content: JSON.stringify(content) });
 
   try {
     await api.editPost({

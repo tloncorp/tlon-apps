@@ -335,6 +335,7 @@ export default function ChatContent({
   deliveryStatus,
   onPressImage,
   onLongPress,
+  isEdited = false,
 }: {
   story: PostContent;
   shortened?: boolean;
@@ -342,6 +343,7 @@ export default function ChatContent({
   deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
+  isEdited?: boolean;
 }) {
   const storyInlines = useMemo(
     () =>
@@ -454,6 +456,13 @@ export default function ChatContent({
               storyInlines={shortened ? shortenedStoryInlines : storyInlines}
               isNotice={isNotice}
             />
+          </View>
+        ) : null}
+        {isEdited ? (
+          <View flexShrink={1}>
+            <Text color="$tertiaryText" fontSize="$s">
+              Edited
+            </Text>
           </View>
         ) : null}
         {deliveryStatus ? (

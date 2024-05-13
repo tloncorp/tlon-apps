@@ -86,7 +86,7 @@ export function MessageInput({
   getDraft,
   editingPost,
   setEditingPost,
-  editPost
+  editPost,
 }: MessageInputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
@@ -371,6 +371,59 @@ export function MessageInput({
     sendMessage();
   }, [sendMessage]);
 
+  const handleEdit = useCallback(() => {
+    if (!editingPost) {
+      return;
+    }
+
+    editor.getJSON().then(async (json) => {
+      const blocks: Block[] = [];
+      const inlines = tiptap.JSONToInlines(json);
+      const story = constructStory(inlines);
+
+      if (Object.keys(references).length) {
+        Object.keys(references).forEach((ref) => {
+          const cite = pathToCite(ref);
+          if (!cite) {
+            return;
+          }
+          blocks.push({ cite });
+        });
+      }
+
+      if (uploadedImage) {
+        blocks.push({
+          image: {
+            src: uploadedImage.url,
+            height: uploadedImage.size ? uploadedImage.size[0] : 200,
+            width: uploadedImage.size ? uploadedImage.size[1] : 200,
+            alt: 'image',
+          },
+        });
+      }
+
+      if (blocks && blocks.length > 0) {
+        story.push(...blocks.map((block) => ({ block })));
+      }
+
+      await editPost?.(editingPost, story);
+
+      editor.setContent('');
+      setReferences({});
+      setEditingPost?.(undefined);
+      clearDraft();
+    });
+  }, [
+    editor,
+    editPost,
+    uploadedImage,
+    references,
+    setReferences,
+    clearDraft,
+    editingPost,
+    setEditingPost,
+  ]);
+
   const handleAddNewLine = useCallback(() => {
     editor.splitBlock();
   }, [editor]);
@@ -441,7 +494,7 @@ export function MessageInput({
     <MessageInputContainer
       setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
-      onPressEdit={handleSend}
+      onPressEdit={handleEdit}
       uploadedImage={uploadedImage}
       canUpload={canUpload}
       containerHeight={containerHeight}
