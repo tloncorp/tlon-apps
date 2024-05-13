@@ -2,16 +2,13 @@ import {
   NativeStackScreenProps,
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
-import {
-  createDevLogger,
-  createShortCodeFromTitle,
-} from '@tloncorp/shared/dist';
+import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { KeyboardAvoidingView, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getTokenValue } from 'tamagui';
+import { ScrollView, getTokenValue } from 'tamagui';
 
 import { useAddChatHandlers } from '../../contexts';
 import {
@@ -23,13 +20,10 @@ import {
   useTheme,
 } from '../../core';
 import { Button } from '../Button';
+import { GroupListItem } from '../GroupListItem';
 import { Icon } from '../Icon';
-import { IconButton } from '../IconButton';
-import { Input } from '../Input';
 import { Sheet } from '../Sheet';
-import { ShipSelector } from '../ShipSelector';
-
-const logger = createDevLogger('AddChatSheet', true);
+import { ContactSelector } from '../ShipSelector';
 
 const Stack = createNativeStackNavigator();
 type StackParamList = {
@@ -38,6 +32,9 @@ type StackParamList = {
     currentUserId: string;
   };
   CreateGroup: {
+    currentUserId: string;
+  };
+  JoinGroup: {
     currentUserId: string;
   };
 };
@@ -88,6 +85,11 @@ export function AddChatSheet({
               initialParams={{ currentUserId }}
               component={CreateGroupPane}
             />
+            <Stack.Screen
+              name="JoinGroup"
+              initialParams={{ currentUserId }}
+              component={JoinGroupPane}
+            />
           </Stack.Navigator>
         </KeyboardAvoidingView>
       </Sheet.Frame>
@@ -101,10 +103,17 @@ function RootPane(props: NativeStackScreenProps<StackParamList, 'Root'>) {
   return (
     <ZStack flex={1}>
       <YStack flex={1} gap="$2xl">
-        <XStack justifyContent="center">
+        <XStack
+          justifyContent="center"
+          onPress={() =>
+            props.navigation.push('JoinGroup', {
+              currentUserId: props.route.params.currentUserId,
+            })
+          }
+        >
           <HeroInput />
         </XStack>
-        <ShipSelector onSelectedChange={setDmParticipants} />
+        <ContactSelector multiSelect onSelectedChange={setDmParticipants} />
         {dmParticipants.length > 0 ? (
           <XStack justifyContent="center">
             <StartDMButton
@@ -126,6 +135,100 @@ function RootPane(props: NativeStackScreenProps<StackParamList, 'Root'>) {
         )}
       </YStack>
     </ZStack>
+  );
+}
+
+type JoinGroupPaneState = {
+  loading: boolean;
+  error: string | null;
+  selectedHost: string | null;
+  hostGroups: db.Group[];
+  selectedGroup: db.Group | null;
+};
+
+function JoinGroupPane(
+  props: NativeStackScreenProps<StackParamList, 'JoinGroup'>
+) {
+  const [state, setState] = useState<JoinGroupPaneState>({
+    loading: false,
+    error: null,
+    selectedHost: null,
+    hostGroups: [],
+    selectedGroup: null,
+  });
+
+  const onSelectHost = async (contactId: string) => {
+    setState({
+      loading: true,
+      error: null,
+      selectedHost: contactId,
+      hostGroups: [],
+      selectedGroup: null,
+    });
+
+    try {
+      const groups = await store.getGroupsHostedBy(contactId);
+      setState((prev) => ({ ...prev, loading: false, hostGroups: groups }));
+    } catch (e) {
+      setState((prev) => ({ ...prev, loading: false, error: e.message }));
+    }
+  };
+
+  const onSelectGroup = (group: db.Group) => {
+    setState((prev) => ({ ...prev, selectedGroup: group }));
+  };
+
+  return (
+    <YStack flex={1} gap="$2xl">
+      {state.selectedHost === null && (
+        <ContactSelector onSelect={onSelectHost} />
+      )}
+
+      {state.selectedHost !== null && state.selectedGroup === null && (
+        <View>
+          <XStack>
+            <Icon
+              type="ChevronLeft"
+              onPress={() => setState({ ...state, selectedHost: null })}
+            />
+            <SizableText>
+              Groups for {state.selectedHost}{' '}
+              {state.loading ? 'loading...' : ''}
+            </SizableText>
+          </XStack>
+          {!state.loading && !state.error && (
+            <ScrollView>
+              {state.hostGroups.map((group) => (
+                <GroupListItem
+                  key={group.id}
+                  model={group}
+                  onPress={() => onSelectGroup(group)}
+                />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
+      {state.selectedGroup !== null && (
+        <YStack>
+          <XStack>
+            <Icon
+              type="ChevronLeft"
+              onPress={() => setState({ ...state, selectedGroup: null })}
+            />
+          </XStack>
+          <GroupListItem model={state.selectedGroup} />
+          {state.selectedGroup.isJoined ? (
+            <SizableText>You are already a member</SizableText>
+          ) : (
+            <Button hero onPress={() => props.navigation.pop()}>
+              <Button.Text>Join Group</Button.Text>
+            </Button>
+          )}
+        </YStack>
+      )}
+    </YStack>
   );
 }
 

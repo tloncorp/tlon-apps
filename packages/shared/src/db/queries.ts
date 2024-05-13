@@ -90,6 +90,16 @@ export const getSettings = createReadQuery(
   ['settings']
 );
 
+export const getGroupPreviews = createReadQuery(
+  'getGroupPreviews',
+  async (groupIds: string[]) => {
+    return client.query.groups.findMany({
+      where: inArray($groups.id, groupIds),
+    });
+  },
+  []
+);
+
 export const getGroups = createReadQuery(
   'getGroups',
   async ({
@@ -221,23 +231,27 @@ export const getChats = createReadQuery(
 
 export const insertGroups = createWriteQuery(
   'insertGroups',
-  async (groupData: Group[]) => {
+  async (groupData: Group[], overWrite: boolean = true) => {
     await client.transaction(async (tx) => {
       for (const group of groupData) {
-        await tx
-          .insert($groups)
-          .values(group)
-          .onConflictDoUpdate({
-            target: $groups.id,
-            set: conflictUpdateSet(
-              $groups.iconImage,
-              $groups.coverImage,
-              $groups.title,
-              $groups.description,
-              $groups.isSecret,
-              $groups.isJoined
-            ),
-          });
+        if (overWrite) {
+          await tx
+            .insert($groups)
+            .values(group)
+            .onConflictDoUpdate({
+              target: $groups.id,
+              set: conflictUpdateSet(
+                $groups.iconImage,
+                $groups.coverImage,
+                $groups.title,
+                $groups.description,
+                $groups.isSecret,
+                $groups.isJoined
+              ),
+            });
+        } else {
+          await tx.insert($groups).values(group).onConflictDoNothing();
+        }
         if (group.channels?.length) {
           await tx
             .insert($channels)

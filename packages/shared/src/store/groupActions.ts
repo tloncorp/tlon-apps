@@ -51,3 +51,20 @@ export async function createGroup({
     throw new Error('Something went wrong');
   }
 }
+
+export async function getGroupsHostedBy(userId: string): Promise<db.Group[]> {
+  try {
+    // query backend for all groups the ship hosts
+    const groups = await api.findGroupsHostedBy(userId);
+
+    const clientGroups = api.toClientGroupsFromPreview(groups);
+    // insert any we didn't already have
+    await db.insertGroups(clientGroups, false);
+
+    const groupIds = clientGroups.map((g) => g.id);
+    const groupPreviews = await db.getGroupPreviews(groupIds);
+    return groupPreviews;
+  } catch (e) {
+    throw new Error(`Couldn't find groups hosted by ${userId}`);
+  }
+}

@@ -143,6 +143,14 @@ export function subscribe<T>(
   });
 }
 
+export const subscribeOnce = async <T>(
+  endpoint: UrbitEndpoint,
+  timeout?: number
+) => {
+  logger.log('subscribing once to', printEndpoint(endpoint));
+  return client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+};
+
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);
   config.shipUrl = shipUrl;

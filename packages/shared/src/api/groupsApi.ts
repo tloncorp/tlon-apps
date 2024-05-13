@@ -1,8 +1,11 @@
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { getChannelType } from '../urbit';
 import { toClientMeta } from './converters';
-import { poke, scry, subscribe, trackedPoke } from './urbit';
+import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
+
+const logger = createDevLogger('groupsApi', true);
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -62,6 +65,17 @@ export const pinItem = async (itemId: string) => {
       },
     },
   });
+};
+
+export const findGroupsHostedBy = async (userId: string) => {
+  const result = await subscribeOnce<ub.GroupIndex>({
+    app: 'groups',
+    path: `/gangs/index/${userId}`,
+  });
+
+  logger.log('findGroupsHostedBy result', result);
+
+  return result;
 };
 
 export const createGroup = async ({
@@ -149,6 +163,21 @@ export function toClientGroups(
   return Object.entries(groups).map(([id, group]) => {
     return toClientGroup(id, group, isJoined);
   });
+}
+
+export function toClientGroupsFromPreview(
+  groups: Record<string, ub.GroupPreview>
+) {
+  return Object.entries(groups).map(([id, preview]) => {
+    return toClientGroupFromPreview(id, preview);
+  });
+}
+
+export function toClientGroupFromPreview(id: string, preview: ub.GroupPreview) {
+  return {
+    id,
+    ...toClientMeta(preview.meta),
+  };
 }
 
 export function toClientGroup(

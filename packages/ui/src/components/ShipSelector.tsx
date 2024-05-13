@@ -10,10 +10,14 @@ import { Avatar } from './Avatar';
 import { ListItem } from './ListItem';
 import { SearchBar } from './SearchBar';
 
-export function ShipSelector({
+export function ContactSelector({
+  multiSelect,
   onSelectedChange,
+  onSelect,
 }: {
-  onSelectedChange: (selected: string[]) => void;
+  multiSelect?: boolean;
+  onSelectedChange?: (selected: string[]) => void;
+  onSelect?: (selected: string) => void;
 }) {
   const contacts = useContacts();
   const [query, setQuery] = useState('');
@@ -24,7 +28,7 @@ export function ShipSelector({
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
-    onSelectedChange(selected);
+    onSelectedChange?.(selected);
   }, [onSelectedChange, selected]);
 
   return (
@@ -44,15 +48,45 @@ export function ShipSelector({
           placeholder="Start a DM with..."
         />
       </View>
-      <UrbitCheckListSelector
-        urbits={urbitsToDisplay ?? []}
-        onSelectedChange={setSelected}
-      />
+      {multiSelect ? (
+        <ContactMultiSelectList
+          urbits={urbitsToDisplay ?? []}
+          onSelectedChange={setSelected}
+        />
+      ) : (
+        <ContactSingleSelectList
+          urbits={urbitsToDisplay ?? []}
+          onSelect={(contactId) => onSelect?.(contactId)}
+        />
+      )}
     </YStack>
   );
 }
 
-export function UrbitCheckListSelector({
+export function ContactSingleSelectList({
+  urbits,
+  onSelect,
+  initialSelected,
+}: {
+  urbits: db.Contact[];
+  initialSelected?: string[];
+  onSelect: (selected: string) => void;
+}) {
+  const renderItem = useCallback(
+    ({ item }: { item: db.Contact }) => (
+      <ContactRowItem onPress={() => onSelect(item.id)} item={item} />
+    ),
+    []
+  );
+
+  return (
+    <View flex={1} overflow="hidden">
+      <FlatList renderItem={renderItem} data={urbits} />
+    </View>
+  );
+}
+
+export function ContactMultiSelectList({
   urbits,
   onSelectedChange,
   initialSelected,
@@ -76,7 +110,7 @@ export function UrbitCheckListSelector({
 
   const renderItem = useCallback(
     ({ item }: { item: db.Contact }) => (
-      <ChecklistItem
+      <ContactRowItem
         selected={selected.includes(item.id)}
         onPress={() => toggleSelected(item.id)}
         item={item}
@@ -92,14 +126,14 @@ export function UrbitCheckListSelector({
   );
 }
 
-function ChecklistItemRaw({
+function ContactRowItemRaw({
   item,
-  selected,
+  selected = false,
   onPress,
 }: {
   item: db.Contact;
   onPress: () => void;
-  selected: boolean;
+  selected?: boolean;
 }) {
   const displayName = useMemo(
     () => (item.nickname && item.nickname.length > 2 ? item.nickname : item.id),
@@ -138,4 +172,4 @@ function ChecklistItemRaw({
     </ListItem>
   );
 }
-const ChecklistItem = React.memo(ChecklistItemRaw);
+const ContactRowItem = React.memo(ContactRowItemRaw);
