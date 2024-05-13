@@ -25,8 +25,9 @@ export function useSortedListOfUrbits({
 
   if (isValidQuery(query)) {
     const filtered = filterContactsOnQuery(sortedContacts, query);
-    if (isValidPatp(preSig(query.trim()))) {
-      const exactMatch = db.getFallbackContact(preSig(query.trim()));
+    const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
+    if (isValidPatp(exactMatchCheck)) {
+      const exactMatch = db.getFallbackContact(exactMatchCheck);
       filtered.push(exactMatch);
     }
     return filtered;
