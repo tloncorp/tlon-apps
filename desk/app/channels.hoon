@@ -782,7 +782,7 @@
       =/  thread=(pole knot)  ted.rope
       =/  top-id=(unit id-post:c)
         ?+  thread  ~
-          [* * * * id=@ rest=*]  `(slav %ui (cat 3 '0i' id.thread))
+          [* * * * id=@ rest=*]  (slaw %ui (cat 3 '0i' id.thread))
         ==
       ::  look at what post id the notification is coming from, and
       ::  if it's newer than the last read, mark the notification

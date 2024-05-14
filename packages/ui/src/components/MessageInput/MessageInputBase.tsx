@@ -42,6 +42,7 @@ export const MessageInputContainer = ({
   isEditing = false,
   cancelEditing,
   onPressEdit,
+  editorIsEmpty,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
@@ -55,6 +56,7 @@ export const MessageInputContainer = ({
   isEditing?: boolean;
   cancelEditing?: () => void;
   onPressEdit?: () => void;
+  editorIsEmpty: boolean;
 }>) => {
   const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
@@ -145,13 +147,15 @@ export const MessageInputContainer = ({
         ) : null}
         {children}
         <View paddingBottom="$m">
-          <IconButton
-            color={sendIconColor}
-            disabled={uploadIsLoading}
-            onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-          >
-            {isEditing ? <Checkmark /> : <ArrowUp />}
-          </IconButton>
+          {editorIsEmpty ? null : (
+            <IconButton
+              color={sendIconColor}
+              disabled={uploadIsLoading}
+              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+            >
+              {isEditing ? <Checkmark /> : <ArrowUp />}
+            </IconButton>
+          )}
         </View>
       </XStack>
     </YStack>

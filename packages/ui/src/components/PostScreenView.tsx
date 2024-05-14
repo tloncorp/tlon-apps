@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
+import { ReferencesProvider } from '../contexts/references';
 import { YStack } from '../core';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
@@ -53,60 +54,62 @@ export function PostScreenView({
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
-        <YStack flex={1} backgroundColor={'$background'}>
-          <ChannelHeader
-            title={'Thread: ' + (channel?.title ?? null)}
-            goBack={goBack}
-            showPickerButton={false}
-            showSearchButton={false}
-          />
-          <KeyboardAvoidingView
-            //TODO: Standardize this component, account for tab bar in a better way
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={70}
-            style={{ flex: 1 }}
-          >
-            {uploadInfo.imageAttachment ? (
-              <UploadedImagePreview
-                imageAttachment={uploadInfo.imageAttachment}
-                resetImageAttachment={uploadInfo.resetImageAttachment}
-              />
-            ) : (
-              posts &&
-              channel && (
-                <Scroller
-                  setInputShouldBlur={setInputShouldBlur}
-                  inverted
-                  renderItem={ChatMessage}
-                  editingPost={editingPost}
-                  setEditingPost={setEditingPost}
-                  editPost={editPost}
-                  channelType={channel.type}
-                  channelId={channel.id}
-                  currentUserId={currentUserId}
-                  posts={posts}
-                  showReplies={false}
-                  onPressImage={handleGoToImage}
+        <ReferencesProvider>
+          <YStack flex={1} backgroundColor={'$background'}>
+            <ChannelHeader
+              title={'Thread: ' + (channel?.title ?? null)}
+              goBack={goBack}
+              showPickerButton={false}
+              showSearchButton={false}
+            />
+            <KeyboardAvoidingView
+              //TODO: Standardize this component, account for tab bar in a better way
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={70}
+              style={{ flex: 1 }}
+            >
+              {uploadInfo.imageAttachment ? (
+                <UploadedImagePreview
+                  imageAttachment={uploadInfo.imageAttachment}
+                  resetImageAttachment={uploadInfo.resetImageAttachment}
                 />
-              )
-            )}
-            {channel && (
-              <MessageInput
-                shouldBlur={inputShouldBlur}
-                setShouldBlur={setInputShouldBlur}
-                send={sendReply}
-                channelId={channel.id}
-                setImageAttachment={uploadInfo.setImageAttachment}
-                uploadedImage={uploadInfo.uploadedImage}
-                canUpload={uploadInfo.canUpload}
-                groupMembers={groupMembers}
-                storeDraft={storeDraft}
-                clearDraft={clearDraft}
-                getDraft={getDraft}
-              />
-            )}
-          </KeyboardAvoidingView>
-        </YStack>
+              ) : (
+                posts &&
+                channel && (
+                  <Scroller
+                    setInputShouldBlur={setInputShouldBlur}
+                    inverted
+                    renderItem={ChatMessage}
+                    channelType={channel.type}
+                    channelId={channel.id}
+                    currentUserId={currentUserId}
+                    editingPost={editingPost}
+                    setEditingPost={setEditingPost}
+                    editPost={editPost}
+                    posts={posts}
+                    showReplies={false}
+                    onPressImage={handleGoToImage}
+                  />
+                )
+              )}
+              {channel && (
+                <MessageInput
+                  shouldBlur={inputShouldBlur}
+                  setShouldBlur={setInputShouldBlur}
+                  send={sendReply}
+                  channelId={channel.id}
+                  setImageAttachment={uploadInfo.setImageAttachment}
+                  uploadedImage={uploadInfo.uploadedImage}
+                  canUpload={uploadInfo.canUpload}
+                  groupMembers={groupMembers}
+                  storeDraft={storeDraft}
+                  clearDraft={clearDraft}
+                  getDraft={getDraft}
+                />
+              )}
+            </KeyboardAvoidingView>
+          </YStack>
+        </ReferencesProvider>
       </ContactsProvider>
     </CalmProvider>
   );

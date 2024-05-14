@@ -23,6 +23,7 @@ export function MessageInput({
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}
+      editorIsEmpty={true}
     >
       <TextArea
         flexGrow={1}
