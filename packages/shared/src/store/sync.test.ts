@@ -288,11 +288,13 @@ test('sync posts', async () => {
     channelId,
     count: 1,
     cursor: 'x',
+    mode: 'older',
   });
   await syncPosts({
     channelId,
     count: 1,
     cursor: 'x',
+    mode: 'older',
   });
   const posts = await db.getChannelPosts({
     channelId,

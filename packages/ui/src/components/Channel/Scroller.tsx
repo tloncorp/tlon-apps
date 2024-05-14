@@ -9,7 +9,7 @@ import React, {
   createRef,
   forwardRef,
   useCallback,
-  useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -45,17 +45,34 @@ type RenderItemType =
   | RenderItemFunction
   | React.MemoExoticComponent<RenderItemFunction>;
 
+export type ScrollAnchor = {
+  type: 'unread' | 'selected';
+  postId: string;
+};
+
+const maintainVisibleContentPositionConfig = {
+  minIndexForVisible: 0,
+};
+
+/**
+ * This scroller makes some assumptions you should not break!
+ * - Posts and unread state should be be loaded before the scroller is rendered
+ * - Posts should be sorted in descending order
+ * - If we're scrolling to an anchor, that anchor should be in the first page of posts
+ * - The size of the first page of posts should match `initialNumToRender` here.
+ */
 export default function Scroller({
+  anchor,
   inverted,
   renderItem,
+  renderEmptyComponent,
   posts,
   currentUserId,
   channelType,
   channelId,
+  firstUnreadId,
   unreadCount,
-  firstUnread,
   setInputShouldBlur,
-  selectedPost,
   onStartReached,
   onEndReached,
   onPressImage,
@@ -65,16 +82,17 @@ export default function Scroller({
   setEditingPost,
   editPost,
 }: {
+  anchor?: ScrollAnchor | null;
   inverted: boolean;
   renderItem: RenderItemType;
-  posts: db.Post[];
+  renderEmptyComponent?: () => ReactElement;
+  posts: db.Post[] | null;
   currentUserId: string;
   channelType: db.ChannelType;
   channelId: string;
-  unreadCount?: number;
-  firstUnread?: string;
+  firstUnreadId?: string | null;
+  unreadCount?: number | null;
   setInputShouldBlur?: (shouldBlur: boolean) => void;
-  selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
@@ -94,18 +112,6 @@ export default function Scroller({
     }
   };
 
-  useEffect(() => {
-    if (selectedPost && flatListRef.current) {
-      const scrollToIndex = posts.findIndex((post) => post.id === selectedPost);
-      if (scrollToIndex > -1) {
-        flatListRef.current.scrollToIndex({
-          index: scrollToIndex,
-          animated: true,
-        });
-      }
-    }
-  }, [selectedPost, posts]);
-
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
@@ -123,9 +129,30 @@ export default function Scroller({
     [handleSetActive]
   );
 
+  const userHasScrolledRef = useRef(false);
+  const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
+
+  const handleItemLayout = useCallback(
+    (post: db.Post, index: number) => {
+      if (anchor?.postId === post.id) {
+        if (!hasFoundAnchor) {
+          setHasFoundAnchor(true);
+        }
+        if (!userHasScrolledRef.current) {
+          flatListRef.current?.scrollToIndex({
+            index,
+            animated: false,
+            viewPosition: 1,
+          });
+        }
+      }
+    },
+    [anchor, hasFoundAnchor]
+  );
+
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
-      const previousItem = posts[index + 1];
+      const previousItem = posts?.[index + 1];
       const isFirstPostOfDay = !isSameDay(
         item.receivedAt ?? 0,
         previousItem?.receivedAt ?? 0
@@ -135,12 +162,12 @@ export default function Scroller({
         previousItem?.type === 'notice' ||
         (item.replyCount ?? 0) > 0 ||
         isFirstPostOfDay;
-      const isFirstUnread = !!unreadCount && item.id === firstUnread;
+      const isFirstUnread = item.id === firstUnreadId;
       // this is necessary because we can't call memoized components as functions
       // (they are objects, not functions)
       const RenderItem = renderItem;
       return (
-        <View>
+        <View onLayout={(e) => handleItemLayout(item, index)}>
           {isFirstUnread ? (
             <ChannelDivider
               timestamp={item.receivedAt}
@@ -174,7 +201,8 @@ export default function Scroller({
     [
       posts,
       unreadCount,
-      firstUnread,
+      firstUnreadId,
+      handleItemLayout,
       renderItem,
       channelId,
       channelType,
@@ -190,19 +218,9 @@ export default function Scroller({
     ]
   );
 
-  const handleScrollToIndexFailed = useCallback(
-    ({ index }: { index: number }) => {
-      console.log('scroll to index failed');
-      const wait = new Promise((resolve) => setTimeout(resolve, 100));
-      wait.then(() => {
-        flatListRef.current?.scrollToIndex({
-          index,
-          animated: false,
-        });
-      });
-    },
-    []
-  );
+  const handleScrollToIndexFailed = useCallback(() => {
+    console.log('scroll to index failed');
+  }, []);
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
@@ -212,25 +230,59 @@ export default function Scroller({
     setInputShouldBlur?.(true);
   }, []);
 
+  const handleEndReached = useCallback(() => {
+    if (!hasFoundAnchor) {
+      return;
+    }
+    onEndReached?.();
+  }, [onEndReached, hasFoundAnchor]);
+
+  const handleStartReached = useCallback(() => {
+    if (!hasFoundAnchor) {
+      return;
+    }
+    onStartReached?.();
+  }, [onStartReached, hasFoundAnchor]);
+
+  const handlePointerMove = useCallback(() => {
+    userHasScrolledRef.current = true;
+  }, []);
+
+  const style = useMemo(() => {
+    return {
+      opacity: hasFoundAnchor ? 1 : 0,
+      backgroundColor: 'white',
+    };
+  }, [hasFoundAnchor]);
+
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
-        <UnreadsButton onPress={pressedGoToBottom} />
-      ) : null} */}
-      <FlatList<db.Post>
-        ref={flatListRef}
-        data={posts}
-        renderItem={listRenderItem}
-        keyExtractor={getPostId}
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={contentContainerStyle}
-        onScrollBeginDrag={handleContainerPressed}
-        onScrollToIndexFailed={handleScrollToIndexFailed}
-        inverted={inverted}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={2}
-        onStartReached={onStartReached}
-      />
+  <UnreadsButton onPress={pressedGoToBottom} />
+) : null} */}
+
+      {posts && (
+        <FlatList<db.Post>
+          onPointerMove={handlePointerMove}
+          ref={flatListRef}
+          data={posts}
+          renderItem={listRenderItem}
+          ListEmptyComponent={renderEmptyComponent}
+          keyExtractor={getPostId}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={contentContainerStyle}
+          onScrollBeginDrag={handleContainerPressed}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          inverted={inverted}
+          initialNumToRender={10}
+          maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
+          style={style}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
+          onStartReached={handleStartReached}
+          onStartReachedThreshold={0.5}
+        />
+      )}
       <Modal
         visible={activeMessage !== null}
         onDismiss={() => setActiveMessage(null)}

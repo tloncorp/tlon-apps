@@ -171,8 +171,8 @@ export async function syncPosts(options: db.GetChannelPostsOptions) {
     await db.insertChannelPosts({
       channelId: options.channelId,
       posts: response.posts,
-      newerCursor: response.newer,
-      olderCursor: response.older,
+      newer: response.newer,
+      older: response.older,
     });
   }
   return response;
@@ -210,6 +210,9 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
 }
 
 export async function syncGroup(id: string) {
+  if (id === '') {
+    throw new Error('group id cannot be empty');
+  }
   const group = await db.getGroup({ id });
   if (!group) {
     throw new Error('no local group for' + id);
@@ -312,8 +315,8 @@ async function persistPagedPostData(
     await db.insertChannelPosts({
       channelId,
       posts: data.posts,
-      newerCursor: data.newer,
-      olderCursor: data.older,
+      newer: data.newer,
+      older: data.older,
     });
     const reactions = data.posts
       .map((p) => p.reactions)

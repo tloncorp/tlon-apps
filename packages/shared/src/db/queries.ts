@@ -25,9 +25,10 @@ import {
 } from 'drizzle-orm';
 
 import { ChannelInit } from '../api';
+import { shortPostId } from '../debug';
 import { appendContactIdToReplies } from '../logic';
 import { desig } from '../urbit';
-import { client } from './client';
+import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
   channelWriters as $channelWriters,
@@ -581,9 +582,6 @@ export const insertChannels = createWriteQuery(
 export const updateChannel = createWriteQuery(
   'updateChannel',
   (update: Partial<Channel> & { id: string }) => {
-    if (update.type) {
-      console.log('update channel type', update.id, update.type);
-    }
     return client
       .update($channels)
       .set(update)
@@ -605,12 +603,19 @@ export const setJoinedGroupChannels = createWriteQuery(
   ['channels']
 );
 
-export interface GetChannelPostsOptions {
+export type GetChannelPostsOptions = {
   channelId: string;
-  cursor?: string;
-  mode?: 'newest' | 'older' | 'newer' | 'around';
   count?: number;
-}
+} & (
+  | {
+      mode: 'newest';
+      cursor?: undefined;
+    }
+  | {
+      mode: 'older' | 'newer' | 'around';
+      cursor: string;
+    }
+);
 
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
@@ -620,53 +625,90 @@ export const getChannelPosts = createReadQuery(
     mode,
     count = 50,
   }: GetChannelPostsOptions): Promise<Post[]> => {
-    if (mode === 'around') {
-      const result = await Promise.all([
-        getChannelPosts({
-          channelId,
-          cursor,
-          mode: 'older',
-          count: Math.floor(count / 2),
-        }),
-        getChannelPosts({
-          channelId,
-          cursor,
-          mode: 'newer',
-          count: Math.ceil(count / 2),
-        }),
-      ]);
-      return result.flatMap((r) => r);
-    }
-
     const window = await client.query.postWindows.findFirst({
       where: and(
+        // For this channel
         eq($postWindows.channelId, channelId),
-        ...(cursor && mode !== 'newest'
-          ? [
-              lte($postWindows.oldestPostId, cursor),
-              gte($postWindows.newestPostId, cursor),
-            ]
-          : [])
+        // Depending on mode, either older or newer than cursor. If mode is
+        // `newest`, we don't need to filter by cursor.
+        cursor ? gte($postWindows.newestPostId, cursor) : undefined,
+        cursor ? lte($postWindows.oldestPostId, cursor) : undefined
       ),
       orderBy: [desc($postWindows.newestPostId)],
     });
-    if (!window) return [];
+    if (!window) {
+      return [];
+    }
+    if (mode === 'around') {
+      const $windowQuery = client
+        .select({
+          id: $posts.id,
+          rowNumber: sql`row_number() OVER (ORDER BY ${$posts.id})`
+            .mapWith(Number)
+            .as('rowNumber'),
+        })
+        .from($posts)
+        .where(
+          and(
+            eq($posts.channelId, channelId),
+            gte($posts.id, window.oldestPostId),
+            lte($posts.id, window.newestPostId)
+          )
+        )
+        .as('posts');
 
-    const finalCursor =
-      !cursor || cursor === 'newest' ? window.newestPostId : cursor;
-    console.log('Final cursor', finalCursor, window);
+      const cursorRow = await client
+        .select({
+          id: $windowQuery.id,
+          rowNumber: $windowQuery.rowNumber,
+        })
+        .from($windowQuery)
+        .where(eq($windowQuery.id, cursor));
 
-    return client.query.posts.findMany({
+      const itemsBefore = Math.floor((count - 1) / 2);
+      const itemsAfter = Math.ceil((count - 1) / 2);
+      const startRow = cursorRow[0].rowNumber - itemsBefore;
+      const endRow = cursorRow[0].rowNumber + itemsAfter;
+
+      const $aroundQuery = await client
+        .select({
+          id: $windowQuery.id,
+          rowNumber: $windowQuery.rowNumber,
+        })
+        .from($windowQuery)
+        .where(
+          and(
+            gte($windowQuery.rowNumber, startRow),
+            lte($windowQuery.rowNumber, endRow)
+          )
+        );
+      return await client.query.posts.findMany({
+        where: inArray(
+          $posts.id,
+          $aroundQuery.map((p) => p.id)
+        ),
+        with: {
+          author: true,
+          reactions: true,
+        },
+        orderBy: [desc($posts.id)],
+        limit: count,
+      });
+    }
+
+    return await client.query.posts.findMany({
       where: and(
+        // From this channel
         eq($posts.channelId, channelId),
+        // Not a reply
+        not(eq($posts.type, 'reply')),
+        // In the target window
         gte($posts.id, window.oldestPostId),
         lte($posts.id, window.newestPostId),
-        not(eq($posts.type, 'reply')),
-        mode === 'newest'
-          ? lte($posts.id, finalCursor)
-          : mode === 'older'
-            ? lt($posts.id, finalCursor)
-            : gt($posts.id, finalCursor)
+        // Depending on mode, either older or newer than cursor. If mode is
+        // `newest`, we don't need to filter by cursor.
+        mode === 'older' ? lt($posts.id, cursor) : undefined,
+        mode === 'newer' ? gt($posts.id, cursor) : undefined
       ),
       with: {
         author: true,
@@ -676,7 +718,7 @@ export const getChannelPosts = createReadQuery(
       limit: count,
     });
   },
-  ['posts', 'channels']
+  ['posts']
 );
 
 export interface GetChannelPostsAroundOptions {
@@ -753,52 +795,25 @@ export const insertChannelPosts = createWriteQuery(
   async ({
     channelId,
     posts,
-    newerCursor,
-    olderCursor,
+    newer,
+    older,
   }: {
     channelId: string;
     posts: Post[];
-    newerCursor?: string | null;
-    olderCursor?: string | null;
+    newer?: string | null;
+    older?: string | null;
   }) => {
     if (!posts.length) {
       return;
     }
     return client.transaction(async (tx) => {
-      const lastPost = posts[posts.length - 1];
-      // Update last post meta for the channel these posts belong to,
-      // Also grab that channels groupId for updating the group's lastPostAt and
-      // associating the posts with the group.
-      const updatedChannels = await tx
-        .update($channels)
-        .set({ lastPostId: lastPost.id, lastPostAt: lastPost.receivedAt })
-        .where(
-          and(
-            eq($channels.id, channelId),
-            or(
-              isNull($channels.lastPostAt),
-              lt($channels.lastPostAt, lastPost.receivedAt ?? 0)
-            )
-          )
-        )
-        .returning({ groupId: $channels.groupId });
-      // Update group if we found one.
-      const groupId = updatedChannels[0]?.groupId;
-      if (groupId) {
-        await tx
-          .update($groups)
-          .set({ lastPostId: lastPost.id, lastPostAt: lastPost.receivedAt })
-          .where(
-            and(
-              eq($groups.id, groupId),
-              or(
-                isNull($groups.lastPostAt),
-                lt($groups.lastPostAt, lastPost.receivedAt ?? 0)
-              )
-            )
-          );
-      }
-      // Actually insert posts, overwriting any existing posts with the same id.
+      // Find the group id which corresponds to this channel id
+      const { groupId } =
+        (await tx.query.channels.findFirst({
+          where: eq($channels.id, channelId),
+          columns: { groupId: true },
+        })) ?? {};
+      // Insert posts
       await tx
         .insert($posts)
         .values(posts.map((p) => ({ ...p, groupId, channelId })))
@@ -810,73 +825,151 @@ export const insertChannelPosts = createWriteQuery(
           target: [$posts.authorId, $posts.sentAt],
           set: conflictUpdateSetAll($posts),
         });
-
-      // Update post window
-      const window = {
-        channelId,
-        newestPostId: lastPost.id,
-        oldestPostId: posts[0].id,
-      };
-      console.log('newest', lastPost.id);
-      console.log('oldest', posts[0].id);
-      console.log('ncurso', newerCursor ?? window.newestPostId);
-      console.log('ocurso', olderCursor ?? window.oldestPostId);
-
-      const { startId, endId } = (
-        await client
-          .select({
-            startId: min($postWindows.oldestPostId),
-            endId: max($postWindows.newestPostId),
-          })
-          .from($postWindows)
-          .where(
-            and(
-              eq($postWindows.channelId, window.channelId),
-              lte(
-                $postWindows.oldestPostId,
-                newerCursor ?? window.newestPostId
-              ),
-              gte($postWindows.newestPostId, olderCursor ?? window.oldestPostId)
-            )
-          )
-      )[0];
-      const resolvedStart =
-        startId && startId < window.oldestPostId
-          ? startId
-          : window.oldestPostId;
-      const resolvedEnd =
-        endId && endId > window.newestPostId ? endId : window.newestPostId;
-      console.log('startId', startId);
-      console.log('endId', endId);
-      const deleted = await client
-        .delete($postWindows)
-        .where(
-          and(
-            eq($postWindows.channelId, window.channelId),
-            lte($postWindows.oldestPostId, endId ?? window.newestPostId),
-            gte($postWindows.newestPostId, startId ?? window.oldestPostId)
-          )
-        )
-        .returning({
-          channelId: $postWindows.channelId,
-          oldestPostId: $postWindows.oldestPostId,
-          newestPostId: $postWindows.newestPostId,
-        });
-      console.log('deleted', deleted);
-      console.log('inserting', {
-        channelId: window.channelId,
-        oldestPostId: resolvedStart,
-        newestPostId: resolvedEnd,
-      });
-      await client.insert($postWindows).values({
-        channelId: window.channelId,
-        oldestPostId: resolvedStart,
-        newestPostId: resolvedEnd,
-      });
+      // If these are non-reply posts, update group + channel last post as well as post windows.
+      const topLevelPosts = posts.filter((p) => p.type !== 'reply');
+      console.log(
+        'total posts',
+        posts.length,
+        'top level posts:',
+        topLevelPosts.length
+      );
+      if (topLevelPosts.length) {
+        await setLastPost(
+          {
+            channelId: topLevelPosts[0].channelId,
+            groupId,
+            post: topLevelPosts[topLevelPosts.length - 1],
+          },
+          tx
+        );
+        await updatePostWindows(
+          {
+            channelId,
+            newPosts: topLevelPosts,
+            newer,
+            older,
+          },
+          tx
+        );
+      }
     });
   },
   ['posts', 'channels', 'groups', 'postWindows']
 );
+
+async function setLastPost(
+  {
+    groupId,
+    channelId,
+    post,
+  }: {
+    channelId: string;
+    groupId?: string | null;
+    post: Post;
+  },
+  tx: AnySqliteDatabase | AnySqliteTransaction
+) {
+  // Update last post meta for the channel these posts belong to,
+  // Also grab that channels groupId for updating the group's lastPostAt and
+  // associating the posts with the group.
+  await tx
+    .update($channels)
+    .set({ lastPostId: post.id, lastPostAt: post.receivedAt })
+    .where(
+      and(
+        eq($channels.id, channelId),
+        or(
+          isNull($channels.lastPostAt),
+          lt($channels.lastPostAt, post.receivedAt ?? 0)
+        )
+      )
+    );
+  // Update group if we found one.
+  if (groupId) {
+    await tx
+      .update($groups)
+      .set({ lastPostId: post.id, lastPostAt: post.receivedAt })
+      .where(
+        and(
+          eq($groups.id, groupId),
+          or(
+            isNull($groups.lastPostAt),
+            lt($groups.lastPostAt, post.receivedAt ?? 0)
+          )
+        )
+      );
+  }
+}
+
+async function updatePostWindows(
+  {
+    channelId,
+    newPosts,
+    newer,
+    older,
+  }: {
+    channelId: string;
+    newPosts: Post[];
+    newer?: string | null;
+    older?: string | null;
+  },
+  tx: AnySqliteDatabase | AnySqliteTransaction
+) {
+  // Update post window
+  const window = {
+    channelId,
+    newestPostId: newPosts[newPosts.length - 1].id,
+    oldestPostId: newPosts[0].id,
+  };
+
+  const { startId, endId } = (
+    await tx
+      .select({
+        startId: min($postWindows.oldestPostId),
+        endId: max($postWindows.newestPostId),
+      })
+      .from($postWindows)
+      .where(
+        and(
+          eq($postWindows.channelId, window.channelId),
+          lte($postWindows.oldestPostId, newer ?? window.newestPostId),
+          gte($postWindows.newestPostId, older ?? window.oldestPostId)
+        )
+      )
+  )[0];
+  const resolvedStart =
+    startId && startId < window.oldestPostId ? startId : window.oldestPostId;
+  const resolvedEnd =
+    endId && endId > window.newestPostId ? endId : window.newestPostId;
+
+  await tx
+    .delete($postWindows)
+    .where(
+      and(
+        eq($postWindows.channelId, window.channelId),
+        lte($postWindows.oldestPostId, endId ?? window.newestPostId),
+        gte($postWindows.newestPostId, startId ?? window.oldestPostId)
+      )
+    )
+    .returning({
+      channelId: $postWindows.channelId,
+      oldestPostId: $postWindows.oldestPostId,
+      newestPostId: $postWindows.newestPostId,
+    });
+
+  console.log(
+    'inserting window',
+    shortPostId(resolvedStart),
+    '=>',
+    shortPostId(resolvedEnd)
+  );
+
+  await tx.insert($postWindows).values({
+    channelId: window.channelId,
+    oldestPostId: resolvedStart,
+    newestPostId: resolvedEnd,
+  });
+}
 
 export const updatePost = createWriteQuery(
   'updateChannelPost',
@@ -1309,7 +1402,6 @@ export const getPostWindows = createReadQuery(
 function allQueryColumns<T extends Subquery>(
   subquery: T
 ): T['_']['selectedFields'] {
-  console;
   return subquery._.selectedFields;
 }
 

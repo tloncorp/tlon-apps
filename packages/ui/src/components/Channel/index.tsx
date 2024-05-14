@@ -1,12 +1,12 @@
 import {
-  isChatChannel,
+  isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import {
@@ -18,14 +18,15 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { Spinner, Text, View, YStack } from '../../core';
+import { Text, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import { ChatMessage } from '../ChatMessage';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
-import Scroller from './Scroller';
+import Scroller, { ScrollAnchor } from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
 //TODO implement usePost and useChannel
@@ -36,7 +37,7 @@ export function Channel({
   channel,
   currentUserId,
   posts,
-  selectedPost,
+  selectedPostId,
   contacts,
   group,
   calmSettings,
@@ -63,7 +64,7 @@ export function Channel({
 }: {
   channel: db.Channel;
   currentUserId: string;
-  selectedPost?: string;
+  selectedPostId?: string;
   posts: db.Post[] | null;
   contacts: db.Contact[] | null;
   group: db.Group | null;
@@ -90,12 +91,27 @@ export function Channel({
   negotiationMatch: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
-  const title = utils.getChannelTitle(channel);
+  const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
-  const canWrite = utils.useCanWrite(channel, currentUserId);
+  const canWrite = true;
 
-  const chatChannel = isChatChannel(channel);
-  const renderItem = chatChannel ? ChatMessage : NotebookPost;
+  const isChatChannel = channel ? getIsChatChannel(channel) : true;
+  const renderItem = isChatChannel ? ChatMessage : NotebookPost;
+  const renderEmptyComponent = useCallback(() => {
+    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
+  }, [currentUserId, channel]);
+
+  const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
+    if (selectedPostId) {
+      return { type: 'selected', postId: selectedPostId };
+    } else if (
+      channel?.unread?.countWithoutThreads &&
+      channel.unread.firstUnreadPostId
+    ) {
+      return { type: 'unread', postId: channel.unread.firstUnreadPostId };
+    }
+    return null;
+  }, [selectedPostId, channel]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -110,6 +126,7 @@ export function Channel({
             <NavigationProvider onPressRef={onPressRef}>
               <ReferencesProvider>
                 <YStack
+                  flex={1}
                   justifyContent="space-between"
                   width="100%"
                   height="100%"
@@ -133,45 +150,52 @@ export function Channel({
                           imageAttachment={uploadInfo.imageAttachment}
                           resetImageAttachment={uploadInfo.resetImageAttachment}
                         />
-                      ) : !posts || !contacts ? (
-                        <View
-                          flex={1}
-                          alignItems="center"
-                          justifyContent="center"
-                        >
-                          <Spinner />
-                        </View>
-                      ) : posts.length === 0 && group !== null ? (
-                        <EmptyChannelNotice
-                          channel={channel}
-                          userId={currentUserId}
-                        />
                       ) : (
-                        <Scroller
-                          inverted={chatChannel ? true : false}
-                          renderItem={renderItem}
-                          currentUserId={currentUserId}
-                          unreadCount={channel.unread?.count ?? undefined}
-                          selectedPost={selectedPost}
-                          firstUnread={
-                            channel.unread?.firstUnreadPostId ?? undefined
-                          }
-                          posts={posts}
-                          editingPost={editingPost}
-                          setEditingPost={setEditingPost}
-                          editPost={editPost}
-                          channelType={channel.type}
-                          channelId={channel.id}
-                          onPressReplies={goToPost}
-                          onPressImage={goToImageViewer}
-                          setInputShouldBlur={setInputShouldBlur}
-                          onEndReached={onScrollEndReached}
-                          onStartReached={onScrollStartReached}
-                        />
+                        <View flex={1}>
+                          <View
+                            position="absolute"
+                            top={0}
+                            left={0}
+                            width="100%"
+                            height="100%"
+                            alignItems="center"
+                            justifyContent="center"
+                          >
+                            <LoadingSpinner />
+                          </View>
+                          {channel && posts && (
+                            <Scroller
+                              inverted={isChatChannel ? true : false}
+                              renderItem={renderItem}
+                              renderEmptyComponent={renderEmptyComponent}
+                              currentUserId={currentUserId}
+                              anchor={scrollerAnchor}
+                              posts={posts}
+                              editingPost={editingPost}
+                              setEditingPost={setEditingPost}
+                              editPost={editPost}
+                              channelType={channel.type}
+                              channelId={channel.id}
+                              firstUnreadId={
+                                channel.unread?.countWithoutThreads ?? 0 > 0
+                                  ? channel.unread?.firstUnreadPostId
+                                  : null
+                              }
+                              unreadCount={
+                                channel.unread?.countWithoutThreads ?? 0
+                              }
+                              onPressReplies={goToPost}
+                              onPressImage={goToImageViewer}
+                              setInputShouldBlur={setInputShouldBlur}
+                              onEndReached={onScrollEndReached}
+                              onStartReached={onScrollStartReached}
+                            />
+                          )}
+                        </View>
                       )}
                       {negotiationMatch &&
                         !editingPost &&
-                        chatChannel &&
+                        isChatChannel &&
                         canWrite && (
                           <MessageInput
                             shouldBlur={inputShouldBlur}
@@ -187,7 +211,7 @@ export function Channel({
                             getDraft={getDraft}
                           />
                         )}
-                      {!negotiationMatch && chatChannel && canWrite && (
+                      {!negotiationMatch && isChatChannel && canWrite && (
                         <View
                           width="90%"
                           alignItems="center"

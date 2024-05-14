@@ -1,18 +1,21 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as sync from './sync';
-import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
-type UseChanelPostsParams = db.GetChannelPostsOptions & {
-  anchorToNewest?: boolean;
-};
+type UseChanelPostsParams = db.GetChannelPostsOptions;
 
-export const useChannelPosts = (options: UseChanelPostsParams) => {
+export const useChannelPosts = (
+  options: UseChanelPostsParams & { enabled: boolean }
+) => {
+  const key = useMemo(() => {
+    return Math.random().toString(36).substring(7);
+  }, []);
+
   useEffect(() => {
     postsLogger.log('mount', options);
     return () => {
@@ -20,8 +23,19 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     };
   }, []);
 
+  useEffect(() => {
+    postsLogger.log('options', options);
+  }, [options]);
+
+  const mountTime = useMemo(() => {
+    return Date.now();
+  }, []);
+
+  const { enabled, ...pageParam } = options;
+
   return useInfiniteQuery({
-    initialPageParam: options,
+    enabled,
+    initialPageParam: pageParam,
     refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
@@ -30,8 +44,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         queryOptions.channelId,
         queryOptions.cursor,
         queryOptions.mode,
-        queryOptions.count,
-        queryOptions.anchorToNewest
+        queryOptions.count
       );
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
@@ -49,10 +62,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       );
       return secondResult ?? [];
     },
-    queryKey: [
-      ['channels', options.channelId],
-      useKeyFromQueryDeps(db.getChannelPosts),
-    ],
+    queryKey: [['channels', options.channelId, key], mountTime],
     getNextPageParam: (
       lastPage,
       _allPages,
@@ -81,12 +91,12 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     },
     getPreviousPageParam: (
       firstPage,
-      _allPages,
-      firstPageParam
+      _allPages
     ): UseChanelPostsParams | undefined => {
-      const reachedEnd = firstPage[0]?.id;
-      const alreadyAtNewest = firstPageParam?.anchorToNewest;
-      if (reachedEnd || alreadyAtNewest) return undefined;
+      const reachedEnd = !firstPage[0]?.id;
+      if (reachedEnd) {
+        return undefined;
+      }
       return {
         ...options,
         mode: 'newer',

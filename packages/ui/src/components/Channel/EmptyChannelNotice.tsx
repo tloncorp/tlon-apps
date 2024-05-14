@@ -15,14 +15,9 @@ export function EmptyChannelNotice({
   const noticeText = useMemo(() => getNoticeText(isGroupAdmin), [isGroupAdmin]);
 
   return (
-    <ScrollView
-      padding="$xl"
-      contentContainerStyle={{ flex: 1, justifyContent: 'flex-end' }}
-    >
-      <View backgroundColor="$blueSoft" borderRadius="$xl" padding="$xl">
-        <SizableText>{noticeText}</SizableText>
-      </View>
-    </ScrollView>
+    <View backgroundColor="$blueSoft" borderRadius="$xl" padding="$xl">
+      <SizableText>{noticeText}</SizableText>
+    </View>
   );
 }
 

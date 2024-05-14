@@ -79,6 +79,7 @@ export function PostScreenView({
                 />
               ) : (
                 posts &&
+                posts.length > 1 &&
                 channel && (
                   <Scroller
                     setInputShouldBlur={setInputShouldBlur}

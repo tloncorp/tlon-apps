@@ -85,64 +85,64 @@ const windowA = {
   channelId: 'tst',
   oldestPostId: '010',
   newestPostId: '100',
-  newerCursor: '101',
-  olderCursor: '009',
+  newer: '101',
+  older: '009',
 };
 
 const windowB = {
   channelId: 'tst',
   oldestPostId: '200',
   newestPostId: '300',
-  newerCursor: '301',
-  olderCursor: '199',
+  newer: '301',
+  older: '199',
 };
 
 const windowImmediatelyBeforeA = {
   channelId: 'tst',
   oldestPostId: '000',
   newestPostId: '009',
-  newerCursor: '010',
-  olderCursor: undefined,
+  newer: '010',
+  older: undefined,
 };
 
 const windowBefore = {
   channelId: 'tst',
   oldestPostId: '000',
   newestPostId: '005',
-  newerCursor: '006',
-  olderCursor: undefined,
+  newer: '006',
+  older: undefined,
 };
 
 const windowIntersectingA = {
   channelId: 'tst',
   oldestPostId: '005',
   newestPostId: '050',
-  newerCursor: '051',
-  olderCursor: '004',
+  newer: '051',
+  older: '004',
 };
 
 const windowFillingGap = {
   channelId: 'tst',
   oldestPostId: '095',
   newestPostId: '205',
-  newerCursor: '206',
-  olderCursor: '094',
+  newer: '206',
+  older: '094',
 };
 
 const windowIntersectingB = {
   channelId: 'tst',
   oldestPostId: '250',
   newestPostId: '350',
-  newerCursor: '351',
-  olderCursor: '249',
+  newer: '351',
+  older: '249',
 };
 
 const windowCoveringAll = {
   channelId: 'tst',
   oldestPostId: '000',
   newestPostId: '400',
-  newerCursor: '401',
-  olderCursor: undefined,
+  newer: '401',
+  older: undefined,
 };
 
 const testCases: {
@@ -215,12 +215,12 @@ const testCases: {
 ];
 
 function insertPostsForWindow(
-  window: PostWindow & { olderCursor?: string; newerCursor?: string }
+  window: PostWindow & { older?: string; newer?: string }
 ) {
   return queries.insertChannelPosts({
     channelId: window.channelId,
-    olderCursor: window.olderCursor,
-    newerCursor: window.newerCursor,
+    older: window.older,
+    newer: window.newer,
     posts: [
       {
         id: window.oldestPostId,
@@ -321,14 +321,14 @@ test.each(filterTestCases)('filter posts: $label', async (testCase) => {
   await queries.insertChannelPosts({
     channelId,
     posts: firstRange,
-    newerCursor: null,
-    olderCursor: null,
+    newer: null,
+    older: null,
   });
   await queries.insertChannelPosts({
     channelId,
     posts: secondRange,
-    newerCursor: null,
-    olderCursor: null,
+    newer: null,
+    older: null,
   });
 
   const newestPosts = await queries.getChannelPosts({
@@ -337,6 +337,20 @@ test.each(filterTestCases)('filter posts: $label', async (testCase) => {
     mode: 'newest',
   });
   expect(newestPosts.length).toEqual(5);
+
+  const postsAround = await queries.getChannelPosts({
+    channelId,
+    count: 5,
+    cursor: '0015',
+    mode: 'around',
+  });
+  expect(postsAround.map((p) => p.id)).toEqual([
+    '0017',
+    '0016',
+    '0015',
+    '0014',
+    '0013',
+  ]);
 
   for (const mode of ['newer', 'older'] as const) {
     const posts = await queries.getChannelPosts({
