@@ -21,9 +21,9 @@ export function AvatarNavIcon({
   return isLoading && !contact ? null : (
     <View flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
       <Avatar
-        width={22}
-        height={22}
-        borderRadius={4}
+        width={20}
+        height={20}
+        borderRadius={3}
         contact={contact}
         contactId={id}
         opacity={focused ? 1 : 0.6}
