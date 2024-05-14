@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
+import NavBar from '../navigation/NavBarView';
 import { TabParamList } from '../types';
 
 type Props = BottomTabScreenProps<TabParamList, 'Profile'>;
@@ -17,6 +18,7 @@ export default function ProfileScreen(props: Props) {
         contacts={contacts ?? []}
         currentUserId={currentUserId}
       />
+      <NavBar navigation={props.navigation} />
     </View>
   );
 }

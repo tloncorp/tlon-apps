@@ -54,6 +54,8 @@ export const tokens = createTokens({
     '2xl': 24,
     '3xl': 32,
     '4xl': 48,
+    '5xl': 64,
+    '6xl': 96,
   },
   size: {
     '2xs': 2,
@@ -67,6 +69,7 @@ export const tokens = createTokens({
     '3xl': 32,
     '4xl': 48,
     '5xl': 64,
+    '6xl': 96,
   },
   radius: {
     '2xs': 2,
@@ -79,6 +82,8 @@ export const tokens = createTokens({
     '2xl': 24,
     '3xl': 32,
     '4xl': 48,
+    '5xl': 64,
+    '6xl': 96,
   },
   zIndex: {
     s: 0,

@@ -32,7 +32,12 @@ export function Wrapped(props: Props) {
 
   return (
     <ScrollView>
-      <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
+      <YStack
+        flex={1}
+        paddingHorizontal="$xl"
+        paddingTop={top}
+        paddingBottom={'$6xl'}
+      >
         <View marginTop="$l">
           {contact ? (
             <ProfileDisplayWidget
