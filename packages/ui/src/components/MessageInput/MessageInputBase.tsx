@@ -39,6 +39,7 @@ export const MessageInputContainer = ({
   mentionText,
   groupMembers,
   onSelectMention,
+  editorIsEmpty,
 }: PropsWithChildren<{
   onPressSend?: () => void;
   setImageAttachment: (image: string | null) => void;
@@ -49,6 +50,7 @@ export const MessageInputContainer = ({
   mentionText?: string;
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
+  editorIsEmpty: boolean;
 }>) => {
   const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
@@ -132,14 +134,16 @@ export const MessageInputContainer = ({
         ) : null}
         {children}
         <View paddingBottom="$m">
-          <IconButton
-            color={sendIconColor}
-            disabled={uploadIsLoading}
-            onPress={onPressSend}
-          >
-            {/* TODO: figure out what send button should look like */}
-            <ArrowUp />
-          </IconButton>
+          {editorIsEmpty ? null : (
+            <IconButton
+              color={sendIconColor}
+              disabled={uploadIsLoading}
+              onPress={onPressSend}
+            >
+              {/* TODO: figure out what send button should look like */}
+              <ArrowUp />
+            </IconButton>
+          )}
         </View>
       </XStack>
     </YStack>
