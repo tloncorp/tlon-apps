@@ -3,8 +3,15 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
-import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { useShip } from '../contexts/ship';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -23,6 +30,7 @@ const defaultCalmSettings = {
 };
 
 export default function PostScreen(props: PostScreenProps) {
+  const [editingPost, setEditingPost] = useState<db.Post>();
   useLayoutEffect(() => {
     if (props.navigation.isFocused()) {
       props.navigation.getParent()?.setOptions({
@@ -119,6 +127,21 @@ export default function PostScreen(props: PostScreenProps) {
     }
   }, [postParam.id]);
 
+  const editPost = useCallback(
+    async (post: db.Post, content: Story) => {
+      if (!channel) {
+        return;
+      }
+
+      store.editPost({
+        post,
+        content,
+      });
+      setEditingPost(undefined);
+    },
+    [channel]
+  );
+
   return contactId ? (
     <PostScreenView
       contacts={contacts ?? null}
@@ -134,6 +157,9 @@ export default function PostScreen(props: PostScreenProps) {
       getDraft={getDraft}
       storeDraft={storeDraft}
       clearDraft={clearDraft}
+      editingPost={editingPost}
+      setEditingPost={setEditingPost}
+      editPost={editPost}
     />
   ) : null;
 }

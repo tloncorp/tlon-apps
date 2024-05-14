@@ -1,6 +1,7 @@
 import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -26,6 +27,9 @@ export function PostScreenView({
   storeDraft,
   clearDraft,
   getDraft,
+  editingPost,
+  setEditingPost,
+  editPost,
 }: {
   currentUserId: string;
   calmSettings?: CalmState;
@@ -40,6 +44,9 @@ export function PostScreenView({
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost: (post: db.Post, content: Story) => void;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
 
@@ -71,6 +78,9 @@ export function PostScreenView({
                   setInputShouldBlur={setInputShouldBlur}
                   inverted
                   renderItem={ChatMessage}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  editPost={editPost}
                   channelType={channel.type}
                   channelId={channel.id}
                   currentUserId={currentUserId}

@@ -4,7 +4,6 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { isDmChannel } from 'packages/ui/src/utils';
 import { useMemo } from 'react';
 
 import { useReferences } from '../../../contexts/references';

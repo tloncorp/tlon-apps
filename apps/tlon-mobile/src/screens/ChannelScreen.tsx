@@ -102,7 +102,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const editPost = useCallback(
     async (post: db.Post, content: Story) => {
-      if (!currentUserId || !channelQuery.data) {
+      if (!channelQuery.data) {
         return;
       }
 
@@ -112,7 +112,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       });
       setEditingPost(undefined);
     },
-    [currentUserId, channelQuery.data]
+    [channelQuery.data]
   );
 
   useEffect(() => {

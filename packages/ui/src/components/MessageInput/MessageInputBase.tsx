@@ -1,7 +1,4 @@
-import {
-  ContentReference as ContentReferenceType,
-  Upload,
-} from '@tloncorp/shared/dist/api';
+import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';

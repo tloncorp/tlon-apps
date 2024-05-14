@@ -147,7 +147,7 @@ export const editPost = async ({
   content: Story;
 }) => {
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
-    return;
+    throw new Error('Cannot edit a post in a DM or group DM');
   }
 
   const essay: ub.PostEssay = {

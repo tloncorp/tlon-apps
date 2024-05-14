@@ -30,7 +30,6 @@ import { TouchableOpacity } from 'react-native';
 import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
 import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
-import { Icon } from '../Icon';
 import ChatEmbedContent from './ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
@@ -459,11 +458,9 @@ export default function ChatContent({
           </View>
         ) : null}
         {isEdited ? (
-          <View flexShrink={1}>
-            <Text color="$tertiaryText" fontSize="$s">
-              Edited
-            </Text>
-          </View>
+          <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+            Edited
+          </Text>
         ) : null}
         {deliveryStatus ? (
           <View flexShrink={1}>
