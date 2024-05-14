@@ -33,9 +33,11 @@ export async function sendPost({
 export async function editPost({
   post,
   content,
+  parentId,
 }: {
   post: db.Post;
   content: urbit.Story;
+  parentId?: string;
 }) {
   // optimistic update
   await db.updatePost({ id: post.id, content: JSON.stringify(content) });
@@ -47,6 +49,7 @@ export async function editPost({
       authorId: post.authorId,
       sentAt: post.sentAt,
       content,
+      parentId,
     });
     sync.syncChannelMessageDelivery({ channelId: post.channelId });
   } catch (e) {

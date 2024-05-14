@@ -139,15 +139,42 @@ export const editPost = async ({
   authorId,
   sentAt,
   content,
+  parentId,
 }: {
   channelId: string;
   postId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  parentId?: string;
 }) => {
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     throw new Error('Cannot edit a post in a DM or group DM');
+  }
+
+  if (parentId) {
+    const memo: ub.Memo = {
+      author: authorId,
+      content,
+      sent: sentAt,
+    };
+
+    const action: ub.Action = {
+      post: {
+        reply: {
+          id: parentId,
+          action: {
+            edit: {
+              id: postId,
+              memo,
+            },
+          },
+        },
+      },
+    };
+
+    await poke(channelAction(channelId, action));
+    return;
   }
 
   const essay: ub.PostEssay = {
@@ -638,6 +665,7 @@ export function toPostReplyData(
     channelId,
     type: 'reply',
     authorId: reply.memo.author,
+    isEdited: reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),

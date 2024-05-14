@@ -8,6 +8,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { YStack } from '../core';
+import * as utils from '../utils';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
@@ -35,7 +36,7 @@ export function PostScreenView({
   currentUserId: string;
   calmSettings?: CalmState;
   contacts: db.Contact[] | null;
-  channel: db.Channel | null;
+  channel: db.Channel;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
@@ -50,6 +51,7 @@ export function PostScreenView({
   editPost: (post: db.Post, content: Story) => void;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const canWrite = utils.useCanWrite(channel, currentUserId);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -92,7 +94,7 @@ export function PostScreenView({
                   />
                 )
               )}
-              {channel && (
+              {!editingPost && channel && canWrite && (
                 <MessageInput
                   shouldBlur={inputShouldBlur}
                   setShouldBlur={setInputShouldBlur}

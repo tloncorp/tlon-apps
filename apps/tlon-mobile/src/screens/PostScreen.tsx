@@ -103,7 +103,6 @@ export default function PostScreen(props: PostScreenProps) {
       const draft = await storage.load({ key: `draft-${postParam.id}` });
       return draft;
     } catch (e) {
-      console.log('Error loading draft', e);
       return null;
     }
   }, [postParam.id]);
@@ -113,7 +112,7 @@ export default function PostScreen(props: PostScreenProps) {
       try {
         await storage.save({ key: `draft-${postParam.id}`, data: draft });
       } catch (e) {
-        console.log('Error saving draft', e);
+        return;
       }
     },
     [postParam.id]
@@ -123,32 +122,33 @@ export default function PostScreen(props: PostScreenProps) {
     try {
       await storage.remove({ key: `draft-${postParam.id}` });
     } catch (e) {
-      console.log('Error clearing draft', e);
+      return;
     }
   }, [postParam.id]);
 
   const editPost = useCallback(
-    async (post: db.Post, content: Story) => {
-      if (!channel) {
+    async (editedPost: db.Post, content: Story) => {
+      if (!channel || !post) {
         return;
       }
 
       store.editPost({
-        post,
+        post: editedPost,
         content,
+        parentId: post.id,
       });
       setEditingPost(undefined);
     },
-    [channel]
+    [channel, post]
   );
 
-  return contactId ? (
+  return contactId && channel ? (
     <PostScreenView
       contacts={contacts ?? null}
       calmSettings={defaultCalmSettings}
       currentUserId={contactId}
       posts={posts}
-      channel={channel ?? null}
+      channel={channel}
       goBack={props.navigation.goBack}
       sendReply={sendReply}
       groupMembers={groupQuery.data?.members ?? []}
