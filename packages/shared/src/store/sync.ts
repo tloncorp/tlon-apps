@@ -107,6 +107,9 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       // finally, always insert the post itself
       await db.insertChannelPosts(update.post.channelId, [update.post]);
       break;
+    case 'deletePost':
+      await db.deletePosts({ ids: [update.postId] });
+      break;
     case 'updateReactions':
       await db.replacePostReactions({
         postId: update.postId,
