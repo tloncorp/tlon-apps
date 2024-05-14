@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { PostScreenView } from '@tloncorp/ui';
+import { PostScreenView, View } from '@tloncorp/ui';
 import {
   useCallback,
   useEffect,
@@ -12,6 +12,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShip } from '../contexts/ship';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -30,24 +31,8 @@ const defaultCalmSettings = {
 };
 
 export default function PostScreen(props: PostScreenProps) {
+  const { bottom } = useSafeAreaInsets();
   const [editingPost, setEditingPost] = useState<db.Post>();
-  useLayoutEffect(() => {
-    if (props.navigation.isFocused()) {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: 'none',
-        },
-      });
-    }
-
-    return () => {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: undefined,
-        },
-      });
-    };
-  }, [props.navigation]);
 
   const postParam = props.route.params.post;
   const { data: post } = store.usePostWithRelations({
@@ -143,23 +128,25 @@ export default function PostScreen(props: PostScreenProps) {
   );
 
   return contactId && channel ? (
-    <PostScreenView
-      contacts={contacts ?? null}
-      calmSettings={defaultCalmSettings}
-      currentUserId={contactId}
-      posts={posts}
-      channel={channel}
-      goBack={props.navigation.goBack}
-      sendReply={sendReply}
-      groupMembers={groupQuery.data?.members ?? []}
-      uploadInfo={uploadInfo}
-      handleGoToImage={handleGoToImage}
-      getDraft={getDraft}
-      storeDraft={storeDraft}
-      clearDraft={clearDraft}
-      editingPost={editingPost}
-      setEditingPost={setEditingPost}
-      editPost={editPost}
-    />
+    <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+      <PostScreenView
+        contacts={contacts ?? null}
+        calmSettings={defaultCalmSettings}
+        currentUserId={contactId}
+        posts={posts}
+        channel={channel}
+        goBack={props.navigation.goBack}
+        sendReply={sendReply}
+        groupMembers={groupQuery.data?.members ?? []}
+        uploadInfo={uploadInfo}
+        handleGoToImage={handleGoToImage}
+        getDraft={getDraft}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+      />
+    </View>
   ) : null;
 }
