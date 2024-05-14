@@ -696,7 +696,7 @@ export const getChannelPosts = createReadQuery(
       });
     }
 
-    return await client.query.posts.findMany({
+    const posts = await client.query.posts.findMany({
       where: and(
         // From this channel
         eq($posts.channelId, channelId),
@@ -714,11 +714,17 @@ export const getChannelPosts = createReadQuery(
         author: true,
         reactions: true,
       },
-      orderBy: [desc($posts.id)],
+      // If newer, we have to ensure that these are the newer posts directly following the cursor
+      orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
       limit: count,
     });
+    // We always want to return posts newest-first
+    if (mode === 'newer') {
+      posts.reverse();
+    }
+    return posts;
   },
-  ['posts']
+  []
 );
 
 export interface GetChannelPostsAroundOptions {

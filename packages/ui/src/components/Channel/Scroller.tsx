@@ -9,6 +9,7 @@ import React, {
   createRef,
   forwardRef,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -226,12 +227,32 @@ export default function Scroller({
     paddingHorizontal: '$m',
   }) as StyleProp<ViewStyle>;
 
-  const handleContainerPressed = useCallback(() => {
+  const handleScrollBeginDrag = useCallback(() => {
+    userHasScrolledRef.current = true;
     setInputShouldBlur?.(true);
-  }, []);
+  }, [setInputShouldBlur]);
+
+  const pendingEvents = useRef({
+    onEndReached: false,
+    onStartReached: false,
+  });
+
+  useEffect(() => {
+    if (hasFoundAnchor) {
+      if (pendingEvents.current.onEndReached) {
+        onEndReached?.();
+        pendingEvents.current.onEndReached = false;
+      }
+      if (pendingEvents.current.onStartReached) {
+        onStartReached?.();
+        pendingEvents.current.onStartReached = false;
+      }
+    }
+  }, [hasFoundAnchor, onEndReached, onStartReached]);
 
   const handleEndReached = useCallback(() => {
     if (!hasFoundAnchor) {
+      pendingEvents.current.onEndReached = true;
       return;
     }
     onEndReached?.();
@@ -239,14 +260,11 @@ export default function Scroller({
 
   const handleStartReached = useCallback(() => {
     if (!hasFoundAnchor) {
+      pendingEvents.current.onStartReached = true;
       return;
     }
     onStartReached?.();
   }, [onStartReached, hasFoundAnchor]);
-
-  const handlePointerMove = useCallback(() => {
-    userHasScrolledRef.current = true;
-  }, []);
 
   const style = useMemo(() => {
     return {
@@ -258,12 +276,10 @@ export default function Scroller({
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
-  <UnreadsButton onPress={pressedGoToBottom} />
-) : null} */}
-
+        <UnreadsButton onPress={pressedGoToBottom} />
+      ) : null} */}
       {posts && (
         <FlatList<db.Post>
-          onPointerMove={handlePointerMove}
           ref={flatListRef}
           data={posts}
           renderItem={listRenderItem}
@@ -271,16 +287,16 @@ export default function Scroller({
           keyExtractor={getPostId}
           keyboardDismissMode="on-drag"
           contentContainerStyle={contentContainerStyle}
-          onScrollBeginDrag={handleContainerPressed}
+          onScrollBeginDrag={handleScrollBeginDrag}
           onScrollToIndexFailed={handleScrollToIndexFailed}
           inverted={inverted}
           initialNumToRender={10}
           maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
           style={style}
           onEndReached={handleEndReached}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={2}
           onStartReached={handleStartReached}
-          onStartReachedThreshold={0.5}
+          onStartReachedThreshold={2}
         />
       )}
       <Modal

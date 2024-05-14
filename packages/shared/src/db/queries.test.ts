@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
 import { toClientGroups } from '../api/groupsApi';
 import {
@@ -260,57 +260,57 @@ const filterTestCases = [
     label: 'before first window',
     startPostId: '0005',
     count: 5,
-    newer: 0,
-    older: 0,
+    newer: [],
+    older: [],
   },
   {
     label: 'within first window',
     startPostId: '0010',
     count: 5,
-    newer: 5,
-    older: 0,
+    newer: ['0015', '0014', '0013', '0012', '0011'],
+    older: [],
   },
   {
     label: 'to exact end of first window',
     startPostId: '0014',
     count: 5,
-    newer: 5,
-    older: 4,
+    newer: ['0019', '0018', '0017', '0016', '0015'],
+    older: ['0013', '0012', '0011', '0010'],
   },
   {
     label: 'past end of first window',
     startPostId: '0017',
     count: 5,
-    newer: 2,
-    older: 5,
+    newer: ['0019', '0018'],
+    older: ['0016', '0015', '0014', '0013', '0012'],
   },
   {
     label: 'into second window',
     startPostId: '0021',
     count: 5,
-    newer: 0,
-    older: 0,
+    newer: [],
+    older: [],
   },
   {
     label: 'within second window',
     startPostId: '0025',
     count: 5,
-    newer: 5,
-    older: 0,
+    newer: ['0030', '0029', '0028', '0027', '0026'],
+    older: [],
   },
   {
     label: 'outside of any window',
     startPostId: '0040',
     count: 5,
-    newer: 0,
-    older: 0,
+    newer: [],
+    older: [],
   },
   {
     label: 'before first window, into first window',
     startPostId: '0005',
     count: 5,
-    newer: 0,
-    older: 0,
+    newer: [],
+    older: [],
   },
 ];
 
@@ -359,7 +359,10 @@ test.each(filterTestCases)('filter posts: $label', async (testCase) => {
       cursor: testCase.startPostId,
       mode,
     });
-    expect(posts.length).toEqual(testCase[mode]);
+    expect(
+      posts.map((p) => p.id),
+      mode
+    ).toEqual(testCase[mode]);
   }
 });
 
