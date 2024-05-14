@@ -102,12 +102,22 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
             replyTime: update.post.sentAt,
           });
         }
+        // insert the reply
+        await db.insertChannelPosts({
+          channelId: update.post.channelId,
+          posts: [update.post],
+        });
       }
-
-      // finally, always insert the post itself
-      await db.insertChannelPosts({
+      // For non-replies, we skip inserting and sync from the api instead.
+      // This is significantly slower, but ensures that windowing stays correct. Better solutions would be:
+      // 1. Have the server send the previous post id so that we can match this up with an older window if it exists
+      // 2. Return "non-windowed" posts with first window -- would mostly work but could cause missing posts at times.
+      // TODO: Implement one of those solutions.
+      await syncPosts({
         channelId: update.post.channelId,
-        posts: [update.post],
+        cursor: update.post.id,
+        mode: 'around',
+        count: 3,
       });
       break;
     case 'deletePost':
