@@ -69,6 +69,17 @@ export default function PostScreen(props: PostScreenProps) {
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
 
+  const channelHost = useMemo(
+    () => postParam.channelId.split('/')[1],
+    [postParam.channelId]
+  );
+
+  const { matchedOrPending } = store.useNegotiate(
+    channelHost,
+    'channels',
+    'channels-server'
+  );
+
   const posts = useMemo(() => {
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);
@@ -160,6 +171,7 @@ export default function PostScreen(props: PostScreenProps) {
       editingPost={editingPost}
       setEditingPost={setEditingPost}
       editPost={editPost}
+      negotiationMatch={matchedOrPending}
     />
   ) : null;
 }
