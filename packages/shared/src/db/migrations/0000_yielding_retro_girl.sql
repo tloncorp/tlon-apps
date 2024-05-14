@@ -155,6 +155,7 @@ CREATE TABLE `posts` (
 	`has_link` integer,
 	`has_image` integer,
 	`hidden` integer DEFAULT false,
+	`is_edited` integer,
 	`delivery_status` text
 );
 --> statement-breakpoint

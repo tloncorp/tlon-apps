@@ -1,12 +1,9 @@
-import {
-  ContentReference as ContentReferenceType,
-  Upload,
-} from '@tloncorp/shared/dist/api';
+import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
-import { ArrowUp, Close } from '../../assets/icons';
+import { ArrowUp, Checkmark, Close } from '../../assets/icons';
 import { useReferences } from '../../contexts/references';
 import { View, XStack, YStack } from '../../core';
 import ContentReference from '../ContentReference';
@@ -26,6 +23,9 @@ export interface MessageInputProps {
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<JSONContent>;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }
 
 export const MessageInputContainer = ({
@@ -39,6 +39,9 @@ export const MessageInputContainer = ({
   mentionText,
   groupMembers,
   onSelectMention,
+  isEditing = false,
+  cancelEditing,
+  onPressEdit,
   editorIsEmpty,
 }: PropsWithChildren<{
   onPressSend?: () => void;
@@ -50,6 +53,9 @@ export const MessageInputContainer = ({
   mentionText?: string;
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
+  isEditing?: boolean;
+  cancelEditing?: () => void;
+  onPressEdit?: () => void;
   editorIsEmpty: boolean;
 }>) => {
   const { references, setReferences } = useReferences();
@@ -124,6 +130,13 @@ export const MessageInputContainer = ({
         alignItems="flex-end"
         justifyContent="space-between"
       >
+        {isEditing ? (
+          <View paddingBottom="$m">
+            <IconButton onPress={cancelEditing}>
+              <Close />
+            </IconButton>
+          </View>
+        ) : null}
         {hasUploadedImage ? null : canUpload ? (
           <View paddingBottom="$m">
             <AttachmentButton
@@ -138,10 +151,9 @@ export const MessageInputContainer = ({
             <IconButton
               color={sendIconColor}
               disabled={uploadIsLoading}
-              onPress={onPressSend}
+              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
             >
-              {/* TODO: figure out what send button should look like */}
-              <ArrowUp />
+              {isEditing ? <Checkmark /> : <ArrowUp />}
             </IconButton>
           )}
         </View>
