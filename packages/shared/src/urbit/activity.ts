@@ -172,7 +172,10 @@ export type Stream = Record<string, ActivityEvent>;
 
 export type VolumeMap = Partial<Record<ExtendedEventType, Volume>>;
 
-export type ReadAction = { post: string } | { all: null };
+export type ReadAction =
+  | { event: ActivityEvent }
+  | { item: string }
+  | { all: null };
 
 export interface ActivityReadAction {
   source: Source;

@@ -29,6 +29,6 @@
 /$  crew        %chat-club-crew       %json
 /$  full-info   %activity-full        %json
 /$  act-update  %activity-update      %json
-/$  act-unread  %activity-unreads     %json
+/$  act-sum     %activity-summary     %json
 /$  act-vol     %activity-settings  %json
 ~

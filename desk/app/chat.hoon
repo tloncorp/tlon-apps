@@ -1690,6 +1690,7 @@
     =?  cor  =(our src):bowl
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
+    =.  cor  (pass-activity)
     ::  TODO hook into archive
     ?.  ok
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)

@@ -733,7 +733,7 @@
               ==
           ==
         (send ~[action])
-      =/  vm=volume-map  (malt [%reply & &] ~)
+      =/  vm=volume-map  [[%reply & &] ~ ~]
       (send ~[[%adjust thread vm] action])
     ++  send
       |=  actions=(list action)

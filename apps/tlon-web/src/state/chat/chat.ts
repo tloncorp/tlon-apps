@@ -54,7 +54,7 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { whomIsDm, whomIsNest } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { useMarkReadMutation, useUnreads } from '../activity';
+import { unreadsKey, useMarkReadMutation, useUnreads } from '../activity';
 import { PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
 import emptyMultiDm, {
@@ -740,6 +740,7 @@ export function useUnarchiveDm() {
 }
 
 export function useDmRsvpMutation() {
+  const { mutateAsync: markRead } = useMarkReadMutation();
   const mutationFn = async ({
     ship,
     accept,
@@ -747,7 +748,16 @@ export function useDmRsvpMutation() {
     ship: string;
     accept: boolean;
   }) => {
-    await api.poke({
+    markRead({
+      source: { dm: { ship } },
+      action: {
+        event: {
+          'dm-invite': { ship },
+        },
+      },
+    });
+
+    return api.poke({
       app: 'chat',
       mark: 'chat-dm-rsvp',
       json: {
@@ -770,7 +780,7 @@ export function useDmRsvpMutation() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries(ChatKeys.unreads());
+      queryClient.invalidateQueries(unreadsKey);
       queryClient.invalidateQueries(ChatKeys.pending());
       queryClient.invalidateQueries(['dms', 'dms']);
       queryClient.invalidateQueries(['dms', variables.ship]);
@@ -900,6 +910,7 @@ export function useRemoveFromMultiDm() {
 }
 
 export function useMutliDmRsvpMutation() {
+  const { mutateAsync: markRead } = useMarkReadMutation();
   const mutationFn = async ({
     id,
     accept,
@@ -910,7 +921,16 @@ export function useMutliDmRsvpMutation() {
     const action = multiDmAction(id, {
       team: { ship: window.our, ok: accept },
     });
-    await api.poke(action);
+
+    markRead({
+      source: { dm: { club: id } },
+      action: {
+        event: {
+          'dm-invite': { club: id },
+        },
+      },
+    });
+    return api.poke(action);
   };
 
   return useMutation({

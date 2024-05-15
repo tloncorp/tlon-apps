@@ -123,8 +123,8 @@
     |=  ri=read-items:a
     %-  pairs
     %+  turn  (tap:on-read-items:a ri)
-    |=  [id=time-id:a seen=?]
-    [(scot %ud id) b/seen]
+    |=  [id=time-id:a *]
+    [(scot %ud id) ~]
   ::
   ++  unread-point
     |=  up=unread-point:a
@@ -134,8 +134,8 @@
         count/(numb count.up)
         notify/b/notify.up
     ==
-  ++  unread
-    |=  sum=unread-summary:a
+  ++  activity-summary
+    |=  sum=activity-summary:a
     %-  pairs
     :~  recency+(time newest.sum)
         count+(numb count.sum)
@@ -241,18 +241,18 @@
         reads+(reads r)
     ==
   ::
-  ++  unreads
-    |=  us=unreads:a
+  ++  activity
+    |=  ac=activity:a
     %-  pairs
-    %+  turn  ~(tap by us)
-    |=  [s=source:a sum=unread-summary:a]
-    [(string-source s) (unread sum)]
+    %+  turn  ~(tap by ac)
+    |=  [s=source:a sum=activity-summary:a]
+    [(string-source s) (activity-summary sum)]
   ::
   ++  full-info
     |=  fi=full-info:a
     %-  pairs
     :~  indices+(indices indices.fi)
-        unreads+(unreads unreads.fi)
+        activity+(activity activity.fi)
     ==
   ++  volume-settings
     |=  vs=volume-settings:a
@@ -284,10 +284,10 @@
         event+(event event.ad)
     ==
   ++  read
-    |=  [s=source:a u=unread-summary:a]
+    |=  [s=source:a as=activity-summary:a]
     %-  pairs
     :~  source+(source s)
-        unread+(unread u)
+        activity+(activity-summary as)
     ==
   ::
   ++  adjusted

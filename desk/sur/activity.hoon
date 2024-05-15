@@ -8,14 +8,13 @@
 +$  indices  (map source index)
 ::  $volume-settings: the volume settings for each source
 +$  volume-settings  (map source volume-map)
-::  $unreads: the current unread state for each source
-+$  unreads  (map source unread-summary)
-::  TODO: kill?
+::  $activity: the current state of activity for each source
++$  activity  (map source activity-summary)
 ::  $full-info: the full state of the activity stream
-+$  full-info  [=indices =unreads]
++$  full-info  [=indices =activity]
 ::  $volume-map: how to badge and notify for each event type
 +$  volume-map
-  $~  default
+  $~  default-volumes
   (map event-type volume)
 +|  %actions
 ::  $action: how to interact with our activity stream
@@ -34,11 +33,13 @@
 ::
 ::  $read-action: mark activity read
 ::
-::    $item: mark an individual activity as read
+::    $item: mark an individual activity as read, indexed by id
+::    $event: mark an individual activity as read, indexed by the event itself
 ::    $all: mark _everything_ as read for this source
 ::
 +$  read-action
   $%  [%item id=time-id]
+      [%event event=incoming-event]
       [%all ~]
   ==
 ::
@@ -47,12 +48,12 @@
 ::  $update: what we hear after an action
 ::
 ::    $add: an event was added to the stream
-::    $read: a source's unread state was updated
+::    $read: a source's activity state was updated
 ::    $adjust: the volume of a source was adjusted
 ::
 +$  update
   $%  [%add time-event]
-      [%read =source =unread-summary]
+      [%read =source =activity-summary]
       [%adjust =source =volume-map]
   ==
 ::
@@ -129,17 +130,17 @@
   $:  floor=time
       items=read-items
   ==
-+$  read-items  ((mop time-id ?) lte)
++$  read-items  ((mop time-id ,~) lte)
 ::  $activity-summary: the summary of activity for a source
 ::
 ::    $newest: the time of the latest activity read or unread
 ::    $count: the total number of unread events including children
 ::    $notify: if there are any notifications here or in children
-::    $unread: if the main stream of source is unread, which starting
+::    $unread: if the main stream of source is unread: which starting
 ::             message, how many there are, and if any are notifications
 ::    $children: the sources nested under this source
 ::
-+$  unread-summary
++$  activity-summary
   $:  newest=time
       count=@ud
       notify=?
@@ -180,9 +181,9 @@
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
 ++  ex-event        ((mp time event) lte)
-++  on-read-items   ((on time ?) lte)
+++  on-read-items   ((on time ,~) lte)
 +|  %constants
-++  default
+++  default-volumes
   ^~
   %-  malt
   ^-  (list [event-type volume])

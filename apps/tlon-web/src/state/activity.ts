@@ -4,6 +4,7 @@ import {
   ActivityReadUpdate,
   ActivityUpdate,
   ActivityVolumeUpdate,
+  ReadAction,
   Source,
   Unread,
   Unreads,
@@ -168,10 +169,16 @@ export function useActivityFirehose() {
 }
 
 export function useMarkReadMutation() {
-  const mutationFn = async (variables: { source: Source }) => {
+  const mutationFn = async (variables: {
+    source: Source;
+    action?: ReadAction;
+  }) => {
     await api.poke(
       activityAction({
-        read: { source: variables.source, action: { all: null } },
+        read: {
+          source: variables.source,
+          action: variables.action || { all: null },
+        },
       })
     );
   };
