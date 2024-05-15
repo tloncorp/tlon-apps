@@ -119,7 +119,7 @@ export function toClientGroup(
     id,
     roles,
     isSecret: group.secret,
-    inviteStatus: isJoined ? 'joined' : undefined,
+    joinStatus: isJoined ? 'joined' : undefined,
     ...toClientMeta(group.meta),
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
@@ -174,7 +174,7 @@ export function toClientInvitedGroup(id: string, gang: ub.Gang): db.Group {
   return {
     id,
     isSecret: !!gang.preview?.secret,
-    inviteStatus: 'invited',
+    joinStatus: 'invited',
     ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
     // Create placeholder Channel to show in chat list
     channels: [

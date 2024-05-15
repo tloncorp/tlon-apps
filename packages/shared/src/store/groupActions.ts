@@ -3,14 +3,14 @@ import * as db from '../db';
 
 export async function acceptGroupInvitation(group: db.Group) {
   // optimistic update
-  db.updateGroup({ id: group.id, inviteStatus: 'joining' });
+  db.updateGroup({ id: group.id, joinStatus: 'joining' });
 
   try {
     await api.joinGroup(group.id);
   } catch (e) {
     console.error('Failed to accept group invitation', e);
     // rollback optimistic update
-    db.updateGroup({ id: group.id, inviteStatus: 'invited' });
+    db.updateGroup({ id: group.id, joinStatus: 'invited' });
   }
 }
 

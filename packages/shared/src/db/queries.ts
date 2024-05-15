@@ -117,7 +117,7 @@ export const getGroups = createReadQuery(
       })
       .from($groups)
       .where(() =>
-        includeUnjoined ? undefined : eq($groups.inviteStatus, 'joined')
+        includeUnjoined ? undefined : eq($groups.joinStatus, 'joined')
       );
     if (includeLastPost) {
       query.leftJoin($posts, eq($groups.lastPostId, $posts.id));
@@ -190,7 +190,7 @@ export const getChats = createReadQuery(
       .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
       .orderBy(
         ascNullsLast($pins.index),
-        sql`(CASE WHEN ${$groups.inviteStatus} = 'invited' THEN 1 ELSE 0 END) DESC`,
+        sql`(CASE WHEN ${$groups.joinStatus} = 'invited' THEN 1 ELSE 0 END) DESC`,
         desc($unreads.updatedAt)
       );
 
@@ -242,7 +242,7 @@ export const insertGroups = createWriteQuery(
               $groups.title,
               $groups.description,
               $groups.isSecret,
-              $groups.inviteStatus
+              $groups.joinStatus
             ),
           });
         if (group.channels?.length) {

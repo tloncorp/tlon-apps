@@ -40,7 +40,7 @@ export function GroupInvitationSheet({
       // In lieu of a reactive update to the `group` prop, poll the database
       const interval = setInterval(async () => {
         const nextGroup = await db.getGroup({ id: group.id });
-        if (nextGroup?.inviteStatus === 'joined') {
+        if (nextGroup?.joinStatus === 'joined') {
           setIsJoining(false);
           onOpenChange(false);
           clearInterval(interval);

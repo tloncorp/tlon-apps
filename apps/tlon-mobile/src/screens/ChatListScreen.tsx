@@ -61,7 +61,7 @@ export default function ChatListScreen(
             unpinned={chats.unpinned ?? []}
             onLongPressItem={setLongPressedItem}
             onPressItem={(channel) => {
-              if (channel.group?.inviteStatus === 'invited') {
+              if (channel.group?.joinStatus === 'invited') {
                 setSelectedGroup(channel.group);
               } else {
                 props.navigation.navigate('Channel', { channel });

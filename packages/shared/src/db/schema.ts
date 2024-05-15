@@ -168,7 +168,7 @@ export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
   isSecret: boolean('is_secret'),
-  inviteStatus: text('invite_status').$type<GroupInviteStatus>(),
+  joinStatus: text('join_status').$type<GroupInviteStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
 });

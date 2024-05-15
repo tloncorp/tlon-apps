@@ -13,7 +13,7 @@ export default function GroupListItemContent({
   return (
     <ListItem
       {...props}
-      alignItems={model.inviteStatus !== 'joined' ? 'center' : 'stretch'}
+      alignItems={model.joinStatus !== 'joined' ? 'center' : 'stretch'}
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
@@ -24,7 +24,7 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {model.inviteStatus === 'joined' && model.lastPost ? (
+        {model.joinStatus === 'joined' && model.lastPost ? (
           <ListItem.Subtitle>
             <ContactName
               userId={model.lastPost.authorId}
@@ -37,8 +37,7 @@ export default function GroupListItemContent({
         ) : null}
       </ListItem.MainContent>
       <ListItem.EndContent>
-        {model.inviteStatus === 'invited' ||
-        model.inviteStatus === 'joining' ? (
+        {model.joinStatus === 'invited' || model.joinStatus === 'joining' ? (
           <Stack
             backgroundColor="$positiveBackground"
             paddingVertical="$xs"
@@ -46,7 +45,7 @@ export default function GroupListItemContent({
             borderRadius="$xl"
           >
             <SizableText size="$s" color="$positiveActionText">
-              {model.inviteStatus === 'joining' ? 'Joining...' : 'Invited'}
+              {model.joinStatus === 'joining' ? 'Joining...' : 'Invited'}
             </SizableText>
           </Stack>
         ) : (

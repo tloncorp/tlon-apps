@@ -104,7 +104,7 @@ CREATE TABLE `groups` (
 	`title` text,
 	`description` text,
 	`is_secret` integer,
-	`invite_status` text,
+	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer
 );
