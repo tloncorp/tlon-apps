@@ -42,7 +42,7 @@ export const handleImagePicked = async (uri: string, uploader: Uploader) => {
   }
 };
 
-export const getShipInfo = async () => {
+export const getShipInfo = () => {
   const { ship, url } = client;
 
   if (!ship) {
@@ -53,7 +53,7 @@ export const getShipInfo = async () => {
 };
 
 export const getIsHosted = async () => {
-  const shipInfo = await getShipInfo();
+  const shipInfo = getShipInfo();
   const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
   return isHosted;
 };

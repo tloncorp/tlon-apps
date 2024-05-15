@@ -4,7 +4,7 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
-import type { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,6 +49,18 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const calmSettingsQuery = store.useCalmSettings({
     userId: useCurrentUserId(),
   });
+
+  const channelHost = useMemo(
+    () => currentChannelId.split('/')[1],
+    [currentChannelId]
+  );
+
+  const { matchedOrPending } = store.useNegotiate(
+    channelHost,
+    'channels',
+    'channels-server'
+  );
+
   const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
@@ -251,6 +263,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         editingPost={editingPost}
         setEditingPost={setEditingPost}
         editPost={editPost}
+        negotiationMatch={matchedOrPending}
       />
       {groupQuery.data && (
         <ChannelSwitcherSheet
