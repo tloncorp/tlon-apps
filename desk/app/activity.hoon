@@ -350,8 +350,7 @@
   ::  treat all other events as read
   ?+  -<.event  &
       ?(%dm-post %dm-reply %post %reply)
-    =*  id=time-id:a  q.id.key.event
-    ?=(^ (get:on-read-items:a items.reads id))
+    ?=(^ (get:on-read-items:a items.reads time))
   ==
 ::
 ++  update-floor
@@ -494,14 +493,12 @@
           ?=(?(%dm-post %dm-reply %post %reply) -<.event)
       ==
     $(stream rest)
-  :: ?>  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
   =.  total  +(total)
   =?  main  ?=(?(%post %dm-post) -<.event)  +(main)
   =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume notified.event)  &
   =.  newest  time.key.event
   =.  last
     ?~  last  `key.event
-    ?:  (gte time.key.event time.u.last)  last
-    `key.event
+    last
   $(stream rest)
 --
