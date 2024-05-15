@@ -18,7 +18,7 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { Spinner, View, YStack } from '../../core';
+import { Spinner, Text, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
@@ -60,6 +60,7 @@ export function Channel({
   editingPost,
   setEditingPost,
   editPost,
+  negotiationMatch,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -87,6 +88,7 @@ export function Channel({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
+  negotiationMatch: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -123,7 +125,7 @@ export function Channel({
                     style={{ flex: 1 }}
                     contentContainerStyle={{ flex: 1 }}
                   >
-                    <YStack flex={1}>
+                    <YStack alignItems="center" flex={1}>
                       {uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
                           imageAttachment={uploadInfo.imageAttachment}
@@ -165,20 +167,38 @@ export function Channel({
                           onStartReached={onScrollStartReached}
                         />
                       )}
-                      {!editingPost && chatChannel && canWrite && (
-                        <MessageInput
-                          shouldBlur={inputShouldBlur}
-                          setShouldBlur={setInputShouldBlur}
-                          send={messageSender}
-                          channelId={channel.id}
-                          setImageAttachment={uploadInfo.setImageAttachment}
-                          uploadedImage={uploadInfo.uploadedImage}
-                          canUpload={uploadInfo.canUpload}
-                          groupMembers={group?.members ?? []}
-                          storeDraft={storeDraft}
-                          clearDraft={clearDraft}
-                          getDraft={getDraft}
-                        />
+                      {negotiationMatch &&
+                        !editingPost &&
+                        chatChannel &&
+                        canWrite && (
+                          <MessageInput
+                            shouldBlur={inputShouldBlur}
+                            setShouldBlur={setInputShouldBlur}
+                            send={messageSender}
+                            channelId={channel.id}
+                            setImageAttachment={uploadInfo.setImageAttachment}
+                            uploadedImage={uploadInfo.uploadedImage}
+                            canUpload={uploadInfo.canUpload}
+                            groupMembers={group?.members ?? []}
+                            storeDraft={storeDraft}
+                            clearDraft={clearDraft}
+                            getDraft={getDraft}
+                          />
+                        )}
+                      {!negotiationMatch && chatChannel && canWrite && (
+                        <View
+                          width="90%"
+                          alignItems="center"
+                          justifyContent="center"
+                          backgroundColor="$secondaryBackground"
+                          borderRadius="$xl"
+                          padding="$l"
+                        >
+                          <Text>
+                            Your ship&apos;s version of the Tlon app
+                            doesn&apos;t match the channel host.
+                          </Text>
+                        </View>
                       )}
                     </YStack>
                   </KeyboardAvoidingView>
