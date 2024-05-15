@@ -1,5 +1,5 @@
 ::
-/-  *notify, resource, ha=hark, c=channels
+/-  *notify, resource, a=activity, c=channels
 /+  default-agent, verb, dbug, agentio
 ::
 |%
@@ -42,6 +42,12 @@
 +$  base-state-4
   $:  last-timer=time
       notifications=(map uid notification)
+      base-state-0
+  ==
+::
++$  base-state-5
+  $:  last-timer=time
+      notifications=(map time-id:a event:a)
       base-state-0
   ==
 ::
@@ -129,7 +135,7 @@
   ::
   ++  on-init
     :_  this
-    :~  (~(watch-our pass:io /hark) %hark /ui)
+    :~  (~(watch-our pass:io /activity) %activity /notifications)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
     ==
@@ -141,11 +147,10 @@
     =+  !<([old-state=versioned-state] vase)
     =/  migrated  (migrate-state old-state)
     :_  this(state migrated)
-    ?:  (~(has by wex.bowl) [/hark our.bowl %hark])
-      [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]~
-    :~  (~(watch-our pass:io /hark) %hark /ui)
-        [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
-    ==
+    :-  [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
+    ?:  (~(has by wex.bowl) [/activity our.bowl %activity])
+      ~
+    [(~(watch-our pass:io /activity) %activity /notifications)]~
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -317,11 +322,13 @@
     ^-  (unit (unit cage))
     =/  =(pole knot)  path
     ?+  pole  [~ ~]
-    ::
         [%x %note uid=@t ~]
       =/  =uid  (slav %uv uid.pole)
+      ::TODO  this endpoint never gets used. probably want the client to scry
+      ::      into this agent instead of wherever the notification originated
       =/  note=notification  (~(got by notifications) uid)
       ``hark-note+!>(note)
+    ::
         [%x %provider-state ~]  ``noun+!>(provider-state)
         [%x %client-state ~]    ``client-state+!>(client-state)
     ==
@@ -331,7 +338,7 @@
     ^-  (quip card _this)
     ?+  wire  (on-agent:def wire sign)
     ::
-    ::  subscription from client to their own hark-store
+    ::  subscription from client to their own activity agent
     ::
         [%hark ~]
       ?+  -.sign  (on-agent:def wire sign)
@@ -350,6 +357,25 @@
         [%pass wire %agent [our.bowl %hark] %watch /ui]~
       ==
     ::
+        [%activity ~]
+      ?+  -.sign  (on-agent:def wire sign)
+          %fact
+        ?.  ?=(%activity-event p.cage.sign)
+          `this
+        =+  !<([=time-id:a =event:a] q.cage.sign)
+        =/  upd=update
+          ::TODO  backcompat here misleading, previously this was a @uv hark id,
+          ::      but scrying into hark with these time ids will fail to find
+          ::      a notification
+          [`@`time-id %notify]
+        :_  this(notifications (~(put by notifications) time-id event))
+        (drop (fact-all:io %notify-update !>(u.upd)))
+      ::
+          %kick
+        :_  this
+        [%pass wire %agent [our.bowl %activity] %watch /notifications]~
+      ==
+    ::
     ::  subscription from provider to client
     ::
         [%agentio-watch %notify @ @ ~]
@@ -358,6 +384,7 @@
       ?+  -.sign  (on-agent:def wire sign)
           %fact
         ?>  ?=(%notify-update p.cage.sign)
+        ::TODO  old vs new style
         =+  !<(=update q.cage.sign)
         :_  this
         =/  entry=(unit provider-entry)  (~(get by provider-state) service)
