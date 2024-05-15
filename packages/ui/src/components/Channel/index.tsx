@@ -56,6 +56,9 @@ export function Channel({
   storeDraft,
   clearDraft,
   getDraft,
+  editingPost,
+  setEditingPost,
+  editPost,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -80,6 +83,9 @@ export function Channel({
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<JSONContent>;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost: (post: db.Post, content: Story) => void;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = utils.getChannelTitle(channel);
@@ -149,6 +155,9 @@ export function Channel({
                             channel.unread?.firstUnreadPostId ?? undefined
                           }
                           posts={posts}
+                          editingPost={editingPost}
+                          setEditingPost={setEditingPost}
+                          editPost={editPost}
                           channelType={channel.type}
                           channelId={channel.id}
                           onPressReplies={goToPost}
@@ -158,7 +167,7 @@ export function Channel({
                           onStartReached={onScrollStartReached}
                         />
                       )}
-                      {chatChannel && canWrite && (
+                      {!editingPost && chatChannel && canWrite && (
                         <MessageInput
                           shouldBlur={inputShouldBlur}
                           setShouldBlur={setInputShouldBlur}

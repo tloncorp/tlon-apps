@@ -36,11 +36,13 @@ export type PostReactionsUpdate = {
 };
 export type UnknownUpdate = { type: 'unknown' };
 export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
+export type DeletePostUpdate = { type: 'deletePost'; postId: string };
 export type ChannelsUpdate =
   | AddPostUpdate
   | PostReactionsUpdate
   | UnknownUpdate
-  | PendingUpdate;
+  | PendingUpdate
+  | DeletePostUpdate;
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -74,6 +76,9 @@ export function toClientChannelInit(
 export const toChannelsUpdate = (
   channelEvent: ub.ChannelsSubscribeResponse
 ): ChannelsUpdate => {
+  logger.log('channel event', {
+    channelEvent,
+  });
   const channelId = channelEvent.nest;
   // post events
   if (
@@ -84,11 +89,16 @@ export const toChannelsUpdate = (
     const postId = getCanonicalPostId(channelEvent.response.post.id);
     const postResponse = channelEvent.response.post['r-post'];
 
-    if ('set' in postResponse && postResponse.set !== null) {
-      const postToAdd = { id: postId, ...postResponse.set };
+    if ('set' in postResponse) {
+      if (postResponse.set !== null) {
+        const postToAdd = { id: postId, ...postResponse.set };
 
-      logger.log(`add post event`);
-      return { type: 'addPost', post: toPostData(channelId, postToAdd) };
+        logger.log(`add post event`);
+        return { type: 'addPost', post: toPostData(channelId, postToAdd) };
+      }
+
+      logger.log('delete post event');
+      return { type: 'deletePost', postId };
     } else if ('reacts' in postResponse && postResponse.reacts !== null) {
       const updatedReacts = toReactionsData(postResponse.reacts, postId);
       logger.log('update reactions event');
@@ -107,12 +117,17 @@ export const toChannelsUpdate = (
       channelEvent.response.post['r-post'].reply.id
     );
     const replyResponse = channelEvent.response.post['r-post'].reply['r-reply'];
-    if ('set' in replyResponse && replyResponse.set !== null) {
-      logger.log(`add reply event`);
-      return {
-        type: 'addPost',
-        post: toPostReplyData(channelId, postId, replyResponse.set),
-      };
+    if ('set' in replyResponse) {
+      if (replyResponse.set !== null) {
+        logger.log(`add reply event`);
+        return {
+          type: 'addPost',
+          post: toPostReplyData(channelId, postId, replyResponse.set),
+        };
+      }
+
+      logger.log('delete reply event');
+      return { type: 'deletePost', postId: replyId };
     } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
       const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
       logger.log('update reply reactions event');

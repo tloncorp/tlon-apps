@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "1abe5581-3fc1-451d-bee4-2282887c9c1b",
+  "id": "66e55624-eb49-44c9-9847-e0799ab16ace",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -1020,6 +1020,13 @@
           "notNull": false,
           "autoincrement": false,
           "default": false
+        },
+        "is_edited": {
+          "name": "is_edited",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "delivery_status": {
           "name": "delivery_status",

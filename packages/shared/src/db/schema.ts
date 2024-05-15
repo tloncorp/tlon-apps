@@ -426,6 +426,7 @@ export const posts = sqliteTable(
     hasLink: boolean('has_link'),
     hasImage: boolean('has_image'),
     hidden: boolean('hidden').default(false),
+    isEdited: boolean('is_edited'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
   },
   (table) => ({

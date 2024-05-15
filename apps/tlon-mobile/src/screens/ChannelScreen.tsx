@@ -41,6 +41,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }, [])
   );
 
+  const [editingPost, setEditingPost] = React.useState<db.Post>();
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
@@ -97,6 +98,21 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       uploadInfo.resetImageAttachment();
     },
     [currentUserId, channelQuery.data, uploadInfo]
+  );
+
+  const editPost = useCallback(
+    async (post: db.Post, content: Story) => {
+      if (!channelQuery.data) {
+        return;
+      }
+
+      store.editPost({
+        post,
+        content,
+      });
+      setEditingPost(undefined);
+    },
+    [channelQuery.data]
   );
 
   useEffect(() => {
@@ -232,6 +248,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
       />
       {groupQuery.data && (
         <ChannelSwitcherSheet
