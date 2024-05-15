@@ -5,13 +5,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { PostScreenView, View } from '@tloncorp/ui';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShip } from '../contexts/ship';
@@ -53,6 +47,17 @@ export default function PostScreen(props: PostScreenProps) {
   const uploadInfo = useImageUpload({
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
+
+  const channelHost = useMemo(
+    () => postParam.channelId.split('/')[1],
+    [postParam.channelId]
+  );
+
+  const { matchedOrPending } = store.useNegotiate(
+    channelHost,
+    'channels',
+    'channels-server'
+  );
 
   const posts = useMemo(() => {
     return post ? [...(threadPosts ?? []), post] : null;
@@ -146,6 +151,7 @@ export default function PostScreen(props: PostScreenProps) {
         editingPost={editingPost}
         setEditingPost={setEditingPost}
         editPost={editPost}
+        negotiationMatch={matchedOrPending}
       />
     </View>
   ) : null;

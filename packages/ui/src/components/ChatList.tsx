@@ -8,12 +8,14 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
 import { ListSectionHeader } from './ListSectionHeader';
+import { navHeight } from './NavBar/NavBar';
 import { SwipableChatRow } from './SwipableChatListItem';
 
 export function ChatList({
@@ -25,6 +27,8 @@ export function ChatList({
   onPressItem?: (chat: db.Channel) => void;
   onLongPressItem?: (chat: db.Channel) => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
+
   const data = useMemo(() => {
     if (pinned.length === 0) {
       return [{ title: 'All', data: unpinned }];
@@ -41,6 +45,7 @@ export function ChatList({
       gap: '$s',
       paddingTop: '$l',
       paddingHorizontal: '$l',
+      paddingBottom: navHeight + bottom,
     },
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;

@@ -17,6 +17,7 @@ import { useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
+import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 
 type ChatListScreenProps = NativeStackScreenProps<
@@ -103,6 +104,7 @@ export default function ChatListScreen(
             onUpdateInvitation={handleUpdateInvitation}
           />
         </View>
+        <NavBar navigation={props.navigation} />
       </AddChatProvider>
     </ContactsProvider>
   );

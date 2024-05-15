@@ -56,7 +56,10 @@ const ChannelFixtureWrapper = ({
   );
 };
 
-export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
+export const ChannelFixture = (props: {
+  theme?: 'light' | 'dark';
+  negotiationMatch?: boolean;
+}) => {
   const [open, setOpen] = useState(false);
   const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
@@ -83,6 +86,7 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         currentUserId="~zod"
         channel={currentChannel || tlonLocalChannelWithUnreads}
         contacts={initialContacts}
+        negotiationMatch={props.negotiationMatch ?? true}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
@@ -144,6 +148,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel
         posts={notebookPosts}
+        negotiationMatch={true}
         currentUserId="~zod"
         channel={tlonLocalChannelWithUnreads}
         contacts={initialContacts}
@@ -240,6 +245,7 @@ const ChannelFixtureWithImage = () => {
         goToImageViewer={() => {}}
         messageSender={() => {}}
         editPost={() => {}}
+        negotiationMatch={true}
         uploadInfo={{
           imageAttachment: imageAttachment,
           resetImageAttachment: resetImageAttachment,
@@ -273,4 +279,5 @@ export default {
   chat: <ChannelFixture />,
   notebook: <NotebookChannelFixture />,
   chatWithImage: <ChannelFixtureWithImage />,
+  negotiationMismatch: <ChannelFixture negotiationMatch={false} />,
 };
