@@ -1451,7 +1451,10 @@
       go-core
     ::
         %edit
-      =.  cabals.group
+      ::  TODO: we don't know why we could be desynced on cabals, but we
+      ::        need to be safe so we don't enter a loop.
+      ::        REFACTOR GROUPS PLZ
+      =?  cabals.group  (~(has by cabals.group) sect)
         %+  ~(jab by cabals.group)  sect
         |=  cabal:g
         +<(meta meta.diff)
@@ -1734,7 +1737,10 @@
   ^+  cor
   =/  =wire  /gangs/index/(scot %p ship)
   =/  =dock  [ship dap.bowl]
-  (emit %pass wire %agent dock %watch `path`wire)
+  %-  emil
+  :~  [%pass wire %agent dock %leave ~]
+      [%pass wire %agent dock %watch `path`wire]
+  ==
 ::
 ++  hi-and-req-gang-index
   |=  =ship
@@ -1827,9 +1833,14 @@
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
       (poke-host /rescind act:mar:g !>(action))
     ++  get-preview
-      %^  subscribe  (welp ga-area /preview)
-        [p.flag dap.bowl]
-      /groups/(scot %p p.flag)/[q.flag]/preview
+      =/  =wire  (welp ga-area /preview)
+      =/  =dock  [p.flag dap.bowl]
+      =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
+      ^+  cor
+      %-  emil
+      :~  [%pass wire %agent dock %leave ~]
+          [%pass wire %agent dock %watch wire]
+      ==
     --
   ++  ga-start-join
     ^+  ga-core
@@ -1853,7 +1864,7 @@
   ++  ga-watch
     |=  =(pole knot)
     ^+  ga-core
-    =.  cor  (get-preview:ga-pass |)
+    =.  cor  get-preview:ga-pass
     ga-core
   ::
   ++  ga-give-update
@@ -1870,6 +1881,7 @@
       ::
           [%preview ~]
         ?+  -.sign  ~|(weird-take/[wire -.sign] !!)
+          %kick  ga-core  ::  kick for single response sub, just take it
           %watch-ack
           ?~  p.sign  ga-core :: TODO: report retreival failure
           %-  (slog u.p.sign)
@@ -1903,10 +1915,6 @@
             (emit (pass-hark new-yarn))
           ga-core
           ::
-            %kick
-          ?.  (~(has by xeno) flag)  ga-core
-          ?^  pev.gang  ga-core
-          ga-core(cor (get-preview:ga-pass &))
         ==
       ::
           [%join %add ~]
@@ -1957,7 +1965,7 @@
   ++  ga-invite
     |=  =invite:g
     =.  vit.gang  `invite
-    =.  cor  (get-preview:ga-pass |)
+    =.  cor  get-preview:ga-pass
     =.  cor  ga-give-update
     ga-core
   ::

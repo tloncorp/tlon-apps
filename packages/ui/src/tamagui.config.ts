@@ -217,6 +217,7 @@ export const systemFont = createFont({
   family:
     "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
   size: {
+    xs: 12,
     s: 14,
     m: 16,
     true: 16,

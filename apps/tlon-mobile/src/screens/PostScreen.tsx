@@ -3,8 +3,16 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { PostScreenView } from '@tloncorp/ui';
-import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { PostScreenView, View } from '@tloncorp/ui';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShip } from '../contexts/ship';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -23,23 +31,8 @@ const defaultCalmSettings = {
 };
 
 export default function PostScreen(props: PostScreenProps) {
-  useLayoutEffect(() => {
-    if (props.navigation.isFocused()) {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: 'none',
-        },
-      });
-    }
-
-    return () => {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: undefined,
-        },
-      });
-    };
-  }, [props.navigation]);
+  const { bottom } = useSafeAreaInsets();
+  const [editingPost, setEditingPost] = useState<db.Post>();
 
   const postParam = props.route.params.post;
   const { data: post } = store.usePostWithRelations({
@@ -66,7 +59,9 @@ export default function PostScreen(props: PostScreenProps) {
   }, [post, threadPosts]);
 
   useEffect(() => {
-    sync.syncGroup(channel?.groupId ?? '');
+    if (channel?.groupId) {
+      sync.syncGroup(channel?.groupId);
+    }
   }, [channel?.groupId]);
 
   const sendReply = async (content: urbit.Story) => {
@@ -93,7 +88,6 @@ export default function PostScreen(props: PostScreenProps) {
       const draft = await storage.load({ key: `draft-${postParam.id}` });
       return draft;
     } catch (e) {
-      console.log('Error loading draft', e);
       return null;
     }
   }, [postParam.id]);
@@ -103,7 +97,7 @@ export default function PostScreen(props: PostScreenProps) {
       try {
         await storage.save({ key: `draft-${postParam.id}`, data: draft });
       } catch (e) {
-        console.log('Error saving draft', e);
+        return;
       }
     },
     [postParam.id]
@@ -113,25 +107,46 @@ export default function PostScreen(props: PostScreenProps) {
     try {
       await storage.remove({ key: `draft-${postParam.id}` });
     } catch (e) {
-      console.log('Error clearing draft', e);
+      return;
     }
   }, [postParam.id]);
 
-  return contactId ? (
-    <PostScreenView
-      contacts={contacts ?? null}
-      calmSettings={defaultCalmSettings}
-      currentUserId={contactId}
-      posts={posts}
-      channel={channel ?? null}
-      goBack={props.navigation.goBack}
-      sendReply={sendReply}
-      groupMembers={groupQuery.data?.members ?? []}
-      uploadInfo={uploadInfo}
-      handleGoToImage={handleGoToImage}
-      getDraft={getDraft}
-      storeDraft={storeDraft}
-      clearDraft={clearDraft}
-    />
+  const editPost = useCallback(
+    async (editedPost: db.Post, content: Story) => {
+      if (!channel || !post) {
+        return;
+      }
+
+      store.editPost({
+        post: editedPost,
+        content,
+        parentId: post.id,
+      });
+      setEditingPost(undefined);
+    },
+    [channel, post]
+  );
+
+  return contactId && channel ? (
+    <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+      <PostScreenView
+        contacts={contacts ?? null}
+        calmSettings={defaultCalmSettings}
+        currentUserId={contactId}
+        posts={posts}
+        channel={channel}
+        goBack={props.navigation.goBack}
+        sendReply={sendReply}
+        groupMembers={groupQuery.data?.members ?? []}
+        uploadInfo={uploadInfo}
+        handleGoToImage={handleGoToImage}
+        getDraft={getDraft}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+      />
+    </View>
   ) : null;
 }

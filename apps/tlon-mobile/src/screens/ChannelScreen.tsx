@@ -41,6 +41,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }, [])
   );
 
+  const [editingPost, setEditingPost] = React.useState<db.Post>();
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
@@ -99,8 +100,25 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [currentUserId, channelQuery.data, uploadInfo]
   );
 
+  const editPost = useCallback(
+    async (post: db.Post, content: Story) => {
+      if (!channelQuery.data) {
+        return;
+      }
+
+      store.editPost({
+        post,
+        content,
+      });
+      setEditingPost(undefined);
+    },
+    [channelQuery.data]
+  );
+
   useEffect(() => {
-    sync.syncGroup(channelQuery.data?.groupId ?? '');
+    if (channelQuery.data?.groupId) {
+      sync.syncGroup(channelQuery.data?.groupId);
+    }
   }, [channelQuery.data?.groupId]);
 
   useEffect(() => {
@@ -173,7 +191,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
       return draft;
     } catch (e) {
-      console.log('Error loading draft', e);
       return null;
     }
   }, [currentChannelId]);
@@ -183,7 +200,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       try {
         await storage.save({ key: `draft-${currentChannelId}`, data: draft });
       } catch (e) {
-        console.log('Error saving draft', e);
+        return;
       }
     },
     [currentChannelId]
@@ -193,7 +210,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     try {
       await storage.remove({ key: `draft-${currentChannelId}` });
     } catch (e) {
-      console.log('Error clearing draft', e);
+      return;
     }
   }, [currentChannelId]);
 
@@ -231,6 +248,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
       />
       {groupQuery.data && (
         <ChannelSwitcherSheet

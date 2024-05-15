@@ -37,7 +37,6 @@ import { TouchableOpacity } from 'react-native';
 import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
 import ContactName from '../ContactName';
 import ContentReference from '../ContentReference';
-import { Icon } from '../Icon';
 import ChatEmbedContent from './ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
@@ -342,6 +341,7 @@ export default function ChatContent({
   deliveryStatus,
   onPressImage,
   onLongPress,
+  isEdited = false,
 }: {
   story: PostContent;
   shortened?: boolean;
@@ -349,6 +349,7 @@ export default function ChatContent({
   deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
+  isEdited?: boolean;
 }) {
   const storyInlines = useMemo(
     () =>
@@ -462,6 +463,11 @@ export default function ChatContent({
               isNotice={isNotice}
             />
           </View>
+        ) : null}
+        {isEdited ? (
+          <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+            Edited
+          </Text>
         ) : null}
         {deliveryStatus ? (
           <View flexShrink={1}>

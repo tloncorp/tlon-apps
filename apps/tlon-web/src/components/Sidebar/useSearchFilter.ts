@@ -50,9 +50,10 @@ export default function useSearchFilter(query: string): GroupSearchRecord[] {
     return [];
   }
 
-  return searchSpace.filter(
-    (record) =>
-      record.title.toLowerCase().startsWith(query.toLowerCase()) ||
-      deSig(record.flag)?.startsWith(deSig(query) || '')
-  );
+  const matches = fuzzy.filter(query, searchSpace, {
+    extract: (record) => record.title,
+  });
+  return matches
+    .sort((a, b) => b.score - a.score)
+    .map((result) => result.original);
 }

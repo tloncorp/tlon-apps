@@ -1,6 +1,7 @@
 import { Unread } from '@tloncorp/shared/dist/urbit/channel';
 import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import { deSig } from '@urbit/api';
+import fuzzy from 'fuzzy';
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
@@ -80,89 +81,93 @@ export default function MessagesList({
       : { main: 400, reverse: 400 },
   };
 
-  const organizedUnreads = useMemo(
-    () =>
-      sortMessages(unreads).filter(([b]) => {
-        const chat = chats[b];
-        const groupFlag = chat?.perms.group;
-        const group = groups[groupFlag || ''];
-        const vessel = group?.fleet[window.our];
-        const channel = group?.channels[b];
+  const messages = useMemo(() => {
+    const filteredMsgs = sortMessages(unreads).filter(([b]) => {
+      const chat = chats[b];
+      const groupFlag = chat?.perms.group;
+      const group = groups[groupFlag || ''];
+      const vessel = group?.fleet[window.our];
+      const channel = group?.channels[b];
 
-        if (
-          chat &&
-          channel &&
-          vessel &&
-          !canReadChannel(channel, vessel, group?.bloc)
-        ) {
-          return false;
+      if (
+        chat &&
+        channel &&
+        vessel &&
+        !canReadChannel(channel, vessel, group?.bloc)
+      ) {
+        return false;
+      }
+
+      if (pinned.includes(b) && !searchQuery) {
+        return false;
+      }
+
+      if (allPending.includes(b)) {
+        return false;
+      }
+
+      if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
+        return false;
+      }
+
+      if (filter === filters.dms && b.includes('/')) {
+        return false;
+      }
+
+      if (b.includes('/') && !group) {
+        return false;
+      }
+
+      if (searchQuery) {
+        if (b.includes('/')) {
+          const titleMatch = group.meta.title
+            .toLowerCase()
+            .startsWith(searchQuery.toLowerCase());
+          const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
+          return titleMatch || shipMatch;
         }
 
-        if (pinned.includes(b) && !searchQuery) {
-          return false;
+        if (whomIsDm(b)) {
+          const contact = contacts[b];
+          const nicknameMatch = contact?.nickname
+            .toLowerCase()
+            .startsWith(searchQuery.toLowerCase());
+          const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
+          return nicknameMatch || shipMatch;
         }
 
-        if (allPending.includes(b)) {
-          return false;
+        if (whomIsMultiDm(b)) {
+          const club = clubs[b];
+          const titleMatch = club?.meta.title
+            ?.toLowerCase()
+            .startsWith(searchQuery.toLowerCase());
+          const shipsMatch = club?.hive?.some((ship) =>
+            deSig(ship)?.startsWith(deSig(searchQuery) || '')
+          );
+          return titleMatch || shipsMatch;
         }
+      }
 
-        if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
-          return false;
-        }
-
-        if (filter === filters.dms && b.includes('/')) {
-          return false;
-        }
-
-        if (b.includes('/') && !group) {
-          return false;
-        }
-
-        if (searchQuery) {
-          if (b.includes('/')) {
-            const titleMatch = group.meta.title
-              .toLowerCase()
-              .startsWith(searchQuery.toLowerCase());
-            const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
-            return titleMatch || shipMatch;
-          }
-
-          if (whomIsDm(b)) {
-            const contact = contacts[b];
-            const nicknameMatch = contact?.nickname
-              .toLowerCase()
-              .startsWith(searchQuery.toLowerCase());
-            const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
-            return nicknameMatch || shipMatch;
-          }
-
-          if (whomIsMultiDm(b)) {
-            const club = clubs[b];
-            const titleMatch = club?.meta.title
-              ?.toLowerCase()
-              .startsWith(searchQuery.toLowerCase());
-            const shipsMatch = club?.hive?.some((ship) =>
-              deSig(ship)?.startsWith(deSig(searchQuery) || '')
-            );
-            return titleMatch || shipsMatch;
-          }
-        }
-
-        return true; // is all
-      }),
-    [
-      sortMessages,
-      unreads,
-      chats,
-      groups,
-      pinned,
-      searchQuery,
-      allPending,
-      filter,
-      contacts,
-      clubs,
-    ]
-  );
+      return true; // is all
+    });
+    return !searchQuery
+      ? filteredMsgs
+      : fuzzy
+          .filter(searchQuery, filteredMsgs, { extract: (x) => x[0] })
+          .sort((a, b) => b.score - a.score)
+          .map((x) => x.original);
+  }, [
+    sortMessages,
+    unreads,
+    chats,
+    groups,
+    pinned,
+    searchQuery,
+    allPending,
+    filter,
+    contacts,
+    clubs,
+  ]);
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -232,7 +237,7 @@ export default function MessagesList({
     <Virtuoso
       {...thresholds}
       ref={virtuosoRef}
-      data={organizedUnreads}
+      data={messages}
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       components={components}

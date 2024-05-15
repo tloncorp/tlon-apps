@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
-import { ArrowUp, Close } from '../../assets/icons';
+import { ArrowUp, Checkmark, Close } from '../../assets/icons';
 import { useReferences } from '../../contexts/references';
 import { View, XStack, YStack } from '../../core';
 import ContentReference from '../ContentReference';
@@ -16,11 +16,14 @@ export interface MessageInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
   channelId: string;
-  uploadInfo: UploadInfo;
+  uploadInfo?: UploadInfo;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<JSONContent>;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }
 
 export const MessageInputContainer = ({
@@ -32,21 +35,29 @@ export const MessageInputContainer = ({
   mentionText,
   groupMembers,
   onSelectMention,
+  isEditing = false,
+  cancelEditing,
+  onPressEdit,
+  editorIsEmpty,
 }: PropsWithChildren<{
   onPressSend?: () => void;
-  uploadInfo: UploadInfo;
+  uploadInfo?: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
   mentionText?: string;
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
+  isEditing?: boolean;
+  cancelEditing?: () => void;
+  onPressEdit?: () => void;
+  editorIsEmpty: boolean;
 }>) => {
   const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
-    () => !!(uploadInfo.uploadedImage && uploadInfo.uploadedImage.url !== ''),
+    () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
     [uploadInfo]
   );
-  const uploadIsLoading = useMemo(() => uploadInfo.uploading, [uploadInfo]);
+  const uploadIsLoading = useMemo(() => uploadInfo?.uploading, [uploadInfo]);
   const sendIconColor = useMemo(
     () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
     [uploadIsLoading]
@@ -110,21 +121,29 @@ export const MessageInputContainer = ({
         alignItems="flex-end"
         justifyContent="space-between"
       >
-        {hasUploadedImage ? null : uploadInfo.canUpload ? (
+        {isEditing ? (
+          <View paddingBottom="$m">
+            <IconButton onPress={cancelEditing}>
+              <Close />
+            </IconButton>
+          </View>
+        ) : null}
+        {hasUploadedImage ? null : uploadInfo?.canUpload ? (
           <View paddingBottom="$m">
             <AttachmentButton uploadInfo={uploadInfo} />
           </View>
         ) : null}
         {children}
         <View paddingBottom="$m">
-          <IconButton
-            color={sendIconColor}
-            disabled={uploadIsLoading}
-            onPress={onPressSend}
-          >
-            {/* TODO: figure out what send button should look like */}
-            <ArrowUp />
-          </IconButton>
+          {editorIsEmpty ? null : (
+            <IconButton
+              color={sendIconColor}
+              disabled={uploadIsLoading}
+              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+            >
+              {isEditing ? <Checkmark /> : <ArrowUp />}
+            </IconButton>
+          )}
         </View>
       </XStack>
     </YStack>

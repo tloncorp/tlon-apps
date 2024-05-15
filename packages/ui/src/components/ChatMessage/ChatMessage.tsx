@@ -1,9 +1,11 @@
 import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import { memo, useCallback, useMemo } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import { Icon } from '../Icon';
+import { MessageInput } from '../MessageInput';
 import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -40,6 +42,9 @@ const ChatMessage = ({
   onLongPress,
   showReplies,
   currentUserId,
+  editing,
+  editPost,
+  setEditingPost,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -48,6 +53,9 @@ const ChatMessage = ({
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
+  editing?: boolean;
+  editPost?: (post: db.Post, content: Story) => void;
+  setEditingPost?: (post: db.Post | undefined) => void;
 }) => {
   const isNotice = post.type === 'notice';
 
@@ -111,7 +119,21 @@ const ChatMessage = ({
         </View>
       ) : null}
       <View paddingLeft="$4xl">
-        {post.hidden ? (
+        {editing ? (
+          <MessageInput
+            groupMembers={[]}
+            storeDraft={() => {}}
+            clearDraft={() => {}}
+            getDraft={async () => ({})}
+            shouldBlur={false}
+            setShouldBlur={() => {}}
+            send={() => {}}
+            channelId={post.channelId}
+            editingPost={post}
+            editPost={editPost}
+            setEditingPost={setEditingPost}
+          />
+        ) : post.hidden ? (
           <SizableText color="$secondaryText">
             You have hidden or flagged this message.
           </SizableText>
@@ -123,6 +145,7 @@ const ChatMessage = ({
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}
               deliveryStatus={post.deliveryStatus}
+              isEdited={post.isEdited ?? false}
             />
           </NoticeWrapper>
         )}

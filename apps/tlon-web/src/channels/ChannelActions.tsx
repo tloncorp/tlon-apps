@@ -4,7 +4,7 @@ import React, { PropsWithChildren, useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import useActiveTab from '@/components/Sidebar/util';
+import useActiveTab, { useNavWithinTab } from '@/components/Sidebar/util';
 import VolumeSetting from '@/components/VolumeSetting';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
@@ -36,8 +36,7 @@ const ChannelActions = React.memo(
     className,
     children,
   }: ChannelActionsProps) => {
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { navigate } = useNavWithinTab();
     const isMobile = useIsMobile();
     const [_app, flag] = nestToFlag(nest);
     const groupFlag = useRouteGroup();
@@ -136,9 +135,7 @@ const ChannelActions = React.memo(
         if (isMobile) {
           setShowNotifications(true);
         } else {
-          navigate(`/groups/${groupFlag}/channels/${nest}/volume`, {
-            state: { backgroundLocation: location },
-          });
+          navigate(`/groups/${groupFlag}/channels/${nest}/volume`, true);
         }
       },
       content: 'Notifications',

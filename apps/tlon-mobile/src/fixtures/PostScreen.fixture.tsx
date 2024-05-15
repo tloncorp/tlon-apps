@@ -12,6 +12,9 @@ const posts = createFakePosts(10);
 export default (
   <>
     <PostScreenView
+      editPost={() => {}}
+      editingPost={undefined}
+      setEditingPost={() => {}}
       currentUserId="~solfer-magfed"
       contacts={initialContacts}
       calmSettings={{

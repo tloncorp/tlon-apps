@@ -92,6 +92,7 @@ export const ChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        editPost={() => {}}
         uploadInfo={{
           imageAttachment: null,
           resetImageAttachment: () => {},
@@ -156,6 +157,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        editPost={() => {}}
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
@@ -241,6 +243,7 @@ const ChannelFixtureWithImage = () => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        editPost={() => {}}
         uploadInfo={{
           imageAttachment: imageAttachment,
           resetImageAttachment: resetImageAttachment,
