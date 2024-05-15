@@ -474,9 +474,19 @@
   |=  [=stream:a floor=time children=(list source:a)]
   ^-  activity-summary:a
   =/  newest=time  floor
-  =/  total  0
+  =/  cs=activity-summary:a
+    %+  roll
+      children
+    |=  [=source:a sum=activity-summary:a]
+    =/  =index:a  (~(gut by indices) source *index:a)
+    =/  as  (summarize-unreads source index)
+    %=  sum
+      count  (^add count.sum count.as)
+      notify  &(notify.sum notify.as)
+    ==
+  =/  total  count.cs
   =/  main  0
-  =/  notified=?  |
+  =/  notified=?  notify.cs
   =/  main-notified=?  |
   =|  last=(unit message-key:a)
   ::  for each event
