@@ -548,6 +548,7 @@ export function toPostData(
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
   const id = getCanonicalPostId(post.seal.id);
+
   return {
     id,
     channelId,
@@ -556,7 +557,7 @@ export function toPostData(
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     authorId: post.essay.author,
-    isEdited: post.revision !== '0',
+    isEdited: !!post.revision && post.revision !== '0',
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
@@ -665,7 +666,7 @@ export function toPostReplyData(
     channelId,
     type: 'reply',
     authorId: reply.memo.author,
-    isEdited: reply.revision !== '0',
+    isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),
