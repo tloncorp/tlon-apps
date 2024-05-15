@@ -172,8 +172,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
           });
           const signedUrl = await getSignedUrl(client, command);
           await nativeUploader(signedUrl, file, true);
+          const finalUrl = config.publicUrlBase
+            ? new URL(key, config.publicUrlBase).toString()
+            : signedUrl.split('?')[0];
           updateFile(uploader, key, {
-            url: signedUrl.split('?')[0],
+            url: finalUrl,
             size: [file.height ?? 200, file.width ?? 200],
           });
           updateStatus(uploader, key, 'success');
