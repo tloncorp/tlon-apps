@@ -6,6 +6,9 @@ export type RNFile = {
   blob: Blob;
   name: string;
   type: string;
+  uri: string;
+  height?: number;
+  width?: number;
 };
 
 export type MessageAttachments = ImagePicker.ImagePickerAsset[];
@@ -103,7 +106,6 @@ export type UploadParams = {
 };
 
 export type UploadedFile = { url: string; width: number; height: number };
-
 export type UploadInfo = {
   uploadedImage?: UploadedFile | null;
   imageAttachment: string | null;
@@ -123,6 +125,12 @@ export interface Uploader {
   uploadType: 'prompt' | 'paste' | 'drag';
 }
 
+export type NativeUploader = (
+  presignedUrl: string,
+  file: RNFile,
+  withPolicyHeader?: boolean
+) => Promise<void>;
+
 export interface FileStore {
   client: S3Client | null;
   uploaders: Record<string, Uploader>;
@@ -133,14 +141,16 @@ export interface FileStore {
     uploader: string,
     files: RNFile[] | null,
     config: StorageConfiguration,
-    imageSizer: (url: string) => Promise<[number, number]>
+    imageSizer: (url: string) => Promise<[number, number]>,
+    nativeUploader?: NativeUploader
   ) => Promise<void>;
   upload: (
     uploader: string,
     upload: Upload,
     config: StorageConfiguration,
     imageSizer: (url: string) => Promise<[number, number]>,
-    compressor?: (file: RNFile) => Promise<RNFile>
+    compressor?: (file: RNFile) => Promise<RNFile>,
+    nativeUploader?: NativeUploader
   ) => Promise<void>;
   clear: (uploader: string) => void;
   setUploadType: (uploaderKey: string, type: Uploader['uploadType']) => void;

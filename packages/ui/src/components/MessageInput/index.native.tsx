@@ -312,6 +312,9 @@ export function MessageInput({
       }
 
       if (uploadInfo.uploadedImage) {
+        console.log(
+          `SETTING BLOCK with ${uploadInfo.uploadedImage.height} ${uploadInfo.uploadedImage.width}`
+        );
         blocks.push({
           image: {
             src: uploadInfo.uploadedImage.url,

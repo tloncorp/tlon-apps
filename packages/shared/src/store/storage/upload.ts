@@ -3,7 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { deSig, formatDa, unixToDa } from '@urbit/aura';
 import produce from 'immer';
 import _ from 'lodash';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
 import type {
@@ -16,7 +16,12 @@ import type {
 import * as api from '../../api';
 import { createDevLogger } from '../../debug';
 import { useStorage } from './storage';
-import { getShipInfo } from './utils';
+import {
+  getFinalMemexUrl,
+  getMemexUploadUrl,
+  getShipInfo,
+  hasCustomS3Creds,
+} from './utils';
 
 const logger = createDevLogger('upload state', true);
 
@@ -94,7 +99,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const uploader = get().getUploader(uploaderKey);
     return uploader ? uploader.uploadType : 'prompt';
   },
-  uploadFiles: async (uploader, files, config, imageSizer) => {
+  uploadFiles: async (uploader, files, config, imageSizer, nativeUploader) => {
     if (!files) return;
 
     const shipInfo = await getShipInfo();
@@ -121,31 +126,67 @@ export const useFileStore = create<FileStore>((set, get) => ({
       draft.files = { ...draft.files, ...newFiles };
     });
 
-    fileList.forEach((f) => upload(uploader, f, config, imageSizer));
+    fileList.forEach((f) =>
+      upload(uploader, f, config, imageSizer, undefined, nativeUploader)
+    );
   },
-  upload: async (uploader, upload, config, imageSizer, compressor) => {
+  upload: async (
+    uploader,
+    upload,
+    config,
+    imageSizer,
+    compressor,
+    nativeUploader
+  ) => {
     const { client, updateStatus, updateFile } = get();
 
     const { key, file } = upload;
     updateStatus(uploader, key, 'loading');
+    const isHostedUpload =
+      config.service === 'presigned-url' && config.presignedUrl;
+    const isCustomUpload = client !== null;
 
     // TODO: implement image compression for react-native
-    // const compressionOptions = {
-    // maxSizeMB: 1,
-    // useWebWorker: true,
-    // };
 
-    // if compression fails for some reason, we'll just use the original file.
-    // let compressedFile: File = file;
+    // Native app uses its own uploader which gets passed in
+    if (nativeUploader) {
+      try {
+        if (isHostedUpload) {
+          const presignedUrl = await getMemexUploadUrl(key);
+          await nativeUploader(presignedUrl, file);
+          const finalUrl = await getFinalMemexUrl(presignedUrl);
+          updateFile(uploader, key, {
+            url: finalUrl,
+            size: [file.height ?? 200, file.width ?? 200],
+          });
+          updateStatus(uploader, key, 'success');
+        }
 
-    // try {
-    // // TODO: fix upload compression for Safari and iOS webview
-    // if (isImageFile(file)) {
-    // compressedFile = await imageCompression(file, compressionOptions);
-    // }
-    // } catch (error) {
-    // console.log({ error });
-    // }
+        if (isCustomUpload) {
+          const command = new PutObjectCommand({
+            Bucket: config.currentBucket,
+            Key: key,
+            ContentType: file.type,
+            ContentLength: file.blob.size,
+            ACL: 'public-read',
+          });
+          const signedUrl = await getSignedUrl(client, command);
+          await nativeUploader(signedUrl, file, true);
+          updateFile(uploader, key, {
+            url: signedUrl.split('?')[0],
+            size: [file.height ?? 200, file.width ?? 200],
+          });
+          updateStatus(uploader, key, 'success');
+        }
+      } catch (e) {
+        console.log(`Filestore: upload failed for ${key}`, e);
+        updateStatus(uploader, key, 'error', 'Upload failed');
+      }
+
+      return;
+    }
+
+    // Pre-existing web upload logic
 
     // Logic for uploading with Tlon Hosting storage.
     if (config.service === 'presigned-url' && config.presignedUrl) {
@@ -158,13 +199,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
         const requestOptions = {
           method: 'PUT',
           headers: {
-            'Content-Type': 'text/plain',
+            'Content-Type': file.type,
           },
-          body: 'testingg',
+          body: file.blob,
         };
-
-        // const { presignedUrl } = config;
-        const presignedUrl = 'https://memex.tlon.network';
+        const { presignedUrl } = config;
         const url = `${presignedUrl}/${key}`;
         const token = await api
           .scry<string>({
@@ -179,13 +218,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
         fetch(urlWithToken, requestOptions)
           .then(async (response) => {
             if (response.status !== 200) {
-              try {
-                throw new Error('Incorrect response status');
-              } catch (e) {
+              const body = await response.text().catch(() => {
                 logger.log(
                   'Error parsing response body, body, response status not 200'
                 );
-              }
+                return '';
+              });
+              throw new Error(body || 'Incorrect response status');
             }
             // When the PUT succeeded, we fetch the actual URL of the file. We do
             // this to avoid having to proxy every single GET request, and to
@@ -200,11 +239,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
             if (isImageFile(file.blob)) {
               imageSizer(fileUrl)
                 .then((s) =>
-                  // updateFile(uploader, key, {
-                  //   size: s,
-                  //   url: fileUrl,
-                  // })
-                  console.log('would update file here')
+                  updateFile(uploader, key, {
+                    size: s,
+                    url: fileUrl,
+                  })
                 )
                 .catch((e) => {
                   logger.log('failed to get image size', { e });
@@ -303,11 +341,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
           if (isImageFile(file.blob)) {
             imageSizer(url)
               .then((s) =>
-                // updateFile(uploader, key, {
-                //   size: s,
-                //   url,
-                // })
-                console.log('would update file here')
+                updateFile(uploader, key, {
+                  size: s,
+                  url,
+                })
               )
               .catch((e) => {
                 logger.log('failed to get image size', { e });
@@ -383,16 +420,64 @@ export const useFileStore = create<FileStore>((set, get) => ({
 const emptyUploader = (
   key: string,
   config: StorageConfiguration,
-  imageSizer: (url: string) => Promise<[number, number]>
+  imageSizer: (url: string) => Promise<[number, number]>,
+  nativeUploader?: api.NativeUploader
 ): Uploader => ({
   files: {},
   getMostRecent: () => useFileStore.getState().getMostRecent(key),
   uploadFiles: async (files) =>
-    useFileStore.getState().uploadFiles(key, files, config, imageSizer),
+    useFileStore
+      .getState()
+      .uploadFiles(key, files, config, imageSizer, nativeUploader),
   clear: () => useFileStore.getState().clear(key),
   removeByURL: (url) => useFileStore.getState().removeByURL(key, url),
   uploadType: 'prompt',
 });
+
+export type CustomStorageConfig = {
+  publicUrlBase?: string;
+  bucket: string;
+  client: S3Client;
+};
+
+export type StorageType =
+  | {
+      type: 'custom';
+      config: CustomStorageConfig;
+    }
+  | { type: 'hosted' }
+  | { type: 'unavailable' };
+export function useStorageType(): StorageType {
+  const { s3 } = useStorage();
+
+  const client = useClient();
+
+  const usingHostedStorage = useMemo(
+    () =>
+      s3.configuration.service === 'presigned-url' &&
+      s3.configuration.presignedUrl,
+    [s3.configuration]
+  );
+
+  const hasCustomCredentials = useMemo(() => hasCustomS3Creds(s3), [s3]);
+
+  if (usingHostedStorage) {
+    return { type: 'hosted' };
+  }
+
+  if (hasCustomCredentials && client) {
+    return {
+      type: 'custom',
+      config: {
+        publicUrlBase: s3.configuration.publicUrlBase,
+        bucket: s3.configuration.currentBucket,
+        client,
+      },
+    };
+  }
+
+  return { type: 'unavailable' };
+}
 
 function useClient() {
   const {
@@ -430,7 +515,8 @@ function useClient() {
 const selUploader = (key: string) => (s: FileStore) => s.uploaders[key];
 export function useUploader(
   key: string,
-  imageSizer: (url: string) => Promise<[number, number]>
+  imageSizer: (url: string) => Promise<[number, number]>,
+  nativeUploader?: api.NativeUploader
 ): Uploader | undefined {
   const {
     s3: { configuration },
@@ -445,11 +531,16 @@ export function useUploader(
     ) {
       useFileStore.setState(
         produce((draft) => {
-          draft.uploaders[key] = emptyUploader(key, configuration, imageSizer);
+          draft.uploaders[key] = emptyUploader(
+            key,
+            configuration,
+            imageSizer,
+            nativeUploader
+          );
         })
       );
     }
-  }, [client, configuration, key, imageSizer]);
+  }, [client, configuration, key, imageSizer, nativeUploader]);
 
   return uploader;
 }

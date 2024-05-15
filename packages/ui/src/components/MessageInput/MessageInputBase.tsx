@@ -1,10 +1,4 @@
-import {
-  ContentReference as ContentReferenceType,
-  MessageAttachments,
-  Upload,
-  UploadInfo,
-  UploadedFile,
-} from '@tloncorp/shared/dist/api';
+import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';

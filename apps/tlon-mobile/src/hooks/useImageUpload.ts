@@ -1,31 +1,32 @@
 import type {
   MessageAttachments,
+  RNFile,
   UploadInfo,
   UploadParams,
   UploadedFile,
 } from '@tloncorp/shared/dist/api';
 import {
-  getFinalMemexUrl,
-  getMemexUploadUrl,
+  SizedImage,
   handleImagePicked,
   useUploader,
 } from '@tloncorp/shared/dist/store';
-import axios from 'axios';
 import * as FileSystem from 'expo-file-system';
 import { useCallback, useEffect, useState } from 'react';
 
 import { imageSize, resizeImage } from '../utils/images';
-import { useCurrentUserId } from './useCurrentUser';
 
 export function useImageUpload(props: UploadParams): UploadInfo {
-  const currentUserId = useCurrentUserId();
-  const uploader = useUploader(`channel-${props.uploaderKey}`, imageSize);
-  const [resizedImage, setResizedImage] = useState<UploadedFile | null>(null);
-  const mostRecentFile = uploader?.getMostRecent();
+  const uploader = useUploader(
+    `channel-${props.uploaderKey}`,
+    imageSize,
+    nativeUploader
+  );
+
   const [attachments, setAttachments] = useState<MessageAttachments>([]);
-  const [startedImageUpload, setStartedImageUpload] = useState(false);
+  const [resizedImage, setResizedImage] = useState<SizedImage | null>(null);
   const [uploadedImage, setUploadedImage] = useState<UploadedFile | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const mostRecentFile = uploader?.getMostRecent();
+  const [startedImageUpload, setStartedImageUpload] = useState(false);
 
   const resetImageAttachment = useCallback(() => {
     setResizedImage(null);
@@ -43,90 +44,71 @@ export function useImageUpload(props: UploadParams): UploadInfo {
       }
     };
 
-    async function handle() {
-      if (attachments.length && !startedImageUpload) {
-        const attachment = attachments[0];
-        console.log('GOT ATTACHMENT', attachment);
-        console.log(`uri`, attachment.uri);
-        console.log(attachment.base64);
-        if (!resizedImage) {
-          getResizedImage(attachment.uri);
-        }
+    if (attachments.length && !startedImageUpload) {
+      if (!resizedImage) {
+        getResizedImage(attachments[0].uri);
+      }
 
-        if (uploader && resizedImage) {
-          setStartedImageUpload(true);
-
-          try {
-            // hosting upload
-            setUploading(true);
-            const uploadPath = await getMemexUploadUrl(
-              currentUserId,
-              attachment.fileName ?? ''
-            );
-
-            console.log(`trying filesystem upload`, uploadPath);
-            const response = await FileSystem.uploadAsync(
-              uploadPath,
-              attachment.uri,
-              {
-                httpMethod: 'PUT',
-                headers: {
-                  'Content-Type': 'image/jpeg',
-                },
-              }
-            );
-
-            console.log('it worked?');
-            console.log(response.status);
-
-            if (response.status !== 200) {
-              throw new Error('Failed to upload to memex');
-            }
-
-            const finalUrl = await getFinalMemexUrl(uploadPath);
-
-            setUploadedImage({ ...resizedImage, url: finalUrl });
-          } catch (e) {
-            console.error('Failed to upload hosting image', e);
-            resetImageAttachment();
-          } finally {
-            setUploading(false);
-          }
-        }
+      if (uploader && resizedImage) {
+        handleImagePicked(resizedImage, uploader);
+        setStartedImageUpload(true);
       }
     }
+  }, [attachments, mostRecentFile, uploader, startedImageUpload, resizedImage]);
 
-    handle();
-  }, [
-    attachments,
-    mostRecentFile,
-    uploader,
-    startedImageUpload,
-    resizedImage,
-    currentUserId,
-    resetImageAttachment,
-  ]);
+  useEffect(() => {
+    if (
+      mostRecentFile &&
+      (mostRecentFile.status === 'success' ||
+        mostRecentFile.status === 'loading')
+    ) {
+      console.log(`success, most recent file`, mostRecentFile);
+      const uploadedImage = {
+        url: mostRecentFile.url,
+        height: mostRecentFile.size[0],
+        width: mostRecentFile.size[1],
+      };
+      setUploadedImage(uploadedImage);
 
-  // useEffect(() => {
-  //   if (
-  //     mostRecentFile &&
-  //     (mostRecentFile.status === 'success' ||
-  //       mostRecentFile.status === 'loading')
-  //   ) {
-  //     setUploadedImage(mostRecentFile);
-
-  //     if (mostRecentFile.status === 'success' && mostRecentFile.url !== '') {
-  //       uploader?.clear();
-  //     }
-  //   }
-  // }, [mostRecentFile, uploader]);
+      if (mostRecentFile.status === 'success' && mostRecentFile.url !== '') {
+        uploader?.clear();
+      }
+    }
+  }, [mostRecentFile, uploader]);
 
   return {
     uploadedImage,
-    imageAttachment: resizedImage?.url ?? null,
+    imageAttachment: resizedImage?.uri ?? null,
     setAttachments,
     resetImageAttachment,
     canUpload: !!uploader,
-    uploading,
+    uploading: !!mostRecentFile && mostRecentFile.status === 'loading',
   };
+}
+
+async function nativeUploader(
+  presignedUrl: string,
+  file: RNFile,
+  withPolicyHeader?: boolean
+) {
+  const headers: Record<string, string> = { 'Content-Type': file.type };
+  // some custom S3's require this header, but it breaks Memex so we only
+  // add it conditionally
+  if (withPolicyHeader) {
+    headers['x-amz-acl'] = 'public-read';
+  }
+
+  try {
+    const response = await FileSystem.uploadAsync(presignedUrl, file.uri, {
+      httpMethod: 'PUT',
+      headers,
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`Got bad upload response ${response.status}`);
+    }
+  } catch (err) {
+    console.error('Native upload failed', err);
+    throw err;
+  }
 }

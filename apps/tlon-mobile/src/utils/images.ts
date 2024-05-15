@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
+import { SizedImage, createDevLogger } from '@tloncorp/shared/dist';
 import { manipulateAsync } from 'expo-image-manipulator';
 import { Image } from 'react-native';
 
@@ -17,13 +17,13 @@ export function imageSize(url: string): Promise<[number, number]> {
   );
 }
 
-export async function resizeImage(url: string) {
+export async function resizeImage(url: string): Promise<SizedImage> {
   const size = await imageSize(url);
 
   logger.log('image size', size);
 
   if (!size) {
-    return { url: url, width: 0, height: 0 };
+    return { uri: url, width: 0, height: 0 };
   }
 
   const [width, height] = size;
@@ -37,7 +37,7 @@ export async function resizeImage(url: string) {
     logger.log('manipulated', manipulated);
 
     return {
-      url: manipulated.uri,
+      uri: manipulated.uri,
       width: manipulated.width,
       height: manipulated.height,
     };
@@ -52,14 +52,14 @@ export async function resizeImage(url: string) {
     logger.log('manipulated', manipulated);
 
     return {
-      url: manipulated.uri,
+      uri: manipulated.uri,
       width: manipulated.width,
       height: manipulated.height,
     };
   }
 
   return {
-    url: url,
+    uri: url,
     width,
     height,
   };
