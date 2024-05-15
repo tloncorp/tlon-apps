@@ -179,7 +179,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           updateStatus(uploader, key, 'success');
         }
       } catch (e) {
-        console.log(`Filestore: upload failed for ${key}`, e);
+        console.error(`Filestore: upload failed for ${key}`, e);
         updateStatus(uploader, key, 'error', 'Upload failed');
       }
 
@@ -439,45 +439,6 @@ export type CustomStorageConfig = {
   bucket: string;
   client: S3Client;
 };
-
-export type StorageType =
-  | {
-      type: 'custom';
-      config: CustomStorageConfig;
-    }
-  | { type: 'hosted' }
-  | { type: 'unavailable' };
-export function useStorageType(): StorageType {
-  const { s3 } = useStorage();
-
-  const client = useClient();
-
-  const usingHostedStorage = useMemo(
-    () =>
-      s3.configuration.service === 'presigned-url' &&
-      s3.configuration.presignedUrl,
-    [s3.configuration]
-  );
-
-  const hasCustomCredentials = useMemo(() => hasCustomS3Creds(s3), [s3]);
-
-  if (usingHostedStorage) {
-    return { type: 'hosted' };
-  }
-
-  if (hasCustomCredentials && client) {
-    return {
-      type: 'custom',
-      config: {
-        publicUrlBase: s3.configuration.publicUrlBase,
-        bucket: s3.configuration.currentBucket,
-        client,
-      },
-    };
-  }
-
-  return { type: 'unavailable' };
-}
 
 function useClient() {
   const {
