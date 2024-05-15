@@ -14,6 +14,7 @@ export default (
     <PostScreenView
       editPost={() => {}}
       editingPost={undefined}
+      negotiationMatch={true}
       setEditingPost={() => {}}
       currentUserId="~solfer-magfed"
       contacts={initialContacts}

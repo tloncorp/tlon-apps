@@ -59,7 +59,7 @@ export const handleImagePicked = async (
   }
 };
 
-export const getShipInfo = async () => {
+export const getShipInfo = () => {
   const { ship, url } = client;
 
   if (!ship) {
@@ -85,7 +85,7 @@ export const hasCustomS3Creds = ({
 };
 
 export const getIsHosted = async () => {
-  const shipInfo = await getShipInfo();
+  const shipInfo = getShipInfo();
   const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
   return isHosted;
 };

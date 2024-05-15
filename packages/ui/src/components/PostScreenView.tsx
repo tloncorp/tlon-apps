@@ -7,7 +7,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
-import { YStack } from '../core';
+import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
@@ -32,6 +32,7 @@ export function PostScreenView({
   editingPost,
   setEditingPost,
   editPost,
+  negotiationMatch,
 }: {
   currentUserId: string;
   calmSettings?: CalmState;
@@ -49,6 +50,7 @@ export function PostScreenView({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
+  negotiationMatch: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -94,7 +96,7 @@ export function PostScreenView({
                   />
                 )
               )}
-              {!editingPost && channel && canWrite && (
+              {negotiationMatch && !editingPost && channel && canWrite && (
                 <MessageInput
                   shouldBlur={inputShouldBlur}
                   setShouldBlur={setInputShouldBlur}
@@ -106,6 +108,21 @@ export function PostScreenView({
                   clearDraft={clearDraft}
                   getDraft={getDraft}
                 />
+              )}
+              {!negotiationMatch && channel && canWrite && (
+                <View
+                  width="90%"
+                  alignItems="center"
+                  justifyContent="center"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius="$xl"
+                  padding="$l"
+                >
+                  <Text>
+                    Your ship&apos;s version of the Tlon app doesn&apos;t match
+                    the channel host.
+                  </Text>
+                </View>
               )}
             </KeyboardAvoidingView>
           </YStack>

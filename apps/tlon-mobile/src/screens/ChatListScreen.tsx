@@ -13,6 +13,7 @@ import { Icon } from '@tloncorp/ui';
 import React from 'react';
 
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
+import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 
 type ChatListScreenProps = NativeStackScreenProps<
@@ -59,6 +60,7 @@ export default function ChatListScreen(
           channel={longPressedItem ?? undefined}
         />
       </View>
+      <NavBar navigation={props.navigation} />
     </ContactsProvider>
   );
 }

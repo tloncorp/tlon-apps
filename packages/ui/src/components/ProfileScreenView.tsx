@@ -10,6 +10,7 @@ import { Avatar } from './Avatar';
 import ContactName from './ContactName';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
+import { navHeight } from './NavBar/NavBar';
 
 interface Props {
   currentUserId: string;
@@ -27,12 +28,17 @@ export function ProfileScreenView({
 }
 
 export function Wrapped(props: Props) {
-  const { top } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
 
   return (
     <ScrollView>
-      <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
+      <YStack
+        flex={1}
+        paddingHorizontal="$xl"
+        paddingTop={top}
+        paddingBottom={navHeight + bottom}
+      >
         <View marginTop="$l">
           {contact ? (
             <ProfileDisplayWidget
