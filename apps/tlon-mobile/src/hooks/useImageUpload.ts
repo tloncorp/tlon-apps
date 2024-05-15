@@ -81,7 +81,7 @@ export function useImageUpload(props: UploadParams): UploadInfo {
     setAttachments,
     resetImageAttachment,
     canUpload: !!uploader,
-    uploading: !!mostRecentFile && mostRecentFile.status === 'loading',
+    uploading: !!mostRecentFile && mostRecentFile.status !== 'success',
   };
 }
 
