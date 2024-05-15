@@ -86,9 +86,6 @@ export function PostScreenView({
                 setShouldBlur={setInputShouldBlur}
                 send={sendReply}
                 channelId={channel.id}
-                // setAttachments={uploadInfo.setAttachments}
-                // uploadedImage={uploadInfo.uploadedImage}
-                // canUpload={uploadInfo.canUpload}
                 uploadInfo={uploadInfo}
                 groupMembers={groupMembers}
                 storeDraft={storeDraft}

@@ -16,9 +16,6 @@ export interface MessageInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
   channelId: string;
-  // setAttachments: (attachments: MessageAttachments) => void;
-  // uploadedImage?: UploadedFile | null;
-  // canUpload?: boolean;
   uploadInfo: UploadInfo;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent) => void;
@@ -29,9 +26,6 @@ export interface MessageInputProps {
 export const MessageInputContainer = ({
   children,
   onPressSend,
-  // setAttachments,
-  // uploadedImage,
-  // canUpload,
   uploadInfo,
   containerHeight,
   showMentionPopup = false,
@@ -40,9 +34,6 @@ export const MessageInputContainer = ({
   onSelectMention,
 }: PropsWithChildren<{
   onPressSend?: () => void;
-  // setAttachments: (attachments: MessageAttachments) => void;
-  // uploadedImage?: UploadedFile | null;
-  // canUpload?: boolean;
   uploadInfo: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
@@ -121,11 +112,7 @@ export const MessageInputContainer = ({
       >
         {hasUploadedImage ? null : uploadInfo.canUpload ? (
           <View paddingBottom="$m">
-            <AttachmentButton
-              // uploadedImage={uploadedImage}
-              // setAttachments={setAttachments}
-              uploadInfo={uploadInfo}
-            />
+            <AttachmentButton uploadInfo={uploadInfo} />
           </View>
         ) : null}
         {children}

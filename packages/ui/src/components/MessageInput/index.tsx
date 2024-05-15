@@ -9,9 +9,6 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  // setImageAttachment,
-  // uploadedImage,
-  // canUpload,
   uploadInfo,
   groupMembers,
 }: MessageInputProps) {
@@ -19,8 +16,6 @@ export function MessageInput({
 
   return (
     <MessageInputContainer
-      // setImageAttachment={setImageAttachment}
-      // canUpload={canUpload}
       uploadInfo={uploadInfo}
       containerHeight={0}
       groupMembers={groupMembers}

@@ -79,9 +79,6 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  // setAttachments,
-  // uploadedImage,
-  // canUpload,
   uploadInfo,
   groupMembers,
   storeDraft,
@@ -318,12 +315,8 @@ export function MessageInput({
         blocks.push({
           image: {
             src: uploadInfo.uploadedImage.url,
-            height: uploadInfo.uploadedImage.height
-              ? uploadInfo.uploadedImage.height
-              : 200,
-            width: uploadInfo.uploadedImage.width
-              ? uploadInfo.uploadedImage.width
-              : 200,
+            height: uploadInfo.uploadedImage.height,
+            width: uploadInfo.uploadedImage.width,
             alt: 'image',
           },
         });
@@ -417,10 +410,7 @@ export function MessageInput({
 
   return (
     <MessageInputContainer
-      // setAttachments={setAttachments}
       onPressSend={handleSend}
-      // uploadedImage={uploadedImage}
-      // canUpload={canUpload}
       uploadInfo={uploadInfo}
       containerHeight={containerHeight}
       mentionText={mentionText}
