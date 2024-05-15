@@ -162,11 +162,13 @@ export const pinRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
+export type GroupInviteStatus = 'joined' | 'invited' | 'joining';
+
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
   isSecret: boolean('is_secret'),
-  isJoined: boolean('is_joined'),
+  joinStatus: text('join_status').$type<GroupInviteStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
 });
@@ -426,6 +428,7 @@ export const posts = sqliteTable(
     hasLink: boolean('has_link'),
     hasImage: boolean('has_image'),
     hidden: boolean('hidden').default(false),
+    isEdited: boolean('is_edited'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
   },
   (table) => ({

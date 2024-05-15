@@ -5,9 +5,6 @@ import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
 
-// @ts-expect-error TODO: it's there?
-export { isValidPatp } from 'urbit-ob';
-
 type App = 'chat' | 'heap' | 'diary';
 
 export function checkNest(nest: string) {

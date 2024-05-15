@@ -14,9 +14,11 @@ export default function MessageActions({
   onReply,
   channelType,
   post,
+  onEdit,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
   post: db.Post;
   channelType: db.ChannelType;
 }) {
@@ -45,6 +47,7 @@ export default function MessageActions({
               post,
               dismiss,
               onReply,
+              onEdit,
               setReferences,
             })
           }
@@ -92,7 +95,6 @@ function getPostActions(
         // { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
         { id: 'copyText', label: 'Copy message text' },
-        { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: 'Hide' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
@@ -115,12 +117,14 @@ async function handleAction({
   post,
   dismiss,
   onReply,
+  onEdit,
   setReferences,
 }: {
   id: string;
   post: db.Post;
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
   setReferences: (references: Record<string, ContentReference | null>) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
@@ -133,7 +137,9 @@ async function handleAction({
     case 'quote':
       setReferences({ [path]: reference });
       break;
-
+    case 'edit':
+      onEdit?.();
+      break;
     case 'copyRef':
       Clipboard.setString(logic.getPostReferencePath(post));
       break;

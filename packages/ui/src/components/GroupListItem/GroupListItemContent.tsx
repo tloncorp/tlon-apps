@@ -1,5 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
+import { SizableText, Stack } from '../../core';
 import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
@@ -12,6 +13,7 @@ export default function GroupListItemContent({
   return (
     <ListItem
       {...props}
+      alignItems={model.joinStatus !== 'joined' ? 'center' : 'stretch'}
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
@@ -22,7 +24,7 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {model.lastPost && (
+        {model.joinStatus === 'joined' && model.lastPost ? (
           <ListItem.Subtitle>
             <ContactName
               userId={model.lastPost.authorId}
@@ -32,13 +34,28 @@ export default function GroupListItemContent({
             />
             : {model.lastPost?.textContent ?? ''}
           </ListItem.Subtitle>
-        )}
+        ) : null}
       </ListItem.MainContent>
       <ListItem.EndContent>
-        <ListItem.Time time={model.lastPostAt} />
-        {model.unreadCount && model.unreadCount > 0 ? (
-          <ListItem.Count>{model.unreadCount}</ListItem.Count>
-        ) : null}
+        {model.joinStatus === 'invited' || model.joinStatus === 'joining' ? (
+          <Stack
+            backgroundColor="$positiveBackground"
+            paddingVertical="$xs"
+            paddingHorizontal="$l"
+            borderRadius="$xl"
+          >
+            <SizableText size="$s" color="$positiveActionText">
+              {model.joinStatus === 'joining' ? 'Joining...' : 'Invited'}
+            </SizableText>
+          </Stack>
+        ) : (
+          <>
+            <ListItem.Time time={model.lastPostAt} />
+            {model.unreadCount && model.unreadCount > 0 ? (
+              <ListItem.Count>{model.unreadCount}</ListItem.Count>
+            ) : null}
+          </>
+        )}
       </ListItem.EndContent>
     </ListItem>
   );

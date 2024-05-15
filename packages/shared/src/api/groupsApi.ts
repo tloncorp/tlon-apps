@@ -123,14 +123,14 @@ export const createGroup = async ({
 };
 
 // TODO transform these events into something client-friendly
-export const subscribeToGroupsUpdates = async (
-  eventHandler: (update: any) => void
-) => {
-  subscribe({ app: 'groups', path: `/groups/ui` }, (rawEvent: any) => {
-    // just return raw event for now
-    eventHandler(rawEvent);
-  });
-};
+// export const subscribeToGroupsUpdates = async (
+//   eventHandler: (update: any) => void
+// ) => {
+//   subscribe({ app: 'groups', path: `/groups/ui` }, (rawEvent: any) => {
+//     // just return raw event for now
+//     eventHandler(rawEvent);
+//   });
+// };
 
 export const getGroup = async (groupId: string) => {
   const path = `/groups/${groupId}/v1`;
@@ -197,9 +197,9 @@ export function toClientGroup(
   });
   return {
     id,
-    isJoined,
     roles,
     isSecret: group.secret,
+    joinStatus: isJoined ? 'joined' : undefined,
     ...toClientMeta(group.meta),
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
@@ -234,6 +234,40 @@ export function toClientGroup(
     channels: group.channels
       ? toClientChannels({ channels: group.channels, groupId: id })
       : [],
+  };
+}
+
+export function toClientInvitedGroups(gangs: Record<string, ub.Gang>) {
+  if (!gangs) {
+    return [];
+  }
+
+  return Object.entries(gangs)
+    .filter(
+      ([_, gang]) =>
+        gang.invite && gang.preview && 'shut' in gang.preview.cordon
+    )
+    .map(([id, gang]) => toClientInvitedGroup(id, gang));
+}
+
+export function toClientInvitedGroup(id: string, gang: ub.Gang): db.Group {
+  return {
+    id,
+    isSecret: !!gang.preview?.secret,
+    joinStatus: 'invited',
+    ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
+    // Create placeholder Channel to show in chat list
+    channels: [
+      {
+        id,
+        groupId: id,
+        type: 'chat',
+        iconImage: omitEmpty(gang.preview?.meta.image ?? ''),
+        title: omitEmpty(gang.preview?.meta.title ?? ''),
+        coverImage: omitEmpty(gang.preview?.meta.cover ?? ''),
+        description: omitEmpty(gang.preview?.meta.description ?? ''),
+      },
+    ],
   };
 }
 
@@ -298,3 +332,87 @@ function omitEmpty(val: string) {
 export function isColor(value: string) {
   return value[0] === '#';
 }
+
+export const joinGroup = async (id: string) =>
+  poke({
+    app: 'groups',
+    mark: 'group-join',
+    json: {
+      flag: id,
+      'join-all': true,
+    },
+  });
+
+export const rejectGroupInvitation = async (id: string) =>
+  poke({
+    app: 'groups',
+    mark: 'invite-decline',
+    json: id,
+  });
+
+export type GroupsUpdate =
+  | { type: 'unknown' }
+  | { type: 'addGroups'; groups: db.Group[] }
+  | { type: 'deleteGroup'; group: db.Group };
+
+const toGroupsUpdate = (groupEvent: ub.GroupAction): GroupsUpdate => {
+  if ('create' in groupEvent.update.diff) {
+    return {
+      type: 'addGroups',
+      groups: [
+        toClientGroup(groupEvent.flag, groupEvent.update.diff.create, true),
+      ],
+    };
+  }
+
+  if ('del' in groupEvent.update.diff) {
+    return {
+      type: 'deleteGroup',
+      group: { id: groupEvent.flag },
+    };
+  }
+
+  logger.log('Skipping unknown group event:', groupEvent);
+  return { type: 'unknown' };
+};
+
+const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupsUpdate => {
+  const invitedGangs = Object.values(gangsEvent).filter(
+    ({ invite, preview }) =>
+      invite && preview?.cordon && 'shut' in preview.cordon
+  );
+  if (invitedGangs.length > 0) {
+    return {
+      type: 'addGroups',
+      groups: invitedGangs.map((gang) =>
+        toClientInvitedGroup(gang.invite!.flag, gang)
+      ),
+    };
+  }
+
+  logger.log('Skipping unknown gangs event:', gangsEvent);
+  return { type: 'unknown' };
+};
+
+export const subscribeToGroupsUpdates = async (
+  eventHandler: (update: GroupsUpdate) => void
+) => {
+  subscribe(
+    { app: 'groups', path: '/groups/ui' },
+    (rawEvent: ub.GroupAction) => {
+      logger.debug('Received groups update:', rawEvent);
+
+      // Sometimes this event is fired with a string instead
+      if (typeof rawEvent !== 'object') {
+        return;
+      }
+
+      eventHandler(toGroupsUpdate(rawEvent));
+    }
+  );
+
+  subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
+    logger.debug('Received gangs update:', rawEvent);
+    eventHandler(toGangsGroupsUpdate(rawEvent));
+  });
+};

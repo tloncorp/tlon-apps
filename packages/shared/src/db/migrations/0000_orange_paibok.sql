@@ -106,7 +106,7 @@ CREATE TABLE `groups` (
 	`title` text,
 	`description` text,
 	`is_secret` integer,
-	`is_joined` integer,
+	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer
 );
@@ -157,6 +157,7 @@ CREATE TABLE `posts` (
 	`has_link` integer,
 	`has_image` integer,
 	`hidden` integer DEFAULT false,
+	`is_edited` integer,
 	`delivery_status` text
 );
 --> statement-breakpoint

@@ -1,7 +1,11 @@
+// import {
+//   NativeStackScreenProps,
+//   createNativeStackNavigator,
+// } from '@react-navigation/native-stack';
 import {
-  NativeStackScreenProps,
-  createNativeStackNavigator,
-} from '@react-navigation/native-stack';
+  StackScreenProps,
+  createStackNavigator,
+} from '@react-navigation/stack';
 import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -25,7 +29,7 @@ import { Icon } from '../Icon';
 import { Sheet } from '../Sheet';
 import { ContactSelector } from '../ShipSelector';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 type StackParamList = {
   Home: undefined;
   Root: {
@@ -72,23 +76,24 @@ export function AddChatSheet({
             initialRouteName="Root"
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: theme.background.val },
             }}
           >
             <Stack.Screen
               name="Root"
               initialParams={{ currentUserId }}
-              component={RootPane}
+              // these ComponentType<any> casts are needed to stop web type compilation
+              // from complaining, not sure why
+              component={RootPane as React.ComponentType<any>}
             />
             <Stack.Screen
               name="CreateGroup"
               initialParams={{ currentUserId }}
-              component={CreateGroupPane}
+              component={CreateGroupPane as React.ComponentType<any>}
             />
             <Stack.Screen
               name="JoinGroup"
               initialParams={{ currentUserId }}
-              component={JoinGroupPane}
+              component={JoinGroupPane as React.ComponentType<any>}
             />
           </Stack.Navigator>
         </KeyboardAvoidingView>
@@ -97,7 +102,7 @@ export function AddChatSheet({
   );
 }
 
-function RootPane(props: NativeStackScreenProps<StackParamList, 'Root'>) {
+function RootPane(props: StackScreenProps<StackParamList, 'Root'>) {
   const handlers = useAddChatHandlers();
   const [dmParticipants, setDmParticipants] = useState<string[]>([]);
   return (
@@ -146,9 +151,7 @@ type JoinGroupPaneState = {
   selectedGroup: db.Group | null;
 };
 
-function JoinGroupPane(
-  props: NativeStackScreenProps<StackParamList, 'JoinGroup'>
-) {
+function JoinGroupPane(props: StackScreenProps<StackParamList, 'JoinGroup'>) {
   const [state, setState] = useState<JoinGroupPaneState>({
     loading: false,
     error: null,
@@ -219,7 +222,7 @@ function JoinGroupPane(
             />
           </XStack>
           <GroupListItem model={state.selectedGroup} />
-          {state.selectedGroup.isJoined ? (
+          {state.selectedGroup.joinStatus === 'joined' ? (
             <SizableText>You are already a member</SizableText>
           ) : (
             <Button hero onPress={() => props.navigation.pop()}>
@@ -233,7 +236,7 @@ function JoinGroupPane(
 }
 
 function CreateGroupPane(
-  props: NativeStackScreenProps<StackParamList, 'CreateGroup'>
+  props: StackScreenProps<StackParamList, 'CreateGroup'>
 ) {
   const handlers = useAddChatHandlers();
   const [loading, setLoading] = useState(false);

@@ -32,7 +32,7 @@ export function GroupInviteBlock() {
       : false;
   const {
     mutate: inviteMutation,
-    status: inviteStatus,
+    status: joinStatus,
     reset: resetInvite,
   } = useGroupInviteMutation();
   const {
@@ -113,22 +113,21 @@ export function GroupInviteBlock() {
           <button
             onClick={onInvite}
             className={cn('button', {
-              'bg-red':
-                inviteStatus === 'error' || addMembersStatus === 'error',
+              'bg-red': joinStatus === 'error' || addMembersStatus === 'error',
             })}
             disabled={
               !validShips ||
-              inviteStatus === 'loading' ||
-              inviteStatus === 'error' ||
+              joinStatus === 'loading' ||
+              joinStatus === 'error' ||
               addMembersStatus === 'loading' ||
               addMembersStatus === 'error'
             }
           >
             Send Invites
-            {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
+            {joinStatus === 'loading' || addMembersStatus === 'loading' ? (
               <LoadingSpinner className="ml-2 h-4 w-4" />
             ) : null}
-            {inviteStatus === 'error' || addMembersStatus === 'error' ? (
+            {joinStatus === 'error' || addMembersStatus === 'error' ? (
               <ExclamationPoint className="ml-2 h-4 w-4" />
             ) : null}
           </button>

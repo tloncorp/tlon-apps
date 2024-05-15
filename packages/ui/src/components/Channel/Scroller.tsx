@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import { MotiView } from 'moti';
 import React, {
   PropsWithChildren,
@@ -35,6 +36,9 @@ type RenderItemFunction = (props: {
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
+  editing?: boolean;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -57,6 +61,9 @@ export default function Scroller({
   onPressImage,
   onPressReplies,
   showReplies = true,
+  editingPost,
+  setEditingPost,
+  editPost,
 }: {
   inverted: boolean;
   renderItem: RenderItemType;
@@ -73,6 +80,9 @@ export default function Scroller({
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost?: (post: db.Post, content: Story) => void;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
@@ -148,6 +158,9 @@ export default function Scroller({
             <RenderItem
               currentUserId={currentUserId}
               post={item}
+              editing={editingPost && editingPost?.id === item.id}
+              setEditingPost={setEditingPost}
+              editPost={editPost}
               showAuthor={showAuthor}
               showReplies={showReplies}
               onPressReplies={onPressReplies}
@@ -171,6 +184,9 @@ export default function Scroller({
       onPressReplies,
       onPressImage,
       handlePostLongPressed,
+      editingPost,
+      setEditingPost,
+      editPost,
     ]
   );
 
@@ -227,6 +243,10 @@ export default function Scroller({
             onDismiss={() => setActiveMessage(null)}
             channelType={channelType}
             onReply={onPressReplies}
+            onEdit={() => {
+              setEditingPost?.(activeMessage);
+              setActiveMessage(null);
+            }}
           />
         )}
       </Modal>

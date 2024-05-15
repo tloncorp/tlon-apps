@@ -85,6 +85,19 @@ export const syncStaleChannels = async () => {
   }
 };
 
+export const handleGroupsUpdate = async (update: api.GroupsUpdate) => {
+  switch (update.type) {
+    case 'addGroups':
+      await db.insertGroups(update.groups);
+      break;
+    case 'deleteGroup':
+      await db.deleteGroup(update.group.id);
+      break;
+    default:
+      break;
+  }
+};
+
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   switch (update.type) {
     case 'addPost':
@@ -107,6 +120,9 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       // finally, always insert the post itself
       await db.insertChannelPosts(update.post.channelId, [update.post]);
       break;
+    case 'deletePost':
+      await db.deletePosts({ ids: [update.postId] });
+      break;
     case 'updateReactions':
       await db.replacePostReactions({
         postId: update.postId,
@@ -120,10 +136,6 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
     default:
       break;
   }
-};
-
-export const handleGroupsUpdate = async (update: any) => {
-  logger.log('received groups update', update);
 };
 
 export const clearSyncQueue = () => {
@@ -319,8 +331,8 @@ async function persistPagedPostData(
 
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
-  api.subscribeToChannelsUpdates(handleChannelsUpdate);
   api.subscribeToGroupsUpdates(handleGroupsUpdate);
+  api.subscribeToChannelsUpdates(handleChannelsUpdate);
   useStorage.getState().start();
 };
 

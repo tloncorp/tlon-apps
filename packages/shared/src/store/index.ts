@@ -9,3 +9,4 @@ export * from './groupActions';
 export * from './useThreadPosts';
 export * from './useInitialSync';
 export * from './storage';
+export * from './groupActions';

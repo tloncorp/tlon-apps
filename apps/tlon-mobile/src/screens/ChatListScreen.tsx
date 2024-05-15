@@ -7,6 +7,7 @@ import {
   ChatList,
   ChatOptionsSheet,
   ContactsProvider,
+  GroupInvitationSheet,
   Icon,
   ScreenHeader,
   Spinner,
@@ -30,6 +31,7 @@ export default function ChatListScreen(
   const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
     null
   );
+  const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [addChatOpen, setAddChatOpen] = useState(false);
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
@@ -49,6 +51,14 @@ export default function ChatListScreen(
   const goToChannel = ({ channel }: { channel: db.Channel }) => {
     setAddChatOpen(false);
     setTimeout(() => props.navigation.navigate('Channel', { channel }), 150);
+  };
+
+  const handleUpdateInvitation = (group: db.Group, accepted: boolean) => {
+    if (accepted) {
+      store.acceptGroupInvitation(group);
+    } else {
+      store.rejectGroupInvitation(group);
+    }
   };
 
   return (
@@ -85,6 +95,12 @@ export default function ChatListScreen(
             currentUserId={currentUserId}
             open={addChatOpen}
             onOpenChange={() => setAddChatOpen(false)}
+          />
+          <GroupInvitationSheet
+            open={selectedGroup !== null}
+            onOpenChange={() => setSelectedGroup(null)}
+            group={selectedGroup ?? undefined}
+            onUpdateInvitation={handleUpdateInvitation}
           />
         </View>
       </AddChatProvider>

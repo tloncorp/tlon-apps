@@ -3,7 +3,7 @@ import { useGang, useGroup } from '@/state/groups';
 import { getPrivacyFromGroup, getPrivacyFromPreview } from './utils';
 
 export default function useGroupPrivacy(flag: string) {
-  const group = useGroup(flag);
+  const group = useGroup(flag, false);
   const gang = useGang(flag);
 
   const privacy = group

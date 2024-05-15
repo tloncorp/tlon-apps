@@ -1,7 +1,8 @@
 import { createDevLogger, logSyncDuration } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { isValidPatp, preSig } from '@tloncorp/shared/src/urbit';
+import { preSig } from '@tloncorp/shared/src/urbit';
 import { useMemo } from 'react';
+import { isValidPatp } from 'urbit-ob';
 
 type UrbitSort = 'pals' | 'nickname' | 'alphabetical';
 const DEFAULT_SORT_ORDER: UrbitSort[] = ['pals', 'nickname', 'alphabetical'];
