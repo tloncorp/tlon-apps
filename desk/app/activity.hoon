@@ -492,6 +492,7 @@
   =/  volume  (get-volume -.event)
   =?  notified  &(notify.volume notified.event)  &
   ?.  ?&  unreads.volume
+          ::TODO  support other event types
           ?=(?(%dm-post %dm-reply %post %reply) -<.event)
       ==
     $(stream rest)
