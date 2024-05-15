@@ -119,7 +119,5 @@ export const getFinalMemexUrl = async (memexUploadUrl: string) => {
     return '';
   });
 
-  console.log(`final memex url`, fileUrl);
-
   return fileUrl;
 };

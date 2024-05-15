@@ -62,7 +62,6 @@ export function useImageUpload(props: UploadParams): UploadInfo {
       (mostRecentFile.status === 'success' ||
         mostRecentFile.status === 'loading')
     ) {
-      console.log(`success, most recent file`, mostRecentFile);
       const uploadedImage = {
         url: mostRecentFile.url,
         height: mostRecentFile.size[0],
