@@ -58,12 +58,12 @@ export function PostScreenView({
       <ContactsProvider contacts={contacts}>
         <ReferencesProvider>
           <YStack flex={1} backgroundColor={'$background'}>
-            <ChannelHeader
+            {/* <ChannelHeader
               title={'Thread: ' + (channel?.title ?? null)}
               goBack={goBack}
               showPickerButton={false}
               showSearchButton={false}
-            />
+            /> */}
             <KeyboardAvoidingView
               //TODO: Standardize this component, account for tab bar in a better way
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

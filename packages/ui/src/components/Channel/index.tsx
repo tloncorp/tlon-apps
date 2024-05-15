@@ -23,6 +23,7 @@ import * as utils from '../../utils';
 import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
+import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller from './Scroller';
@@ -113,11 +114,8 @@ export function Channel({
                   height="100%"
                 >
                   <ChannelHeader
-                    title={title}
-                    goBack={goBack}
-                    goToChannels={goToChannels}
-                    goToSearch={goToSearch}
-                    showPickerButton={!!group}
+                    group={group}
+                    channel={channel}
                     showSpinner={isLoadingPosts}
                   />
                   <KeyboardAvoidingView
@@ -184,6 +182,13 @@ export function Channel({
                       )}
                     </YStack>
                   </KeyboardAvoidingView>
+                  <ChannelFooter
+                    title={title}
+                    goBack={goBack}
+                    goToChannels={goToChannels}
+                    goToSearch={goToSearch}
+                    showPickerButton={!!group}
+                  />
                 </YStack>
               </ReferencesProvider>
             </NavigationProvider>

@@ -16,6 +16,8 @@ import React, {
 import {
   FlatList,
   ListRenderItem,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -212,6 +214,11 @@ export default function Scroller({
     setInputShouldBlur?.(true);
   }, []);
 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset } = event.nativeEvent;
+    return;
+  };
+
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
@@ -220,6 +227,8 @@ export default function Scroller({
       <FlatList<db.Post>
         ref={flatListRef}
         data={posts}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         renderItem={listRenderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"

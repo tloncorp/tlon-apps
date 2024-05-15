@@ -1042,6 +1042,9 @@ importers:
       expo-image:
         specifier: '*'
         version: 1.10.6(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-linear-gradient:
+        specifier: ^13.0.2
+        version: 13.0.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -7285,6 +7288,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-linear-gradient@13.0.2:
+    resolution: {integrity: sha512-EDcILUjRKu4P1rtWcwciN6CSyGtH7Bq4ll3oTRV7h3h8oSzSilH1g6z7kTAMlacPBKvMnkkWOGzW6KtgMKEiTg==}
+    peerDependencies:
+      expo: '*'
+
   expo-localization@14.8.3:
     resolution: {integrity: sha512-leg1e+7ocUgfNWa7Men/g16waXtdSpBMR9tCdv3CG4wztmFU8C+87VAnnVkvHi4CCUkTLzhP3y0FcE6KIWTwdw==}
     peerDependencies:
@@ -9620,6 +9628,7 @@ packages:
 
   posthog-js@1.68.2:
     resolution: {integrity: sha512-oh3MQonhbgVbBYNJ/cAx1L6fginAF5Msz3shexnXPhDNKj1DQGosepQC6TQpdeeUWp0H7R2cQG9eHJwmrEM1Lw==}
+    deprecated: This version of posthog-js is deprecated, please update posthog-js, and do not use this version! Check out our JS docs at https://posthog.com/docs/libraries/js
 
   posthog-react-native@2.11.3:
     resolution: {integrity: sha512-vYlTh1RFHMDxlIRaYidVPylbf3t+k34sDQ9r1u3l084e6K3NkrMUmEEG64ZhbmwK24Oo5HxoQHHmbqkEifd61w==}
@@ -20587,6 +20596,10 @@ snapshots:
   expo-json-utils@0.12.3: {}
 
   expo-keep-awake@12.8.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  expo-linear-gradient@13.0.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
 
