@@ -37,12 +37,16 @@ export type PostReactionsUpdate = {
 export type UnknownUpdate = { type: 'unknown' };
 export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
 export type DeletePostUpdate = { type: 'deletePost'; postId: string };
+export type HidePostUpdate = { type: 'hidePost'; postId: string };
+export type ShowPostUpdate = { type: 'showPost'; postId: string };
 export type ChannelsUpdate =
   | AddPostUpdate
   | PostReactionsUpdate
   | UnknownUpdate
   | PendingUpdate
-  | DeletePostUpdate;
+  | DeletePostUpdate
+  | HidePostUpdate
+  | ShowPostUpdate;
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -79,7 +83,23 @@ export const toChannelsUpdate = (
   logger.log('channel event', {
     channelEvent,
   });
+
+  // hide events
+  if (channelEvent.hide !== undefined) {
+    const postId = getCanonicalPostId(channelEvent.hide);
+    logger.log('hide post event');
+    return { type: 'hidePost', postId };
+  }
+
+  // show events
+  if (channelEvent.show !== undefined) {
+    const postId = getCanonicalPostId(channelEvent.show);
+    logger.log('show post event');
+    return { type: 'showPost', postId };
+  }
+
   const channelId = channelEvent.nest;
+
   // post events
   if (
     'response' in channelEvent &&
