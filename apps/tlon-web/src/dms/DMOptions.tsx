@@ -12,20 +12,17 @@ import { useChatStore, useChatUnread } from '@/chat/useChatStore';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import BulletIcon from '@/components/icons/BulletIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useCheckChannelUnread, useMarkChannelRead } from '@/logic/channel';
+import { useMarkChannelRead } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useLeaveMutation } from '@/state/channel/channel';
 import {
   useArchiveDm,
   useDmRsvpMutation,
-  useIsDmUnread,
   useMarkDmReadMutation,
   useMutliDmRsvpMutation,
 } from '@/state/chat';
-import { useRouteGroup } from '@/state/groups';
 import {
   useAddPinMutation,
   useDeletePinMutation,
@@ -66,7 +63,8 @@ export default function DmOptions({
   const pinned = usePinnedChats();
   const chatUnread = useChatUnread(whom);
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
-  const hasActivity = pending || (chatUnread?.unread && !chatUnread?.seen);
+  const hasActivity =
+    pending || ((chatUnread?.unread.count || 0) > 0 && !chatUnread?.seen);
   const hasNotify = hasActivity && chatUnread?.unread?.notify;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
