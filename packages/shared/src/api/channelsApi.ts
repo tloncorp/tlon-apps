@@ -39,6 +39,34 @@ export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
 export type DeletePostUpdate = { type: 'deletePost'; postId: string };
 export type HidePostUpdate = { type: 'hidePost'; postId: string };
 export type ShowPostUpdate = { type: 'showPost'; postId: string };
+export type WritersUpdate = {
+  type: 'updateWriters';
+  channelId: string;
+  writers: string[];
+  groupId: string | null;
+};
+export type CreateChannelUpdate = {
+  type: 'createChannel';
+  channelId: string;
+  writers: string[];
+  groupId: string | null;
+};
+
+export type JoinChannelSuccessUpdate = {
+  type: 'joinChannelSuccess';
+  channelId: string;
+};
+
+export type LeaveChannelSuccessUpdate = {
+  type: 'leaveChannelSuccess';
+  channelId: string;
+};
+
+export type MarkChannelReadUpdate = {
+  type: 'markChannelRead';
+  channelId: string;
+};
+
 export type ChannelsUpdate =
   | AddPostUpdate
   | PostReactionsUpdate
@@ -46,7 +74,12 @@ export type ChannelsUpdate =
   | PendingUpdate
   | DeletePostUpdate
   | HidePostUpdate
-  | ShowPostUpdate;
+  | ShowPostUpdate
+  // | CreateChannelUpdate
+  // | JoinChannelSuccessUpdate
+  | LeaveChannelSuccessUpdate
+  // | MarkChannelReadUpdate
+  | WritersUpdate;
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -100,72 +133,112 @@ export const toChannelsUpdate = (
 
   const channelId = channelEvent.nest;
 
-  // post events
-  if (
-    'response' in channelEvent &&
-    'post' in channelEvent.response &&
-    !('reply' in channelEvent.response.post['r-post'])
-  ) {
-    const postId = getCanonicalPostId(channelEvent.response.post.id);
-    const postResponse = channelEvent.response.post['r-post'];
-
-    if ('set' in postResponse) {
-      if (postResponse.set !== null) {
-        const postToAdd = { id: postId, ...postResponse.set };
-
-        logger.log(`add post event`);
-        return { type: 'addPost', post: toPostData(channelId, postToAdd) };
-      }
-
-      logger.log('delete post event');
-      return { type: 'deletePost', postId };
-    } else if ('reacts' in postResponse && postResponse.reacts !== null) {
-      const updatedReacts = toReactionsData(postResponse.reacts, postId);
-      logger.log('update reactions event');
-      return { type: 'updateReactions', postId, reactions: updatedReacts };
-    }
-  }
-
-  // reply events
-  if (
-    'response' in channelEvent &&
-    'post' in channelEvent.response &&
-    'reply' in channelEvent.response.post['r-post']
-  ) {
-    const postId = getCanonicalPostId(channelEvent.response.post.id);
-    const replyId = getCanonicalPostId(
-      channelEvent.response.post['r-post'].reply.id
-    );
-    const replyResponse = channelEvent.response.post['r-post'].reply['r-reply'];
-    if ('set' in replyResponse) {
-      if (replyResponse.set !== null) {
-        logger.log(`add reply event`);
-        return {
-          type: 'addPost',
-          post: toPostReplyData(channelId, postId, replyResponse.set),
-        };
-      }
-
-      logger.log('delete reply event');
-      return { type: 'deletePost', postId: replyId };
-    } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
-      const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
-      logger.log('update reply reactions event');
+  if ('response' in channelEvent) {
+    if ('perm' in channelEvent.response) {
       return {
-        type: 'updateReactions',
-        postId: replyId,
-        reactions: updatedReacts,
+        type: 'updateWriters',
+        channelId,
+        writers: channelEvent.response.perm.writers,
+        groupId: channelEvent.response.perm.group,
       };
     }
-  }
 
-  // pending messages (on ship, not on group)
-  if ('response' in channelEvent && 'pending' in channelEvent.response) {
-    const cacheId = channelEvent.response.pending.id;
-    return {
-      type: 'markPostSent',
-      cacheId: getCanonicalPostId(unixToDa(cacheId.sent).toString()),
-    };
+    // not clear that this is necessary
+    // if ('create' in channelEvent.response) {
+    // return {
+    // type: 'createChannel',
+    // channelId,
+    // writers: channelEvent.response.create.writers,
+    // groupId: channelEvent.response.create.group,
+    // };
+    // }
+
+    // not clear that this is necessary
+    // if ('join' in channelEvent.response) {
+    // return {
+    // type: 'joinChannelSuccess',
+    // channelId,
+    // };
+    // }
+
+    // not clear that this is necessary
+    // if ('read' in channelEvent.response) {
+    // return {
+    // type: 'markChannelRead',
+    // channelId,
+    // };
+    // }
+
+    // not used yet
+    // if ('leave' in channelEvent.response) {
+    // return {
+    // type: 'leaveChannelSuccess',
+    // channelId,
+    // };
+    // }
+
+    if ('post' in channelEvent.response) {
+      // post events
+      if (!('reply' in channelEvent.response.post['r-post'])) {
+        const postId = getCanonicalPostId(channelEvent.response.post.id);
+        const postResponse = channelEvent.response.post['r-post'];
+
+        if ('set' in postResponse) {
+          if (postResponse.set !== null) {
+            const postToAdd = { id: postId, ...postResponse.set };
+
+            logger.log(`add post event`);
+            return { type: 'addPost', post: toPostData(channelId, postToAdd) };
+          }
+
+          logger.log('delete post event');
+          return { type: 'deletePost', postId };
+        } else if ('reacts' in postResponse && postResponse.reacts !== null) {
+          const updatedReacts = toReactionsData(postResponse.reacts, postId);
+          logger.log('update reactions event');
+          return { type: 'updateReactions', postId, reactions: updatedReacts };
+        }
+      }
+
+      // reply events
+      if ('reply' in channelEvent.response.post['r-post']) {
+        const postId = getCanonicalPostId(channelEvent.response.post.id);
+        const replyId = getCanonicalPostId(
+          channelEvent.response.post['r-post'].reply.id
+        );
+        const replyResponse =
+          channelEvent.response.post['r-post'].reply['r-reply'];
+        if ('set' in replyResponse) {
+          if (replyResponse.set !== null) {
+            logger.log(`add reply event`);
+            return {
+              type: 'addPost',
+              post: toPostReplyData(channelId, postId, replyResponse.set),
+            };
+          }
+
+          logger.log('delete reply event');
+          return { type: 'deletePost', postId: replyId };
+        } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
+          const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
+          logger.log('update reply reactions event');
+          return {
+            type: 'updateReactions',
+            postId: replyId,
+            reactions: updatedReacts,
+          };
+        }
+      }
+    }
+
+    // pending messages (on ship, not on group)
+    if ('pending' in channelEvent.response) {
+      const cacheId = channelEvent.response.pending.id;
+      return {
+        type: 'markPostSent',
+        cacheId: getCanonicalPostId(unixToDa(cacheId.sent).toString()),
+      };
+    }
   }
 
   logger.log(`unknown event`);

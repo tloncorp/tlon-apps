@@ -39,6 +39,19 @@ export type Unread = BaseModel<'unreads'>;
 // TODO: We need to include unread count here because it's  returned by the chat
 // list query, but doesn't feel great.
 export type Group = BaseModel<'groups'> & { unreadCount?: number | null };
+export type ClientMeta = Pick<
+  Group,
+  | 'title'
+  | 'coverImage'
+  | 'iconImage'
+  | 'description'
+  | 'coverImageColor'
+  | 'iconImageColor'
+>;
+export type GroupMemberInvite = BaseModel<'groupMemberInvites'>;
+export type GroupMemberBan = BaseModel<'groupMemberBans'>;
+export type GroupRankBan = BaseModel<'groupRankBans'>;
+export type GroupFlaggedPosts = BaseModel<'groupFlaggedPosts'>;
 export type ChatMember = BaseModel<'chatMembers'>;
 export type GroupRole = BaseModel<'groupRoles'>;
 export type ChatMemberGroupRole = BaseModel<'chatMemberGroupRoles'>;

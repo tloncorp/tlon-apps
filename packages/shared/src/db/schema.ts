@@ -7,6 +7,8 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+import { Rank } from '../urbit';
+
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
 };
@@ -162,10 +164,12 @@ export const pinRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
+export type GroupPrivacy = 'public' | 'private' | 'secret';
+
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
-  isSecret: boolean('is_secret'),
+  privacy: text('privacy').$type<GroupPrivacy>(),
   isJoined: boolean('is_joined'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
@@ -176,6 +180,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   roles: many(groupRoles),
   members: many(chatMembers),
   navSections: many(groupNavSections),
+  flaggedPosts: many(groupFlaggedPosts),
   channels: many(channels),
   posts: many(posts),
   lastPost: one(posts, {
@@ -225,6 +230,137 @@ export const chatMembers = sqliteTable(
     };
   }
 );
+
+export const groupFlaggedPosts = sqliteTable(
+  'group_flagged_posts',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    postId: text('post_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    flaggedByContactId: text('flagged_by_contact_id').notNull(),
+    flaggedAt: timestamp('flagged_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.postId],
+      }),
+    };
+  }
+);
+
+export const groupFlaggedPostsRelations = relations(
+  groupFlaggedPosts,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupFlaggedPosts.groupId],
+      references: [groups.id],
+    }),
+    post: one(posts, {
+      fields: [groupFlaggedPosts.postId],
+      references: [posts.id],
+    }),
+    channel: one(channels, {
+      fields: [groupFlaggedPosts.channelId],
+      references: [channels.id],
+    }),
+    flaggedBy: one(contacts, {
+      fields: [groupFlaggedPosts.flaggedByContactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupMemberInvites = sqliteTable(
+  'group_member_invites',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    invitedAt: timestamp('invited_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId],
+      }),
+    };
+  }
+);
+
+export const groupMemberInviteRelations = relations(
+  groupMemberInvites,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupMemberInvites.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupMemberInvites.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupMemberBans = sqliteTable(
+  'group_member_bans',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    bannedAt: timestamp('banned_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId],
+      }),
+    };
+  }
+);
+
+export const groupMemberBanRelations = relations(
+  groupMemberBans,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupMemberBans.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupMemberBans.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupRankBans = sqliteTable(
+  'group_rank_bans',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    rankId: text('rank_id').notNull().$type<Rank>(),
+    bannedAt: timestamp('banned_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.rankId],
+      }),
+    };
+  }
+);
+
+export const groupRankBanRelations = relations(groupRankBans, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupRankBans.groupId],
+    references: [groups.id],
+  }),
+}));
 
 export const channelWriters = sqliteTable(
   'channel_writers',
