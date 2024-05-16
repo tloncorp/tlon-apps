@@ -77,3 +77,4 @@ export type Reaction = BaseModel<'postReactions'>;
 export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
+export type PostWindow = BaseModel<'postWindows'>;

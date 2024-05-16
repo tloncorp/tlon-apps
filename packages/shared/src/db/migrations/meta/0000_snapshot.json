@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "540cf3f4-4451-4343-8ffc-e613b926fa6c",
+  "id": "8fba9e8c-1695-40d7-b025-066ee8f3d151",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -1095,6 +1095,45 @@
             "post_id"
           ],
           "name": "post_reactions_contact_id_post_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "post_windows": {
+      "name": "post_windows",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "oldest_post_id": {
+          "name": "oldest_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "newest_post_id": {
+          "name": "newest_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "post_windows_channel_id_oldest_post_id_newest_post_id_pk": {
+          "columns": [
+            "channel_id",
+            "newest_post_id",
+            "oldest_post_id"
+          ],
+          "name": "post_windows_channel_id_oldest_post_id_newest_post_id_pk"
         }
       },
       "uniqueConstraints": {}

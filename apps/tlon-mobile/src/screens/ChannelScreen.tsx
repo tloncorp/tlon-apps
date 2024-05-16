@@ -67,28 +67,34 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const groupQuery = store.useGroup({
     id: channelQuery.data?.groupId ?? '',
   });
-  const selectedPost = props.route.params.selectedPost;
-  const hasSelectedPost = !!selectedPost;
-
   const uploadInfo = useImageUpload({
     uploaderKey: `${props.route.params.channel.id}`,
   });
 
+  const selectedPostId = props.route.params.selectedPost?.id;
+  const unread = channelQuery.data?.unread;
+  const firstUnreadId =
+    unread &&
+    (unread.countWithoutThreads ?? 0) > 0 &&
+    unread?.firstUnreadPostId;
+  const cursor = selectedPostId || firstUnreadId;
   const postsQuery = store.useChannelPosts({
+    enabled: !!channelQuery.data,
     channelId: currentChannelId,
-    ...(hasSelectedPost
+    ...(cursor
       ? {
-          direction: 'around',
-          cursor: selectedPost.id,
+          mode: 'around',
+          cursor,
+          count: 10,
         }
       : {
-          anchorToNewest: true,
+          mode: 'newest',
+          count: 10,
         }),
-    count: 50,
   });
 
-  const posts = useMemo<db.Post[]>(
-    () => postsQuery.data?.pages.flatMap((p) => p) ?? [],
+  const posts = useMemo<db.Post[] | null>(
+    () => postsQuery.data?.pages.flatMap((p) => p) ?? null,
     [postsQuery.data]
   );
 
@@ -98,7 +104,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const currentUserId = useCurrentUserId();
 
   const messageSender = useCallback(
-    async (content: Story, channelId: string) => {
+    async (content: Story, _channelId: string) => {
       if (!currentUserId || !channelQuery.data) {
         return;
       }
@@ -142,13 +148,21 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
   const handleScrollEndReached = useCallback(() => {
-    if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
+    if (
+      !postsQuery.isPaused &&
+      postsQuery.hasNextPage &&
+      !postsQuery.isFetchingNextPage
+    ) {
       postsQuery.fetchNextPage();
     }
   }, [postsQuery]);
 
   const handleScrollStartReached = useCallback(() => {
-    if (postsQuery.hasPreviousPage && !postsQuery.isFetchingPreviousPage) {
+    if (
+      !postsQuery.isPaused &&
+      postsQuery.hasPreviousPage &&
+      !postsQuery.isFetchingPreviousPage
+    ) {
       postsQuery.fetchPreviousPage();
     }
   }, [postsQuery]);
@@ -237,14 +251,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         currentUserId={currentUserId}
         calmSettings={calmSettingsQuery.data}
         isLoadingPosts={
-          postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
+          postsQuery.isPending ||
+          postsQuery.isPaused ||
+          postsQuery.isFetchingNextPage ||
+          postsQuery.isFetchingPreviousPage
         }
+        hasNewerPosts={postsQuery.hasPreviousPage}
+        hasOlderPosts={postsQuery.hasNextPage}
         group={groupQuery.data ?? null}
         contacts={contactsQuery.data ?? null}
         posts={posts}
-        selectedPost={
-          hasSelectedPost && posts?.length ? selectedPost?.id : undefined
-        }
+        selectedPostId={selectedPostId}
         goBack={props.navigation.goBack}
         messageSender={messageSender}
         goToPost={handleGoToPost}

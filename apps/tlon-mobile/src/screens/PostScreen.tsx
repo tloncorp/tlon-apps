@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
@@ -65,7 +64,7 @@ export default function PostScreen(props: PostScreenProps) {
 
   useEffect(() => {
     if (channel?.groupId) {
-      sync.syncGroup(channel?.groupId);
+      store.syncGroup(channel?.groupId);
     }
   }, [channel?.groupId]);
 
