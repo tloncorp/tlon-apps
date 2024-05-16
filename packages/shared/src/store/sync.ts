@@ -67,7 +67,7 @@ const resetUnreads = async (unreads: db.Unread[]) => {
 };
 
 async function handleUnreadUpdate(unread: db.Unread) {
-  logger.log('received new unread', unread.channelId);
+  logger.log('event: unread update', unread);
   await db.insertUnreads([unread]);
   await syncChannel(unread.channelId, unread.updatedAt);
 }
@@ -86,6 +86,7 @@ export const syncStaleChannels = async () => {
 };
 
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+  logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
       // first check if it's a reply. If it is and we haven't already cached
@@ -102,10 +103,23 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
             replyTime: update.post.sentAt,
           });
         }
+        // insert the reply
+        await db.insertChannelPosts({
+          channelId: update.post.channelId,
+          posts: [update.post],
+        });
       }
-
-      // finally, always insert the post itself
-      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      // For non-replies, we skip inserting and sync from the api instead.
+      // This is significantly slower, but ensures that windowing stays correct. Better solutions would be:
+      // 1. Have the server send the previous post id so that we can match this up with an older window if it exists
+      // 2. Return "non-windowed" posts with first window -- would mostly work but could cause missing posts at times.
+      // TODO: Implement one of those solutions.
+      await syncPosts({
+        channelId: update.post.channelId,
+        cursor: update.post.id,
+        mode: 'around',
+        count: 3,
+      });
       break;
     case 'deletePost':
       await db.deletePosts({ ids: [update.postId] });
@@ -163,9 +177,18 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
 }
 
 export async function syncPosts(options: db.GetChannelPostsOptions) {
+  logger.log(
+    'syncing posts',
+    `${options.channelId}/${options.cursor}/${options.mode}`
+  );
   const response = await api.getChannelPosts(options);
   if (response.posts.length) {
-    await db.insertChannelPosts(options.channelId, response.posts);
+    await db.insertChannelPosts({
+      channelId: options.channelId,
+      posts: response.posts,
+      newer: response.newer,
+      older: response.older,
+    });
   }
   return response;
 }
@@ -202,6 +225,9 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
 }
 
 export async function syncGroup(id: string) {
+  if (id === '') {
+    throw new Error('group id cannot be empty');
+  }
   const group = await db.getGroup({ id });
   if (!group) {
     throw new Error('no local group for' + id);
@@ -286,10 +312,10 @@ export async function syncThreadPosts({
     authorId,
     channelId,
   });
-  await db.insertChannelPosts(channelId, [
-    response,
-    ...(response.replies ?? []),
-  ]);
+  await db.insertChannelPosts({
+    channelId,
+    posts: [response, ...(response.replies ?? [])],
+  });
 }
 
 async function persistPagedPostData(
@@ -301,7 +327,12 @@ async function persistPagedPostData(
     postCount: data.totalPosts,
   });
   if (data.posts.length) {
-    await db.insertChannelPosts(channelId, data.posts);
+    await db.insertChannelPosts({
+      channelId,
+      posts: data.posts,
+      newer: data.newer,
+      older: data.older,
+    });
     const reactions = data.posts
       .map((p) => p.reactions)
       .flat()
@@ -320,10 +351,3 @@ export const start = async () => {
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
   useStorage.getState().start();
 };
-
-async function runOperation(name: string, fn: () => Promise<void>) {
-  const startTime = Date.now();
-  logger.log('starting', name, Date.now());
-  await fn();
-  logger.log('synced', name, 'in', Date.now() - startTime + 'ms');
-}

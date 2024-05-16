@@ -12,6 +12,11 @@ export type AnySqliteDatabase = BaseSQLiteDatabase<
   Schema
 >;
 
+// Is there a better way???
+export type AnySqliteTransaction = Parameters<
+  Parameters<AnySqliteDatabase['transaction']>[0]
+>[0];
+
 let clientInstance: AnySqliteDatabase | null = null;
 
 export function setClient<T extends AnySqliteDatabase>(client: T) {
