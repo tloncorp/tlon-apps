@@ -83,7 +83,6 @@ export default function Scroller({
   editingPost,
   setEditingPost,
   editPost,
-  handleScroll,
   hasNewerPosts,
   hasOlderPosts,
 }: {
@@ -106,7 +105,6 @@ export default function Scroller({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
-  handleScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
@@ -347,7 +345,6 @@ export default function Scroller({
           onEndReachedThreshold={2}
           onStartReached={handleStartReached}
           onStartReachedThreshold={2}
-          handleScroll={handleScroll}
         />
       )}
       <Modal

@@ -238,7 +238,6 @@ export function Channel({
                     goToChannels={goToChannels}
                     goToSearch={goToSearch}
                     showPickerButton={!!group}
-                    showSearchButton={chatChannel}
                   />
                 </YStack>
               </ReferencesProvider>
