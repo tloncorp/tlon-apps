@@ -283,11 +283,7 @@ export const getChannelPosts = async ({
   if (!cursor && !date && mode !== 'newest') {
     throw new Error('Must specify either cursor or date');
   }
-  const finalCursor = cursor
-    ? cursor
-    : date
-      ? formatDateParam(date!)
-      : undefined;
+  const finalCursor = cursor || (date ? formatDateParam(date!) : undefined);
 
   const anchor = mode === 'newest' ? `${mode}` : `${mode}/${finalCursor}`;
   let app: 'chat' | 'channels';

@@ -91,8 +91,8 @@ export function Channel({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
   negotiationMatch: boolean;
-  hasNewerPosts: boolean;
-  hasOlderPosts: boolean;
+  hasNewerPosts?: boolean;
+  hasOlderPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';

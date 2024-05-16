@@ -1,6 +1,7 @@
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+import { beforeAll, beforeEach, expect, test } from 'vitest';
 
 import { toClientGroups } from '../api/groupsApi';
+import * as schema from '../db/schema';
 import {
   syncContacts,
   syncDms,
@@ -14,7 +15,7 @@ import contactsResponse from '../test/contacts.json';
 import dmUnreadsResponse from '../test/dmUnreads.json';
 import dmsResponse from '../test/dms.json';
 import groupsResponse from '../test/groups.json';
-import { resetDb, setScryOutputs, setupDb } from '../test/helpers';
+import { getClient, resetDb, setScryOutputs, setupDb } from '../test/helpers';
 import pinsResponse from '../test/pins.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
@@ -242,10 +243,18 @@ function insertPostsForWindow(
   });
 }
 
+function getPostWindows({ channelId }: { channelId: string }) {
+  return getClient()?.query.postWindows.findMany({
+    where: (table, { eq }) =>
+      channelId ? eq(schema.postWindows.channelId, channelId) : undefined,
+    orderBy: (table, { asc }) => asc(schema.postWindows.oldestPostId),
+  });
+}
+
 test.each(testCases)('insert window: $label', async ({ window, expected }) => {
   await setupWindows();
   await insertPostsForWindow(window);
-  const windows = await queries.getPostWindows({ orderBy: 'windowStart' });
+  const windows = await getPostWindows({ channelId: window.channelId });
   expect(windows).toEqual(
     expected.map((w) => ({
       channelId: w.channelId,

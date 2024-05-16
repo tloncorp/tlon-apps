@@ -71,45 +71,34 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     uploaderKey: `${props.route.params.channel.id}`,
   });
 
-  const contactsQuery = store.useContacts();
-
   const selectedPostId = props.route.params.selectedPost?.id;
   const unread = channelQuery.data?.unread;
   const firstUnreadId =
     unread &&
     (unread.countWithoutThreads ?? 0) > 0 &&
     unread?.firstUnreadPostId;
-
-  const queryConfig: db.GetChannelPostsOptions & { enabled: boolean } =
-    useMemo(() => {
-      return {
-        enabled: !!channelQuery.data,
-        channelId: currentChannelId,
-        ...(selectedPostId
-          ? {
-              mode: 'around',
-              cursor: selectedPostId,
-              count: 10,
-            }
-          : firstUnreadId
-            ? {
-                mode: 'around',
-                cursor: firstUnreadId,
-                count: 10,
-              }
-            : {
-                mode: 'newest',
-                count: 10,
-              }),
-      };
-    }, [selectedPostId, firstUnreadId, channelQuery.data, currentChannelId]);
-
-  const postsQuery = store.useChannelPosts(queryConfig);
+  const cursor = selectedPostId || firstUnreadId;
+  const postsQuery = store.useChannelPosts({
+    enabled: !!channelQuery.data,
+    channelId: currentChannelId,
+    ...(cursor
+      ? {
+          mode: 'around',
+          cursor,
+          count: 10,
+        }
+      : {
+          mode: 'newest',
+          count: 10,
+        }),
+  });
 
   const posts = useMemo<db.Post[] | null>(
     () => postsQuery.data?.pages.flatMap((p) => p) ?? null,
     [postsQuery.data]
   );
+
+  const contactsQuery = store.useContacts();
 
   const { bottom } = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();

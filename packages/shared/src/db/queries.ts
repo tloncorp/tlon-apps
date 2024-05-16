@@ -25,7 +25,6 @@ import {
 } from 'drizzle-orm';
 
 import { ChannelInit } from '../api';
-import { shortPostId } from '../debug';
 import { appendContactIdToReplies } from '../logic';
 import { desig } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
@@ -617,8 +616,6 @@ export type GetChannelPostsOptions = {
     }
 );
 
-const maxPostId = '999.999.999.999.999.999.999.999.999.999.99.999.999';
-
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
   async ({
@@ -627,6 +624,8 @@ export const getChannelPosts = createReadQuery(
     mode,
     count = 50,
   }: GetChannelPostsOptions): Promise<Post[]> => {
+    // Find the window (set of contiguous posts) that this cursor belongs to.
+    // These are the posts that we can return safely without gaps and without hitting the api.
     const window = await client.query.postWindows.findFirst({
       where: and(
         // For this channel
@@ -641,20 +640,53 @@ export const getChannelPosts = createReadQuery(
         oldestPostId: true,
         newestPostId: true,
       },
-      extras: {
-        rowNumber:
-          sql`row_number() OVER (ORDER BY ${$postWindows.newestPostId})`
-            .mapWith(Number)
-            .as('rowNumber'),
-      },
     });
+    // If the cursor isn't part of any window, we return an empty array.
     if (!window) {
       return [];
     }
-    if (window.rowNumber === 0) {
-      window.newestPostId = maxPostId;
-    }
-    if (mode === 'around') {
+
+    const relationConfig = {
+      author: true,
+      reactions: true,
+    } as const;
+
+    if (mode === 'newer' || mode === 'newest' || mode === 'older') {
+      // Simple case: just grab a set of posts from either side of the cursor.
+      const posts = await client.query.posts.findMany({
+        where: and(
+          // From this channel
+          eq($posts.channelId, channelId),
+          // Not a reply
+          not(eq($posts.type, 'reply')),
+          // In the target window
+          gte($posts.id, window.oldestPostId),
+          lte($posts.id, window.newestPostId),
+          // Depending on mode, either older or newer than cursor. If mode is
+          // `newest`, we don't need to filter by cursor.
+          mode === 'older' ? lt($posts.id, cursor) : undefined,
+          mode === 'newer' ? gt($posts.id, cursor) : undefined
+        ),
+        with: relationConfig,
+        // If newer, we have to ensure that these are the newer posts directly following the cursor
+        orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
+        limit: count,
+      });
+      // We always want to return posts newest-first
+      if (mode === 'newer') {
+        posts.reverse();
+      }
+      return posts;
+    } else if (mode === 'around') {
+      // It's a bit more complicated to get posts around a cursor. Basic process is:
+      // - Start with a query for all posts in the window, selecting
+      //   row_number() to track their position within the window.
+      // - Find the row number of the cursor post within this window.
+      // - Find min row and max row by offsetting the cursor row by half the
+      //   count in each direction.
+      // - Grab post ids from the window query where row number is between min and max.
+
+      // Get all posts in the window
       const $windowQuery = client
         .select({
           id: $posts.id,
@@ -672,6 +704,7 @@ export const getChannelPosts = createReadQuery(
         )
         .as('posts');
 
+      // Get the row number of the cursor post
       const cursorRow = await client
         .select({
           id: $windowQuery.id,
@@ -680,64 +713,35 @@ export const getChannelPosts = createReadQuery(
         .from($windowQuery)
         .where(eq($windowQuery.id, cursor));
 
+      // Calculate min and max rows
       const itemsBefore = Math.floor((count - 1) / 2);
       const itemsAfter = Math.ceil((count - 1) / 2);
       const startRow = cursorRow[0].rowNumber - itemsBefore;
       const endRow = cursorRow[0].rowNumber + itemsAfter;
 
-      const $aroundQuery = await client
-        .select({
-          id: $windowQuery.id,
-          rowNumber: $windowQuery.rowNumber,
-        })
-        .from($windowQuery)
-        .where(
-          and(
-            gte($windowQuery.rowNumber, startRow),
-            lte($windowQuery.rowNumber, endRow)
-          )
-        );
+      // Actually grab posts
       return await client.query.posts.findMany({
         where: inArray(
           $posts.id,
-          $aroundQuery.map((p) => p.id)
+          client
+            .select({
+              id: $windowQuery.id,
+            })
+            .from($windowQuery)
+            .where(
+              and(
+                gte($windowQuery.rowNumber, startRow),
+                lte($windowQuery.rowNumber, endRow)
+              )
+            )
         ),
-        with: {
-          author: true,
-          reactions: true,
-        },
+        with: relationConfig,
         orderBy: [desc($posts.id)],
         limit: count,
       });
+    } else {
+      throw new Error('invalid mode');
     }
-
-    const posts = await client.query.posts.findMany({
-      where: and(
-        // From this channel
-        eq($posts.channelId, channelId),
-        // Not a reply
-        not(eq($posts.type, 'reply')),
-        // In the target window
-        gte($posts.id, window.oldestPostId),
-        lte($posts.id, window.newestPostId),
-        // Depending on mode, either older or newer than cursor. If mode is
-        // `newest`, we don't need to filter by cursor.
-        mode === 'older' ? lt($posts.id, cursor) : undefined,
-        mode === 'newer' ? gt($posts.id, cursor) : undefined
-      ),
-      with: {
-        author: true,
-        reactions: true,
-      },
-      // If newer, we have to ensure that these are the newer posts directly following the cursor
-      orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
-      limit: count,
-    });
-    // We always want to return posts newest-first
-    if (mode === 'newer') {
-      posts.reverse();
-    }
-    return posts;
   },
   ['posts']
 );
@@ -867,31 +871,18 @@ export const insertChannelPosts = createWriteQuery(
           tx
         );
       }
-      const pendingPosts = await client.query.posts.findMany({
-        where: and(
+      // Delete any pending posts whose sentAt matches the incoming sentAt.
+      // We do this manually as pending post ids do not correspond to server-side post ids.
+      await tx.delete($posts).where(
+        and(
+          eq($posts.deliveryStatus, 'pending'),
           eq($posts.channelId, channelId),
-          eq($posts.deliveryStatus, 'pending')
-        ),
-      });
-      const replacedPosts = pendingPosts.filter((pendingPost) => {
-        return (
-          posts.findIndex((post) => {
-            return post.sentAt === pendingPost.sentAt;
-          }) !== -1
-        );
-      });
-      if (replacedPosts.length) {
-        await tx.delete($posts).where(
-          and(
-            eq($posts.deliveryStatus, 'pending'),
-            eq($posts.channelId, channelId),
-            inArray(
-              $posts.id,
-              replacedPosts.map((p) => p.id)
-            )
+          inArray(
+            $posts.sentAt,
+            posts.map((p) => p.sentAt)
           )
-        );
-      }
+        )
+      );
     });
   },
   ['posts', 'channels', 'groups', 'postWindows']
@@ -955,13 +946,14 @@ async function updatePostWindows(
   },
   tx: AnySqliteDatabase | AnySqliteTransaction
 ) {
-  // Update post window
+  // Create candidate window based on input
   const window = {
     channelId,
     newestPostId: newPosts[newPosts.length - 1].id,
     oldestPostId: newPosts[0].id,
   };
 
+  // Calculate min and max post id of windows that overlap with this one
   const { startId, endId } = (
     await tx
       .select({
@@ -977,11 +969,15 @@ async function updatePostWindows(
         )
       )
   )[0];
+
+  // Calculate final range of merged windows by intersecting existing min and
+  // max with candidate window.
   const resolvedStart =
     startId && startId < window.oldestPostId ? startId : window.oldestPostId;
   const resolvedEnd =
     endId && endId > window.newestPostId ? endId : window.newestPostId;
 
+  // Delete intersecting windows.
   await tx
     .delete($postWindows)
     .where(
@@ -997,6 +993,7 @@ async function updatePostWindows(
       newestPostId: $postWindows.newestPostId,
     });
 
+  // Insert final window.
   await tx.insert($postWindows).values({
     channelId: window.channelId,
     oldestPostId: resolvedStart,
@@ -1409,25 +1406,6 @@ export const getPinnedItems = createReadQuery(
     return client.query.pins.findMany({});
   },
   ['pins']
-);
-
-export const getPostWindows = createReadQuery(
-  'getPostWindows',
-  async ({
-    channelId,
-    orderBy,
-  }: { channelId?: string; orderBy?: 'windowStart' | 'windowEnd' } = {}) => {
-    return client.query.postWindows.findMany({
-      where: channelId ? eq($postWindows.channelId, channelId) : undefined,
-      orderBy:
-        orderBy === 'windowStart'
-          ? asc($postWindows.oldestPostId)
-          : orderBy === 'windowEnd'
-            ? asc($postWindows.newestPostId)
-            : undefined,
-    });
-  },
-  ['postWindows']
 );
 
 // Helpers

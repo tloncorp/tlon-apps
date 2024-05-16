@@ -68,8 +68,8 @@ export const useChannelPosts = (
       _allPages,
       lastPageParam
     ): UseChanelPostsParams | undefined => {
-      const reachedEnd = !lastPage[lastPage.length - 1]?.id;
-      if (reachedEnd) {
+      const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
+      if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
         // same cursor to get older posts instead. This can happen when the
         // first cached page is empty.
@@ -94,11 +94,8 @@ export const useChannelPosts = (
       _allPages,
       firstPageParam
     ): UseChanelPostsParams | undefined => {
-      if (firstPageParam.mode === 'newest') {
-        return undefined;
-      }
-      const reachedEnd = !firstPage[0]?.id;
-      if (reachedEnd) {
+      const firstPageIsEmpty = !firstPage[0]?.id;
+      if (firstPageParam.mode === 'newest' || firstPageIsEmpty) {
         return undefined;
       }
       return {
