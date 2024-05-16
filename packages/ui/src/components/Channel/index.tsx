@@ -6,13 +6,8 @@ import {
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Platform,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import {
   CalmProvider,
@@ -103,24 +98,6 @@ export function Channel({
   const chatChannel = isChatChannel(channel);
   const renderItem = chatChannel ? ChatMessage : NotebookPost;
 
-  const [showIcon, setShowIcon] = useState(true);
-  const [prevOffsetY, setPrevOffsetY] = useState(0);
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset } = event.nativeEvent;
-      const currentOffsetY = contentOffset.y;
-
-      if (currentOffsetY > prevOffsetY) {
-        setShowIcon(false);
-      } else if (currentOffsetY < prevOffsetY) {
-        setShowIcon(true);
-      }
-
-      setPrevOffsetY(currentOffsetY);
-    },
-    [prevOffsetY]
-  );
-
   return (
     <CalmProvider calmSettings={calmSettings}>
       <GroupsProvider groups={groups}>
@@ -142,7 +119,6 @@ export function Channel({
                     group={group}
                     channel={channel}
                     showSpinner={isLoadingPosts}
-                    showIcon={showIcon}
                   />
                   <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
@@ -189,7 +165,6 @@ export function Channel({
                           setInputShouldBlur={setInputShouldBlur}
                           onEndReached={onScrollEndReached}
                           onStartReached={onScrollStartReached}
-                          handleScroll={handleScroll}
                         />
                       )}
                       {negotiationMatch &&
@@ -233,6 +208,7 @@ export function Channel({
                     goToChannels={goToChannels}
                     goToSearch={goToSearch}
                     showPickerButton={!!group}
+                    showSearchButton={chatChannel}
                   />
                 </YStack>
               </ReferencesProvider>
