@@ -66,6 +66,7 @@ export default function Scroller({
   editingPost,
   setEditingPost,
   editPost,
+  handleScroll,
 }: {
   inverted: boolean;
   renderItem: RenderItemType;
@@ -85,6 +86,7 @@ export default function Scroller({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
+  handleScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
@@ -214,11 +216,6 @@ export default function Scroller({
     setInputShouldBlur?.(true);
   }, []);
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset } = event.nativeEvent;
-    return;
-  };
-
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
@@ -228,7 +225,6 @@ export default function Scroller({
         ref={flatListRef}
         data={posts}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
         renderItem={listRenderItem}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
