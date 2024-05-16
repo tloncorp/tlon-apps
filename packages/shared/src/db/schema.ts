@@ -164,11 +164,12 @@ export const pinRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
+export type GroupPrivacy = 'public' | 'private' | 'secret';
+
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
-  isSecret: boolean('is_secret'),
-  publicOrPrivate: text('public_or_private').$type<'public' | 'private'>(),
+  privacy: text('privacy').$type<GroupPrivacy>(),
   isJoined: boolean('is_joined'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),

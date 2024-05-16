@@ -137,8 +137,7 @@ CREATE TABLE `groups` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
-	`is_secret` integer,
-	`public_or_private` text,
+	`privacy` text,
 	`is_joined` integer,
 	`last_post_id` text,
 	`last_post_at` integer

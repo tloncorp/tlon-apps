@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "8fba9e8c-1695-40d7-b025-066ee8f3d151",
+  "id": "10ff6ad0-1f25-4bce-bf8c-74f103e5ff44",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -910,15 +910,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "is_secret": {
-          "name": "is_secret",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "public_or_private": {
-          "name": "public_or_private",
+        "privacy": {
+          "name": "privacy",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

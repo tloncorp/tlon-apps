@@ -1,9 +1,11 @@
 import { formatUd, unixToDa } from '@urbit/aura';
 import { useMemo } from 'react';
 
+import { GroupPrivacy } from '../db/schema';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
+import * as ubg from './groups';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -305,4 +307,16 @@ export function whomIsMultiDm(whom: string): boolean {
 
 export function useIsDmOrMultiDm(whom: string) {
   return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function extractGroupPrivacy(preview: ubg.Group | null): GroupPrivacy {
+  if (!preview) {
+    return 'public';
+  }
+
+  return preview.secret
+    ? 'secret'
+    : preview.cordon && 'shut' in preview.cordon
+      ? 'private'
+      : 'public';
 }

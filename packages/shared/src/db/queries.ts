@@ -26,7 +26,7 @@ import {
 
 import { ChannelInit } from '../api';
 import { appendContactIdToReplies } from '../logic';
-import { Rank, desig } from '../urbit';
+import { Rank, desig, extractGroupPrivacy } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -245,7 +245,7 @@ export const insertGroups = createWriteQuery(
               $groups.coverImage,
               $groups.title,
               $groups.description,
-              $groups.isSecret,
+              $groups.privacy,
               $groups.isJoined
             ),
           });
@@ -379,8 +379,7 @@ export const updateGroup = createWriteQuery(
       .update($groups)
       .set({
         ...group.meta,
-        isSecret: group.isSecret,
-        publicOrPrivate: group.publicOrPrivate,
+        privacy: group.isSecret ? 'secret' : group.publicOrPrivate,
       })
       .where(eq($groups.id, group.id));
   },
@@ -1756,7 +1755,7 @@ export const insertContacts = createWriteQuery(
     const targetGroups = contactGroups.map(
       (g): Group => ({
         id: g.groupId,
-        isSecret: false,
+        privacy: g.group?.privacy,
       })
     );
     await client

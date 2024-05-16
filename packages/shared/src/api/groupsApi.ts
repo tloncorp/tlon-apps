@@ -1,7 +1,12 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
-import { FlaggedContent, Rank, getChannelType } from '../urbit';
+import {
+  FlaggedContent,
+  Rank,
+  extractGroupPrivacy,
+  getChannelType,
+} from '../urbit';
 import { toClientMeta } from './converters';
 import { poke, scry, subscribe } from './urbit';
 
@@ -683,7 +688,7 @@ export function toClientGroup(
     id,
     isJoined,
     roles,
-    isSecret: group.secret,
+    privacy: extractGroupPrivacy(group),
     ...toClientMeta(group.meta),
     flaggedPosts,
     navSections: group['zone-ord']
