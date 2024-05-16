@@ -61,7 +61,7 @@ async function startGroups() {
   initializeChat(chat);
 
   // strip channel/ship/club from start
-  const unreads = stripPrefixes(full.unreads);
+  const unreads = stripPrefixes(full.activity);
   queryClient.setQueryData(unreadsKey, unreads);
   // make sure we remove the app part from the nest before handing it over
   useChatStore.getState().update(

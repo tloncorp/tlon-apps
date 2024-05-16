@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Editor } from '@tiptap/react';
-import { Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
@@ -83,9 +83,9 @@ export interface ChatMessageProps {
 }
 
 function getUnreadDisplay(
-  unread: Unread | undefined,
+  unread: ActivitySummary | undefined,
   id: string,
-  thread: Unread | undefined
+  thread: ActivitySummary | undefined
 ): 'none' | 'top' | 'thread' | 'top-with-thread' {
   const mainChat = unread?.unread;
   const isTop = mainChat?.id === id;

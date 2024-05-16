@@ -15,6 +15,7 @@ import getKindDataFromEssay from '@/logic/getKindData';
 import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
+import { getMessageKey } from '@/logic/utils';
 import {
   useIsPostUndelivered,
   useOrderedPosts,
@@ -53,6 +54,7 @@ export default function HeapDetail({ title }: ViewProps) {
   const { title: curioTitle } = getKindDataFromEssay(note?.essay);
   const { paddingBottom } = useBottomPadding();
   const essay = note?.essay || initialNote?.essay;
+  const msgKey = note ? getMessageKey(note) : { id: '', time: '' };
 
   const curioHref = (id?: bigInt.BigInteger) => {
     if (!id) {
@@ -144,7 +146,7 @@ export default function HeapDetail({ title }: ViewProps) {
           <HeapDetailSidebarInfo essay={essay} />
           {idTime && !isUndelivered && (
             <HeapDetailComments
-              time={idTime}
+              parent={msgKey}
               comments={note?.seal.replies || null}
               loading={isLoading}
             />

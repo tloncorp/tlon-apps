@@ -1,16 +1,16 @@
 import {
-  Kind,
-  Reply,
-  ReplyTuple,
-  Unread,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { daToUnix } from '@urbit/aura';
+  ActivitySummary,
+  MessageKey,
+} from '@tloncorp/shared/dist/urbit/activity';
+import { Kind, Reply, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { daToUnix, parseUd } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';
 
 export interface ReplyProps {
   han: Kind;
   noteId: string;
+  parent: MessageKey;
   time: BigInteger;
   reply: Reply;
   newAuthor: boolean;
@@ -43,9 +43,9 @@ export function setNewDaysForReplies(
 }
 
 export function groupReplies(
-  noteId: string,
+  parent: MessageKey,
   replies: ReplyTuple[],
-  unread: Unread
+  unread: ActivitySummary
 ) {
   const grouped: Record<string, ReplyProps[]> = {};
   let currentTime: string;
@@ -74,9 +74,10 @@ export function groupReplies(
     grouped[currentTime].push({
       han: 'diary',
       time: t,
+      parent,
       reply: q,
       newAuthor,
-      noteId,
+      noteId: parseUd(parent.time).toString(),
       newDay: false,
       unreadCount: unreadUnread && unread.count,
     });

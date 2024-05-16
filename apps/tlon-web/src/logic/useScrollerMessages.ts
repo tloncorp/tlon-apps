@@ -80,7 +80,7 @@ const emptyWrit = {
   },
 };
 
-export type ChatMessageListItemData = {
+export type MessageListItemData = {
   writ: Writ | Post | Reply;
   type: 'message';
   time: bigInt.BigInteger;
@@ -90,6 +90,7 @@ export type ChatMessageListItemData = {
   isLast: boolean;
   isLinked: boolean;
   hideReplies: boolean;
+  parent?: MessageKey;
 };
 
 function useMessageItems({
@@ -182,16 +183,19 @@ export function useMessageData({
     parent,
   });
 
-  const activeMessageEntries: ChatMessageListItemData[] = useMemo(
+  const activeMessageEntries: MessageListItemData[] = useMemo(
     () =>
-      messageEntries.map((props, index) => ({
-        type: 'message',
-        whom,
-        isLast: index === messageEntries.length - 1,
-        isLinked: !!scrollTo && (props.time?.eq(scrollTo) ?? false),
-        hideReplies: replying,
-        ...props,
-      })),
+      messageEntries.map(
+        (props, index) =>
+          ({
+            type: 'message',
+            whom,
+            isLast: index === messageEntries.length - 1,
+            isLinked: !!scrollTo && (props.time?.eq(scrollTo) ?? false),
+            hideReplies: replying,
+            ...props,
+          }) as MessageListItemData
+      ),
     [whom, scrollTo, messageEntries, replying]
   );
 

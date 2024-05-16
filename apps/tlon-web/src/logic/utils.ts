@@ -1,9 +1,10 @@
-import { Source } from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   ChatStory,
   Cite,
   Listing,
+  Post,
   Story,
   Verse,
   VerseBlock,
@@ -34,7 +35,7 @@ import {
   Treaty,
   udToDec,
 } from '@urbit/api';
-import { formatUv, unixToDa } from '@urbit/aura';
+import { formatUd, formatUv, unixToDa } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
@@ -1294,5 +1295,12 @@ export function cacheIdFromString(str: string): CacheId {
   return {
     author,
     sent: parseInt(udToDec(sentStr), 10),
+  };
+}
+
+export function getMessageKey(post: Post): MessageKey {
+  return {
+    id: `${post.essay.author}/${formatUd(unixToDa(post.essay.sent))}`,
+    time: formatUd(bigInt(post.seal.id)),
   };
 }

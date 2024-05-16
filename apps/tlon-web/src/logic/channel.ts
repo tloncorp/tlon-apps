@@ -1,7 +1,7 @@
 import {
+  Activity,
   MessageKey,
   Source,
-  Unreads,
 } from '@tloncorp/shared/dist/urbit/activity';
 import { Perm, Story } from '@tloncorp/shared/dist/urbit/channel';
 import { isLink } from '@tloncorp/shared/dist/urbit/content';
@@ -37,7 +37,7 @@ import useSidebarSort, {
 } from './useSidebarSort';
 import { getFirstInline, getFlagParts, getNestShip, nestToFlag } from './utils';
 
-export function isChannelJoined(nest: string, unreads: Unreads) {
+export function isChannelJoined(nest: string, unreads: Activity) {
   const [flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
 
@@ -102,7 +102,7 @@ const selChats = (s: ChatStore) => s.chats;
 
 function channelUnread(
   nest: string,
-  unreads: Unreads,
+  unreads: Activity,
   chats: ChatStore['chats']
 ) {
   const [app, flag] = nestToFlag(nest);

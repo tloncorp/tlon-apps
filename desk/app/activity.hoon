@@ -467,7 +467,6 @@
   |-
   ?~  read-items
     =/  children  (get-children source)
-    ~&  ['source:' source children]
     (stream-to-unreads stream floor.reads children)
   =/  [[=time *] rest=read-items:a]  (pop:on-read-items:a read-items)
   %=  $

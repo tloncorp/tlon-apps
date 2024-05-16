@@ -1,13 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
 import {
+  Activity,
   ActivityAction,
   ActivityReadUpdate,
+  ActivitySummary,
   ActivityUpdate,
   ActivityVolumeUpdate,
   ReadAction,
   Source,
-  Unread,
-  Unreads,
   VolumeMap,
   VolumeSettings,
   sourceToString,
@@ -36,19 +36,19 @@ export function activityAction(action: ActivityAction) {
 }
 
 function activityReadUpdates(events: ActivityReadUpdate[]) {
-  const chat: Record<string, Unread> = {};
-  const unreads: Record<string, Unread> = {};
+  const chat: Record<string, ActivitySummary> = {};
+  const unreads: Record<string, ActivitySummary> = {};
 
   events.forEach((event) => {
-    const { source, unread } = event.read;
+    const { source, activity } = event.read;
     if ('base' in source || 'group' in source) {
       return;
     }
 
     if ('dm' in source) {
       const whom = 'club' in source.dm ? source.dm.club : source.dm.ship;
-      chat[whom] = unread;
-      unreads[whom] = unread;
+      chat[whom] = activity;
+      unreads[whom] = activity;
       return;
     }
 
@@ -57,8 +57,8 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
       const prefix = 'club' in whom ? whom.club : whom.ship;
       const srcStr = `${prefix}/${key.id}`;
 
-      chat[srcStr] = unread;
-      unreads[srcStr] = unread;
+      chat[srcStr] = activity;
+      unreads[srcStr] = activity;
     }
 
     if ('channel' in source) {
@@ -66,10 +66,10 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
-        chat[flag] = unread;
+        chat[flag] = activity;
       }
 
-      unreads[nest] = unread;
+      unreads[nest] = activity;
     }
 
     if ('thread' in source) {
@@ -78,10 +78,10 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
       const srcStr = `${flag}/${key.id}`;
 
       if (app === 'chat') {
-        chat[srcStr] = unread;
+        chat[srcStr] = activity;
       }
 
-      unreads[`${app}/${srcStr}`] = unread;
+      unreads[`${app}/${srcStr}`] = activity;
     }
   });
 
@@ -106,7 +106,7 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
   if (readEvents.length > 0) {
     const { chat, unreads } = activityReadUpdates(readEvents);
     useChatStore.getState().update(chat);
-    queryClient.setQueryData(unreadsKey, (d: Unreads | undefined) => {
+    queryClient.setQueryData(unreadsKey, (d: Activity | undefined) => {
       if (d === undefined) {
         return undefined;
       }
@@ -191,9 +191,9 @@ export function useMarkReadMutation() {
   });
 }
 
-const emptyUnreads: Unreads = {};
-export function useUnreads(): Unreads {
-  const { data, ...rest } = useReactQueryScry<Unreads>({
+const emptyUnreads: Activity = {};
+export function useUnreads(): Activity {
+  const { data, ...rest } = useReactQueryScry<Activity>({
     queryKey: unreadsKey,
     app: 'activity',
     path: '/unreads',
@@ -204,7 +204,7 @@ export function useUnreads(): Unreads {
     return emptyUnreads;
   }
 
-  return data as Unreads;
+  return data as Activity;
 }
 
 const emptySettings: VolumeSettings = {};

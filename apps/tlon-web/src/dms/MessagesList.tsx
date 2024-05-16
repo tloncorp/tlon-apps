@@ -1,4 +1,4 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
 import { deSig } from '@urbit/api';
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -25,7 +25,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, Unread]) {
+function itemContent(_i: number, [whom, _unread]: [string, ActivitySummary]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -33,7 +33,10 @@ function itemContent(_i: number, [whom, _unread]: [string, Unread]) {
   );
 }
 
-const computeItemKey = (_i: number, [whom, _unread]: [string, Unread]) => whom;
+const computeItemKey = (
+  _i: number,
+  [whom, _unread]: [string, ActivitySummary]
+) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
 

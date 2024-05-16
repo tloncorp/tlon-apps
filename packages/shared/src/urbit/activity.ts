@@ -156,7 +156,7 @@ export interface UnreadThread extends UnreadPoint {
   'parent-time': string;
 }
 
-export interface Unread {
+export interface ActivitySummary {
   recency: number;
   count: number;
   notify: boolean;
@@ -164,7 +164,7 @@ export interface Unread {
   children: string[];
 }
 
-export type Unreads = Record<string, Unread>;
+export type Activity = Record<string, ActivitySummary>;
 
 export type Indices = Record<string, IndexData>;
 
@@ -195,7 +195,7 @@ export type ActivityAction =
 export interface ActivityReadUpdate {
   read: {
     source: Source;
-    unread: Unread;
+    activity: ActivitySummary;
   };
 }
 
@@ -220,7 +220,7 @@ export type ActivityUpdate =
 
 export interface FullActivity {
   indices: Indices;
-  unreads: Unreads;
+  activity: Activity;
 }
 
 export type VolumeSettings = Record<string, VolumeMap>;
@@ -437,11 +437,11 @@ export function getDefaultVolumeOption(
   };
 }
 
-export function stripPrefixes(unreads: Unreads) {
+export function stripPrefixes(unreads: Activity) {
   return _.mapKeys(unreads, (v, k) => k.replace(/^\w*\//, ''));
 }
 
-export function onlyChats(unreads: Unreads) {
+export function onlyChats(unreads: Activity) {
   return _.pickBy(
     unreads,
     (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)

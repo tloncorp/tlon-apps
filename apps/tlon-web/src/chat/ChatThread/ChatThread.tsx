@@ -175,7 +175,6 @@ export default function ChatThread() {
   useEffect(
     () => () => {
       const curr = clearOnNavRef.current;
-      debugger;
       if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
         chatStoreLogger.log('unmount read from thread');
         useChatStore.getState().read(curr.chatUnreadsKey);

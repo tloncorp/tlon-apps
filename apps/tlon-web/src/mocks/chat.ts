@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { Unreads } from '@tloncorp/shared/dist/urbit/activity';
+import { Activity } from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Posts,
@@ -135,54 +135,62 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList: Unreads = {
+export const dmList: Activity = {
   '~fabled-faster': {
     recency: 0,
     count: 0,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~nocsyx-lassul': {
     recency: 1652302200000,
     count: 3,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~fallyn-balfus': {
     recency: 0,
     count: 0,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~finned-palmer': {
     recency: 1652302200000,
     count: 2,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~datder-sonnet': {
     recency: 1652302200000,
     count: 1,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~hastuc-dibtux': {
     recency: 0,
     count: 0,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~rilfun-lidlen': {
     recency: 0,
     count: 0,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
   '~mister-dister-dozzod-dozzod': {
     recency: 0,
     count: 0,
+    notify: false,
     unread: null,
-    threads: {},
+    children: [],
   },
 };
 

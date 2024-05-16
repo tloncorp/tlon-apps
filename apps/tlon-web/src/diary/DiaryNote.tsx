@@ -16,7 +16,7 @@ import {
 import getKindDataFromEssay from '@/logic/getKindData';
 import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
-import { getFlagParts, pluralize } from '@/logic/utils';
+import { getFlagParts, getMessageKey, pluralize } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
 import {
@@ -166,8 +166,9 @@ export default function DiaryNote({ title }: ViewProps) {
     : [];
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
+  const msgKey = getMessageKey(note);
   const groupedReplies = setNewDaysForReplies(
-    groupReplies(noteId, replyArray, unread).sort(([a], [b]) => {
+    groupReplies(msgKey, replyArray, unread).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }

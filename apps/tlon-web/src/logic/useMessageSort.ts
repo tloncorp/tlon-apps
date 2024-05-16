@@ -1,4 +1,4 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
 
 import { RECENT_SORT } from '@/constants';
 
@@ -14,10 +14,11 @@ export default function useMessageSort() {
     sortOptions,
   });
 
-  function sortMessages(unreads: Record<string, Unread>) {
-    const accessors: Record<string, (k: string, v: Unread) => string> = {
-      [RECENT_SORT]: (flag: string, _unread: Unread) => flag,
-    };
+  function sortMessages(unreads: Record<string, ActivitySummary>) {
+    const accessors: Record<string, (k: string, v: ActivitySummary) => string> =
+      {
+        [RECENT_SORT]: (flag: string, _unread: ActivitySummary) => flag,
+      };
 
     return sortRecordsBy(
       unreads,

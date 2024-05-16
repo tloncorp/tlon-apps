@@ -143,11 +143,11 @@
 +$  activity-summary
   $:  newest=time
       count=@ud
-      notify=?
+      notify=_|
       unread=(unit unread-point)
       children=(list source)
   ==
-+$  unread-point  [message-key count=@ud notify=?]
++$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]
 +|  %primitives
 +$  whom

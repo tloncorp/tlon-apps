@@ -1,4 +1,7 @@
-import { Unread, Unreads } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  Activity,
+  ActivitySummary,
+} from '@tloncorp/shared/dist/urbit/activity';
 import { Block } from '@tloncorp/shared/dist/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
@@ -9,7 +12,7 @@ import { createDevLogger } from '@/logic/utils';
 export interface ChatInfoUnread {
   readTimeout: number;
   seen: boolean;
-  unread: Unread; // lags behind actual unread, only gets update if unread
+  unread: ActivitySummary; // lags behind actual unread, only gets update if unread
 }
 
 export interface ChatInfo {
@@ -44,10 +47,10 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  handleUnread: (whom: string, unread: Unread) => void;
+  handleUnread: (whom: string, unread: ActivitySummary) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (unreads: Unreads) => void;
+  update: (unreads: Activity) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -61,7 +64,7 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
-export function isUnread(unread: Unread): boolean {
+export function isUnread(unread: ActivitySummary): boolean {
   return unread.count > 0;
 }
 
@@ -374,6 +377,34 @@ export function useChatFailedToLoadContent(
       setFailedToLoadContent(whom, writId, blockIndex, failed);
     },
   };
+}
+
+interface UnreadInfo {
+  unread: boolean;
+  count: number;
+  notify: boolean;
+}
+
+const defaultUnread = {
+  unread: false,
+  count: 0,
+  notify: false,
+};
+
+export function useCombinedChatUnreads() {
+  const chats = useChatStore(useCallback((s) => s.chats, []));
+  return Object.entries(chats).reduce((acc, [whom, chat]) => {
+    const unread = chat.unread?.unread;
+    if (!unread) {
+      return acc;
+    }
+
+    return {
+      unread: acc.unread || isUnread(unread),
+      count: acc.count + unread.count,
+      notify: acc.notify || unread.notify,
+    };
+  }, defaultUnread);
 }
 
 export function useChatUnread(whom: string): ChatInfoUnread | undefined {

@@ -1,4 +1,4 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/activity';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -34,7 +34,7 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
     return null;
   }
 
-  const unread = chatInfo.unread.unread as Unread;
+  const unread = chatInfo.unread.unread as ActivitySummary;
   const { unread: mainChat } = unread;
   const isEmpty = mainChat?.count === 0;
   if (isEmpty || mainChat === null) {
