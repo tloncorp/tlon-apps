@@ -1,7 +1,7 @@
 import * as db from 'packages/shared/dist/db';
 import { useMemo } from 'react';
 
-import { ScrollView, SizableText, View } from '../../core';
+import { SizableText, View } from '../../core';
 import { useIsAdmin } from '../../utils';
 
 export function EmptyChannelNotice({
@@ -15,14 +15,9 @@ export function EmptyChannelNotice({
   const noticeText = useMemo(() => getNoticeText(isGroupAdmin), [isGroupAdmin]);
 
   return (
-    <ScrollView
-      padding="$xl"
-      contentContainerStyle={{ flex: 1, justifyContent: 'flex-end' }}
-    >
-      <View backgroundColor="$blueSoft" borderRadius="$xl" padding="$xl">
-        <SizableText>{noticeText}</SizableText>
-      </View>
-    </ScrollView>
+    <View backgroundColor="$blueSoft" borderRadius="$xl" padding="$xl">
+      <SizableText>{noticeText}</SizableText>
+    </View>
   );
 }
 

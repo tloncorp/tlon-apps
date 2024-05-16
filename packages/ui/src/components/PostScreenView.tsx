@@ -75,6 +75,8 @@ export function PostScreenView({
                 />
               ) : (
                 posts &&
+                // Delay rendering until replies have been loaded.
+                posts.length > 1 &&
                 channel && (
                   <Scroller
                     setInputShouldBlur={setInputShouldBlur}

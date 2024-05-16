@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
@@ -10,6 +11,7 @@ import React, {
   forwardRef,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -47,17 +49,32 @@ type RenderItemType =
   | RenderItemFunction
   | React.MemoExoticComponent<RenderItemFunction>;
 
+const logger = createDevLogger('scroller', false);
+
+export type ScrollAnchor = {
+  type: 'unread' | 'selected';
+  postId: string;
+};
+
+/**
+ * This scroller makes some assumptions you should not break!
+ * - Posts and unread state should be be loaded before the scroller is rendered
+ * - Posts should be sorted in descending order
+ * - If we're scrolling to an anchor, that anchor should be in the first page of posts
+ * - The size of the first page of posts should match `initialNumToRender` here.
+ */
 export default function Scroller({
+  anchor,
   inverted,
   renderItem,
+  renderEmptyComponent: renderEmptyComponentFn,
   posts,
   currentUserId,
   channelType,
   channelId,
+  firstUnreadId,
   unreadCount,
-  firstUnread,
   setInputShouldBlur,
-  selectedPost,
   onStartReached,
   onEndReached,
   onPressImage,
@@ -67,17 +84,20 @@ export default function Scroller({
   setEditingPost,
   editPost,
   handleScroll,
+  hasNewerPosts,
+  hasOlderPosts,
 }: {
+  anchor?: ScrollAnchor | null;
   inverted: boolean;
   renderItem: RenderItemType;
-  posts: db.Post[];
+  renderEmptyComponent?: () => ReactElement;
+  posts: db.Post[] | null;
   currentUserId: string;
   channelType: db.ChannelType;
   channelId: string;
-  unreadCount?: number;
-  firstUnread?: string;
+  firstUnreadId?: string | null;
+  unreadCount?: number | null;
   setInputShouldBlur?: (shouldBlur: boolean) => void;
-  selectedPost?: string;
   onStartReached?: () => void;
   onEndReached?: () => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
@@ -87,6 +107,8 @@ export default function Scroller({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
   handleScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  hasNewerPosts?: boolean;
+  hasOlderPosts?: boolean;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
@@ -97,18 +119,6 @@ export default function Scroller({
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
     }
   };
-
-  useEffect(() => {
-    if (selectedPost && flatListRef.current) {
-      const scrollToIndex = posts.findIndex((post) => post.id === selectedPost);
-      if (scrollToIndex > -1) {
-        flatListRef.current.scrollToIndex({
-          index: scrollToIndex,
-          animated: true,
-        });
-      }
-    }
-  }, [selectedPost, posts]);
 
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
@@ -127,9 +137,46 @@ export default function Scroller({
     [handleSetActive]
   );
 
+  const userHasScrolledRef = useRef(false);
+  // Whether we've scrolled to the anchor post.
+  const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
+
+  // We use this function to manage autoscrolling to the anchor post. We need
+  // the post to be rendered before we're able to scroll to it, so we wait for
+  // it here. Once it's rendered we scroll to it and set `hasFoundAnchor` to
+  // true, revealing the Scroller.
+  const handleItemLayout = useCallback(
+    (post: db.Post, index: number) => {
+      if (anchor?.postId === post.id) {
+        if (!hasFoundAnchor) {
+          setHasFoundAnchor(true);
+        }
+        // This gets called every time the anchor post changes size. If the user hasn't
+        // scrolled yet, we should still be locked to the anchor post, so this
+        // will re-scroll on subsequent layouts as well as the first.
+        if (!userHasScrolledRef.current) {
+          flatListRef.current?.scrollToIndex({
+            index,
+            animated: false,
+            viewPosition: 1,
+          });
+        }
+      }
+    },
+    [anchor, hasFoundAnchor]
+  );
+
+  // Used to hide the scroller until we've found the anchor post.
+  const style = useMemo(() => {
+    return {
+      opacity: hasFoundAnchor ? 1 : 0,
+      backgroundColor: 'white',
+    };
+  }, [hasFoundAnchor]);
+
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
-      const previousItem = posts[index + 1];
+      const previousItem = posts?.[index + 1];
       const isFirstPostOfDay = !isSameDay(
         item.receivedAt ?? 0,
         previousItem?.receivedAt ?? 0
@@ -139,12 +186,12 @@ export default function Scroller({
         previousItem?.type === 'notice' ||
         (item.replyCount ?? 0) > 0 ||
         isFirstPostOfDay;
-      const isFirstUnread = !!unreadCount && item.id === firstUnread;
+      const isFirstUnread = item.id === firstUnreadId;
       // this is necessary because we can't call memoized components as functions
       // (they are objects, not functions)
       const RenderItem = renderItem;
       return (
-        <View>
+        <View onLayout={() => handleItemLayout(item, index)}>
           {isFirstUnread ? (
             <ChannelDivider
               timestamp={item.receivedAt}
@@ -178,7 +225,8 @@ export default function Scroller({
     [
       posts,
       unreadCount,
-      firstUnread,
+      firstUnreadId,
+      handleItemLayout,
       renderItem,
       channelId,
       channelType,
@@ -194,48 +242,114 @@ export default function Scroller({
     ]
   );
 
-  const handleScrollToIndexFailed = useCallback(
-    ({ index }: { index: number }) => {
-      console.log('scroll to index failed');
-      const wait = new Promise((resolve) => setTimeout(resolve, 100));
-      wait.then(() => {
-        flatListRef.current?.scrollToIndex({
-          index,
-          animated: false,
-        });
-      });
-    },
-    []
-  );
+  const handleScrollToIndexFailed = useCallback(() => {
+    console.log('scroll to index failed');
+  }, []);
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
   }) as StyleProp<ViewStyle>;
 
-  const handleContainerPressed = useCallback(() => {
+  const handleScrollBeginDrag = useCallback(() => {
+    userHasScrolledRef.current = true;
     setInputShouldBlur?.(true);
-  }, []);
+  }, [setInputShouldBlur]);
+
+  const pendingEvents = useRef({
+    onEndReached: false,
+    onStartReached: false,
+  });
+
+  // We don't want to trigger onEndReached or onStartReached until we've found
+  // the anchor as additional page loads during the initial render can wreak
+  // havoc on layout, but if we drop the events completely they may not get
+  // called again until the user scrolls, even if we need more content to fill
+  // the page. Instead, we use `pendingEvents` to record the attempt, and call
+  // the events after we've found the anchor.
+  useEffect(() => {
+    if (hasFoundAnchor) {
+      if (pendingEvents.current.onEndReached) {
+        logger.log('trigger pending onEndReached');
+        onEndReached?.();
+        pendingEvents.current.onEndReached = false;
+      }
+      if (pendingEvents.current.onStartReached) {
+        logger.log('trigger pending onStartReached');
+        onStartReached?.();
+        pendingEvents.current.onStartReached = false;
+      }
+    }
+  }, [hasFoundAnchor, onEndReached, onStartReached]);
+
+  const handleEndReached = useCallback(() => {
+    if (!hasFoundAnchor) {
+      pendingEvents.current.onEndReached = true;
+      return;
+    }
+    onEndReached?.();
+  }, [onEndReached, hasFoundAnchor]);
+
+  const handleStartReached = useCallback(() => {
+    if (!hasFoundAnchor) {
+      pendingEvents.current.onStartReached = true;
+      return;
+    }
+    onStartReached?.();
+  }, [onStartReached, hasFoundAnchor]);
+
+  const renderEmptyComponent = useCallback(() => {
+    return (
+      <View
+        flex={1}
+        // Flatlist doesn't handle inverting this component, so we do it manually.
+        scaleY={inverted ? -1 : 1}
+        paddingBottom={'$l'}
+        paddingHorizontal="$l"
+      >
+        {renderEmptyComponentFn?.()}
+      </View>
+    );
+  }, [renderEmptyComponentFn, inverted]);
+
+  const maintainVisibleContentPositionConfig = useMemo(() => {
+    return {
+      minIndexForVisible: 0,
+      // If this is set to a number, the list will scroll to the bottom (or top,
+      // if not inverted) when the list height changes. This is undesirable when
+      // we're starting at an older post and scrolling down towards newer ones,
+      // as it will trigger on every new page load, causing jumping. Instead, we
+      // only enable it when there's nothing newer left to load (so, for new incoming messages only).
+      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+    };
+  }, [hasNewerPosts]);
 
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
-      <FlatList<db.Post>
-        ref={flatListRef}
-        data={posts}
-        onScroll={handleScroll}
-        renderItem={listRenderItem}
-        keyExtractor={getPostId}
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={contentContainerStyle}
-        onScrollBeginDrag={handleContainerPressed}
-        onScrollToIndexFailed={handleScrollToIndexFailed}
-        inverted={inverted}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={2}
-        onStartReached={onStartReached}
-      />
+      {posts && (
+        <FlatList<db.Post>
+          ref={flatListRef}
+          data={posts}
+          renderItem={listRenderItem}
+          ListEmptyComponent={renderEmptyComponent}
+          keyExtractor={getPostId}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={contentContainerStyle}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          inverted={inverted}
+          initialNumToRender={10}
+          maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
+          style={style}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={2}
+          onStartReached={handleStartReached}
+          onStartReachedThreshold={2}
+          handleScroll={handleScroll}
+        />
+      )}
       <Modal
         visible={activeMessage !== null}
         onDismiss={() => setActiveMessage(null)}
