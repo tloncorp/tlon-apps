@@ -6,7 +6,7 @@ import { createDevLogger } from '../debug';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 export const syncInitData = async () => {
   return syncQueue.add('init', async () => {
@@ -67,7 +67,7 @@ const resetUnreads = async (unreads: db.Unread[]) => {
 };
 
 async function handleUnreadUpdate(unread: db.Unread) {
-  logger.log('received new unread', unread.channelId);
+  logger.log('event: unread update', unread);
   await db.insertUnreads([unread]);
   await syncChannel(unread.channelId, unread.updatedAt);
 }
@@ -86,6 +86,7 @@ export const syncStaleChannels = async () => {
 };
 
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+  logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
       // first check if it's a reply. If it is and we haven't already cached
@@ -176,6 +177,10 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
 }
 
 export async function syncPosts(options: db.GetChannelPostsOptions) {
+  logger.log(
+    'syncing posts',
+    `${options.channelId}/${options.cursor}/${options.mode}`
+  );
   const response = await api.getChannelPosts(options);
   if (response.posts.length) {
     await db.insertChannelPosts({

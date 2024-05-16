@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as sync from './sync';
+import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', true);
 
@@ -12,10 +13,6 @@ type UseChanelPostsParams = db.GetChannelPostsOptions;
 export const useChannelPosts = (
   options: UseChanelPostsParams & { enabled: boolean }
 ) => {
-  const key = useMemo(() => {
-    return Math.random().toString(36).substring(7);
-  }, []);
-
   useEffect(() => {
     postsLogger.log('mount', options);
     return () => {
@@ -33,7 +30,7 @@ export const useChannelPosts = (
 
   const { enabled, ...pageParam } = options;
 
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     enabled,
     initialPageParam: pageParam,
     refetchOnMount: false,
@@ -62,7 +59,10 @@ export const useChannelPosts = (
       );
       return secondResult ?? [];
     },
-    queryKey: [['channels', options.channelId, key], mountTime],
+    queryKey: [
+      ['channelPosts', options.channelId, mountTime],
+      useKeyFromQueryDeps(db.getChannelPosts, options),
+    ],
     getNextPageParam: (
       lastPage,
       _allPages,
@@ -91,8 +91,12 @@ export const useChannelPosts = (
     },
     getPreviousPageParam: (
       firstPage,
-      _allPages
+      _allPages,
+      firstPageParam
     ): UseChanelPostsParams | undefined => {
+      if (firstPageParam.mode === 'newest') {
+        return undefined;
+      }
       const reachedEnd = !firstPage[0]?.id;
       if (reachedEnd) {
         return undefined;
@@ -104,4 +108,5 @@ export const useChannelPosts = (
       };
     },
   });
+  return query;
 };

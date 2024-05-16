@@ -15,7 +15,6 @@ export async function sendPost({
   // optimistic update
   const cachePost = api.buildCachePost({ authorId, channel, content });
   await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
-
   try {
     await api.sendPost({
       channelId: channel.id,
@@ -23,7 +22,7 @@ export async function sendPost({
       content,
       sentAt: cachePost.sentAt,
     });
-    sync.syncChannelMessageDelivery({ channelId: channel.id });
+    await sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });

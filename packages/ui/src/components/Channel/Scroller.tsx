@@ -20,6 +20,7 @@ import {
   View as RNView,
   StyleProp,
   ViewStyle,
+  ViewToken,
 } from 'react-native';
 import { useStyle } from 'tamagui';
 
@@ -66,7 +67,7 @@ export default function Scroller({
   anchor,
   inverted,
   renderItem,
-  renderEmptyComponent,
+  renderEmptyComponent: renderEmptyComponentFn,
   posts,
   currentUserId,
   channelType,
@@ -82,6 +83,8 @@ export default function Scroller({
   editingPost,
   setEditingPost,
   editPost,
+  hasNewerPosts,
+  hasOlderPosts,
 }: {
   anchor?: ScrollAnchor | null;
   inverted: boolean;
@@ -102,6 +105,8 @@ export default function Scroller({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
+  hasNewerPosts: boolean;
+  hasOlderPosts: boolean;
 }) {
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
@@ -272,6 +277,26 @@ export default function Scroller({
       backgroundColor: 'white',
     };
   }, [hasFoundAnchor]);
+
+  const renderEmptyComponent = useCallback(() => {
+    return (
+      <View
+        flex={1}
+        scaleY={inverted ? -1 : 1}
+        paddingBottom={'$l'}
+        paddingHorizontal="$l"
+      >
+        {renderEmptyComponentFn?.()}
+      </View>
+    );
+  }, [renderEmptyComponentFn, inverted]);
+
+  const maintainVisibleContentPositionConfig = useMemo(() => {
+    return {
+      minIndexForVisible: 0,
+      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+    };
+  }, [hasNewerPosts]);
 
   return (
     <View flex={1}>

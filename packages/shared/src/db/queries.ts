@@ -617,6 +617,8 @@ export type GetChannelPostsOptions = {
     }
 );
 
+const maxPostId = '999.999.999.999.999.999.999.999.999.999.99.999.999';
+
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
   async ({
@@ -635,9 +637,22 @@ export const getChannelPosts = createReadQuery(
         cursor ? lte($postWindows.oldestPostId, cursor) : undefined
       ),
       orderBy: [desc($postWindows.newestPostId)],
+      columns: {
+        oldestPostId: true,
+        newestPostId: true,
+      },
+      extras: {
+        rowNumber:
+          sql`row_number() OVER (ORDER BY ${$postWindows.newestPostId})`
+            .mapWith(Number)
+            .as('rowNumber'),
+      },
     });
     if (!window) {
       return [];
+    }
+    if (window.rowNumber === 0) {
+      window.newestPostId = maxPostId;
     }
     if (mode === 'around') {
       const $windowQuery = client
@@ -724,7 +739,7 @@ export const getChannelPosts = createReadQuery(
     }
     return posts;
   },
-  []
+  ['posts']
 );
 
 export interface GetChannelPostsAroundOptions {
@@ -833,12 +848,6 @@ export const insertChannelPosts = createWriteQuery(
         });
       // If these are non-reply posts, update group + channel last post as well as post windows.
       const topLevelPosts = posts.filter((p) => p.type !== 'reply');
-      console.log(
-        'total posts',
-        posts.length,
-        'top level posts:',
-        topLevelPosts.length
-      );
       if (topLevelPosts.length) {
         await setLastPost(
           {
@@ -856,6 +865,31 @@ export const insertChannelPosts = createWriteQuery(
             older,
           },
           tx
+        );
+      }
+      const pendingPosts = await client.query.posts.findMany({
+        where: and(
+          eq($posts.channelId, channelId),
+          eq($posts.deliveryStatus, 'pending')
+        ),
+      });
+      const replacedPosts = pendingPosts.filter((pendingPost) => {
+        return (
+          posts.findIndex((post) => {
+            return post.sentAt === pendingPost.sentAt;
+          }) !== -1
+        );
+      });
+      if (replacedPosts.length) {
+        await tx.delete($posts).where(
+          and(
+            eq($posts.deliveryStatus, 'pending'),
+            eq($posts.channelId, channelId),
+            inArray(
+              $posts.id,
+              replacedPosts.map((p) => p.id)
+            )
+          )
         );
       }
     });
@@ -962,13 +996,6 @@ async function updatePostWindows(
       oldestPostId: $postWindows.oldestPostId,
       newestPostId: $postWindows.newestPostId,
     });
-
-  console.log(
-    'inserting window',
-    shortPostId(resolvedStart),
-    '=>',
-    shortPostId(resolvedEnd)
-  );
 
   await tx.insert($postWindows).values({
     channelId: window.channelId,

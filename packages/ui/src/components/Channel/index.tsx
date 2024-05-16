@@ -61,6 +61,8 @@ export function Channel({
   setEditingPost,
   editPost,
   negotiationMatch,
+  hasNewerPosts,
+  hasOlderPosts,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -89,6 +91,8 @@ export function Channel({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
   negotiationMatch: boolean;
+  hasNewerPosts: boolean;
+  hasOlderPosts: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
@@ -171,6 +175,8 @@ export function Channel({
                               currentUserId={currentUserId}
                               anchor={scrollerAnchor}
                               posts={posts}
+                              hasNewerPosts={hasNewerPosts}
+                              hasOlderPosts={hasOlderPosts}
                               editingPost={editingPost}
                               setEditingPost={setEditingPost}
                               editPost={editPost}

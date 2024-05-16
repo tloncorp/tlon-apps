@@ -50,7 +50,7 @@
     "@react-navigation/bottom-tabs": "^6.5.12",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/native-stack": "^6.9.13",
-    "@tanstack/react-query": "^5.32.1",
+    "@tanstack/react-query": "~5.32.1",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",

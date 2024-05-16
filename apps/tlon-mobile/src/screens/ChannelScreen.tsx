@@ -267,6 +267,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           postsQuery.isFetchingNextPage ||
           postsQuery.isFetchingPreviousPage
         }
+        hasNewerPosts={postsQuery.hasPreviousPage}
+        hasOlderPosts={postsQuery.hasNextPage}
         group={groupQuery.data ?? null}
         contacts={contactsQuery.data ?? null}
         posts={posts}
