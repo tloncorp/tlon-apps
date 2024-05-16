@@ -33,6 +33,62 @@ export const toClientPinnedItem = (rawItem: string, index: number): db.Pin => {
   };
 };
 
+// export function useGroupKnockMutation() {
+//   return useGroupMutation(async (variables: { flag: string }) => {
+//     await api.poke({
+//       app: 'groups',
+//       mark: 'group-knock',
+//       json: variables.flag,
+//     });
+//   });
+// }
+
+// export function useGroupRescindMutation() {
+//   return useGroupMutation(async (variables: { flag: string }) => {
+//     await api.poke({
+//       app: 'groups',
+//       mark: 'group-rescind',
+//       json: variables.flag,
+//     });
+//   });
+// }
+
+// export function useGroupCancelMutation() {
+//   return useGroupMutation(async (variables: { flag: string }) => {
+//     await api.poke({
+//       app: 'groups',
+//       mark: 'group-cancel',
+//       json: variables.flag,
+//     });
+//   });
+// }
+
+export function cancelGroupJoin(groupId: string) {
+  return poke({
+    app: 'groups',
+    mark: 'group-cancel',
+    json: groupId,
+  });
+}
+
+export function rescindGroupInvitationRequest(groupId: string) {
+  logger.log('api rescinding', groupId);
+  return poke({
+    app: 'groups',
+    mark: 'group-rescind',
+    json: groupId,
+  });
+}
+
+export function requestGroupInvitation(groupId: string) {
+  logger.log('api knocking', groupId);
+  return poke({
+    app: 'groups',
+    mark: 'group-knock',
+    json: groupId,
+  });
+}
+
 export const getPinnedItemType = (rawItem: string) => {
   if (rawItem.startsWith('~')) {
     if (rawItem.split('/').length === 2) {

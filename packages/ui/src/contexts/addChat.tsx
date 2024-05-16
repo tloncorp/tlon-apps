@@ -10,6 +10,7 @@ export type AddChatState = {
     channel: db.Channel;
   }) => void;
   onStartDm: (participants: string[]) => void;
+  dismiss: () => void;
 };
 
 type ContextValue = AddChatState;
@@ -17,6 +18,7 @@ type ContextValue = AddChatState;
 const defaultState: AddChatState = {
   onCreatedGroup: () => {},
   onStartDm: () => {},
+  dismiss: () => {},
 };
 
 const Context = createContext({

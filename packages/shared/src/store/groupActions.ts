@@ -70,25 +70,87 @@ export async function getGroupsHostedBy(userId: string): Promise<db.Group[]> {
 }
 
 export async function acceptGroupInvitation(group: db.Group) {
-  db.updateGroup({ id: group.id, joinStatus: 'joining' });
+  logger.log('accepting group invitation', group.id);
+  await db.updateGroup({ id: group.id, joinStatus: 'joining' });
 
   try {
     await api.joinGroup(group.id);
   } catch (e) {
     console.error('Failed to accept group invitation', e);
-    db.updateGroup({ id: group.id, joinStatus: 'errored' });
+    await db.updateGroup({ id: group.id, joinStatus: 'errored' });
   }
 }
 
 export async function rejectGroupInvitation(group: db.Group) {
+  logger.log('rejecting group invitation', group.id);
   // optimistic update
-  db.deleteGroup(group.id);
+  await db.deleteGroup(group.id);
 
   try {
     await api.rejectGroupInvitation(group.id);
   } catch (e) {
     console.error('Failed to reject group invitation', e);
     // rollback optimistic update
-    db.insertGroups([group]);
+    await db.insertGroups([group]);
+  }
+}
+
+export async function requestGroupInvitation(group: db.Group) {
+  logger.log('requesting group invitation', group.id);
+  // optimistic update
+  await db.updateGroup({ id: group.id, haveRequestedInvite: true });
+  try {
+    await api.requestGroupInvitation(group.id);
+  } catch (e) {
+    console.error('Failed to request group invitation', e);
+    await db.updateGroup({ id: group.id, haveRequestedInvite: false });
+  }
+}
+
+export async function rescindGroupInvitationRequest(group: db.Group) {
+  logger.log('rejecting group invitation', group.id);
+  // optimistic update
+  await db.updateGroup({ id: group.id, haveRequestedInvite: false });
+
+  try {
+    await api.rescindGroupInvitationRequest(group.id);
+  } catch (e) {
+    console.error('Failed to rescind group invitation request', e);
+    // rollback optimistic update
+    await db.updateGroup({ id: group.id, haveRequestedInvite: true });
+  }
+}
+
+export async function cancelGroupJoin(group: db.Group) {
+  logger.log('canceling group join', group.id);
+  // optimistic update
+  await db.updateGroup({
+    id: group.id,
+    joinStatus: null,
+  });
+
+  try {
+    await api.cancelGroupJoin(group.id);
+  } catch (e) {
+    console.error('Failed to cancel group join', e);
+    // rollback optimistic update
+    await db.updateGroup({
+      id: group.id,
+      joinStatus: 'joining',
+    });
+  }
+}
+
+export async function joinGroup(group: db.Group) {
+  logger.log('joining group', group.id);
+  // optimistic update
+  await db.updateGroup({ id: group.id, joinStatus: 'joining' });
+
+  try {
+    await api.joinGroup(group.id);
+  } catch (e) {
+    console.error('Failed to join group', e);
+    // rollback optimistic update
+    await db.updateGroup({ id: group.id, joinStatus: null });
   }
 }

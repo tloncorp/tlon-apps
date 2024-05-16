@@ -14,7 +14,7 @@ import { KeyboardAvoidingView, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, getTokenValue } from 'tamagui';
 
-import { useAddChatHandlers } from '../../contexts';
+import { AddChatProvider, useAddChatHandlers } from '../../contexts';
 import {
   SizableText,
   View,
@@ -25,6 +25,7 @@ import {
 } from '../../core';
 import { Button } from '../Button';
 import { GroupListItem } from '../GroupListItem';
+import { GroupPreviewPane } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
 import { Sheet } from '../Sheet';
 import { ContactSelector } from '../ShipSelector';
@@ -47,58 +48,68 @@ export function AddChatSheet({
   currentUserId,
   open,
   onOpenChange,
+  goToChannel,
+  goToDm,
 }: {
   currentUserId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  goToDm: (participants: string[]) => void;
+  goToChannel: ({ channel }: { channel: db.Channel }) => void;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const dismiss = useCallback(() => onOpenChange(false), [onOpenChange]);
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[85]}
-      modal
-      disableDrag={true}
-      animation="quick"
+    <AddChatProvider
+      handlers={{ onStartDm: goToDm, onCreatedGroup: goToChannel, dismiss }}
     >
-      <Sheet.Overlay />
-      <Sheet.Frame
-        paddingTop="$s"
-        paddingBottom={insets.bottom}
-        paddingHorizontal="$2xl"
+      <Sheet
+        open={open}
+        onOpenChange={onOpenChange}
+        snapPoints={[85]}
+        modal
+        disableDrag={true}
+        animation="quick"
       >
-        <Sheet.Handle marginBottom="$l" />
-        <KeyboardAvoidingView style={{ flex: 1 }}>
-          <Stack.Navigator
-            initialRouteName="Root"
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen
-              name="Root"
-              initialParams={{ currentUserId }}
-              // these ComponentType<any> casts are needed to stop web type compilation
-              // from complaining, not sure why
-              component={RootPane as React.ComponentType<any>}
-            />
-            <Stack.Screen
-              name="CreateGroup"
-              initialParams={{ currentUserId }}
-              component={CreateGroupPane as React.ComponentType<any>}
-            />
-            <Stack.Screen
-              name="JoinGroup"
-              initialParams={{ currentUserId }}
-              component={JoinGroupPane as React.ComponentType<any>}
-            />
-          </Stack.Navigator>
-        </KeyboardAvoidingView>
-      </Sheet.Frame>
-    </Sheet>
+        <Sheet.Overlay />
+        <Sheet.Frame
+          paddingTop="$s"
+          paddingBottom={insets.bottom}
+          paddingHorizontal="$2xl"
+        >
+          <Sheet.Handle marginBottom="$l" />
+          <KeyboardAvoidingView style={{ flex: 1 }}>
+            <Stack.Navigator
+              initialRouteName="Root"
+              screenOptions={{
+                headerShown: false,
+                cardStyle: { backgroundColor: theme.background.val },
+              }}
+            >
+              <Stack.Screen
+                name="Root"
+                initialParams={{ currentUserId, dismiss }}
+                // these ComponentType<any> casts are needed to stop web type compilation
+                // from complaining, not sure why
+                component={RootPane as React.ComponentType<any>}
+              />
+              <Stack.Screen
+                name="CreateGroup"
+                initialParams={{ currentUserId, dismiss }}
+                component={CreateGroupPane as React.ComponentType<any>}
+              />
+              <Stack.Screen
+                name="JoinGroup"
+                initialParams={{ currentUserId, dismiss }}
+                component={JoinGroupPane as React.ComponentType<any>}
+              />
+            </Stack.Navigator>
+          </KeyboardAvoidingView>
+        </Sheet.Frame>
+      </Sheet>
+    </AddChatProvider>
   );
 }
 
@@ -152,6 +163,7 @@ type JoinGroupPaneState = {
 };
 
 function JoinGroupPane(props: StackScreenProps<StackParamList, 'JoinGroup'>) {
+  const { dismiss } = useAddChatHandlers();
   const [state, setState] = useState<JoinGroupPaneState>({
     loading: false,
     error: null,
@@ -214,22 +226,10 @@ function JoinGroupPane(props: StackScreenProps<StackParamList, 'JoinGroup'>) {
       )}
 
       {state.selectedGroup !== null && (
-        <YStack>
-          <XStack>
-            <Icon
-              type="ChevronLeft"
-              onPress={() => setState({ ...state, selectedGroup: null })}
-            />
-          </XStack>
-          <GroupListItem model={state.selectedGroup} />
-          {state.selectedGroup.currentUserIsMember ? (
-            <SizableText>You are already a member</SizableText>
-          ) : (
-            <Button hero onPress={() => props.navigation.pop()}>
-              <Button.Text>Join Group</Button.Text>
-            </Button>
-          )}
-        </YStack>
+        <GroupPreviewPane
+          group={state.selectedGroup}
+          onActionComplete={dismiss}
+        />
       )}
     </YStack>
   );
@@ -312,17 +312,9 @@ function HeroInput() {
       flexGrow={1}
     >
       <SizableText fontSize="$l" fontWeight="500">
-        Find a group host
+        Find a group host placeholder
       </SizableText>
     </View>
-  );
-}
-
-function HeroButton() {
-  return (
-    <Button hero>
-      <Button.Text>Start a new group</Button.Text>
-    </Button>
   );
 }
 

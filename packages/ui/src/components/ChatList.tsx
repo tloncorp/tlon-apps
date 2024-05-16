@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { isGroup } from 'packages/shared/dist/urbit';
 import React, { useCallback, useMemo } from 'react';
 import {
   SectionList,
@@ -18,6 +19,8 @@ import { ListSectionHeader } from './ListSectionHeader';
 import { navHeight } from './NavBar/NavBar';
 import { SwipableChatRow } from './SwipableChatListItem';
 
+type ListItem = db.Channel | db.Group;
+
 export function ChatList({
   pinned,
   unpinned,
@@ -25,8 +28,8 @@ export function ChatList({
   onLongPressItem,
   onPressItem,
 }: store.CurrentChats & {
-  onPressItem?: (chat: db.Channel) => void;
-  onLongPressItem?: (chat: db.Channel) => void;
+  onPressItem?: (chat: ListItem) => void;
+  onLongPressItem?: (chat: ListItem) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
 
@@ -52,21 +55,19 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<db.Channel, { title: string }>) => {
-      // Invitation not affected by swipe or long press
-      if (item.currentUserIsMember === false) {
-        return <ChatListItem model={item} onPress={onPressItem} />;
-      }
-
-      return (
+    ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
+      if (db.isChannel(item)) {
         <SwipableChatRow model={item}>
           <ChatListItem
             model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
           />
-        </SwipableChatRow>
-      );
+        </SwipableChatRow>;
+      }
+
+      // Pending items not affected by swipe
+      return <ChatListItem model={item} onPress={onPressItem} />;
     },
     [onPressItem, onLongPressItem]
   );
@@ -75,7 +76,7 @@ export function ChatList({
     ({
       section,
     }: {
-      section: SectionListData<db.Channel, { title: string }>;
+      section: SectionListData<ListItem, { title: string }>;
     }) => {
       return <ListSectionHeader>{section.title}</ListSectionHeader>;
     },
@@ -101,8 +102,9 @@ export function ChatList({
   );
 }
 
-function getChannelKey(channel: db.Channel) {
-  return channel.id + channel.pin?.itemId ?? '';
+function getChannelKey(item: ListItem) {
+  if (isGroup(item)) return item.id;
+  return item.id + item.pin?.itemId ?? '';
 }
 
 const ChatListItem = React.memo(function ChatListItemComponent({
@@ -110,7 +112,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.Channel | db.Group>) {
+}: ListItemProps<ListItem>) {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [model, onPress]);
@@ -119,11 +121,11 @@ const ChatListItem = React.memo(function ChatListItemComponent({
     onLongPress?.(model);
   }, [model, onLongPress]);
 
+  // if the chat list item is a group, it's pending
   if (db.isGroup(model)) {
     return (
       <GroupListItem
         onPress={handlePress}
-        onLongPress={handleLongPress}
         model={{
           ...model,
         }}

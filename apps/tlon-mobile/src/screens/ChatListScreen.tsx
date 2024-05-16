@@ -44,7 +44,7 @@ export default function ChatListScreen(
     console.log(`pending:`, chats?.pendingGroups);
   }, [chats?.pendingGroups]);
 
-  const gotoDm = async (participants: string[]) => {
+  const goToDm = async (participants: string[]) => {
     const dmChannel = await store.upsertDmChannel({
       participants,
       currentUserId,
@@ -76,47 +76,47 @@ export default function ChatListScreen(
 
   return (
     <ContactsProvider contacts={contacts ?? []}>
-      <AddChatProvider
-        handlers={{ onStartDm: gotoDm, onCreatedGroup: goToChannel }}
-      >
-        <View backgroundColor="$background" flex={1}>
-          <ScreenHeader
-            title="Tlon"
-            rightControls={
-              <>
-                {isFetchingInitData && <Spinner />}
-                <Icon type="Add" onPress={() => setAddChatOpen(true)} />
-              </>
+      <View backgroundColor="$background" flex={1}>
+        <ScreenHeader
+          title="Tlon"
+          rightControls={
+            <>
+              {isFetchingInitData && <Spinner />}
+              <Icon type="Add" onPress={() => setAddChatOpen(true)} />
+            </>
+          }
+        />
+        {chats && (chats.unpinned.length || !isFetchingInitData) ? (
+          <ChatList
+            pinned={chats.pinned ?? []}
+            unpinned={chats.unpinned ?? []}
+            pendingGroups={chats.pendingGroups ?? []}
+            onLongPressItem={(item) =>
+              db.isChannel(item) ? setLongPressedItem(item) : null
             }
+            onPressItem={onPressChat}
           />
-          {chats && (chats.unpinned.length || !isFetchingInitData) ? (
-            <ChatList
-              pinned={chats.pinned ?? []}
-              unpinned={chats.unpinned ?? []}
-              pendingGroups={chats.pendingGroups ?? []}
-              onLongPressItem={setLongPressedItem}
-              onPressItem={onPressChat}
-            />
-          ) : null}
-          <ChatOptionsSheet
-            open={longPressedItem !== null}
-            onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
-            channel={longPressedItem ?? undefined}
-          />
-          <AddChatSheet
-            currentUserId={currentUserId}
-            open={addChatOpen}
-            onOpenChange={() => setAddChatOpen(false)}
-          />
-          <GroupInvitationSheet
-            open={selectedGroup !== null}
-            onOpenChange={() => setSelectedGroup(null)}
-            group={selectedGroup ?? undefined}
-            onUpdateInvitation={handleUpdateInvitation}
-          />
-        </View>
-        <NavBar navigation={props.navigation} />
-      </AddChatProvider>
+        ) : null}
+        <ChatOptionsSheet
+          open={longPressedItem !== null}
+          onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
+          channel={longPressedItem ?? undefined}
+        />
+        <AddChatSheet
+          currentUserId={currentUserId}
+          goToChannel={goToChannel}
+          goToDm={goToDm}
+          open={addChatOpen}
+          onOpenChange={() => setAddChatOpen(false)}
+        />
+        <GroupInvitationSheet
+          open={selectedGroup !== null}
+          onOpenChange={() => setSelectedGroup(null)}
+          group={selectedGroup ?? undefined}
+          onUpdateInvitation={handleUpdateInvitation}
+        />
+      </View>
+      <NavBar navigation={props.navigation} />
     </ContactsProvider>
   );
 }

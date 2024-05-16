@@ -80,12 +80,14 @@ function getDisplayInfo(group: db.Group): DisplayInfo {
     statusDisplay:
       !group.currentUserIsMember && group.isNew
         ? 'NEW'
-        : group.haveInvite
-          ? 'Invited'
-          : group.joinStatus === 'errored'
-            ? 'Errored'
-            : group.joinStatus === 'joining'
-              ? 'Joining'
-              : '',
+        : group.haveRequestedInvite
+          ? 'Requested'
+          : group.haveInvite
+            ? 'Invite'
+            : group.joinStatus === 'errored'
+              ? 'Errored'
+              : group.joinStatus === 'joining'
+                ? 'Joining'
+                : '',
   };
 }

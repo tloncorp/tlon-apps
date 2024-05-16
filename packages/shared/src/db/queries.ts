@@ -148,7 +148,11 @@ export const getPendingGroups = createReadQuery(
   'getPendingGroups',
   async () => {
     return client.query.groups.findMany({
-      where: or(eq($groups.haveInvite, true), isNotNull($groups.joinStatus)),
+      where: or(
+        eq($groups.haveInvite, true),
+        isNotNull($groups.joinStatus),
+        eq($groups.haveRequestedInvite, true)
+      ),
     });
   },
   ['groups']

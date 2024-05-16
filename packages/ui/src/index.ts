@@ -13,7 +13,7 @@ export * from './components/ChatMessage/ChatMessageActions/Component';
 export * from './components/UrbitSigil';
 export * from './components/View';
 export * from './components/Sheet';
-export * from './components/GroupInvitationSheet';
+export * from './components/GroupPreviewSheet';
 export * from './components/NavBar';
 export * from './components/GroupOptionsSheet';
 export * from './components/AddChatSheet/index.native';
