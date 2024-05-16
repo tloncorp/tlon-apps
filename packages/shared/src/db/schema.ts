@@ -7,6 +7,8 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+import { Rank } from '../urbit';
+
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
 };
@@ -166,6 +168,7 @@ export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
   isSecret: boolean('is_secret'),
+  publicOrPrivate: text('public_or_private').$type<'public' | 'private'>(),
   isJoined: boolean('is_joined'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
@@ -176,6 +179,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   roles: many(groupRoles),
   members: many(chatMembers),
   navSections: many(groupNavSections),
+  flaggedContent: many(groupFlaggedContent),
   channels: many(channels),
   posts: many(posts),
   lastPost: one(posts, {
@@ -225,6 +229,137 @@ export const chatMembers = sqliteTable(
     };
   }
 );
+
+export const groupFlaggedContent = sqliteTable(
+  'group_flagged_content',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    postId: text('post_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    flaggedByContactId: text('flagged_by_contact_id').notNull(),
+    flaggedAt: timestamp('flagged_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.postId],
+      }),
+    };
+  }
+);
+
+export const groupFlaggedContentRelations = relations(
+  groupFlaggedContent,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupFlaggedContent.groupId],
+      references: [groups.id],
+    }),
+    post: one(posts, {
+      fields: [groupFlaggedContent.postId],
+      references: [posts.id],
+    }),
+    channel: one(channels, {
+      fields: [groupFlaggedContent.channelId],
+      references: [channels.id],
+    }),
+    flaggedBy: one(contacts, {
+      fields: [groupFlaggedContent.flaggedByContactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupMemberInvites = sqliteTable(
+  'group_member_invites',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    invitedAt: timestamp('invited_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId],
+      }),
+    };
+  }
+);
+
+export const groupMemberInviteRelations = relations(
+  groupMemberInvites,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupMemberInvites.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupMemberInvites.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupMemberBans = sqliteTable(
+  'group_member_bans',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    bannedAt: timestamp('banned_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.contactId],
+      }),
+    };
+  }
+);
+
+export const groupMemberBanRelations = relations(
+  groupMemberBans,
+  ({ one }) => ({
+    group: one(groups, {
+      fields: [groupMemberBans.groupId],
+      references: [groups.id],
+    }),
+    contact: one(contacts, {
+      fields: [groupMemberBans.contactId],
+      references: [contacts.id],
+    }),
+  })
+);
+
+export const groupRankBans = sqliteTable(
+  'group_rank_bans',
+  {
+    groupId: text('group_id')
+      .references(() => groups.id)
+      .notNull(),
+    rankId: text('rank_id').notNull().$type<Rank>(),
+    bannedAt: timestamp('banned_at'),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.groupId, table.rankId],
+      }),
+    };
+  }
+);
+
+export const groupRankBanRelations = relations(groupRankBans, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupRankBans.groupId],
+    references: [groups.id],
+  }),
+}));
 
 export const channelWriters = sqliteTable(
   'channel_writers',

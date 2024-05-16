@@ -23,7 +23,7 @@ import {
 
 import { ChannelInit } from '../api';
 import { appendContactIdToReplies } from '../logic';
-import { desig } from '../urbit';
+import { Rank, desig } from '../urbit';
 import { client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -33,8 +33,12 @@ import {
   chatMembers as $chatMembers,
   contactGroups as $contactGroups,
   contacts as $contacts,
+  groupFlaggedContent as $groupFlaggedContent,
+  groupMemberBans as $groupMemberBans,
+  groupMemberInvites as $groupMemberInvites,
   groupNavSectionChannels as $groupNavSectionChannels,
   groupNavSections as $groupNavSections,
+  groupRankBans as $groupRankBans,
   groupRoles as $groupRoles,
   groups as $groups,
   pins as $pins,
@@ -47,8 +51,11 @@ import {
 import {
   Channel,
   ChatMember,
+  ClientMeta,
   Contact,
   Group,
+  GroupNavSection,
+  GroupRole,
   Pin,
   PinType,
   Post,
@@ -254,6 +261,12 @@ export const insertGroups = createWriteQuery(
               ),
             });
         }
+        if (group.flaggedContent?.length) {
+          await tx
+            .insert($groupFlaggedContent)
+            .values(group.flaggedContent)
+            .onConflictDoNothing();
+        }
         if (group.navSections) {
           await tx
             .insert($groupNavSections)
@@ -350,6 +363,62 @@ export const insertGroups = createWriteQuery(
   ]
 );
 
+export const updateGroup = createWriteQuery(
+  'updateGroup',
+  async (group: {
+    id: string;
+    meta?: ClientMeta;
+    isSecret?: boolean;
+    publicOrPrivate?: 'public' | 'private';
+  }) => {
+    return client
+      .update($groups)
+      .set({
+        ...group.meta,
+        isSecret: group.isSecret,
+        publicOrPrivate: group.publicOrPrivate,
+      })
+      .where(eq($groups.id, group.id));
+  },
+  ['groups']
+);
+
+export const deleteGroup = createWriteQuery(
+  'deleteGroup',
+  async (groupId: string) => {
+    return client.delete($groups).where(eq($groups.id, groupId));
+  },
+  ['groups']
+);
+
+export const insertFlaggedContent = createWriteQuery(
+  'insertFlaggedContent',
+  async (
+    content: {
+      groupId: string;
+      postId: string;
+      channelId: string;
+      flaggedByContactId: string;
+    }[]
+  ) => {
+    return client
+      .insert($groupFlaggedContent)
+      .values(content)
+      .onConflictDoNothing();
+  },
+  ['groupFlaggedContent']
+);
+
+export const getFlaggedContent = createReadQuery(
+  'getFlaggedContent',
+  async (groupId: string) => {
+    return client.query.groupFlaggedContent.findMany({
+      where: eq($groupFlaggedContent.groupId, groupId),
+    });
+  },
+  ['groupFlaggedContent']
+);
+
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
   (channelsInit: ChannelInit[]) => {
@@ -419,6 +488,256 @@ export const getChatMember = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['chatMembers', 'chatMemberGroupRoles']
+);
+
+export const addChatMembers = createWriteQuery(
+  'addChatMembers',
+  async ({
+    chatId,
+    contactIds,
+    type,
+  }: {
+    chatId: string;
+    contactIds: string[];
+    type: 'group' | 'channel';
+  }) => {
+    return client.transaction(async (tx) => {
+      await tx
+        .insert($chatMembers)
+        .values(
+          contactIds.map((contactId) => ({
+            chatId,
+            contactId,
+            membershipType: type,
+          }))
+        )
+        .onConflictDoNothing();
+    });
+  },
+  ['chatMembers']
+);
+
+export const addGroupInvites = createWriteQuery(
+  'addGroupInvites',
+  async (invites: { groupId: string; contactIds: string[] }) => {
+    return client
+      .insert($groupMemberInvites)
+      .values(
+        invites.contactIds.map((contactId) => ({
+          groupId: invites.groupId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['groupMemberInvites']
+);
+
+export const getGroupInvites = createReadQuery(
+  'getGroupInvites',
+  async (groupId: string) => {
+    return client.query.groupMemberInvites.findMany({
+      where: eq($groupMemberInvites.groupId, groupId),
+    });
+  },
+  ['groupMemberInvites']
+);
+
+export const deleteGroupInvites = createWriteQuery(
+  'deleteGroupInvites',
+  async (invites: { groupId: string; contactIds: string[] }) => {
+    return client
+      .delete($groupMemberInvites)
+      .where(
+        and(
+          eq($groupMemberInvites.groupId, invites.groupId),
+          inArray($groupMemberInvites.contactId, invites.contactIds)
+        )
+      );
+  },
+  ['groupMemberInvites']
+);
+
+export const addGroupMemberBans = createWriteQuery(
+  'addGroupMemberBans',
+  async (bans: { groupId: string; contactIds: string[] }) => {
+    return client
+      .insert($groupMemberBans)
+      .values(
+        bans.contactIds.map((contactId) => ({
+          groupId: bans.groupId,
+          contactId,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['groupMemberBans']
+);
+
+export const getGroupMemberBans = createReadQuery(
+  'getGroupMemberBans',
+  async (groupId: string) => {
+    return client.query.groupMemberBans.findMany({
+      where: eq($groupMemberBans.groupId, groupId),
+    });
+  },
+  ['groupMemberBans']
+);
+
+export const deleteGroupMemberBans = createWriteQuery(
+  'deleteGroupMemberBans',
+  async (bans: { groupId: string; contactIds: string[] }) => {
+    return client
+      .delete($groupMemberBans)
+      .where(
+        and(
+          eq($groupMemberBans.groupId, bans.groupId),
+          inArray($groupMemberBans.contactId, bans.contactIds)
+        )
+      );
+  },
+  ['groupMemberBans']
+);
+
+export const addGroupRankBans = createWriteQuery(
+  'addGroupRankBans',
+  async (bans: { groupId: string; ranks: Rank[] }) => {
+    return client
+      .insert($groupRankBans)
+      .values(
+        bans.ranks.map((rank) => ({
+          groupId: bans.groupId,
+          rankId: rank,
+        }))
+      )
+      .onConflictDoNothing();
+  },
+  ['groupRankBans']
+);
+
+export const getGroupRankBans = createReadQuery(
+  'getGroupRankBans',
+  async (groupId: string) => {
+    return client.query.groupRankBans.findMany({
+      where: eq($groupRankBans.groupId, groupId),
+    });
+  },
+  ['groupRankBans']
+);
+
+export const deleteGroupRankBans = createWriteQuery(
+  'deleteGroupRankBans',
+  async (bans: { groupId: string; ranks: Rank[] }) => {
+    return client
+      .delete($groupRankBans)
+      .where(
+        and(
+          eq($groupRankBans.groupId, bans.groupId),
+          inArray($groupRankBans.rankId, bans.ranks)
+        )
+      );
+  },
+  ['groupRankBans']
+);
+
+export const addRole = createWriteQuery(
+  'addRole',
+  async (role: GroupRole) => {
+    return client
+      .insert($groupRoles)
+      .values(role)
+      .onConflictDoUpdate({
+        target: $groupRoles.id,
+        set: conflictUpdateSetAll($groupRoles),
+      });
+  },
+  ['groupRoles']
+);
+
+export const deleteRole = createWriteQuery(
+  'deleteRole',
+  async (roleId: string, groupId: string) => {
+    return client
+      .delete($groupRoles)
+      .where(and(eq($groupRoles.id, roleId), eq($groupRoles.groupId, groupId)));
+  },
+  ['groupRoles']
+);
+
+export const updateRole = createWriteQuery(
+  'updateRole',
+  async (role: Partial<GroupRole> & { id: string; groupId: string }) => {
+    return client
+      .update($groupRoles)
+      .set(role)
+      .where(
+        and(eq($groupRoles.groupId, role.groupId), eq($groupRoles.id, role.id))
+      );
+  },
+  ['groupRoles']
+);
+
+export const addChatMembersToRoles = createWriteQuery(
+  'addChatMembersToRoles',
+  async ({
+    groupId,
+    contactIds,
+    roleIds,
+  }: {
+    groupId: string;
+    contactIds: string[];
+    roleIds: string[];
+  }) => {
+    return client.insert($chatMemberGroupRoles).values(
+      contactIds.flatMap((contactId) =>
+        roleIds.map((roleId) => ({
+          groupId,
+          contactId,
+          roleId,
+        }))
+      )
+    );
+  },
+  ['chatMembers', 'chatMemberGroupRoles']
+);
+
+export const removeChatMembersFromRoles = createWriteQuery(
+  'removeChatMembersFromRoles',
+  async ({
+    groupId,
+    contactIds,
+    roleIds,
+  }: {
+    groupId: string;
+    contactIds: string[];
+    roleIds: string[];
+  }) => {
+    return client
+      .delete($chatMemberGroupRoles)
+      .where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          inArray($chatMemberGroupRoles.contactId, contactIds),
+          inArray($chatMemberGroupRoles.roleId, roleIds)
+        )
+      );
+  },
+  ['chatMemberGroupRoles']
+);
+
+export const removeChatMembers = createWriteQuery(
+  'removeChatMembers',
+  async ({ chatId, contactIds }: { chatId: string; contactIds: string[] }) => {
+    return client
+      .delete($chatMembers)
+      .where(
+        and(
+          eq($chatMembers.chatId, chatId),
+          inArray($chatMembers.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMembers']
 );
 
 export const getUnreadsCount = createReadQuery(
@@ -588,6 +907,125 @@ export const updateChannel = createWriteQuery(
   ['channels']
 );
 
+export const deleteChannel = createWriteQuery(
+  'deleteChannel',
+  async (channelId: string) => {
+    return client.delete($channels).where(eq($channels.id, channelId));
+  },
+  ['channels']
+);
+
+export const addNavSectionToGroup = createWriteQuery(
+  'addNavSectionToGroup',
+  async ({
+    id,
+    groupId,
+    meta,
+  }: {
+    id: string;
+    groupId: string;
+    meta: ClientMeta;
+  }) => {
+    return client
+      .insert($groupNavSections)
+      .values({
+        id,
+        title: meta.title,
+        description: meta.description,
+        iconImage: meta.iconImage,
+        coverImage: meta.coverImage,
+        iconImageColor: meta.iconImageColor,
+        coverImageColor: meta.coverImageColor,
+        groupId,
+      })
+      .onConflictDoUpdate({
+        target: $groupNavSections.id,
+        set: conflictUpdateSetAll($groupNavSections),
+      });
+  },
+  ['groupNavSections']
+);
+
+export const updateNavSection = createWriteQuery(
+  'updateNavSection',
+  async (navSection: Partial<GroupNavSection> & { id: string }) => {
+    return client
+      .update($groupNavSections)
+      .set(navSection)
+      .where(eq($groupNavSections.id, navSection.id));
+  },
+  ['groupNavSections']
+);
+
+export const deleteNavSection = createWriteQuery(
+  'deleteNavSection',
+  async (navSectionId: string) => {
+    return client
+      .delete($groupNavSections)
+      .where(eq($groupNavSections.id, navSectionId));
+  },
+  ['groupNavSections']
+);
+
+export const addChannelToNavSection = createWriteQuery(
+  'addChannelToNavSection',
+  async ({
+    channelId,
+    groupNavSectionId,
+    index,
+  }: {
+    channelId: string;
+    groupNavSectionId: string;
+    index: number;
+  }) => {
+    return client
+      .insert($groupNavSectionChannels)
+      .values({
+        channelId,
+        groupNavSectionId,
+        index,
+      })
+      .onConflictDoNothing();
+  },
+  ['groupNavSectionChannels']
+);
+
+export const deleteChannelFromNavSection = createWriteQuery(
+  'deleteChannelFromNavSection',
+  async ({
+    channelId,
+    groupNavSectionId,
+  }: {
+    channelId: string;
+    groupNavSectionId: string;
+  }) => {
+    return client
+      .delete($groupNavSectionChannels)
+      .where(
+        and(
+          eq($groupNavSectionChannels.channelId, channelId),
+          eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId)
+        )
+      );
+  },
+  ['groupNavSectionChannels']
+);
+
+export const getChannelNavSection = createReadQuery(
+  'getChannelNavSection',
+  async ({ channelId }: { channelId: string }) => {
+    return client.query.groupNavSectionChannels
+      .findFirst({
+        where: eq($groupNavSectionChannels.channelId, channelId),
+        with: {
+          groupNavSection: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['groupNavSectionChannels']
+);
+
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
   async ({ channelIds }: { channelIds: string[] }) => {
@@ -595,6 +1033,19 @@ export const setJoinedGroupChannels = createWriteQuery(
       .update($channels)
       .set({
         currentUserIsMember: inArray($channels.id, channelIds),
+      })
+      .where(isNotNull($channels.groupId));
+  },
+  ['channels']
+);
+
+export const setLeftGroupChannels = createWriteQuery(
+  'setLeftGroupChannels',
+  async ({ channelIds }: { channelIds: string[] }) => {
+    return await client
+      .update($channels)
+      .set({
+        currentUserIsMember: not(inArray($channels.id, channelIds)),
       })
       .where(isNotNull($channels.groupId));
   },
