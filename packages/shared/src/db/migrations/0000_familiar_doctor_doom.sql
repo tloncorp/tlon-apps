@@ -60,6 +60,32 @@ CREATE TABLE `contacts` (
 	`coverImage` text
 );
 --> statement-breakpoint
+CREATE TABLE `group_flagged_posts` (
+	`group_id` text NOT NULL,
+	`post_id` text NOT NULL,
+	`channel_id` text NOT NULL,
+	`flagged_by_contact_id` text NOT NULL,
+	`flagged_at` integer,
+	PRIMARY KEY(`group_id`, `post_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `group_member_bans` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`banned_at` integer,
+	PRIMARY KEY(`contact_id`, `group_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `group_member_invites` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`invited_at` integer,
+	PRIMARY KEY(`contact_id`, `group_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (
 	`group_nav_section_id` text,
 	`channel_id` text,
@@ -79,6 +105,14 @@ CREATE TABLE `group_nav_sections` (
 	`title` text,
 	`description` text,
 	`index` integer,
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `group_rank_bans` (
+	`group_id` text NOT NULL,
+	`rank_id` text NOT NULL,
+	`banned_at` integer,
+	PRIMARY KEY(`group_id`, `rank_id`),
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -103,7 +137,7 @@ CREATE TABLE `groups` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
-	`is_secret` integer,
+	`privacy` text,
 	`is_joined` integer,
 	`last_post_id` text,
 	`last_post_at` integer

@@ -1,10 +1,11 @@
 import { daToUnix, decToUd, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
+import type * as db from '../db/types';
 import type * as ub from '../urbit';
 import { isColor } from './groupsApi';
 
-export function toClientMeta(meta: ub.GroupMeta) {
+export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image;
   const iconImageData = iconImage
     ? isColor(iconImage)
