@@ -97,7 +97,7 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
-  const canWrite = true;
+  const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const renderItem = isChatChannel ? ChatMessage : NotebookPost;
