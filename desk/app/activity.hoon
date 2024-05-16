@@ -11,7 +11,7 @@
     ==
   ::
   +$  state-0
-    [%0 =indices:a =volume-settings:a]
+    [%0 =indices:a =activity:a =volume-settings:a]
   --
 ::
 =|  state-0
@@ -143,7 +143,7 @@
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
       [%x ~]
-    ``activity-full+!>([indices (~(urn by indices) summarize-unreads)])
+    ``activity-full+!>([indices activity])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
@@ -208,7 +208,7 @@
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
       [%x %unreads ~]
-    ``activity-unreads+!>((~(urn by indices) summarize-unreads))
+    ``activity-summary+!>(activity)
   ::
       [%x %volume-settings ~]
     ``activity-settings+!>(volume-settings)
@@ -234,28 +234,24 @@
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
-  =?  cor  =(%chan-init -<.event)
-    =/  =source:a  (determine-index inc)
-    (give-unreads source (~(gut by indices) source *index:a))
-  ?+  -<.event  cor
-      %dm-post
-    =/  source  [%dm whom.event]
-    (add-to-index source time-id event)
+  =/  =source:a  (determine-source inc)
+  ?+  -<.event  (add-to-index source time-id event)
+      %chan-init
+    =/  group-src  [%group group.event]
+    =.  cor  (add-to-index source time-id event)
+    (add-to-index group-src time-id event)
   ::
       %dm-reply
-    =/  src  [%dm-thread parent.event whom.event]
     =/  parent-src  [%dm whom.event]
-    =.  cor  (add-to-index src time-id event)
+    =.  cor  (add-to-index source time-id event)
     (add-to-index parent-src time-id event)
   ::
       %post
-    =/  source  [%channel channel.event group.event]
     =/  parent-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
     (add-to-index parent-src time-id event)
   ::
       %reply
-    =/  source  [%thread parent.event channel.event group.event]
     =/  chan-src  [%channel channel.event group.event]
     =/  group-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
@@ -275,7 +271,10 @@
     (update-floor source new)
   =.  indices
     (~(put by indices) source new)
-  (give-unreads source new)
+  =.  activity
+    %+  ~(put by activity)  source
+    (summarize-unreads source new)
+  (give-unreads source)
 ++  get-volumes
   |=  =source:a
   ^-  volume-map:a
@@ -292,10 +291,10 @@
 ++  get-volume
   |=  event=incoming-event:a
   ^-  volume:a
-  =/  source  (determine-index event)
+  =/  source  (determine-source event)
   =/  loudness=volume-map:a  (get-volumes source)
   (~(gut by loudness) (determine-event-type event) [unreads=& notify=|])
-++  determine-index
+++  determine-source
   |=  event=incoming-event:a
   ^-  source:a
   ?-  -.event
@@ -415,9 +414,9 @@
   =.  cor  (update-index src new &)
   $(sources rest)
 ++  give-unreads
-  |=  [=source:a index:a]
+  |=  =source:a
   ^+  cor
-  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (summarize-unreads source [stream reads])]))
+  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (~(got by activity) source)]))
 ::
 ++  adjust
   |=  [=source:a =volume-map:a]
@@ -434,10 +433,22 @@
     ~(tap in ~(key by indices))
   |=  src=source:a
   ?+  -.source  |
-      %base  &
+      %base  ?!(?=(%base -.src))
       %group  &(?=(%channel -.src) =(flag.source group.src))
       %channel  &(?=(%thread -.src) =(nest.source channel.src))
       %dm  &(?=(%dm-thread -.src) =(whom.source whom.src))
+  ==
+++  source-order
+  |=  =source:a
+  ^-  @ud
+  =-  (~(got by -) -.source)
+  %-  my
+  :~  [%thread 6]
+      [%channel 5]
+      [%group 4]
+      [%dm-thread 3]
+      [%dm 2]
+      [%base 1]
   ==
 ++  summarize-unreads
   |=  [=source:a index:a]
@@ -455,7 +466,9 @@
   ::        and segment replies for unread threads tracking
   |-
   ?~  read-items
-    (stream-to-unreads stream floor.reads (get-children source))
+    =/  children  (get-children source)
+    ~&  ['source:' source children]
+    (stream-to-unreads stream floor.reads children)
   =/  [[=time *] rest=read-items:a]  (pop:on-read-items:a read-items)
   %=  $
       read-items  rest
@@ -479,7 +492,8 @@
       children
     |=  [=source:a sum=activity-summary:a]
     =/  =index:a  (~(gut by indices) source *index:a)
-    =/  as  (summarize-unreads source index)
+    =/  as=activity-summary:a
+      (~(gut by activity) source (summarize-unreads source index))
     %=  sum
       count  (^add count.sum count.as)
       notify  &(notify.sum notify.as)
