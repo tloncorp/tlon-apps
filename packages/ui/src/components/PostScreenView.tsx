@@ -9,6 +9,7 @@ import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
+import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
@@ -60,12 +61,7 @@ export function PostScreenView({
       <ContactsProvider contacts={contacts}>
         <ReferencesProvider>
           <YStack flex={1} backgroundColor={'$background'}>
-            {/* <ChannelHeader
-              title={'Thread: ' + (channel?.title ?? null)}
-              goBack={goBack}
-              showPickerButton={false}
-              showSearchButton={false}
-            /> */}
+            <ChannelHeader channel={channel} />
             <KeyboardAvoidingView
               //TODO: Standardize this component, account for tab bar in a better way
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -126,6 +122,11 @@ export function PostScreenView({
                   </Text>
                 </View>
               )}
+              <ChannelFooter
+                showSearchButton={false}
+                title={'Thread: ' + channel.title}
+                goBack={goBack}
+              />
             </KeyboardAvoidingView>
           </YStack>
         </ReferencesProvider>

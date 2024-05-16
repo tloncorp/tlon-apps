@@ -35,7 +35,6 @@
     "color2k": "^2.0.0",
     "expo-blur": "^12.9.2",
     "expo-haptics": "^12.8.1",
-    "expo-linear-gradient": "^13.0.2",
     "lodash": "^4.17.21",
     "moti": "^0.28.1",
     "react-native-context-menu-view": "^1.15.0",

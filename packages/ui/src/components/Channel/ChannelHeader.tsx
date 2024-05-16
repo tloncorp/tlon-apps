@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   FadeIn,
@@ -9,7 +8,6 @@ import Animated, {
   FadeOutUp,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme, useThemeName } from 'tamagui';
 
 import { Image, Spinner, Text, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
@@ -26,30 +24,22 @@ export function ChannelHeader({
   showSpinner?: boolean;
   group?: db.Group | null;
 }) {
-  const themeName = useThemeName();
-  const isDarkMode = themeName === 'dark';
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
-    <View zIndex={50} position="absolute" flex={1} width={'100%'}>
-      <LinearGradient
-        colors={[
-          theme.background.val,
-          isDarkMode ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)',
-        ]}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          height: '80%',
-        }}
-      />
+    <View
+      position="relative"
+      height={insets.top}
+      zIndex={50}
+      flex={0}
+      width={'100%'}
+    >
       <XStack
         justifyContent="space-around"
         alignItems="center"
-        paddingTop={insets.top}
+        position="absolute"
+        width="100%"
+        top={insets.top}
       >
         {showIcon && (
           <Animated.View

@@ -1,7 +1,7 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronLeft, Search } from '../../assets/icons';
-import { Spinner, Text, View, XStack } from '../../core';
+import { SizableText, Spinner, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
@@ -32,9 +32,6 @@ export function ChannelFooter({
         paddingVertical="$m"
         paddingHorizontal="$xl"
         gap="$m"
-        // borderTopWidth={1}
-        // borderTopColor="$border"
-        // height="$4xl"
       >
         <XStack
           alignItems="center"
@@ -45,26 +42,23 @@ export function ChannelFooter({
           <IconButton onPress={goBack} color={'$secondaryText'}>
             <ChevronLeft />
           </IconButton>
-          {/* <SizableText
-            flexShrink={1}
-            numberOfLines={1}
-            color="$primaryText"
-            size="$m"
-            fontWeight="500"
-          >
-            {title}
-          </SizableText> */}
-          {/* </XStack> */}
-          {/* <XStack gap="$m" alignItems="center"> */}
           {showSpinner && <Spinner />}
           {showPickerButton && (
-            <Button onPress={goToChannels} size="$s">
+            <Button
+              onPress={goToChannels}
+              paddingHorizontal="$m"
+              paddingVertical="$s"
+            >
               <Icon size="$s" type="Channel" marginRight="$s" />
-              <Text>{title}</Text>
+              <SizableText
+                ellipsizeMode="tail"
+                numberOfLines={1}
+                fontSize={'$s'}
+                maxWidth={200}
+              >
+                {title}
+              </SizableText>
             </Button>
-            // <IconButton onPress={goToChannels}>
-            //
-            // </IconButton>
           )}
           {showSearchButton && (
             <IconButton onPress={goToSearch} color={'$secondaryText'}>
