@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "981ca8e2-178d-4d38-b0e1-08e4ed68083b",
+  "id": "540cf3f4-4451-4343-8ffc-e613b926fa6c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -398,8 +398,8 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "group_flagged_content": {
-      "name": "group_flagged_content",
+    "group_flagged_posts": {
+      "name": "group_flagged_posts",
       "columns": {
         "group_id": {
           "name": "group_id",
@@ -439,9 +439,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "group_flagged_content_group_id_groups_id_fk": {
-          "name": "group_flagged_content_group_id_groups_id_fk",
-          "tableFrom": "group_flagged_content",
+        "group_flagged_posts_group_id_groups_id_fk": {
+          "name": "group_flagged_posts_group_id_groups_id_fk",
+          "tableFrom": "group_flagged_posts",
           "tableTo": "groups",
           "columnsFrom": [
             "group_id"
@@ -454,12 +454,12 @@
         }
       },
       "compositePrimaryKeys": {
-        "group_flagged_content_group_id_post_id_pk": {
+        "group_flagged_posts_group_id_post_id_pk": {
           "columns": [
             "group_id",
             "post_id"
           ],
-          "name": "group_flagged_content_group_id_post_id_pk"
+          "name": "group_flagged_posts_group_id_post_id_pk"
         }
       },
       "uniqueConstraints": {}

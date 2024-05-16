@@ -117,8 +117,8 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         ranks: update.ranks,
       });
       break;
-    case 'flagGroupContent':
-      await db.insertFlaggedContent([
+    case 'flagGroupPost':
+      await db.insertFlaggedPosts([
         {
           groupId: update.groupId,
           channelId: update.channelId,

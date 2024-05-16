@@ -33,7 +33,7 @@ import {
   chatMembers as $chatMembers,
   contactGroups as $contactGroups,
   contacts as $contacts,
-  groupFlaggedContent as $groupFlaggedContent,
+  groupFlaggedPosts as $groupFlaggedPosts,
   groupMemberBans as $groupMemberBans,
   groupMemberInvites as $groupMemberInvites,
   groupNavSectionChannels as $groupNavSectionChannels,
@@ -261,10 +261,10 @@ export const insertGroups = createWriteQuery(
               ),
             });
         }
-        if (group.flaggedContent?.length) {
+        if (group.flaggedPosts?.length) {
           await tx
-            .insert($groupFlaggedContent)
-            .values(group.flaggedContent)
+            .insert($groupFlaggedPosts)
+            .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
         if (group.navSections) {
@@ -391,8 +391,8 @@ export const deleteGroup = createWriteQuery(
   ['groups']
 );
 
-export const insertFlaggedContent = createWriteQuery(
-  'insertFlaggedContent',
+export const insertFlaggedPosts = createWriteQuery(
+  'insertFlaggedPosts',
   async (
     content: {
       groupId: string;
@@ -402,21 +402,21 @@ export const insertFlaggedContent = createWriteQuery(
     }[]
   ) => {
     return client
-      .insert($groupFlaggedContent)
+      .insert($groupFlaggedPosts)
       .values(content)
       .onConflictDoNothing();
   },
-  ['groupFlaggedContent']
+  ['groupFlaggedPosts']
 );
 
-export const getFlaggedContent = createReadQuery(
-  'getFlaggedContent',
+export const getFlaggedPosts = createReadQuery(
+  'getFlaggedPosts',
   async (groupId: string) => {
-    return client.query.groupFlaggedContent.findMany({
-      where: eq($groupFlaggedContent.groupId, groupId),
+    return client.query.groupFlaggedPosts.findMany({
+      where: eq($groupFlaggedPosts.groupId, groupId),
     });
   },
-  ['groupFlaggedContent']
+  ['groupFlaggedPosts']
 );
 
 export const insertChannelPerms = createWriteQuery(

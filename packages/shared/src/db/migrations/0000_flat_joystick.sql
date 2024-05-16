@@ -60,7 +60,7 @@ CREATE TABLE `contacts` (
 	`coverImage` text
 );
 --> statement-breakpoint
-CREATE TABLE `group_flagged_content` (
+CREATE TABLE `group_flagged_posts` (
 	`group_id` text NOT NULL,
 	`post_id` text NOT NULL,
 	`channel_id` text NOT NULL,

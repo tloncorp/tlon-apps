@@ -179,7 +179,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   roles: many(groupRoles),
   members: many(chatMembers),
   navSections: many(groupNavSections),
-  flaggedContent: many(groupFlaggedContent),
+  flaggedPosts: many(groupFlaggedPosts),
   channels: many(channels),
   posts: many(posts),
   lastPost: one(posts, {
@@ -230,8 +230,8 @@ export const chatMembers = sqliteTable(
   }
 );
 
-export const groupFlaggedContent = sqliteTable(
-  'group_flagged_content',
+export const groupFlaggedPosts = sqliteTable(
+  'group_flagged_posts',
   {
     groupId: text('group_id')
       .references(() => groups.id)
@@ -250,23 +250,23 @@ export const groupFlaggedContent = sqliteTable(
   }
 );
 
-export const groupFlaggedContentRelations = relations(
-  groupFlaggedContent,
+export const groupFlaggedPostsRelations = relations(
+  groupFlaggedPosts,
   ({ one }) => ({
     group: one(groups, {
-      fields: [groupFlaggedContent.groupId],
+      fields: [groupFlaggedPosts.groupId],
       references: [groups.id],
     }),
     post: one(posts, {
-      fields: [groupFlaggedContent.postId],
+      fields: [groupFlaggedPosts.postId],
       references: [posts.id],
     }),
     channel: one(channels, {
-      fields: [groupFlaggedContent.channelId],
+      fields: [groupFlaggedPosts.channelId],
       references: [channels.id],
     }),
     flaggedBy: one(contacts, {
-      fields: [groupFlaggedContent.flaggedByContactId],
+      fields: [groupFlaggedPosts.flaggedByContactId],
       references: [contacts.id],
     }),
   })

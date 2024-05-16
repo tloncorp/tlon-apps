@@ -1,7 +1,7 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
-import { Rank, getChannelType } from '../urbit';
+import { FlaggedContent, Rank, getChannelType } from '../urbit';
 import { toClientMeta } from './converters';
 import { poke, scry, subscribe } from './urbit';
 
@@ -270,7 +270,7 @@ export type GroupSetAsNotSecret = {
 };
 
 export type GroupFlagContent = {
-  type: 'flagGroupContent';
+  type: 'flagGroupPost';
   groupId: string;
   channelId: string;
   postId: string;
@@ -473,7 +473,7 @@ export const toGroupUpdate = (
 
   if ('flag-content' in updateDiff) {
     return {
-      type: 'flagGroupContent',
+      type: 'flagGroupPost',
       groupId,
       channelId: updateDiff['flag-content'].nest,
       postId: updateDiff['flag-content']['post-key'].reply
@@ -621,6 +621,32 @@ export const toGroupUpdate = (
   return { type: 'unknown' };
 };
 
+const extractFlaggedPosts = (
+  groupId: string,
+  flaggedContent?: FlaggedContent
+): db.GroupFlaggedPosts[] => {
+  const flaggedPosts: db.GroupFlaggedPosts[] = [];
+
+  if (!flaggedContent) {
+    return flaggedPosts;
+  }
+
+  Object.entries(flaggedContent).forEach(([channelId, posts]) => {
+    Object.entries(posts).forEach(([postId, post]) => {
+      post.flaggers.forEach((flagger) => {
+        flaggedPosts.push({
+          groupId,
+          channelId,
+          postId,
+          flaggedByContactId: flagger,
+        });
+      });
+    });
+  });
+
+  return flaggedPosts;
+};
+
 export function toClientGroups(
   groups: Record<string, ub.Group>,
   isJoined: boolean
@@ -639,24 +665,11 @@ export function toClientGroup(
   isJoined: boolean
 ): db.Group {
   const rolesById: Record<string, db.GroupRole> = {};
-  const flaggedContent: db.GroupFlaggedContent[] = group['flagged-content']
-    ? Object.entries(group['flagged-content'])
-        .map(([channelId, posts]) => {
-          return Object.entries(posts)
-            .map(([postId, post]) => {
-              return post.flaggers.map((flagger) => {
-                return {
-                  groupId: id,
-                  channelId,
-                  postId,
-                  flaggedByContactId: flagger,
-                };
-              });
-            })
-            .flat();
-        })
-        .flat()
-    : [];
+  const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
+    id,
+    group['flagged-content']
+  );
+
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
     const data: db.GroupRole = {
       id: roleId,
@@ -672,7 +685,7 @@ export function toClientGroup(
     roles,
     isSecret: group.secret,
     ...toClientMeta(group.meta),
-    flaggedContent: flaggedContent.flat(),
+    flaggedPosts,
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
         const zone = group.zones?.[zoneId];
