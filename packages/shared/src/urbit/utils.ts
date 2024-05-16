@@ -1,9 +1,11 @@
 import { formatUd, formatUv, unixToDa } from '@urbit/aura';
 import { useMemo } from 'react';
 
+import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
+import * as ubg from './groups';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -309,4 +311,37 @@ export function useIsDmOrMultiDm(whom: string) {
 
 export function createMultiDmId(seed = Date.now()) {
   return formatUv(unixToDa(seed));
+}
+
+export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
+  if (gang.claim?.progress) {
+    if (gang.claim?.progress === 'adding') {
+      return 'joining';
+    }
+
+    // still consider the join in progress until the claim is removed
+    if (gang.claim?.progress === 'done') {
+      return 'joining';
+    }
+
+    if (gang.claim?.progress === 'error') {
+      return 'errored';
+    }
+  }
+
+  return null;
+}
+
+export function extractGroupPrivacy(
+  preview: ubg.GroupPreview | ubg.Group | null
+): GroupPrivacy {
+  if (!preview) {
+    return 'public';
+  }
+
+  return preview.secret
+    ? 'secret'
+    : preview.cordon && 'shut' in preview.cordon
+      ? 'private'
+      : 'public';
 }

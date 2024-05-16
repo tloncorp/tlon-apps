@@ -64,3 +64,12 @@ export type Reaction = BaseModel<'postReactions'>;
 export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
+
+// Type guards
+export function isGroup(obj: Channel | Group): obj is Group {
+  return 'privacy' in obj;
+}
+
+export function isChannel(obj: Channel | Group): obj is Channel {
+  return 'type' in obj;
+}

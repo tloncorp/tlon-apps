@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AddChatProvider,
@@ -13,7 +13,7 @@ import {
   Spinner,
   View,
 } from '@tloncorp/ui/src';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
@@ -40,6 +40,10 @@ export default function ChatListScreen(
   const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
   useRefetchQueryOnFocus(refetch);
 
+  useEffect(() => {
+    console.log(`pending:`, chats?.pendingGroups);
+  }, [chats?.pendingGroups]);
+
   const gotoDm = async (participants: string[]) => {
     const dmChannel = await store.upsertDmChannel({
       participants,
@@ -52,6 +56,14 @@ export default function ChatListScreen(
   const goToChannel = ({ channel }: { channel: db.Channel }) => {
     setAddChatOpen(false);
     setTimeout(() => props.navigation.navigate('Channel', { channel }), 150);
+  };
+
+  const onPressChat = (item: db.Channel | db.Group) => {
+    if (db.isGroup(item)) {
+      setSelectedGroup(item);
+    } else {
+      props.navigation.navigate('Channel', { channel: item });
+    }
   };
 
   const handleUpdateInvitation = (group: db.Group, accepted: boolean) => {
@@ -81,10 +93,9 @@ export default function ChatListScreen(
             <ChatList
               pinned={chats.pinned ?? []}
               unpinned={chats.unpinned ?? []}
+              pendingGroups={chats.pendingGroups ?? []}
               onLongPressItem={setLongPressedItem}
-              onPressItem={(channel) => {
-                props.navigation.navigate('Channel', { channel });
-              }}
+              onPressItem={onPressChat}
             />
           ) : null}
           <ChatOptionsSheet

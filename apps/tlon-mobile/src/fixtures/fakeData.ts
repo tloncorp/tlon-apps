@@ -552,7 +552,7 @@ export const group: db.Group = {
   coverImageColor: '#000000',
   iconImage: null,
   iconImageColor: '#FFFFFF',
-  joinStatus: 'joined',
+  currentUserIsMember: true,
   lastPostAt: null,
   lastPostId: null,
   description: 'Tlon Local',
@@ -588,7 +588,7 @@ export const group: db.Group = {
       membershipType: 'group',
     },
   ],
-  isSecret: false,
+  privacy: 'public',
 };
 
 export const fakeStrings: string[] = [
@@ -757,14 +757,14 @@ const dates = {
 export const groupWithColorAndNoImage: db.Group = {
   id: '1',
   title: 'Test Group',
-  isSecret: false,
+  privacy: 'public',
   unreadCount: 1,
   iconImage: null,
   iconImageColor: '#FF00FF',
   coverImage: null,
   coverImageColor: null,
   description: 'A test group',
-  joinStatus: 'joined',
+  currentUserIsMember: true,
   lastPostId: 'test-post',
   lastPostAt: dates.now,
   lastPost: { ...createFakePost() },

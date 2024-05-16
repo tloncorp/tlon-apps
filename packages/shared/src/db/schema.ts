@@ -162,13 +162,18 @@ export const pinRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
-export type GroupInviteStatus = 'joined' | 'invited' | 'joining';
+export type GroupJoinStatus = 'joining' | 'errored';
+export type GroupPrivacy = 'public' | 'private' | 'secret';
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
-  isSecret: boolean('is_secret'),
-  joinStatus: text('join_status').$type<GroupInviteStatus>(),
+  privacy: text('privacy').$type<GroupPrivacy>(),
+  haveInvite: boolean('have_invite'),
+  haveRequestedInvite: boolean('have_requested_invite'),
+  currentUserIsMember: boolean('current_user_is_member').notNull(),
+  isNew: boolean('is_new'),
+  joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
 });
@@ -366,6 +371,7 @@ export const channels = sqliteTable('channels', {
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
   isPendingChannel: boolean('is_cached_pending_channel'),
+  isDmInvite: boolean('is_dm_invite'),
   /**
    * Last time we ran a sync, in local time
    */

@@ -91,7 +91,10 @@ export const handleGroupsUpdate = async (update: api.GroupsUpdate) => {
       await db.insertGroups(update.groups);
       break;
     case 'deleteGroup':
-      await db.deleteGroup(update.group.id);
+      await db.deleteGroup(update.groupId);
+      break;
+    case 'setUnjoinedGroups':
+      await db.insertUnjoinedGroups(update.groups);
       break;
     default:
       break;

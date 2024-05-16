@@ -4,7 +4,7 @@ import { toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
   toClientGroups,
-  toClientInvitedGroups,
+  toClientGroupsFromGangs,
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientUnreads } from './unreadsApi';
@@ -26,8 +26,8 @@ export const getInitData = async () => {
   const pins = toClientPinnedItems(response.pins);
   const channelsInit = toClientChannelsInit(response.channels);
   const groups = [
+    ...toClientGroupsFromGangs(response.gangs),
     ...toClientGroups(response.groups, true),
-    ...toClientInvitedGroups(response.gangs),
   ];
   const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);

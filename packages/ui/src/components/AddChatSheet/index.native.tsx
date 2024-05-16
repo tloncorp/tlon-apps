@@ -222,7 +222,7 @@ function JoinGroupPane(props: StackScreenProps<StackParamList, 'JoinGroup'>) {
             />
           </XStack>
           <GroupListItem model={state.selectedGroup} />
-          {state.selectedGroup.joinStatus === 'joined' ? (
+          {state.selectedGroup.currentUserIsMember ? (
             <SizableText>You are already a member</SizableText>
           ) : (
             <Button hero onPress={() => props.navigation.pop()}>

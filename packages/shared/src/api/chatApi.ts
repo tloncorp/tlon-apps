@@ -32,6 +32,64 @@ export const createGroupDm = ({
   });
 };
 
+export const respondToDMInvite = ({
+  channel,
+  accept,
+  currentUserId,
+}: {
+  channel: db.Channel;
+  accept: boolean;
+  currentUserId: string;
+}) => {
+  if (channel.type === 'dm') {
+    return poke({
+      app: 'chat',
+      mark: 'chat-dm-rsvp',
+      json: {
+        ship: channel.id,
+        ok: accept,
+      },
+    });
+  }
+
+  const action = multiDmAction(channel.id, {
+    team: { ship: currentUserId, ok: accept },
+  });
+  return poke(action);
+};
+
+export function blockUser(userId: string) {
+  return poke({
+    app: 'chat',
+    mark: 'chat-block-ship',
+    json: { ship: userId },
+  });
+}
+
+export function unblockUser(userId: string) {
+  return poke({
+    app: 'chat',
+    mark: 'chat-unblock-ship',
+    json: { ship: userId },
+  });
+}
+
+function multiDmAction(id: string, delta: ub.ClubDelta) {
+  return {
+    app: 'chat',
+    mark: 'chat-club-action-0',
+    json: {
+      id,
+      diff: {
+        uid: '0v3',
+        delta,
+      },
+    },
+  };
+}
+
+export const respondToMultiDMInvite = {};
+
 export type GetDmsResponse = db.Channel[];
 
 export const getDms = async (): Promise<GetDmsResponse> => {

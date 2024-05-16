@@ -127,7 +127,7 @@ export const getGroups = createReadQuery(
       })
       .from($groups)
       .where(() =>
-        includeUnjoined ? undefined : eq($groups.joinStatus, 'joined')
+        includeUnjoined ? undefined : eq($groups.currentUserIsMember, true)
       );
     if (includeLastPost) {
       query.leftJoin($posts, eq($groups.lastPostId, $posts.id));
@@ -142,6 +142,16 @@ export const getGroups = createReadQuery(
     ...(includeLastPost ? (['posts'] as TableName[]) : []),
     ...(includeUnreads ? (['unreads'] as TableName[]) : []),
   ]
+);
+
+export const getPendingGroups = createReadQuery(
+  'getPendingGroups',
+  async () => {
+    return client.query.groups.findMany({
+      where: or(eq($groups.haveInvite, true), isNotNull($groups.joinStatus)),
+    });
+  },
+  ['groups']
 );
 
 export const getChats = createReadQuery(
@@ -252,8 +262,10 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
-                $groups.isSecret,
-                $groups.joinStatus
+                $groups.privacy,
+                $groups.joinStatus,
+                $groups.currentUserIsMember,
+                $groups.haveInvite
               ),
             });
         } else {
@@ -389,6 +401,20 @@ export const deleteGroup = createWriteQuery(
     ]);
   },
   ['groups', 'channels']
+);
+
+export const insertUnjoinedGroups = createWriteQuery(
+  'insertUnjoinedGroups',
+  async (groups: Group[]) => {
+    return client
+      .insert($groups)
+      .values(groups)
+      .onConflictDoUpdate({
+        target: $groups.id,
+        set: conflictUpdateSetAll($groups),
+      });
+  },
+  ['groups']
 );
 
 export const insertChannelPerms = createWriteQuery(
@@ -1154,12 +1180,14 @@ export const insertContacts = createWriteQuery(
     const contactGroups = contactsData.flatMap(
       (contact) => contact.pinnedGroups || []
     );
-    const targetGroups = contactGroups.map(
-      (g): Group => ({
-        id: g.groupId,
-        isSecret: false,
-      })
-    );
+    // TODO: fix pinned contact group insertion
+    console.log(`CONTACT GROUPS`, contactGroups);
+    // const targetGroups = contactGroups.map(
+    //   (g): Group => ({
+    //     id: g.groupId,
+    //     isSecret: false,
+    //   })
+    // );
     await client
       .insert($contacts)
       .values(contactsData)
@@ -1167,14 +1195,14 @@ export const insertContacts = createWriteQuery(
         target: $contacts.id,
         set: conflictUpdateSetAll($contacts),
       });
-    if (targetGroups.length) {
-      await client.insert($groups).values(targetGroups).onConflictDoNothing();
-    }
+    // if (targetGroups.length) {
+    //   await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    // }
     // TODO: Remove stale pinned groups
-    await client
-      .insert($contactGroups)
-      .values(contactGroups)
-      .onConflictDoNothing();
+    // await client
+    //   .insert($contactGroups)
+    //   .values(contactGroups)
+    //   .onConflictDoNothing();
   },
   ['contacts', 'groups', 'contactGroups']
 );

@@ -1,7 +1,11 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
-import { getChannelType } from '../urbit';
+import {
+  extractGroupPrivacy,
+  getChannelType,
+  getJoinStatusFromGang,
+} from '../urbit';
 import { toClientMeta } from './converters';
 import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
@@ -122,16 +126,6 @@ export const createGroup = async ({
   );
 };
 
-// TODO transform these events into something client-friendly
-// export const subscribeToGroupsUpdates = async (
-//   eventHandler: (update: any) => void
-// ) => {
-//   subscribe({ app: 'groups', path: `/groups/ui` }, (rawEvent: any) => {
-//     // just return raw event for now
-//     eventHandler(rawEvent);
-//   });
-// };
-
 export const getGroup = async (groupId: string) => {
   const path = `/groups/${groupId}/v1`;
 
@@ -165,21 +159,6 @@ export function toClientGroups(
   });
 }
 
-export function toClientGroupsFromPreview(
-  groups: Record<string, ub.GroupPreview>
-) {
-  return Object.entries(groups).map(([id, preview]) => {
-    return toClientGroupFromPreview(id, preview);
-  });
-}
-
-export function toClientGroupFromPreview(id: string, preview: ub.GroupPreview) {
-  return {
-    id,
-    ...toClientMeta(preview.meta),
-  };
-}
-
 export function toClientGroup(
   id: string,
   group: ub.Group,
@@ -198,9 +177,10 @@ export function toClientGroup(
   return {
     id,
     roles,
-    isSecret: group.secret,
-    joinStatus: isJoined ? 'joined' : undefined,
+    privacy: extractGroupPrivacy(group),
     ...toClientMeta(group.meta),
+    haveInvite: false,
+    currentUserIsMember: isJoined,
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
         const zone = group.zones?.[zoneId];
@@ -237,37 +217,43 @@ export function toClientGroup(
   };
 }
 
-export function toClientInvitedGroups(gangs: Record<string, ub.Gang>) {
-  if (!gangs) {
-    return [];
-  }
-
-  return Object.entries(gangs)
-    .filter(
-      ([_, gang]) =>
-        gang.invite && gang.preview && 'shut' in gang.preview.cordon
-    )
-    .map(([id, gang]) => toClientInvitedGroup(id, gang));
+export function toClientGroupsFromPreview(
+  groups: Record<string, ub.GroupPreview>
+) {
+  return Object.entries(groups).map(([id, preview]) => {
+    return toClientGroupFromPreview(id, preview);
+  });
 }
 
-export function toClientInvitedGroup(id: string, gang: ub.Gang): db.Group {
+export function toClientGroupFromPreview(
+  id: string,
+  preview: ub.GroupPreview
+): db.Group {
   return {
     id,
-    isSecret: !!gang.preview?.secret,
-    joinStatus: 'invited',
+    currentUserIsMember: false,
+    privacy: extractGroupPrivacy(preview),
+    ...toClientMeta(preview.meta),
+  };
+}
+
+export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
+  return Object.entries(gangs).map(([id, gang]) => {
+    return toClientGroupFromGang(id, gang);
+  });
+}
+
+export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
+  const privacy = extractGroupPrivacy(gang.preview);
+  const joinStatus = getJoinStatusFromGang(gang);
+  return {
+    id,
+    privacy,
+    currentUserIsMember: false,
+    haveInvite: !!gang.invite,
+    haveRequestedInvite: gang.claim?.progress === 'knocking',
+    joinStatus,
     ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
-    // Create placeholder Channel to show in chat list
-    channels: [
-      {
-        id,
-        groupId: id,
-        type: 'chat',
-        iconImage: omitEmpty(gang.preview?.meta.image ?? ''),
-        title: omitEmpty(gang.preview?.meta.title ?? ''),
-        coverImage: omitEmpty(gang.preview?.meta.cover ?? ''),
-        description: omitEmpty(gang.preview?.meta.description ?? ''),
-      },
-    ],
   };
 }
 
@@ -353,7 +339,8 @@ export const rejectGroupInvitation = async (id: string) =>
 export type GroupsUpdate =
   | { type: 'unknown' }
   | { type: 'addGroups'; groups: db.Group[] }
-  | { type: 'deleteGroup'; group: db.Group };
+  | { type: 'deleteGroup'; groupId: string }
+  | { type: 'setUnjoinedGroups'; groups: db.Group[] };
 
 const toGroupsUpdate = (groupEvent: ub.GroupAction): GroupsUpdate => {
   if ('create' in groupEvent.update.diff) {
@@ -368,7 +355,7 @@ const toGroupsUpdate = (groupEvent: ub.GroupAction): GroupsUpdate => {
   if ('del' in groupEvent.update.diff) {
     return {
       type: 'deleteGroup',
-      group: { id: groupEvent.flag },
+      groupId: groupEvent.flag,
     };
   }
 
@@ -377,21 +364,8 @@ const toGroupsUpdate = (groupEvent: ub.GroupAction): GroupsUpdate => {
 };
 
 const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupsUpdate => {
-  const invitedGangs = Object.values(gangsEvent).filter(
-    ({ invite, preview }) =>
-      invite && preview?.cordon && 'shut' in preview.cordon
-  );
-  if (invitedGangs.length > 0) {
-    return {
-      type: 'addGroups',
-      groups: invitedGangs.map((gang) =>
-        toClientInvitedGroup(gang.invite!.flag, gang)
-      ),
-    };
-  }
-
-  logger.log('Skipping unknown gangs event:', gangsEvent);
-  return { type: 'unknown' };
+  const groups = toClientGroupsFromGangs(gangsEvent);
+  return { type: 'setUnjoinedGroups', groups };
 };
 
 export const subscribeToGroupsUpdates = async (
@@ -400,7 +374,7 @@ export const subscribeToGroupsUpdates = async (
   subscribe(
     { app: 'groups', path: '/groups/ui' },
     (rawEvent: ub.GroupAction) => {
-      logger.debug('Received groups update:', rawEvent);
+      logger.log('Received groups update:', rawEvent);
 
       // Sometimes this event is fired with a string instead
       if (typeof rawEvent !== 'object') {
@@ -412,7 +386,7 @@ export const subscribeToGroupsUpdates = async (
   );
 
   subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
-    logger.debug('Received gangs update:', rawEvent);
+    logger.log('Received gangs update:', rawEvent);
     eventHandler(toGangsGroupsUpdate(rawEvent));
   });
 };

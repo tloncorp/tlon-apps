@@ -1,4 +1,5 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import { useMemo } from 'react';
 
 import { SizableText, Stack } from '../../core';
 import ContactName from '../ContactName';
@@ -10,10 +11,15 @@ export default function GroupListItemContent({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) {
+  const { isPending, statusDisplay } = useMemo(
+    () => getDisplayInfo(model),
+    [model]
+  );
+
   return (
     <ListItem
       {...props}
-      alignItems={model.joinStatus !== 'joined' ? 'center' : 'stretch'}
+      alignItems={isPending ? 'center' : 'stretch'}
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
@@ -24,7 +30,7 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {model.joinStatus === 'joined' && model.lastPost ? (
+        {!isPending && model.lastPost ? (
           <ListItem.Subtitle>
             <ContactName
               userId={model.lastPost.authorId}
@@ -37,7 +43,7 @@ export default function GroupListItemContent({
         ) : null}
       </ListItem.MainContent>
       <ListItem.EndContent>
-        {model.joinStatus === 'invited' || model.joinStatus === 'joining' ? (
+        {statusDisplay ? (
           <Stack
             backgroundColor="$positiveBackground"
             paddingVertical="$xs"
@@ -45,7 +51,7 @@ export default function GroupListItemContent({
             borderRadius="$xl"
           >
             <SizableText size="$s" color="$positiveActionText">
-              {model.joinStatus === 'joining' ? 'Joining...' : 'Invited'}
+              {statusDisplay}
             </SizableText>
           </Stack>
         ) : (
@@ -59,4 +65,27 @@ export default function GroupListItemContent({
       </ListItem.EndContent>
     </ListItem>
   );
+}
+
+type DisplayInfo = {
+  statusDisplay: string;
+  isPending: boolean;
+  isNew: boolean;
+};
+
+function getDisplayInfo(group: db.Group): DisplayInfo {
+  return {
+    isPending: group.currentUserIsMember === false,
+    isNew: !group.currentUserIsMember && !!group.isNew,
+    statusDisplay:
+      !group.currentUserIsMember && group.isNew
+        ? 'NEW'
+        : group.haveInvite
+          ? 'Invited'
+          : group.joinStatus === 'errored'
+            ? 'Errored'
+            : group.joinStatus === 'joining'
+              ? 'Joining'
+              : '',
+  };
 }

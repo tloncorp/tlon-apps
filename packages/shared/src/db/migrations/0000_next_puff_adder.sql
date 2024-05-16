@@ -22,6 +22,7 @@ CREATE TABLE `channels` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`is_cached_pending_channel` integer,
+	`is_dm_invite` integer,
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
@@ -105,7 +106,11 @@ CREATE TABLE `groups` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
-	`is_secret` integer,
+	`privacy` text,
+	`have_invite` integer,
+	`have_requested_invite` integer,
+	`current_user_is_member` integer NOT NULL,
+	`is_new` integer,
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer

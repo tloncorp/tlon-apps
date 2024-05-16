@@ -21,6 +21,7 @@ import { SwipableChatRow } from './SwipableChatListItem';
 export function ChatList({
   pinned,
   unpinned,
+  pendingGroups,
   onLongPressItem,
   onPressItem,
 }: store.CurrentChats & {
@@ -31,14 +32,14 @@ export function ChatList({
 
   const data = useMemo(() => {
     if (pinned.length === 0) {
-      return [{ title: 'All', data: unpinned }];
+      return [{ title: 'All', data: [...pendingGroups, ...unpinned] }];
     }
 
     return [
       { title: 'Pinned', data: pinned },
-      { title: 'All', data: unpinned },
+      { title: 'All', data: [...pendingGroups, ...unpinned] },
     ];
-  }, [pinned, unpinned]);
+  }, [pinned, unpinned, pendingGroups]);
 
   const contentContainerStyle = useStyle(
     {
@@ -53,7 +54,7 @@ export function ChatList({
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<db.Channel, { title: string }>) => {
       // Invitation not affected by swipe or long press
-      if (item.group?.joinStatus !== 'joined') {
+      if (item.currentUserIsMember === false) {
         return <ChatListItem model={item} onPress={onPressItem} />;
       }
 
@@ -109,7 +110,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.Channel>) {
+}: ListItemProps<db.Channel | db.Group>) {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [model, onPress]);
@@ -118,35 +119,51 @@ const ChatListItem = React.memo(function ChatListItemComponent({
     onLongPress?.(model);
   }, [model, onLongPress]);
 
-  if (
-    model.type === 'dm' ||
-    model.type === 'groupDm' ||
-    model.pin?.type === 'channel'
-  ) {
-    return (
-      <ChannelListItem
-        model={model}
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        {...props}
-      />
-    );
-  } else if (model.group) {
+  if (db.isGroup(model)) {
     return (
       <GroupListItem
         onPress={handlePress}
         onLongPress={handleLongPress}
         model={{
-          ...model.group,
-          unreadCount: model.unread?.count,
-          lastPost: model.lastPost,
+          ...model,
         }}
         borderRadius="$m"
         {...props}
       />
     );
-  } else {
-    console.warn('unable to render chat list item', model.id);
-    return null;
   }
+
+  if (db.isChannel(model)) {
+    if (
+      model.type === 'dm' ||
+      model.type === 'groupDm' ||
+      model.pin?.type === 'channel'
+    ) {
+      return (
+        <ChannelListItem
+          model={model}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          {...props}
+        />
+      );
+    } else if (model.group) {
+      return (
+        <GroupListItem
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          model={{
+            ...model.group,
+            unreadCount: model.unread?.count,
+            lastPost: model.lastPost,
+          }}
+          borderRadius="$m"
+          {...props}
+        />
+      );
+    }
+  }
+
+  console.warn('unable to render chat list item', model.id, model);
+  return null;
 });

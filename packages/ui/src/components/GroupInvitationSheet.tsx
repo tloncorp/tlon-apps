@@ -19,9 +19,13 @@ export function GroupInvitationSheet({
   group,
   onUpdateInvitation,
 }: Props) {
-  const [isJoining, setIsJoining] = useState(false);
+  const [isJoining, setIsJoining] = useState(group?.joinStatus === 'joining');
 
-  const handleUpdateInvitation = (accepted: boolean) => {
+  const requiresInvite = group?.privacy !== 'public';
+  const hasInvite = group?.haveInvite === true;
+  const requestedInvite = group?.haveRequestedInvite === true;
+
+  const handleInvite = (accepted: boolean) => {
     if (!group) {
       return;
     }
@@ -40,7 +44,8 @@ export function GroupInvitationSheet({
       // In lieu of a reactive update to the `group` prop, poll the database
       const interval = setInterval(async () => {
         const nextGroup = await db.getGroup({ id: group.id });
-        if (nextGroup?.joinStatus === 'joined') {
+        // TODO: handle case whare joinStatus === 'errored'
+        if (nextGroup?.currentUserIsMember === true) {
           setIsJoining(false);
           onOpenChange(false);
           clearInterval(interval);
@@ -75,34 +80,38 @@ export function GroupInvitationSheet({
         </View>
       </ActionSheet.Header>
       <View gap={isJoining ? '$2xl' : '$l'}>
-        <Button
-          backgroundColor="$black"
-          justifyContent="center"
-          paddingVertical="$xl"
-          paddingHorizontal="$2xl"
-          borderRadius="$l"
-          disabled={isJoining}
-          onPress={() => handleUpdateInvitation(true)}
-        >
-          <Button.Text color="$white">
-            {isJoining ? 'Joining, please wait...' : 'Accept'}
-          </Button.Text>
-        </Button>
-        {isJoining ? (
-          <Text color="$primaryText" textAlign="center">
-            You may navigate away while the join operation continues in the
-            background.
-          </Text>
-        ) : (
-          <Button
-            justifyContent="center"
-            paddingVertical="$xl"
-            paddingHorizontal="$2xl"
-            borderRadius="$l"
-            onPress={() => handleUpdateInvitation(false)}
-          >
-            <Button.Text color="$primaryText">Deny</Button.Text>
-          </Button>
+        {hasInvite && (
+          <>
+            <Button
+              backgroundColor="$black"
+              justifyContent="center"
+              paddingVertical="$xl"
+              paddingHorizontal="$2xl"
+              borderRadius="$l"
+              disabled={isJoining}
+              onPress={() => handleInvite(true)}
+            >
+              <Button.Text color="$white">
+                {isJoining ? 'Joining, please wait...' : 'Accept'}
+              </Button.Text>
+            </Button>
+            {isJoining ? (
+              <Text color="$primaryText" textAlign="center">
+                You may navigate away while the join operation continues in the
+                background.
+              </Text>
+            ) : (
+              <Button
+                justifyContent="center"
+                paddingVertical="$xl"
+                paddingHorizontal="$2xl"
+                borderRadius="$l"
+                onPress={() => handleInvite(false)}
+              >
+                <Button.Text color="$primaryText">Deny</Button.Text>
+              </Button>
+            )}
+          </>
         )}
       </View>
     </ActionSheet>
