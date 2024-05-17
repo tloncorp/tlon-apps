@@ -77,9 +77,7 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
+  uploadInfo,
   groupMembers,
   storeDraft,
   clearDraft,
@@ -181,7 +179,7 @@ export function MessageInput({
       const isEmpty =
         (inlines.length === 0 || inlineIsJustBreak) &&
         blocks.length === 0 &&
-        !uploadedImage &&
+        !uploadInfo?.uploadedImage &&
         Object.entries(references).filter(([, ref]) => ref !== null).length ===
           0;
 
@@ -189,7 +187,7 @@ export function MessageInput({
         setEditorIsEmpty(isEmpty);
       }
     });
-  }, [editor, references, uploadedImage, editorIsEmpty]);
+  }, [editor, references, uploadInfo, editorIsEmpty]);
 
   editor._onContentUpdate = async () => {
     const json = await editor.getJSON();
@@ -366,12 +364,12 @@ export function MessageInput({
         });
       }
 
-      if (uploadedImage) {
+      if (uploadInfo?.uploadedImage) {
         blocks.push({
           image: {
-            src: uploadedImage.url,
-            height: uploadedImage.size ? uploadedImage.size[0] : 200,
-            width: uploadedImage.size ? uploadedImage.size[1] : 200,
+            src: uploadInfo.uploadedImage.url,
+            height: uploadInfo.uploadedImage.height,
+            width: uploadInfo.uploadedImage.width,
             alt: 'image',
           },
         });
@@ -396,7 +394,7 @@ export function MessageInput({
       editor,
       send,
       channelId,
-      uploadedImage,
+      uploadInfo,
       references,
       setReferences,
       clearDraft,
@@ -488,11 +486,9 @@ export function MessageInput({
 
   return (
     <MessageInputContainer
-      setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
       onPressEdit={handleEdit}
-      uploadedImage={uploadedImage}
-      canUpload={canUpload}
+      uploadInfo={uploadInfo}
       containerHeight={containerHeight}
       mentionText={mentionText}
       groupMembers={groupMembers}

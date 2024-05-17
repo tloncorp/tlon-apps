@@ -1,4 +1,4 @@
-import { Upload } from '@tloncorp/shared/dist/api';
+import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
@@ -16,9 +16,7 @@ export interface MessageInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
   channelId: string;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
+  uploadInfo?: UploadInfo;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
@@ -31,9 +29,7 @@ export interface MessageInputProps {
 export const MessageInputContainer = ({
   children,
   onPressSend,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
+  uploadInfo,
   containerHeight,
   showMentionPopup = false,
   mentionText,
@@ -45,9 +41,7 @@ export const MessageInputContainer = ({
   editorIsEmpty,
 }: PropsWithChildren<{
   onPressSend?: () => void;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
+  uploadInfo?: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
   mentionText?: string;
@@ -60,13 +54,10 @@ export const MessageInputContainer = ({
 }>) => {
   const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
-    () => !!(uploadedImage && uploadedImage.url !== ''),
-    [uploadedImage]
+    () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
+    [uploadInfo]
   );
-  const uploadIsLoading = useMemo(
-    () => uploadedImage?.status === 'loading',
-    [uploadedImage]
-  );
+  const uploadIsLoading = useMemo(() => uploadInfo?.uploading, [uploadInfo]);
   const sendIconColor = useMemo(
     () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
     [uploadIsLoading]
@@ -137,12 +128,9 @@ export const MessageInputContainer = ({
             </IconButton>
           </View>
         ) : null}
-        {hasUploadedImage ? null : canUpload ? (
+        {hasUploadedImage ? null : uploadInfo?.canUpload ? (
           <View paddingBottom="$m">
-            <AttachmentButton
-              uploadedImage={uploadedImage}
-              setImage={setImageAttachment}
-            />
+            <AttachmentButton uploadInfo={uploadInfo} />
           </View>
         ) : null}
         {children}

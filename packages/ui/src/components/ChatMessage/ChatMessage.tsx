@@ -125,7 +125,6 @@ const ChatMessage = ({
             storeDraft={() => {}}
             clearDraft={() => {}}
             getDraft={async () => ({})}
-            setImageAttachment={() => {}}
             shouldBlur={false}
             setShouldBlur={() => {}}
             send={() => {}}

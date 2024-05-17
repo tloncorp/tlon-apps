@@ -209,9 +209,7 @@ export function Channel({
                             setShouldBlur={setInputShouldBlur}
                             send={messageSender}
                             channelId={channel.id}
-                            setImageAttachment={uploadInfo.setImageAttachment}
-                            uploadedImage={uploadInfo.uploadedImage}
-                            canUpload={uploadInfo.canUpload}
+                            uploadInfo={uploadInfo}
                             groupMembers={group?.members ?? []}
                             storeDraft={storeDraft}
                             clearDraft={clearDraft}

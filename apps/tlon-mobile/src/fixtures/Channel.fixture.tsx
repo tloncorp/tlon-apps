@@ -24,6 +24,7 @@ const fakeMostRecentFile: Upload = {
     blob: new Blob(),
     name: 'name',
     type: 'type',
+    uri: 'https://togten.com:9001/finned-palmer/~dotnet-botnet-finned-palmer/2024.4.22..16.23.42..f70a.3d70.a3d7.0a3d-3DD4524C-3125-4974-978D-08EAE71CE220.jpg',
   },
   url: 'https://togten.com:9001/finned-palmer/~dotnet-botnet-finned-palmer/2024.4.22..16.23.42..f70a.3d70.a3d7.0a3d-3DD4524C-3125-4974-978D-08EAE71CE220.jpg',
   status: 'success',
@@ -36,6 +37,7 @@ const fakeLoadingMostRecentFile: Upload = {
     blob: new Blob(),
     name: 'name',
     type: 'type',
+    uri: 'https://togten.com:9001/finned-palmer/~dotnet-botnet-finned-palmer/2024.4.22..16.23.42..f70a.3d70.a3d7.0a3d-3DD4524C-3125-4974-978D-08EAE71CE220.jpg',
   },
   url: '',
   status: 'loading',
@@ -45,8 +47,9 @@ const fakeLoadingMostRecentFile: Upload = {
 const defaultUploadInfo = {
   imageAttachment: null,
   resetImageAttachment: () => {},
-  setImageAttachment: () => {},
+  setAttachments: () => {},
   canUpload: true,
+  uploading: false,
 };
 
 const ChannelFixtureWrapper = ({
@@ -173,8 +176,9 @@ const ChannelFixtureWithImage = () => {
         uploadInfo={{
           imageAttachment: imageAttachment,
           resetImageAttachment: resetImageAttachment,
-          setImageAttachment: fakeSetImageAttachment,
+          setAttachments: fakeSetImageAttachment,
           canUpload: true,
+          uploading: false,
         }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
