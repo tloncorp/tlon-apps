@@ -63,9 +63,10 @@ export default function DmOptions({
   const pinned = usePinnedChats();
   const chatUnread = useChatUnread(whom);
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
+  const hasNotify = !!chatUnread?.unread?.notify;
   const hasActivity =
-    pending || ((chatUnread?.unread.count || 0) > 0 && !chatUnread?.seen);
-  const hasNotify = hasActivity && chatUnread?.unread?.notify;
+    pending ||
+    (((chatUnread?.unread.count || 0) > 0 || hasNotify) && !chatUnread?.seen);
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();

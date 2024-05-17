@@ -23,14 +23,18 @@ export type ExtendedEventType =
   | 'flag-post'
   | 'flag-reply';
 
-export type VolumeLevel = 'hush' | 'soft' | 'medium' | 'default' | 'loud';
+export type NotificationLevel = 'hush' | 'soft' | 'default' | 'loud';
 
-export enum VolumeNames {
+export enum NotificationNames {
   loud = 'Notify for all activity',
   default = 'Posts, mentions and replies',
-  medium = 'Only mentions and replies',
-  soft = 'Only show unread activity, but do not notify',
-  hush = 'Hide all unread activity and do not notify',
+  soft = 'Only mentions and replies',
+  hush = 'Do not notify for any activity',
+}
+
+export interface VolumeLevel {
+  notify: NotificationLevel;
+  unreads: boolean;
 }
 
 export type Volume = {
@@ -235,7 +239,7 @@ export function sourceToString(source: Source, stripPrefix = false): string {
   }
 
   if ('channel' in source) {
-    return stripPrefix ? source.channel.nest : `channel/${source.channel}`;
+    return stripPrefix ? source.channel.nest : `channel/${source.channel.nest}`;
   }
 
   if ('dm' in source) {
@@ -301,7 +305,11 @@ const allEvents: ExtendedEventType[] = [
   'flag-reply',
 ];
 
-export function getLevelFromVolumeMap(vmap: VolumeMap): VolumeLevel {
+export function getUnreadsFromVolumeMap(vmap: VolumeMap): boolean {
+  return _.some(vmap, (v) => !!v?.unreads);
+}
+
+export function getLevelFromVolumeMap(vmap: VolumeMap): NotificationLevel {
   const entries = Object.entries(vmap) as [ExtendedEventType, Volume][];
   if (_.every(entries, ([, v]) => v.unreads && v.notify)) {
     return 'loud';
@@ -330,43 +338,46 @@ export function getLevelFromVolumeMap(vmap: VolumeMap): VolumeLevel {
     return 'default';
   }
 
-  return 'medium';
+  return 'soft';
 }
 
-export function getVolumeMapFromLevel(level: VolumeLevel): VolumeMap {
+export function getVolumeMap(
+  level: NotificationLevel,
+  unreads: boolean
+): VolumeMap {
   const emptyMap: VolumeMap = {};
   if (level === 'loud') {
     return allEvents.reduce((acc, e) => {
-      acc[e] = { unreads: true, notify: true };
+      acc[e] = { unreads, notify: true };
       return acc;
     }, emptyMap);
   }
 
   if (level === 'hush') {
     return allEvents.reduce((acc, e) => {
-      acc[e] = { unreads: false, notify: false };
+      acc[e] = { unreads, notify: false };
       return acc;
     }, {} as VolumeMap);
   }
 
   if (level === 'soft') {
     return allEvents.reduce((acc, e) => {
-      acc[e] = { unreads: true, notify: false };
+      acc[e] = { unreads, notify: false };
       return acc;
     }, {} as VolumeMap);
   }
 
   return allEvents.reduce((acc, e) => {
     if (onEvents.includes(e)) {
-      acc[e] = { unreads: true, notify: true };
+      acc[e] = { unreads, notify: true };
     }
 
     if (notifyOffEvents.includes(e)) {
-      acc[e] = { unreads: true, notify: false };
+      acc[e] = { unreads, notify: false };
     }
 
     if (e === 'post') {
-      acc[e] = { unreads: true, notify: level === 'default' };
+      acc[e] = { unreads, notify: level === 'default' };
     }
 
     return acc;
@@ -377,7 +388,7 @@ export function getDefaultVolumeOption(
   source: Source,
   settings: VolumeSettings,
   group?: string
-): { label: string; volume: VolumeLevel } {
+): { label: string; volume: NotificationLevel } {
   const def = 'Use default setting';
   if ('base' in source) {
     return {
@@ -386,7 +397,7 @@ export function getDefaultVolumeOption(
     };
   }
 
-  const base: VolumeLevel = settings.base
+  const base: NotificationLevel = settings.base
     ? getLevelFromVolumeMap(settings.base)
     : 'default';
   if ('group' in source || 'dm' in source) {

@@ -187,9 +187,11 @@ const ChatMessage = React.memo<
       );
       const topUnread =
         unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
-      const threadUnread =
-        unreadDisplay === 'thread' || unreadDisplay === 'top-with-thread';
       const threadNotify = threadInfo?.unread?.unread?.notify;
+      const threadUnread =
+        unreadDisplay === 'thread' ||
+        unreadDisplay === 'top-with-thread' ||
+        threadNotify;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
