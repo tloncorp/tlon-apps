@@ -191,8 +191,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     // Pre-existing web upload logic
 
-    // Logic for uploading with Tlon Hosting storage.
-    if (config.service === 'presigned-url' && config.presignedUrl) {
+    if (isHostedUpload) {
       // The first step is to send the PUT request to the proxy, which will
       // respond with a redirect to a pre-signed url to the actual bucket. The
       // token is in the url, not a header, so that it disappears after the
