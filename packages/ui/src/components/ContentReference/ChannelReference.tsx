@@ -7,10 +7,12 @@ export default function ChannelReference({
   channelId,
   postId,
   asAttachment = false,
+  inGalleryPost = false,
 }: {
   channelId: string;
   postId: string;
   asAttachment?: boolean;
+  inGalleryPost?: boolean;
 }) {
   const channelType = getChannelType(channelId);
 
@@ -18,6 +20,7 @@ export default function ChannelReference({
     return (
       <ChatReferenceWrapper
         asAttachment={asAttachment}
+        inGalleryPost={inGalleryPost}
         channelId={channelId}
         postId={postId}
       />

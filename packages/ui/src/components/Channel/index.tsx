@@ -21,6 +21,7 @@ import { RequestsProvider } from '../../contexts/requests';
 import { Text, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import { ChatMessage } from '../ChatMessage';
+import { GalleryPost } from '../GalleryPost';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -100,7 +101,12 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const renderItem = isChatChannel ? ChatMessage : NotebookPost;
+  const renderItem =
+    channel.type === 'chat'
+      ? ChatMessage
+      : channel.type === 'notebook'
+        ? NotebookPost
+        : GalleryPost;
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);

@@ -182,6 +182,9 @@ importers:
       expo-image-picker:
         specifier: ~14.7.1
         version: 14.7.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-linear-gradient:
+        specifier: ^13.0.2
+        version: 13.0.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-localization:
         specifier: ~14.8.3
         version: 14.8.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
@@ -7285,6 +7288,11 @@ packages:
 
   expo-keep-awake@12.8.2:
     resolution: {integrity: sha512-uiQdGbSX24Pt8nGbnmBtrKq6xL/Tm3+DuDRGBk/3ZE/HlizzNosGRIufIMJ/4B4FRw4dw8KU81h2RLuTjbay6g==}
+    peerDependencies:
+      expo: '*'
+
+  expo-linear-gradient@13.0.2:
+    resolution: {integrity: sha512-EDcILUjRKu4P1rtWcwciN6CSyGtH7Bq4ll3oTRV7h3h8oSzSilH1g6z7kTAMlacPBKvMnkkWOGzW6KtgMKEiTg==}
     peerDependencies:
       expo: '*'
 
@@ -20593,6 +20601,10 @@ snapshots:
   expo-json-utils@0.12.3: {}
 
   expo-keep-awake@12.8.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  expo-linear-gradient@13.0.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
 

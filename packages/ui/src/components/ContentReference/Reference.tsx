@@ -31,6 +31,11 @@ const ReferenceFrame = styled(YStack, {
         width: Dimensions.get('window').width - 30,
       },
     },
+    inGalleryPost: {
+      true: {
+        marginLeft: '$m',
+      },
+    },
   } as const,
 });
 
@@ -62,6 +67,11 @@ const ReferenceIcon = styled(Icon, {
   size: '$m',
   variants: {
     asAttachment: {
+      true: {
+        display: 'none',
+      },
+    },
+    inGalleryPost: {
       true: {
         display: 'none',
       },

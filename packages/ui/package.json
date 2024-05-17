@@ -29,14 +29,14 @@
     "@tamagui/animations-moti": "1.93.2",
     "@tamagui/get-token": "1.93.2",
     "@tamagui/image": "1.93.2",
+    "@tloncorp/editor": "workspace:*",
+    "@tloncorp/shared": "workspace:*",
     "@uidotdev/usehooks": "^2.4.1",
     "color2k": "^2.0.0",
     "expo-blur": "^12.9.2",
     "expo-haptics": "^12.8.1",
     "lodash": "^4.17.21",
     "moti": "^0.28.1",
-    "@tloncorp/shared": "workspace:*",
-    "@tloncorp/editor": "workspace:*",
     "react-native-context-menu-view": "^1.15.0",
     "react-native-reanimated": "^3.8.1",
     "react-native-safe-area-context": "^4.9.0",
@@ -47,10 +47,10 @@
   "peerDependencies": {
     "@10play/tentap-editor": "^0.4.55",
     "@urbit/sigil-js": "^2.2.0",
+    "expo-image": "*",
     "react": "*",
-    "react-native-svg": "*",
     "react-native-safe-area-context": "*",
-    "expo-image": "*"
+    "react-native-svg": "*"
   },
   "devDependencies": {
     "@tamagui/build": "1.93.2"

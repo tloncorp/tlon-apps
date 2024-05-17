@@ -87,6 +87,7 @@ export const ChannelFixture = (props: {
         channel={currentChannel || tlonLocalChannelWithUnreads}
         contacts={initialContacts}
         negotiationMatch={props.negotiationMatch ?? true}
+        isLoadingPosts={false}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
@@ -126,7 +127,7 @@ export const ChannelFixture = (props: {
 
 export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   const [open, setOpen] = useState(false);
-  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
+  // const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
   const { bottom } = useSafeAreaInsets();
 
   const tlonLocalChannelWithUnreads = {
@@ -135,14 +136,14 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
     // firstUnreadPostId: posts[10].id,
   };
 
-  useEffect(() => {
-    if (group) {
-      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
-      if (firstChatChannel) {
-        setCurrentChannel(firstChatChannel);
-      }
-    }
-  }, []);
+  // useEffect(() => {
+  // if (group) {
+  // const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
+  // if (firstChatChannel) {
+  // setCurrentChannel(firstChatChannel);
+  // }
+  // }
+  // }, []);
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
@@ -152,6 +153,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         currentUserId="~zod"
         channel={tlonLocalChannelWithUnreads}
         contacts={initialContacts}
+        isLoadingPosts={false}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
@@ -180,7 +182,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         channels={group.channels || []}
         paddingBottom={bottom}
         onSelect={(channel: db.Channel) => {
-          setCurrentChannel(channel);
+          // setCurrentChannel(channel);
           setOpen(false);
         }}
         contacts={initialContacts}
@@ -246,6 +248,7 @@ const ChannelFixtureWithImage = () => {
         messageSender={() => {}}
         editPost={() => {}}
         negotiationMatch={true}
+        isLoadingPosts={false}
         uploadInfo={{
           imageAttachment: imageAttachment,
           resetImageAttachment: resetImageAttachment,

@@ -23,9 +23,11 @@ const trustedProviders = [
 export default function ChatEmbedContent({
   url,
   content,
+  isGalleryPost = false,
 }: {
   url: string;
   content: string;
+  isGalleryPost?: boolean;
 }) {
   const isAudio = utils.AUDIO_REGEX.test(url);
   const isVideo = utils.VIDEO_REGEX.test(url);
@@ -60,7 +62,7 @@ export default function ChatEmbedContent({
   return (
     <Text
       textDecorationLine="underline"
-      fontSize="$m"
+      fontSize={isGalleryPost ? '$s' : '$m'}
       lineHeight="$m"
       onPress={openLink}
     >

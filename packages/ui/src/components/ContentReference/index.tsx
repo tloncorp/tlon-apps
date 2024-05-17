@@ -7,9 +7,11 @@ import ChannelReference from './ChannelReference';
 export default function ContentReference({
   reference,
   asAttachment = false,
+  inGalleryPost = false,
 }: {
   reference: ContentReferenceType;
   asAttachment?: boolean;
+  inGalleryPost?: boolean;
 }) {
   if (reference.referenceType === 'channel') {
     return (
@@ -17,6 +19,7 @@ export default function ContentReference({
         channelId={reference.channelId}
         postId={reference.postId}
         asAttachment={asAttachment}
+        inGalleryPost={inGalleryPost}
       />
     );
   }

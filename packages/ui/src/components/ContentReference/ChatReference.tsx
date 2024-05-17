@@ -13,12 +13,14 @@ export default function ChatReference({
   content,
   onPress,
   asAttachment = false,
+  inGalleryPost = false,
 }: {
   channel: db.Channel;
   post: db.Post;
   content: PostContent;
   onPress: (channel: db.Channel, post: db.Post) => void;
   asAttachment?: boolean;
+  inGalleryPost?: boolean;
 }) {
   const navigateToChannel = useCallback(() => {
     if (asAttachment) {
@@ -34,7 +36,11 @@ export default function ChatReference({
   }
 
   return (
-    <Reference asAttachment={asAttachment} onPress={navigateToChannel}>
+    <Reference
+      inGalleryPost={inGalleryPost}
+      asAttachment={asAttachment}
+      onPress={navigateToChannel}
+    >
       <Reference.Header>
         <Reference.Title>
           <Avatar contact={post.author} contactId={post.authorId} size="$xl" />
@@ -48,7 +54,11 @@ export default function ChatReference({
         <Reference.Icon type="ArrowRef" />
       </Reference.Header>
       <Reference.Body>
-        <ChatContent shortened={asAttachment} story={content} />
+        <ChatContent
+          isGalleryPost={inGalleryPost}
+          shortened={asAttachment || inGalleryPost}
+          story={content}
+        />
       </Reference.Body>
     </Reference>
   );

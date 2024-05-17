@@ -19,6 +19,8 @@ export {
   Theme,
 } from 'tamagui';
 
+export { LinearGradient } from 'tamagui/linear-gradient';
+
 export type {
   ViewProps,
   SizeTokens,

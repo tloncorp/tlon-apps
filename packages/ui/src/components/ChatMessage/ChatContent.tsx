@@ -48,9 +48,11 @@ function ShipMention({ ship }: { ship: string }) {
 export function InlineContent({
   story,
   color = '$primaryText',
+  isGalleryPost = false,
 }: {
   story: Inline | null;
   color?: ColorTokens;
+  isGalleryPost?: boolean;
 }) {
   if (story === null) {
     return null;
@@ -64,7 +66,11 @@ export function InlineContent({
       );
     }
     return (
-      <Text color={color} lineHeight="$m" fontSize="$m">
+      <Text
+        color={color}
+        lineHeight="$m"
+        fontSize={isGalleryPost ? '$s' : '$m'}
+      >
         {story}
       </Text>
     );
@@ -150,7 +156,11 @@ export function InlineContent({
 
   if (isLink(story)) {
     return (
-      <ChatEmbedContent url={story.link.href} content={story.link.content} />
+      <ChatEmbedContent
+        isGalleryPost={isGalleryPost}
+        url={story.link.href}
+        content={story.link.content}
+      />
     );
   }
 
@@ -231,10 +241,12 @@ const LineRenderer = memo(
     storyInlines,
     color = '$primaryText',
     isNotice = false,
+    isGalleryPost = false,
   }: {
     storyInlines: Inline[];
     color?: ColorTokens;
     isNotice?: boolean;
+    isGalleryPost?: boolean;
   }) => {
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
@@ -259,7 +271,7 @@ const LineRenderer = memo(
             <Text
               key={`string-${inline}-${index}`}
               color={isNotice ? '$tertiaryText' : color}
-              fontSize="$m"
+              fontSize={isGalleryPost ? '$s' : '$m'}
               fontWeight={isNotice ? '500' : 'normal'}
               lineHeight="$m"
             >
@@ -294,7 +306,12 @@ const LineRenderer = memo(
         );
       } else {
         currentLine.push(
-          <InlineContent key={`inline-${index}`} story={inline} color={color} />
+          <InlineContent
+            isGalleryPost={isGalleryPost}
+            key={`inline-${index}`}
+            story={inline}
+            color={color}
+          />
         );
       }
     });
@@ -315,7 +332,12 @@ const LineRenderer = memo(
           }
 
           return (
-            <Text key={`line-${index}`} flexWrap="wrap" lineHeight="$m">
+            <Text
+              fontSize={isGalleryPost ? '$s' : '$m'}
+              key={`line-${index}`}
+              flexWrap="wrap"
+              lineHeight="$m"
+            >
               {line}
             </Text>
           );
@@ -335,6 +357,7 @@ export default function ChatContent({
   onPressImage,
   onLongPress,
   isEdited = false,
+  isGalleryPost = false,
 }: {
   story: PostContent;
   shortened?: boolean;
@@ -343,6 +366,7 @@ export default function ChatContent({
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   isEdited?: boolean;
+  isGalleryPost?: boolean;
 }) {
   const storyInlines = useMemo(
     () =>
@@ -454,6 +478,7 @@ export default function ChatContent({
             <LineRenderer
               storyInlines={shortened ? shortenedStoryInlines : storyInlines}
               isNotice={isNotice}
+              isGalleryPost={isGalleryPost}
             />
           </View>
         ) : null}

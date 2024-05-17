@@ -10,10 +10,12 @@ export default function ChatReferenceWrapper({
   channelId,
   postId,
   asAttachment = false,
+  inGalleryPost = false,
 }: {
   channelId: string;
   postId: string;
   asAttachment?: boolean;
+  inGalleryPost?: boolean;
 }) {
   const { usePost, useChannel } = useRequests();
   const { data: post, isError, error, isLoading } = usePost({ id: postId });
@@ -54,6 +56,7 @@ export default function ChatReferenceWrapper({
       content={content}
       onPress={onPressRef}
       asAttachment={asAttachment}
+      inGalleryPost={inGalleryPost}
     />
   );
 }
