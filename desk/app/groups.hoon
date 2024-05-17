@@ -1737,9 +1737,11 @@
   ^+  cor
   =/  =wire  /gangs/index/(scot %p ship)
   =/  =dock  [ship dap.bowl]
+  =/  watch  [%pass wire %agent dock %watch `path`wire]
   %-  emil
+  ?:  =(ship our.bowl)  ~[watch]
   :~  [%pass wire %agent dock %leave ~]
-      [%pass wire %agent dock %watch `path`wire]
+      watch
   ==
 ::
 ++  hi-and-req-gang-index
@@ -1836,10 +1838,12 @@
       =/  =wire  (welp ga-area /preview)
       =/  =dock  [p.flag dap.bowl]
       =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
+      =/  watch  [%pass wire %agent dock %watch wire]
       ^+  cor
       %-  emil
+      ?:  =(p.flag our.bowl)  ~[watch]
       :~  [%pass wire %agent dock %leave ~]
-          [%pass wire %agent dock %watch wire]
+          watch
       ==
     --
   ++  ga-start-join
