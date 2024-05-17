@@ -18,7 +18,7 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { Text, View, YStack } from '../../core';
+import { SizableText, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import { ChatMessage } from '../ChatMessage';
 import { LoadingSpinner } from '../LoadingSpinner';
@@ -106,10 +106,12 @@ export function Channel({
   }, [currentUserId, channel]);
 
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
-    if (selectedPostId) {
+    if (channel.type === 'notebook') {
+      return null;
+    } else if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
     } else if (
-      channel?.unread?.countWithoutThreads &&
+      channel.unread?.countWithoutThreads &&
       channel.unread.firstUnreadPostId
     ) {
       return { type: 'unread', postId: channel.unread.firstUnreadPostId };
@@ -130,7 +132,6 @@ export function Channel({
             <NavigationProvider onPressRef={onPressRef}>
               <ReferencesProvider>
                 <YStack
-                  flex={1}
                   justifyContent="space-between"
                   width="100%"
                   height="100%"
@@ -148,7 +149,7 @@ export function Channel({
                     style={{ flex: 1 }}
                     contentContainerStyle={{ flex: 1 }}
                   >
-                    <YStack alignItems="center" flex={1}>
+                    <YStack flex={1}>
                       {uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
                           imageAttachment={uploadInfo.imageAttachment}
@@ -218,19 +219,7 @@ export function Channel({
                           />
                         )}
                       {!negotiationMatch && isChatChannel && canWrite && (
-                        <View
-                          width="90%"
-                          alignItems="center"
-                          justifyContent="center"
-                          backgroundColor="$secondaryBackground"
-                          borderRadius="$xl"
-                          padding="$l"
-                        >
-                          <Text>
-                            Your ship&apos;s version of the Tlon app
-                            doesn&apos;t match the channel host.
-                          </Text>
-                        </View>
+                        <NegotionMismatchNotice />
                       )}
                     </YStack>
                   </KeyboardAvoidingView>
@@ -241,5 +230,23 @@ export function Channel({
         </ContactsProvider>
       </GroupsProvider>
     </CalmProvider>
+  );
+}
+
+function NegotionMismatchNotice() {
+  return (
+    <View alignItems="center" justifyContent="center" padding="$l">
+      <View
+        backgroundColor="$secondaryBackground"
+        borderRadius="$l"
+        paddingHorizontal="$l"
+        paddingVertical="$xl"
+      >
+        <SizableText size="$s">
+          Your ship&apos;s version of the Tlon app doesn&apos;t match the
+          channel host.
+        </SizableText>
+      </View>
+    </View>
   );
 }
