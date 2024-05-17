@@ -109,7 +109,6 @@ export type UploadedFile = { url: string; width: number; height: number };
 export type UploadInfo = {
   uploadedImage?: UploadedFile | null;
   imageAttachment: string | null;
-  // setImageAttachment: (image: string | null) => void;
   setAttachments: (attachments: MessageAttachments) => void;
   resetImageAttachment: () => void;
   canUpload: boolean;

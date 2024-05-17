@@ -2,7 +2,7 @@ import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -44,6 +44,14 @@ const fakeLoadingMostRecentFile: Upload = {
   size: [100, 100],
 };
 
+const defaultUploadInfo = {
+  imageAttachment: null,
+  resetImageAttachment: () => {},
+  setAttachments: () => {},
+  canUpload: true,
+  uploading: false,
+};
+
 const ChannelFixtureWrapper = ({
   children,
   theme,
@@ -51,7 +59,7 @@ const ChannelFixtureWrapper = ({
   const { bottom } = useSafeAreaInsets();
   return (
     <FixtureWrapper fillWidth fillHeight theme={theme}>
-      <View paddingBottom={bottom} backgroundColor="$background">
+      <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
         {children}
       </View>
     </FixtureWrapper>
@@ -62,48 +70,25 @@ export const ChannelFixture = (props: {
   theme?: 'light' | 'dark';
   negotiationMatch?: boolean;
 }) => {
-  const [open, setOpen] = useState(false);
-  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
-  const { bottom } = useSafeAreaInsets();
-
-  const tlonLocalChannelWithUnreads = {
-    ...tlonLocalIntros,
-    // unreadCount: 40,
-    // firstUnreadPostId: posts[10].id,
-  };
-
-  useEffect(() => {
-    if (group) {
-      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
-      if (firstChatChannel) {
-        setCurrentChannel(firstChatChannel);
-      }
-    }
-  }, []);
+  const switcher = useChannelSwitcher(tlonLocalIntros);
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel
         posts={posts}
         currentUserId="~zod"
-        channel={currentChannel || tlonLocalChannelWithUnreads}
+        channel={switcher.activeChannel}
         contacts={initialContacts}
         negotiationMatch={props.negotiationMatch ?? true}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
-        goToChannels={() => setOpen(true)}
+        goToChannels={() => switcher.open()}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
         editPost={() => {}}
-        uploadInfo={{
-          imageAttachment: null,
-          resetImageAttachment: () => {},
-          setAttachments: () => {},
-          canUpload: true,
-          uploading: false,
-        }}
+        uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
@@ -111,41 +96,13 @@ export const ChannelFixture = (props: {
         storeDraft={() => {}}
         clearDraft={() => {}}
       />
-      <ChannelSwitcherSheet
-        open={open}
-        onOpenChange={(open) => setOpen(open)}
-        group={group}
-        channels={group.channels || []}
-        paddingBottom={bottom}
-        onSelect={(channel: db.Channel) => {
-          setCurrentChannel(channel);
-          setOpen(false);
-        }}
-        contacts={initialContacts}
-      />
+      <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
   );
 };
 
 export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
-  const [open, setOpen] = useState(false);
-  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
-  const { bottom } = useSafeAreaInsets();
-
-  const tlonLocalChannelWithUnreads = {
-    ...tlonLocalGettingStarted,
-    // unreadCount: 40,
-    // firstUnreadPostId: posts[10].id,
-  };
-
-  useEffect(() => {
-    if (group) {
-      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
-      if (firstChatChannel) {
-        setCurrentChannel(firstChatChannel);
-      }
-    }
-  }, []);
+  const switcher = useChannelSwitcher(tlonLocalGettingStarted);
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
@@ -153,12 +110,12 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         posts={notebookPosts}
         negotiationMatch={true}
         currentUserId="~zod"
-        channel={tlonLocalChannelWithUnreads}
+        channel={switcher.activeChannel}
         contacts={initialContacts}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
-        goToChannels={() => setOpen(true)}
+        goToChannels={() => switcher.open()}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
@@ -166,46 +123,21 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
-        uploadInfo={{
-          imageAttachment: null,
-          resetImageAttachment: () => {},
-          setAttachments: () => {},
-          canUpload: true,
-          uploading: false,
-        }}
+        uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
       />
-      <ChannelSwitcherSheet
-        open={open}
-        onOpenChange={(open) => setOpen(open)}
-        group={group}
-        channels={group.channels || []}
-        paddingBottom={bottom}
-        onSelect={(channel: db.Channel) => {
-          setCurrentChannel(channel);
-          setOpen(false);
-        }}
-        contacts={initialContacts}
-      />
+      <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
   );
 };
 
 const ChannelFixtureWithImage = () => {
-  const [open, setOpen] = useState(false);
+  const switcher = useChannelSwitcher(tlonLocalIntros);
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [uploadedImage, setUploadedImage] = useState<Upload | null>(null);
-  const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
-  const { bottom } = useSafeAreaInsets();
   const mostRecentFile = fakeMostRecentFile;
-
-  const tlonLocalChannelWithUnreads = {
-    ...tlonLocalIntros,
-    // unreadCount: 40,
-    // firstUnreadPostId: posts[10].id,
-  };
 
   const resetImageAttachment = () => {
     setImageAttachment(null);
@@ -225,26 +157,17 @@ const ChannelFixtureWithImage = () => {
     setUploadedImage(mostRecentFile);
   }, [mostRecentFile]);
 
-  useEffect(() => {
-    if (group) {
-      const firstChatChannel = group.channels?.find((c) => c.type === 'chat');
-      if (firstChatChannel) {
-        setCurrentChannel(firstChatChannel);
-      }
-    }
-  }, []);
-
   return (
     <ChannelFixtureWrapper>
       <Channel
         posts={posts}
         currentUserId="~zod"
-        channel={currentChannel || tlonLocalChannelWithUnreads}
+        channel={switcher.activeChannel}
         contacts={initialContacts}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
-        goToChannels={() => setOpen(true)}
+        goToChannels={switcher.open}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
@@ -264,21 +187,62 @@ const ChannelFixtureWithImage = () => {
         storeDraft={() => {}}
         clearDraft={() => {}}
       />
-      <ChannelSwitcherSheet
-        open={open}
-        onOpenChange={(open) => setOpen(open)}
-        group={group}
-        channels={group.channels || []}
-        paddingBottom={bottom}
-        onSelect={(channel: db.Channel) => {
-          setCurrentChannel(channel);
-          setOpen(false);
-        }}
-        contacts={initialContacts}
-      />
+      <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
   );
 };
+
+function useChannelSwitcher(defaultChannel: db.Channel) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
+    defaultChannel
+  );
+
+  const activeChannel: db.Channel = useMemo(() => {
+    const channel = selectedChannel ?? tlonLocalGettingStarted;
+    return {
+      ...channel,
+      unread: channel.unread
+        ? {
+            ...channel.unread,
+            firstUnreadPostId: posts[5].id,
+          }
+        : null,
+    };
+  }, [selectedChannel]);
+
+  return {
+    isOpen,
+    open: () => setIsOpen(true),
+    close: () => setIsOpen(false),
+    toggle: (val?: boolean) => setIsOpen(val ?? !isOpen),
+    activeChannel,
+    setActiveChannel: setSelectedChannel,
+  };
+}
+
+function SwitcherFixture({
+  switcher,
+}: {
+  switcher: ReturnType<typeof useChannelSwitcher>;
+}) {
+  const { bottom } = useSafeAreaInsets();
+
+  return (
+    <ChannelSwitcherSheet
+      open={switcher.isOpen}
+      onOpenChange={switcher.toggle}
+      group={group}
+      channels={group.channels || []}
+      paddingBottom={bottom}
+      onSelect={(channel: db.Channel) => {
+        switcher.setActiveChannel(channel);
+        switcher.close();
+      }}
+      contacts={initialContacts}
+    />
+  );
+}
 
 export default {
   chat: <ChannelFixture />,

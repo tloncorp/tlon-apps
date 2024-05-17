@@ -4,7 +4,6 @@ import { Linking } from 'react-native';
 import { useCalm } from '../../contexts';
 import { Text } from '../../core';
 import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
-import { InlineContent } from './ChatContent';
 
 const trustedProviders = [
   {
@@ -59,8 +58,13 @@ export default function ChatEmbedContent({
   }
 
   return (
-    <Text textDecorationLine="underline" lineHeight="$m" onPress={openLink}>
-      <InlineContent story={content} />
+    <Text
+      textDecorationLine="underline"
+      fontSize="$m"
+      lineHeight="$m"
+      onPress={openLink}
+    >
+      {content}
     </Text>
   );
 }

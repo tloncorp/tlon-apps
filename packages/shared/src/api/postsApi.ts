@@ -251,42 +251,55 @@ export const sendReply = async ({
   await poke(action);
 };
 
+export interface GetChannelPostsOptions {
+  channelId: string;
+  cursor?: string;
+  date?: Date;
+  mode?: 'older' | 'newer' | 'around' | 'newest';
+  count?: number;
+  includeReplies?: boolean;
+  includeCursor?: boolean;
+}
+
+export interface GetChannelPostsResponse {
+  older?: string | null;
+  newer?: string | null;
+  posts: db.Post[];
+  deletedPosts?: string[];
+  totalPosts?: number;
+}
+
 export const getChannelPosts = async ({
   channelId,
   cursor,
   date,
-  direction = 'older',
+  mode = 'older',
   count = 20,
   includeReplies = false,
-}: {
-  channelId: string;
-  cursor?: string;
-  date?: Date;
-  direction?: 'older' | 'newer' | 'around';
-  count?: number;
-  includeReplies?: boolean;
-}) => {
+}: GetChannelPostsOptions) => {
   if (cursor && date) {
     throw new Error('Cannot specify both cursor and date');
   }
-  if (!cursor && !date) {
+  if (!cursor && !date && mode !== 'newest') {
     throw new Error('Must specify either cursor or date');
   }
-  const finalCursor = cursor ? cursor : formatDateParam(date!);
+  const finalCursor = cursor || (date ? formatDateParam(date!) : undefined);
+
+  const anchor = mode === 'newest' ? `${mode}` : `${mode}/${finalCursor}`;
   let app: 'chat' | 'channels';
   let path: string;
 
   if (isDmChannelId(channelId)) {
-    const mode = includeReplies ? 'heavy' : 'light';
+    const format = includeReplies ? 'heavy' : 'light';
     app = 'chat';
-    path = `/dm/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    path = `/dm/${channelId}/writs/${anchor}/${count}/${format}`;
   } else if (isGroupDmChannelId(channelId)) {
-    const mode = includeReplies ? 'heavy' : 'light';
-    path = `/club/${channelId}/writs/${direction}/${finalCursor}/${count}/${mode}`;
+    const format = includeReplies ? 'heavy' : 'light';
+    path = `/club/${channelId}/writs/${anchor}/${count}/${format}`;
     app = 'chat';
   } else if (isGroupChannelId(channelId)) {
-    const mode = includeReplies ? 'post' : 'outline';
-    path = `/v1/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
+    const format = includeReplies ? 'post' : 'outline';
+    path = `/v1/${channelId}/posts/${anchor}/${count}/${format}`;
     app = 'channels';
   } else {
     throw new Error('invalid channel id');
@@ -445,14 +458,6 @@ async function with404Handler<T>(scryRequest: Promise<any>, defaultValue: T) {
   }
 }
 
-export interface GetChannelPostsResponse {
-  older?: string | null;
-  newer?: string | null;
-  posts: db.Post[];
-  deletedPosts?: string[];
-  totalPosts?: number;
-}
-
 export interface DeletedPost {
   id: string;
   channelId: string;
@@ -548,6 +553,7 @@ export function toPostData(
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
   const id = getCanonicalPostId(post.seal.id);
+
   return {
     id,
     channelId,
@@ -556,7 +562,7 @@ export function toPostData(
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     authorId: post.essay.author,
-    isEdited: post.revision !== '0',
+    isEdited: !!post.revision && post.revision !== '0',
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
@@ -665,7 +671,7 @@ export function toPostReplyData(
     channelId,
     type: 'reply',
     authorId: reply.memo.author,
-    isEdited: reply.revision !== '0',
+    isEdited: !!reply.revision && reply.revision !== '0',
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),
