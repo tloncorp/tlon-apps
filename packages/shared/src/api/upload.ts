@@ -140,14 +140,14 @@ export interface FileStore {
     uploader: string,
     files: RNFile[] | null,
     config: StorageConfiguration,
-    imageSizer: (url: string) => Promise<[number, number]>,
+    getImageSize: (url: string) => Promise<[number, number]>,
     nativeUploader?: NativeUploader
   ) => Promise<void>;
   upload: (
     uploader: string,
     upload: Upload,
     config: StorageConfiguration,
-    imageSizer: (url: string) => Promise<[number, number]>,
+    getImageSize: (url: string) => Promise<[number, number]>,
     compressor?: (file: RNFile) => Promise<RNFile>,
     nativeUploader?: NativeUploader
   ) => Promise<void>;

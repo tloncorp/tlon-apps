@@ -99,7 +99,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const uploader = get().getUploader(uploaderKey);
     return uploader ? uploader.uploadType : 'prompt';
   },
-  uploadFiles: async (uploader, files, config, imageSizer, nativeUploader) => {
+  uploadFiles: async (
+    uploader,
+    files,
+    config,
+    getImageSize,
+    nativeUploader
+  ) => {
     if (!files) return;
 
     const shipInfo = await getShipInfo();
@@ -127,14 +133,14 @@ export const useFileStore = create<FileStore>((set, get) => ({
     });
 
     fileList.forEach((f) =>
-      upload(uploader, f, config, imageSizer, undefined, nativeUploader)
+      upload(uploader, f, config, getImageSize, undefined, nativeUploader)
     );
   },
   upload: async (
     uploader,
     upload,
     config,
-    imageSizer,
+    getImageSize,
     compressor,
     nativeUploader
   ) => {
@@ -239,7 +245,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
             });
             updateStatus(uploader, key, 'success');
             if (isImageFile(file.blob)) {
-              imageSizer(fileUrl)
+              getImageSize(fileUrl)
                 .then((s) =>
                   updateFile(uploader, key, {
                     size: s,
@@ -341,7 +347,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         .then(() => {
           updateStatus(uploader, key, 'success');
           if (isImageFile(file.blob)) {
-            imageSizer(url)
+            getImageSize(url)
               .then((s) =>
                 updateFile(uploader, key, {
                   size: s,
@@ -422,7 +428,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
 const emptyUploader = (
   key: string,
   config: StorageConfiguration,
-  imageSizer: (url: string) => Promise<[number, number]>,
+  getImageSize: (url: string) => Promise<[number, number]>,
   nativeUploader?: api.NativeUploader
 ): Uploader => ({
   files: {},
@@ -430,7 +436,7 @@ const emptyUploader = (
   uploadFiles: async (files) =>
     useFileStore
       .getState()
-      .uploadFiles(key, files, config, imageSizer, nativeUploader),
+      .uploadFiles(key, files, config, getImageSize, nativeUploader),
   clear: () => useFileStore.getState().clear(key),
   removeByURL: (url) => useFileStore.getState().removeByURL(key, url),
   uploadType: 'prompt',
@@ -478,7 +484,7 @@ function useClient() {
 const selUploader = (key: string) => (s: FileStore) => s.uploaders[key];
 export function useUploader(
   key: string,
-  imageSizer: (url: string) => Promise<[number, number]>,
+  getImageSize: (url: string) => Promise<[number, number]>,
   nativeUploader?: api.NativeUploader
 ): Uploader | undefined {
   const {
@@ -497,13 +503,13 @@ export function useUploader(
           draft.uploaders[key] = emptyUploader(
             key,
             configuration,
-            imageSizer,
+            getImageSize,
             nativeUploader
           );
         })
       );
     }
-  }, [client, configuration, key, imageSizer, nativeUploader]);
+  }, [client, configuration, key, getImageSize, nativeUploader]);
 
   return uploader;
 }
