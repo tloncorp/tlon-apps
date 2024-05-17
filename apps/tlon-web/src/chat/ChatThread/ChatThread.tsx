@@ -3,7 +3,7 @@ import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -11,10 +11,13 @@ import { useEventListener } from 'usehooks-ts';
 
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import ActionMenu from '@/components/ActionMenu';
 import useLeap from '@/components/Leap/useLeap';
 import MobileHeader from '@/components/MobileHeader';
 import useActiveTab from '@/components/Sidebar/util';
+import VolumeSetting from '@/components/VolumeSetting';
 import BranchIcon from '@/components/icons/BranchIcon';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
@@ -25,8 +28,9 @@ import {
 } from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
+import { firstInlineSummary } from '@/logic/tiptap';
 import useIsEditingMessage from '@/logic/useIsEditingMessage';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   useAddReplyMutation,
   useMyLastReply,
@@ -60,6 +64,7 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const scrollTo = new URLSearchParams(location.search).get('reply');
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -191,6 +196,8 @@ export default function ChatThread() {
   }, [replies, idTimeIsNumber, navigate, returnURLWithoutMsg]);
 
   const BackButton = isMobile ? Link : 'div';
+  const line = note ? firstInlineSummary(note.essay.content) : 'Thread';
+  const shortenedLine = line.length > 50 ? `${line.slice(0, 50)}...` : line;
 
   return (
     <div
@@ -212,6 +219,53 @@ export default function ChatThread() {
             </div>
           }
           pathBack={returnURL()}
+          action={
+            <div className="flex h-12 flex-row items-center justify-end space-x-2">
+              <ActionMenu
+                open={isMenuOpen}
+                onOpenChange={setIsMenuOpen}
+                actions={[
+                  {
+                    key: 'volume',
+                    content: (
+                      <div className="-mx-2 flex flex-col space-y-6">
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-lg text-gray-800">
+                            Notification Settings
+                          </span>
+                          <span className="text-[17px] font-normal text-gray-400">
+                            {`Thread: ${shortenedLine}`}
+                          </span>
+                        </div>
+                        <VolumeSetting
+                          source={{
+                            thread: {
+                              key: msgKey,
+                              channel: nest,
+                              group: groupFlag,
+                            },
+                          }}
+                        />
+                      </div>
+                    ),
+                    keepOpenOnClick: true,
+                  },
+                ]}
+              >
+                <button
+                  className={cn(
+                    'default-focus flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
+                  )}
+                  aria-label="Thread Options"
+                  onClick={() => {
+                    setIsMenuOpen(true);
+                  }}
+                >
+                  <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
+                </button>
+              </ActionMenu>
+            </div>
+          }
         />
       ) : (
         <header className={'header z-40'}>
@@ -244,13 +298,50 @@ export default function ChatThread() {
               </div>
             </BackButton>
 
-            <Link
-              to={returnURL()}
-              aria-label="Close"
-              className="icon-button h-6 w-6 bg-transparent"
-            >
-              <X16Icon className="h-4 w-4 text-gray-600" />
-            </Link>
+            <div className="flex space-x-2">
+              {/* <ActionMenu
+                open={isMenuOpen}
+                onOpenChange={setIsMenuOpen}
+                className="max-w-full"
+                actions={[
+                  {
+                    key: 'notifications',
+                    onClick: () => {
+                      if (isMobile) {
+                        // setShowNotifications(true);
+                      } else {
+
+                      }
+                    },
+                    content: 'Notifications',
+                  },
+                ]}
+              > */}
+              <button
+                className={cn(
+                  'default-focus flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
+                )}
+                aria-label="Thread Options"
+                onClick={() => {
+                  navigate(
+                    `/groups/${groupFlag}/channels/${nest}/message/${idTime}/volume`,
+                    {
+                      state: { backgroundLocation: location },
+                    }
+                  );
+                }}
+              >
+                <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
+              </button>
+              {/* </ActionMenu> */}
+              <Link
+                to={returnURL()}
+                aria-label="Close"
+                className="icon-button h-6 w-6 bg-transparent"
+              >
+                <X16Icon className="h-4 w-4 text-gray-600" />
+              </Link>
+            </div>
           </div>
         </header>
       )}
