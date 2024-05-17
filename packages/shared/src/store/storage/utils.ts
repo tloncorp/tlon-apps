@@ -19,9 +19,7 @@ const fetchImageFromUri = async (
   width: number
 ) => {
   try {
-    logger.log('fetchImageFromUri', uri);
     const response = await fetch(uri);
-    logger.log('fetchImageFromUri response', response);
     const blob = await response.blob();
     const name = uri.split('/').pop();
 
@@ -45,8 +43,8 @@ export const handleImagePicked = async (
   image: SizedImage,
   uploader: Uploader
 ) => {
-  logger.log('handleImagePicked', image.uri, uploader);
   try {
+    // get any necessary metadata before pasing along to FileStore
     const file = await fetchImageFromUri(image.uri, image.height, image.width);
     if (!file) {
       logger.log('no image');

@@ -45,10 +45,13 @@ export function useImageUpload(props: UploadParams): UploadInfo {
     };
 
     if (attachments.length && !startedImageUpload) {
+      // step 1: resize the image and store the updated UR for now we only handle
+      // the first attachment
       if (!resizedImage) {
         getResizedImage(attachments[0].uri);
       }
 
+      // step 2: pass the resized image to FileStore to handle the upload
       if (uploader && resizedImage) {
         handleImagePicked(resizedImage, uploader);
         setStartedImageUpload(true);
@@ -57,6 +60,8 @@ export function useImageUpload(props: UploadParams): UploadInfo {
   }, [attachments, mostRecentFile, uploader, startedImageUpload, resizedImage]);
 
   useEffect(() => {
+    // step 3: after we detect that the upload is complete, return it to any
+    // consumers of the hook
     if (
       mostRecentFile &&
       (mostRecentFile.status === 'success' ||
@@ -85,6 +90,8 @@ export function useImageUpload(props: UploadParams): UploadInfo {
   };
 }
 
+// This uses an expo package to handle file uploads on the native thread. It doesn't suffer
+// from any of the redirect/blob issues we saw with a hermes fetch based approach
 async function nativeUploader(
   presignedUrl: string,
   file: RNFile,

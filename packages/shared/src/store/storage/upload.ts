@@ -152,14 +152,18 @@ export const useFileStore = create<FileStore>((set, get) => ({
       config.service === 'presigned-url' && config.presignedUrl;
     const isCustomUpload = client !== null;
 
-    // TODO: implement image compression for react-native
+    // TODO: implement image compression for react-native. Right now,
+    // we simply rely on the resize shrinking the file enough
 
     // Native app uses its own uploader which gets passed in
     if (nativeUploader) {
       try {
         if (isHostedUpload) {
+          // first hit memex to obtain a presigned URL
           const presignedUrl = await getMemexUploadUrl(key);
           await nativeUploader(presignedUrl, file);
+          // after the upload succeeds, we have to query memex again with the
+          // same key to obtain the final location of the object
           const finalUrl = await getFinalMemexUrl(presignedUrl);
           updateFile(uploader, key, {
             url: finalUrl,
@@ -178,6 +182,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
           });
           const signedUrl = await getSignedUrl(client, command);
           await nativeUploader(signedUrl, file, true);
+          // publicUrlBase is used for configs where the path for interacting with
+          // S3 differs from the path where objects are exposed
           const finalUrl = config.publicUrlBase
             ? new URL(key, config.publicUrlBase).toString()
             : signedUrl.split('?')[0];
