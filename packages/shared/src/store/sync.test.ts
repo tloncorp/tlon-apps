@@ -122,7 +122,7 @@ test('syncs dms', async () => {
       },
     },
   ]);
-  await syncDms();
+  await syncDms('~solfer-magfed');
 
   const singleChannel = await db.getChannel({
     id: '~solfer-magfed',
@@ -148,7 +148,7 @@ test('syncs dms', async () => {
     syncedAt: null,
     remoteUpdatedAt: null,
     isPendingChannel: null,
-    isDmInvite: null,
+    isDmInvite: false,
     members: [
       {
         chatId: '~solfer-magfed',
@@ -184,7 +184,7 @@ test('syncs dms', async () => {
     syncedAt: null,
     remoteUpdatedAt: null,
     isPendingChannel: null,
-    isDmInvite: null,
+    isDmInvite: false,
     members: [
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -309,7 +309,7 @@ test('deletes removed posts', async () => {
 
 test('syncs init data', async () => {
   setScryOutput(rawGroupsInitData);
-  await syncInitData();
+  await syncInitData('~solfer-magfed');
   const groups = await db.getGroups({});
   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
   const pins = await db.getPinnedItems();

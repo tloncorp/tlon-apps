@@ -90,19 +90,19 @@ export function AddChatSheet({
             >
               <Stack.Screen
                 name="Root"
-                initialParams={{ currentUserId, dismiss }}
+                initialParams={{ currentUserId }}
                 // these ComponentType<any> casts are needed to stop web type compilation
                 // from complaining, not sure why
                 component={RootPane as React.ComponentType<any>}
               />
               <Stack.Screen
                 name="CreateGroup"
-                initialParams={{ currentUserId, dismiss }}
+                initialParams={{ currentUserId }}
                 component={CreateGroupPane as React.ComponentType<any>}
               />
               <Stack.Screen
                 name="JoinGroup"
-                initialParams={{ currentUserId, dismiss }}
+                initialParams={{ currentUserId }}
                 component={JoinGroupPane as React.ComponentType<any>}
               />
             </Stack.Navigator>

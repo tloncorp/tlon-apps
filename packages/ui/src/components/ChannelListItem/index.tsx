@@ -2,6 +2,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
+import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
@@ -43,10 +44,18 @@ export default function ChannelListItem({
         )}
       </ListItem.MainContent>
       <ListItem.EndContent position="relative" top={3}>
-        {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-        {model.unread?.count && model.unread.count > 0 ? (
-          <ListItem.Count>{model.unread.count}</ListItem.Count>
-        ) : null}
+        {model.isDmInvite ? (
+          <Badge text="Invite" />
+        ) : (
+          <>
+            {model.lastPost && (
+              <ListItem.Time time={model.lastPost.receivedAt} />
+            )}
+            {model.unread?.count && model.unread.count > 0 ? (
+              <ListItem.Count>{model.unread.count}</ListItem.Count>
+            ) : null}
+          </>
+        )}
       </ListItem.EndContent>
     </ListItem>
   );
@@ -68,11 +77,11 @@ function ChannelListItemIcon({
         backgroundColor={'$secondaryBackground'}
       />
     );
-  } else if (model.type === 'dm' && model.members?.[0]?.contactId) {
+  } else if (model.type === 'dm') {
     return (
       <ListItem.AvatarIcon
         backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId}
+        contactId={model.members?.[0]?.contactId ?? model.id}
         contact={model.members?.[0]?.contact}
       />
     );

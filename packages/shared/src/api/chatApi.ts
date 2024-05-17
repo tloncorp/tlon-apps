@@ -1,7 +1,10 @@
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { toClientMeta } from './converters';
-import { poke, scry } from './urbit';
+import { poke, scry, subscribe } from './urbit';
+
+const logger = createDevLogger('chatApi', true);
 
 export const markChatRead = (whom: string) =>
   poke({
@@ -55,8 +58,28 @@ export const respondToDMInvite = ({
   const action = multiDmAction(channel.id, {
     team: { ship: currentUserId, ok: accept },
   });
+  console.log(`action:`, action);
   return poke(action);
 };
+
+export type ChatEvent = { type: 'addDmInvites'; channels: db.Channel[] };
+export function subscribeToChatUpdates(
+  eventHandler: (event: ChatEvent) => void
+) {
+  subscribe(
+    {
+      app: 'chat',
+      path: '/dm/invited',
+    },
+    (data) => {
+      logger.log('subscribeToChatUpdates', data);
+      eventHandler({
+        type: 'addDmInvites',
+        channels: toClientDms(data as string[], true),
+      });
+    }
+  );
+}
 
 export function blockUser(userId: string) {
   return poke({
@@ -97,24 +120,35 @@ export const getDms = async (): Promise<GetDmsResponse> => {
   return toClientDms(result);
 };
 
-export const toClientDms = (dmContacts: string[]) => {
-  return dmContacts.map((id): db.Channel => {
-    return {
-      id,
-      type: 'dm' as const,
-      title: '',
-      description: '',
-      members: [{ chatId: id, contactId: id, membershipType: 'channel' }],
-    };
-  });
+export const toClientDms = (
+  dmContacts: string[],
+  areInvites?: boolean
+): db.Channel[] => {
+  return dmContacts.map((id) => toClientDm(id, areInvites));
 };
 
-export const getGroupDms = async (): Promise<GetDmsResponse> => {
+export const toClientDm = (id: string, isInvite?: boolean): db.Channel => {
+  return {
+    id,
+    type: 'dm' as const,
+    title: '',
+    description: '',
+    isDmInvite: !!isInvite,
+    members: [{ chatId: id, contactId: id, membershipType: 'channel' }],
+  };
+};
+
+export const getGroupDms = async (
+  currentUserId: string
+): Promise<GetDmsResponse> => {
   const result = (await scry({ app: 'chat', path: '/clubs' })) as ub.Clubs;
-  return toClientGroupDms(result);
+  return toClientGroupDms(result, currentUserId);
 };
 
-export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
+export const toClientGroupDms = (
+  groupDms: ub.Clubs,
+  currentUserId: string
+): GetDmsResponse => {
   return Object.entries(groupDms).map(([id, club]): db.Channel => {
     const joinedMembers = club.team.map(
       (member): db.ChatMember => ({
@@ -133,10 +167,21 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
       })
     );
 
+    console.log(`joinedMembers:`, joinedMembers);
+    console.log(`invitedMembers:`, invitedMembers);
+    console.log(`currentUserId:`, currentUserId);
+
+    const isDmInvite =
+      !joinedMembers.some((member) => member.contactId === currentUserId) &&
+      invitedMembers.some((member) => member.contactId === currentUserId);
+
+    console.log(`isDmInvite:`, isDmInvite);
+
     return {
       id,
       type: 'groupDm',
       ...toClientMeta(club.meta),
+      isDmInvite,
       members: [...joinedMembers, ...invitedMembers],
     };
   });

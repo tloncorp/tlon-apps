@@ -144,16 +144,22 @@ export const getGroups = createReadQuery(
   ]
 );
 
-export const getPendingGroups = createReadQuery(
-  'getPendingGroups',
+export const getPendingChats = createReadQuery(
+  'getPendingChats',
   async () => {
-    return client.query.groups.findMany({
+    const pendingGroups = await client.query.groups.findMany({
       where: or(
         eq($groups.haveInvite, true),
         isNotNull($groups.joinStatus),
         eq($groups.haveRequestedInvite, true)
       ),
     });
+
+    const pendingChannels = await client.query.channels.findMany({
+      where: eq($channels.isDmInvite, true),
+    });
+
+    return [...pendingChannels, ...pendingGroups];
   },
   ['groups']
 );
@@ -183,7 +189,7 @@ export const getChats = createReadQuery(
         rn: sql`0`.as('rn'),
       })
       .from($channels)
-      .where(isNull($channels.groupId))
+      .where(and(isNull($channels.groupId), eq($channels.isDmInvite, false)))
       .union(groupChannels)
       .as('ac');
 
@@ -655,7 +661,7 @@ export const insertChannels = createWriteQuery(
         .values(channels)
         .onConflictDoUpdate({
           target: $channels.id,
-          set: conflictUpdateSetAll($posts),
+          set: conflictUpdateSetAll($channels), //TODO: why was this $posts before?
         });
 
       for (const channel of channels) {
@@ -1160,6 +1166,17 @@ export const getContact = createReadQuery(
         where: (contacts, { eq }) => eq(contacts.id, id),
       })
       .then(returnNullIfUndefined);
+  },
+  ['contacts']
+);
+
+export const updateContact = createWriteQuery(
+  'updateContact',
+  async (contact: Partial<Contact> & { id: string }) => {
+    return client
+      .update($contacts)
+      .set(contact)
+      .where(eq($contacts.id, contact.id));
   },
   ['contacts']
 );

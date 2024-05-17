@@ -24,6 +24,7 @@ import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
+import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
@@ -171,6 +172,7 @@ export function Channel({
                       )}
                       {negotiationMatch &&
                         !editingPost &&
+                        !channel.isDmInvite &&
                         chatChannel &&
                         canWrite && (
                           <MessageInput
@@ -187,6 +189,13 @@ export function Channel({
                             getDraft={getDraft}
                           />
                         )}
+                      {channel.isDmInvite && (
+                        <DmInviteOptions
+                          channel={channel}
+                          goBack={goBack}
+                          currentUserId={currentUserId}
+                        />
+                      )}
                       {!negotiationMatch && chatChannel && canWrite && (
                         <View
                           width="90%"

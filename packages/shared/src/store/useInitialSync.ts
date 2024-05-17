@@ -7,11 +7,15 @@ import {
   syncStaleChannels,
 } from './sync';
 
-export const useInitialSync = () => {
+export const useInitialSync = (currentUserId: string) => {
   return useQuery({
     queryFn: async () => {
       try {
-        await Promise.all([syncInitData(), syncContacts(), syncSettings()]);
+        await Promise.all([
+          syncInitData(currentUserId),
+          syncContacts(),
+          syncSettings(),
+        ]);
         await syncStaleChannels();
       } catch (e) {
         console.log('SYNC ERROR', e);

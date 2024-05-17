@@ -8,9 +8,9 @@ import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
-export const syncInitData = async () => {
+export const syncInitData = async (currentUserId: string) => {
   return syncQueue.add('init', async () => {
-    const initData = await api.getInitData();
+    const initData = await api.getInitData(currentUserId);
     await db.insertPinnedItems(initData.pins);
     await db.insertGroups(initData.groups);
     await resetUnreads(initData.unreads);
@@ -43,8 +43,11 @@ export const syncGroups = async () => {
   await db.insertGroups(groups);
 };
 
-export const syncDms = async () => {
-  const [dms, groupDms] = await Promise.all([api.getDms(), api.getGroupDms()]);
+export const syncDms = async (currentUserId: string) => {
+  const [dms, groupDms] = await Promise.all([
+    api.getDms(),
+    api.getGroupDms(currentUserId),
+  ]);
   await db.insertChannels([...dms, ...groupDms]);
 };
 
@@ -143,6 +146,22 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       break;
     case 'unknown':
     default:
+      break;
+  }
+};
+
+export const handleChatUpdate = async (event: api.ChatEvent) => {
+  switch (event.type) {
+    case 'addDmInvites':
+      // make sure we have contacts for any new DMs
+      await api.addContacts(
+        event.channels
+          .filter((chan) => chan.type === 'dm')
+          .map((chan) => chan.id)
+      );
+
+      // insert the new DMs
+      db.insertChannels(event.channels);
       break;
   }
 };
@@ -342,6 +361,7 @@ export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
   api.subscribeToGroupsUpdates(handleGroupsUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
+  api.subscribeToChatUpdates(handleChatUpdate);
   useStorage.getState().start();
 };
 

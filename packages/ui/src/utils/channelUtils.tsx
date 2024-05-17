@@ -9,7 +9,7 @@ export function getChannelTitle(channel: db.Channel) {
     const member = channel.members?.[0];
     if (!member) {
       console.warn('bad dm channel', channel.id, 'missing contact');
-      return 'Untitled DM';
+      return channel.id;
     }
     return getChannelMemberName(member);
   } else if (channel.type === 'groupDm') {

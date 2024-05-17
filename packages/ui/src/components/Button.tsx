@@ -18,6 +18,7 @@ export const ButtonContext = createStyledContext<{
   color: ThemeTokens;
   minimal: boolean;
   hero: boolean;
+  secondary: boolean;
   disabled: boolean;
   onPress?: () => void;
 }>({
@@ -25,6 +26,7 @@ export const ButtonContext = createStyledContext<{
   color: '$primaryText',
   minimal: false,
   hero: false,
+  secondary: false,
   disabled: false,
 });
 
@@ -80,6 +82,16 @@ export const ButtonFrame = styled(Stack, {
         },
       },
     } as const,
+    secondary: {
+      true: {
+        backgroundColor: '$border',
+        padding: '$xl',
+        borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$positiveBackground',
+        },
+      },
+    } as const,
     disabled: {
       true: {
         opacity: 0.3,
@@ -116,6 +128,13 @@ export const ButtonText = styled(Text, {
     hero: {
       true: {
         color: '$white',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+    secondary: {
+      true: {
         width: '100%',
         textAlign: 'center',
         fontWeight: '500',

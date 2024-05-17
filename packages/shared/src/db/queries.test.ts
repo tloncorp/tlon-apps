@@ -60,7 +60,7 @@ test('gets chat list', async () => {
   ]);
 
   await syncGroups();
-  await syncDms();
+  await syncDms('~solfer-magfed');
   await syncPinnedItems();
   await syncContacts();
   await syncUnreads();

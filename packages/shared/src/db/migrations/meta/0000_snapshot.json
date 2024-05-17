@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "05980a6a-1950-4a04-adb6-ad3dbc8f418e",
+  "id": "67e1f5bb-eff3-4c5d-b346-ea20c83e732c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -409,6 +409,13 @@
         "coverImage": {
           "name": "coverImage",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "blocked": {
+          "name": "blocked",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

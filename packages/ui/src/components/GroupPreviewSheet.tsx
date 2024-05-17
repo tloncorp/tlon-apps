@@ -1,6 +1,6 @@
+import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { createDevLogger } from 'packages/shared/dist';
 import { useEffect, useMemo, useState } from 'react';
 
 import { View } from '../core';
@@ -88,6 +88,10 @@ export function GroupPreviewPane({
   const rescindInvite = () => {
     store.rescindGroupInvitationRequest(group);
   };
+  const joinGroup = () => {
+    store.joinGroup(group);
+    setIsJoining(true);
+  };
 
   // Dismiss sheet once the group join is complete
   useEffect(() => {
@@ -124,7 +128,7 @@ export function GroupPreviewPane({
           />
           <ActionSheet.Title>{group?.title}</ActionSheet.Title>
           {group?.description ? (
-            <ActionSheet.Description textAlign="center">
+            <ActionSheet.Description fontSize="$s" textAlign="center">
               {group.description}
             </ActionSheet.Description>
           ) : null}
@@ -133,7 +137,7 @@ export function GroupPreviewPane({
       <View gap={isJoining ? '$2xl' : '$l'}>
         <GroupActions
           status={status}
-          actions={{ respondToInvite, requestInvite, rescindInvite }}
+          actions={{ respondToInvite, requestInvite, rescindInvite, joinGroup }}
         />
       </View>
     </>
@@ -149,6 +153,7 @@ export function GroupActions({
     respondToInvite: (accepted: boolean) => void;
     requestInvite: () => void;
     rescindInvite: () => void;
+    joinGroup: () => void;
   };
 }) {
   if (status.isMember) {
@@ -175,7 +180,7 @@ export function GroupActions({
         <Button hero onPress={() => actions.respondToInvite(true)}>
           <Button.Text>Accept invite</Button.Text>
         </Button>
-        <Button onPress={() => actions.respondToInvite(false)}>
+        <Button secondary onPress={() => actions.respondToInvite(false)}>
           <Button.Text>Reject invite</Button.Text>
         </Button>
       </>
@@ -188,18 +193,26 @@ export function GroupActions({
         <Button
           hero
           disabled={status.requestedInvite}
-          onPress={() => actions.requestInvite()}
+          onPress={actions.requestInvite}
         >
           <Button.Text>
             {status.requestedInvite ? 'Requested' : 'Request an invite'}
           </Button.Text>
         </Button>
         {status.requestedInvite && (
-          <Button onPress={() => actions.rescindInvite()}>
+          <Button secondary onPress={actions.rescindInvite}>
             <Button.Text>Cancel request</Button.Text>
           </Button>
         )}
       </>
     );
   }
+
+  return (
+    <>
+      <Button hero onPress={actions.joinGroup}>
+        <Button.Text>Join</Button.Text>
+      </Button>
+    </>
+  );
 }

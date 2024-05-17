@@ -12,7 +12,7 @@ export * from './useChannelSearch';
 export interface CurrentChats {
   pinned: db.Channel[];
   unpinned: db.Channel[];
-  pendingGroups: db.Group[];
+  pendingChats: (db.Group | db.Channel)[];
 }
 
 export const useCalmSettings = (options: { userId: string }) => {
@@ -38,24 +38,24 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: async () => {
       const channels = await db.getChats();
-      const pendingGroups = await db.getPendingGroups();
-      return { channels, pendingGroups };
+      const pendingChats = await db.getPendingChats();
+      return { channels, pendingChats };
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getGroup)],
-    select({ channels, pendingGroups }) {
+    select({ channels, pendingChats }) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
           return {
             pinned: channels.slice(0, i),
             unpinned: channels.slice(i),
-            pendingGroups,
+            pendingChats,
           };
         }
       }
       return {
         pinned: channels,
         unpinned: [],
-        pendingGroups,
+        pendingChats,
       };
     },
   });

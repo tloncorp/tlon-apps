@@ -60,7 +60,8 @@ CREATE TABLE `contacts` (
 	`status` text,
 	`color` text,
 	`avatarImage` text,
-	`coverImage` text
+	`coverImage` text,
+	`blocked` integer
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (

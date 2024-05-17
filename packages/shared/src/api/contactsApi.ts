@@ -1,7 +1,7 @@
 import * as db from '../db';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
-import { scry } from './urbit';
+import { poke, scry } from './urbit';
 
 export const getContacts = async () => {
   const results = await scry<ub.ContactRolodex>({
@@ -9,6 +9,14 @@ export const getContacts = async () => {
     path: '/all',
   });
   return toClientContacts(results);
+};
+
+export const addContacts = async (contactIds: string[]) => {
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action',
+    json: { heed: contactIds },
+  });
 };
 
 export const toClientContacts = (contacts: ub.ContactRolodex): db.Contact[] => {

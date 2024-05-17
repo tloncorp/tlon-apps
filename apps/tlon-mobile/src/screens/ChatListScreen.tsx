@@ -2,7 +2,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
-  AddChatProvider,
   AddChatSheet,
   ChatList,
   ChatOptionsSheet,
@@ -13,7 +12,7 @@ import {
   Spinner,
   View,
 } from '@tloncorp/ui/src';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
@@ -37,12 +36,9 @@ export default function ChatListScreen(
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
 
-  const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
+  const { isFetching: isFetchingInitData, refetch } =
+    store.useInitialSync(currentUserId);
   useRefetchQueryOnFocus(refetch);
-
-  useEffect(() => {
-    console.log(`pending:`, chats?.pendingGroups);
-  }, [chats?.pendingGroups]);
 
   const goToDm = async (participants: string[]) => {
     const dmChannel = await store.upsertDmChannel({
@@ -90,7 +86,7 @@ export default function ChatListScreen(
           <ChatList
             pinned={chats.pinned ?? []}
             unpinned={chats.unpinned ?? []}
-            pendingGroups={chats.pendingGroups ?? []}
+            pendingChats={chats.pendingChats ?? []}
             onLongPressItem={(item) =>
               db.isChannel(item) ? setLongPressedItem(item) : null
             }

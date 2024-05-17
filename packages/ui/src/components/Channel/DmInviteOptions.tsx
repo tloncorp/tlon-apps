@@ -1,0 +1,48 @@
+import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
+import { useCallback } from 'react';
+
+import { View, YStack } from '../../core';
+import { Button } from '../Button';
+
+export function DmInviteOptions({
+  currentUserId,
+  channel,
+  goBack,
+}: {
+  currentUserId: string;
+  channel: db.Channel;
+  goBack: () => void;
+}) {
+  const accept = useCallback(() => {
+    store.respondToDMInvite({ channel, accept: true, currentUserId });
+  }, [channel, currentUserId]);
+
+  const deny = useCallback(() => {
+    store.respondToDMInvite({ channel, accept: false, currentUserId });
+    goBack();
+  }, [channel, currentUserId, goBack]);
+
+  const blockAndDeny = useCallback(() => {
+    store.respondToDMInvite({ channel, accept: false, currentUserId });
+    // only block if single DM for now
+    if (channel.type === 'dm') {
+      store.blockUser(channel.id);
+    }
+    goBack();
+  }, [channel, currentUserId, goBack]);
+
+  return (
+    <YStack marginHorizontal="$2xl" gap="$m">
+      <Button hero onPress={accept}>
+        <Button.Text>Accept</Button.Text>
+      </Button>
+      <Button secondary onPress={deny}>
+        <Button.Text>Deny</Button.Text>
+      </Button>
+      <Button secondary onPress={blockAndDeny}>
+        <Button.Text>Block</Button.Text>
+      </Button>
+    </YStack>
+  );
+}

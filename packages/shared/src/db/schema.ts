@@ -57,6 +57,7 @@ export const contacts = sqliteTable('contacts', {
   color: text('color'),
   avatarImage: text('avatarImage'),
   coverImage: text('coverImage'),
+  isBlocked: boolean('blocked'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({

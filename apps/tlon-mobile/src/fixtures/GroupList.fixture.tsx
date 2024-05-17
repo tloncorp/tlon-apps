@@ -109,7 +109,7 @@ export default {
           groupWithSvgImage,
           groupWithNoColorOrImage,
         ].map((g) => makeChannelSummary({ group: g }))}
-        pendingGroups={[]}
+        pendingChats={[]}
       />
     </FixtureWrapper>
   ),
@@ -123,13 +123,13 @@ export default {
           groupWithSvgImage,
           groupWithNoColorOrImage,
         ].map((g) => makeChannelSummary({ group: g }))}
-        pendingGroups={[]}
+        pendingChats={[]}
       />
     </FixtureWrapper>
   ),
   loading: (
     <FixtureWrapper fillWidth>
-      <ChatList pinned={[]} unpinned={[]} pendingGroups={[]} />
+      <ChatList pinned={[]} unpinned={[]} pendingChats={[]} />
     </FixtureWrapper>
   ),
 };

@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { isGroup } from 'packages/shared/dist/urbit';
 import React, { useCallback, useMemo } from 'react';
 import {
   SectionList,
@@ -24,7 +23,7 @@ type ListItem = db.Channel | db.Group;
 export function ChatList({
   pinned,
   unpinned,
-  pendingGroups,
+  pendingChats,
   onLongPressItem,
   onPressItem,
 }: store.CurrentChats & {
@@ -35,14 +34,14 @@ export function ChatList({
 
   const data = useMemo(() => {
     if (pinned.length === 0) {
-      return [{ title: 'All', data: [...pendingGroups, ...unpinned] }];
+      return [{ title: 'All', data: [...pendingChats, ...unpinned] }];
     }
 
     return [
       { title: 'Pinned', data: pinned },
-      { title: 'All', data: [...pendingGroups, ...unpinned] },
+      { title: 'All', data: [...pendingChats, ...unpinned] },
     ];
-  }, [pinned, unpinned, pendingGroups]);
+  }, [pinned, unpinned, pendingChats]);
 
   const contentContainerStyle = useStyle(
     {
@@ -103,7 +102,7 @@ export function ChatList({
 }
 
 function getChannelKey(item: ListItem) {
-  if (isGroup(item)) return item.id;
+  if (db.isGroup(item)) return item.id;
   return item.id + item.pin?.itemId ?? '';
 }
 
