@@ -737,3 +737,11 @@ export type ChannelScam = { last: string | null; scan: ChannelScan };
 export type TogglePost = { hide: string } | { show: string };
 
 export type HiddenPosts = string[];
+
+export type ChannelHead = {
+  recency: number;
+  nest: string;
+  latest: Writ;
+};
+
+export type ChannelHeadsResponse = ChannelHead[];

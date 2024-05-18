@@ -19,6 +19,23 @@ export const syncInitData = async () => {
   });
 };
 
+export const syncLatestPosts = async () => {
+  return syncQueue.add('latest-posts', async () => {
+    const result = await Promise.all([
+      api.getLatestPosts({ type: 'channels' }),
+      api.getLatestPosts({ type: 'chats' }),
+    ]);
+    await db.insertStandalonePosts(result.flat().map((p) => p.latestPost));
+  });
+};
+
+export const syncChanges = async (options: api.GetChangedPostsOptions) => {
+  return syncQueue.add('changes', async () => {
+    const result = await api.getChangedPosts(options);
+    await persistPagedPostData(options.channelId, result);
+  });
+};
+
 export const syncSettings = async () => {
   return syncQueue.add('settings', async () => {
     const settings = await api.getSettings();
@@ -378,7 +395,7 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
   return [...topChannels, ...skippedChannels, ...restOfChannels];
 }
 
-export async function syncPosts(options: db.GetChannelPostsOptions) {
+export async function syncPosts(options: api.GetChannelPostsOptions) {
   logger.log(
     'syncing posts',
     `${options.channelId}/${options.cursor}/${options.mode}`
@@ -407,8 +424,8 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
     const postsResponse = await api.getChannelPosts({
       channelId: id,
       ...(channel.lastPostId
-        ? { direction: 'newer', cursor: channel.lastPostId }
-        : { direction: 'older', date: new Date() }),
+        ? { mode: 'newer', cursor: channel.lastPostId }
+        : { mode: 'older', cursor: new Date() }),
       includeReplies: false,
     });
     await persistPagedPostData(channel.id, postsResponse);

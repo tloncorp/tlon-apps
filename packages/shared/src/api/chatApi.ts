@@ -1,6 +1,6 @@
 import * as db from '../db';
 import * as ub from '../urbit';
-import { toClientMeta } from './converters';
+import { toClientMeta } from './apiUtils';
 import { poke, scry } from './urbit';
 
 export const markChatRead = (whom: string) =>

@@ -3,16 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import {
   syncContacts,
   syncInitData,
+  syncLatestPosts,
   syncSettings,
-  syncStaleChannels,
 } from './sync';
 
 export const useInitialSync = () => {
   return useQuery({
     queryFn: async () => {
       try {
-        await Promise.all([syncInitData(), syncContacts(), syncSettings()]);
-        await syncStaleChannels();
+        await Promise.all([syncLatestPosts(), syncInitData(), syncContacts()]);
+        await syncSettings();
       } catch (e) {
         console.log('SYNC ERROR', e);
       }

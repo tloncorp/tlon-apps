@@ -354,6 +354,7 @@ export const insertGroups = createWriteQuery(
           }
         }
       }
+      await setLastPosts(tx);
     });
   },
   [
@@ -891,6 +892,7 @@ export const insertChannels = createWriteQuery(
           await tx.insert($chatMembers).values(channel.members);
         }
       }
+      await setLastPosts(tx);
     });
   },
   ['channels']
@@ -1058,7 +1060,7 @@ export type GetChannelPostsOptions = {
 } & (
   | {
       mode: 'newest';
-      cursor?: undefined;
+      cursor?: never;
     }
   | {
       mode: 'older' | 'newer' | 'around';
@@ -1282,35 +1284,10 @@ export const insertChannelPosts = createWriteQuery(
       return;
     }
     return client.transaction(async (tx) => {
-      // Find the group id which corresponds to this channel id
-      const { groupId } =
-        (await tx.query.channels.findFirst({
-          where: eq($channels.id, channelId),
-          columns: { groupId: true },
-        })) ?? {};
-      // Insert posts
-      await tx
-        .insert($posts)
-        .values(posts.map((p) => ({ ...p, groupId, channelId })))
-        .onConflictDoUpdate({
-          target: $posts.id,
-          set: conflictUpdateSetAll($posts),
-        })
-        .onConflictDoUpdate({
-          target: [$posts.authorId, $posts.sentAt],
-          set: conflictUpdateSetAll($posts),
-        });
+      await insertPosts(posts, tx);
       // If these are non-reply posts, update group + channel last post as well as post windows.
       const topLevelPosts = posts.filter((p) => p.type !== 'reply');
       if (topLevelPosts.length) {
-        await setLastPost(
-          {
-            channelId: topLevelPosts[0].channelId,
-            groupId,
-            post: topLevelPosts[topLevelPosts.length - 1],
-          },
-          tx
-        );
         await updatePostWindows(
           {
             channelId,
@@ -1321,65 +1298,122 @@ export const insertChannelPosts = createWriteQuery(
           tx
         );
       }
-      // Delete any pending posts whose sentAt matches the incoming sentAt.
-      // We do this manually as pending post ids do not correspond to server-side post ids.
-      await tx.delete($posts).where(
-        and(
-          eq($posts.deliveryStatus, 'pending'),
-          eq($posts.channelId, channelId),
-          inArray(
-            $posts.sentAt,
-            posts.map((p) => p.sentAt)
-          )
-        )
-      );
     });
   },
   ['posts', 'channels', 'groups', 'postWindows']
 );
 
-async function setLastPost(
-  {
-    groupId,
-    channelId,
-    post,
-  }: {
-    channelId: string;
-    groupId?: string | null;
-    post: Post;
+export const insertStandalonePosts = createWriteQuery(
+  'insertStandalonePosts',
+  async (posts: Post[]) => {
+    return client.transaction(async (tx) => {
+      await insertPosts(posts, tx);
+      for (const post of posts) {
+        await updatePostWindows(
+          {
+            channelId: post.channelId,
+            newPosts: [post],
+          },
+          tx
+        );
+      }
+    });
   },
-  tx: AnySqliteDatabase | AnySqliteTransaction
+  ['posts']
+);
+
+async function insertPosts(
+  posts: Post[],
+  tx: AnySqliteTransaction | AnySqliteDatabase
 ) {
-  // Update last post meta for the channel these posts belong to,
-  // Also grab that channels groupId for updating the group's lastPostAt and
-  // associating the posts with the group.
   await tx
-    .update($channels)
-    .set({ lastPostId: post.id, lastPostAt: post.receivedAt })
-    .where(
-      and(
-        eq($channels.id, channelId),
-        or(
-          isNull($channels.lastPostAt),
-          lt($channels.lastPostAt, post.receivedAt ?? 0)
-        )
-      )
+    .insert($posts)
+    .values(posts.map((p) => ({ ...p })))
+    .onConflictDoUpdate({
+      target: $posts.id,
+      set: conflictUpdateSetAll($posts),
+    })
+    .onConflictDoUpdate({
+      target: [$posts.authorId, $posts.sentAt],
+      set: conflictUpdateSetAll($posts),
+    });
+  await setPostGroups(tx);
+  await setLastPosts(tx);
+  await clearMatchedPendingPosts(posts, tx);
+}
+
+function setPostGroups(tx: AnySqliteTransaction | AnySqliteDatabase = client) {
+  return tx
+    .update($posts)
+    .set({
+      groupId: sql`${tx
+        .select({ groupId: $channels.groupId })
+        .from($channels)
+        .where(eq($channels.id, $posts.channelId))}`,
+    })
+    .where(isNull($posts.groupId));
+}
+
+async function setLastPosts(
+  tx: AnySqliteTransaction | AnySqliteDatabase = client
+) {
+  const $lastPost = tx
+    .$with('lastPost')
+    .as(
+      tx
+        .select({ id: $posts.id, receivedAt: $posts.receivedAt })
+        .from($posts)
+        .where(eq($posts.channelId, $channels.id))
+        .orderBy(desc($posts.receivedAt))
+        .limit(1)
     );
-  // Update group if we found one.
-  if (groupId) {
-    await tx
-      .update($groups)
-      .set({ lastPostId: post.id, lastPostAt: post.receivedAt })
-      .where(
-        and(
-          eq($groups.id, groupId),
-          or(
-            isNull($groups.lastPostAt),
-            lt($groups.lastPostAt, post.receivedAt ?? 0)
-          )
-        )
-      );
-  }
+
+  await tx
+    .with($lastPost)
+    .update($channels)
+    .set({
+      lastPostId: sql`(select ${$lastPost.id} from ${$lastPost})`,
+      lastPostAt: sql`(select ${$lastPost.receivedAt} from ${$lastPost})`,
+    });
+
+  const $groupLastPost = tx.$with('groupLastPost').as(
+    tx
+      .select({
+        groupId: $channels.groupId,
+        lastPostId: max($channels.lastPostId).as('lastPostId'),
+        lastPostAt: max($channels.lastPostAt).as('lastPostAt'),
+      })
+      .from($channels)
+      .where(eq($channels.groupId, $groups.id))
+      .orderBy(desc($channels.lastPostAt))
+      .groupBy($channels.groupId)
+      .limit(1)
+  );
+
+  await tx
+    .with($groupLastPost)
+    .update($groups)
+    .set({
+      lastPostId: sql`(select ${$groupLastPost.lastPostId} from ${$groupLastPost})`,
+      lastPostAt: sql`(select ${$groupLastPost.lastPostAt} from ${$groupLastPost})`,
+    });
+}
+
+// Delete any pending posts whose sentAt matches the incoming sentAt.
+// We do this manually as pending post ids do not correspond to server-side post ids.
+async function clearMatchedPendingPosts(
+  posts: Post[],
+  tx: AnySqliteTransaction | AnySqliteDatabase = client
+) {
+  await tx.delete($posts).where(
+    and(
+      eq($posts.deliveryStatus, 'pending'),
+      inArray(
+        $posts.sentAt,
+        posts.map((p) => p.sentAt)
+      )
+    )
+  );
 }
 
 async function updatePostWindows(
