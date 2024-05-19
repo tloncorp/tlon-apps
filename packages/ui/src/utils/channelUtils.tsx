@@ -8,7 +8,7 @@ export function getChannelTitle(channel: db.Channel) {
   if (channel.type === 'dm') {
     const member = channel.members?.[0];
     if (!member) {
-      console.warn('bad dm channel', channel.id, 'missing contact');
+      console.log('bad dm channel', channel.id, 'missing contact');
       return channel.id;
     }
     return getChannelMemberName(member);

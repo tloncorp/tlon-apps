@@ -25,6 +25,7 @@ import {
 } from 'drizzle-orm';
 
 import { ChannelInit } from '../api';
+import { createDevLogger } from '../debug';
 import { appendContactIdToReplies } from '../logic';
 import { Rank, desig, extractGroupPrivacy } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
@@ -68,6 +69,8 @@ import {
   TableName,
   Unread,
 } from './types';
+
+const logger = createDevLogger('queries', true);
 
 export interface GetGroupsOptions {
   includeUnjoined?: boolean;
@@ -168,6 +171,13 @@ export const getPendingChats = createReadQuery(
 
     const pendingChannels = await client.query.channels.findMany({
       where: eq($channels.isDmInvite, true),
+      with: {
+        members: {
+          with: {
+            contact: true,
+          },
+        },
+      },
     });
 
     return [...pendingChannels, ...pendingGroups];
@@ -950,6 +960,12 @@ export const insertChannels = createWriteQuery(
       return;
     }
 
+    logger.log(
+      'insertChannels',
+      channels.length,
+      channels.map((c) => c.id)
+    );
+
     return client.transaction(async (tx) => {
       await tx
         .insert($channels)
@@ -975,6 +991,7 @@ export const insertChannels = createWriteQuery(
 export const updateChannel = createWriteQuery(
   'updateChannel',
   (update: Partial<Channel> & { id: string }) => {
+    logger.log('updateChannel', update.id, update);
     return client
       .update($channels)
       .set(update)
@@ -986,7 +1003,11 @@ export const updateChannel = createWriteQuery(
 export const deleteChannel = createWriteQuery(
   'deleteChannel',
   async (channelId: string) => {
-    return client.delete($channels).where(eq($channels.id, channelId));
+    logger.log(`deleteChannel`, channelId);
+    await client.delete($posts).where(eq($posts.channelId, channelId));
+    await client.delete($chatMembers).where(eq($chatMembers.chatId, channelId));
+    await client.delete($channels).where(eq($channels.id, channelId));
+    return;
   },
   ['channels']
 );

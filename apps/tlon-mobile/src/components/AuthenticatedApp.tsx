@@ -4,6 +4,7 @@ import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
 import { useShip } from '../contexts/ship';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
@@ -15,12 +16,13 @@ export interface AuthenticatedAppProps {
 
 function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
+  const currentUserId = useCurrentUserId();
   useNotificationListener(initialNotificationPath);
   useDeepLinkListener();
 
   useEffect(() => {
     const start = () => {
-      sync.start().catch((e) => {
+      sync.start(currentUserId).catch((e) => {
         console.warn('Sync failed', e);
       });
     };
@@ -32,7 +34,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
     });
 
     start();
-  }, [ship, shipUrl]);
+  }, [currentUserId, ship, shipUrl]);
 
   return (
     <ZStack flex={1}>

@@ -32,13 +32,14 @@ export const getInitData = async (currentUserId: string) => {
   const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);
   const groupDmChannels = toClientGroupDms(response.chat.clubs, currentUserId);
+  const invitedDms = toClientDms(response.chat.invited, true);
   const talkUnreads = toClientUnreads(response.chat.unreads, 'dm');
 
   return {
     pins,
     groups,
     unreads: [...channelUnreads, ...talkUnreads],
-    channels: [...dmChannels, ...groupDmChannels],
+    channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
   };
 };

@@ -1,6 +1,9 @@
 import * as api from '../api';
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import * as sync from './sync';
+
+const logger = createDevLogger('dmActions', true);
 
 export async function respondToDMInvite({
   channel,
@@ -11,20 +14,42 @@ export async function respondToDMInvite({
   accept: boolean;
   currentUserId: string;
 }) {
+  logger.log(`responding to dm invite`, `accept? ${accept}`, channel.id);
   // optimistic update
-  await db.updateChannel({ id: channel.id, isDmInvite: false });
+  if (accept) {
+    await db.updateChannel({
+      id: channel.id,
+      isDmInvite: false,
+      currentUserIsMember: true,
+    });
+  } else {
+    logger.log(`deleting channel`, channel.id);
+    await db.deleteChannel(channel.id);
+  }
 
   try {
     await api.respondToDMInvite({ channel, accept, currentUserId });
-    await sync.syncChannel(channel.id, Date.now());
+    if (accept) {
+      logger.log(`syncing channel`, channel.id);
+      await sync.syncChannel(channel.id, Date.now());
+    }
   } catch (e) {
-    console.error('Failed to respond to dm invite', e);
+    logger.error('Failed to respond to dm invite', e);
     // rollback optimistic update
-    await db.updateChannel({ id: channel.id, isDmInvite: true });
+    if (accept) {
+      await db.updateChannel({
+        id: channel.id,
+        isDmInvite: true,
+        currentUserIsMember: false,
+      });
+    } else {
+      await db.insertChannels([channel]);
+    }
   }
 }
 
 export async function blockUser(userId: string) {
+  logger.log(`blocking user`, userId);
   // optimistic update
   await db.updateContact({ id: userId, isBlocked: true });
 

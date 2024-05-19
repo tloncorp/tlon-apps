@@ -95,6 +95,7 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
+  console.log(`channel`, channel.isDmInvite);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);

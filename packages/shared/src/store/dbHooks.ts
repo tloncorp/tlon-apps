@@ -39,9 +39,16 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
     queryFn: async () => {
       const channels = await db.getChats();
       const pendingChats = await db.getPendingChats();
+      console.log(`pending chats`, pendingChats);
       return { channels, pendingChats };
     },
-    queryKey: ['currentChats', useKeyFromQueryDeps(db.getGroup)],
+    queryKey: [
+      'currentChats',
+      new Set([
+        ...useKeyFromQueryDeps(db.getGroup),
+        ...useKeyFromQueryDeps(db.getChannel),
+      ]),
+    ],
     select({ channels, pendingChats }) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
@@ -155,9 +162,13 @@ export const useChannelSearchResults = (
 export const useChannelWithLastPostAndMembers = (
   options: db.GetChannelWithLastPostAndMembersOptions
 ) => {
+  const tableDeps = useKeyFromQueryDeps(db.getChannelWithLastPostAndMembers);
   return useQuery({
-    queryKey: [['channelWithLastPostAndMembers', options]],
-    queryFn: () => db.getChannelWithLastPostAndMembers(options),
+    queryKey: ['channelWithLastPostAndMembers', tableDeps, options],
+    queryFn: async () => {
+      const channel = await db.getChannelWithLastPostAndMembers(options);
+      return channel ?? null;
+    },
   });
 };
 

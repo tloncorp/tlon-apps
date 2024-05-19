@@ -13,8 +13,8 @@ export const syncInitData = async (currentUserId: string) => {
     const initData = await api.getInitData(currentUserId);
     await db.insertPinnedItems(initData.pins);
     await db.insertGroups(initData.groups);
-    await resetUnreads(initData.unreads);
     await db.insertChannels(initData.channels);
+    await resetUnreads(initData.unreads);
     await db.insertChannelPerms(initData.channelPerms);
   });
 };
@@ -370,18 +370,25 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   }
 };
 
-export const handleChatUpdate = async (event: api.ChatEvent) => {
+export const handleChatUpdate = async (
+  event: api.ChatEvent,
+  currentUserId: string
+) => {
   switch (event.type) {
     case 'addDmInvites':
       // make sure we have contacts for any new DMs
-      await api.addContacts(
-        event.channels
-          .filter((chan) => chan.type === 'dm')
-          .map((chan) => chan.id)
-      );
+      // await api.addContacts(
+      //   event.channels
+      //     .filter((chan) => chan.type === 'dm')
+      //     .map((chan) => chan.id)
+      // );
 
       // insert the new DMs
       db.insertChannels(event.channels);
+      break;
+
+    case 'groupDmsUpdate':
+      syncDms(currentUserId);
       break;
   }
 };
@@ -594,10 +601,10 @@ async function persistPagedPostData(
   }
 }
 
-export const start = async () => {
+export const start = async (currentUserId: string) => {
   api.subscribeUnreads(handleUnreadUpdate);
   api.subscribeGroups(handleGroupUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
-  api.subscribeToChatUpdates(handleChatUpdate);
+  api.subscribeToChatUpdates(currentUserId, handleChatUpdate);
   useStorage.getState().start();
 };

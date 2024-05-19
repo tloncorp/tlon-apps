@@ -18,13 +18,13 @@ export function DmInviteOptions({
     store.respondToDMInvite({ channel, accept: true, currentUserId });
   }, [channel, currentUserId]);
 
-  const deny = useCallback(() => {
-    store.respondToDMInvite({ channel, accept: false, currentUserId });
+  const deny = useCallback(async () => {
+    await store.respondToDMInvite({ channel, accept: false, currentUserId });
     goBack();
   }, [channel, currentUserId, goBack]);
 
-  const blockAndDeny = useCallback(() => {
-    store.respondToDMInvite({ channel, accept: false, currentUserId });
+  const blockAndDeny = useCallback(async () => {
+    await store.respondToDMInvite({ channel, accept: false, currentUserId });
     // only block if single DM for now
     if (channel.type === 'dm') {
       store.blockUser(channel.id);
@@ -33,16 +33,18 @@ export function DmInviteOptions({
   }, [channel, currentUserId, goBack]);
 
   return (
-    <YStack marginHorizontal="$2xl" gap="$m">
+    <YStack marginHorizontal="$2xl" marginTop="$4xl" gap="$m">
       <Button hero onPress={accept}>
         <Button.Text>Accept</Button.Text>
       </Button>
       <Button secondary onPress={deny}>
         <Button.Text>Deny</Button.Text>
       </Button>
-      <Button secondary onPress={blockAndDeny}>
-        <Button.Text>Block</Button.Text>
-      </Button>
+      {channel.type === 'dm' && (
+        <Button secondary onPress={blockAndDeny}>
+          <Button.Text>Block</Button.Text>
+        </Button>
+      )}
     </YStack>
   );
 }

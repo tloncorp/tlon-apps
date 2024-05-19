@@ -62,9 +62,12 @@ export const respondToDMInvite = ({
   return poke(action);
 };
 
-export type ChatEvent = { type: 'addDmInvites'; channels: db.Channel[] };
+export type ChatEvent =
+  | { type: 'addDmInvites'; channels: db.Channel[] }
+  | { type: 'groupDmsUpdate' };
 export function subscribeToChatUpdates(
-  eventHandler: (event: ChatEvent) => void
+  currentUserId: string,
+  eventHandler: (event: ChatEvent, currentUserId: string) => void
 ) {
   subscribe(
     {
@@ -73,10 +76,29 @@ export function subscribeToChatUpdates(
     },
     (data) => {
       logger.log('subscribeToChatUpdates', data);
-      eventHandler({
-        type: 'addDmInvites',
-        channels: toClientDms(data as string[], true),
-      });
+      eventHandler(
+        {
+          type: 'addDmInvites',
+          channels: toClientDms(data as string[], true),
+        },
+        currentUserId
+      );
+    }
+  );
+
+  subscribe(
+    {
+      app: 'chat',
+      path: '/clubs',
+    },
+    (data) => {
+      logger.log('subscribeToChatUpdates', data);
+      eventHandler(
+        {
+          type: 'groupDmsUpdate',
+        },
+        currentUserId
+      );
     }
   );
 }
@@ -149,40 +171,44 @@ export const toClientGroupDms = (
   groupDms: ub.Clubs,
   currentUserId: string
 ): GetDmsResponse => {
-  return Object.entries(groupDms).map(([id, club]): db.Channel => {
-    const joinedMembers = club.team.map(
-      (member): db.ChatMember => ({
-        contactId: member,
-        chatId: id,
-        membershipType: 'channel',
-        status: 'joined',
-      })
-    );
-    const invitedMembers = club.hive.map(
-      (member): db.ChatMember => ({
-        contactId: member,
-        chatId: id,
-        membershipType: 'channel',
-        status: 'invited',
-      })
-    );
+  return Object.entries(groupDms)
+    .map(([id, club]) => {
+      const joinedMembers = club.team.map(
+        (member): db.ChatMember => ({
+          contactId: member,
+          chatId: id,
+          membershipType: 'channel',
+          status: 'joined',
+        })
+      );
+      const invitedMembers = club.hive.map(
+        (member): db.ChatMember => ({
+          contactId: member,
+          chatId: id,
+          membershipType: 'channel',
+          status: 'invited',
+        })
+      );
 
-    console.log(`joinedMembers:`, joinedMembers);
-    console.log(`invitedMembers:`, invitedMembers);
-    console.log(`currentUserId:`, currentUserId);
+      const isJoined = joinedMembers.some(
+        (member) => member.contactId === currentUserId
+      );
+      const isInvited = invitedMembers.some(
+        (member) => member.contactId === currentUserId
+      );
+      // clubs continue to show up after being declined, so we need to make sure you're
+      // either a member or invited before importing it
+      if (!isJoined && !isInvited) {
+        return null;
+      }
 
-    const isDmInvite =
-      !joinedMembers.some((member) => member.contactId === currentUserId) &&
-      invitedMembers.some((member) => member.contactId === currentUserId);
-
-    console.log(`isDmInvite:`, isDmInvite);
-
-    return {
-      id,
-      type: 'groupDm',
-      ...toClientMeta(club.meta),
-      isDmInvite,
-      members: [...joinedMembers, ...invitedMembers],
-    };
-  });
+      return {
+        id,
+        type: 'groupDm',
+        ...toClientMeta(club.meta),
+        isDmInvite: !isJoined && isInvited,
+        members: [...joinedMembers, ...invitedMembers],
+      };
+    })
+    .filter(Boolean) as db.Channel[];
 };
