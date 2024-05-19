@@ -43,3 +43,8 @@ export function logSyncDuration<T>(
   logger.log('end:time:' + label + '', `(${Date.now() - start}ms)`);
   return result;
 }
+
+// Attempts to slice off rarely significant digits for more legible logging.
+export function shortPostId(postId: string) {
+  return postId.slice(14, 27);
+}

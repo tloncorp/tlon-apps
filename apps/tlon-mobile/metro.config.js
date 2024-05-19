@@ -42,6 +42,15 @@ module.exports = mergeConfig(config, {
   resolver: {
     assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
     disableHierarchicalLookup: true,
+    // requireCycleIgnorePatterns needs to cover ContentReference, as
+    // that require cycle can't be avoided without a major refactor.
+    requireCycleIgnorePatterns: [
+      /packages\/ui\/src\/components\/ContentReference\//,
+      // according to the docs we need to specifically add this pattern to the
+      // list if we add any of our own patterns
+      // https://metrobundler.dev/docs/configuration/#requirecycleignorepatterns
+      /(^|\/|\\)node_modules($|\/|\\)/,
+    ],
     nodeModulesPaths: [
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(workspaceRoot, 'node_modules'),

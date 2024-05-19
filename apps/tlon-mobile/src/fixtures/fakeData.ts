@@ -757,7 +757,7 @@ const dates = {
 export const groupWithColorAndNoImage: db.Group = {
   id: '1',
   title: 'Test Group',
-  privacy: 'public',
+  privacy: 'private',
   unreadCount: 1,
   iconImage: null,
   iconImageColor: '#FF00FF',

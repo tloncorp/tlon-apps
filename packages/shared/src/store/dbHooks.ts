@@ -96,13 +96,19 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroup = (options: { id: string }) => {
+export const useGroup = (options: { id?: string }) => {
   return useQuery({
+    enabled: !!options.id,
     queryKey: [['group', options], useKeyFromQueryDeps(db.getGroup, options)],
-    queryFn: () =>
-      db.getGroup(options).then((r) => {
-        return r ?? null;
-      }),
+    queryFn: () => {
+      if (!options.id) {
+        // This should never actually get thrown as the query is disabled if id
+        // is missing
+        throw new Error('missing id');
+      }
+      const enabledOptions = options as { id: string };
+      return db.getGroup(enabledOptions);
+    },
   });
 };
 
