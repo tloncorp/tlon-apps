@@ -116,7 +116,7 @@ export default function GalleryPost({
 
   return (
     <Pressable onPress={onPress} onLongPress={() => onLongPress?.(post)}>
-      <View key={post.id} position="relative" alignItems="center">
+      <View padding="$m" key={post.id} position="relative" alignItems="center">
         {(isImagePost || textPostIsLinkedImage) && (
           <ImageBackground
             source={{ uri: isImagePost ? image!.src : linkedImage }}

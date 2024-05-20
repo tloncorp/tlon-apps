@@ -169,9 +169,8 @@ export default function Scroller({
     return {
       opacity: hasFoundAnchor ? 1 : 0,
       backgroundColor: theme.background.val,
-      paddingTop: channelType === 'gallery' ? 8 : 0,
     };
-  }, [hasFoundAnchor, channelType, theme.background.val]);
+  }, [hasFoundAnchor, theme.background.val]);
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts?.[index + 1];
@@ -189,7 +188,7 @@ export default function Scroller({
       // (they are objects, not functions)
       const RenderItem = renderItem;
       return (
-        <View padding="$m" onLayout={() => handleItemLayout(item, index)}>
+        <View onLayout={() => handleItemLayout(item, index)}>
           {isFirstUnread ? (
             <ChannelDivider
               timestamp={item.receivedAt}
