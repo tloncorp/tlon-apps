@@ -1,14 +1,8 @@
-import {
-  MessageAttachments,
-  Upload,
-  UploadInfo,
-} from '@tloncorp/shared/dist/api';
-import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { UploadInfo } from '@tloncorp/shared/dist/api';
+import { useState } from 'react';
 
 import { Add } from '../../assets/icons';
 import { Spinner, View } from '../../core';
-import { ActionSheet } from '../ActionSheet';
 import AttachmentSheet from '../AttachmentSheet';
 import { IconButton } from '../IconButton';
 
