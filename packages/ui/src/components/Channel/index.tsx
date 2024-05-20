@@ -23,9 +23,9 @@ import { SizableText, Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
+import FloatingActionButton from '../FloatingActionButton';
 import { GalleryInput } from '../GalleryInput/index.native';
 import { GalleryPost } from '../GalleryPost';
-import { IconButton } from '../IconButton';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -256,23 +256,20 @@ export function Channel({
                                 <Spinner />
                               </View>
                             ) : (
-                              <IconButton
-                                backgroundColor="$primaryText"
-                                backgroundColorOnPress="$tertiaryText"
-                                color="$background"
-                                radius="$xl"
+                              <FloatingActionButton
                                 onPress={() =>
                                   uploadInfo.uploadedImage
                                     ? messageSender([], channel.id)
                                     : setShowAddGalleryPost(true)
                                 }
-                              >
-                                {uploadInfo.uploadedImage ? (
-                                  <ArrowUp />
-                                ) : (
-                                  <Add />
-                                )}
-                              </IconButton>
+                                icon={
+                                  uploadInfo.uploadedImage ? (
+                                    <ArrowUp />
+                                  ) : (
+                                    <Add />
+                                  )
+                                }
+                              />
                             )}
                           </View>
                         )}
