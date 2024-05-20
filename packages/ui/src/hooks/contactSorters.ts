@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { isValidPatp } from 'urbit-ob';
 
 type UrbitSort = 'pals' | 'nickname' | 'alphabetical';
-const DEFAULT_SORT_ORDER: UrbitSort[] = ['pals', 'nickname', 'alphabetical'];
+const DEFAULT_SORT_ORDER: UrbitSort[] = ['nickname', 'alphabetical'];
 
 const logger = createDevLogger('urbitSorter', true);
 
@@ -92,11 +92,16 @@ export function useSortedContacts({
   query: string;
   sortOrder?: UrbitSort[]; // ordered list of priorities in the sort
 }) {
+  // no longer used in mocks, we can implement once needed.
+  // for now pals sorter is a no op
   const pals = useMemo(() => new Set([]), []);
-  const sortedContacts = useMemo(
-    () => sortContacts(contacts, sortOrder, pals),
-    [contacts, sortOrder, pals]
-  );
+  const sortedContacts = useMemo(() => {
+    if (sortOrder.length === 0) {
+      return contacts;
+    } else {
+      return sortContacts(contacts, sortOrder, pals);
+    }
+  }, [contacts, sortOrder, pals]);
 
   if (isValidQuery(query)) {
     const filtered = filterContactsOnQuery(sortedContacts, query);

@@ -8,7 +8,7 @@ import {
   AlphaContactsSegment,
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
-} from '../hooks/useSortedListOfUrbits';
+} from '../hooks/contactSorters';
 import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 
@@ -36,6 +36,7 @@ export function ContactBook({
   const queryContacts = useSortedContacts({
     contacts: contacts ?? [],
     query,
+    sortOrder: [],
   });
 
   const [selected, setSelected] = useState<string[]>([]);

@@ -35,36 +35,6 @@ export const toClientPinnedItem = (rawItem: string, index: number): db.Pin => {
   };
 };
 
-// export function useGroupKnockMutation() {
-//   return useGroupMutation(async (variables: { flag: string }) => {
-//     await api.poke({
-//       app: 'groups',
-//       mark: 'group-knock',
-//       json: variables.flag,
-//     });
-//   });
-// }
-
-// export function useGroupRescindMutation() {
-//   return useGroupMutation(async (variables: { flag: string }) => {
-//     await api.poke({
-//       app: 'groups',
-//       mark: 'group-rescind',
-//       json: variables.flag,
-//     });
-//   });
-// }
-
-// export function useGroupCancelMutation() {
-//   return useGroupMutation(async (variables: { flag: string }) => {
-//     await api.poke({
-//       app: 'groups',
-//       mark: 'group-cancel',
-//       json: variables.flag,
-//     });
-//   });
-// }
-
 export function cancelGroupJoin(groupId: string) {
   return poke({
     app: 'groups',

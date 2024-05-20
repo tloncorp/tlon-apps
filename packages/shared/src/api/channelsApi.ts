@@ -283,26 +283,6 @@ export const createDefaultChannel = async ({
   );
 };
 
-// const mutationFn = async (variables: Create) => {
-//   await api.trackedPoke<ChannelsAction, ChannelsResponse>(
-//     {
-//       app: 'channels',
-//       mark: 'channel-action',
-//       json: {
-//         create: variables,
-//       },
-//     },
-//     { app: 'channels', path: '/v1' },
-//     (event) => {
-//       const { response, nest } = event;
-//       return (
-//         'create' in response &&
-//         nest === `${variables.kind}/${window.our}/${variables.name}`
-//       );
-//     }
-//   );
-// };
-
 export const searchChatChannel = async (params: {
   channelId: string;
   query: string;

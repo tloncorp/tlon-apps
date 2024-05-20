@@ -284,22 +284,6 @@ export const syncStaleChannels = async () => {
   }
 };
 
-// export const handleGroupsUpdate = async (update: api.GroupsUpdate) => {
-//   switch (update.type) {
-//     case 'addGroups':
-//       await db.insertGroups(update.groups);
-//       break;
-//     case 'deleteGroup':
-//       await db.deleteGroup(update.groupId);
-//       break;
-//     case 'setUnjoinedGroups':
-//       await db.insertUnjoinedGroups(update.groups);
-//       break;
-//     default:
-//       break;
-//   }
-// };
-
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
@@ -375,13 +359,6 @@ export const handleChatUpdate = async (
 ) => {
   switch (event.type) {
     case 'addDmInvites':
-      // make sure we have contacts for any new DMs
-      // await api.addContacts(
-      //   event.channels
-      //     .filter((chan) => chan.type === 'dm')
-      //     .map((chan) => chan.id)
-      // );
-
       // insert the new DMs
       db.insertChannels(event.channels);
       break;
