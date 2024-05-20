@@ -89,13 +89,17 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
+  channelType,
+  metaData,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  channelType: db.ChannelType;
+  metaData?: db.PostMetadata;
 }) => {
-  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+  if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
         memo: {
@@ -117,12 +121,36 @@ export const sendPost = async ({
     return;
   }
 
+  const kindData = (): ub.KindData => {
+    if (!metaData) {
+      switch (channelType) {
+        case 'chat':
+          return { chat: { notice: null } };
+        case 'notebook':
+          return { diary: { title: '' } };
+        case 'gallery':
+          return { heap: '' };
+      }
+    }
+
+    if (channelType === 'chat') {
+      return { chat: { notice: null } };
+    }
+
+    if (channelType === 'notebook') {
+      if (!metaData.title || metaData.title === '') {
+        throw new Error('Notebook posts must have a title');
+      }
+      return { diary: { title: metaData.title, image: metaData.image ?? '' } };
+    }
+
+    return { heap: metaData.title ?? '' };
+  };
+
   const essay: ub.PostEssay = {
     content,
     sent: sentAt,
-    'kind-data': {
-      chat: null,
-    },
+    'kind-data': kindData(),
     author: authorId,
   };
 

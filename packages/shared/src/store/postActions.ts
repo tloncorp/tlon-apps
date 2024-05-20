@@ -7,10 +7,12 @@ export async function sendPost({
   channel,
   authorId,
   content,
+  metaData,
 }: {
   channel: db.Channel;
   authorId: string;
   content: urbit.Story;
+  metaData?: db.PostMetadata;
 }) {
   // optimistic update
   const cachePost = api.buildCachePost({ authorId, channel, content });
@@ -20,6 +22,8 @@ export async function sendPost({
       channelId: channel.id,
       authorId,
       content,
+      metaData,
+      channelType: channel.type,
       sentAt: cachePost.sentAt,
     });
     await sync.syncChannelMessageDelivery({ channelId: channel.id });

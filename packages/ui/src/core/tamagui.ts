@@ -27,4 +27,5 @@ export type {
   FontSizeTokens,
   ColorTokens,
   ThemeTokens,
+  RadiusTokens,
 } from 'tamagui';

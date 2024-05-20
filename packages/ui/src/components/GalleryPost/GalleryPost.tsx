@@ -11,7 +11,7 @@ import {
 import { useMemo } from 'react';
 import { Dimensions, ImageBackground } from 'react-native';
 
-import { LinearGradient, View, XStack } from '../../core';
+import { LinearGradient, View } from '../../core';
 import ChatContent from '../ChatMessage/ChatContent';
 import ContentReference from '../ContentReference';
 import Pressable from '../Pressable';
@@ -73,19 +73,6 @@ export default function GalleryPost({
   const image = isImagePost
     ? (blocks.find((b) => 'image' in b.block)?.block as ImageBlock).image
     : null;
-
-  if (references.length > 0) {
-    console.log('reference post', {
-      post,
-      content,
-      inlines,
-      references,
-      blocks,
-      isReferencePost,
-      inlineLength,
-      isTextPost,
-    });
-  }
 
   return (
     <Pressable onPress={onPress} onLongPress={() => onLongPress?.(post)}>

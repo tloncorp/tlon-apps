@@ -11,7 +11,7 @@ import ContentReference from '../ContentReference';
 import { IconButton } from '../IconButton';
 import MentionPopup from '../MentionPopup';
 
-export interface MessageInputProps {
+export interface GalleryInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
@@ -26,9 +26,10 @@ export interface MessageInputProps {
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
+  setShowGalleryInput: (showGalleryInput: boolean) => void;
 }
 
-export const MessageInputContainer = ({
+export const GalleryInputContainer = ({
   children,
   onPressSend,
   setImageAttachment,
@@ -73,7 +74,7 @@ export const MessageInputContainer = ({
   );
 
   return (
-    <YStack width="100%">
+    <YStack position="relative" width="100%" height="100%">
       {Object.keys(references).length ? (
         <YStack
           gap="$s"
@@ -113,7 +114,7 @@ export const MessageInputContainer = ({
         </YStack>
       ) : null}
       {showMentionPopup ? (
-        <YStack position="absolute" bottom={containerHeight + 4} zIndex={15}>
+        <YStack position="absolute" bottom={containerHeight + 24} zIndex={15}>
           <View position="relative" top={0} left={8}>
             <MentionPopup
               onPress={onSelectMention}
@@ -146,18 +147,20 @@ export const MessageInputContainer = ({
           </View>
         ) : null}
         {children}
-        <View paddingBottom="$m">
-          {editorIsEmpty ? null : (
-            <IconButton
-              color={sendIconColor}
-              disabled={uploadIsLoading}
-              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-            >
-              {isEditing ? <Checkmark /> : <ArrowUp />}
-            </IconButton>
-          )}
-        </View>
       </XStack>
+      <View position="absolute" bottom="$l" right="$l">
+        {editorIsEmpty ? null : (
+          <IconButton
+            backgroundColor="$primaryText"
+            backgroundColorOnPress="$tertiaryText"
+            color="$background"
+            radius="$xl"
+            onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+          >
+            {isEditing ? <Checkmark /> : <ArrowUp />}
+          </IconButton>
+        )}
+      </View>
     </YStack>
   );
 };

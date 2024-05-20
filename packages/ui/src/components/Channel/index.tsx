@@ -9,6 +9,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
+import { Add } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -21,7 +22,9 @@ import { RequestsProvider } from '../../contexts/requests';
 import { Text, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import { ChatMessage } from '../ChatMessage';
+import { GalleryInput } from '../GalleryInput/index.native';
 import { GalleryPost } from '../GalleryPost';
+import { IconButton } from '../IconButton';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -96,6 +99,7 @@ export function Channel({
   hasOlderPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [showGalleryInput, setShowGalleryInput] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -140,6 +144,7 @@ export function Channel({
                   justifyContent="space-between"
                   width="100%"
                   height="100%"
+                  position="relative"
                 >
                   <ChannelHeader
                     title={title}
@@ -155,7 +160,23 @@ export function Channel({
                     contentContainerStyle={{ flex: 1 }}
                   >
                     <YStack alignItems="center" flex={1}>
-                      {uploadInfo.imageAttachment ? (
+                      {showGalleryInput ? (
+                        <GalleryInput
+                          shouldBlur={inputShouldBlur}
+                          setShouldBlur={setInputShouldBlur}
+                          send={messageSender}
+                          channelId={channel.id}
+                          setImageAttachment={uploadInfo.setImageAttachment}
+                          groupMembers={group?.members ?? []}
+                          storeDraft={storeDraft}
+                          clearDraft={clearDraft}
+                          getDraft={getDraft}
+                          editingPost={editingPost}
+                          setEditingPost={setEditingPost}
+                          editPost={editPost}
+                          setShowGalleryInput={setShowGalleryInput}
+                        />
+                      ) : uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
                           imageAttachment={uploadInfo.imageAttachment}
                           resetImageAttachment={uploadInfo.resetImageAttachment}
@@ -238,6 +259,21 @@ export function Channel({
                           </Text>
                         </View>
                       )}
+                      {channel.type !== 'chat' &&
+                        canWrite &&
+                        !showGalleryInput && (
+                          <View position="absolute" bottom="$l" right="$l">
+                            <IconButton
+                              backgroundColor="$primaryText"
+                              backgroundColorOnPress="$tertiaryText"
+                              color="$background"
+                              radius="$xl"
+                              onPress={() => setShowGalleryInput(true)}
+                            >
+                              <Add />
+                            </IconButton>
+                          </View>
+                        )}
                     </YStack>
                   </KeyboardAvoidingView>
                 </YStack>
