@@ -4,7 +4,7 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import { Block, JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -108,6 +108,31 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!currentUserId || !channelQuery.data) {
         return;
       }
+
+      if (
+        content.length === 0 &&
+        uploadInfo.uploadedImage &&
+        channelQuery.data.type === 'gallery'
+      ) {
+        const uploadedImage = uploadInfo.uploadedImage;
+        const blocks: Block[] = [];
+
+        if (uploadedImage) {
+          blocks.push({
+            image: {
+              src: uploadedImage.url,
+              height: uploadedImage.height ? uploadedImage.height : 200,
+              width: uploadedImage.width ? uploadedImage.width : 200,
+              alt: 'image',
+            },
+          });
+        }
+
+        if (blocks && blocks.length > 0) {
+          content.push(...blocks.map((block) => ({ block })));
+        }
+      }
+
       store.sendPost({
         channel: channelQuery.data,
         authorId: currentUserId,

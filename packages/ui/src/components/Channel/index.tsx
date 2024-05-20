@@ -5,12 +5,7 @@ import {
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import {
-  Block,
-  JSONContent,
-  Story,
-  constructStory,
-} from '@tloncorp/shared/dist/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
@@ -135,29 +130,6 @@ export function Channel({
     }
     return null;
   }, [selectedPostId, channel]);
-
-  const sendGalleryImagePost = useCallback(async () => {
-    const story = constructStory([]);
-    const blocks: Block[] = [];
-    const uploadedImage = uploadInfo.uploadedImage;
-
-    if (uploadedImage) {
-      blocks.push({
-        image: {
-          src: uploadedImage.url,
-          height: uploadedImage.height ? uploadedImage.height : 200,
-          width: uploadedImage.width ? uploadedImage.width : 200,
-          alt: 'image',
-        },
-      });
-    }
-
-    if (blocks && blocks.length > 0) {
-      story.push(...blocks.map((block) => ({ block })));
-    }
-
-    await messageSender(story, channel.id);
-  }, [uploadInfo.uploadedImage, channel.id, messageSender]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -291,7 +263,7 @@ export function Channel({
                                 radius="$xl"
                                 onPress={() =>
                                   uploadInfo.uploadedImage
-                                    ? sendGalleryImagePost()
+                                    ? messageSender([], channel.id)
                                     : setShowAddGalleryPost(true)
                                 }
                               >
