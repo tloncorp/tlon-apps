@@ -9,7 +9,7 @@ import {
 import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, getTokenValue } from 'tamagui';
@@ -24,27 +24,14 @@ import {
   useTheme,
 } from '../../core';
 import { Button } from '../Button';
+import { ContactSelector } from '../ContactSelector';
 import { GroupListItem } from '../GroupListItem';
 import { GroupPreviewPane } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { Sheet } from '../Sheet';
-import { ContactSelector } from '../ShipSelector';
 
-const Stack = createStackNavigator();
-type StackParamList = {
-  Home: undefined;
-  Root: {
-    currentUserId: string;
-  };
-  CreateGroup: {
-    currentUserId: string;
-  };
-  JoinGroup: {
-    currentUserId: string;
-  };
-};
-
-export function AddChatSheet({
+export function StartDmSheet({
   currentUserId,
   open,
   onOpenChange,
@@ -81,7 +68,8 @@ export function AddChatSheet({
         >
           <Sheet.Handle marginBottom="$l" />
           <KeyboardAvoidingView style={{ flex: 1 }}>
-            <Stack.Navigator
+            <RootPane />
+            {/* <Stack.Navigator
               initialRouteName="Root"
               screenOptions={{
                 headerShown: false,
@@ -105,7 +93,7 @@ export function AddChatSheet({
                 initialParams={{ currentUserId }}
                 component={JoinGroupPane as React.ComponentType<any>}
               />
-            </Stack.Navigator>
+            </Stack.Navigator> */}
           </KeyboardAvoidingView>
         </Sheet.Frame>
       </Sheet>
@@ -113,13 +101,14 @@ export function AddChatSheet({
   );
 }
 
-function RootPane(props: StackScreenProps<StackParamList, 'Root'>) {
+function RootPane() {
   const handlers = useAddChatHandlers();
   const [dmParticipants, setDmParticipants] = useState<string[]>([]);
+
   return (
     <ZStack flex={1}>
       <YStack flex={1} gap="$2xl">
-        <XStack
+        {/* <XStack
           justifyContent="center"
           onPress={() =>
             props.navigation.push('JoinGroup', {
@@ -128,7 +117,7 @@ function RootPane(props: StackScreenProps<StackParamList, 'Root'>) {
           }
         >
           <HeroInput />
-        </XStack>
+        </XStack> */}
         <ContactSelector multiSelect onSelectedChange={setDmParticipants} />
         {dmParticipants.length > 0 ? (
           <XStack justifyContent="center">
@@ -140,11 +129,11 @@ function RootPane(props: StackScreenProps<StackParamList, 'Root'>) {
         ) : (
           <Button
             hero
-            onPress={() =>
-              props.navigation.push('CreateGroup', {
-                currentUserId: props.route.params.currentUserId,
-              })
-            }
+            // onPress={() =>
+            //   props.navigation.push('CreateGroup', {
+            //     currentUserId: props.route.params.currentUserId,
+            //   })
+            // }
           >
             <Button.Text>Start a new group</Button.Text>
           </Button>
@@ -162,7 +151,7 @@ type JoinGroupPaneState = {
   selectedGroup: db.Group | null;
 };
 
-function JoinGroupPane(props: StackScreenProps<StackParamList, 'JoinGroup'>) {
+export function JoinGroupPane() {
   const { dismiss } = useAddChatHandlers();
   const [state, setState] = useState<JoinGroupPaneState>({
     loading: false,
@@ -235,9 +224,7 @@ function JoinGroupPane(props: StackScreenProps<StackParamList, 'JoinGroup'>) {
   );
 }
 
-function CreateGroupPane(
-  props: StackScreenProps<StackParamList, 'CreateGroup'>
-) {
+export function CreateGroupPane(props: { currentUserId: string }) {
   const handlers = useAddChatHandlers();
   const [loading, setLoading] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -254,7 +241,7 @@ function CreateGroupPane(
     try {
       console.log(`//// Starting Create Group Flow ////`);
       const { group, channel } = await store.createGroup({
-        currentUserId: props.route.params.currentUserId,
+        currentUserId: props.currentUserId,
         title: groupName,
         shortCode,
       });
@@ -264,17 +251,17 @@ function CreateGroupPane(
     } finally {
       setLoading(false);
     }
-  }, [groupName, handlers, props.route.params.currentUserId]);
+  }, [groupName, handlers, props.currentUserId]);
 
   return (
     <YStack flex={1} gap="$2xl">
       <XStack justifyContent="space-between" alignItems="center">
-        <Icon type="ChevronLeft" onPress={() => props.navigation.pop()} />
+        <Icon type="ChevronLeft" />
         <SizableText fontWeight="500">Start a New Group</SizableText>
         <Icon type="ChevronRight" opacity={0} />
       </XStack>
       <SizableText size="$m">What is your group about?</SizableText>
-      {/* TODO: make tamagui cohere */}
+      {/* TODO: make tamagui input cohere */}
       <TextInput
         style={{
           borderRadius: getTokenValue('$l', 'radius'),
@@ -325,12 +312,38 @@ function StartDMButton({
   participants: string[];
   onPress: () => void;
 }) {
+  const isMultiDm = participants.length > 1;
+
+  store.useForceNegotiationUpdate(participants, 'chat');
+  const {
+    match: negotiationMatch,
+    isLoading: negotiationLoading,
+    haveAllNegotiations,
+  } = store.useNegotiateMulti(participants, 'chat', 'chat');
+  const multiDmVersionMismatch = !negotiationLoading && !negotiationMatch;
+  const shouldBlockInput = isMultiDm && multiDmVersionMismatch;
+
   return (
-    <Button hero onPress={onPress}>
-      <Button.Text>
-        Start DM with {participants.length}{' '}
-        {participants.length === 1 ? 'person' : 'people'}
-      </Button.Text>
+    <Button hero onPress={onPress} disabled={shouldBlockInput}>
+      {shouldBlockInput ? (
+        <>
+          <Button.Text>
+            {haveAllNegotiations
+              ? 'Not all Urbits on the same version'
+              : 'Checking version compatibility'}
+          </Button.Text>
+          {!haveAllNegotiations && (
+            <Button.Icon>
+              <LoadingSpinner />
+            </Button.Icon>
+          )}
+        </>
+      ) : (
+        <Button.Text>
+          Start DM with {participants.length}{' '}
+          {participants.length === 1 ? 'person' : 'people'}
+        </Button.Text>
+      )}
     </Button>
   );
 }

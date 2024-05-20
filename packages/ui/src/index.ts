@@ -31,6 +31,8 @@ export * from './components/ChatMessage';
 export * from './components/ContactList';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Embed';
+export * from './components/AddChats';
+export * from './components/ContactSelector';
 export * from './tamagui.config';
 export * from './contexts';
 export * from './components/Input';

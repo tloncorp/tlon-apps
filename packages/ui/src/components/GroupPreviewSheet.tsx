@@ -134,7 +134,7 @@ export function GroupPreviewPane({
           ) : null}
         </View>
       </ActionSheet.Header>
-      <View gap={isJoining ? '$2xl' : '$l'}>
+      <View marginTop="$m" gap={isJoining ? '$2xl' : '$l'}>
         <GroupActions
           status={status}
           actions={{ respondToInvite, requestInvite, rescindInvite, joinGroup }}

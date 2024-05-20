@@ -34,8 +34,8 @@ export function ContactSelector({
   return (
     <YStack
       flex={1}
-      borderWidth={1}
-      borderColor="$primaryText"
+      // borderWidth={1}
+      // borderColor="$primaryText"
       justifyContent="flex-start"
       borderRadius="$l"
     >

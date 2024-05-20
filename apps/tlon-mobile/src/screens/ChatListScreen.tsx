@@ -2,7 +2,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
-  AddChatSheet,
   ChatList,
   ChatOptionsSheet,
   ContactsProvider,
@@ -10,10 +9,12 @@ import {
   Icon,
   ScreenHeader,
   Spinner,
+  StartDmSheet,
   View,
 } from '@tloncorp/ui/src';
 import { useState } from 'react';
 
+import AddGroupSheet from '../components/AddGroupSheet';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
 import NavBar from '../navigation/NavBarView';
@@ -32,7 +33,8 @@ export default function ChatListScreen(
     null
   );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const [addChatOpen, setAddChatOpen] = useState(false);
+  const [startDmOpen, setStartDmOpen] = useState(false);
+  const [addGroupOpen, setAddGroupOpen] = useState(true);
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
 
@@ -45,12 +47,12 @@ export default function ChatListScreen(
       participants,
       currentUserId,
     });
-    setAddChatOpen(false);
+    setStartDmOpen(false);
     props.navigation.push('Channel', { channel: dmChannel });
   };
 
   const goToChannel = ({ channel }: { channel: db.Channel }) => {
-    setAddChatOpen(false);
+    setStartDmOpen(false);
     setTimeout(() => props.navigation.navigate('Channel', { channel }), 150);
   };
 
@@ -78,7 +80,8 @@ export default function ChatListScreen(
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}
-              <Icon type="Add" onPress={() => setAddChatOpen(true)} />
+              <Icon type="Add" onPress={() => setAddGroupOpen(true)} />
+              <Icon type="Messages" onPress={() => setStartDmOpen(true)} />
             </>
           }
         />
@@ -98,12 +101,17 @@ export default function ChatListScreen(
           onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
           channel={longPressedItem ?? undefined}
         />
-        <AddChatSheet
+        <StartDmSheet
           currentUserId={currentUserId}
           goToChannel={goToChannel}
           goToDm={goToDm}
-          open={addChatOpen}
-          onOpenChange={() => setAddChatOpen(false)}
+          open={startDmOpen}
+          onOpenChange={() => setStartDmOpen(false)}
+        />
+        <AddGroupSheet
+          open={addGroupOpen}
+          onOpenChange={() => setAddGroupOpen(false)}
+          currentUserId={currentUserId}
         />
         <GroupInvitationSheet
           open={selectedGroup !== null}
