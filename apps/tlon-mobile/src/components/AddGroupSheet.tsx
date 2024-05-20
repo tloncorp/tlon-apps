@@ -5,7 +5,7 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Button,
-  ContactSelector,
+  ContactBook,
   CreateGroupWidget,
   GroupPreviewPane,
   Icon,
@@ -94,16 +94,27 @@ export default function AddGroupSheet({
   );
 }
 
-function ScreenWrapper({ children }: { children: React.ReactNode }) {
+function ScreenWrapper({
+  children,
+  withoutSafe,
+}: {
+  children: React.ReactNode;
+  withoutSafe?: boolean;
+}) {
   const insets = useSafeAreaInsets();
   return (
-    <View flex={1} paddingBottom={insets.bottom} paddingHorizontal="$xl">
+    <View
+      flex={1}
+      paddingBottom={withoutSafe ? undefined : insets.bottom}
+      paddingHorizontal="$xl"
+    >
       {children}
     </View>
   );
 }
 
 function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
+  const insets = useSafeAreaInsets();
   const onSelect = useCallback(
     (contactId: string) => {
       props.navigation.push('ViewContactGroups', {
@@ -115,19 +126,25 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
   );
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper withoutSafe>
       <YStack flex={1} gap="$xl">
-        <ContactSelector onSelect={onSelect} />
-        <Button
-          hero
-          onPress={() =>
-            props.navigation.push('CreateGroup', {
-              currentUserId: props.route.params.currentUserId,
-            })
-          }
-        >
-          <Button.Text>Start a new group</Button.Text>
-        </Button>
+        <ContactBook
+          searchable
+          searchPlaceholder="Search for group host..."
+          onSelect={onSelect}
+        />
+        <View position="absolute" bottom={insets.bottom + 8}>
+          <Button
+            hero
+            onPress={() =>
+              props.navigation.push('CreateGroup', {
+                currentUserId: props.route.params.currentUserId,
+              })
+            }
+          >
+            <Button.Text>Start a new group</Button.Text>
+          </Button>
+        </View>
       </YStack>
     </ScreenWrapper>
   );

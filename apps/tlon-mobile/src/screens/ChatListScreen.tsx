@@ -11,7 +11,7 @@ import {
   Spinner,
   StartDmSheet,
   View,
-} from '@tloncorp/ui/src';
+} from '@tloncorp/ui';
 import { useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
@@ -34,7 +34,7 @@ export default function ChatListScreen(
   );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
-  const [addGroupOpen, setAddGroupOpen] = useState(true);
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
 

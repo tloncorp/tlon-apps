@@ -1,6 +1,7 @@
 import { createDevLogger, logSyncDuration } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { preSig } from '@tloncorp/shared/src/urbit';
+import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 import { isValidPatp } from 'urbit-ob';
 
@@ -9,7 +10,80 @@ const DEFAULT_SORT_ORDER: UrbitSort[] = ['pals', 'nickname', 'alphabetical'];
 
 const logger = createDevLogger('urbitSorter', true);
 
-export function useSortedListOfUrbits({
+export type AlphaContactsSegment = {
+  alphaKey: string;
+  contacts: db.Contact[];
+};
+
+export type AlphaSegmentedContacts = AlphaContactsSegment[];
+
+export function useAlphabeticallySegmentedContacts(
+  contacts: db.Contact[],
+  contactsIndex: Record<string, db.Contact>
+): AlphaSegmentedContacts {
+  const getFirstAlphabeticalChar = (name: string) => {
+    const match = name.match(/[a-zA-Z]/);
+    return match ? match[0].toUpperCase() : 'Other';
+  };
+
+  const segmentedContacts = useMemo(() => {
+    return logSyncDuration('useAlphabeticallySegmentedContacts', logger, () => {
+      const segmented: Record<
+        string,
+        { id: string; sortable: string; contact: db.Contact }[]
+      > = {};
+
+      // convert contact to alphabetical representation and bucket by first letter
+      for (const contact of contacts) {
+        const sortableName = contact.nickname
+          ? anyAscii(contact.nickname.replace(/[~-]/g, ''))
+          : contact.id.replace(/[~-]/g, '');
+        const firstAlpha = getFirstAlphabeticalChar(sortableName);
+        if (!segmented[firstAlpha]) {
+          segmented[firstAlpha] = [];
+        }
+        segmented[firstAlpha].push({
+          id: contact.id,
+          sortable: sortableName,
+          contact,
+        });
+      }
+
+      // pull out non-alphabetical names
+      const nonAlphaNames = segmented['Other'];
+      delete segmented['Other'];
+
+      // order groupings alphabetically and sort hits within each bucket
+      const segmentedContacts = Object.entries(segmented)
+        .filter(([_k, results]) => results.length > 0)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([alphaKey, results]) => {
+          const segmentContacts = sortContacts(
+            results.map((r) => r.contact),
+            ['nickname', 'alphabetical'],
+            new Set()
+          );
+          // .sort((a, b) => a.sortable.localeCompare(b.sortable))
+          // .map((result) => contactsIndex[result.id]);
+          return { alphaKey, contacts: segmentContacts };
+        });
+
+      // add non-alphabetical names to the end
+      if (nonAlphaNames && nonAlphaNames.length) {
+        segmentedContacts.push({
+          alphaKey: '_',
+          contacts: nonAlphaNames.map((result) => contactsIndex[result.id]),
+        });
+      }
+
+      return segmentedContacts;
+    });
+  }, [contacts, contactsIndex]);
+
+  return segmentedContacts;
+}
+
+export function useSortedContacts({
   contacts,
   query,
   sortOrder = DEFAULT_SORT_ORDER,
@@ -83,6 +157,18 @@ function nicknameSorter(a: db.Contact, b: db.Contact): number {
 
   if (b.nickname && !a.nickname) {
     return 1;
+  }
+
+  // prioritize nicknames that aren't just @p's
+  if (b.nickname && a.nickname) {
+    const aIsPatp = isValidPatp(anyAscii(a.nickname.trim()));
+    const bIsPatp = isValidPatp(anyAscii(b.nickname.trim()));
+    if (aIsPatp && !bIsPatp) {
+      return 1;
+    }
+    if (!aIsPatp && bIsPatp) {
+      return -1;
+    }
   }
 
   return 0;

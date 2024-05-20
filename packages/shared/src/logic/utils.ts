@@ -1,4 +1,4 @@
-// import anyAscii from 'any-ascii';
+import anyAscii from 'any-ascii';
 import {
   differenceInCalendarDays,
   differenceInDays,
@@ -221,7 +221,7 @@ export const appendContactIdToReplies = (
 };
 
 export function strToSym(str: string): string {
-  // const ascii = anyAscii(str); TODO fix any-ascii
+  const ascii = anyAscii(str);
   return str.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
 }
 

@@ -5,8 +5,9 @@ import { FlatList } from 'react-native';
 
 import { useContacts } from '../contexts';
 import { Stack, View, XStack, YStack } from '../core';
-import { useSortedListOfUrbits } from '../hooks/useSortedListOfUrbits';
+import { useSortedContacts } from '../hooks/useSortedListOfUrbits';
 import { Avatar } from './Avatar';
+import { ContactBook } from './ContactBook';
 import { ListItem } from './ListItem';
 import { SearchBar } from './SearchBar';
 
@@ -14,14 +15,16 @@ export function ContactSelector({
   multiSelect,
   onSelectedChange,
   onSelect,
+  searchPlaceholder,
 }: {
   multiSelect?: boolean;
   onSelectedChange?: (selected: string[]) => void;
   onSelect?: (selected: string) => void;
+  searchPlaceholder?: string;
 }) {
   const contacts = useContacts();
   const [query, setQuery] = useState('');
-  const urbitsToDisplay = useSortedListOfUrbits({
+  const urbitsToDisplay = useSortedContacts({
     contacts: contacts ?? [],
     query,
   });
@@ -45,7 +48,7 @@ export function ContactSelector({
           height="$4xl"
           debounceTime={100}
           onChangeQuery={setQuery}
-          placeholder="Start a DM with..."
+          placeholder={searchPlaceholder ?? ''}
         />
       </View>
       {multiSelect ? (
@@ -54,10 +57,11 @@ export function ContactSelector({
           onSelectedChange={setSelected}
         />
       ) : (
-        <ContactSingleSelectList
-          urbits={urbitsToDisplay ?? []}
-          onSelect={(contactId) => onSelect?.(contactId)}
-        />
+        // <ContactSingleSelectList
+        //   urbits={urbitsToDisplay ?? []}
+        //   onSelect={(contactId) => onSelect?.(contactId)}
+        // />
+        <ContactBook onSelect={(id) => onSelect?.(id)} />
       )}
     </YStack>
   );

@@ -39,7 +39,6 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
     queryFn: async () => {
       const channels = await db.getChats();
       const pendingChats = await db.getPendingChats();
-      console.log(`pending chats`, pendingChats);
       return { channels, pendingChats };
     },
     queryKey: [

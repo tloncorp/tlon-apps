@@ -5,8 +5,6 @@ import {
   Stack,
   Text,
   ThemeTokens,
-  Variable,
-  View,
   createStyledContext,
   styled,
   useTheme,
@@ -92,11 +90,6 @@ export const ButtonFrame = styled(Stack, {
         },
       },
     } as const,
-    disabled: {
-      true: {
-        opacity: 0.3,
-      },
-    } as const,
   },
 });
 
@@ -138,6 +131,12 @@ export const ButtonText = styled(Text, {
         width: '100%',
         textAlign: 'center',
         fontWeight: '500',
+      },
+    },
+
+    disabled: {
+      true: {
+        color: '$tertiaryText',
       },
     },
   } as const,
