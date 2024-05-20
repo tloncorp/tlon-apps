@@ -4,7 +4,7 @@ import ActivityIndicator from './ActivityIndicator';
 
 interface UnreadIndicatorProps {
   className?: string;
-  count?: number;
+  count: number;
   notify?: boolean;
 }
 
@@ -16,7 +16,7 @@ export default function UnreadIndicator({
   const color = notify ? 'text-blue' : 'text-gray-400';
   return (
     <ActivityIndicator
-      count={count || 0}
+      count={count}
       bg={'transparent'}
       className={cn(color, className)}
     />

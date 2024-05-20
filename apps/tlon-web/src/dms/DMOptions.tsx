@@ -157,6 +157,7 @@ export default function DmOptions({
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
       <UnreadIndicator
+        count={chatUnread?.unread.count || 0}
         notify={hasNotify}
         className="group-focus-within:opacity-0 group-hover:opacity-0"
       />
@@ -240,6 +241,7 @@ export default function DmOptions({
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
+                count={chatUnread?.unread.count || 0}
                 notify={hasNotify}
                 className="group-focus-within:opacity-0 group-hover:opacity-0"
               />

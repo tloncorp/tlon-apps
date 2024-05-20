@@ -237,6 +237,7 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
             isChannelUnread(nest) ? (
               <UnreadIndicator
                 className="m-0.5 h-5 w-5"
+                count={getUnread(nest)?.count || 0}
                 notify={getUnread(nest)?.notify}
               />
             ) : null

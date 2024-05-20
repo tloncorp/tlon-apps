@@ -571,6 +571,7 @@ const ChatMessage = React.memo<
                         </span>
                         {threadUnread ? (
                           <UnreadIndicator
+                            count={0}
                             notify={threadNotify}
                             className="h-6 w-6 transition-opacity"
                             aria-label="Unread replies in this thread"
