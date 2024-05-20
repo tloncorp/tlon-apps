@@ -24,7 +24,7 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { Text, View, YStack } from '../../core';
+import { Spinner, Text, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
@@ -293,19 +293,30 @@ export function Channel({
                         canWrite &&
                         !showGalleryInput && (
                           <View position="absolute" bottom="$l" right="$l">
-                            <IconButton
-                              backgroundColor="$primaryText"
-                              backgroundColorOnPress="$tertiaryText"
-                              color="$background"
-                              radius="$xl"
-                              onPress={() =>
-                                uploadInfo.uploadedImage
-                                  ? sendGalleryImagePost()
-                                  : setShowAddGalleryPost(true)
-                              }
-                            >
-                              {uploadInfo.uploadedImage ? <ArrowUp /> : <Add />}
-                            </IconButton>
+                            {uploadInfo.uploadedImage &&
+                            uploadInfo.uploadedImage.status === 'loading' ? (
+                              <View alignItems="center" padding="$m">
+                                <Spinner />
+                              </View>
+                            ) : (
+                              <IconButton
+                                backgroundColor="$primaryText"
+                                backgroundColorOnPress="$tertiaryText"
+                                color="$background"
+                                radius="$xl"
+                                onPress={() =>
+                                  uploadInfo.uploadedImage
+                                    ? sendGalleryImagePost()
+                                    : setShowAddGalleryPost(true)
+                                }
+                              >
+                                {uploadInfo.uploadedImage ? (
+                                  <ArrowUp />
+                                ) : (
+                                  <Add />
+                                )}
+                              </IconButton>
+                            )}
                           </View>
                         )}
                       <AddGalleryPost
