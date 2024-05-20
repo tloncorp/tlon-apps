@@ -6,6 +6,7 @@ import {
   syncLatestPosts,
   syncSettings,
 } from './sync';
+import { QueueClearedError } from './syncQueue';
 
 export const useInitialSync = () => {
   return useQuery({
@@ -14,7 +15,9 @@ export const useInitialSync = () => {
         await Promise.all([syncLatestPosts(), syncInitData(), syncContacts()]);
         await syncSettings();
       } catch (e) {
-        console.log('SYNC ERROR', e);
+        if (!(e instanceof QueueClearedError)) {
+          console.log('SYNC ERROR', e);
+        }
       }
       return true;
     },
