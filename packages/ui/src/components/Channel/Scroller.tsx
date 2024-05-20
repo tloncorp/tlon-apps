@@ -172,7 +172,7 @@ export default function Scroller({
       paddingTop: channelType === 'gallery' ? 8 : 0,
     };
   }, [hasFoundAnchor]);
-
+  }, [hasFoundAnchor, channelType, theme.background.val]);
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts?.[index + 1];
