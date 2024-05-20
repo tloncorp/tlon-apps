@@ -5,7 +5,7 @@ import {
   ChatList,
   ChatOptionsSheet,
   ContactsProvider,
-  GroupInvitationSheet,
+  GroupPreviewSheet,
   Icon,
   ScreenHeader,
   Spinner,
@@ -53,6 +53,7 @@ export default function ChatListScreen(
 
   const goToChannel = ({ channel }: { channel: db.Channel }) => {
     setStartDmOpen(false);
+    setAddGroupOpen(false);
     setTimeout(() => props.navigation.navigate('Channel', { channel }), 150);
   };
 
@@ -61,14 +62,6 @@ export default function ChatListScreen(
       setSelectedGroup(item);
     } else {
       props.navigation.navigate('Channel', { channel: item });
-    }
-  };
-
-  const handleUpdateInvitation = (group: db.Group, accepted: boolean) => {
-    if (accepted) {
-      store.acceptGroupInvitation(group);
-    } else {
-      store.rejectGroupInvitation(group);
     }
   };
 
@@ -102,7 +95,6 @@ export default function ChatListScreen(
           channel={longPressedItem ?? undefined}
         />
         <StartDmSheet
-          currentUserId={currentUserId}
           goToChannel={goToChannel}
           goToDm={goToDm}
           open={startDmOpen}
@@ -111,13 +103,13 @@ export default function ChatListScreen(
         <AddGroupSheet
           open={addGroupOpen}
           onOpenChange={() => setAddGroupOpen(false)}
+          onCreatedGroup={({ channel }) => goToChannel({ channel })}
           currentUserId={currentUserId}
         />
-        <GroupInvitationSheet
+        <GroupPreviewSheet
           open={selectedGroup !== null}
           onOpenChange={() => setSelectedGroup(null)}
           group={selectedGroup ?? undefined}
-          onUpdateInvitation={handleUpdateInvitation}
         />
       </View>
       <NavBar navigation={props.navigation} />

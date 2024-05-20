@@ -4,20 +4,18 @@ import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddChatProvider } from '../../contexts';
-import { View, XStack, YStack, ZStack } from '../../core';
+import { XStack, YStack, ZStack } from '../../core';
 import { Button } from '../Button';
 import { ContactBook } from '../ContactBook';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { Sheet } from '../Sheet';
 
 export function StartDmSheet({
-  currentUserId,
   open,
   onOpenChange,
   goToChannel,
   goToDm,
 }: {
-  currentUserId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   goToDm: (participants: string[]) => void;
@@ -27,13 +25,18 @@ export function StartDmSheet({
   const dismiss = useCallback(() => onOpenChange(false), [onOpenChange]);
   const [dmParticipants, setDmParticipants] = useState<string[]>([]);
 
+  const handleDismiss = useCallback(() => {
+    setDmParticipants([]);
+    dismiss();
+  }, [dismiss]);
+
   return (
     <AddChatProvider
       handlers={{ onStartDm: goToDm, onCreatedGroup: goToChannel, dismiss }}
     >
       <Sheet
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={handleDismiss}
         snapPoints={[85]}
         modal
         disableDrag={true}

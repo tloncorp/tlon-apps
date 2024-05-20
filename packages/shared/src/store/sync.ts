@@ -140,7 +140,6 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.updateGroup({ id: update.groupId, privacy: 'secret' });
       break;
     case 'setGroupAsNotSecret':
-      // TODO: need to have the full group and parse the cordon here I suppose?
       await db.updateGroup({ id: update.groupId, privacy: 'private' });
       break;
     case 'addGroupMembers':

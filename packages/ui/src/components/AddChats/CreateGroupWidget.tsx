@@ -1,4 +1,5 @@
 import { createShortCodeFromTitle } from '@tloncorp/shared/dist';
+import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useState } from 'react';
 import { TextInput } from 'react-native';
@@ -12,8 +13,14 @@ import { Icon } from '../Icon';
 export function CreateGroupWidget(props: {
   currentUserId: string;
   goBack: () => void;
+  onCreatedGroup: ({
+    group,
+    channel,
+  }: {
+    group: db.Group;
+    channel: db.Channel;
+  }) => void;
 }) {
-  const handlers = useAddChatHandlers();
   const [loading, setLoading] = useState(false);
   const [groupName, setGroupName] = useState('');
   const theme = useTheme();
@@ -27,19 +34,18 @@ export function CreateGroupWidget(props: {
     setLoading(true);
 
     try {
-      console.log(`//// Starting Create Group Flow ////`);
       const { group, channel } = await store.createGroup({
         currentUserId: props.currentUserId,
         title: groupName,
         shortCode,
       });
-      handlers.onCreatedGroup({ group, channel });
+      props.onCreatedGroup({ group, channel });
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [groupName, handlers, props.currentUserId]);
+  }, [groupName, props]);
 
   return (
     <YStack flex={1} gap="$2xl">
@@ -65,13 +71,12 @@ export function CreateGroupWidget(props: {
         onChangeText={setGroupName}
         placeholder="Group name"
       />
-      <Button hero disabled={groupName.length < 3} onPress={onCreateGroup}>
+      <Button
+        hero
+        disabled={groupName.length < 3 || loading}
+        onPress={onCreateGroup}
+      >
         <Button.Text>Create Group</Button.Text>
-        {loading && (
-          <Button.Icon>
-            <Icon type="Bang" />
-          </Button.Icon>
-        )}
       </Button>
     </YStack>
   );

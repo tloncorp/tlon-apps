@@ -1,4 +1,9 @@
 import {
+  NavigationContainer,
+  NavigationContainerRef,
+  StackActions,
+} from '@react-navigation/native';
+import {
   NativeStackScreenProps,
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
@@ -16,9 +21,21 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/ui/src';
-import { useCallback } from 'react';
+import { createContext, useCallback, useContext, useRef } from 'react';
 import { KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+interface AddGroupActions {
+  dismiss: () => void;
+  onCreatedGroup: ({
+    group,
+    channel,
+  }: {
+    group: db.Group;
+    channel: db.Channel;
+  }) => void;
+}
+const ActionContext = createContext<AddGroupActions>({} as AddGroupActions);
 
 type StackParamList = {
   Home: undefined;
@@ -43,17 +60,35 @@ export default function AddGroupSheet({
   currentUserId,
   open,
   onOpenChange,
+  onCreatedGroup,
 }: {
   currentUserId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreatedGroup: ({
+    group,
+    channel,
+  }: {
+    group: db.Group;
+    channel: db.Channel;
+  }) => void;
 }) {
   const theme = useTheme();
+  const navigationRef = useRef<NavigationContainerRef<StackParamList>>(null);
+
+  const dismiss = useCallback(() => {
+    console.log('dismiss');
+    if (navigationRef.current && navigationRef.current.canGoBack()) {
+      console.log(`trying to pop to top`);
+      navigationRef.current.dispatch(StackActions.popToTop());
+    }
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={dismiss}
       disableDrag={true}
       animation="quick"
       modal
@@ -62,32 +97,36 @@ export default function AddGroupSheet({
       <Sheet.Frame>
         <Sheet.Handle marginBottom="$l" />
         <KeyboardAvoidingView style={{ flex: 1 }}>
-          <Stack.Navigator
-            initialRouteName="Root"
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: theme.background.val },
-            }}
-          >
-            <Stack.Screen
-              name="Root"
-              initialParams={{ currentUserId }}
-              component={RootScreen}
-            />
-            <Stack.Screen
-              name="CreateGroup"
-              initialParams={{ currentUserId }}
-              component={CreateGroupScreen}
-            />
-            <Stack.Screen
-              name="ViewContactGroups"
-              component={ViewContactGroupsScreen}
-            />
-            <Stack.Screen
-              name="ViewGroupPreview"
-              component={ViewGroupPreviewScreen}
-            />
-          </Stack.Navigator>
+          <NavigationContainer independent={true} ref={navigationRef}>
+            <ActionContext.Provider value={{ dismiss, onCreatedGroup }}>
+              <Stack.Navigator
+                initialRouteName="Root"
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: theme.background.val },
+                }}
+              >
+                <Stack.Screen
+                  name="Root"
+                  initialParams={{ currentUserId }}
+                  component={RootScreen}
+                />
+                <Stack.Screen
+                  name="CreateGroup"
+                  initialParams={{ currentUserId }}
+                  component={CreateGroupScreen}
+                />
+                <Stack.Screen
+                  name="ViewContactGroups"
+                  component={ViewContactGroupsScreen}
+                />
+                <Stack.Screen
+                  name="ViewGroupPreview"
+                  component={ViewGroupPreviewScreen}
+                />
+              </Stack.Navigator>
+            </ActionContext.Provider>
+          </NavigationContainer>
         </KeyboardAvoidingView>
       </Sheet.Frame>
     </Sheet>
@@ -178,6 +217,7 @@ function ViewContactGroupsScreen(
 function ViewGroupPreviewScreen(
   props: NativeStackScreenProps<StackParamList, 'ViewGroupPreview'>
 ) {
+  const { dismiss } = useContext(ActionContext);
   return (
     <ScreenWrapper>
       <View marginHorizontal="$m">
@@ -186,7 +226,7 @@ function ViewGroupPreviewScreen(
         </XStack>
         <GroupPreviewPane
           group={props.route.params.group}
-          onActionComplete={() => {}}
+          onActionComplete={dismiss}
         />
       </View>
     </ScreenWrapper>
@@ -196,11 +236,20 @@ function ViewGroupPreviewScreen(
 function CreateGroupScreen(
   props: NativeStackScreenProps<StackParamList, 'CreateGroup'>
 ) {
+  const { onCreatedGroup, dismiss } = useContext(ActionContext);
+  const handleCreate = useCallback(
+    (args: { group: db.Group; channel: db.Channel }) => {
+      dismiss();
+      onCreatedGroup(args);
+    },
+    [dismiss, onCreatedGroup]
+  );
   return (
     <ScreenWrapper>
       <CreateGroupWidget
         currentUserId={props.route.params.currentUserId}
         goBack={() => props.navigation.pop()}
+        onCreatedGroup={handleCreate}
       />
     </ScreenWrapper>
   );

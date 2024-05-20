@@ -1,4 +1,3 @@
-import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useEffect, useMemo, useState } from 'react';
@@ -9,13 +8,10 @@ import { Button } from './Button';
 import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 
-const logger = createDevLogger('GroupsPreview', true);
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   group?: db.Group;
-  onUpdateInvitation: (group: db.Group, accepted: boolean) => void;
 }
 
 interface JoinStatus {
@@ -26,12 +22,7 @@ interface JoinStatus {
   requestedInvite: boolean;
 }
 
-export function GroupInvitationSheet({
-  open,
-  onOpenChange,
-  group,
-  onUpdateInvitation,
-}: Props) {
+export function GroupPreviewSheet({ open, onOpenChange, group }: Props) {
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
@@ -66,8 +57,6 @@ export function GroupPreviewPane({
     [group]
   );
 
-  logger.log(`pane for ${group.id}`, status, group);
-
   const respondToInvite = (accepted: boolean) => {
     if (!group) {
       return;
@@ -84,9 +73,11 @@ export function GroupPreviewPane({
 
   const requestInvite = () => {
     store.requestGroupInvitation(group);
+    onActionComplete();
   };
   const rescindInvite = () => {
     store.rescindGroupInvitationRequest(group);
+    onActionComplete();
   };
   const joinGroup = () => {
     store.joinGroup(group);

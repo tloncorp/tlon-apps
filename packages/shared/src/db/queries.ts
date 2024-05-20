@@ -1857,7 +1857,7 @@ export const insertContact = createWriteQuery(
 export const insertContacts = createWriteQuery(
   'insertContacts',
   async (contactsData: Contact[]) => {
-    // TODO: fix contact pinned group insertion
+    // TODO: fix contact pinned group insertion (we never display these right now anyway)
     // const contactGroups = contactsData.flatMap(
     //   (contact) => contact.pinnedGroups || []
     // );
