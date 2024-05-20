@@ -5,7 +5,6 @@ import { useCallback, useState } from 'react';
 import { TextInput } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
-import { useAddChatHandlers } from '../../contexts';
 import { SizableText, XStack, YStack, useTheme } from '../../core';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
