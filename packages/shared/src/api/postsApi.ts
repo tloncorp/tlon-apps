@@ -16,7 +16,7 @@ import {
   getTextContent,
   whomIsDm,
 } from '../urbit';
-import { formatDateParam, formatUd, udToDate } from './converters';
+import { formatDateParam, formatUd, toPostEssay, udToDate } from './converters';
 import { BadResponseError, poke, scry } from './urbit';
 
 export type PostContent = (ub.Verse | ContentReference)[] | null;
@@ -121,38 +121,13 @@ export const sendPost = async ({
     return;
   }
 
-  const kindData = (): ub.KindData => {
-    if (!metadata) {
-      switch (channelType) {
-        case 'chat':
-          return { chat: null };
-        case 'notebook':
-          throw new Error('Notebook posts must have a title');
-        case 'gallery':
-          return { heap: '' };
-      }
-    }
-
-    if (channelType === 'chat') {
-      return { chat: { notice: null } };
-    }
-
-    if (channelType === 'notebook') {
-      if (!metadata.title || metadata.title === '') {
-        throw new Error('Notebook posts must have a title');
-      }
-      return { diary: { title: metadata.title, image: metadata.image ?? '' } };
-    }
-
-    return { heap: metadata.title ?? '' };
-  };
-
-  const essay: ub.PostEssay = {
+  const essay = toPostEssay({
     content,
-    sent: sentAt,
-    'kind-data': kindData(),
-    author: authorId,
-  };
+    authorId,
+    sentAt,
+    channelType,
+    metadata,
+  });
 
   await poke(
     channelPostAction(channelId, {
@@ -167,14 +142,18 @@ export const editPost = async ({
   authorId,
   sentAt,
   content,
+  channelType,
   parentId,
+  metadata,
 }: {
   channelId: string;
   postId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  channelType: db.ChannelType;
   parentId?: string;
+  metadata?: db.PostMetadata;
 }) => {
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     throw new Error('Cannot edit a post in a DM or group DM');
@@ -205,14 +184,13 @@ export const editPost = async ({
     return;
   }
 
-  const essay: ub.PostEssay = {
-    author: authorId,
+  const essay = toPostEssay({
     content,
-    sent: sentAt,
-    'kind-data': {
-      chat: null,
-    },
-  };
+    authorId,
+    sentAt,
+    channelType,
+    metadata,
+  });
 
   const action = channelPostAction(channelId, {
     edit: {

@@ -45,3 +45,54 @@ export function formatDateParam(date: Date) {
 export function formatPostIdParam(sealId: string) {
   return decToUd(sealId);
 }
+
+export function toPostEssay({
+  content,
+  authorId,
+  sentAt,
+  channelType,
+  metadata,
+}: {
+  content: ub.Story;
+  authorId: string;
+  sentAt: number;
+  channelType: db.ChannelType;
+  metadata?: db.PostMetadata;
+}): ub.PostEssay {
+  const kindData = (): ub.KindData => {
+    if (!metadata) {
+      switch (channelType) {
+        case 'chat':
+          return { chat: null };
+        case 'notebook':
+          throw new Error('Notebook posts must have a title');
+        case 'gallery':
+          return { heap: '' };
+      }
+    }
+
+    if (channelType === 'chat') {
+      return { chat: { notice: null } };
+    }
+
+    if (channelType === 'notebook') {
+      if (!metadata!.title || metadata!.title === '') {
+        throw new Error('Notebook posts must have a title');
+      }
+      return {
+        diary: { title: metadata!.title, image: metadata!.image ?? '' },
+      };
+    }
+
+    return { heap: metadata!.title ?? '' };
+  };
+
+  const essay: ub.PostEssay = {
+    content,
+    sent: sentAt,
+    'kind-data': kindData(),
+    author: authorId,
+  };
+
+  return essay;
+}
