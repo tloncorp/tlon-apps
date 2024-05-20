@@ -175,7 +175,6 @@ export function Channel({
                   justifyContent="space-between"
                   width="100%"
                   height="100%"
-                  position="relative"
                 >
                   <ChannelHeader
                     title={title}
