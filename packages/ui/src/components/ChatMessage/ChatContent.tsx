@@ -24,7 +24,14 @@ import {
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
 import { PostDeliveryStatus } from 'packages/shared/dist/db';
-import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ReactElement,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { TouchableOpacity } from 'react-native';
 
 import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';

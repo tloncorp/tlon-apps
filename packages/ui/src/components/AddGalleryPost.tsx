@@ -1,3 +1,4 @@
+import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import { useState } from 'react';
 
 import { ActionSheet } from './ActionSheet';
@@ -12,7 +13,7 @@ export default function AddGalleryPost({
   showAddGalleryPost: boolean;
   setShowAddGalleryPost: (show: boolean) => void;
   setShowGalleryInput: (show: boolean) => void;
-  setImage: (uri: string | null) => void;
+  setImage: (attchments: MessageAttachments) => void;
 }) {
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
 

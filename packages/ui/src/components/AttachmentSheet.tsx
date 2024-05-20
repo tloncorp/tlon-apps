@@ -1,3 +1,4 @@
+import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect } from 'react';
 
@@ -10,7 +11,7 @@ export default function AttachmentSheet({
 }: {
   showAttachmentSheet: boolean;
   setShowAttachmentSheet: (open: boolean) => void;
-  setImage: (uri: string | null) => void;
+  setImage: (attachments: MessageAttachments) => void;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -27,7 +28,7 @@ export default function AttachmentSheet({
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImage(result.assets);
     }
   };
 
@@ -41,7 +42,7 @@ export default function AttachmentSheet({
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImage(result.assets);
     }
   };
 

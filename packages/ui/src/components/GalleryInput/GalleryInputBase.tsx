@@ -1,4 +1,3 @@
-import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren } from 'react';
@@ -15,9 +14,6 @@ export interface GalleryInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
   channelId: string;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;

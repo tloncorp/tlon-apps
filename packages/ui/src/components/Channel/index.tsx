@@ -24,7 +24,7 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { Spinner, Text, View, YStack } from '../../core';
+import { SizableText, Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
@@ -123,10 +123,12 @@ export function Channel({
   }, [currentUserId, channel]);
 
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
-    if (selectedPostId) {
+    if (channel.type === 'notebook') {
+      return null;
+    } else if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
     } else if (
-      channel?.unread?.countWithoutThreads &&
+      channel.unread?.countWithoutThreads &&
       channel.unread.firstUnreadPostId
     ) {
       return { type: 'unread', postId: channel.unread.firstUnreadPostId };
@@ -143,8 +145,8 @@ export function Channel({
       blocks.push({
         image: {
           src: uploadedImage.url,
-          height: uploadedImage.size ? uploadedImage.size[0] : 200,
-          width: uploadedImage.size ? uploadedImage.size[1] : 200,
+          height: uploadedImage.height ? uploadedImage.height : 200,
+          width: uploadedImage.width ? uploadedImage.width : 200,
           alt: 'image',
         },
       });
@@ -170,7 +172,6 @@ export function Channel({
             <NavigationProvider onPressRef={onPressRef}>
               <ReferencesProvider>
                 <YStack
-                  flex={1}
                   justifyContent="space-between"
                   width="100%"
                   height="100%"
@@ -196,7 +197,6 @@ export function Channel({
                           setShouldBlur={setInputShouldBlur}
                           send={messageSender}
                           channelId={channel.id}
-                          setImageAttachment={uploadInfo.setImageAttachment}
                           groupMembers={group?.members ?? []}
                           storeDraft={storeDraft}
                           clearDraft={clearDraft}
@@ -265,9 +265,7 @@ export function Channel({
                             setShouldBlur={setInputShouldBlur}
                             send={messageSender}
                             channelId={channel.id}
-                            setImageAttachment={uploadInfo.setImageAttachment}
-                            uploadedImage={uploadInfo.uploadedImage}
-                            canUpload={uploadInfo.canUpload}
+                            uploadInfo={uploadInfo}
                             groupMembers={group?.members ?? []}
                             storeDraft={storeDraft}
                             clearDraft={clearDraft}
@@ -275,26 +273,14 @@ export function Channel({
                           />
                         )}
                       {!negotiationMatch && isChatChannel && canWrite && (
-                        <View
-                          width="90%"
-                          alignItems="center"
-                          justifyContent="center"
-                          backgroundColor="$secondaryBackground"
-                          borderRadius="$xl"
-                          padding="$l"
-                        >
-                          <Text>
-                            Your ship&apos;s version of the Tlon app
-                            doesn&apos;t match the channel host.
-                          </Text>
-                        </View>
+                        <NegotionMismatchNotice />
                       )}
                       {channel.type !== 'chat' &&
                         canWrite &&
                         !showGalleryInput && (
                           <View position="absolute" bottom="$l" right="$l">
                             {uploadInfo.uploadedImage &&
-                            uploadInfo.uploadedImage.status === 'loading' ? (
+                            uploadInfo.uploading ? (
                               <View alignItems="center" padding="$m">
                                 <Spinner />
                               </View>
@@ -323,7 +309,7 @@ export function Channel({
                         showAddGalleryPost={showAddGalleryPost}
                         setShowAddGalleryPost={setShowAddGalleryPost}
                         setShowGalleryInput={setShowGalleryInput}
-                        setImage={uploadInfo.setImageAttachment}
+                        setImage={uploadInfo.setAttachments}
                       />
                     </YStack>
                   </KeyboardAvoidingView>
@@ -334,5 +320,23 @@ export function Channel({
         </ContactsProvider>
       </GroupsProvider>
     </CalmProvider>
+  );
+}
+
+function NegotionMismatchNotice() {
+  return (
+    <View alignItems="center" justifyContent="center" padding="$l">
+      <View
+        backgroundColor="$secondaryBackground"
+        borderRadius="$l"
+        paddingHorizontal="$l"
+        paddingVertical="$xl"
+      >
+        <SizableText size="$s">
+          Your ship&apos;s version of the Tlon app doesn&apos;t match the
+          channel host.
+        </SizableText>
+      </View>
+    </View>
   );
 }

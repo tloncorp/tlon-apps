@@ -1,13 +1,16 @@
-import { Upload } from '@tloncorp/shared/dist/api';
+import {
+  MessageAttachments,
+  Upload,
+  UploadInfo,
+} from '@tloncorp/shared/dist/api';
 
 import { Attachment } from '../../assets/icons';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
-  setImage,
+  uploadInfo,
 }: {
-  setImage: (uri: string) => void;
-  uploadedImage?: Upload | null;
+  uploadInfo: UploadInfo;
 }) {
   return (
     <IconButton onPress={() => {}}>

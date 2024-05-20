@@ -77,9 +77,6 @@ export function GalleryInput({
   setShouldBlur,
   send,
   channelId,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
   groupMembers,
   storeDraft,
   clearDraft,
@@ -182,7 +179,6 @@ export function GalleryInput({
       const isEmpty =
         (inlines.length === 0 || inlineIsJustBreak) &&
         blocks.length === 0 &&
-        !uploadedImage &&
         Object.entries(references).filter(([, ref]) => ref !== null).length ===
           0;
 
@@ -190,7 +186,7 @@ export function GalleryInput({
         setEditorIsEmpty(isEmpty);
       }
     });
-  }, [editor, references, uploadedImage, editorIsEmpty]);
+  }, [editor, references, editorIsEmpty]);
 
   editor._onContentUpdate = async () => {
     const json = await editor.getJSON();
@@ -367,17 +363,6 @@ export function GalleryInput({
         });
       }
 
-      if (uploadedImage) {
-        blocks.push({
-          image: {
-            src: uploadedImage.url,
-            height: uploadedImage.size ? uploadedImage.size[0] : 200,
-            width: uploadedImage.size ? uploadedImage.size[1] : 200,
-            alt: 'image',
-          },
-        });
-      }
-
       if (blocks && blocks.length > 0) {
         story.push(...blocks.map((block) => ({ block })));
       }
@@ -398,7 +383,6 @@ export function GalleryInput({
       editor,
       send,
       channelId,
-      uploadedImage,
       references,
       setReferences,
       clearDraft,

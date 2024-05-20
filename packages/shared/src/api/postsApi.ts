@@ -125,7 +125,7 @@ export const sendPost = async ({
     if (!metaData) {
       switch (channelType) {
         case 'chat':
-          return { chat: { notice: null } };
+          return { chat: null };
         case 'notebook':
           return { diary: { title: '' } };
         case 'gallery':

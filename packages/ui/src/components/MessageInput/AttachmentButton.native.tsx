@@ -1,22 +1,27 @@
-import { Upload } from '@tloncorp/shared/dist/api';
-import { useState } from 'react';
+import {
+  MessageAttachments,
+  Upload,
+  UploadInfo,
+} from '@tloncorp/shared/dist/api';
+import * as ImagePicker from 'expo-image-picker';
+import { useEffect, useState } from 'react';
 
 import { Add } from '../../assets/icons';
 import { Spinner, View } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AttachmentSheet from '../AttachmentSheet';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
-  setImage,
-  uploadedImage,
+  uploadInfo,
 }: {
-  setImage: (uri: string | null) => void;
-  uploadedImage?: Upload | null;
+  uploadInfo: UploadInfo;
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
+
   return (
     <>
-      {uploadedImage && uploadedImage.url === '' ? (
+      {uploadInfo.uploadedImage && uploadInfo.uploadedImage.url === '' ? (
         <View alignItems="center" padding="$m">
           <Spinner />
         </View>
@@ -28,7 +33,7 @@ export default function AttachmentButton({
       <AttachmentSheet
         showAttachmentSheet={showInputSelector}
         setShowAttachmentSheet={setShowInputSelector}
-        setImage={setImage}
+        setImage={uploadInfo.setAttachments}
       />
     </>
   );

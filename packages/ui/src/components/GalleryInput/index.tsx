@@ -9,7 +9,6 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  canUpload,
   groupMembers,
 }: GalleryInputProps) {
   const [isFocused, setIsFocused] = useState(false);
