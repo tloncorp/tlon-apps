@@ -305,12 +305,14 @@ export function Channel({
                             )}
                           </View>
                         )}
-                      <AddGalleryPost
-                        showAddGalleryPost={showAddGalleryPost}
-                        setShowAddGalleryPost={setShowAddGalleryPost}
-                        setShowGalleryInput={setShowGalleryInput}
-                        setImage={uploadInfo.setAttachments}
-                      />
+                      {channel.type === 'gallery' && canWrite && (
+                        <AddGalleryPost
+                          showAddGalleryPost={showAddGalleryPost}
+                          setShowAddGalleryPost={setShowAddGalleryPost}
+                          setShowGalleryInput={setShowGalleryInput}
+                          setImage={uploadInfo.setAttachments}
+                        />
+                      )}
                     </YStack>
                   </KeyboardAvoidingView>
                 </YStack>

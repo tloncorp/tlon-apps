@@ -127,7 +127,7 @@ export const sendPost = async ({
         case 'chat':
           return { chat: null };
         case 'notebook':
-          return { diary: { title: '' } };
+          throw new Error('Notebook posts must have a title');
         case 'gallery':
           return { heap: '' };
       }
