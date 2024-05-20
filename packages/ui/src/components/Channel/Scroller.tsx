@@ -171,7 +171,6 @@ export default function Scroller({
       backgroundColor: theme.background.val,
       paddingTop: channelType === 'gallery' ? 8 : 0,
     };
-  }, [hasFoundAnchor]);
   }, [hasFoundAnchor, channelType, theme.background.val]);
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
