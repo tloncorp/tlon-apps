@@ -49,10 +49,14 @@ export function InlineContent({
   story,
   color = '$primaryText',
   isGalleryPost = false,
+  onPressImage,
+  onLongPress,
 }: {
   story: Inline | null;
   color?: ColorTokens;
   isGalleryPost?: boolean;
+  onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
 }) {
   if (story === null) {
     return null;
@@ -160,6 +164,8 @@ export function InlineContent({
         isGalleryPost={isGalleryPost}
         url={story.link.href}
         content={story.link.content}
+        onPressImage={onPressImage}
+        onLongPress={onLongPress}
       />
     );
   }
@@ -239,11 +245,15 @@ export function BlockContent({
 const LineRenderer = memo(
   ({
     storyInlines,
+    onPressImage,
+    onLongPress,
     color = '$primaryText',
     isNotice = false,
     isGalleryPost = false,
   }: {
     storyInlines: Inline[];
+    onLongPress?: () => void;
+    onPressImage?: (src: string) => void;
     color?: ColorTokens;
     isNotice?: boolean;
     isGalleryPost?: boolean;
@@ -311,6 +321,8 @@ const LineRenderer = memo(
             key={`inline-${index}`}
             story={inline}
             color={color}
+            onPressImage={onPressImage}
+            onLongPress={onLongPress}
           />
         );
       }
@@ -478,6 +490,8 @@ export default function ChatContent({
             <LineRenderer
               storyInlines={shortened ? shortenedStoryInlines : storyInlines}
               isNotice={isNotice}
+              onPressImage={onPressImage}
+              onLongPress={onLongPress}
               isGalleryPost={isGalleryPost}
             />
           </View>

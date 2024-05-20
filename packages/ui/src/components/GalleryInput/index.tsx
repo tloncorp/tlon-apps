@@ -9,8 +9,6 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  setImageAttachment,
-  uploadedImage,
   canUpload,
   groupMembers,
 }: GalleryInputProps) {
@@ -18,8 +16,6 @@ export function MessageInput({
 
   return (
     <GalleryInputContainer
-      setImageAttachment={setImageAttachment}
-      canUpload={canUpload}
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}

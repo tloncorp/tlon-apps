@@ -5,11 +5,16 @@ import {
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import {
+  Block,
+  JSONContent,
+  Story,
+  constructStory,
+} from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
-import { Add } from '../../assets/icons';
+import { Add, ArrowUp } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -21,6 +26,7 @@ import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
 import { Text, View, YStack } from '../../core';
 import * as utils from '../../utils';
+import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
 import { GalleryInput } from '../GalleryInput/index.native';
 import { GalleryPost } from '../GalleryPost';
@@ -100,6 +106,7 @@ export function Channel({
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showGalleryInput, setShowGalleryInput] = useState(false);
+  const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -126,6 +133,29 @@ export function Channel({
     }
     return null;
   }, [selectedPostId, channel]);
+
+  const sendGalleryImagePost = useCallback(async () => {
+    const story = constructStory([]);
+    const blocks: Block[] = [];
+    const uploadedImage = uploadInfo.uploadedImage;
+
+    if (uploadedImage) {
+      blocks.push({
+        image: {
+          src: uploadedImage.url,
+          height: uploadedImage.size ? uploadedImage.size[0] : 200,
+          width: uploadedImage.size ? uploadedImage.size[1] : 200,
+          alt: 'image',
+        },
+      });
+    }
+
+    if (blocks && blocks.length > 0) {
+      story.push(...blocks.map((block) => ({ block })));
+    }
+
+    await messageSender(story, channel.id);
+  }, [uploadInfo.uploadedImage, channel.id, messageSender]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -268,12 +298,22 @@ export function Channel({
                               backgroundColorOnPress="$tertiaryText"
                               color="$background"
                               radius="$xl"
-                              onPress={() => setShowGalleryInput(true)}
+                              onPress={() =>
+                                uploadInfo.uploadedImage
+                                  ? sendGalleryImagePost()
+                                  : setShowAddGalleryPost(true)
+                              }
                             >
-                              <Add />
+                              {uploadInfo.uploadedImage ? <ArrowUp /> : <Add />}
                             </IconButton>
                           </View>
                         )}
+                      <AddGalleryPost
+                        showAddGalleryPost={showAddGalleryPost}
+                        setShowAddGalleryPost={setShowAddGalleryPost}
+                        setShowGalleryInput={setShowGalleryInput}
+                        setImage={uploadInfo.setImageAttachment}
+                      />
                     </YStack>
                   </KeyboardAvoidingView>
                 </YStack>

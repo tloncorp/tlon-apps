@@ -1,3 +1,4 @@
+import { IMAGE_REGEX } from '@tloncorp/shared/dist';
 import {
   ContentReference as ContentReferenceType,
   PostContent,
@@ -5,6 +6,7 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Image as ImageBlock,
+  Link,
   VerseBlock,
   VerseInline,
 } from 'packages/shared/dist/urbit';
@@ -60,26 +62,64 @@ export default function GalleryPost({
   const referenceLength = useMemo(() => references.length, [references]);
   const blockLength = useMemo(() => blocks.length, [blocks]);
 
+  const isImagePost = useMemo(
+    () => blocks.length === 1 && blocks.some((b) => 'image' in b.block),
+    [blocks]
+  );
+  const isTextPost = useMemo(
+    () => blocks.length === 0 && inlines.length > 0 && references.length === 0,
+    [blocks, inlines, references]
+  );
+  const isReferencePost = useMemo(
+    () =>
+      blocks.length === 0 && inlines.length === 1 && references.length === 1,
+    [blocks, inlines, references]
+  );
+  const image = useMemo(
+    () =>
+      isImagePost
+        ? (blocks.find((b) => 'image' in b.block)?.block as ImageBlock).image
+        : null,
+    [blocks, isImagePost]
+  );
+
+  const textPostIsLinkedImage = useMemo(() => {
+    if (isTextPost) {
+      if (inlines.length === 1) {
+        const inline = inlines[0];
+        if (inline.inline.length === 2) {
+          const [first] = inline.inline;
+          if (typeof first === 'object' && 'link' in first) {
+            const link = first as Link;
+            const { href } = link.link;
+            const isImage = IMAGE_REGEX.test(href);
+
+            return isImage;
+          }
+        }
+      }
+    }
+    return false;
+  }, [isTextPost, inlines]);
+
+  const linkedImage = useMemo(
+    () =>
+      textPostIsLinkedImage
+        ? (inlines[0].inline[0] as Link).link.href
+        : undefined,
+    [inlines, textPostIsLinkedImage]
+  );
+
   if (inlineLength === 0 && referenceLength === 0 && blockLength === 0) {
     return null;
   }
 
-  const isImagePost =
-    blocks.length === 1 && blocks.some((b) => 'image' in b.block);
-  const isTextPost =
-    blocks.length === 0 && inlines.length > 0 && references.length === 0;
-  const isReferencePost =
-    blocks.length === 0 && inlines.length === 1 && references.length === 1;
-  const image = isImagePost
-    ? (blocks.find((b) => 'image' in b.block)?.block as ImageBlock).image
-    : null;
-
   return (
     <Pressable onPress={onPress} onLongPress={() => onLongPress?.(post)}>
       <View key={post.id} position="relative" alignItems="center">
-        {isImagePost && (
+        {(isImagePost || textPostIsLinkedImage) && (
           <ImageBackground
-            source={{ uri: image!.src }}
+            source={{ uri: isImagePost ? image!.src : linkedImage }}
             style={{
               width: HEIGHT_AND_WIDTH,
               height: HEIGHT_AND_WIDTH,
@@ -98,7 +138,7 @@ export default function GalleryPost({
             </View>
           </ImageBackground>
         )}
-        {isTextPost && (
+        {isTextPost && !textPostIsLinkedImage && (
           <View
             backgroundColor="$background"
             borderRadius="$l"

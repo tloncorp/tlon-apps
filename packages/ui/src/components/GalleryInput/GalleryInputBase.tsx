@@ -1,12 +1,11 @@
 import { Upload } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { PropsWithChildren, useMemo } from 'react';
+import { PropsWithChildren } from 'react';
 
 import { ArrowUp, Checkmark, Close } from '../../assets/icons';
 import { useReferences } from '../../contexts/references';
 import { View, XStack, YStack } from '../../core';
-import AttachmentButton from '../AttachmentButton';
 import ContentReference from '../ContentReference';
 import { IconButton } from '../IconButton';
 import MentionPopup from '../MentionPopup';
@@ -32,9 +31,6 @@ export interface GalleryInputProps {
 export const GalleryInputContainer = ({
   children,
   onPressSend,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
   containerHeight,
   showMentionPopup = false,
   mentionText,
@@ -46,9 +42,6 @@ export const GalleryInputContainer = ({
   editorIsEmpty,
 }: PropsWithChildren<{
   onPressSend?: () => void;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
   containerHeight: number;
   showMentionPopup?: boolean;
   mentionText?: string;
@@ -60,18 +53,6 @@ export const GalleryInputContainer = ({
   editorIsEmpty: boolean;
 }>) => {
   const { references, setReferences } = useReferences();
-  const hasUploadedImage = useMemo(
-    () => !!(uploadedImage && uploadedImage.url !== ''),
-    [uploadedImage]
-  );
-  const uploadIsLoading = useMemo(
-    () => uploadedImage?.status === 'loading',
-    [uploadedImage]
-  );
-  const sendIconColor = useMemo(
-    () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
-    [uploadIsLoading]
-  );
 
   return (
     <YStack position="relative" width="100%" height="100%">
@@ -136,14 +117,6 @@ export const GalleryInputContainer = ({
             <IconButton onPress={cancelEditing}>
               <Close />
             </IconButton>
-          </View>
-        ) : null}
-        {hasUploadedImage ? null : canUpload ? (
-          <View paddingBottom="$m">
-            <AttachmentButton
-              uploadedImage={uploadedImage}
-              setImage={setImageAttachment}
-            />
           </View>
         ) : null}
         {children}

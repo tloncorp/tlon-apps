@@ -1,8 +1,9 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
+import { TouchableOpacity } from 'react-native';
 import { Linking } from 'react-native';
 
 import { useCalm } from '../../contexts';
-import { Text } from '../../core';
+import { Image, Text } from '../../core';
 import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
 
 const trustedProviders = [
@@ -23,14 +24,19 @@ const trustedProviders = [
 export default function ChatEmbedContent({
   url,
   content,
+  onPressImage,
+  onLongPress,
   isGalleryPost = false,
 }: {
   url: string;
   content: string;
+  onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
   isGalleryPost?: boolean;
 }) {
   const isAudio = utils.AUDIO_REGEX.test(url);
   const isVideo = utils.VIDEO_REGEX.test(url);
+  const isImage = utils.IMAGE_REGEX.test(url);
   const isTrusted = trustedProviders.some((provider) =>
     provider.regex.test(url)
   );
@@ -48,6 +54,25 @@ export default function ChatEmbedContent({
   if (!calm.disableRemoteContent) {
     if (isVideo) {
       return <VideoEmbed url={url} />;
+    }
+
+    if (isImage) {
+      return (
+        <TouchableOpacity
+          onPress={onPressImage ? () => onPressImage(url) : undefined}
+          onLongPress={onLongPress}
+          activeOpacity={0.9}
+        >
+          <Image
+            source={{
+              uri: url,
+            }}
+            borderRadius="$m"
+            width={200}
+            backgroundColor={'$secondaryBackground'}
+          />
+        </TouchableOpacity>
+      );
     }
 
     if (isAudio) {

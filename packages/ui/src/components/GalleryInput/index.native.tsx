@@ -491,11 +491,8 @@ export function GalleryInput({
 
   return (
     <GalleryInputContainer
-      setImageAttachment={setImageAttachment}
       onPressSend={handleSend}
       onPressEdit={handleEdit}
-      uploadedImage={uploadedImage}
-      canUpload={canUpload}
       containerHeight={containerHeight}
       mentionText={mentionText}
       groupMembers={groupMembers}
