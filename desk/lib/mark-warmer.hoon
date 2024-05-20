@@ -27,4 +27,8 @@
 /$  clubs       %clubs                %json
 /$  ch-hidden   %hidden-messages      %json
 /$  crew        %chat-club-crew       %json
+/$  full-info   %activity-full        %json
+/$  act-update  %activity-update      %json
+/$  act-sum     %activity-summary     %json
+/$  act-vol     %activity-settings  %json
 ~

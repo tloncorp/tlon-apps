@@ -1,5 +1,4 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
 import { deSig } from '@urbit/api';
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -9,18 +8,14 @@ import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSort from '@/logic/useMessageSort';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useChats, useUnreads } from '@/state/channel/channel';
+import { useUnreads } from '@/state/activity';
+import { useChats } from '@/state/channel/channel';
 import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
 
-import {
-  useDmUnreads,
-  useMultiDms,
-  usePendingDms,
-  usePendingMultiDms,
-} from '../state/chat';
+import { useMultiDms, usePendingDms, usePendingMultiDms } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 type MessagesListProps = PropsWithChildren<{
@@ -30,7 +25,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
+function itemContent(_i: number, [whom, _unread]: [string, ActivitySummary]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -40,7 +35,7 @@ function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
 
 const computeItemKey = (
   _i: number,
-  [whom, _unread]: [string, Unread | DMUnread]
+  [whom, _unread]: [string, ActivitySummary]
 ) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
@@ -56,15 +51,7 @@ export default function MessagesList({
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinnedChats();
   const { sortMessages } = useMessageSort();
-  const { data: dmUnreads } = useDmUnreads();
-  const channelUnreads = useUnreads();
-  const unreads = useMemo(
-    () => ({
-      ...channelUnreads,
-      ...dmUnreads,
-    }),
-    [channelUnreads, dmUnreads]
-  );
+  const unreads = useUnreads();
   const contacts = useContacts();
   const clubs = useMultiDms();
   const chats = useChats();
@@ -82,12 +69,19 @@ export default function MessagesList({
 
   const organizedUnreads = useMemo(
     () =>
-      sortMessages(unreads).filter(([b]) => {
-        const chat = chats[b];
+      sortMessages(unreads).filter(([key]) => {
+        if (key === 'base') {
+          return false;
+        }
+
+        const chat = chats[key];
         const groupFlag = chat?.perms.group;
         const group = groups[groupFlag || ''];
         const vessel = group?.fleet[window.our];
-        const channel = group?.channels[b];
+        const channel = group?.channels[key];
+        const isChannel = key.includes('/');
+        const isDm = whomIsDm(key);
+        const isMultiDm = whomIsMultiDm(key);
 
         if (
           chat &&
@@ -98,46 +92,46 @@ export default function MessagesList({
           return false;
         }
 
-        if (pinned.includes(b) && !searchQuery) {
+        if (pinned.includes(key) && !searchQuery) {
           return false;
         }
 
-        if (allPending.includes(b)) {
+        if (allPending.includes(key)) {
           return false;
         }
 
-        if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
+        if (filter === filters.groups && (isDm || isMultiDm)) {
           return false;
         }
 
-        if (filter === filters.dms && b.includes('/')) {
+        if (filter === filters.dms && isChannel) {
           return false;
         }
 
-        if (b.includes('/') && !group) {
+        if (!group && isChannel) {
           return false;
         }
 
         if (searchQuery) {
-          if (b.includes('/')) {
-            const titleMatch = group.meta.title
+          if (isChannel) {
+            const titleMatch = channel.meta.title
               .toLowerCase()
               .startsWith(searchQuery.toLowerCase());
-            const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
+            const shipMatch = deSig(key)?.startsWith(deSig(searchQuery) || '');
             return titleMatch || shipMatch;
           }
 
-          if (whomIsDm(b)) {
-            const contact = contacts[b];
+          if (isDm) {
+            const contact = contacts[key];
             const nicknameMatch = contact?.nickname
               .toLowerCase()
               .startsWith(searchQuery.toLowerCase());
-            const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
+            const shipMatch = deSig(key)?.startsWith(deSig(searchQuery) || '');
             return nicknameMatch || shipMatch;
           }
 
-          if (whomIsMultiDm(b)) {
-            const club = clubs[b];
+          if (isMultiDm) {
+            const club = clubs[key];
             const titleMatch = club?.meta.title
               ?.toLowerCase()
               .startsWith(searchQuery.toLowerCase());

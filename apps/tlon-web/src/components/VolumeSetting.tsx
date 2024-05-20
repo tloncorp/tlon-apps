@@ -1,115 +1,77 @@
 import {
-  LevelNames,
-  Scope,
-  VolumeValue,
-} from '@tloncorp/shared/dist/urbit/volume';
+  Source,
+  VolumeLevel,
+  VolumeNames,
+  getDefaultVolumeOption,
+  getLevelFromVolumeMap,
+  getVolumeMapFromLevel,
+  sourceToString,
+} from '@tloncorp/shared/dist/urbit/activity';
 import React, { useEffect, useState } from 'react';
 
-import {
-  useBaseVolumeSetMutation,
-  useGroupChannelVolumeSetMutation,
-  useGroupVolumeSetMutation,
-  useRouteGroup,
-  useVolume,
-} from '@/state/groups';
+import { useVolumeAdjustMutation, useVolumeSettings } from '@/state/activity';
+import { useRouteGroup } from '@/state/groups';
 
 import RadioGroup, { RadioGroupOption } from './RadioGroup';
 
-export default function VolumeSetting({ scope }: { scope?: Scope }) {
+export default function VolumeSetting({ source }: { source: Source }) {
   const groupFlag = useRouteGroup();
-  const [value, setValue] = useState('');
-  const { volume: currentVolume, isLoading } = useVolume(scope);
-  const { volume: baseVolume, isLoading: baseVolumeIsLoading } = useVolume();
-  const { volume: groupVolume, isLoading: groupVolumeIsLoading } = useVolume({
-    group: groupFlag,
-  });
-  const { mutate: setBaseVolume } = useBaseVolumeSetMutation();
-  const { mutate: setGroupVoulume } = useGroupVolumeSetMutation();
-  const { mutate: setChannelVolume } = useGroupChannelVolumeSetMutation();
+  const [value, setValue] = useState<VolumeLevel | ''>('');
+  const { data: settings, isLoading } = useVolumeSettings();
+  const currentSettings = source ? settings[sourceToString(source)] : null;
+  const currentVolume = currentSettings
+    ? getLevelFromVolumeMap(currentSettings)
+    : null;
+  const notSet = !currentVolume && !isLoading;
+  const { label, volume } = getDefaultVolumeOption(source, settings, groupFlag);
+  const { mutate: setVolume } = useVolumeAdjustMutation();
 
   const options: RadioGroupOption[] = [
-    { label: LevelNames.loud, value: 'loud' },
-    { label: LevelNames.soft, value: 'soft' },
-    { label: LevelNames.hush, value: 'hush' },
+    { label: VolumeNames.medium, value: 'medium' },
+    { label: VolumeNames.soft, value: 'soft' },
+    { label: VolumeNames.hush, value: 'hush' },
   ];
 
-  const defaultLevel =
-    scope && 'channel' in scope
-      ? groupVolume === null
-        ? baseVolume
-        : groupVolume
-      : baseVolume;
-
-  if (scope) {
+  if (!('base' in source) && notSet) {
     options.unshift({
-      label:
-        'channel' in scope && groupVolume !== null
-          ? 'Use group default'
-          : 'Use default setting',
+      label,
       value: 'default',
-      secondaryLabel: `Your default: ${
-        LevelNames[defaultLevel === null ? 'soft' : defaultLevel]
-      }`,
+      secondaryLabel: `Your default: ${VolumeNames[volume]}`,
     });
+  } else if (notSet) {
+    options.unshift({ label: VolumeNames.default, value: 'default' });
   }
+
+  options.unshift({ label: VolumeNames.loud, value: 'loud' });
 
   useEffect(() => {
     if (value === '' && currentVolume && !isLoading) {
       setValue(currentVolume);
     }
-    if (
-      value === '' &&
-      currentVolume == null &&
-      baseVolume &&
-      !isLoading &&
-      !baseVolumeIsLoading
-    ) {
+
+    if (value === '' && !currentVolume && !isLoading) {
       setValue('default');
     }
-  }, [
-    currentVolume,
-    value,
-    isLoading,
-    scope,
-    baseVolume,
-    baseVolumeIsLoading,
-    groupVolume,
-    groupVolumeIsLoading,
-  ]);
+  }, [currentVolume, value, isLoading]);
 
   useEffect(() => {
-    if (value !== '' && currentVolume !== value && !isLoading) {
-      if (!scope) {
-        setBaseVolume({ volume: value as VolumeValue });
-      } else if ('group' in scope) {
-        if (value !== 'default') {
-          setGroupVoulume({ flag: scope.group, volume: value as VolumeValue });
-        } else {
-          setGroupVoulume({ flag: scope.group, volume: null });
-        }
-      } else if ('channel' in scope) {
-        if (value !== 'default') {
-          setChannelVolume({
-            nest: scope.channel,
-            volume: value as VolumeValue,
-          });
-        } else {
-          setChannelVolume({
-            nest: scope.channel,
-            volume: null,
-          });
-        }
-      }
+    if (
+      !(currentVolume === null && value === 'default') &&
+      currentVolume !== value &&
+      !isLoading
+    ) {
+      setVolume({
+        source: source || { base: null },
+        volume: getVolumeMapFromLevel(value === '' ? 'default' : value),
+      });
     }
-  }, [
-    value,
-    currentVolume,
-    isLoading,
-    scope,
-    setBaseVolume,
-    setGroupVoulume,
-    setChannelVolume,
-  ]);
+  }, [value, currentVolume, isLoading, source, setVolume]);
 
-  return <RadioGroup value={value} setValue={setValue} options={options} />;
+  return (
+    <RadioGroup
+      value={value}
+      setValue={setValue as React.Dispatch<React.SetStateAction<string>>}
+      options={options}
+    />
+  );
 }

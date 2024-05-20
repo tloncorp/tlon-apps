@@ -97,12 +97,12 @@
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
 ++  submit-activity
-  |=  =event:activity
+  |=  =incoming-event:activity
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  [%activity-action !>(`action:activity`[%add event])]
+  =/  =cage  [%activity-action !>(`action:activity`[%add incoming-event])]
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::
 ++  check-known
@@ -544,6 +544,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
+      [%activity %submit *]  cor
       [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
@@ -827,22 +828,23 @@
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
-            [%flag key=?(message-key [message-key message-key]) =nest:c]
+            [%flag-post key=message-key =nest:c group=flag:g]
+            [%flag-reply key=message-key parent=message-key =nest:c group=flag:g]
             [%role =ship roles=(set sect:g)]
             [%ask =ship]
         ==
     ^+  go-core
     =.  cor
       %-  submit-activity
-      ^-  event
+      ^-  incoming-event
+      =,  concern
       ?-  -.concern
-        %join  [%join ^flag ship.concern]
-        %kick  [%kick ^flag ship.concern]
-        %flag  ?:  ?=(message-key key.concern)
-                 [%flag key.concern nest.concern ^flag]
-               [%flag -.key.concern +.key.concern nest.concern ^flag]
-        %role  [%role ^flag [ship roles]:concern]
-        %ask   [%ask ^flag ship.concern]
+        %ask   [%group-ask ^flag ship]
+        %join  [%group-join ^flag ship]
+        %kick  [%group-kick ^flag ship]
+        %role  [%group-role ^flag ship roles]
+        %flag-post  [%flag-post key nest group]
+        %flag-reply  [%flag-reply key parent nest group]
       ==
     go-core
   ::
@@ -1869,7 +1871,7 @@
     ^+  ga-core
     =.  cor
       %-  submit-activity
-      ^-  event
+      ^-  incoming-event
       [%group-invite ^flag ship.concern]
     ga-core
   ::

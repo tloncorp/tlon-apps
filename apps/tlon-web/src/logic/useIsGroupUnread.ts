@@ -1,40 +1,54 @@
 import { useCallback } from 'react';
 
+import { useUnreads } from '@/state/activity';
 import { useGroups } from '@/state/groups';
 
-import { useCheckChannelUnread } from './channel';
+interface UnreadInfo {
+  unread: boolean;
+  count: number;
+  notify: boolean;
+}
 
-export default function useIsGroupUnread() {
-  const groups = useGroups();
-  const isChannelUnread = useCheckChannelUnread();
+const defaultUnread = {
+  unread: false,
+  count: 0,
+  notify: false,
+};
 
-  /**
-   * A Group is unread if
-   * - any of it's Channels have new items in their corresponding unreads
-   * - any of its Channels are unread (bin is unread, rope channel matches
-   *   chFlag)
-   */
-  const isGroupUnread = useCallback(
-    (flag: string) => {
-      const group = groups[flag];
-      const chNests = group ? Object.keys(group.channels) : [];
+export default function useGroupUnread() {
+  const unreads = useUnreads();
+  const getGroupUnread = useCallback(
+    (flag: string): UnreadInfo => {
+      const unread = unreads?.[flag];
+      if (!unread) {
+        return defaultUnread;
+      }
 
-      return chNests.reduce(
-        (memo, nest) => memo || isChannelUnread(nest),
-        false
-      );
+      return {
+        unread: !!unread.unread,
+        count: unread.count,
+        notify: unread.notify,
+      };
     },
-    [groups, isChannelUnread]
+    [unreads]
   );
 
   return {
-    isGroupUnread,
+    getGroupUnread,
   };
 }
 
-export function useIsAnyGroupUnread() {
+export function useCombinedGroupsUnread() {
   const groups = useGroups();
-  const { isGroupUnread } = useIsGroupUnread();
-  if (!groups) return undefined;
-  return Object.keys(groups).some((flag) => isGroupUnread(flag));
+  const { getGroupUnread } = useGroupUnread();
+  if (!groups) return defaultUnread;
+
+  return Object.keys(groups).reduce((info, flag) => {
+    const { unread, count, notify } = getGroupUnread(flag);
+    return {
+      unread: info.unread || unread,
+      count: info.count + count,
+      notify: info.notify || notify,
+    };
+  }, defaultUnread);
 }

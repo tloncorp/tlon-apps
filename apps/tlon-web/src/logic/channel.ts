@@ -1,4 +1,9 @@
-import { Perm, Story, Unreads } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  Activity,
+  MessageKey,
+  Source,
+} from '@tloncorp/shared/dist/urbit/activity';
+import { Perm, Story } from '@tloncorp/shared/dist/urbit/channel';
 import { isLink } from '@tloncorp/shared/dist/urbit/content';
 import {
   Channels,
@@ -18,12 +23,8 @@ import {
   RECENT_SORT,
   SortMode,
 } from '@/constants';
-import {
-  useChannel,
-  useJoinMutation,
-  usePerms,
-  useUnreads,
-} from '@/state/channel/channel';
+import { useMarkReadMutation, useUnreads } from '@/state/activity';
+import { useChannel, useJoinMutation, usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
 import { useNegotiate } from '@/state/negotiation';
@@ -36,7 +37,7 @@ import useSidebarSort, {
 } from './useSidebarSort';
 import { getFirstInline, getFlagParts, getNestShip, nestToFlag } from './utils';
 
-export function isChannelJoined(nest: string, unreads: Unreads) {
+export function isChannelJoined(nest: string, unreads: Activity) {
   const [flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
 
@@ -101,7 +102,7 @@ const selChats = (s: ChatStore) => s.chats;
 
 function channelUnread(
   nest: string,
-  unreads: Unreads,
+  unreads: Activity,
   chats: ChatStore['chats']
 ) {
   const [app, flag] = nestToFlag(nest);
@@ -118,7 +119,7 @@ export function useCheckChannelUnread() {
   const unreads = useUnreads();
   const chats = useChatStore(selChats);
 
-  return useCallback(
+  const isChannelUnread = useCallback(
     (nest: string) => {
       if (!unreads || !chats) {
         return false;
@@ -128,6 +129,22 @@ export function useCheckChannelUnread() {
     },
     [unreads, chats]
   );
+
+  const getUnread = useCallback(
+    (nest: string) => {
+      if (!unreads) {
+        return null;
+      }
+
+      return unreads[nest];
+    },
+    [unreads]
+  );
+
+  return {
+    isChannelUnread,
+    getUnread,
+  };
 }
 
 export function useIsChannelUnread(nest: string) {
@@ -389,4 +406,23 @@ export function linkUrlFromContent(content: Story) {
   }
 
   return undefined;
+}
+
+export function useMarkChannelRead(nest: string, thread?: MessageKey) {
+  const group = useRouteGroup();
+  const { mutateAsync, ...rest } = useMarkReadMutation();
+  const markRead = useCallback(() => {
+    const source: Source = thread
+      ? {
+          thread: {
+            group,
+            channel: nest,
+            key: thread,
+          },
+        }
+      : { channel: { group, nest } };
+    return mutateAsync({ source });
+  }, [group, nest, thread, mutateAsync]);
+
+  return { markRead, ...rest };
 }

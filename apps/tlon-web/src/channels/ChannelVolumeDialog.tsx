@@ -45,7 +45,7 @@ export default function ChannelVolumeDialog({ title }: ViewProps) {
             {channel?.meta ? `${channel.meta.title}` : null}
           </span>
         </div>
-        <VolumeSetting scope={{ channel: nest }} />
+        <VolumeSetting source={{ channel: { nest, group: flag } }} />
       </div>
     </Dialog>
   );

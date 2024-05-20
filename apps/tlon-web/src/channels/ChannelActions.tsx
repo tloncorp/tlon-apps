@@ -110,7 +110,7 @@ const ChannelActions = React.memo(
               {channel?.meta.title || `~${nest}`}
             </span>
           </div>
-          <VolumeSetting scope={{ channel: nest }} />
+          <VolumeSetting source={{ channel: { nest, group: groupFlag } }} />
         </div>
       ),
       keepOpenOnClick: true,

@@ -10,7 +10,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { getFlagParts } from '@/logic/utils';
-import { useUnreads } from '@/state/channel/channel';
+import { useUnreads } from '@/state/activity';
 import {
   useGang,
   useGroup,

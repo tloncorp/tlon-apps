@@ -31,16 +31,10 @@ import {
   Said,
   SortMode,
   TogglePost,
-  UnreadUpdate,
-  Unreads,
   newChatMap,
   newPostTupleArray,
 } from '@tloncorp/shared/dist/urbit/channel';
-import {
-  PagedWrits,
-  Writ,
-  newWritTupleArray,
-} from '@tloncorp/shared/dist/urbit/dms';
+import { PagedWrits, Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { Flag } from '@tloncorp/shared/dist/urbit/hark';
 import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
@@ -64,15 +58,20 @@ import {
   cacheIdFromString,
   cacheIdToString,
   checkNest,
+  createDevLogger,
   nestToFlag,
   stringToTa,
   whomIsFlag,
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { unreadsKey, useUnreads } from '../activity';
+// eslint-disable-next-line import/no-cycle
 import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
+
+const chLogger = createDevLogger('channels-update', false);
 
 const POST_PAGE_SIZE = isNativeApp()
   ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
@@ -1139,6 +1138,7 @@ export function useChannelsFirehose() {
   }, []);
 
   const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
+    chLogger.log('received channel update', event);
     setEventQueue((prev) => [...prev, event]);
   }, []);
 
@@ -1153,7 +1153,9 @@ export function useChannelsFirehose() {
   const processQueue = useRef(
     _.debounce(
       (events: ChannelsSubscribeResponse[]) => {
+        chLogger.log('processing channel queue', events);
         eventProcessor(events);
+        setEventQueue([]);
       },
       300,
       { leading: true, trailing: true }
@@ -1161,10 +1163,12 @@ export function useChannelsFirehose() {
   );
 
   useEffect(() => {
+    chLogger.log('checking channel queue', eventQueue.length);
     if (eventQueue.length === 0) {
       return;
     }
 
+    chLogger.log('attempting to process channel queue', eventQueue.length);
     processQueue.current(eventQueue);
   }, [eventQueue]);
 }
@@ -1344,79 +1348,6 @@ export function useReply(
   }, [post, replyId]);
 }
 
-export function useMarkReadMutation() {
-  const mutationFn = async (variables: { nest: Nest }) => {
-    checkNest(variables.nest);
-
-    await api.poke(channelAction(variables.nest, { read: null }));
-  };
-
-  return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['unreads']);
-    },
-  });
-}
-
-const emptyUnreads: Unreads = {};
-export function useUnreads(): Unreads {
-  const { mutate: markRead } = useMarkReadMutation();
-  const invalidate = useRef(
-    _.debounce(
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: ['unreads'],
-          refetchType: 'none',
-        });
-      },
-      300,
-      { leading: true, trailing: true }
-    )
-  );
-
-  const eventHandler = (event: UnreadUpdate) => {
-    const { nest, unread } = event;
-
-    if (unread !== null) {
-      const [app, flag] = nestToFlag(nest);
-
-      if (app === 'chat') {
-        useChatStore
-          .getState()
-          .handleUnread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
-      }
-
-      queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
-
-        const newUnreads = { ...d };
-        newUnreads[event.nest] = unread;
-
-        return newUnreads;
-      });
-    }
-
-    invalidate.current();
-  };
-
-  const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
-    queryKey: ['unreads'],
-    app: 'channels',
-    path: '/unreads',
-    scry: '/unreads',
-    onEvent: eventHandler,
-  });
-
-  if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyUnreads;
-  }
-
-  return data as Unreads;
-}
-
 export function useChatStoreChannelUnreads() {
   const chats = useChatStore((s) => s.chats);
 
@@ -1564,7 +1495,7 @@ export function useLeaveMutation() {
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
       await queryClient.cancelQueries(channelKey());
-      await queryClient.cancelQueries(['unreads']);
+      await queryClient.cancelQueries(unreadsKey);
       await queryClient.cancelQueries([han, 'perms', flag]);
       await queryClient.cancelQueries([han, 'posts', flag]);
       queryClient.removeQueries([han, 'perms', flag]);
@@ -1572,7 +1503,7 @@ export function useLeaveMutation() {
     },
     onSettled: async (_data, _error) => {
       await queryClient.invalidateQueries(channelKey());
-      await queryClient.invalidateQueries(['unreads']);
+      await queryClient.invalidateQueries(unreadsKey);
     },
   });
 }

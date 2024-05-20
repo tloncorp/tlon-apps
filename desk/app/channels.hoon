@@ -658,6 +658,10 @@
 ::
 ++  from-self  =(our src):bowl
 ::
+++  scry-path
+  |=  [agent=term =path]
+  ^-  ^path
+  (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   ++  ca-core  .
@@ -688,28 +692,60 @@
   ::
   ++  ca-activity
     =,  activity
-    |=  $:  $=  concern
-            $%  [%post key=message-key]
-                [%reply key=message-key top=message-key]
-            ==
-            content=story:c
-            mention=?
+    |%
+    ++  on-post
+      |=  v-post:c
+      ^+  ca-core
+      ?:  =(author our.bowl)  ca-core
+      =/  mention=?  (was-mentioned:utils content our.bowl)
+      =/  action
+        [%add %post [[author sent] id] nest group.perm.perm.channel content mention]
+      (send ~[action])
+    ++  on-reply
+      |=  [parent=v-post:c v-reply:c]
+      ^+  ca-core
+      ?:  =(author our.bowl)  ca-core
+      =/  mention=?  (was-mentioned:utils content our.bowl)
+      =/  in-replies
+          %+  lien  (tap:on-v-replies:c replies.parent)
+          |=  [=time reply=(unit v-reply:c)]
+          ?~  reply  |
+          =(author.u.reply our.bowl)
+      =/  =path  (scry-path %activity /volume-settings/noun)
+      =+  .^(settings=volume-settings %gx path)
+      =/  parent-key=message-key  [[author sent]:parent id.parent]
+      =/  =action
+        :*  %add  %reply
+            [[author sent] id]
+            parent-key
+            nest
+            group.perm.perm.channel
+            content
+            mention
         ==
-    ^+  ca-core
-    ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
-      ca-core
-    %-  emit
-    =;  =cage
+      ::  only follow thread if we haven't adjusted settings already
+      ::  and if we're the author of the post, mentioned, or in the replies
+      =/  thread=source  [%thread parent-key nest group.perm.perm.channel]
+      ?.  ?&  !(~(has by settings) thread)
+              ?|  mention
+                  in-replies
+                  =(author.parent our.bowl)
+              ==
+          ==
+        (send ~[action])
+      =/  vm=volume-map  [[%reply & &] ~ ~]
+      (send ~[[%adjust thread vm] action])
+    ++  send
+      |=  actions=(list action)
+      ^+  ca-core
+      ?.  .^(? %gu (scry-path %activity /$))
+        ca-core
+      %-  emil
+      %+  turn  actions
+      |=  =action
+      =/  =cage  activity-action+!>(action)
       [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
-    :-  %activity-action
-    !>  ^-  action
-    :-  %add
-    =*  cc=channel-concern  [nest group.perm.perm.channel]
-    ?-  -.concern
-      %post   [%post [key.concern cc] content mention]
-      %reply  [%reply [key.concern top.concern cc] content mention]
-    ==
-::
+    --
   ::
   ::  handle creating a channel
   ::
@@ -736,6 +772,7 @@
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  ca-give-unread
     =.  ca-core  (ca-response %join group)
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init n group]])
     (ca-safe-sub |)
   ::
   ::  handle an action from the client
@@ -759,7 +796,7 @@
     =?  ca-core  =(%read -.a-remark)
       %-  emil
       =/  last-read  last-read.remark.channel
-      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
+      =+  .^(=carpet:ha %gx (scry-path %hark /desk/groups/latest/noun))
       %+  murn
         ~(tap by cable.carpet)
       |=  [=rope:ha =thread:ha]
@@ -1033,17 +1070,8 @@
     =.  posts.channel
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
     =?  ca-core  &(send !=(old posts.channel))
-      =;  posts=(list [id=id-post:c post=(unit post:c)])
-        =.  ca-core  (ca-response %posts (gas:on-posts:c *posts:c posts))
-        |-
-        ?~  posts  ca-core
-        ?~  post.i.posts  $(posts t.posts)
-        =*  id  id.i.posts
-        =,  u.post.i.posts
-        =/  mention=?
-          (was-mentioned:utils content our.bowl)
-        =.  ca-core  (ca-activity [%post [[author id] id]] content mention)
-        $(posts t.posts)
+      %+  ca-response  %posts
+      %+  gas:on-posts:c  *posts:c
       %+  murn  (turn (tap:on-v-posts:c posts.chk) head)
       |=  id=id-post:c
       ^-  (unit [id-post:c (unit post:c)])
@@ -1134,10 +1162,7 @@
                    ==
         ::REVIEW  this might re-submit on edits. is that what we want?
         ::        it looks like %activity inserts even if it's a duplicate.
-        =,  u.post.u-post
-        =/  mention=?
-          (was-mentioned:utils content our.bowl)
-        (ca-activity [%post [[author id] id]] content mention)
+        (on-post:ca-activity u.post.u-post)
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
@@ -1203,24 +1228,14 @@
     =/  reply  (get:on-v-replies:c replies.post id-reply)
     ?:  ?=([~ ~] reply)  ca-core
     ?:  ?=(%set -.u-reply)
-      =?  ca-core  ?&  ?=(^ reply)
-                       |(?=(~ reply.u-reply) ~!(reply (gth rev.u.reply.u-reply rev.u.u.reply)))
-                   ==
-        ::REVIEW  this might re-submit on edits. is that what we want?
-        ::        it looks like %activity inserts even if it's a duplicate.
-        =,  u.u.reply
-        =/  concern
-          :-  [[author id-reply] id-reply]
-          [[author.post id-post] id-post]
-        =/  mention=?
-          (was-mentioned:utils content our.bowl)
-        (ca-activity [%reply concern] content mention)
       ?~  reply
         =/  reply=(unit reply:c)
           ?~  reply.u-reply  ~
           `(uv-reply:utils id-post u.reply.u-reply)
         =?  ca-core  ?=(^ reply.u-reply)
           (on-reply:ca-hark id-post post u.reply.u-reply)
+        =?  ca-core  ?=(^ reply.u-reply)
+          (on-reply:ca-activity post u.reply.u-reply)
         =?  pending.channel  ?=(^ reply.u-reply)
           =/  memo  +.+.u.reply.u-reply
           =/  client-id  [author sent]:memo
@@ -2015,13 +2030,12 @@
   ++  ca-recheck
     |=  sects=(set sect:g)
     =/  =flag:g  group.perm.perm.channel
-    =/  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    =/  exists-path  (weld groups-prefix /exists/(scot %p p.flag)/[q.flag])
+    =/  exists-path
+      (scry-path %groups /exists/(scot %p p.flag)/[q.flag])
     =+  .^(exists=? %gx exists-path)
     ?.  exists  ca-core
     =/  =path
-      %+  weld
-        groups-prefix
+      %+  scry-path  %groups
       /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
     =+  .^(group=group-ui:g %gx path)
     ?.  (~(has by channels.group) nest)  ca-core

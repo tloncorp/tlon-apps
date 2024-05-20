@@ -1,4 +1,6 @@
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import React, {
@@ -39,10 +41,8 @@ import {
 } from '@/state/chat';
 
 export default function DMThread() {
-  const { chShip, ship, chName, idTime, idShip } = useParams<{
-    chShip: string;
+  const { ship, idTime, idShip } = useParams<{
     ship: string;
-    chName: string;
     idShip: string;
     idTime: string;
   }>();
@@ -68,9 +68,13 @@ export default function DMThread() {
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
-  const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { markDmRead } = useMarkDmReadMutation(whom);
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, whom, markDmRead });
+  const msgKey: MessageKey = {
+    id,
+    time: formatUd(bigInt(time)),
+  };
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -116,7 +120,7 @@ export default function DMThread() {
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(whom, () => markDmRead({ whom }));
+    delayedRead(whom, markDmRead);
   }, [whom, markDmRead]);
 
   useEventListener('keydown', onEscape, threadRef);
@@ -136,7 +140,7 @@ export default function DMThread() {
       ) {
         chatStoreLogger.log('unmount read from thread');
         useChatStore.getState().read(curr.whom);
-        curr.markDmRead({ whom: curr.whom });
+        curr.markDmRead();
       }
     },
     []
@@ -216,6 +220,7 @@ export default function DMThread() {
             key={idTime}
             messages={replies}
             whom={whom}
+            parent={msgKey}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}

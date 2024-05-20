@@ -3,11 +3,12 @@ import { useContext, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
+import { useCombinedChatUnreads } from '@/chat/useChatStore';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
-import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
+import { useCombinedGroupsUnread } from '@/logic/useIsGroupUnread';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
@@ -30,7 +31,7 @@ import useActiveTab, { ActiveTab } from './util';
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { groupsLocation } = useLocalState.getState();
-  const groupsUnread = useIsAnyGroupUnread();
+  const groupsUnread = useCombinedGroupsUnread();
   const isMobile = useIsMobile();
 
   const onSingleClick = () => {
@@ -62,7 +63,11 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
           <div
             className={cn(
               'mb-0.5 h-1.5 w-1.5 rounded-full',
-              groupsUnread && 'bg-blue'
+              groupsUnread.unread
+                ? groupsUnread.notify
+                  ? 'bg-blue'
+                  : 'bg-gray-400'
+                : ''
             )}
           />
         </div>
@@ -89,7 +94,11 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div
         className={cn(
           'h-1 w-1 rounded-full top-1 right-1 absolute',
-          groupsUnread && 'bg-blue'
+          groupsUnread.unread
+            ? groupsUnread.notify
+              ? 'bg-blue'
+              : 'bg-gray-400'
+            : ''
         )}
       />
     </DoubleClickableNavButton>
@@ -99,7 +108,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { messagesLocation } = useLocalState.getState();
-  const hasUnreads = useHasUnreadMessages();
+  const unreads = useCombinedChatUnreads();
   const isMobile = useIsMobile();
 
   const onSingleClick = () => {
@@ -131,7 +140,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
           <div
             className={cn(
               'mb-0.5 h-1.5 w-1.5 rounded-full',
-              hasUnreads && 'bg-blue'
+              unreads.unread ? (unreads.notify ? 'bg-blue' : 'bg-gray-400') : ''
             )}
           />
         </div>
@@ -158,7 +167,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div
         className={cn(
           'h-1 w-1 rounded-full top-1 right-1 absolute',
-          hasUnreads && 'bg-blue'
+          unreads.unread ? (unreads.notify ? 'bg-blue' : 'bg-gray-400') : ''
         )}
       />
     </DoubleClickableNavButton>

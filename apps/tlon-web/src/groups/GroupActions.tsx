@@ -11,7 +11,7 @@ import ActionMenu, { Action } from '@/components/ActionMenu';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import VolumeSetting from '@/components/VolumeSetting';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import useGroupUnread from '@/logic/useIsGroupUnread';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   citeToPath,
@@ -113,12 +113,12 @@ const GroupActions = React.memo(
     children,
   }: GroupActionsProps) => {
     const [showNotifications, setShowNotifications] = useState(false);
-    const { isGroupUnread } = useIsGroupUnread();
+    const { getGroupUnread } = useGroupUnread();
     const { claim } = useGang(flag);
     const location = useLocation();
     const navigate = useNavigate();
     const [host, name] = flag.split('/');
-    const hasActivity = isGroupUnread(flag);
+    const activity = getGroupUnread(flag);
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : undefined;
     const isAdmin = useAmAdmin(flag);
@@ -303,7 +303,7 @@ const GroupActions = React.memo(
               {group?.meta.title || `~${flag}`}
             </span>
           </div>
-          <VolumeSetting scope={{ group: flag }} />
+          <VolumeSetting source={{ group: flag }} />
         </div>
       ),
       keepOpenOnClick: true,
@@ -350,8 +350,9 @@ const GroupActions = React.memo(
         >
           {children || (
             <div className="relative h-6 w-6">
-              {(isMobile || !isOpen) && hasActivity ? (
+              {(isMobile || !isOpen) && activity.unread ? (
                 <UnreadIndicator
+                  notify={activity.notify}
                   className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                   aria-label="Has Activity"
                 />
@@ -360,7 +361,11 @@ const GroupActions = React.memo(
                 <button
                   className={cn(
                     'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 sm:hover:opacity-100 sm:group-hover:opacity-100',
-                    hasActivity && 'text-blue',
+                    activity.unread
+                      ? activity.notify
+                        ? 'text-blue'
+                        : 'text-gray-400'
+                      : '',
                     isOpen ? 'opacity:100' : 'opacity-0'
                   )}
                   aria-label="Open Group Options"

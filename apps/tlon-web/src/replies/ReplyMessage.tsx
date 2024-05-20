@@ -1,13 +1,13 @@
 import { Editor } from '@tiptap/core';
+import { MessageKey } from '@tloncorp/shared/dist/urbit';
 import {
   Reply,
   Story,
-  Unread,
   constructStory,
   emptyReply,
 } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
+import { formatUd, unixToDa } from '@urbit/aura';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
@@ -36,14 +36,14 @@ import {
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import CheckIcon from '@/components/icons/CheckIcon';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
+import { useMarkChannelRead } from '@/logic/channel';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
-import { nestToFlag, useIsDmOrMultiDm, whomIsNest } from '@/logic/utils';
+import { useIsDmOrMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
 import {
   useEditReplyMutation,
   useIsEdited,
-  useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
@@ -51,6 +51,7 @@ import {
   useMarkDmReadMutation,
   useMessageToggler,
   useTrackedMessageStatus,
+  useWrit,
 } from '@/state/chat';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
@@ -58,6 +59,7 @@ import ReplyReactions from './ReplyReactions/ReplyReactions';
 
 export interface ReplyMessageProps {
   whom: string;
+  parent: MessageKey;
   time: BigInteger;
   reply: Reply;
   newAuthor?: boolean;
@@ -67,19 +69,6 @@ export interface ReplyMessageProps {
   isLinked?: boolean;
   isScrolling?: boolean;
   showReply?: boolean;
-}
-
-function amUnread(unread?: Unread | DMUnread, parent?: string, id?: string) {
-  if (!unread || !parent || !id) {
-    return false;
-  }
-
-  const thread = unread.threads[parent];
-  if (typeof thread === 'object') {
-    return thread.id === id;
-  }
-
-  return thread === id;
 }
 
 const mergeRefs =
@@ -111,6 +100,7 @@ const ReplyMessage = React.memo<
     (
       {
         whom,
+        parent,
         time,
         reply,
         newAuthor = false,
@@ -134,14 +124,21 @@ const ReplyMessage = React.memo<
       const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
-      const chatInfo = useChatInfo(whom);
+      const id = !whomIsFlag(whom)
+        ? seal.id
+        : `${memo.author}/${formatUd(unixToDa(memo.sent))}`;
+      const threadKey = `${whom}/${parent.id}`;
+      const chatInfo = useChatInfo(threadKey);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
-      const isUnread = amUnread(unread?.unread, seal['parent-id'], seal.id);
+      const isUnread = unread?.unread && unread.unread.unread?.id === id;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const { mutate: markChatRead } = useMarkReadMutation();
-      const { mutate: markDmRead } = useMarkDmReadMutation();
+      const { markRead: markChannelRead } = useMarkChannelRead(
+        `chat/${whom}`,
+        parent
+      );
+      const { markDmRead } = useMarkDmReadMutation(whom, parent);
       const { mutate: editReply } = useEditReplyMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
@@ -174,17 +171,17 @@ const ReplyMessage = React.memo<
                the state has changed
             */
             if (inView && isUnread && !seen) {
-              markSeen(whom);
-              delayedRead(whom, () => {
+              markSeen(threadKey);
+              delayedRead(threadKey, () => {
                 if (isDMOrMultiDM) {
-                  markDmRead({ whom });
+                  markDmRead();
                 } else {
-                  markChatRead({ nest: `chat/${whom}` });
+                  markChannelRead();
                 }
               });
             }
           },
-          [unread, whom, isDMOrMultiDM, markChatRead, markDmRead, isUnread]
+          [unread, whom, isDMOrMultiDM, markChannelRead, markDmRead, isUnread]
         ),
       });
 
@@ -347,7 +344,8 @@ const ReplyMessage = React.memo<
           {unread && isUnread ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.threads[seal['parent-id']]?.count || 0}
+              notify={unread.unread.notify}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}

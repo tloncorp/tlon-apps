@@ -1,4 +1,5 @@
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
@@ -16,16 +17,18 @@ import useActiveTab from '@/components/Sidebar/util';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import {
+  useChannelCompatibility,
+  useChannelFlag,
+  useMarkChannelRead,
+} from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import useIsEditingMessage from '@/logic/useIsEditingMessage';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import {
   useAddReplyMutation,
-  useMarkReadMutation,
   useMyLastReply,
   usePerms,
   usePost,
@@ -49,7 +52,6 @@ export default function ChatThread() {
     idTime: string;
   }>();
   const isMobile = useIsMobile();
-  const { isChatInputFocused } = useChatInputFocus();
   const isEditing = useIsEditingMessage();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
@@ -59,7 +61,6 @@ export default function ChatThread() {
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('reply');
-  const { mutate: markRead } = useMarkReadMutation();
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
   const replyId = useMemo(() => searchParams.get('replyTo'), [searchParams]);
@@ -70,6 +71,15 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
+  const id = note
+    ? `${note.essay.author}/${formatUd(unixToDa(note.essay.sent))}`
+    : '';
+  const msgKey = {
+    id,
+    time: formatUd(bigInt(idTime!)),
+  };
+  const chatUnreadsKey = `${flag}/${id}`;
+  const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
   if (note && replies !== null && idTimeIsNumber) {
@@ -113,9 +123,12 @@ export default function ChatThread() {
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useChatInfo(flag).unread?.readTimeout;
-  const isSmall = useMedia('(max-width: 1023px)');
-  const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
+  const readTimeout = useChatInfo(chatUnreadsKey).unread?.readTimeout;
+  const clearOnNavRef = useRef({
+    readTimeout,
+    chatUnreadsKey,
+    markRead,
+  });
   const activeTab = useActiveTab();
 
   const returnURL = useCallback(
@@ -137,8 +150,8 @@ export default function ChatThread() {
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(flag, () => markRead({ nest }));
-  }, [nest, flag, markRead]);
+    delayedRead(flag, markRead);
+  }, [flag, markRead]);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -152,20 +165,20 @@ export default function ChatThread() {
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { isSmall, readTimeout, nest, flag, markRead };
-  }, [readTimeout, nest, flag, isSmall, markRead]);
+    clearOnNavRef.current = {
+      readTimeout,
+      chatUnreadsKey,
+      markRead,
+    };
+  }, [readTimeout, chatUnreadsKey, markRead]);
 
   useEffect(
     () => () => {
       const curr = clearOnNavRef.current;
-      if (
-        curr.isSmall &&
-        curr.readTimeout !== undefined &&
-        curr.readTimeout !== 0
-      ) {
+      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
         chatStoreLogger.log('unmount read from thread');
-        useChatStore.getState().read(curr.flag);
-        curr.markRead({ nest: curr.nest });
+        useChatStore.getState().read(curr.chatUnreadsKey);
+        curr.markRead();
       }
     },
     []
@@ -249,6 +262,7 @@ export default function ChatThread() {
             key={idTime}
             messages={orderedReplies || []}
             whom={flag}
+            parent={msgKey}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}

@@ -7,7 +7,7 @@ import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
+import DMUnreadAlerts from '@/chat/UnreadAlerts';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useIsScrolling } from '@/logic/scroll';
@@ -41,7 +41,7 @@ export default function DmWindow({
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { markDmRead } = useMarkDmReadMutation(whom);
   const clearOnNavRef = useRef({ readTimeout, whom, markDmRead });
 
   const {
@@ -82,7 +82,7 @@ export default function DmWindow({
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(whom, () => markDmRead({ whom }));
+    delayedRead(whom, markDmRead);
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
@@ -142,7 +142,7 @@ export default function DmWindow({
       const curr = clearOnNavRef.current;
       if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
         useChatStore.getState().read(curr.whom);
-        curr.markDmRead({ whom: curr.whom });
+        curr.markDmRead();
       }
     },
     []

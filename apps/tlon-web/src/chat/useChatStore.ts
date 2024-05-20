@@ -1,19 +1,24 @@
-import { Block, Unread, Unreads } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread, DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
+import {
+  Activity,
+  ActivitySummary,
+} from '@tloncorp/shared/dist/urbit/activity';
+import { Block } from '@tloncorp/shared/dist/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
 
+export interface ChatInfoUnread {
+  readTimeout: number;
+  seen: boolean;
+  unread: ActivitySummary; // lags behind actual unread, only gets update if unread
+}
+
 export interface ChatInfo {
   replying: string | null;
   blocks: Block[];
-  unread?: {
-    readTimeout: number;
-    seen: boolean;
-    unread: DMUnread | Unread; // lags behind actual unread, only gets update if unread
-  };
+  unread?: ChatInfoUnread;
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
   failedToLoadContent: Record<string, Record<number, boolean>>;
@@ -42,14 +47,10 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  handleUnread: (
-    whom: string,
-    unread: Unread | DMUnread,
-    markRead: (whm: string) => void
-  ) => void;
+  handleUnread: (whom: string, unread: ActivitySummary) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (unreads: Unreads | DMUnreads) => void;
+  update: (unreads: Activity) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -63,9 +64,8 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
-export function isUnread(unread: Unread | DMUnread): boolean {
-  const hasThreads = Object.keys(unread.threads || {}).length > 0;
-  return unread.count > 0 && (!!unread.unread || hasThreads);
+export function isUnread(unread: ActivitySummary): boolean {
+  return unread.count > 0;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -183,8 +183,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           unread: {
             recency: 0,
             count: 0,
-            unread: { id: '', count: 0 },
-            threads: {},
+            notify: false,
+            unread: null,
+            children: [],
           },
           readTimeout: 0,
         };
@@ -298,6 +299,10 @@ export function useChatInfo(flag: string): ChatInfo {
   return useChatStore(useCallback((s) => s.chats[flag] || defaultInfo, [flag]));
 }
 
+export function useChatKeys(): string[] {
+  return useChatStore(useCallback((s) => Object.keys(s.chats), []));
+}
+
 export function fetchChatBlocks(whom: string): Block[] {
   return useChatStore.getState().chats[whom]?.blocks || [];
 }
@@ -372,4 +377,36 @@ export function useChatFailedToLoadContent(
       setFailedToLoadContent(whom, writId, blockIndex, failed);
     },
   };
+}
+
+interface UnreadInfo {
+  unread: boolean;
+  count: number;
+  notify: boolean;
+}
+
+const defaultUnread = {
+  unread: false,
+  count: 0,
+  notify: false,
+};
+
+export function useCombinedChatUnreads() {
+  const chats = useChatStore(useCallback((s) => s.chats, []));
+  return Object.entries(chats).reduce((acc, [whom, chat]) => {
+    const unread = chat.unread?.unread;
+    if (!unread) {
+      return acc;
+    }
+
+    return {
+      unread: acc.unread || isUnread(unread),
+      count: acc.count + unread.count,
+      notify: acc.notify || unread.notify,
+    };
+  }, defaultUnread);
+}
+
+export function useChatUnread(whom: string): ChatInfoUnread | undefined {
+  return useChatStore(useCallback((s) => s.chats[whom]?.unread, [whom]));
 }

@@ -1,3 +1,4 @@
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
@@ -15,13 +16,13 @@ import { useDiaryCommentSortMode } from '@/state/settings';
 import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {
-  time: string;
+  parent: MessageKey;
   comments: ReplyTuple[] | null;
   loading: boolean;
 }
 
 export default function HeapDetailComments({
-  time,
+  parent,
   comments,
   loading,
 }: HeapDetailCommentsProps) {
@@ -49,7 +50,7 @@ export default function HeapDetailComments({
   const groupedReplies = !comments
     ? []
     : setNewDaysForReplies(
-        groupReplies(time, sortedComments, unread).sort(([a], [b]) => {
+        groupReplies(parent, sortedComments, unread).sort(([a], [b]) => {
           if (sort === 'asc') {
             return a.localeCompare(b);
           }
