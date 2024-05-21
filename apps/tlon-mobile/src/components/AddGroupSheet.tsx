@@ -87,12 +87,12 @@ export default function AddGroupSheet({
   const [screenKey, setScreenKey] = useState<number>(0);
 
   const dismiss = useCallback(() => {
-    console.log('dismiss');
     if (navigationRef.current && navigationRef.current.canGoBack()) {
-      console.log(`trying to pop to top`);
       navigationRef.current.dispatch(StackActions.popToTop());
     }
     onOpenChange(false);
+    // used for resetting components nested within screens after
+    // reopening
     setTimeout(() => setScreenKey((key) => key + 1), 300);
   }, [onOpenChange]);
 
