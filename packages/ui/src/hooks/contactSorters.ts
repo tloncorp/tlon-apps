@@ -8,7 +8,7 @@ import { isValidPatp } from 'urbit-ob';
 type UrbitSort = 'pals' | 'nickname' | 'alphabetical';
 const DEFAULT_SORT_ORDER: UrbitSort[] = ['nickname', 'alphabetical'];
 
-const logger = createDevLogger('urbitSorter', true);
+const logger = createDevLogger('urbitSorter', false);
 
 export type AlphaContactsSegment = {
   alphaKey: string;

@@ -21,7 +21,13 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/ui/src';
-import { createContext, useCallback, useContext, useRef } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from 'react';
 import { KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -34,6 +40,8 @@ interface AddGroupActions {
     group: db.Group;
     channel: db.Channel;
   }) => void;
+  onScrollChange: (scrolling: boolean) => void;
+  screenKey?: number;
 }
 const ActionContext = createContext<AddGroupActions>({} as AddGroupActions);
 
@@ -73,8 +81,10 @@ export default function AddGroupSheet({
     channel: db.Channel;
   }) => void;
 }) {
+  const [screenScrolling, setScreenScrolling] = useState(false);
   const theme = useTheme();
   const navigationRef = useRef<NavigationContainerRef<StackParamList>>(null);
+  const [screenKey, setScreenKey] = useState<number>(0);
 
   const dismiss = useCallback(() => {
     console.log('dismiss');
@@ -83,13 +93,15 @@ export default function AddGroupSheet({
       navigationRef.current.dispatch(StackActions.popToTop());
     }
     onOpenChange(false);
+    setTimeout(() => setScreenKey((key) => key + 1), 300);
   }, [onOpenChange]);
 
   return (
     <Sheet
       open={open}
       onOpenChange={dismiss}
-      disableDrag={true}
+      disableDrag={screenScrolling}
+      dismissOnSnapToBottom
       animation="quick"
       modal
     >
@@ -98,7 +110,14 @@ export default function AddGroupSheet({
         <Sheet.Handle marginBottom="$l" />
         <KeyboardAvoidingView style={{ flex: 1 }}>
           <NavigationContainer independent={true} ref={navigationRef}>
-            <ActionContext.Provider value={{ dismiss, onCreatedGroup }}>
+            <ActionContext.Provider
+              value={{
+                dismiss,
+                onCreatedGroup,
+                onScrollChange: setScreenScrolling,
+                screenKey,
+              }}
+            >
               <Stack.Navigator
                 initialRouteName="Root"
                 screenOptions={{
@@ -153,6 +172,7 @@ function ScreenWrapper({
 }
 
 function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
+  const { onScrollChange, screenKey } = useContext(ActionContext);
   const insets = useSafeAreaInsets();
   const onSelect = useCallback(
     (contactId: string) => {
@@ -171,6 +191,8 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
           searchable
           searchPlaceholder="Search for group host..."
           onSelect={onSelect}
+          onScrollChange={onScrollChange}
+          key={screenKey}
         />
         <View position="absolute" bottom={insets.bottom + 8}>
           <Button

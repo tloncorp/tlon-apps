@@ -12,15 +12,14 @@ import { Sheet } from '../Sheet';
 export function StartDmSheet({
   open,
   onOpenChange,
-  goToChannel,
   goToDm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   goToDm: (participants: string[]) => void;
-  goToChannel: ({ channel }: { channel: db.Channel }) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const [contentScrolling, setContentScrolling] = useState(false);
   const [dmParticipants, setDmParticipants] = useState<string[]>([]);
   const [contactBookKey, setContactBookKey] = useState<number>(0);
 
@@ -37,7 +36,8 @@ export function StartDmSheet({
       onOpenChange={handleDismiss}
       snapPoints={[85]}
       modal
-      disableDrag={true}
+      disableDrag={contentScrolling}
+      dismissOnSnapToBottom
       animation="quick"
     >
       <Sheet.Overlay />
@@ -51,6 +51,7 @@ export function StartDmSheet({
               onSelectedChange={setDmParticipants}
               searchable
               searchPlaceholder="Start a DM with..."
+              onScrollChange={setContentScrolling}
             />
             {dmParticipants.length > 0 && (
               <XStack

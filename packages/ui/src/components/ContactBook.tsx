@@ -1,9 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo, useState } from 'react';
-import { FlatList } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 
 import { useContactIndex, useContacts } from '../contexts';
-import { SizableText, View, XStack, YStack } from '../core';
+import { ScrollView, SizableText, View, XStack, YStack } from '../core';
 import {
   AlphaContactsSegment,
   useAlphabeticallySegmentedContacts,
@@ -18,12 +22,14 @@ export function ContactBook({
   onSelect,
   multiSelect = false,
   onSelectedChange,
+  onScrollChange,
 }: {
   searchPlaceholder?: string;
   searchable?: boolean;
   onSelect?: (contactId: string) => void;
   multiSelect?: boolean;
   onSelectedChange?: (selected: string[]) => void;
+  onScrollChange?: (scrolling: boolean) => void;
 }) {
   const contacts = useContacts();
   const contactsIndex = useContactIndex();
@@ -73,6 +79,11 @@ export function ContactBook({
     [handleSelect, multiSelect, selected]
   );
 
+  const scrollPosition = useRef(0);
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollPosition.current = event.nativeEvent.contentOffset.y;
+  };
+
   return (
     <View flex={1}>
       {searchable && (
@@ -92,12 +103,20 @@ export function ContactBook({
             contacts={queryContacts}
             onSelect={handleSelect}
             selected={multiSelect ? selected : undefined}
+            onScrollChange={onScrollChange}
           />
         ) : (
           <FlatList
             data={segmentedContacts}
             renderItem={renderItem}
             ItemSeparatorComponent={() => <View height="$xl" />}
+            onScroll={handleScroll}
+            onTouchStart={() => {
+              if (scrollPosition.current > 0) {
+                onScrollChange?.(true);
+              }
+            }}
+            onTouchEnd={() => onScrollChange?.(false)}
           />
         )}
       </View>
@@ -155,10 +174,12 @@ function ContactSearchResults({
   contacts,
   onSelect,
   selected,
+  onScrollChange,
 }: {
   contacts: db.Contact[];
   selected?: string[];
   onSelect: (contactId: string) => void;
+  onScrollChange?: (scrolling: boolean) => void;
 }) {
   const contactRows = useMemo(() => {
     return contacts.map((contact) => {
@@ -176,12 +197,29 @@ function ContactSearchResults({
     });
   }, [contacts, onSelect, selected]);
 
+  const scrollPosition = useRef(0);
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollPosition.current = event.nativeEvent.contentOffset.y;
+  };
+
   return contacts.length === 0 ? (
     <XStack justifyContent="center" paddingTop="$m">
       <SizableText>No results found</SizableText>
     </XStack>
   ) : (
-    <ContactContainer>{contactRows}</ContactContainer>
+    <ContactContainer>
+      <ScrollView
+        onScroll={handleScroll}
+        onTouchStart={() => {
+          if (scrollPosition.current > 0) {
+            onScrollChange?.(true);
+          }
+        }}
+        onTouchEnd={() => onScrollChange?.(false)}
+      >
+        {contactRows}
+      </ScrollView>
+    </ContactContainer>
   );
 }
 

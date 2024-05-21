@@ -95,7 +95,6 @@ export default function ChatListScreen(
           channel={longPressedItem ?? undefined}
         />
         <StartDmSheet
-          goToChannel={goToChannel}
           goToDm={goToDm}
           open={startDmOpen}
           onOpenChange={() => setStartDmOpen(false)}
