@@ -7,7 +7,7 @@ import {
   extractGroupPrivacy,
   getChannelType,
 } from '../urbit';
-import { toClientMeta } from './converters';
+import { toClientMeta } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);

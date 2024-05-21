@@ -4,6 +4,13 @@ import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 import type * as db from '../db/types';
 import type * as ub from '../urbit';
 import { isColor } from './groupsApi';
+import { BadResponseError } from './urbit';
+
+export function formatScryPath(
+  ...segments: (string | number | null | undefined)[]
+) {
+  return '/' + segments.filter((s) => !!s).join('/');
+}
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image;
@@ -44,6 +51,59 @@ export function formatDateParam(date: Date) {
 
 export function formatPostIdParam(sealId: string) {
   return decToUd(sealId);
+}
+
+export function isDmChannelId(channelId: string) {
+  return channelId.startsWith('~');
+}
+
+export function isGroupDmChannelId(channelId: string) {
+  return channelId.startsWith('0v');
+}
+
+export function isGroupChannelId(channelId: string) {
+  return (
+    channelId.startsWith('chat') ||
+    channelId.startsWith('diary') ||
+    channelId.startsWith('heap')
+  );
+}
+
+export function getChannelIdType(channelId: string) {
+  if (isDmChannelId(channelId)) {
+    return 'dm';
+  } else if (isGroupDmChannelId(channelId)) {
+    return 'club';
+  } else if (isGroupChannelId(channelId)) {
+    return 'channel';
+  } else {
+    throw new Error('invalid channel id');
+  }
+}
+export async function with404Handler<T>(
+  scryRequest: Promise<any>,
+  defaultValue: T
+) {
+  try {
+    return await scryRequest;
+  } catch (e) {
+    if (e instanceof BadResponseError && e.status === 404) {
+      return defaultValue;
+    }
+    throw e;
+  }
+}
+export function getCanonicalPostId(inputId: string) {
+  let id = inputId;
+  // Dm and club posts come prefixed with the author, so we strip it
+  if (id[0] === '~') {
+    id = id.split('/').pop()!;
+  }
+  // The id in group post ids doesn't come dot separated, so we format it
+  if (id[3] !== '.') {
+    id = formatUd(id);
+  }
+  return id;
 }
 
 export function toPostEssay({
