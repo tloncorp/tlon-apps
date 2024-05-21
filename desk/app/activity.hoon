@@ -1,5 +1,5 @@
 ::
-/-  a=activity, c=channels
+/-  a=activity, c=channels, ch=chat
 /+  default-agent, verb, dbug, ch-utils=channel-utils
 ::
 =>
@@ -72,6 +72,7 @@
 ++  init
   ^+  cor
   =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
+  =.  cor  set-chat-reads
   set-channel-reads
 ::
 ++  load
@@ -83,19 +84,18 @@
   =.  state  old
   cor
 ::
-++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)/v2
+++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)
 ++  set-channel-reads
   ^+  cor
-  =+  .^(=unreads:c %gx (welp channels-prefix /unreads/noun))
-  =+  .^(=channels:c %gx (welp channels-prefix /channels/full/noun))
+  =+  .^(=unreads:c %gx (welp channels-prefix /v1/unreads/noun))
+  =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
   =/  entries  ~(tap by unreads)
-  =;  events=(list incoming-event:a)
+  =;  events=(list [time incoming-event:a])
     |-
     ?~  events  cor
-    =.  cor  (%*(. add should-notify |) i.events)
+    =.  cor  (%*(. add should-notify |, start-time -.i.events) +.i.events)
     $(events t.events)
-  |-
-  ^-  (list incoming-event:a)
+  |-  ^-  (list [time incoming-event:a])
   ?~  entries  ~
   =/  head  i.entries
   =*  next  $(entries t.entries)
@@ -103,13 +103,12 @@
   =/  channel  (~(get by channels) nest)
   ?~  channel  next
   =/  group  group.perm.u.channel
-  =;  events=(list incoming-event:a)
+  =;  events=(list [time incoming-event:a])
     (weld events next)
-  :-  [%chan-init nest group]
-  ?~  unread.unread  ~
-  =/  posts=(list incoming-event:a)
+  =/  posts=(list [time incoming-event:a])
+    ?~  unread.unread  ~
     %+  murn
-      (tab:on-posts:c posts.u.channel `id.u.unread.unread count.u.unread.unread)
+      (tab:on-posts:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
     |=  [=time post=(unit post:c)]
     ?~  post  ~
     =/  key=message-key:a
@@ -117,20 +116,19 @@
       [author.u.post sent.u.post]
     =/  mention
       (was-mentioned:ch-utils content.u.post our.bowl)
-    `[%post key nest group content.u.post mention]
-  =/  replies=(list incoming-event:a)
+    `[time %post key nest group content.u.post mention]
+  =/  replies=(list [time incoming-event:a])
     %-  zing
     %+  murn
       ~(tap by threads.unread)
     |=  [=id-post:c [id=id-reply:c count=@ud]]
-    ^-  (unit (list incoming-event:a))
+    ^-  (unit (list [time incoming-event:a]))
     =/  post=(unit (unit post:c))  (~(get by posts.u.channel) id-post)
     ?~  post  ~
     ?~  u.post  ~
     %-  some
-    ^-  (list incoming-event:a)
     %+  turn
-      (tab:on-replies:c replies.u.u.post `id count)
+      (tab:on-replies:c replies.u.u.post `(sub id 1) count)
     |=  [=time =reply:c]
     =/  key=message-key:a
       :_  time
@@ -140,18 +138,74 @@
       [author.u.u.post sent.u.u.post]
     =/  mention
       (was-mentioned:ch-utils content.reply our.bowl)
-    [%reply key parent nest group content.reply mention]
-  %+  sort
-    (welp posts replies)
-  |=  [a=incoming-event:a b=incoming-event:a]
-  ::  REVIEW  is this the correct order?
-  %+  gth
-    ?+(-.a !! %post time.key.a, %reply time.key.a)
-  ?+(-.b !! %post time.key.b, %reply time.key.b)
+    [time %reply key parent nest group content.reply mention]
+  =/  init-time
+    ?:  &(=(posts ~) =(replies ~))  recency.unread
+    *@da
+  :-  [init-time %chan-init nest group]
+  (welp posts replies)
+++  chat-prefix  /(scot %p our.bowl)/chat/(scot %da now.bowl)
+++  set-chat-reads
+  ^+  cor
+  =+  .^(=unreads:ch %gx (welp chat-prefix /unreads/noun))
+  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+      %gx  (welp chat-prefix /full/noun)
+    ==
+  =/  entries  ~(tap by unreads)
+  =;  events=(list [time incoming-event:a])
+    |-
+    ?~  events  cor
+    =.  cor  (%*(. add should-notify |, start-time -.i.events) +.i.events)
+    $(events t.events)
+  |-  ^-  (list [time incoming-event:a])
+  ?~  entries  ~
+  =/  head  i.entries
+  =*  next  $(entries t.entries)
+  =/  [=whom:ch =unread:unreads:ch]  head
+  =/  =pact:ch
+    ?-  -.whom
+      %ship  pact:(~(gut by dms) p.whom *dm:ch)
+      %club  pact:(~(gut by clubs) p.whom *club:ch)
+    ==
+  =;  events=(list [time incoming-event:a])
+    (weld events next)
+  :-  [*@da %dm-invite whom]
+  =/  writs=(list [time incoming-event:a])
+    ?~  unread.unread  ~
+    %+  murn
+      (tab:on:writs:ch wit.pact `(sub time.u.unread.unread 1) count.u.unread.unread)
+    |=  [=time =writ:ch]
+    =/  key=message-key:a  [id.writ time]
+    =/  mention
+      (was-mentioned:ch-utils content.writ our.bowl)
+    `[time %dm-post key whom content.writ mention]
+  =/  replies=(list [time incoming-event:a])
+    %-  zing
+    %+  murn
+      ~(tap by threads.unread)
+    |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
+    ^-  (unit (list [time incoming-event:a]))
+    =/  writ=(unit writ:ch)  (~(get by wit.pact) time.parent)
+    ?~  writ  ~
+    %-  some
+    %+  turn
+      (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
+    |=  [=time =reply:ch]
+    =/  mention
+      (was-mentioned:ch-utils content.reply our.bowl)
+    [time %dm-reply key parent whom content.reply mention]
+  (welp writs replies)
 ++  poke
   |=  [=mark =vase]
   ^+  cor
   ?+  mark  ~|(bad-poke+mark !!)
+      %noun
+    ?+  q.vase  ~|(bad-poke+mark !!)
+        %migrate
+      =.  state  *state-1
+      init
+    ==
+  ::
       %activity-action
     =+  !<(=action:a vase)
     ?-  -.action
@@ -251,10 +305,11 @@
   (~(got by indices) [%base ~])
 ++  add
   =/  should-notify=?  &
+  =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
   ^+  cor
   =/  =time-id:a
-    =/  t  now.bowl
+    =/  t  start-time
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))

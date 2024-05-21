@@ -630,6 +630,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %full ~]  ``noun+!>([dms clubs])
     [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
