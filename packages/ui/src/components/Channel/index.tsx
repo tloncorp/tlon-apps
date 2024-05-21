@@ -106,12 +106,11 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const renderItem =
-    channel.type === 'chat'
-      ? ChatMessage
-      : channel.type === 'notebook'
-        ? NotebookPost
-        : GalleryPost;
+  const renderItem = isChatChannel
+    ? ChatMessage
+    : channel.type === 'notebook'
+      ? NotebookPost
+      : GalleryPost;
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
@@ -248,33 +247,26 @@ export function Channel({
                       {!negotiationMatch && isChatChannel && canWrite && (
                         <NegotionMismatchNotice />
                       )}
-                      {channel.type !== 'chat' &&
-                        canWrite &&
-                        !showGalleryInput && (
-                          <View position="absolute" bottom="$l" right="$l">
-                            {uploadInfo.uploadedImage &&
-                            uploadInfo.uploading ? (
-                              <View alignItems="center" padding="$m">
-                                <Spinner />
-                              </View>
-                            ) : (
-                              <FloatingActionButton
-                                onPress={() =>
-                                  uploadInfo.uploadedImage
-                                    ? messageSender([], channel.id)
-                                    : setShowAddGalleryPost(true)
-                                }
-                                icon={
-                                  uploadInfo.uploadedImage ? (
-                                    <ArrowUp />
-                                  ) : (
-                                    <Add />
-                                  )
-                                }
-                              />
-                            )}
-                          </View>
-                        )}
+                      {!isChatChannel && canWrite && !showGalleryInput && (
+                        <View position="absolute" bottom="$l" right="$l">
+                          {uploadInfo.uploadedImage && uploadInfo.uploading ? (
+                            <View alignItems="center" padding="$m">
+                              <Spinner />
+                            </View>
+                          ) : (
+                            <FloatingActionButton
+                              onPress={() =>
+                                uploadInfo.uploadedImage
+                                  ? messageSender([], channel.id)
+                                  : setShowAddGalleryPost(true)
+                              }
+                              icon={
+                                uploadInfo.uploadedImage ? <ArrowUp /> : <Add />
+                              }
+                            />
+                          )}
+                        </View>
+                      )}
                       {channel.type === 'gallery' && canWrite && (
                         <AddGalleryPost
                           showAddGalleryPost={showAddGalleryPost}
