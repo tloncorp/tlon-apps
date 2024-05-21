@@ -1569,10 +1569,10 @@
     ?~  response  di-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area] cage)
+      (emit %give %fact ~[/ di-area] cage)
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area-writs] cage)
+      (emit %give %fact ~[/ di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff
