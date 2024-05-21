@@ -96,7 +96,7 @@ export default function GalleryPost({
               paddingBottom="$xs"
               position="relative"
             >
-              <ChatContent isGalleryPost post={post} />
+              <ChatContent viewMode="block" post={post} />
               <LinearGradient
                 colors={['$transparentBackground', '$background']}
                 start={{ x: 0, y: 0.4 }}
@@ -135,7 +135,7 @@ export default function GalleryPost({
               paddingBottom="$xs"
               position="relative"
             >
-              <ContentReference inGalleryPost reference={references[0]} />
+              <ContentReference viewMode="block" reference={references[0]} />
               <LinearGradient
                 colors={['$transparentBackground', '$background']}
                 start={{ x: 0, y: 0.4 }}

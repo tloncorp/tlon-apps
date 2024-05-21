@@ -1,5 +1,6 @@
 import { getChannelType } from '@tloncorp/shared/dist/urbit';
 
+import { PostViewMode } from '../ChatMessage/ChatContent';
 import ChatReferenceWrapper from './ChatReferenceWrapper';
 import ReferenceSkeleton from './ReferenceSkeleton';
 
@@ -7,12 +8,12 @@ export default function ChannelReference({
   channelId,
   postId,
   asAttachment = false,
-  inGalleryPost = false,
+  viewMode = 'chat',
 }: {
   channelId: string;
   postId: string;
   asAttachment?: boolean;
-  inGalleryPost?: boolean;
+  viewMode?: PostViewMode;
 }) {
   const channelType = getChannelType(channelId);
 
@@ -20,7 +21,7 @@ export default function ChannelReference({
     return (
       <ChatReferenceWrapper
         asAttachment={asAttachment}
-        inGalleryPost={inGalleryPost}
+        viewMode={viewMode}
         channelId={channelId}
         postId={postId}
       />

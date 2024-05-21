@@ -5,6 +5,7 @@ import { Linking } from 'react-native';
 import { useCalm } from '../../contexts';
 import { Image, Text } from '../../core';
 import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
+import { PostViewMode } from './ChatContent';
 
 const trustedProviders = [
   {
@@ -26,13 +27,13 @@ export default function ChatEmbedContent({
   content,
   onPressImage,
   onLongPress,
-  isGalleryPost = false,
+  viewMode = 'chat',
 }: {
   url: string;
   content: string;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
-  isGalleryPost?: boolean;
+  viewMode?: PostViewMode;
 }) {
   const isAudio = utils.AUDIO_REGEX.test(url);
   const isVideo = utils.VIDEO_REGEX.test(url);
@@ -87,7 +88,7 @@ export default function ChatEmbedContent({
   return (
     <Text
       textDecorationLine="underline"
-      fontSize={isGalleryPost ? '$s' : '$m'}
+      fontSize={viewMode === 'block' ? '$s' : '$m'}
       lineHeight="$m"
       onPress={openLink}
     >

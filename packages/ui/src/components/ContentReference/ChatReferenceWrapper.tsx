@@ -1,8 +1,6 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
-import { useMemo } from 'react';
-
 import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
+import { PostViewMode } from '../ChatMessage/ChatContent';
 import ChatReference from './ChatReference';
 import ReferenceSkeleton from './ReferenceSkeleton';
 
@@ -10,12 +8,12 @@ export default function ChatReferenceWrapper({
   channelId,
   postId,
   asAttachment = false,
-  inGalleryPost = false,
+  viewMode = 'chat',
 }: {
   channelId: string;
   postId: string;
   asAttachment?: boolean;
-  inGalleryPost?: boolean;
+  viewMode?: PostViewMode;
 }) {
   const { usePost, useChannel } = useRequests();
   const { data: post, isError, error, isLoading } = usePost({ id: postId });
@@ -50,7 +48,7 @@ export default function ChatReferenceWrapper({
       channel={channel}
       onPress={onPressRef}
       asAttachment={asAttachment}
-      inGalleryPost={inGalleryPost}
+      viewMode={viewMode}
     />
   );
 }

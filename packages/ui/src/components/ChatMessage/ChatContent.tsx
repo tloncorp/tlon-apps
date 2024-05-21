@@ -39,13 +39,13 @@ function ShipMention({ ship }: { ship: string }) {
 export function InlineContent({
   inline,
   color = '$primaryText',
-  isGalleryPost = false,
+  viewMode = 'chat',
   onPressImage,
   onLongPress,
 }: {
   inline: Inline | null;
   color?: ColorTokens;
-  isGalleryPost?: boolean;
+  viewMode?: PostViewMode;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
@@ -64,7 +64,7 @@ export function InlineContent({
       <Text
         color={color}
         lineHeight="$m"
-        fontSize={isGalleryPost ? '$s' : '$m'}
+        fontSize={viewMode === 'block' ? '$s' : '$m'}
       >
         {inline}
       </Text>
@@ -152,7 +152,7 @@ export function InlineContent({
   if (isLink(inline)) {
     return (
       <ChatEmbedContent
-        isGalleryPost={isGalleryPost}
+        viewMode={viewMode}
         url={inline.link.href}
         content={inline.link.content}
         onPressImage={onPressImage}
@@ -240,14 +240,14 @@ const LineRenderer = memo(
     onLongPress,
     color = '$primaryText',
     isNotice = false,
-    isGalleryPost = false,
+    viewMode = 'chat',
   }: {
     inlines: Inline[];
     onLongPress?: () => void;
     onPressImage?: (src: string) => void;
     color?: ColorTokens;
     isNotice?: boolean;
-    isGalleryPost?: boolean;
+    viewMode?: PostViewMode;
   }) => {
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
@@ -272,7 +272,7 @@ const LineRenderer = memo(
             <Text
               key={`string-${inline}-${index}`}
               color={isNotice ? '$tertiaryText' : color}
-              fontSize={isGalleryPost ? '$s' : '$m'}
+              fontSize={viewMode ? '$s' : '$m'}
               fontWeight={isNotice ? '500' : 'normal'}
               lineHeight="$m"
             >
@@ -311,7 +311,7 @@ const LineRenderer = memo(
       } else {
         currentLine.push(
           <InlineContent
-            isGalleryPost={isGalleryPost}
+            viewMode={viewMode}
             key={`inline-${index}`}
             inline={inline}
             color={color}
@@ -339,7 +339,7 @@ const LineRenderer = memo(
 
           return (
             <Text
-              fontSize={isGalleryPost ? '$s' : '$m'}
+              fontSize={viewMode === 'block' ? '$s' : '$m'}
               key={`line-${index}`}
               flexWrap="wrap"
               lineHeight="$m"
@@ -355,6 +355,8 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
+export type PostViewMode = 'chat' | 'block' | 'note';
+
 export default function ChatContent({
   post,
   shortened = false,
@@ -363,7 +365,7 @@ export default function ChatContent({
   onPressImage,
   onLongPress,
   isEdited = false,
-  isGalleryPost = false,
+  viewMode = 'chat',
 }: {
   post: Post;
   shortened?: boolean;
@@ -372,7 +374,7 @@ export default function ChatContent({
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   isEdited?: boolean;
-  isGalleryPost?: boolean;
+  viewMode?: PostViewMode;
 }) {
   const { inlines, blocks, references } = useMemo(
     () => extractContentTypesFromPost(post),
@@ -461,7 +463,7 @@ export default function ChatContent({
               isNotice={isNotice}
               onPressImage={onPressImage}
               onLongPress={onLongPress}
-              isGalleryPost={isGalleryPost}
+              viewMode={viewMode}
             />
           </View>
         ) : null}

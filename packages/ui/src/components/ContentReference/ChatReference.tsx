@@ -1,9 +1,8 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 
 import { Avatar } from '../Avatar';
-import ChatContent from '../ChatMessage/ChatContent';
+import ChatContent, { PostViewMode } from '../ChatMessage/ChatContent';
 import ContactName from '../ContactName';
 import { Reference } from './Reference';
 
@@ -12,13 +11,13 @@ export default function ChatReference({
   post,
   onPress,
   asAttachment = false,
-  inGalleryPost = false,
+  viewMode = 'chat',
 }: {
   channel: db.Channel;
   post: db.Post;
   onPress: (channel: db.Channel, post: db.Post) => void;
   asAttachment?: boolean;
-  inGalleryPost?: boolean;
+  viewMode?: PostViewMode;
 }) {
   const navigateToChannel = useCallback(() => {
     if (asAttachment) {
@@ -35,7 +34,7 @@ export default function ChatReference({
 
   return (
     <Reference
-      inGalleryPost={inGalleryPost}
+      viewMode={viewMode}
       asAttachment={asAttachment}
       onPress={navigateToChannel}
     >
@@ -53,8 +52,8 @@ export default function ChatReference({
       </Reference.Header>
       <Reference.Body>
         <ChatContent
-          isGalleryPost={inGalleryPost}
-          shortened={asAttachment || inGalleryPost}
+          viewMode={viewMode}
+          shortened={asAttachment || viewMode === 'block'}
           post={post}
         />
       </Reference.Body>
