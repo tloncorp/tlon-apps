@@ -24,7 +24,6 @@ import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
-import { GalleryInput } from '../GalleryInput/index.native';
 import { GalleryPost } from '../GalleryPost';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
@@ -163,7 +162,7 @@ export function Channel({
                   >
                     <YStack alignItems="center" flex={1}>
                       {showGalleryInput ? (
-                        <GalleryInput
+                        <MessageInput
                           shouldBlur={inputShouldBlur}
                           setShouldBlur={setInputShouldBlur}
                           send={messageSender}
@@ -176,6 +175,8 @@ export function Channel({
                           setEditingPost={setEditingPost}
                           editPost={editPost}
                           setShowGalleryInput={setShowGalleryInput}
+                          floatingActionButton
+                          showAttachmentButton={false}
                         />
                       ) : uploadInfo.imageAttachment ? (
                         <UploadedImagePreview

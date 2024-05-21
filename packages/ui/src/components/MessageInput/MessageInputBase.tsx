@@ -4,14 +4,14 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
 import { ArrowUp, Checkmark, Close } from '../../assets/icons';
-import { View, XStack, YStack } from '../../core';
+import { ThemeTokens, View, XStack, YStack } from '../../core';
 import FloatingActionButton from '../FloatingActionButton';
 import { IconButton } from '../IconButton';
-import InputMentionPopup from '../Input/InputMentionPopup';
-import ReferencePreview from '../Input/ReferencePreview';
 import AttachmentButton from './AttachmentButton';
+import InputMentionPopup from './InputMentionPopup';
+import ReferencePreview from './ReferencePreview';
 
-export interface InputProps {
+export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
@@ -25,9 +25,12 @@ export interface InputProps {
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
   setShowGalleryInput?: (showGalleryInput: boolean) => void;
+  showAttachmentButton?: boolean;
+  floatingActionButton?: boolean;
+  backgroundColor?: ThemeTokens;
 }
 
-export const InputContainer = ({
+export const MessageInputContainer = ({
   children,
   onPressSend,
   uploadInfo,

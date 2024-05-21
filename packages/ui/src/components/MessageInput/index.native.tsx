@@ -28,7 +28,7 @@ import type { WebViewMessageEvent } from 'react-native-webview';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
-import { InputContainer, InputProps } from '../Input/InputBase';
+import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -85,7 +85,11 @@ export function MessageInput({
   editingPost,
   setEditingPost,
   editPost,
-}: InputProps) {
+  setShowGalleryInput,
+  showAttachmentButton = true,
+  floatingActionButton = false,
+  backgroundColor = '$secondaryBackground',
+}: MessageInputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
@@ -389,6 +393,7 @@ export function MessageInput({
       editor.setContent('');
       setReferences({});
       clearDraft();
+      setShowGalleryInput?.(false);
     },
     [
       editor,
@@ -401,6 +406,7 @@ export function MessageInput({
       editPost,
       editingPost,
       setEditingPost,
+      setShowGalleryInput,
     ]
   );
 
@@ -485,7 +491,7 @@ export function MessageInput({
   );
 
   return (
-    <InputContainer
+    <MessageInputContainer
       onPressSend={handleSend}
       onPressEdit={handleEdit}
       uploadInfo={uploadInfo}
@@ -497,19 +503,17 @@ export function MessageInput({
       isEditing={!!editingPost}
       cancelEditing={() => setEditingPost?.(undefined)}
       editorIsEmpty={editorIsEmpty}
+      showAttachmentButton={showAttachmentButton}
+      floatingActionButton={floatingActionButton}
     >
       <XStack
         borderRadius="$xl"
         height={containerHeight}
-        backgroundColor="$secondaryBackground"
+        backgroundColor={backgroundColor}
         paddingHorizontal="$l"
         flex={1}
       >
         <RichText
-          style={{
-            padding: 8,
-            backgroundColor: '$secondaryBackground',
-          }}
           editor={editor}
           onMessage={handleMessage}
           injectedJavaScript={`
@@ -538,6 +542,6 @@ export function MessageInput({
             `}
         />
       </XStack>
-    </InputContainer>
+    </MessageInputContainer>
   );
 }
