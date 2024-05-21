@@ -1,7 +1,6 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
-import { udToDate } from './apiUtils';
-import { getCanonicalPostId } from './apiUtils';
+import { getCanonicalPostId, udToDate } from './apiUtils';
 import { scry, subscribe } from './urbit';
 
 export const getChannelUnreads = async () => {

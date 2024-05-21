@@ -16,16 +16,18 @@ import {
   getTextContent,
   whomIsDm,
 } from '../urbit';
-import { formatDateParam, formatUd, udToDate } from './apiUtils';
 import {
+  formatDateParam,
   formatScryPath,
+  formatUd,
+  getCanonicalPostId,
   getChannelIdType,
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
+  udToDate,
+  with404Handler,
 } from './apiUtils';
-import { with404Handler } from './apiUtils';
-import { getCanonicalPostId } from './apiUtils';
 import { poke, scry } from './urbit';
 
 export type Cursor = string | Date;
