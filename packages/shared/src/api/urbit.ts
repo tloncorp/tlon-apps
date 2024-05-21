@@ -63,6 +63,9 @@ export function configureClient({
 
   clientInstance.on('reset', () => {
     logger.log('client reset');
+    Object.values(subWatchers).forEach((watchers) => {
+      watchers.forEach((watcher) => watcher.reject('Client reset'));
+    });
     subWatchers = {};
     onReset?.();
   });
