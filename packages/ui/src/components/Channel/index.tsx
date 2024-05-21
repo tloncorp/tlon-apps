@@ -177,6 +177,7 @@ export function Channel({
                           setShowGalleryInput={setShowGalleryInput}
                           floatingActionButton
                           showAttachmentButton={false}
+                          backgroundColor="$background"
                         />
                       ) : uploadInfo.imageAttachment ? (
                         <UploadedImagePreview

@@ -514,6 +514,9 @@ export function MessageInput({
         flex={1}
       >
         <RichText
+          style={{
+            backgroundColor: 'transparent',
+          }}
           editor={editor}
           onMessage={handleMessage}
           injectedJavaScript={`
