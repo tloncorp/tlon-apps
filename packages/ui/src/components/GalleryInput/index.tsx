@@ -1,8 +1,7 @@
 import { useState } from 'react';
 
 import { TextArea } from '../../core';
-import { GalleryInputProps } from './GalleryInputBase';
-import { GalleryInputContainer } from './GalleryInputBase';
+import { InputContainer, InputProps } from '../Input/InputBase';
 
 export function MessageInput({
   shouldBlur,
@@ -10,14 +9,15 @@ export function MessageInput({
   send,
   channelId,
   groupMembers,
-}: GalleryInputProps) {
+}: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <GalleryInputContainer
+    <InputContainer
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}
+      onPressSend={() => {}}
       editorIsEmpty={true}
     >
       <TextArea
@@ -34,6 +34,6 @@ export function MessageInput({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
       />
-    </GalleryInputContainer>
+    </InputContainer>
   );
 }

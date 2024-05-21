@@ -28,7 +28,7 @@ import type { WebViewMessageEvent } from 'react-native-webview';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
-import { GalleryInputContainer, GalleryInputProps } from './GalleryInputBase';
+import { InputContainer, InputProps } from '../Input/InputBase';
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -85,7 +85,7 @@ export function GalleryInput({
   setEditingPost,
   editPost,
   setShowGalleryInput,
-}: GalleryInputProps) {
+}: InputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
@@ -377,7 +377,7 @@ export function GalleryInput({
       editor.setContent('');
       setReferences({});
       clearDraft();
-      setShowGalleryInput(false);
+      setShowGalleryInput?.(false);
     },
     [
       editor,
@@ -474,7 +474,7 @@ export function GalleryInput({
   );
 
   return (
-    <GalleryInputContainer
+    <InputContainer
       onPressSend={handleSend}
       onPressEdit={handleEdit}
       containerHeight={containerHeight}
@@ -485,6 +485,8 @@ export function GalleryInput({
       isEditing={!!editingPost}
       cancelEditing={() => setEditingPost?.(undefined)}
       editorIsEmpty={editorIsEmpty}
+      showAttachmentButton={false}
+      floatingActionButton={true}
     >
       <XStack
         borderRadius="$xl"
@@ -526,6 +528,6 @@ export function GalleryInput({
             `}
         />
       </XStack>
-    </GalleryInputContainer>
+    </InputContainer>
   );
 }

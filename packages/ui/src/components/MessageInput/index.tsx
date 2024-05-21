@@ -1,8 +1,7 @@
 import { useState } from 'react';
 
 import { TextArea } from '../../core';
-import { MessageInputProps } from './MessageInputBase';
-import { MessageInputContainer } from './MessageInputBase';
+import { InputContainer, InputProps } from '../Input/InputBase';
 
 export function MessageInput({
   shouldBlur,
@@ -11,16 +10,17 @@ export function MessageInput({
   channelId,
   uploadInfo,
   groupMembers,
-}: MessageInputProps) {
+}: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <MessageInputContainer
+    <InputContainer
       uploadInfo={uploadInfo}
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}
       editorIsEmpty={true}
+      onPressSend={() => {}}
     >
       <TextArea
         flexGrow={1}
@@ -36,6 +36,6 @@ export function MessageInput({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
       />
-    </MessageInputContainer>
+    </InputContainer>
   );
 }

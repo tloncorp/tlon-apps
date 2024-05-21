@@ -28,7 +28,7 @@ import type { WebViewMessageEvent } from 'react-native-webview';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
-import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
+import { InputContainer, InputProps } from '../Input/InputBase';
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -85,7 +85,7 @@ export function MessageInput({
   editingPost,
   setEditingPost,
   editPost,
-}: MessageInputProps) {
+}: InputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
     DEFAULT_CONTAINER_HEIGHT
@@ -485,7 +485,7 @@ export function MessageInput({
   );
 
   return (
-    <MessageInputContainer
+    <InputContainer
       onPressSend={handleSend}
       onPressEdit={handleEdit}
       uploadInfo={uploadInfo}
@@ -538,6 +538,6 @@ export function MessageInput({
             `}
         />
       </XStack>
-    </MessageInputContainer>
+    </InputContainer>
   );
 }
