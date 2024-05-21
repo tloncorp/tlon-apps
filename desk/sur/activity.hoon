@@ -11,7 +11,7 @@
 ::  $activity: the current state of activity for each source
 +$  activity  (map source activity-summary)
 ::  $full-info: the full state of the activity stream
-+$  full-info  [=indices =activity]
++$  full-info  [=indices =activity =volume-settings]
 ::  $volume-map: how to badge and notify for each event type
 +$  volume-map
   $~  default-volumes

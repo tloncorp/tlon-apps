@@ -1,20 +1,20 @@
 ::
 /-  a=activity, c=channels
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, ch-utils=channel-utils
 ::
 =>
   |%
   +$  card  card:agent:gall
   ::
   +$  versioned-state
-    $%  state-0
+    $%  state-1
     ==
   ::
-  +$  state-0
-    [%0 =indices:a =activity:a =volume-settings:a]
+  +$  state-1
+    [%1 =indices:a =activity:a =volume-settings:a]
   --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 %-  agent:dbug
@@ -71,51 +71,83 @@
 ::
 ++  init
   ^+  cor
-  cor(indices (~(put by indices) [%base ~] [*stream:a *reads:a]))
+  =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
+  set-channel-reads
 ::
 ++  load
   |=  =vase
   ^+  cor
+  ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
-  ?>  ?=(%0 -.old)
+  ?>  ?=(%1 -.old)
   =.  state  old
   cor
 ::
-:: ++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)/v1
-:: ++  set-reads-from-old
-::   =.  cor
-::     =+  .^(=unreads:c %gx (welp channels-prefix /unreads/noun))
-::     =+  .^(=channels:c %gx (welp channels-prefix /channels/noun))
-::     =/  entries  ~(tap by unreads)
-::     |-
-::     =/  head  i.entries
-::     =+  next  $(entries t.entries)
-::     ?~  head  cor
-::     =/  [=nest:c =unread:c]  head
-::     =/  channel  (~(get by channels) nest)
-::     ?^  unread.unread
-::       ?~  channel  next
-::       =/  path
-::         ;:  welp
-::           channels-prefix
-::           /[kind.nest]/(scot %p ship.nest)/[name.nest]
-::           /posts/post/(scot %ud id.u.unread.unread)/noun
-::         ==
-::       =+  .^(post=(unit post:c) %gx path)
-::       ?~  post  next
-::       =/  =post-concern:a
-::         [[[author.u.post id.u.post] id.u.post] nest group.perm.channel]
-::       =.  stream  (put:on-event:a *stream:a id.u.post [%post post-concern ~ |])
-::       next
-::     =/  path
-::         ;:  welp
-::           channels-prefix
-::           /[kind.nest]/(scot %p ship.nest)/[name.nest]
-::           /posts/newest/1/outline/noun
-::         ==
-::     =+  .^(=posts:c %gx path)
-::     =/  entry=(unit [time post:c])  (ram:on-posts:c posts)
-::     ?~  entry  next
+++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)/v2
+++  set-channel-reads
+  ^+  cor
+  =+  .^(=unreads:c %gx (welp channels-prefix /unreads/noun))
+  =+  .^(=channels:c %gx (welp channels-prefix /channels/full/noun))
+  =/  entries  ~(tap by unreads)
+  =;  events=(list incoming-event:a)
+    |-
+    ?~  events  cor
+    =.  cor  (%*(. add should-notify |) i.events)
+    $(events t.events)
+  |-
+  ^-  (list incoming-event:a)
+  ?~  entries  ~
+  =/  head  i.entries
+  =*  next  $(entries t.entries)
+  =/  [=nest:c =unread:c]  head
+  =/  channel  (~(get by channels) nest)
+  ?~  channel  next
+  =/  group  group.perm.u.channel
+  =;  events=(list incoming-event:a)
+    (weld events next)
+  :-  [%chan-init nest group]
+  ?~  unread.unread  ~
+  =/  posts=(list incoming-event:a)
+    %+  murn
+      (tab:on-posts:c posts.u.channel `id.u.unread.unread count.u.unread.unread)
+    |=  [=time post=(unit post:c)]
+    ?~  post  ~
+    =/  key=message-key:a
+      :_  time
+      [author.u.post sent.u.post]
+    =/  mention
+      (was-mentioned:ch-utils content.u.post our.bowl)
+    `[%post key nest group content.u.post mention]
+  =/  replies=(list incoming-event:a)
+    %-  zing
+    %+  murn
+      ~(tap by threads.unread)
+    |=  [=id-post:c [id=id-reply:c count=@ud]]
+    ^-  (unit (list incoming-event:a))
+    =/  post=(unit (unit post:c))  (~(get by posts.u.channel) id-post)
+    ?~  post  ~
+    ?~  u.post  ~
+    %-  some
+    ^-  (list incoming-event:a)
+    %+  turn
+      (tab:on-replies:c replies.u.u.post `id count)
+    |=  [=time =reply:c]
+    =/  key=message-key:a
+      :_  time
+      [author.reply sent.reply]
+    =/  parent=message-key:a
+      :_  id-post
+      [author.u.u.post sent.u.u.post]
+    =/  mention
+      (was-mentioned:ch-utils content.reply our.bowl)
+    [%reply key parent nest group content.reply mention]
+  %+  sort
+    (welp posts replies)
+  |=  [a=incoming-event:a b=incoming-event:a]
+  ::  REVIEW  is this the correct order?
+  %+  gth
+    ?+(-.a !! %post time.key.a, %reply time.key.a)
+  ?+(-.b !! %post time.key.b, %reply time.key.b)
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -143,7 +175,7 @@
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
       [%x ~]
-    ``activity-full+!>([indices activity])
+    ``activity-full+!>([indices activity volume-settings])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
@@ -218,6 +250,7 @@
   ^-  index:a
   (~(got by indices) [%base ~])
 ++  add
+  =/  should-notify=?  &
   |=  inc=incoming-event:a
   ^+  cor
   =/  =time-id:a
@@ -225,7 +258,7 @@
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
-  =/  notify  notify:(get-volume inc)
+  =/  notify  &(should-notify notify:(get-volume inc))
   =/  =event:a  [inc notify]
   =.  cor
     (give %fact ~[/] activity-update+!>([%add time-id event]))

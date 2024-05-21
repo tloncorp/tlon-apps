@@ -221,6 +221,12 @@
       ==
     ==
   ::
+  ++  time-event
+    |=  te=time-event:a
+    %-  pairs
+    :~  time+(time time.te)
+        event+(event event.te)
+    ==
   +|  %collections
   ::
   ++  stream
@@ -253,6 +259,7 @@
     %-  pairs
     :~  indices+(indices indices.fi)
         activity+(activity activity.fi)
+        settings+(volume-settings volume-settings.fi)
     ==
   ++  volume-settings
     |=  vs=volume-settings:a

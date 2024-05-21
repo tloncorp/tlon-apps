@@ -24,13 +24,13 @@
   ==
 ::
 ++  uv-channels-2
-  |=  =v-channels:c
+  |=  [=v-channels:c full=?]
   ^-  channels:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
   ^-  channel:c
   %*  .  *channel:c
-    posts  *posts:c
+    posts  ?:(full (uv-posts posts.channel) *posts:c)
     perm   +.perm.channel
     view   +.view.channel
     sort   +.sort.channel
