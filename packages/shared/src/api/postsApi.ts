@@ -13,6 +13,7 @@ import {
   WritDeltaAdd,
   WritDiff,
   checkNest,
+  getChannelType,
   getTextContent,
   whomIsDm,
 } from '../urbit';
@@ -89,16 +90,16 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
-  channelType,
   metadata,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
-  channelType: db.ChannelType;
   metadata?: db.PostMetadata;
 }) => {
+  const channelType = getChannelType(channelId);
+
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
@@ -142,7 +143,6 @@ export const editPost = async ({
   authorId,
   sentAt,
   content,
-  channelType,
   parentId,
   metadata,
 }: {
@@ -151,10 +151,10 @@ export const editPost = async ({
   authorId: string;
   sentAt: number;
   content: Story;
-  channelType: db.ChannelType;
   parentId?: string;
   metadata?: db.PostMetadata;
 }) => {
+  const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     throw new Error('Cannot edit a post in a DM or group DM');
   }

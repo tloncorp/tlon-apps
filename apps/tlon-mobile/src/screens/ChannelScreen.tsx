@@ -152,7 +152,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       store.editPost({
         post,
         content,
-        channel: channelQuery.data,
       });
       setEditingPost(undefined);
     },

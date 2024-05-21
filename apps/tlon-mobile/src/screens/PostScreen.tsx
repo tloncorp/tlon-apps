@@ -125,7 +125,6 @@ export default function PostScreen(props: PostScreenProps) {
         post: editedPost,
         content,
         parentId: post.id,
-        channel,
       });
       setEditingPost(undefined);
     },
