@@ -10,14 +10,12 @@ import { Reference } from './Reference';
 export default function ChatReference({
   channel,
   post,
-  content,
   onPress,
   asAttachment = false,
   inGalleryPost = false,
 }: {
   channel: db.Channel;
   post: db.Post;
-  content: PostContent;
   onPress: (channel: db.Channel, post: db.Post) => void;
   asAttachment?: boolean;
   inGalleryPost?: boolean;
@@ -57,7 +55,7 @@ export default function ChatReference({
         <ChatContent
           isGalleryPost={inGalleryPost}
           shortened={asAttachment || inGalleryPost}
-          story={content}
+          post={post}
         />
       </Reference.Body>
     </Reference>

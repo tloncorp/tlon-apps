@@ -23,11 +23,6 @@ export default function ChatReferenceWrapper({
 
   const { onPressRef } = useNavigation();
 
-  const content = useMemo(
-    () => (post ? (JSON.parse(post.content as string) as PostContent) : null),
-    [post]
-  );
-
   if (isError) {
     return (
       <ReferenceSkeleton
@@ -53,7 +48,6 @@ export default function ChatReferenceWrapper({
     <ChatReference
       post={post}
       channel={channel}
-      content={content}
       onPress={onPressRef}
       asAttachment={asAttachment}
       inGalleryPost={inGalleryPost}
