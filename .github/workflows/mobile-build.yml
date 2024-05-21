@@ -49,7 +49,7 @@ jobs:
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
           NOTIFY_PROVIDER:
             "${{ steps.vars.outputs.profile == 'preview' &&
-            'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
+            'wannec-dozzod-marnus' || 'rivfur-livmet' }}"
           NOTIFY_SERVICE:
             "${{ steps.vars.outputs.profile == 'preview' &&
             'tlon-preview-release' || 'groups-native' }}"

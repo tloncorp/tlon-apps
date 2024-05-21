@@ -39,7 +39,13 @@ jobs:
           echo "profile=${{ inputs.profile || 'preview' }}" >> $GITHUB_OUTPUT
       - name: Push update for selected platforms
         working-directory: ./apps/tlon-mobile
-        run: eas update --auto --profile ${{ steps.vars.outputs.profile }} --platform ${{ inputs.platform || 'all' }} --non-interactive
+        run:
+          eas update --auto --profile ${{ steps.vars.outputs.profile }}
+          --platform ${{ inputs.platform || 'all' }} --non-interactive
         env:
-          NOTIFY_PROVIDER: "${{ steps.vars.outputs.profile == 'preview' && 'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
-          NOTIFY_SERVICE: "${{ steps.vars.outputs.profile == 'preview' && 'tlon-preview-release' || 'groups-native' }}"
+          NOTIFY_PROVIDER:
+            "${{ steps.vars.outputs.profile == 'preview' &&
+            'wannec-dozzod-marnus' || 'rivfur-livmet' }}"
+          NOTIFY_SERVICE:
+            "${{ steps.vars.outputs.profile == 'preview' &&
+            'tlon-preview-release' || 'groups-native' }}"
