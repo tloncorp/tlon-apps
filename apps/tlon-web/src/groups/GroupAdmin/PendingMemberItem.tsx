@@ -40,7 +40,7 @@ function PendingMemberItem({ member }: PendingMemberItemProps) {
   } = useGroupRevokeMutation();
   const {
     mutate: inviteMutation,
-    status: joinStatus,
+    status: inviteStatus,
     reset: resetInvite,
   } = useGroupInviteMutation();
 
@@ -117,22 +117,22 @@ function PendingMemberItem({ member }: PendingMemberItemProps) {
         ) : null}
         <button
           disabled={
-            !inAsk || joinStatus === 'loading' || joinStatus === 'error'
+            !inAsk || inviteStatus === 'loading' || inviteStatus === 'error'
           }
           className={cn(
             'small-button text-white disabled:bg-gray-100 disabled:text-gray-600 dark:text-black dark:disabled:text-gray-600',
             {
-              'bg-red': joinStatus === 'error',
-              'bg-blue': joinStatus !== 'error',
+              'bg-red': inviteStatus === 'error',
+              'bg-blue': inviteStatus !== 'error',
             }
           )}
           onClick={approve(member)}
         >
           {inAsk ? 'Approve' : 'Invited'}
-          {joinStatus === 'loading' ? (
+          {inviteStatus === 'loading' ? (
             <LoadingSpinner className="ml-2 h-3 w-3" />
           ) : null}
-          {joinStatus === 'error' ? (
+          {inviteStatus === 'error' ? (
             <ExclamationPoint className="ml-2 h-3 w-3" />
           ) : null}
         </button>

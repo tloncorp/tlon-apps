@@ -70,7 +70,7 @@ import {
   Unread,
 } from './types';
 
-const logger = createDevLogger('queries', true);
+const logger = createDevLogger('queries', false);
 
 export interface GetGroupsOptions {
   includeUnjoined?: boolean;

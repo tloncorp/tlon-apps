@@ -12,7 +12,7 @@ import {
   StartDmSheet,
   View,
 } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
@@ -42,28 +42,43 @@ export default function ChatListScreen(
     store.useInitialSync(currentUserId);
   useRefetchQueryOnFocus(refetch);
 
-  const goToDm = async (participants: string[]) => {
-    const dmChannel = await store.upsertDmChannel({
-      participants,
-      currentUserId,
-    });
-    setStartDmOpen(false);
-    props.navigation.push('Channel', { channel: dmChannel });
-  };
+  const goToDm = useCallback(
+    async (participants: string[]) => {
+      const dmChannel = await store.upsertDmChannel({
+        participants,
+        currentUserId,
+      });
+      setStartDmOpen(false);
+      props.navigation.push('Channel', { channel: dmChannel });
+    },
+    [currentUserId, props.navigation]
+  );
 
-  const goToChannel = ({ channel }: { channel: db.Channel }) => {
-    setStartDmOpen(false);
-    setAddGroupOpen(false);
-    setTimeout(() => props.navigation.navigate('Channel', { channel }), 150);
-  };
+  const goToChannel = useCallback(
+    ({ channel }: { channel: db.Channel }) => {
+      setStartDmOpen(false);
+      setAddGroupOpen(false);
+      setTimeout(() => props.navigation.navigate('Channel', { channel }), 150);
+    },
+    [props.navigation]
+  );
 
-  const onPressChat = (item: db.Channel | db.Group) => {
-    if (db.isGroup(item)) {
-      setSelectedGroup(item);
-    } else {
-      props.navigation.navigate('Channel', { channel: item });
-    }
-  };
+  const onPressChat = useCallback(
+    (item: db.Channel | db.Group) => {
+      if (db.isGroup(item)) {
+        setSelectedGroup(item);
+      } else {
+        props.navigation.navigate('Channel', { channel: item });
+      }
+    },
+    [props.navigation]
+  );
+
+  const onLongPressItem = useCallback(
+    (item: db.Channel | db.Group) =>
+      db.isChannel(item) ? setLongPressedItem(item) : null,
+    []
+  );
 
   return (
     <ContactsProvider contacts={contacts ?? []}>
@@ -83,9 +98,7 @@ export default function ChatListScreen(
             pinned={chats.pinned ?? []}
             unpinned={chats.unpinned ?? []}
             pendingChats={chats.pendingChats ?? []}
-            onLongPressItem={(item) =>
-              db.isChannel(item) ? setLongPressedItem(item) : null
-            }
+            onLongPressItem={onLongPressItem}
             onPressItem={onPressChat}
           />
         ) : null}
