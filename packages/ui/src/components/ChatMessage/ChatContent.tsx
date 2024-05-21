@@ -272,7 +272,7 @@ const LineRenderer = memo(
             <Text
               key={`string-${inline}-${index}`}
               color={isNotice ? '$tertiaryText' : color}
-              fontSize={viewMode ? '$s' : '$m'}
+              fontSize={viewMode === 'block' ? '$s' : '$m'}
               fontWeight={isNotice ? '500' : 'normal'}
               lineHeight="$m"
             >
