@@ -1,8 +1,7 @@
 import { useState } from 'react';
 
 import { TextArea } from '../../core';
-import { MessageInputProps } from './MessageInputBase';
-import { MessageInputContainer } from './MessageInputBase';
+import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
 export function MessageInput({
   shouldBlur,
@@ -21,6 +20,7 @@ export function MessageInput({
       groupMembers={groupMembers}
       onSelectMention={() => {}}
       editorIsEmpty={true}
+      onPressSend={() => {}}
     >
       <TextArea
         flexGrow={1}

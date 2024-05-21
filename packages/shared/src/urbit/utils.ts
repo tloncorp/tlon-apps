@@ -155,7 +155,19 @@ export function stringToTa(string: string) {
   return `~~${out}`;
 }
 
+export function idIsNest(id: string) {
+  return id.split('/').length === 3;
+}
+
 export function getChannelType(channelId: string) {
+  if (!idIsNest(channelId)) {
+    if (whomIsDm(channelId)) {
+      return 'dm';
+    }
+    if (whomIsMultiDm(channelId)) {
+      return 'groupDm';
+    }
+  }
   const [app] = nestToFlag(channelId);
 
   if (app === 'chat') {

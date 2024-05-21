@@ -1,7 +1,6 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import { Icon } from '../Icon';
@@ -62,11 +61,6 @@ const ChatMessage = ({
   if (isNotice) {
     showAuthor = false;
   }
-
-  const content = useMemo(
-    () => JSON.parse(post.content as string) as PostContent,
-    [post.content]
-  );
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -140,7 +134,7 @@ const ChatMessage = ({
         ) : (
           <NoticeWrapper isNotice={isNotice}>
             <ChatContent
-              story={content}
+              post={post}
               isNotice={isNotice}
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}

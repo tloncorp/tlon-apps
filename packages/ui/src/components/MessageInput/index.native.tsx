@@ -85,6 +85,10 @@ export function MessageInput({
   editingPost,
   setEditingPost,
   editPost,
+  setShowGalleryInput,
+  showAttachmentButton = true,
+  floatingActionButton = false,
+  backgroundColor = '$secondaryBackground',
 }: MessageInputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
@@ -389,6 +393,7 @@ export function MessageInput({
       editor.setContent('');
       setReferences({});
       clearDraft();
+      setShowGalleryInput?.(false);
     },
     [
       editor,
@@ -401,6 +406,7 @@ export function MessageInput({
       editPost,
       editingPost,
       setEditingPost,
+      setShowGalleryInput,
     ]
   );
 
@@ -497,18 +503,19 @@ export function MessageInput({
       isEditing={!!editingPost}
       cancelEditing={() => setEditingPost?.(undefined)}
       editorIsEmpty={editorIsEmpty}
+      showAttachmentButton={showAttachmentButton}
+      floatingActionButton={floatingActionButton}
     >
       <XStack
         borderRadius="$xl"
         height={containerHeight}
-        backgroundColor="$secondaryBackground"
+        backgroundColor={backgroundColor}
         paddingHorizontal="$l"
         flex={1}
       >
         <RichText
           style={{
-            padding: 8,
-            backgroundColor: '$secondaryBackground',
+            backgroundColor: 'transparent',
           }}
           editor={editor}
           onMessage={handleMessage}

@@ -26,6 +26,7 @@ export * from './components/ScreenHeader';
 export * from './components/IconButton';
 export * from './components/Channel/ChannelHeader';
 export * from './components/ChatMessage';
+export * from './components/GalleryPost';
 export * from './components/ContactList';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Embed';

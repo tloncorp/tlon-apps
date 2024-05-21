@@ -4,12 +4,12 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
 import { ArrowUp, Checkmark, Close } from '../../assets/icons';
-import { useReferences } from '../../contexts/references';
-import { View, XStack, YStack } from '../../core';
-import ContentReference from '../ContentReference';
+import { ThemeTokens, View, XStack, YStack } from '../../core';
+import FloatingActionButton from '../FloatingActionButton';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
-import MentionPopup from './MentionPopup';
+import InputMentionPopup from './InputMentionPopup';
+import ReferencePreview from './ReferencePreview';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
@@ -24,6 +24,10 @@ export interface MessageInputProps {
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
+  setShowGalleryInput?: (showGalleryInput: boolean) => void;
+  showAttachmentButton?: boolean;
+  floatingActionButton?: boolean;
+  backgroundColor?: ThemeTokens;
 }
 
 export const MessageInputContainer = ({
@@ -32,6 +36,8 @@ export const MessageInputContainer = ({
   uploadInfo,
   containerHeight,
   showMentionPopup = false,
+  showAttachmentButton = true,
+  floatingActionButton = false,
   mentionText,
   groupMembers,
   onSelectMention,
@@ -40,10 +46,12 @@ export const MessageInputContainer = ({
   onPressEdit,
   editorIsEmpty,
 }: PropsWithChildren<{
-  onPressSend?: () => void;
+  onPressSend: () => void;
   uploadInfo?: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
+  showAttachmentButton?: boolean;
+  floatingActionButton?: boolean;
   mentionText?: string;
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
@@ -52,7 +60,6 @@ export const MessageInputContainer = ({
   onPressEdit?: () => void;
   editorIsEmpty: boolean;
 }>) => {
-  const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
     () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
     [uploadInfo]
@@ -65,55 +72,14 @@ export const MessageInputContainer = ({
 
   return (
     <YStack width="100%">
-      {Object.keys(references).length ? (
-        <YStack
-          gap="$s"
-          width="100%"
-          position="absolute"
-          bottom={containerHeight + 4}
-          zIndex={10}
-          backgroundColor="$background"
-        >
-          {Object.keys(references).map((ref) =>
-            references[ref] !== null ? (
-              <XStack
-                left={15}
-                position="relative"
-                key={ref}
-                width="100%"
-                height="auto"
-              >
-                <ContentReference
-                  asAttachment
-                  reference={references[ref]!}
-                  key={ref}
-                />
-                <View position="absolute" top={4} right={36}>
-                  <IconButton
-                    onPress={() => {
-                      setReferences({ ...references, [ref]: null });
-                    }}
-                    color="$primaryText"
-                  >
-                    <Close />
-                  </IconButton>
-                </View>
-              </XStack>
-            ) : null
-          )}
-        </YStack>
-      ) : null}
-      {showMentionPopup ? (
-        <YStack position="absolute" bottom={containerHeight + 4} zIndex={15}>
-          <View position="relative" top={0} left={8}>
-            <MentionPopup
-              onPress={onSelectMention}
-              matchText={mentionText}
-              groupMembers={groupMembers}
-            />
-          </View>
-        </YStack>
-      ) : null}
+      <ReferencePreview containerHeight={containerHeight} />
+      <InputMentionPopup
+        containerHeight={containerHeight}
+        showMentionPopup={showMentionPopup}
+        mentionText={mentionText}
+        groupMembers={groupMembers}
+        onSelectMention={onSelectMention}
+      />
       <XStack
         paddingHorizontal="$m"
         paddingVertical="$s"
@@ -128,23 +94,35 @@ export const MessageInputContainer = ({
             </IconButton>
           </View>
         ) : null}
-        {hasUploadedImage ? null : uploadInfo?.canUpload ? (
+        {hasUploadedImage ? null : uploadInfo?.canUpload &&
+          showAttachmentButton ? (
           <View paddingBottom="$m">
             <AttachmentButton uploadInfo={uploadInfo} />
           </View>
         ) : null}
         {children}
-        <View paddingBottom="$m">
-          {editorIsEmpty ? null : (
-            <IconButton
-              color={sendIconColor}
-              disabled={uploadIsLoading}
-              onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-            >
-              {isEditing ? <Checkmark /> : <ArrowUp />}
-            </IconButton>
-          )}
-        </View>
+        {floatingActionButton ? (
+          <View position="absolute" bottom="$l" right="$l">
+            {editorIsEmpty ? null : (
+              <FloatingActionButton
+                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+                icon={isEditing ? <Checkmark /> : <ArrowUp />}
+              />
+            )}
+          </View>
+        ) : (
+          <View paddingBottom="$m">
+            {editorIsEmpty ? null : (
+              <IconButton
+                color={sendIconColor}
+                disabled={uploadIsLoading}
+                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+              >
+                {isEditing ? <Checkmark /> : <ArrowUp />}
+              </IconButton>
+            )}
+          </View>
+        )}
       </XStack>
     </YStack>
   );
