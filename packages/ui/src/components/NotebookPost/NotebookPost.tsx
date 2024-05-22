@@ -1,10 +1,13 @@
 import { makePrettyShortDate, makePrettyTime } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
+import { ScrollView } from 'moti';
 import { useCallback, useMemo } from 'react';
+import { TouchableOpacity } from 'react-native-gesture-handler';
+import { getToken } from 'tamagui';
 
-import { Image, Text, XStack, YStack } from '../../core';
+import { Image, Text, View, XStack, YStack } from '../../core';
 import { Avatar } from '../Avatar';
-import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
+import ChatContent from '../ChatMessage/ChatContent';
 import ContactName from '../ContactName';
 import Pressable from '../Pressable';
 
@@ -14,24 +17,19 @@ export default function NotebookPost({
   post,
   onPress,
   onLongPress,
-  currentUserId,
-  // TODO: handle expanded version (w/full content?)
-  // In general, there are a lot of boolean props here that I *think*
-  // could be handled by making a separate component for headline vs full post
-  expanded = false,
-  showReactions = false,
+  onPressImage,
+  detailView = false,
   showReplies = true,
   showAuthor = true,
   smallImage = false,
   smallTitle = false,
 }: {
   post: db.Post;
-  showReplies?: boolean;
-  currentUserId: string;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
-  expanded?: boolean;
-  showReactions?: boolean;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  detailView?: boolean;
+  showReplies?: boolean;
   showAuthor?: boolean;
   smallImage?: boolean;
   smallTitle?: boolean;
@@ -52,8 +50,48 @@ export default function NotebookPost({
     onLongPress?.(post);
   }, [post, onLongPress]);
 
+  const handleImagePressed = useCallback(() => {
+    if (post.image) {
+      onPressImage?.(post, post.image);
+    }
+  }, [post, onPressImage]);
+
   if (!post) {
     return null;
+  }
+
+  if (detailView) {
+    return (
+      <ScrollView>
+        <YStack key={post.id} gap="$2xl" paddingHorizontal="$xl">
+          {post.image && (
+            <TouchableOpacity onPress={handleImagePressed} activeOpacity={0.9}>
+              <View marginHorizontal={-getToken('$2xl')} alignItems="center">
+                <Image
+                  source={{
+                    uri: post.image,
+                  }}
+                  width="100%"
+                  height={IMAGE_HEIGHT}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
+          <YStack gap="$xl">
+            {post.title && (
+              <Text color="$primaryText" fontSize="$xl">
+                {post.title}
+              </Text>
+            )}
+            <Text color="$tertiaryText" fontSize="$l">
+              {dateDisplay}
+            </Text>
+          </YStack>
+          {/* TODO: build component for rendering notebook content */}
+          <ChatContent post={post} />
+        </YStack>
+      </ScrollView>
+    );
   }
 
   return (
@@ -112,9 +150,6 @@ export default function NotebookPost({
             </XStack>
           )}
         </XStack>
-        {showReactions && (
-          <ReactionsDisplay post={post} currentUserId={currentUserId} />
-        )}
       </YStack>
     </Pressable>
   );

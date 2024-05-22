@@ -29,14 +29,7 @@ export function MessageContainer({
         padding="$l"
         borderRadius="$l"
       >
-        <NotebookPost
-          showAuthor={false}
-          smallImage
-          smallTitle
-          post={post}
-          currentUserId={currentUserId}
-          showReplies={false}
-        />
+        <NotebookPost showAuthor={false} smallImage smallTitle post={post} />
       </ScrollView>
     );
   }

@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-import { LinearGradient, Text, View, XStack, YStack } from '../../core';
+import { LinearGradient, Text, View, YStack } from '../../core';
 import ChatContent from '../ChatMessage/ChatContent';
 import ContentReference from '../ContentReference';
 import Pressable from '../Pressable';

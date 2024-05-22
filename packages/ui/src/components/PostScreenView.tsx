@@ -20,6 +20,7 @@ import { ChatMessage } from './ChatMessage';
 import CommentsScrollerSheet from './CommentsScrollerSheet';
 import { GalleryPost } from './GalleryPost';
 import { MessageInput } from './MessageInput';
+import { NotebookPost } from './NotebookPost';
 import PostScreenAuthorRow from './PostScreenAuthorRow';
 
 export function PostScreenView({
@@ -72,7 +73,9 @@ export function PostScreenView({
 
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
-    : `Post: ${channel?.title ?? null}`;
+    : parentPost?.title
+      ? parentPost.title
+      : `Post: ${channel?.title ?? null}`;
 
   const timeDisplay = useMemo(() => {
     const date = new Date(parentPost?.sentAt ?? 0);
@@ -98,6 +101,13 @@ export function PostScreenView({
             >
               {parentPost && channel.type === 'gallery' && (
                 <GalleryPost
+                  post={parentPost}
+                  detailView
+                  onPressImage={handleGoToImage}
+                />
+              )}
+              {parentPost && channel.type === 'notebook' && (
+                <NotebookPost
                   post={parentPost}
                   detailView
                   onPressImage={handleGoToImage}
