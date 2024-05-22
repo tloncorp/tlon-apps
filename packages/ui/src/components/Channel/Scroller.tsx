@@ -24,9 +24,16 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStyle, useTheme } from 'tamagui';
 
+import { useScrollContext } from '../../contexts/scroll';
 import { Modal, View, XStack } from '../../core';
+import { clamp } from '../../utils';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { Icon } from '../Icon';
@@ -322,13 +329,35 @@ export default function Scroller({
     };
   }, [hasNewerPosts]);
 
+  const [scrollValue] = useScrollContext();
+  const previousScrollValue = useSharedValue(0);
+  const { bottom } = useSafeAreaInsets();
+  const scrollHandler = useAnimatedScrollHandler(
+    (event) => {
+      const { y } = event.contentOffset;
+
+      if (y < 0 || y > event.contentSize.height) {
+        return;
+      }
+
+      scrollValue.value = clamp(
+        scrollValue.value + (y - previousScrollValue.value) / 200,
+        0,
+        1
+      );
+
+      previousScrollValue.value = y;
+    },
+    [bottom]
+  );
+
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
       {posts && (
-        <FlatList<db.Post>
+        <Animated.FlatList<db.Post>
           ref={flatListRef}
           // This is needed so that we can force a refresh of the list when
           // we need to switch from 1 to 2 columns or vice versa.
@@ -350,6 +379,7 @@ export default function Scroller({
           onEndReachedThreshold={2}
           onStartReached={handleStartReached}
           onStartReachedThreshold={2}
+          onScroll={scrollHandler}
         />
       )}
       <Modal

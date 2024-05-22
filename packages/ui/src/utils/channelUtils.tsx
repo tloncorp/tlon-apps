@@ -70,3 +70,9 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelTalk';
   }
 }
+
+export const clamp = (value: number, min: number, max: number) => {
+  'worklet';
+
+  return Math.max(min, Math.min(max, value));
+};
