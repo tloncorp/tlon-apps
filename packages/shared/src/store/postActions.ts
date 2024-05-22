@@ -27,7 +27,7 @@ export async function sendPost({
   }
 
   // optimistic update
-  const cachePost = api.buildCachePost({ authorId, channel, content });
+  const cachePost = db.buildPendingPost({ authorId, channel, content });
   await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
   try {
     await api.sendPost({
@@ -87,7 +87,7 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   // optimistic update
-  const cachePost = api.buildCachePost({
+  const cachePost = db.buildPendingPost({
     authorId,
     channel: channel,
     content,

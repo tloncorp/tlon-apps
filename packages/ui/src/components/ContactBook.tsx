@@ -79,10 +79,25 @@ export function ContactBook({
     [handleSelect, multiSelect, selected]
   );
 
+  const itemSeperator = useCallback(() => <View height="$xl" />, []);
+
   const scrollPosition = useRef(0);
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollPosition.current = event.nativeEvent.contentOffset.y;
-  };
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollPosition.current = event.nativeEvent.contentOffset.y;
+    },
+    []
+  );
+  const onTouchStart = useCallback(() => {
+    if (scrollPosition.current > 0) {
+      onScrollChange?.(true);
+    }
+  }, [onScrollChange]);
+
+  const onTouchEnd = useCallback(
+    () => onScrollChange?.(false),
+    [onScrollChange]
+  );
 
   return (
     <View flex={1}>
@@ -109,14 +124,10 @@ export function ContactBook({
           <FlatList
             data={segmentedContacts}
             renderItem={renderItem}
-            ItemSeparatorComponent={() => <View height="$xl" />}
+            ItemSeparatorComponent={itemSeperator}
             onScroll={handleScroll}
-            onTouchStart={() => {
-              if (scrollPosition.current > 0) {
-                onScrollChange?.(true);
-              }
-            }}
-            onTouchEnd={() => onScrollChange?.(false)}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
           />
         )}
       </View>
@@ -146,7 +157,7 @@ function LetterSection({
             contact={contact}
             selectable={!!selected}
             selected={isSelected}
-            onPress={() => onSelect(contact.id)}
+            onPress={onSelect}
           />
         );
       }),
@@ -191,16 +202,30 @@ function ContactSearchResults({
           contact={contact}
           selectable={!!selected}
           selected={isSelected}
-          onPress={() => onSelect(contact.id)}
+          onPress={onSelect}
         />
       );
     });
   }, [contacts, onSelect, selected]);
 
   const scrollPosition = useRef(0);
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollPosition.current = event.nativeEvent.contentOffset.y;
-  };
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollPosition.current = event.nativeEvent.contentOffset.y;
+    },
+    []
+  );
+
+  const onTouchStart = useCallback(() => {
+    if (scrollPosition.current > 0) {
+      onScrollChange?.(true);
+    }
+  }, [onScrollChange]);
+
+  const onTouchEnd = useCallback(
+    () => onScrollChange?.(false),
+    [onScrollChange]
+  );
 
   return contacts.length === 0 ? (
     <XStack justifyContent="center" paddingTop="$m">
@@ -210,12 +235,8 @@ function ContactSearchResults({
     <ContactContainer>
       <ScrollView
         onScroll={handleScroll}
-        onTouchStart={() => {
-          if (scrollPosition.current > 0) {
-            onScrollChange?.(true);
-          }
-        }}
-        onTouchEnd={() => onScrollChange?.(false)}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
         {contactRows}
       </ScrollView>

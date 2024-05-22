@@ -73,7 +73,7 @@ export async function upsertDmChannel({
     // if we didn't, we need to create a new pending group dm channel
     // on the client that will only persist on the backend after sending
     // the first message
-    const newMultiDm = api.createPendingMultiDmChannel(
+    const newMultiDm = db.buildPendingMultiDmChannel(
       participants,
       currentUserId
     );
@@ -91,7 +91,7 @@ export async function upsertDmChannel({
 
   // if it doesn't exist, we create a new one but don't need to juggle
   // any pending state
-  const newDm = api.createSingleDmChannel(dmPartner, currentUserId);
+  const newDm = db.buildPendingSingleDmChannel(dmPartner, currentUserId);
   await db.insertChannels([newDm]);
   return newDm;
 }

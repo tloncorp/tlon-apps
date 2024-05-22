@@ -23,7 +23,7 @@ export async function createGroup({
 
     const groupId = `${currentUserId}/${shortCode}`;
 
-    await api.createDefaultChannel({
+    await api.createNewGroupDefaultChannel({
       groupId,
       currentUserId,
     });

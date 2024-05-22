@@ -103,16 +103,20 @@ export function useSortedContacts({
     }
   }, [contacts, sortOrder, pals]);
 
-  if (isValidQuery(query)) {
-    const filtered = filterContactsOnQuery(sortedContacts, query);
-    const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
-    if (isValidPatp(exactMatchCheck)) {
-      const exactMatch = db.getFallbackContact(exactMatchCheck);
-      filtered.push(exactMatch);
+  const finalContacts = useMemo(() => {
+    if (isValidQuery(query)) {
+      const filtered = filterContactsOnQuery(sortedContacts, query);
+      const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
+      if (isValidPatp(exactMatchCheck)) {
+        const exactMatch = db.getFallbackContact(exactMatchCheck);
+        filtered.push(exactMatch);
+      }
+      return filtered;
     }
-    return filtered;
-  }
-  return sortedContacts;
+    return sortedContacts;
+  }, [query, sortedContacts]);
+
+  return finalContacts;
 }
 
 function sortContacts(

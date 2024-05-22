@@ -88,8 +88,7 @@ test('syncs contacts', async () => {
   storedContacts.forEach((c) => {
     const original = contactsData[c.id];
     expect(original).toBeTruthy();
-    // TODO: fix contact groups test
-    // expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
+    expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
   });
   setScryOutput(contactsData);
   await syncContacts();

@@ -245,7 +245,7 @@ export const toChannelsUpdate = (
   return { type: 'unknown' };
 };
 
-export const createDefaultChannel = async ({
+export const createNewGroupDefaultChannel = async ({
   groupId,
   currentUserId,
 }: {
@@ -340,64 +340,4 @@ function toThreadUnreadStateData(unread: ub.Unread): db.ThreadUnreadState[] {
       firstUnreadId: unreadState.id,
     };
   });
-}
-
-export function createPendingMultiDmChannel(
-  participants: string[],
-  currentUserId: string
-): db.Channel {
-  const id = ub.createMultiDmId();
-  const pendingMembers: db.ChatMember[] = participants.map((participant) => ({
-    chatId: id,
-    contactId: participant,
-    membershipType: 'channel',
-    status: 'invited',
-  }));
-
-  const currentUserMember: db.ChatMember = {
-    chatId: id,
-    contactId: currentUserId,
-    membershipType: 'channel',
-    status: 'joined',
-  };
-
-  return {
-    id,
-    type: 'groupDm',
-    currentUserIsMember: true,
-    postCount: 0,
-    unreadCount: 0,
-    isPendingChannel: true,
-    members: [...pendingMembers, currentUserMember],
-  };
-}
-
-export function createSingleDmChannel(
-  dmPartnerId: string,
-  currentUserId: string
-): db.Channel {
-  const id = ub.createMultiDmId();
-  const partnerMember: db.ChatMember = {
-    chatId: id,
-    contactId: dmPartnerId,
-    membershipType: 'channel',
-    status: 'invited',
-  };
-
-  const currentUserMember: db.ChatMember = {
-    chatId: id,
-    contactId: currentUserId,
-    membershipType: 'channel',
-    status: 'joined',
-  };
-
-  return {
-    id,
-    type: 'groupDm',
-    currentUserIsMember: true,
-    postCount: 0,
-    unreadCount: 0,
-    isPendingChannel: true,
-    members: [partnerMember, currentUserMember],
-  };
 }

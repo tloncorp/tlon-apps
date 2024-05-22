@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import React from 'react';
 import { ListItemProps } from 'tamagui';
 
@@ -16,10 +16,10 @@ function ContactRowItemRaw({
   ...rest
 }: {
   contact: db.Contact;
-  onPress: () => void;
+  onPress: (id: string) => void;
   selectable?: boolean;
   selected?: boolean;
-} & ListItemProps) {
+} & Omit<ListItemProps, 'onPress'>) {
   const displayName = useMemo(
     () =>
       contact.nickname && contact.nickname.length > 2
@@ -28,8 +28,15 @@ function ContactRowItemRaw({
     [contact]
   );
 
+  const handlePress = useCallback(
+    (id: string) => () => {
+      onPress(id);
+    },
+    [onPress]
+  );
+
   return (
-    <ListItem onPress={onPress} {...rest}>
+    <ListItem onPress={handlePress(contact.id)} {...rest}>
       <ListItem.Icon contactId={contact.id} contact={contact} />
       <ListItem.MainContent>
         <XStack alignItems="center">

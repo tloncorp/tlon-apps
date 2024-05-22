@@ -58,7 +58,6 @@ export const respondToDMInvite = ({
   const action = multiDmAction(channel.id, {
     team: { ship: currentUserId, ok: accept },
   });
-  console.log(`action:`, action);
   return poke(action);
 };
 
@@ -132,8 +131,6 @@ function multiDmAction(id: string, delta: ub.ClubDelta) {
     },
   };
 }
-
-export const respondToMultiDMInvite = {};
 
 export type GetDmsResponse = db.Channel[];
 
