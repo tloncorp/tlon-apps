@@ -137,6 +137,7 @@ export default function PostScreen(props: PostScreenProps) {
         contacts={contacts ?? null}
         calmSettings={defaultCalmSettings}
         currentUserId={contactId}
+        parentPost={post!}
         posts={posts}
         channel={channel}
         goBack={props.navigation.goBack}

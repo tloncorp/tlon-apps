@@ -28,7 +28,7 @@ export default function NotebookPost({
   post: db.Post;
   showReplies?: boolean;
   currentUserId: string;
-  onPress?: () => void;
+  onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   expanded?: boolean;
   showReactions?: boolean;
@@ -58,7 +58,7 @@ export default function NotebookPost({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress?.(post)}
       onLongPress={handleLongPress}
       delayLongPress={250}
     >

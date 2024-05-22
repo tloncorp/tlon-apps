@@ -219,6 +219,7 @@ export function Channel({
                               unreadCount={
                                 channel.unread?.countWithoutThreads ?? 0
                               }
+                              onPressPost={goToPost}
                               onPressReplies={goToPost}
                               onPressImage={goToImageViewer}
                               setInputShouldBlur={setInputShouldBlur}

@@ -1,8 +1,12 @@
+import {
+  isChatChannel as getIsChatChannel,
+  makePrettyTime,
+} from '@tloncorp/shared/dist';
 import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
@@ -13,12 +17,16 @@ import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
 import { ChatMessage } from './ChatMessage';
+import CommentsScrollerSheet from './CommentsScrollerSheet';
+import { GalleryPost } from './GalleryPost';
 import { MessageInput } from './MessageInput';
+import PostScreenAuthorRow from './PostScreenAuthorRow';
 
 export function PostScreenView({
   currentUserId,
   contacts,
   channel,
+  parentPost,
   posts,
   sendReply,
   goBack,
@@ -38,6 +46,7 @@ export function PostScreenView({
   calmSettings?: CalmState;
   contacts: db.Contact[] | null;
   channel: db.Channel;
+  parentPost: db.Post | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
   goBack?: () => void;
@@ -53,7 +62,22 @@ export function PostScreenView({
   negotiationMatch: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
+  const isChatChannel = channel ? getIsChatChannel(channel) : true;
+
+  console.log('PostScreenView', {
+    posts,
+  });
+
+  const headerTitle = isChatChannel
+    ? `Thread: ${channel?.title ?? null}`
+    : `Post: ${channel?.title ?? null}`;
+
+  const timeDisplay = useMemo(() => {
+    const date = new Date(parentPost?.sentAt ?? 0);
+    return makePrettyTime(date);
+  }, [parentPost?.sentAt]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -61,7 +85,7 @@ export function PostScreenView({
         <ReferencesProvider>
           <YStack flex={1} backgroundColor={'$background'}>
             <ChannelHeader
-              title={'Thread: ' + (channel?.title ?? null)}
+              title={headerTitle}
               goBack={goBack}
               showPickerButton={false}
               showSearchButton={false}
@@ -72,6 +96,13 @@ export function PostScreenView({
               keyboardVerticalOffset={70}
               style={{ flex: 1 }}
             >
+              {parentPost && channel.type === 'gallery' && (
+                <GalleryPost
+                  post={parentPost}
+                  detailView
+                  onPressImage={handleGoToImage}
+                />
+              )}
               {uploadInfo.imageAttachment ? (
                 <UploadedImagePreview
                   imageAttachment={uploadInfo.imageAttachment}
@@ -81,12 +112,13 @@ export function PostScreenView({
                 posts &&
                 // Delay rendering until replies have been loaded.
                 posts.length > 1 &&
-                channel && (
+                channel &&
+                isChatChannel && (
                   <Scroller
                     setInputShouldBlur={setInputShouldBlur}
                     inverted
                     renderItem={ChatMessage}
-                    channelType={channel.type}
+                    channelType="chat"
                     channelId={channel.id}
                     currentUserId={currentUserId}
                     editingPost={editingPost}
@@ -98,12 +130,19 @@ export function PostScreenView({
                   />
                 )
               )}
-              {negotiationMatch && !editingPost && channel && canWrite && (
-                <MessageInput
-                  shouldBlur={inputShouldBlur}
-                  setShouldBlur={setInputShouldBlur}
-                  send={sendReply}
+              {parentPost && (
+                <CommentsScrollerSheet
+                  open={showComments}
+                  setOpen={setShowComments}
                   channelId={channel.id}
+                  currentUserId={currentUserId}
+                  editingPost={editingPost}
+                  setEditingPost={setEditingPost}
+                  editPost={editPost}
+                  posts={posts?.filter((p) => p.id !== parentPost.id) ?? []}
+                  parentPost={parentPost}
+                  onPressImage={handleGoToImage}
+                  sendReply={sendReply}
                   uploadInfo={uploadInfo}
                   groupMembers={groupMembers}
                   storeDraft={storeDraft}
@@ -111,8 +150,33 @@ export function PostScreenView({
                   getDraft={getDraft}
                 />
               )}
+              {negotiationMatch && !editingPost && channel && canWrite && (
+                <View backgroundColor="$background" bottom={0} width="100%">
+                  {isChatChannel ? (
+                    <MessageInput
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={sendReply}
+                      channelId={channel.id}
+                      uploadInfo={uploadInfo}
+                      groupMembers={groupMembers}
+                      storeDraft={storeDraft}
+                      clearDraft={clearDraft}
+                      getDraft={getDraft}
+                    />
+                  ) : parentPost ? (
+                    <PostScreenAuthorRow
+                      parentPost={parentPost}
+                      timeDisplay={timeDisplay}
+                      setShowComments={setShowComments}
+                    />
+                  ) : null}
+                </View>
+              )}
               {!negotiationMatch && channel && canWrite && (
                 <View
+                  position={isChatChannel ? undefined : 'absolute'}
+                  bottom={0}
                   width="90%"
                   alignItems="center"
                   justifyContent="center"
