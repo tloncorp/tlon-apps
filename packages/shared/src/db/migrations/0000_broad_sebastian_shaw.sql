@@ -25,7 +25,7 @@ CREATE TABLE `channels` (
 	`is_dm_invite` integer,
 	`synced_at` integer,
 	`remote_updated_at` integer,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `chat_member_roles` (
@@ -33,7 +33,7 @@ CREATE TABLE `chat_member_roles` (
 	`contact_id` text NOT NULL,
 	`role_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_members` (
@@ -71,7 +71,7 @@ CREATE TABLE `group_flagged_posts` (
 	`flagged_by_contact_id` text NOT NULL,
 	`flagged_at` integer,
 	PRIMARY KEY(`group_id`, `post_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_member_bans` (
@@ -79,7 +79,7 @@ CREATE TABLE `group_member_bans` (
 	`contact_id` text NOT NULL,
 	`banned_at` integer,
 	PRIMARY KEY(`contact_id`, `group_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_member_invites` (
@@ -87,7 +87,7 @@ CREATE TABLE `group_member_invites` (
 	`contact_id` text NOT NULL,
 	`invited_at` integer,
 	PRIMARY KEY(`contact_id`, `group_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (
@@ -109,7 +109,7 @@ CREATE TABLE `group_nav_sections` (
 	`title` text,
 	`description` text,
 	`index` integer,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_rank_bans` (
@@ -117,7 +117,7 @@ CREATE TABLE `group_rank_bans` (
 	`rank_id` text NOT NULL,
 	`banned_at` integer,
 	PRIMARY KEY(`group_id`, `rank_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_roles` (
@@ -130,7 +130,7 @@ CREATE TABLE `group_roles` (
 	`title` text,
 	`description` text,
 	PRIMARY KEY(`group_id`, `id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `groups` (

@@ -432,10 +432,7 @@ export const updateGroup = createWriteQuery(
 export const deleteGroup = createWriteQuery(
   'deleteGroup',
   async (groupId: string) => {
-    return Promise.all([
-      client.delete($channels).where(eq($channels.groupId, groupId)),
-      client.delete($groups).where(eq($groups.id, groupId)),
-    ]);
+    return client.delete($groups).where(eq($groups.id, groupId));
   },
   ['groups', 'channels']
 );
