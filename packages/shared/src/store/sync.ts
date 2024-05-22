@@ -19,6 +19,23 @@ export const syncInitData = async (currentUserId: string) => {
   });
 };
 
+export const syncLatestPosts = async () => {
+  return syncQueue.add('latest-posts', async () => {
+    const result = await Promise.all([
+      api.getLatestPosts({ type: 'channels' }),
+      api.getLatestPosts({ type: 'chats' }),
+    ]);
+    await db.insertStandalonePosts(result.flat().map((p) => p.latestPost));
+  });
+};
+
+export const syncChanges = async (options: api.GetChangedPostsOptions) => {
+  return syncQueue.add('changes', async () => {
+    const result = await api.getChangedPosts(options);
+    await persistPagedPostData(options.channelId, result);
+  });
+};
+
 export const syncSettings = async () => {
   return syncQueue.add('settings', async () => {
     const settings = await api.getSettings();
@@ -271,19 +288,6 @@ async function handleUnreadUpdate(unread: db.Unread) {
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
-type StaleChannel = db.Channel & { unread: db.Unread };
-
-export const syncStaleChannels = async () => {
-  const channels: StaleChannel[] = optimizeChannelLoadOrder(
-    await db.getStaleChannels()
-  );
-  for (const channel of channels) {
-    syncQueue.add(channel.id, () => {
-      return syncChannel(channel.id, channel.unread.updatedAt);
-    });
-  }
-};
-
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
     case 'add':
@@ -380,10 +384,34 @@ export const handleChatUpdate = async (
   }
 };
 
-export const clearSyncQueue = () => {
-  // TODO: Model all sync functions as syncQueue.add calls so that this works on
-  // more than just `syncStaleChannels`
-  syncQueue.clear();
+export async function syncPosts(options: api.GetChannelPostsOptions) {
+  logger.log(
+    'syncing posts',
+    `${options.channelId}/${options.cursor}/${options.mode}`
+  );
+  const response = await api.getChannelPosts(options);
+  if (response.posts.length) {
+    await db.insertChannelPosts({
+      channelId: options.channelId,
+      posts: response.posts,
+      newer: response.newer,
+      older: response.older,
+    });
+  }
+  return response;
+}
+
+type StaleChannel = db.Channel & { unread: db.Unread };
+
+export const syncStaleChannels = async () => {
+  const channels: StaleChannel[] = optimizeChannelLoadOrder(
+    await db.getStaleChannels()
+  );
+  for (const channel of channels) {
+    syncQueue.add(channel.id, () => {
+      return syncChannel(channel.id, channel.unread.updatedAt);
+    });
+  }
 };
 
 /**
@@ -411,23 +439,6 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
   return [...topChannels, ...skippedChannels, ...restOfChannels];
 }
 
-export async function syncPosts(options: db.GetChannelPostsOptions) {
-  logger.log(
-    'syncing posts',
-    `${options.channelId}/${options.cursor}/${options.mode}`
-  );
-  const response = await api.getChannelPosts(options);
-  if (response.posts.length) {
-    await db.insertChannelPosts({
-      channelId: options.channelId,
-      posts: response.posts,
-      newer: response.newer,
-      older: response.older,
-    });
-  }
-  return response;
-}
-
 export async function syncChannel(id: string, remoteUpdatedAt: number) {
   const startTime = Date.now();
   const channel = await db.getChannel({ id });
@@ -440,8 +451,8 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
     const postsResponse = await api.getChannelPosts({
       channelId: id,
       ...(channel.lastPostId
-        ? { direction: 'newer', cursor: channel.lastPostId }
-        : { direction: 'older', date: new Date() }),
+        ? { mode: 'newer', cursor: channel.lastPostId }
+        : { mode: 'older', cursor: new Date() }),
       includeReplies: false,
     });
     await persistPagedPostData(channel.id, postsResponse);
@@ -587,6 +598,12 @@ async function persistPagedPostData(
     await db.deletePosts({ ids: data.deletedPosts });
   }
 }
+
+export const clearSyncQueue = () => {
+  // TODO: Model all sync functions as syncQueue.add calls so that this works on
+  // more than just `syncStaleChannels`
+  syncQueue.clear();
+};
 
 export const start = async (currentUserId: string) => {
   api.subscribeUnreads(handleUnreadUpdate);

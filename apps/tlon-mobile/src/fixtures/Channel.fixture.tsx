@@ -80,6 +80,7 @@ export const ChannelFixture = (props: {
         channel={switcher.activeChannel}
         contacts={initialContacts}
         negotiationMatch={props.negotiationMatch ?? true}
+        isLoadingPosts={false}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
@@ -112,6 +113,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         currentUserId="~zod"
         channel={switcher.activeChannel}
         contacts={initialContacts}
+        isLoadingPosts={false}
         group={group}
         goBack={() => {}}
         goToSearch={() => {}}
@@ -173,6 +175,7 @@ const ChannelFixtureWithImage = () => {
         messageSender={() => {}}
         editPost={() => {}}
         negotiationMatch={true}
+        isLoadingPosts={false}
         uploadInfo={{
           imageAttachment: imageAttachment,
           resetImageAttachment: resetImageAttachment,

@@ -8,7 +8,7 @@ import {
   getChannelType,
   getJoinStatusFromGang,
 } from '../urbit';
-import { toClientMeta } from './converters';
+import { toClientMeta } from './apiUtils';
 import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);

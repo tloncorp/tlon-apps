@@ -3,7 +3,7 @@ import { desig } from '@tloncorp/shared/dist/urbit';
 import { useMemo } from 'react';
 import { Dimensions } from 'react-native';
 
-import { ContactList } from '../ContactList';
+import { ContactList } from './ContactList';
 
 export default function MentionPopup({
   groupMembers,

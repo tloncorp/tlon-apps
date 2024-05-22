@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   ChatList,
@@ -65,7 +66,7 @@ export default function ChatListScreen(
 
   const onPressChat = useCallback(
     (item: db.Channel | db.Group) => {
-      if (db.isGroup(item)) {
+      if (logic.isGroup(item)) {
         setSelectedGroup(item);
       } else {
         props.navigation.navigate('Channel', { channel: item });
@@ -76,7 +77,7 @@ export default function ChatListScreen(
 
   const onLongPressItem = useCallback(
     (item: db.Channel | db.Group) =>
-      db.isChannel(item) ? setLongPressedItem(item) : null,
+      logic.isChannel(item) ? setLongPressedItem(item) : null,
     []
   );
 

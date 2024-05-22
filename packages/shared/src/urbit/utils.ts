@@ -10,12 +10,10 @@ import * as ubg from './groups';
 type App = 'chat' | 'heap' | 'diary';
 const APP_PREFIXES = ['chat', 'heap', 'diary'];
 
-export function checkNest(nest: string, noWarning?: boolean): boolean {
+export function checkNest(nest: string): boolean {
   const parts = nest.split('/');
   if (parts.length !== 3 || !APP_PREFIXES.includes(parts[0])) {
-    if (!noWarning) {
-      console.error('Invalid nest:', nest);
-    }
+    console.error('Invalid nest:', nest);
     return false;
   }
   return true;
@@ -26,17 +24,6 @@ export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
-}
-
-// distinguish between group and channel IDs
-export function idIsChannel(id: string): boolean {
-  // if has no path parts, is a dm or multi-dm
-  if (id.split('/').length === 1) {
-    return true;
-  }
-
-  // otherwise, check if it's a nest
-  return checkNest(id, true);
 }
 
 export function preSig(ship: string): string {
@@ -172,7 +159,19 @@ export function stringToTa(string: string) {
   return `~~${out}`;
 }
 
+export function idIsNest(id: string) {
+  return id.split('/').length === 3;
+}
+
 export function getChannelType(channelId: string) {
+  if (!idIsNest(channelId)) {
+    if (whomIsDm(channelId)) {
+      return 'dm';
+    }
+    if (whomIsMultiDm(channelId)) {
+      return 'groupDm';
+    }
+  }
   const [app] = nestToFlag(channelId);
 
   if (app === 'chat') {

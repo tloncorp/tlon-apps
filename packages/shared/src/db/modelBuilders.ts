@@ -1,6 +1,11 @@
 import { unixToDa } from '@urbit/api';
 
 import * as api from '../api';
+import {
+  getCanonicalPostId,
+  isDmChannelId,
+  isGroupDmChannelId,
+} from '../api/apiUtils';
 import * as ub from '../urbit';
 import * as types from './types';
 
@@ -16,13 +21,13 @@ export function buildPendingPost({
   parentId?: string;
 }): types.Post {
   const sentAt = Date.now();
-  const id = api.getCanonicalPostId(unixToDa(sentAt).toString());
+  const id = getCanonicalPostId(unixToDa(sentAt).toString());
   const [postContent, postFlags] = api.toPostContent(content);
 
   // TODO: punt on DM delivery status until we have a single subscription
   // to lean on
   const deliveryStatus =
-    api.isDmChannelId(channel.id) || api.isGroupDmChannelId(channel.id)
+    isDmChannelId(channel.id) || isGroupDmChannelId(channel.id)
       ? null
       : 'pending';
 

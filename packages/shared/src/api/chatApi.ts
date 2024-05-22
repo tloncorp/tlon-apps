@@ -1,7 +1,7 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
-import { toClientMeta } from './converters';
+import { toClientMeta } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('chatApi', true);

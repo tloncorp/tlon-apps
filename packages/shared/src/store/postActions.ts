@@ -7,10 +7,12 @@ export async function sendPost({
   channel,
   authorId,
   content,
+  metadata,
 }: {
   channel: db.Channel;
   authorId: string;
   content: urbit.Story;
+  metadata?: db.PostMetadata;
 }) {
   // if first message of a pending group dm, we need to first create
   // it on the backend
@@ -34,6 +36,7 @@ export async function sendPost({
       channelId: channel.id,
       authorId,
       content,
+      metadata: metadata,
       sentAt: cachePost.sentAt,
     });
     await sync.syncChannelMessageDelivery({ channelId: channel.id });
@@ -47,10 +50,12 @@ export async function editPost({
   post,
   content,
   parentId,
+  metadata,
 }: {
   post: db.Post;
   content: urbit.Story;
   parentId?: string;
+  metadata?: db.PostMetadata;
 }) {
   // optimistic update
   await db.updatePost({ id: post.id, content: JSON.stringify(content) });
@@ -62,6 +67,7 @@ export async function editPost({
       authorId: post.authorId,
       sentAt: post.sentAt,
       content,
+      metadata,
       parentId,
     });
     sync.syncChannelMessageDelivery({ channelId: post.channelId });

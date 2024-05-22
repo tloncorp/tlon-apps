@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import React, { useCallback, useMemo } from 'react';
 import {
@@ -55,7 +56,7 @@ export function ChatList({
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
-      if (db.isChannel(item)) {
+      if (logic.isChannel(item)) {
         <SwipableChatRow model={item}>
           <ChatListItem
             model={item}
@@ -102,7 +103,7 @@ export function ChatList({
 }
 
 function getChannelKey(item: ListItem) {
-  if (db.isGroup(item)) return item.id;
+  if (logic.isGroup(item)) return item.id;
   return item.id + item.pin?.itemId ?? '';
 }
 
@@ -121,7 +122,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
   }, [model, onLongPress]);
 
   // if the chat list item is a group, it's pending
-  if (db.isGroup(model)) {
+  if (logic.isGroup(model)) {
     return (
       <GroupListItem
         onPress={handlePress}
@@ -134,7 +135,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
     );
   }
 
-  if (db.isChannel(model)) {
+  if (logic.isChannel(model)) {
     if (
       model.type === 'dm' ||
       model.type === 'groupDm' ||

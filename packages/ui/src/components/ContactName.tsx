@@ -65,6 +65,7 @@ export default function ContactName({
   showNickname = false,
   showUserId = false,
   matchText,
+  maxWidth,
   ...rest
 }: ComponentProps<typeof SizableText> & {
   userId: string;
@@ -72,6 +73,7 @@ export default function ContactName({
   matchText?: string;
   showNickname?: boolean;
   showUserId?: boolean;
+  maxWidth?: number | string;
 }) {
   const calm = useCalm();
   const contact = useContact(userId);
@@ -142,7 +144,7 @@ export default function ContactName({
     <SizableText
       ellipsizeMode="tail"
       numberOfLines={1}
-      maxWidth="75%"
+      maxWidth={maxWidth ?? '75%'}
       aria-label={formattedId.ariaLabel}
       {...rest}
     >

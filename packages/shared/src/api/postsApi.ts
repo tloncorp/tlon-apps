@@ -13,14 +13,27 @@ import {
   WritDeltaAdd,
   WritDiff,
   checkNest,
+  getChannelType,
   getTextContent,
   whomIsDm,
 } from '../urbit';
-import { formatDateParam, formatUd, udToDate } from './converters';
-import { BadResponseError, poke, scry } from './urbit';
+import {
+  formatDateParam,
+  formatScryPath,
+  formatUd,
+  getCanonicalPostId,
+  getChannelIdType,
+  isDmChannelId,
+  isGroupChannelId,
+  isGroupDmChannelId,
+  toPostEssay,
+  udToDate,
+  with404Handler,
+} from './apiUtils';
+import { poke, scry } from './urbit';
 
+export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
-
 export type PostContentAndFlags = [PostContent, db.PostFlags | null];
 
 export function channelAction(
@@ -89,13 +102,17 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
+  metadata,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  metadata?: db.PostMetadata;
 }) => {
-  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+  const channelType = getChannelType(channelId);
+
+  if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
         memo: {
@@ -117,14 +134,13 @@ export const sendPost = async ({
     return;
   }
 
-  const essay: ub.PostEssay = {
+  const essay = toPostEssay({
     content,
-    sent: sentAt,
-    'kind-data': {
-      chat: null,
-    },
-    author: authorId,
-  };
+    authorId,
+    sentAt,
+    channelType,
+    metadata,
+  });
 
   await poke(
     channelPostAction(channelId, {
@@ -140,6 +156,7 @@ export const editPost = async ({
   sentAt,
   content,
   parentId,
+  metadata,
 }: {
   channelId: string;
   postId: string;
@@ -147,7 +164,9 @@ export const editPost = async ({
   sentAt: number;
   content: Story;
   parentId?: string;
+  metadata?: db.PostMetadata;
 }) => {
+  const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     throw new Error('Cannot edit a post in a DM or group DM');
   }
@@ -177,14 +196,13 @@ export const editPost = async ({
     return;
   }
 
-  const essay: ub.PostEssay = {
-    author: authorId,
+  const essay = toPostEssay({
     content,
-    sent: sentAt,
-    'kind-data': {
-      chat: null,
-    },
-  };
+    authorId,
+    sentAt,
+    channelType,
+    metadata,
+  });
 
   const action = channelPostAction(channelId, {
     edit: {
@@ -251,15 +269,14 @@ export const sendReply = async ({
   await poke(action);
 };
 
-export interface GetChannelPostsOptions {
+export type GetChannelPostsOptions = {
   channelId: string;
-  cursor?: string;
-  date?: Date;
-  mode?: 'older' | 'newer' | 'around' | 'newest';
   count?: number;
   includeReplies?: boolean;
-  includeCursor?: boolean;
-}
+} & (
+  | { cursor: Cursor; mode: 'older' | 'newer' | 'around' }
+  | { cursor?: never; mode: 'newest' }
+);
 
 export interface GetChannelPostsResponse {
   older?: string | null;
@@ -272,39 +289,28 @@ export interface GetChannelPostsResponse {
 export const getChannelPosts = async ({
   channelId,
   cursor,
-  date,
   mode = 'older',
   count = 20,
   includeReplies = false,
 }: GetChannelPostsOptions) => {
-  if (cursor && date) {
-    throw new Error('Cannot specify both cursor and date');
-  }
-  if (!cursor && !date && mode !== 'newest') {
-    throw new Error('Must specify either cursor or date');
-  }
-  const finalCursor = cursor || (date ? formatDateParam(date!) : undefined);
-
-  const anchor = mode === 'newest' ? `${mode}` : `${mode}/${finalCursor}`;
-  let app: 'chat' | 'channels';
-  let path: string;
-
-  if (isDmChannelId(channelId)) {
-    const format = includeReplies ? 'heavy' : 'light';
-    app = 'chat';
-    path = `/dm/${channelId}/writs/${anchor}/${count}/${format}`;
-  } else if (isGroupDmChannelId(channelId)) {
-    const format = includeReplies ? 'heavy' : 'light';
-    path = `/club/${channelId}/writs/${anchor}/${count}/${format}`;
-    app = 'chat';
-  } else if (isGroupChannelId(channelId)) {
-    const format = includeReplies ? 'post' : 'outline';
-    path = `/v1/${channelId}/posts/${anchor}/${count}/${format}`;
-    app = 'channels';
-  } else {
-    throw new Error('invalid channel id');
-  }
-
+  const type = getChannelIdType(channelId);
+  const app = type === 'channel' ? 'channels' : 'chat';
+  const path = formatScryPath(
+    ...[
+      type === 'dm' ? 'dm' : null,
+      type === 'club' ? 'club' : null,
+      type === 'channel' ? 'v1' : null,
+    ],
+    channelId,
+    type === 'channel' ? 'posts' : 'writs',
+    mode,
+    cursor ? formatCursor(cursor) : null,
+    count,
+    ...[
+      type === 'channel' ? (includeReplies ? 'post' : 'outline') : null,
+      type !== 'channel' ? (includeReplies ? 'heavy' : 'light') : null,
+    ]
+  );
   const response = await with404Handler(
     scry<ub.PagedWrits>({
       app,
@@ -312,6 +318,72 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
+  return toPagedPostsData(channelId, response);
+};
+
+export type PostWithUpdateTime = {
+  channelId: string;
+  updatedAt: number;
+  latestPost: db.Post;
+};
+
+export type GetLatestPostsResponse = PostWithUpdateTime[];
+
+export const getLatestPosts = async ({
+  afterCursor,
+  count,
+  type,
+}: {
+  afterCursor?: Cursor;
+  count?: number;
+  type: 'channels' | 'chats';
+}): Promise<GetLatestPostsResponse> => {
+  const response = await scry<ub.ChannelHeadsResponse | ub.ChatHeadsResponse>({
+    app: type === 'channels' ? 'channels' : 'chat',
+    path: formatScryPath(
+      type === 'channels' ? 'v2' : null,
+      'heads',
+      afterCursor ? formatCursor(afterCursor) : null,
+      count
+    ),
+  });
+  return response.map((head) => {
+    const channelId = 'nest' in head ? head.nest : head.whom;
+    return {
+      channelId: channelId,
+      updatedAt: head.recency,
+      latestPost: toPostData(channelId, head.latest),
+    };
+  });
+};
+
+export interface GetChangedPostsOptions {
+  channelId: string;
+  afterCursor?: Cursor;
+  count?: number;
+}
+
+export type GetChangedPostsResponse = GetChannelPostsResponse;
+
+export const getChangedPosts = async ({
+  channelId,
+  afterCursor,
+  count = 50,
+}: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
+  if (!isGroupChannelId(channelId)) {
+    throw new Error(
+      `invalid channel id  ${channelId}:
+      server does not implement this endpoint for non-group channels`
+    );
+  }
+  const response = await scry<ub.PagedPosts>({
+    app: 'channels',
+    path: formatScryPath(
+      `v1/${channelId}/posts/changes`,
+      afterCursor ? formatCursor(afterCursor) : null,
+      count
+    ),
+  });
   return toPagedPostsData(channelId, response);
 };
 
@@ -447,17 +519,6 @@ export const getPostWithReplies = async ({
   return toPostData(channelId, post);
 };
 
-async function with404Handler<T>(scryRequest: Promise<any>, defaultValue: T) {
-  try {
-    return await scryRequest;
-  } catch (e) {
-    if (e instanceof BadResponseError && e.status === 404) {
-      return defaultValue;
-    }
-    throw e;
-  }
-}
-
 export interface DeletedPost {
   id: string;
   channelId: string;
@@ -578,19 +639,6 @@ export function toPostData(
     deliveryStatus: null,
     ...flags,
   };
-}
-
-export function getCanonicalPostId(inputId: string) {
-  let id = inputId;
-  // Dm and club posts come prefixed with the author, so we strip it
-  if (id[0] === '~') {
-    id = id.split('/').pop()!;
-  }
-  // The id in group post ids doesn't come dot separated, so we format it
-  if (id[3] !== '.') {
-    id = formatUd(id);
-  }
-  return id;
 }
 
 function getReceivedAtFromId(postId: string) {
@@ -748,18 +796,10 @@ export function toReactionsData(
   });
 }
 
-export function isDmChannelId(channelId: string) {
-  return channelId.startsWith('~');
-}
-
-export function isGroupDmChannelId(channelId: string) {
-  return channelId.startsWith('0v');
-}
-
-export function isGroupChannelId(channelId: string) {
-  return (
-    channelId.startsWith('chat') ||
-    channelId.startsWith('diary') ||
-    channelId.startsWith('heap')
-  );
+function formatCursor(cursor: Cursor) {
+  if (typeof cursor === 'string') {
+    return cursor;
+  } else {
+    return formatDateParam(cursor);
+  }
 }

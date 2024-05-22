@@ -646,7 +646,8 @@ const getRandomFakeContact = () => {
 
 export const createFakePost = (
   type?: db.PostType,
-  content?: string
+  content?: string,
+  image?: string
 ): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
@@ -658,6 +659,7 @@ export const createFakePost = (
 
   const fakeRandomContent = getRandomFakeContent() as unknown as string;
   const contentOrFake = content ?? fakeRandomContent;
+  const fakeImage = image ? createImageContent(image) : null;
 
   const textContent = getTextContent(JSON.parse(contentOrFake)) ?? null;
 
@@ -665,7 +667,7 @@ export const createFakePost = (
     id: `${ship}-${id}`,
     authorId: ship,
     author: fakeContact,
-    content: contentOrFake,
+    content: image ? fakeImage : contentOrFake,
     sentAt: randomSentAtSameDay,
     ...createFakeReplyMeta(),
     type: type ?? 'chat',

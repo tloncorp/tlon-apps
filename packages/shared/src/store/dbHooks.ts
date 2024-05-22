@@ -41,13 +41,7 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
       const pendingChats = await db.getPendingChats();
       return { channels, pendingChats };
     },
-    queryKey: [
-      'currentChats',
-      new Set([
-        ...useKeyFromQueryDeps(db.getGroup),
-        ...useKeyFromQueryDeps(db.getChannel),
-      ]),
-    ],
+    queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     select({ channels, pendingChats }) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
@@ -137,15 +131,6 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   );
 
   return memberRoles;
-};
-
-export const useChannelPostsAround = (
-  options: db.GetChannelPostsAroundOptions
-) => {
-  return useQuery({
-    queryKey: [['channelPostsAround', options]],
-    queryFn: () => db.getChannelPostsAround(options),
-  });
 };
 
 export const useChannelSearchResults = (

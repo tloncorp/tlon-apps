@@ -9,6 +9,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
+import { Add, ArrowUp } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -18,9 +19,12 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { SizableText, View, YStack } from '../../core';
+import { SizableText, Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
+import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
+import FloatingActionButton from '../FloatingActionButton';
+import { GalleryPost } from '../GalleryPost';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -96,12 +100,18 @@ export function Channel({
   hasOlderPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [showGalleryInput, setShowGalleryInput] = useState(false);
+  const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const renderItem = isChatChannel ? ChatMessage : NotebookPost;
+  const renderItem = isChatChannel
+    ? ChatMessage
+    : channel.type === 'notebook'
+      ? NotebookPost
+      : GalleryPost;
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
@@ -150,8 +160,26 @@ export function Channel({
                     style={{ flex: 1 }}
                     contentContainerStyle={{ flex: 1 }}
                   >
-                    <YStack flex={1}>
-                      {uploadInfo.imageAttachment ? (
+                    <YStack alignItems="center" flex={1}>
+                      {showGalleryInput ? (
+                        <MessageInput
+                          shouldBlur={inputShouldBlur}
+                          setShouldBlur={setInputShouldBlur}
+                          send={messageSender}
+                          channelId={channel.id}
+                          groupMembers={group?.members ?? []}
+                          storeDraft={storeDraft}
+                          clearDraft={clearDraft}
+                          getDraft={getDraft}
+                          editingPost={editingPost}
+                          setEditingPost={setEditingPost}
+                          editPost={editPost}
+                          setShowGalleryInput={setShowGalleryInput}
+                          floatingActionButton
+                          showAttachmentButton={false}
+                          backgroundColor="$background"
+                        />
+                      ) : uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
                           imageAttachment={uploadInfo.imageAttachment}
                           resetImageAttachment={uploadInfo.resetImageAttachment}
@@ -227,6 +255,34 @@ export function Channel({
                       )}
                       {!negotiationMatch && isChatChannel && canWrite && (
                         <NegotionMismatchNotice />
+                      )}
+                      {!isChatChannel && canWrite && !showGalleryInput && (
+                        <View position="absolute" bottom="$l" right="$l">
+                          {uploadInfo.uploadedImage && uploadInfo.uploading ? (
+                            <View alignItems="center" padding="$m">
+                              <Spinner />
+                            </View>
+                          ) : (
+                            <FloatingActionButton
+                              onPress={() =>
+                                uploadInfo.uploadedImage
+                                  ? messageSender([], channel.id)
+                                  : setShowAddGalleryPost(true)
+                              }
+                              icon={
+                                uploadInfo.uploadedImage ? <ArrowUp /> : <Add />
+                              }
+                            />
+                          )}
+                        </View>
+                      )}
+                      {channel.type === 'gallery' && canWrite && (
+                        <AddGalleryPost
+                          showAddGalleryPost={showAddGalleryPost}
+                          setShowAddGalleryPost={setShowAddGalleryPost}
+                          setShowGalleryInput={setShowGalleryInput}
+                          setImage={uploadInfo.setAttachments}
+                        />
                       )}
                     </YStack>
                   </KeyboardAvoidingView>
