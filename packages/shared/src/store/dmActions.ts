@@ -51,13 +51,18 @@ export async function respondToDMInvite({
 export async function blockUser(userId: string) {
   logger.log(`blocking user`, userId);
   // optimistic update
-  await db.updateContact({ id: userId, isBlocked: true });
+  const existingContact = await db.getContact({ id: userId });
+  if (existingContact) {
+    await db.updateContact({ id: userId, isBlocked: true });
+  }
 
   try {
     await api.blockUser(userId);
   } catch (e) {
     console.error('Failed to block user', e);
     // rollback optimistic update
-    await db.updateContact({ id: userId, isBlocked: false });
+    if (existingContact) {
+      await db.updateContact({ id: userId, isBlocked: false });
+    }
   }
 }

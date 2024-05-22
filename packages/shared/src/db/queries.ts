@@ -117,7 +117,7 @@ export const getGroupPreviews = createReadQuery(
 export const getGroups = createReadQuery(
   'getGroups',
   async ({
-    includeUnjoined = false,
+    includeUnjoined,
     includeLastPost,
     includeUnreads,
   }: GetGroupsOptions = {}): Promise<Group[]> => {
@@ -972,7 +972,7 @@ export const insertChannels = createWriteQuery(
         .values(channels)
         .onConflictDoUpdate({
           target: $channels.id,
-          set: conflictUpdateSetAll($channels), //TODO: why was this $posts before?
+          set: conflictUpdateSetAll($channels),
         });
 
       for (const channel of channels) {

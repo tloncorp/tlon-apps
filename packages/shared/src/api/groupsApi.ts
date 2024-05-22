@@ -11,7 +11,7 @@ import {
 import { toClientMeta } from './converters';
 import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
-const logger = createDevLogger('groupsApi', true);
+const logger = createDevLogger('groupsApi', false);
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({

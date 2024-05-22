@@ -220,12 +220,15 @@ export const appendContactIdToReplies = (
   return newArray;
 };
 
-export function strToSym(str: string): string {
+export function convertToAscii(str: string): string {
   const ascii = anyAscii(str);
-  return str.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
+  return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
 }
 
 export const createShortCodeFromTitle = (title: string): string => {
-  const shortCode = strToSym(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
+  const shortCode = convertToAscii(title).replace(
+    /[^a-z]*([a-z][-\w\d]+)/i,
+    '$1'
+  );
   return shortCode;
 };
