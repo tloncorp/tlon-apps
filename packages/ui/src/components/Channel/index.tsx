@@ -231,7 +231,7 @@ export function Channel({
                       )}
                       {negotiationMatch &&
                         !editingPost &&
-                        isChatChannel &&
+                        (isChatChannel || uploadInfo?.uploadedImage) &&
                         canWrite && (
                           <MessageInput
                             shouldBlur={inputShouldBlur}

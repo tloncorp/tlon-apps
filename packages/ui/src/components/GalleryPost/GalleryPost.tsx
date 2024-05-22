@@ -5,6 +5,7 @@ import {
   isReferencePost,
   isTextPost,
   textPostIsLinkedImage,
+  tiptap,
 } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { Link } from 'packages/shared/dist/urbit';
@@ -16,14 +17,14 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-import { LinearGradient, View } from '../../core';
+import { LinearGradient, Text, View, XStack, YStack } from '../../core';
 import ChatContent from '../ChatMessage/ChatContent';
 import ContentReference from '../ContentReference';
 import Pressable from '../Pressable';
 import GalleryAuthorRow from './GalleryAuthorRow';
 
 const HEIGHT_AND_WIDTH = (Dimensions.get('window').width - 46) / 2;
-const HEIGHT_DETAIL_VIEW = Dimensions.get('window').height - 224;
+const HEIGHT_DETAIL_VIEW = Dimensions.get('window').height - 236;
 const WIDTH_DETAIL_VIEW = Dimensions.get('window').width;
 
 export default function GalleryPost({
@@ -66,7 +67,6 @@ export default function GalleryPost({
 
   const handleImagePressed = useCallback(
     (uri: string) => {
-      console.log('handleImagePressed', post, uri, onPressImage);
       onPressImage?.(post, uri);
     },
     [onPressImage, post]
@@ -90,14 +90,21 @@ export default function GalleryPost({
               }
               activeOpacity={0.9}
             >
-              <Image
-                source={{
-                  uri: postIsJustImage ? image!.src : linkedImage,
-                }}
-                resizeMode="contain"
-                width={WIDTH_DETAIL_VIEW}
-                height={HEIGHT_DETAIL_VIEW}
-              />
+              <YStack gap="$s">
+                <Image
+                  source={{
+                    uri: postIsJustImage ? image!.src : linkedImage,
+                  }}
+                  resizeMode="contain"
+                  width={WIDTH_DETAIL_VIEW}
+                  height={HEIGHT_DETAIL_VIEW}
+                />
+                {inlines.length > 0 && (
+                  <View paddingHorizontal="$m">
+                    <Text>{tiptap.inlineToString(inlines[0])}</Text>
+                  </View>
+                )}
+              </YStack>
             </TouchableOpacity>
           ) : (
             <ImageBackground
