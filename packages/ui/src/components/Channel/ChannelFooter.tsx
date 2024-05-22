@@ -1,6 +1,14 @@
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useDerivedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronLeft, Search } from '../../assets/icons';
+import { useScrollContext } from '../../contexts/scroll';
 import { SizableText, Spinner, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { Icon } from '../Icon';
@@ -24,8 +32,34 @@ export function ChannelFooter({
   showSearchButton?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const [scrollValue] = useScrollContext();
+  const easedValue = useDerivedValue(
+    () => Easing.ease(scrollValue.value),
+    [scrollValue]
+  );
+
+  const shownAmount = useDerivedValue(
+    () =>
+      withTiming(scrollValue.value > 0.5 ? 1 : 0, {
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
+      }),
+    [scrollValue]
+  );
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(shownAmount.value, [0, 1], [1, 0]);
+    const height = interpolate(shownAmount.value, [0, 1], [50, 0]);
+
+    return {
+      transform: [{ translateY: shownAmount.value * -(insets.top * 0.2) }],
+      opacity: opacity,
+      height: height,
+    };
+  }, [easedValue, insets.top]);
+
   return (
-    <View>
+    <Animated.View style={[{ flex: 0 }, animatedStyle]}>
       <XStack
         justifyContent="space-between"
         alignItems="center"
@@ -48,6 +82,7 @@ export function ChannelFooter({
               onPress={goToChannels}
               paddingHorizontal="$m"
               paddingVertical="$s"
+              alignItems="center"
             >
               <Icon size="$s" type="Channel" marginRight="$s" />
               <SizableText
@@ -55,6 +90,7 @@ export function ChannelFooter({
                 numberOfLines={1}
                 fontSize={'$s'}
                 maxWidth={200}
+                height={'$2xl'}
               >
                 {title}
               </SizableText>
@@ -67,6 +103,6 @@ export function ChannelFooter({
           )}
         </XStack>
       </XStack>
-    </View>
+    </Animated.View>
   );
 }
