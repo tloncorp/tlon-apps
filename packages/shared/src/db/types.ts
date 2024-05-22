@@ -5,6 +5,7 @@ import type {
   One,
 } from 'drizzle-orm';
 
+import { idIsChannel } from '../urbit';
 import * as schema from './schema';
 
 export type Schema = typeof schema;
@@ -81,9 +82,9 @@ export type PostWindow = BaseModel<'postWindows'>;
 
 // Type guards
 export function isGroup(obj: Channel | Group): obj is Group {
-  return 'privacy' in obj;
+  return !idIsChannel(obj.id);
 }
 
 export function isChannel(obj: Channel | Group): obj is Channel {
-  return 'type' in obj;
+  return idIsChannel(obj.id);
 }

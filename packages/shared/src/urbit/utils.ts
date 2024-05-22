@@ -8,11 +8,17 @@ import * as ubd from './dms';
 import * as ubg from './groups';
 
 type App = 'chat' | 'heap' | 'diary';
+const APP_PREFIXES = ['chat', 'heap', 'diary'];
 
-export function checkNest(nest: string) {
-  if (nest.split('/').length !== 3) {
-    console.error('Invalid nest:', nest);
+export function checkNest(nest: string, noWarning?: boolean): boolean {
+  const parts = nest.split('/');
+  if (parts.length !== 3 || !APP_PREFIXES.includes(parts[0])) {
+    if (!noWarning) {
+      console.error('Invalid nest:', nest);
+    }
+    return false;
   }
+  return true;
 }
 
 export function nestToFlag(nest: string): [App, string] {
@@ -20,6 +26,17 @@ export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
+}
+
+// distinguish between group and channel IDs
+export function idIsChannel(id: string): boolean {
+  // if has no path parts, is a dm or multi-dm
+  if (id.split('/').length === 1) {
+    return true;
+  }
+
+  // otherwise, check if it's a nest
+  return checkNest(id, true);
 }
 
 export function preSig(ship: string): string {
