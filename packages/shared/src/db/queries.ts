@@ -1854,17 +1854,22 @@ export const insertContact = createWriteQuery(
 export const insertContacts = createWriteQuery(
   'insertContacts',
   async (contactsData: Contact[]) => {
-    // TODO: fix contact pinned group insertion (we never display these right now anyway)
-    // const contactGroups = contactsData.flatMap(
-    //   (contact) => contact.pinnedGroups || []
-    // );
+    if (contactsData.length === 0) {
+      return;
+    }
 
-    // const targetGroups = contactGroups.map(
-    //   (g): Group => ({
-    //     id: g.groupId,
-    //     privacy: g.group?.privacy,
-    //   })
-    // );
+    const contactGroups = contactsData.flatMap(
+      (contact) => contact.pinnedGroups || []
+    );
+
+    const targetGroups = contactGroups.map(
+      (g): Group => ({
+        id: g.groupId,
+        privacy: g.group?.privacy,
+        currentUserIsMember: false,
+      })
+    );
+
     await client
       .insert($contacts)
       .values(contactsData)
@@ -1872,16 +1877,25 @@ export const insertContacts = createWriteQuery(
         target: $contacts.id,
         set: conflictUpdateSetAll($contacts),
       });
-    // if (targetGroups.length) {
-    //   await client.insert($groups).values(targetGroups).onConflictDoNothing();
-    // }
+
+    if (targetGroups.length) {
+      await client.insert($groups).values(targetGroups).onConflictDoNothing();
+    }
     // TODO: Remove stale pinned groups
-    // await client
-    //   .insert($contactGroups)
-    //   .values(contactGroups)
-    //   .onConflictDoNothing();
+    await client
+      .insert($contactGroups)
+      .values(contactGroups)
+      .onConflictDoNothing();
   },
   ['contacts', 'groups', 'contactGroups']
+);
+
+export const deleteContact = createWriteQuery(
+  'deleteContact',
+  async (contactId: string) => {
+    return client.delete($contacts).where(eq($contacts.id, contactId));
+  },
+  ['contacts']
 );
 
 export const insertUnreads = createWriteQuery(

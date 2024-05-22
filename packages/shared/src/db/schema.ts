@@ -70,7 +70,7 @@ export const contactGroups = sqliteTable(
   'contact_group_pins',
   {
     contactId: text('contact_id')
-      .references(() => contacts.id)
+      .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
       .references(() => groups.id)

@@ -284,6 +284,17 @@ export const syncStaleChannels = async () => {
   }
 };
 
+export const handleContactUpdate = async (update: api.ContactsUpdate) => {
+  switch (update.type) {
+    case 'add':
+      await db.insertContacts([update.contact]);
+      break;
+    case 'delete':
+      await db.deleteContact(update.contactId);
+      break;
+  }
+};
+
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
@@ -582,5 +593,6 @@ export const start = async (currentUserId: string) => {
   api.subscribeGroups(handleGroupUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
   api.subscribeToChatUpdates(currentUserId, handleChatUpdate);
+  api.subscribeToContactUpdates(handleContactUpdate);
   useStorage.getState().start();
 };

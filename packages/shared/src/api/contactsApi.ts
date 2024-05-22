@@ -1,7 +1,7 @@
 import * as db from '../db';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
-import { poke, scry } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 export const getContacts = async () => {
   const results = await scry<ub.ContactRolodex>({
@@ -17,6 +17,31 @@ export const addContacts = async (contactIds: string[]) => {
     mark: 'contact-action',
     json: { heed: contactIds },
   });
+};
+
+export type ContactsUpdate =
+  | { type: 'add'; contact: db.Contact }
+  | { type: 'delete'; contactId: string };
+
+export const subscribeToContactUpdates = (
+  handler: (update: ContactsUpdate) => void
+) => {
+  subscribe(
+    {
+      app: 'contacts',
+      path: '/news',
+    },
+    (event: ub.ContactNews) => {
+      if (event.con) {
+        handler({
+          type: 'add',
+          contact: toClientContact(event.who, event.con),
+        });
+      } else {
+        handler({ type: 'delete', contactId: event.who });
+      }
+    }
+  );
 };
 
 export const toClientContacts = (contacts: ub.ContactRolodex): db.Contact[] => {
