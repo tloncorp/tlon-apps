@@ -4,9 +4,9 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
+import { getCanonicalPostId } from './apiUtils';
 import {
   channelAction,
-  getCanonicalPostId,
   toPostData,
   toPostReplyData,
   toReactionsData,

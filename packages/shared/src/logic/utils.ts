@@ -6,7 +6,9 @@ import {
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 
+import * as api from '../api';
 import * as db from '../db';
+import * as ub from '../urbit';
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -217,4 +219,109 @@ export const appendContactIdToReplies = (
   }
   newArray.push(contactId);
   return newArray;
+};
+
+export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
+  const inlines =
+    story !== null
+      ? (story.filter((v) => 'inline' in v) as ub.VerseInline[]).flatMap(
+          (i) => i.inline
+        )
+      : [];
+
+  return inlines;
+}
+
+export function extractReferencesFromContent(
+  story: api.PostContent
+): api.ContentReference[] {
+  const references =
+    story !== null
+      ? (story.filter(
+          (s) => 'type' in s && s.type == 'reference'
+        ) as api.ContentReference[])
+      : [];
+
+  return references;
+}
+
+export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
+  const blocks =
+    story !== null
+      ? (story.filter((v) => 'block' in v) as ub.VerseBlock[]).flatMap(
+          (b) => b.block
+        )
+      : [];
+
+  return blocks;
+}
+
+export const extractContentTypes = (
+  content: string
+): {
+  inlines: ub.Inline[];
+  references: api.ContentReference[];
+  blocks: ub.Block[];
+} => {
+  const story = JSON.parse(content as string) as api.PostContent;
+  const inlines = extractInlinesFromContent(story);
+  const references = extractReferencesFromContent(story);
+  const blocks = extractBlocksFromContent(story);
+
+  return { inlines, references, blocks };
+};
+
+export const extractContentTypesFromPost = (
+  post: db.Post
+): {
+  inlines: ub.Inline[];
+  references: api.ContentReference[];
+  blocks: ub.Block[];
+} => {
+  const { inlines, references, blocks } = extractContentTypes(
+    post.content as string
+  );
+
+  return { inlines, references, blocks };
+};
+
+export const isTextPost = (post: db.Post) => {
+  const { inlines, references, blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 0 && inlines.length > 0 && references.length === 0;
+};
+
+export const isReferencePost = (post: db.Post) => {
+  const { inlines, references, blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 0 && inlines.length === 0 && references.length === 1;
+};
+
+export const isImagePost = (post: db.Post) => {
+  const { blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 1 && blocks.some((b) => 'image' in b);
+};
+
+export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
+  return blocks.find((b) => 'image' in b) as ub.Image;
+};
+
+export const textPostIsLinkedImage = (post: db.Post): boolean => {
+  const postIsJustText = isTextPost(post);
+  if (!postIsJustText) {
+    return false;
+  }
+
+  const { inlines } = extractContentTypesFromPost(post);
+
+  if (inlines.length === 2) {
+    const [first] = inlines;
+    if (typeof first === 'object' && 'link' in first) {
+      const link = first as ub.Link;
+      const { href } = link.link;
+      const isImage = IMAGE_REGEX.test(href);
+
+      return isImage;
+    }
+  }
+
+  return false;
 };

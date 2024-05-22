@@ -9,6 +9,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
+import { Add, ArrowUp } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -18,9 +19,12 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { Text, View, YStack } from '../../core';
+import { SizableText, Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
+import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
+import FloatingActionButton from '../FloatingActionButton';
+import { GalleryPost } from '../GalleryPost';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -96,21 +100,29 @@ export function Channel({
   hasOlderPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [showGalleryInput, setShowGalleryInput] = useState(false);
+  const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const renderItem = isChatChannel ? ChatMessage : NotebookPost;
+  const renderItem = isChatChannel
+    ? ChatMessage
+    : channel.type === 'notebook'
+      ? NotebookPost
+      : GalleryPost;
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
 
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
-    if (selectedPostId) {
+    if (channel.type === 'notebook') {
+      return null;
+    } else if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
     } else if (
-      channel?.unread?.countWithoutThreads &&
+      channel.unread?.countWithoutThreads &&
       channel.unread.firstUnreadPostId
     ) {
       return { type: 'unread', postId: channel.unread.firstUnreadPostId };
@@ -131,7 +143,6 @@ export function Channel({
             <NavigationProvider onPressRef={onPressRef}>
               <ReferencesProvider>
                 <YStack
-                  flex={1}
                   justifyContent="space-between"
                   width="100%"
                   height="100%"
@@ -147,7 +158,25 @@ export function Channel({
                     contentContainerStyle={{ flex: 1 }}
                   >
                     <YStack alignItems="center" flex={1}>
-                      {uploadInfo.imageAttachment ? (
+                      {showGalleryInput ? (
+                        <MessageInput
+                          shouldBlur={inputShouldBlur}
+                          setShouldBlur={setInputShouldBlur}
+                          send={messageSender}
+                          channelId={channel.id}
+                          groupMembers={group?.members ?? []}
+                          storeDraft={storeDraft}
+                          clearDraft={clearDraft}
+                          getDraft={getDraft}
+                          editingPost={editingPost}
+                          setEditingPost={setEditingPost}
+                          editPost={editPost}
+                          setShowGalleryInput={setShowGalleryInput}
+                          floatingActionButton
+                          showAttachmentButton={false}
+                          backgroundColor="$background"
+                        />
+                      ) : uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
                           imageAttachment={uploadInfo.imageAttachment}
                           resetImageAttachment={uploadInfo.resetImageAttachment}
@@ -206,9 +235,7 @@ export function Channel({
                             setShouldBlur={setInputShouldBlur}
                             send={messageSender}
                             channelId={channel.id}
-                            setImageAttachment={uploadInfo.setImageAttachment}
-                            uploadedImage={uploadInfo.uploadedImage}
-                            canUpload={uploadInfo.canUpload}
+                            uploadInfo={uploadInfo}
                             groupMembers={group?.members ?? []}
                             storeDraft={storeDraft}
                             clearDraft={clearDraft}
@@ -216,19 +243,35 @@ export function Channel({
                           />
                         )}
                       {!negotiationMatch && isChatChannel && canWrite && (
-                        <View
-                          width="90%"
-                          alignItems="center"
-                          justifyContent="center"
-                          backgroundColor="$secondaryBackground"
-                          borderRadius="$xl"
-                          padding="$l"
-                        >
-                          <Text>
-                            Your ship&apos;s version of the Tlon app
-                            doesn&apos;t match the channel host.
-                          </Text>
+                        <NegotionMismatchNotice />
+                      )}
+                      {!isChatChannel && canWrite && !showGalleryInput && (
+                        <View position="absolute" bottom="$l" right="$l">
+                          {uploadInfo.uploadedImage && uploadInfo.uploading ? (
+                            <View alignItems="center" padding="$m">
+                              <Spinner />
+                            </View>
+                          ) : (
+                            <FloatingActionButton
+                              onPress={() =>
+                                uploadInfo.uploadedImage
+                                  ? messageSender([], channel.id)
+                                  : setShowAddGalleryPost(true)
+                              }
+                              icon={
+                                uploadInfo.uploadedImage ? <ArrowUp /> : <Add />
+                              }
+                            />
+                          )}
                         </View>
+                      )}
+                      {channel.type === 'gallery' && canWrite && (
+                        <AddGalleryPost
+                          showAddGalleryPost={showAddGalleryPost}
+                          setShowAddGalleryPost={setShowAddGalleryPost}
+                          setShowGalleryInput={setShowGalleryInput}
+                          setImage={uploadInfo.setAttachments}
+                        />
                       )}
                     </YStack>
                   </KeyboardAvoidingView>
@@ -246,5 +289,23 @@ export function Channel({
         </ContactsProvider>
       </GroupsProvider>
     </CalmProvider>
+  );
+}
+
+function NegotionMismatchNotice() {
+  return (
+    <View alignItems="center" justifyContent="center" padding="$l">
+      <View
+        backgroundColor="$secondaryBackground"
+        borderRadius="$l"
+        paddingHorizontal="$l"
+        paddingVertical="$xl"
+      >
+        <SizableText size="$s">
+          Your ship&apos;s version of the Tlon app doesn&apos;t match the
+          channel host.
+        </SizableText>
+      </View>
+    </View>
   );
 }
