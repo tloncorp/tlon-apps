@@ -49,7 +49,7 @@ CREATE TABLE `contact_group_pins` (
 	`contact_id` text NOT NULL,
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`),
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint

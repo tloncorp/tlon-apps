@@ -89,7 +89,7 @@ export function isChannelId(id: string): boolean {
   }
 
   // otherwise, check if its a group channel
-  return isGroupDmChannelId(id);
+  return isGroupChannelId(id);
 }
 
 export async function with404Handler<T>(

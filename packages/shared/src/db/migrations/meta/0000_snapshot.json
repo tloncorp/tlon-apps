@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "186fc2dc-bc64-460b-bd9a-c0d40504479c",
+  "id": "6437e540-2bea-411a-ae8d-9a03afab8a6c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -333,7 +333,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "contact_group_pins_group_id_groups_id_fk": {
