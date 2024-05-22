@@ -1,6 +1,6 @@
 ::
-/-  a=activity, c=channels, ch=chat
-/+  default-agent, verb, dbug, ch-utils=channel-utils
+/-  a=activity, c=channels, ch=chat, g=groups
+/+  default-agent, verb, dbug, ch-utils=channel-utils, v=volume
 ::
 =>
   |%
@@ -73,7 +73,9 @@
   ^+  cor
   =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
   =.  cor  set-chat-reads
-  set-channel-reads
+  =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
+  =.  cor  (set-volumes channels)
+  (set-channel-reads channels)
 ::
 ++  load
   |=  =vase
@@ -84,11 +86,12 @@
   =.  state  old
   cor
 ::
+++  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
 ++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)
 ++  set-channel-reads
+  |=  =channels:c
   ^+  cor
   =+  .^(=unreads:c %gx (welp channels-prefix /v1/unreads/noun))
-  =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
   =/  entries  ~(tap by unreads)
   =;  events=(list [time incoming-event:a])
     |-
@@ -195,6 +198,46 @@
       (was-mentioned:ch-utils content.reply our.bowl)
     [time %dm-reply key parent whom content.reply mention]
   (welp writs replies)
+++  volume-type
+  $:  base=level:v
+      area=(map flag:g level:v)  ::  override per group
+      chan=(map nest:g level:v)  ::  override per channel
+  ==
+++  set-volumes
+  |=  =channels:c
+  ::  set all existing channels to old default since new default is different
+  =.  cor
+    =/  entries  ~(tap by channels)
+    |-
+    ?~  entries  cor
+    =/  [=nest:c =channel:c]  i.entries
+    =.  cor
+      %+  adjust  [%channel nest group.perm.channel]
+      (my [%post & |] ~)
+    $(entries t.entries)
+  =+  .^(volume=volume-type %gx (welp groups-prefix /volume/all/noun))
+  ::  set any overrides from previous volume settings
+  =.  cor  (adjust [%base ~] (~(got by old-volumes:a) base.volume))
+  =.  cor
+    =/  entries  ~(tap by chan.volume)
+    |-
+    ?~  entries  cor
+    =/  [=nest:g =level:v]  i.entries
+    ?.  ?=(?(%chat %diary %heap) -.nest)  $(entries t.entries)
+    =/  channel  (~(get by channels) nest)
+    ?~  channel  $(entries t.entries)
+    =.  cor
+      %+  adjust  [%channel nest group.perm.u.channel]
+      (~(got by old-volumes:a) level)
+    $(entries t.entries)
+  =/  entries  ~(tap by area.volume)
+  |-
+  ?~  entries  cor
+  =*  head  i.entries
+  =.  cor
+    %+  adjust  [%group -.head]
+    (~(got by old-volumes:a) +.head)
+  $(entries t.entries)
 ++  poke
   |=  [=mark =vase]
   ^+  cor

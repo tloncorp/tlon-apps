@@ -185,8 +185,8 @@
 +|  %constants
 ++  default-volumes
   ^~
-  %-  malt
-  ^-  (list [event-type volume])
+  ^-  (map event-type volume)
+  %-  my
   :~  [%post & &]
       [%reply & |]
       [%dm-reply & &]
@@ -203,5 +203,12 @@
       [%group-kick & |]
       [%group-join & |]
       [%group-role & |]
+  ==
+++  old-volumes
+  ^~
+  %-  my
+  :~  [%soft (~(put by default-volumes) %post [& |])]
+      [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
+      [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
   ==
 --

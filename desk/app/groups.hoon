@@ -461,6 +461,9 @@
       [%x %volume ~]
     ``volume-value+!>(base.volume)
   ::
+      [%x %volume %all ~]
+    ``noun+!>(volume)
+  ::
       [%x %volume ship=@ name=@ ~]
     =/  ship  (slav %p ship.pole)
     :^  ~  ~  %volume-value

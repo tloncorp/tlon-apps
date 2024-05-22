@@ -360,13 +360,6 @@ export function getVolumeMap(
     }, {} as VolumeMap);
   }
 
-  if (level === 'soft') {
-    return allEvents.reduce((acc, e) => {
-      acc[e] = { unreads, notify: false };
-      return acc;
-    }, {} as VolumeMap);
-  }
-
   return allEvents.reduce((acc, e) => {
     if (onEvents.includes(e)) {
       acc[e] = { unreads, notify: true };
