@@ -8,9 +8,9 @@ import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
-export const syncInitData = async (currentUserId: string) => {
+export const syncInitData = async () => {
   return syncQueue.add('init', async () => {
-    const initData = await api.getInitData(currentUserId);
+    const initData = await api.getInitData();
     await db.insertPinnedItems(initData.pins);
     await db.insertGroups(initData.groups);
     await db.insertChannels(initData.channels);
@@ -60,11 +60,8 @@ export const syncGroups = async () => {
   await db.insertGroups(groups);
 };
 
-export const syncDms = async (currentUserId: string) => {
-  const [dms, groupDms] = await Promise.all([
-    api.getDms(),
-    api.getGroupDms(currentUserId),
-  ]);
+export const syncDms = async () => {
+  const [dms, groupDms] = await Promise.all([api.getDms(), api.getGroupDms()]);
   await db.insertChannels([...dms, ...groupDms]);
 };
 
@@ -368,10 +365,7 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   }
 };
 
-export const handleChatUpdate = async (
-  event: api.ChatEvent,
-  currentUserId: string
-) => {
+export const handleChatUpdate = async (event: api.ChatEvent) => {
   switch (event.type) {
     case 'addDmInvites':
       // insert the new DMs
@@ -379,7 +373,7 @@ export const handleChatUpdate = async (
       break;
 
     case 'groupDmsUpdate':
-      syncDms(currentUserId);
+      syncDms();
       break;
   }
 };
@@ -605,11 +599,11 @@ export const clearSyncQueue = () => {
   syncQueue.clear();
 };
 
-export const start = async (currentUserId: string) => {
+export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
   api.subscribeGroups(handleGroupUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
-  api.subscribeToChatUpdates(currentUserId, handleChatUpdate);
+  api.subscribeToChatUpdates(handleChatUpdate);
   api.subscribeToContactUpdates(handleContactUpdate);
   useStorage.getState().start();
 };

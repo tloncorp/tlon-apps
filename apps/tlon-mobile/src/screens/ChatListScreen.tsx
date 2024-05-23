@@ -16,7 +16,6 @@ import {
 import { useCallback, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
-import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
@@ -29,7 +28,6 @@ type ChatListScreenProps = NativeStackScreenProps<
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
-  const currentUserId = useCurrentUserId();
   const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
     null
   );
@@ -39,20 +37,18 @@ export default function ChatListScreen(
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
 
-  const { isFetching: isFetchingInitData, refetch } =
-    store.useInitialSync(currentUserId);
+  const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
   useRefetchQueryOnFocus(refetch);
 
   const goToDm = useCallback(
     async (participants: string[]) => {
       const dmChannel = await store.upsertDmChannel({
         participants,
-        currentUserId,
       });
       setStartDmOpen(false);
       props.navigation.push('Channel', { channel: dmChannel });
     },
-    [currentUserId, props.navigation]
+    [props.navigation]
   );
 
   const goToChannel = useCallback(
@@ -117,7 +113,6 @@ export default function ChatListScreen(
           open={addGroupOpen}
           onOpenChange={() => setAddGroupOpen(false)}
           onCreatedGroup={({ channel }) => goToChannel({ channel })}
-          currentUserId={currentUserId}
         />
         <GroupPreviewSheet
           open={selectedGroup !== null}

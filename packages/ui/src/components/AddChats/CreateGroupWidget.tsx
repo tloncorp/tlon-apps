@@ -10,7 +10,6 @@ import { Button } from '../Button';
 import { Icon } from '../Icon';
 
 export function CreateGroupWidget(props: {
-  currentUserId: string;
   goBack: () => void;
   onCreatedGroup: ({
     group,
@@ -34,7 +33,6 @@ export function CreateGroupWidget(props: {
 
     try {
       const { group, channel } = await store.createGroup({
-        currentUserId: props.currentUserId,
         title: groupName,
         shortCode,
       });

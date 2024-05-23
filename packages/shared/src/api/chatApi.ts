@@ -2,7 +2,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { toClientMeta } from './apiUtils';
-import { poke, scry, subscribe } from './urbit';
+import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('chatApi', true);
 
@@ -19,11 +19,9 @@ export const markChatRead = (whom: string) =>
 export const createGroupDm = ({
   id,
   members,
-  currentUserId,
 }: {
   id: string;
   members: string[];
-  currentUserId: string;
 }) => {
   return poke({
     app: 'chat',
@@ -38,12 +36,12 @@ export const createGroupDm = ({
 export const respondToDMInvite = ({
   channel,
   accept,
-  currentUserId,
 }: {
   channel: db.Channel;
   accept: boolean;
-  currentUserId: string;
 }) => {
+  const currentUserId = getCurrentUserId();
+
   if (channel.type === 'dm') {
     return poke({
       app: 'chat',
@@ -65,9 +63,10 @@ export type ChatEvent =
   | { type: 'addDmInvites'; channels: db.Channel[] }
   | { type: 'groupDmsUpdate' };
 export function subscribeToChatUpdates(
-  currentUserId: string,
   eventHandler: (event: ChatEvent, currentUserId: string) => void
 ) {
+  const currentUserId = getCurrentUserId();
+
   subscribe(
     {
       app: 'chat',
@@ -157,17 +156,13 @@ export const toClientDm = (id: string, isInvite?: boolean): db.Channel => {
   };
 };
 
-export const getGroupDms = async (
-  currentUserId: string
-): Promise<GetDmsResponse> => {
+export const getGroupDms = async (): Promise<GetDmsResponse> => {
   const result = (await scry({ app: 'chat', path: '/clubs' })) as ub.Clubs;
-  return toClientGroupDms(result, currentUserId);
+  return toClientGroupDms(result);
 };
 
-export const toClientGroupDms = (
-  groupDms: ub.Clubs,
-  currentUserId: string
-): GetDmsResponse => {
+export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
+  const currentUserId = getCurrentUserId();
   return Object.entries(groupDms)
     .map(([id, club]) => {
       const joinedMembers = club.team.map(

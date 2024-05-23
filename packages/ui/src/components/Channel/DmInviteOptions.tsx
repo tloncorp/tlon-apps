@@ -2,35 +2,33 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 
-import { View, YStack } from '../../core';
+import { YStack } from '../../core';
 import { Button } from '../Button';
 
 export function DmInviteOptions({
-  currentUserId,
   channel,
   goBack,
 }: {
-  currentUserId: string;
   channel: db.Channel;
   goBack: () => void;
 }) {
   const accept = useCallback(() => {
-    store.respondToDMInvite({ channel, accept: true, currentUserId });
-  }, [channel, currentUserId]);
+    store.respondToDMInvite({ channel, accept: true });
+  }, [channel]);
 
   const deny = useCallback(async () => {
-    await store.respondToDMInvite({ channel, accept: false, currentUserId });
+    await store.respondToDMInvite({ channel, accept: false });
     goBack();
-  }, [channel, currentUserId, goBack]);
+  }, [channel, goBack]);
 
   const blockAndDeny = useCallback(async () => {
-    await store.respondToDMInvite({ channel, accept: false, currentUserId });
+    await store.respondToDMInvite({ channel, accept: false });
     // only block if single DM for now
     if (channel.type === 'dm') {
       store.blockUser(channel.id);
     }
     goBack();
-  }, [channel, currentUserId, goBack]);
+  }, [channel, goBack]);
 
   return (
     <YStack marginHorizontal="$2xl" marginTop="$4xl" gap="$m">

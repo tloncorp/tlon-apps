@@ -23,7 +23,6 @@ export async function sendPost({
         channel.members
           ?.map((m) => m.contactId)
           .filter((m) => m !== authorId) ?? [],
-      currentUserId: authorId,
     });
     await db.updateChannel({ id: channel.id, isPendingChannel: false });
   }

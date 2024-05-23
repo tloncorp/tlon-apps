@@ -41,11 +41,10 @@ export async function markChannelRead(
 
 export async function upsertDmChannel({
   participants,
-  currentUserId,
 }: {
   participants: string[];
-  currentUserId: string;
 }): Promise<db.Channel> {
+  const currentUserId = api.getCurrentUserId();
   // if it's a group dm
   if (participants.length > 1) {
     // see if any existing group dm has the exact same participant set

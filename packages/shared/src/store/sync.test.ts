@@ -129,7 +129,7 @@ test('syncs dms', async () => {
       },
     },
   ]);
-  await syncDms('~solfer-magfed');
+  await syncDms();
 
   const singleChannel = await db.getChannel({
     id: '~solfer-magfed',
@@ -339,7 +339,7 @@ test('deletes removed posts', async () => {
 
 test('syncs init data', async () => {
   setScryOutput(rawGroupsInitData);
-  await syncInitData('~solfer-magfed');
+  await syncInitData();
   const groups = await db.getGroups({});
   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
   const pins = await db.getPinnedItems();

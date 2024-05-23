@@ -247,11 +247,7 @@ export function Channel({
                           />
                         )}
                       {channel.isDmInvite && (
-                        <DmInviteOptions
-                          channel={channel}
-                          goBack={goBack}
-                          currentUserId={currentUserId}
-                        />
+                        <DmInviteOptions channel={channel} goBack={goBack} />
                       )}
                       {!negotiationMatch && isChatChannel && canWrite && (
                         <NegotionMismatchNotice />

@@ -17,7 +17,7 @@ export interface InitData {
   channels: db.Channel[];
 }
 
-export const getInitData = async (currentUserId: string) => {
+export const getInitData = async () => {
   const response = await scry<ub.GroupsInit>({
     app: 'groups-ui',
     path: '/v1/init',
@@ -31,7 +31,7 @@ export const getInitData = async (currentUserId: string) => {
   ];
   const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);
-  const groupDmChannels = toClientGroupDms(response.chat.clubs, currentUserId);
+  const groupDmChannels = toClientGroupDms(response.chat.clubs);
   const invitedDms = toClientDms(response.chat.invited, true);
   const talkUnreads = toClientUnreads(response.chat.unreads, 'dm');
 

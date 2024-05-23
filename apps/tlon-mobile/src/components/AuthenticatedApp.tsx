@@ -22,7 +22,7 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
 
   useEffect(() => {
     const start = () => {
-      sync.start(currentUserId).catch((e) => {
+      sync.start().catch((e) => {
         console.warn('Sync failed', e);
       });
     };

@@ -6,15 +6,14 @@ import * as sync from './sync';
 const logger = createDevLogger('groupActions', true);
 
 export async function createGroup({
-  currentUserId,
   title,
   shortCode,
 }: {
-  currentUserId: string;
   title: string;
   shortCode: string;
 }): Promise<{ group: db.Group; channel: db.Channel }> {
   logger.log(`${shortCode}: creating group`);
+  const currentUserId = api.getCurrentUserId();
   try {
     await api.createGroup({
       title,

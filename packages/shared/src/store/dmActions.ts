@@ -8,11 +8,9 @@ const logger = createDevLogger('dmActions', true);
 export async function respondToDMInvite({
   channel,
   accept,
-  currentUserId,
 }: {
   channel: db.Channel;
   accept: boolean;
-  currentUserId: string;
 }) {
   logger.log(`responding to dm invite`, `accept? ${accept}`, channel.id);
   // optimistic update
@@ -28,7 +26,7 @@ export async function respondToDMInvite({
   }
 
   try {
-    await api.respondToDMInvite({ channel, accept, currentUserId });
+    await api.respondToDMInvite({ channel, accept });
     if (accept) {
       logger.log(`syncing channel`, channel.id);
       await sync.syncChannel(channel.id, Date.now());

@@ -47,30 +47,22 @@ const ActionContext = createContext<AddGroupActions>({} as AddGroupActions);
 
 type StackParamList = {
   Home: undefined;
-  Root: {
-    currentUserId: string;
-  };
-  CreateGroup: {
-    currentUserId: string;
-  };
+  Root: undefined;
+  CreateGroup: undefined;
   ViewContactGroups: {
-    currentUserId: string;
     contactId: string;
   };
   ViewGroupPreview: {
-    currentUserId: string;
     group: db.Group;
   };
 };
 const Stack = createNativeStackNavigator<StackParamList>();
 
 export default function AddGroupSheet({
-  currentUserId,
   open,
   onOpenChange,
   onCreatedGroup,
 }: {
-  currentUserId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreatedGroup: ({
@@ -125,14 +117,9 @@ export default function AddGroupSheet({
                   contentStyle: { backgroundColor: theme.background.val },
                 }}
               >
-                <Stack.Screen
-                  name="Root"
-                  initialParams={{ currentUserId }}
-                  component={RootScreen}
-                />
+                <Stack.Screen name="Root" component={RootScreen} />
                 <Stack.Screen
                   name="CreateGroup"
-                  initialParams={{ currentUserId }}
                   component={CreateGroupScreen}
                 />
                 <Stack.Screen
@@ -178,10 +165,9 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
     (contactId: string) => {
       props.navigation.push('ViewContactGroups', {
         contactId,
-        currentUserId: props.route.params.currentUserId,
       });
     },
-    [props.navigation, props.route.params.currentUserId]
+    [props.navigation]
   );
 
   return (
@@ -195,14 +181,7 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
           key={screenKey}
         />
         <View position="absolute" bottom={insets.bottom + 8}>
-          <Button
-            hero
-            onPress={() =>
-              props.navigation.push('CreateGroup', {
-                currentUserId: props.route.params.currentUserId,
-              })
-            }
-          >
+          <Button hero onPress={() => props.navigation.push('CreateGroup')}>
             <Button.Text>Start a new group</Button.Text>
           </Button>
         </View>
@@ -218,9 +197,8 @@ function ViewContactGroupsScreen(
     (group: db.Group) =>
       props.navigation.push('ViewGroupPreview', {
         group,
-        currentUserId: props.route.params.currentUserId,
       }),
-    [props.navigation, props.route.params.currentUserId]
+    [props.navigation]
   );
 
   return (
@@ -269,7 +247,6 @@ function CreateGroupScreen(
   return (
     <ScreenWrapper>
       <CreateGroupWidget
-        currentUserId={props.route.params.currentUserId}
         goBack={() => props.navigation.pop()}
         onCreatedGroup={handleCreate}
       />
