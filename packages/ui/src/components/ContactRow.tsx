@@ -3,8 +3,8 @@ import { useCallback, useMemo } from 'react';
 import React from 'react';
 import { ListItemProps } from 'tamagui';
 
-import { Stack, View, XStack, YStack } from '../core';
-import { Avatar } from './Avatar';
+import { Stack, View, XStack } from '../core';
+import { getDisplayName } from '../utils';
 import { Icon } from './Icon';
 import { ListItem } from './ListItem';
 
@@ -20,13 +20,7 @@ function ContactRowItemRaw({
   selectable?: boolean;
   selected?: boolean;
 } & Omit<ListItemProps, 'onPress'>) {
-  const displayName = useMemo(
-    () =>
-      contact.nickname && contact.nickname.length > 2
-        ? contact.nickname
-        : contact.id,
-    [contact]
-  );
+  const displayName = useMemo(() => getDisplayName(contact), [contact]);
 
   const handlePress = useCallback(
     (id: string) => () => {
