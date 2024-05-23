@@ -49,12 +49,19 @@ export function GroupPreviewPane({
   const status: JoinStatus = useMemo(
     () => ({
       isMember: group?.currentUserIsMember ?? false,
-      isJoining: group?.joinStatus === 'joining',
+      isJoining: group?.joinStatus === 'joining' || isJoining,
       needsInvite: group?.privacy !== 'public',
       hasInvite: group?.haveInvite ?? false,
       requestedInvite: group?.haveRequestedInvite ?? false,
     }),
-    [group]
+    [
+      group?.currentUserIsMember,
+      group?.haveInvite,
+      group?.haveRequestedInvite,
+      group?.joinStatus,
+      group?.privacy,
+      isJoining,
+    ]
   );
 
   const respondToInvite = (accepted: boolean) => {
@@ -93,7 +100,7 @@ export function GroupPreviewPane({
         // TODO: handle case whare joinStatus === 'errored'
         if (nextGroup?.currentUserIsMember === true) {
           setIsJoining(false);
-          onActionComplete();
+          store.markGroupNew(nextGroup).finally(() => onActionComplete());
           clearInterval(interval);
         }
       }, 1_000);

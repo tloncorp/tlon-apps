@@ -129,3 +129,13 @@ export async function joinGroup(group: db.Group) {
     await db.updateGroup({ id: group.id, joinStatus: null });
   }
 }
+
+export async function markGroupNew(group: db.Group) {
+  logger.log('marking new group', group.id);
+  await db.updateGroup({ id: group.id, isNew: true });
+}
+
+export async function markGroupVisited(group: db.Group) {
+  logger.log('marking new group as visited', group.id);
+  await db.updateGroup({ id: group.id, isNew: false });
+}

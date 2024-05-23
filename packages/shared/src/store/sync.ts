@@ -478,8 +478,6 @@ export async function syncGroup(id: string) {
 
 export async function syncNewGroup(id: string) {
   const response = await api.getGroup(id);
-  console.log(`syncing new group`, response);
-  console.log(`num chans`, response.channels?.length);
   await db.insertGroups([response]);
 }
 

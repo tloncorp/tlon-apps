@@ -43,20 +43,18 @@ export default function ChannelListItem({
           </ListItem.Subtitle>
         )}
       </ListItem.MainContent>
-      <ListItem.EndContent position="relative" top={3}>
-        {model.isDmInvite ? (
+      {model.isDmInvite ? (
+        <ListItem.EndContent justifyContent="center">
           <Badge text="Invite" />
-        ) : (
-          <>
-            {model.lastPost && (
-              <ListItem.Time time={model.lastPost.receivedAt} />
-            )}
-            {model.unread?.count && model.unread.count > 0 ? (
-              <ListItem.Count>{model.unread.count}</ListItem.Count>
-            ) : null}
-          </>
-        )}
-      </ListItem.EndContent>
+        </ListItem.EndContent>
+      ) : (
+        <ListItem.EndContent>
+          {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
+          {model.unread?.count && model.unread.count > 0 ? (
+            <ListItem.Count>{model.unread.count}</ListItem.Count>
+          ) : null}
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 }

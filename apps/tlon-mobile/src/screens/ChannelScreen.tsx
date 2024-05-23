@@ -38,7 +38,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
       store.clearSyncQueue();
-    }, [])
+      if (props.route.params.channel.group?.isNew) {
+        store.markGroupVisited(props.route.params.channel.group);
+      }
+    }, [props.route.params.channel.group])
   );
 
   const [editingPost, setEditingPost] = React.useState<db.Post>();

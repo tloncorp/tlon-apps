@@ -241,7 +241,7 @@ export const getChats = createReadQuery(
       .leftJoin($contacts, eq($contacts.id, $chatMembers.contactId))
       .orderBy(
         ascNullsLast($pins.index),
-        sql`(CASE WHEN ${$groups.joinStatus} = 'invited' THEN 1 ELSE 0 END) DESC`,
+        sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
         desc($unreads.updatedAt)
       );
 
