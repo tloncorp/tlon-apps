@@ -1,6 +1,7 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
+import * as api from '../api';
 import * as db from '../db';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
@@ -131,6 +132,27 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   );
 
   return memberRoles;
+};
+
+export const useGroupsHostedBy = (userId: string) => {
+  return useQuery({
+    queryKey: ['groupsHostedBy', userId],
+    queryFn: async () => {
+      // query backend for all groups the ship hosts
+      const groups = await api.findGroupsHostedBy(userId);
+
+      const clientGroups = api.toClientGroupsFromPreview(groups);
+      // insert any we didn't already have
+      await db.insertGroups(clientGroups, false);
+
+      const groupIds = clientGroups.map((g) => g.id);
+      const groupPreviews = await db.getGroupPreviews(groupIds);
+      return groupPreviews;
+    },
+    // this query's data rarely changes and is never invalidated elsewhere,
+    // so we set stale time manually
+    staleTime: 1000 * 60 * 30,
+  });
 };
 
 export const useChannelSearchResults = (

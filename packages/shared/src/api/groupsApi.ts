@@ -100,10 +100,13 @@ export const pinItem = async (itemId: string) => {
 };
 
 export const findGroupsHostedBy = async (userId: string) => {
-  const result = await subscribeOnce<ub.GroupIndex>({
-    app: 'groups',
-    path: `/gangs/index/${userId}`,
-  });
+  const result = await subscribeOnce<ub.GroupIndex>(
+    {
+      app: 'groups',
+      path: `/gangs/index/${userId}`,
+    },
+    30_000
+  );
 
   logger.log('findGroupsHostedBy result', result);
 

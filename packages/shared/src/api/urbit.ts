@@ -34,18 +34,6 @@ export const client = new Proxy(
       }
       return Reflect.get(clientInstance, prop, receiver);
     },
-    set() {
-      throw new Error('Cannot modify the client.');
-    },
-    deleteProperty() {
-      throw new Error('Cannot delete properties from the client.');
-    },
-    defineProperty() {
-      throw new Error('Cannot define properties on the client.');
-    },
-    setPrototypeOf() {
-      throw new Error('Cannot change the prototype of the client.');
-    },
   }
 ) as Urbit;
 

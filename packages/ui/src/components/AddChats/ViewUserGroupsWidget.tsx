@@ -1,18 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import ContactName from '../ContactName';
 import { ListItem, ListItemProps } from '../ListItem';
 import { LoadingSpinner } from '../LoadingSpinner';
-
-interface State {
-  loading: boolean;
-  error: string | null;
-  groups: db.Group[];
-}
 
 export function ViewUserGroupsWidget({
   userId,
@@ -21,28 +14,11 @@ export function ViewUserGroupsWidget({
   userId: string;
   onSelectGroup: (group: db.Group) => void;
 }) {
-  const [state, setState] = useState<State>({
-    loading: true,
-    error: null,
-    groups: [],
-  });
-
-  useEffect(() => {
-    const fetchContactGroups = async () => {
-      try {
-        const groups = await store.getGroupsHostedBy(userId);
-        setState({ loading: false, error: null, groups });
-      } catch (e) {
-        console.error(`Error loading groups hosted by ${userId}`, e);
-        setState({ loading: false, error: e.message, groups: [] });
-      }
-    };
-    fetchContactGroups();
-  }, [userId]);
+  const { data, isError, isLoading } = store.useGroupsHostedBy(userId);
 
   return (
     <View flex={1}>
-      {state.loading ? (
+      {isLoading ? (
         <YStack marginTop="$xl" justifyContent="center" alignItems="center">
           <LoadingSpinner />
           <SizableText marginTop="$xl" color="$secondaryText">
@@ -50,7 +26,7 @@ export function ViewUserGroupsWidget({
             <ContactName showNickname fontWeight="500" userId={userId} />
           </SizableText>
         </YStack>
-      ) : state.error ? (
+      ) : isError ? (
         <YStack marginTop="$xl" justifyContent="center" alignItems="center">
           <SizableText color="$negativeActionText">
             Error loading groups hosted by{' '}
@@ -71,13 +47,19 @@ export function ViewUserGroupsWidget({
             </SizableText>
           </XStack>
           <ScrollView>
-            {state.groups.map((group) => (
-              <GroupPreviewListItem
-                key={group.id}
-                model={group}
-                onPress={() => onSelectGroup(group)}
-              />
-            ))}
+            {data && data.length > 0 ? (
+              data?.map((group) => (
+                <GroupPreviewListItem
+                  key={group.id}
+                  model={group}
+                  onPress={() => onSelectGroup(group)}
+                />
+              ))
+            ) : (
+              <SizableText color="$secondaryText" textAlign="center">
+                <ContactName userId={userId} showNickname /> hosts no groups
+              </SizableText>
+            )}
           </ScrollView>
         </>
       )}
