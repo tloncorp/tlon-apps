@@ -103,7 +103,7 @@ export default function GalleryPost({
                   source={{
                     uri: postIsJustImage ? image!.src : linkedImage,
                   }}
-                  resizeMode="cover"
+                  resizeMode="contain"
                   width={WIDTH_DETAIL_VIEW_CONTENT}
                   height={HEIGHT_DETAIL_VIEW_CONTENT}
                 />
