@@ -1,4 +1,4 @@
-import { makePrettyShortDate, makePrettyTime } from '@tloncorp/shared/dist';
+import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { ScrollView } from 'moti';
 import { useCallback, useMemo } from 'react';
@@ -6,9 +6,8 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import { getTokenValue } from 'tamagui';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
-import { Avatar } from '../Avatar';
+import AuthorRow from '../AuthorRow';
 import ChatContent from '../ChatMessage/ChatContent';
-import ContactName from '../ContactName';
 import Pressable from '../Pressable';
 
 const IMAGE_HEIGHT = 268;
@@ -38,12 +37,6 @@ export default function NotebookPost({
     const date = new Date(post.sentAt);
 
     return makePrettyShortDate(date);
-  }, [post.sentAt]);
-
-  const timeDisplay = useMemo(() => {
-    const date = new Date(post.sentAt);
-
-    return makePrettyTime(date);
   }, [post.sentAt]);
 
   const handleLongPress = useCallback(() => {
@@ -126,17 +119,12 @@ export default function NotebookPost({
         </YStack>
         <XStack gap="$l" alignItems="center" justifyContent="space-between">
           {showAuthor && (
-            <XStack gap="$s" alignItems="center">
-              <Avatar
-                size="$2xl"
-                contact={post.author}
-                contactId={post.authorId}
-              />
-              <ContactName showNickname userId={post.authorId} />
-              <Text color="$secondaryText" fontSize="$s">
-                {timeDisplay}
-              </Text>
-            </XStack>
+            <AuthorRow
+              authorId={post.authorId}
+              author={post.author}
+              sent={post.sentAt}
+              type={post.type}
+            />
           )}
           {showReplies && (
             <XStack

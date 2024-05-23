@@ -1,7 +1,4 @@
-import {
-  isChatChannel as getIsChatChannel,
-  makePrettyTime,
-} from '@tloncorp/shared/dist';
+import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
 import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
@@ -13,6 +10,7 @@ import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
+import AuthorRow from './AuthorRow';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
@@ -21,7 +19,6 @@ import CommentsScrollerSheet from './CommentsScrollerSheet';
 import { GalleryPost } from './GalleryPost';
 import { MessageInput } from './MessageInput';
 import { NotebookPost } from './NotebookPost';
-import PostScreenAuthorRow from './PostScreenAuthorRow';
 
 export function PostScreenView({
   currentUserId,
@@ -76,11 +73,6 @@ export function PostScreenView({
     : parentPost?.title
       ? parentPost.title
       : `Post: ${channel?.title ?? null}`;
-
-  const timeDisplay = useMemo(() => {
-    const date = new Date(parentPost?.sentAt ?? 0);
-    return makePrettyTime(date);
-  }, [parentPost?.sentAt]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -162,7 +154,7 @@ export function PostScreenView({
               )}
               {negotiationMatch && !editingPost && channel && canWrite && (
                 <View
-                  position="absolute"
+                  position={isChatChannel ? undefined : 'absolute'}
                   backgroundColor="$background"
                   bottom={0}
                   width="100%"
@@ -180,10 +172,12 @@ export function PostScreenView({
                       getDraft={getDraft}
                     />
                   ) : parentPost ? (
-                    <PostScreenAuthorRow
+                    <AuthorRow
                       parentPost={parentPost}
-                      timeDisplay={timeDisplay}
                       setShowComments={setShowComments}
+                      authorId={parentPost.authorId}
+                      author={parentPost.author}
+                      sent={parentPost.sentAt}
                     />
                   ) : null}
                 </View>

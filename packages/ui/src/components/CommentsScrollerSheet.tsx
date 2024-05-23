@@ -1,17 +1,16 @@
-import { makePrettyTime } from '@tloncorp/shared/dist';
 import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 
 import { View } from '../core';
 import { ActionSheet } from './ActionSheet';
+import AuthorRow from './AuthorRow';
 import Scroller from './Channel/Scroller';
 import { ChatMessage } from './ChatMessage';
 import { MessageInput } from './MessageInput';
-import PostScreenAuthorRow from './PostScreenAuthorRow';
 
 export default function CommentsScrollerSheet({
   open,
@@ -51,11 +50,6 @@ export default function CommentsScrollerSheet({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
-  const timeDisplay = useMemo(() => {
-    const date = new Date(parentPost?.sentAt ?? 0);
-    return makePrettyTime(date);
-  }, [parentPost?.sentAt]);
-
   return (
     <ActionSheet
       open={open}
@@ -65,10 +59,11 @@ export default function CommentsScrollerSheet({
       disableDrag
     >
       <View height="100%" paddingBottom={bottom + getTokenValue('$2xl')}>
-        <PostScreenAuthorRow
+        <AuthorRow
           parentPost={parentPost}
-          timeDisplay={timeDisplay}
-          setShowComments={() => {}}
+          authorId={parentPost.authorId}
+          author={parentPost.author}
+          sent={parentPost.sentAt}
         />
         <Scroller
           setInputShouldBlur={setInputShouldBlur}

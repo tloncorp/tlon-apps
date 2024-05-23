@@ -19,22 +19,10 @@ import {
 import { getTokenValue } from 'tamagui';
 
 import { LinearGradient, Text, View, YStack } from '../../core';
+import AuthorRow from '../AuthorRow';
 import ChatContent from '../ChatMessage/ChatContent';
 import ContentReference from '../ContentReference';
 import Pressable from '../Pressable';
-import GalleryAuthorRow from './GalleryAuthorRow';
-
-// We want to show two posts per row in the gallery view, each with a margin of 16
-// and padding of 16 on all sides. This means that the width of each post should be
-// (windowWidth - 2 * padding - 2 * margin) / 2 = (windowWidth - 64) / 2
-const postPadding = getTokenValue('$l');
-const postMargin = getTokenValue('$l');
-const HEIGHT_AND_WIDTH =
-  (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
-// We want the content of the detail view to take up 70% of the screen height
-const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.7;
-// We want the content of the detail view to take up 100% of the screen width
-const WIDTH_DETAIL_VIEW_CONTENT = Dimensions.get('window').width;
 
 export default function GalleryPost({
   post,
@@ -49,6 +37,18 @@ export default function GalleryPost({
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   detailView?: boolean;
 }) {
+  // We want to show two posts per row in the gallery view, each with a margin of 16
+  // and padding of 16 on all sides. This means that the width of each post should be
+  // (windowWidth - 2 * padding - 2 * margin) / 2 = (windowWidth - 64) / 2
+  const postPadding = getTokenValue('$l');
+  const postMargin = getTokenValue('$l');
+  const HEIGHT_AND_WIDTH =
+    (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
+  // We want the content of the detail view to take up 70% of the screen height
+  const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.7;
+  // We want the content of the detail view to take up 100% of the screen width
+  const WIDTH_DETAIL_VIEW_CONTENT = Dimensions.get('window').width;
+
   const { inlines, references, blocks } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
@@ -127,10 +127,11 @@ export default function GalleryPost({
             >
               {!detailView && (
                 <View position="absolute" bottom="$l">
-                  <GalleryAuthorRow
+                  <AuthorRow
                     author={post.author}
                     authorId={post.authorId}
                     sent={post.sentAt}
+                    type={post.type}
                     width={HEIGHT_AND_WIDTH}
                   />
                 </View>
@@ -175,10 +176,11 @@ export default function GalleryPost({
             </View>
             {!detailView && (
               <View position="absolute" bottom="$l">
-                <GalleryAuthorRow
+                <AuthorRow
                   author={post.author}
                   authorId={post.authorId}
                   sent={post.sentAt}
+                  type={post.type}
                   width={HEIGHT_AND_WIDTH}
                 />
               </View>
@@ -234,10 +236,11 @@ export default function GalleryPost({
               />
             </View>
             <View position="absolute" bottom="$l">
-              <GalleryAuthorRow
+              <AuthorRow
                 author={post.author}
                 authorId={post.authorId}
                 sent={post.sentAt}
+                type={post.type}
                 width={HEIGHT_AND_WIDTH}
               />
             </View>
