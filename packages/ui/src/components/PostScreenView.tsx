@@ -67,10 +67,6 @@ export function PostScreenView({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
 
-  console.log('PostScreenView', {
-    posts,
-  });
-
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
     : parentPost?.title
