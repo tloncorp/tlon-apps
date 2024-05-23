@@ -26,7 +26,7 @@
     ]
   },
   "dependencies": {
-    "@urbit/api": "^2.2.0",
+    "@urbit/api": "2.2.0",
     "big-integer": "^1.6.52",
     "exponential-backoff": "^3.1.1",
     "sorted-btree": "^1.8.1"

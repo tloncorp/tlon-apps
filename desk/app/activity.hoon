@@ -337,7 +337,7 @@
       [%x %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
-      [%x %unreads ~]
+      [%x %activity ~]
     ``activity-summary+!>(activity)
   ::
       [%x %volume-settings ~]

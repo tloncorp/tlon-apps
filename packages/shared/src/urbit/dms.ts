@@ -330,7 +330,6 @@ export interface ClubAction {
 export interface DMInit {
   clubs: Clubs;
   dms: string[];
-  unreads: DMUnreads;
   invited: string[];
 }
 

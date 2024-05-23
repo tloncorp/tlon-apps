@@ -217,7 +217,7 @@ export function useUnreads(): Activity {
   const { data, ...rest } = useReactQueryScry<Activity>({
     queryKey: unreadsKey,
     app: 'activity',
-    path: '/unreads',
+    path: '/activity',
     onScry: stripPrefixes,
   });
 
