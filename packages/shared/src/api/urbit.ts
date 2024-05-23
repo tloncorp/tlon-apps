@@ -1,3 +1,4 @@
+import { preSig } from '@urbit/api';
 import { deSig } from '@urbit/aura';
 import { Urbit } from '@urbit/http-api';
 import _ from 'lodash';
@@ -71,6 +72,7 @@ export function configureClient({
   logger.log('configuring client', shipName, shipUrl);
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
   clientInstance.ship = deSig(shipName);
+  clientInstance.our = preSig(shipName);
   clientInstance.verbose = verbose;
   clientInstance.on('status-update', (status) => {
     logger.log('status-update', status);
