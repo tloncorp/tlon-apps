@@ -4,6 +4,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getTokenValue } from 'tamagui';
 
 import { View } from '../core';
 import { ActionSheet } from './ActionSheet';
@@ -63,7 +64,7 @@ export default function CommentsScrollerSheet({
       snapPoints={[90]}
       disableDrag
     >
-      <View height="100%" paddingBottom={bottom + 24}>
+      <View height="100%" paddingBottom={bottom + getTokenValue('$2xl')}>
         <PostScreenAuthorRow
           parentPost={parentPost}
           timeDisplay={timeDisplay}

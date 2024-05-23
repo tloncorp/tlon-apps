@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ScrollView } from 'moti';
 import { useCallback, useMemo } from 'react';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { getToken } from 'tamagui';
+import { getTokenValue } from 'tamagui';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import { Avatar } from '../Avatar';
@@ -66,7 +66,10 @@ export default function NotebookPost({
         <YStack key={post.id} gap="$2xl" paddingHorizontal="$xl">
           {post.image && (
             <TouchableOpacity onPress={handleImagePressed} activeOpacity={0.9}>
-              <View marginHorizontal={-getToken('$2xl')} alignItems="center">
+              <View
+                marginHorizontal={-getTokenValue('$2xl')}
+                alignItems="center"
+              >
                 <Image
                   source={{
                     uri: post.image,

@@ -88,7 +88,6 @@ export default function GalleryPost({
               onPress={() =>
                 handleImagePressed(postIsJustImage ? image!.src : linkedImage!)
               }
-              activeOpacity={0.9}
             >
               <YStack gap="$s">
                 <Image
