@@ -13,6 +13,7 @@ import {
   WritDeltaAdd,
   WritDiff,
   checkNest,
+  getChannelType,
   getTextContent,
   whomIsDm,
 } from '../urbit';
@@ -25,6 +26,7 @@ import {
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
+  toPostEssay,
   udToDate,
   with404Handler,
 } from './apiUtils';
@@ -100,13 +102,17 @@ export const sendPost = async ({
   authorId,
   sentAt,
   content,
+  metadata,
 }: {
   channelId: string;
   authorId: string;
   sentAt: number;
   content: Story;
+  metadata?: db.PostMetadata;
 }) => {
-  if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+  const channelType = getChannelType(channelId);
+
+  if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
         memo: {
@@ -128,14 +134,13 @@ export const sendPost = async ({
     return;
   }
 
-  const essay: ub.PostEssay = {
+  const essay = toPostEssay({
     content,
-    sent: sentAt,
-    'kind-data': {
-      chat: null,
-    },
-    author: authorId,
-  };
+    authorId,
+    sentAt,
+    channelType,
+    metadata,
+  });
 
   await poke(
     channelPostAction(channelId, {
@@ -151,6 +156,7 @@ export const editPost = async ({
   sentAt,
   content,
   parentId,
+  metadata,
 }: {
   channelId: string;
   postId: string;
@@ -158,7 +164,9 @@ export const editPost = async ({
   sentAt: number;
   content: Story;
   parentId?: string;
+  metadata?: db.PostMetadata;
 }) => {
+  const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     throw new Error('Cannot edit a post in a DM or group DM');
   }
@@ -188,14 +196,13 @@ export const editPost = async ({
     return;
   }
 
-  const essay: ub.PostEssay = {
-    author: authorId,
+  const essay = toPostEssay({
     content,
-    sent: sentAt,
-    'kind-data': {
-      chat: null,
-    },
-  };
+    authorId,
+    sentAt,
+    channelType,
+    metadata,
+  });
 
   const action = channelPostAction(channelId, {
     edit: {

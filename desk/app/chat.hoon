@@ -1196,7 +1196,7 @@
     |=  =action:club:c
     =/  =cage  chat-club-action+!>(action)
     =.  cor
-      (emit %give %fact ~[/clubs] cage)
+      (emit %give %fact ~[/ /clubs] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
@@ -1205,10 +1205,10 @@
     ?~  response  cu-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[cu-area] cage)
+      (emit %give %fact ~[/ cu-area] cage)
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[cu-area-writs] cage)
+      (emit %give %fact ~[/ cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1495,7 +1495,7 @@
   =/  invites
   ?:  (~(has by dms) ship)   ~(key by pending-dms)
   (~(put in ~(key by pending-dms)) ship)
-  (give %fact ~[/dm/invited] ships+!>(invites))
+  (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
@@ -1569,10 +1569,10 @@
     ?~  response  di-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area] cage)
+      (emit %give %fact ~[/ di-area] cage)
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area-writs] cage)
+      (emit %give %fact ~[/ di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff

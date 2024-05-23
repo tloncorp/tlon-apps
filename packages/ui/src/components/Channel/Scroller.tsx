@@ -22,7 +22,7 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
-import { useStyle } from 'tamagui';
+import { useStyle, useTheme } from 'tamagui';
 
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
@@ -162,14 +162,15 @@ export default function Scroller({
     [anchor, hasFoundAnchor]
   );
 
+  const theme = useTheme();
+
   // Used to hide the scroller until we've found the anchor post.
   const style = useMemo(() => {
     return {
       opacity: hasFoundAnchor ? 1 : 0,
-      backgroundColor: 'white',
+      backgroundColor: theme.background.val,
     };
-  }, [hasFoundAnchor]);
-
+  }, [hasFoundAnchor, theme.background.val]);
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = posts?.[index + 1];
@@ -327,6 +328,9 @@ export default function Scroller({
       {posts && (
         <FlatList<db.Post>
           ref={flatListRef}
+          // This is needed so that we can force a refresh of the list when
+          // we need to switch from 1 to 2 columns or vice versa.
+          key={channelType}
           data={posts}
           renderItem={listRenderItem}
           ListEmptyComponent={renderEmptyComponent}
@@ -338,6 +342,7 @@ export default function Scroller({
           inverted={inverted}
           initialNumToRender={10}
           maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
+          numColumns={channelType === 'gallery' ? 2 : 1}
           style={style}
           onEndReached={handleEndReached}
           onEndReachedThreshold={2}
