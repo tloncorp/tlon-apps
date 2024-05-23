@@ -10,12 +10,12 @@ import { configureClient } from '../lib/api';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
-  initialNotificationPath?: string;
+  notificationChannelId?: string;
 }
 
-function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
+function AuthenticatedApp({ notificationChannelId }: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
-  useNotificationListener(initialNotificationPath);
+  useNotificationListener(notificationChannelId);
   useDeepLinkListener();
 
   useEffect(() => {

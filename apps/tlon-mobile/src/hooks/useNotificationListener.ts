@@ -1,18 +1,21 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
-// import { parseActiveTab } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
+import * as db from '@tloncorp/shared/dist/db';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
+import { syncDms, syncGroups } from 'packages/shared/dist';
+import { whomIsDm, whomIsMultiDm } from 'packages/shared/dist/urbit';
 import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
-import type { TabParamList } from '../types';
-import { getPathFromWer } from '../utils/string';
+import type { HomeStackParamList } from '../types';
 
-export default function useNotificationListener(initialNotifPath?: string) {
-  const navigation = useNavigation<NavigationProp<TabParamList>>();
-  const [gotoPath, setGotoPath] = useState<string | null>(
-    initialNotifPath ?? null
+export default function useNotificationListener(
+  notificationChannelId?: string
+) {
+  const navigation = useNavigation<NavigationProp<HomeStackParamList>>();
+  const [gotoChannelId, setGotoChannelId] = useState<string | null>(
+    notificationChannelId ?? null
   );
 
   // Start notifications prompt
@@ -38,9 +41,8 @@ export default function useNotificationListener(initialNotifPath?: string) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
           // TODO: Send reply
-        } else if (data.wer) {
-          const notifPath = getPathFromWer(data.wer);
-          setGotoPath(notifPath);
+        } else if (data.channelId) {
+          setGotoChannelId(data.channelId);
         }
       }
     );
@@ -51,19 +53,40 @@ export default function useNotificationListener(initialNotifPath?: string) {
     };
   }, [navigation]);
 
-  // If notification tapped, broadcast that navigation update to the
-  // webview and mark as handled
+  // If notification tapped, push channel on stack
   useEffect(() => {
-    // TODO: Setup a way to handle this without webview
-    // if (gotoPath && webviewContext.appLoaded) {
-    // console.debug(
-    // '[useNotificationListener] Setting webview path:',
-    // gotoPath
-    // );
-    // webviewContext.setGotoPath(gotoPath);
-    // const tab = parseActiveTab(gotoPath) ?? 'Groups';
-    // navigation.navigate(tab, { screen: 'Webview' });
-    // setGotoPath(null);
-    // }
-  }, [gotoPath, navigation]);
+    if (gotoChannelId) {
+      const goToChannel = async () => {
+        const channel = await db.getChannel({ id: gotoChannelId });
+        if (!channel) {
+          return false;
+        }
+
+        navigation.navigate('Channel', { channel });
+        setGotoChannelId(null);
+        return true;
+      };
+
+      (async () => {
+        // First check if we have this channel in local store
+        let didNavigate = await goToChannel();
+
+        // If not, sync from source and try again
+        if (!didNavigate) {
+          if (whomIsDm(gotoChannelId) || whomIsMultiDm(gotoChannelId)) {
+            await syncDms();
+          } else {
+            await syncGroups();
+          }
+
+          didNavigate = await goToChannel();
+
+          // If still not found, clear out the requested channel ID
+          if (!didNavigate) {
+            setGotoChannelId(null);
+          }
+        }
+      })();
+    }
+  }, [gotoChannelId, navigation]);
 }
