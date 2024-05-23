@@ -63,16 +63,18 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
 };
 
 export const useContact = (options: { id: string }) => {
+  const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
-    queryKey: [['contact', options]],
+    queryKey: [['contact', deps]],
     queryFn: () => db.getContact(options),
   });
 };
 
 export const useContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getContacts);
   return useQuery({
-    queryKey: ['contacts'],
-    queryFn: db.getContacts,
+    queryKey: ['contacts', deps],
+    queryFn: () => db.getContacts(),
   });
 };
 
