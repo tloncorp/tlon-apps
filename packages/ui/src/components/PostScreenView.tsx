@@ -66,6 +66,10 @@ export function PostScreenView({
   const [showComments, setShowComments] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
+  const postsWithoutParent = useMemo(
+    () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
+    [posts, parentPost]
+  );
 
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
@@ -145,7 +149,7 @@ export function PostScreenView({
                   editingPost={editingPost}
                   setEditingPost={setEditingPost}
                   editPost={editPost}
-                  posts={posts?.filter((p) => p.id !== parentPost.id) ?? []}
+                  posts={postsWithoutParent}
                   parentPost={parentPost}
                   onPressImage={handleGoToImage}
                   sendReply={sendReply}
