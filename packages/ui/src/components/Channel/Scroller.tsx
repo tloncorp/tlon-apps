@@ -216,7 +216,7 @@ export default function Scroller({
               showReplies={showReplies}
               onPressReplies={onPressReplies}
               onPressImage={onPressImage}
-              onLongPress={() => handlePostLongPressed(item)}
+              onLongPress={handlePostLongPressed}
               onPress={onPressPost}
             />
           </PressableMessage>
