@@ -23,14 +23,14 @@ export default function PostScreenAuthorRow({
         gap="$s"
         justifyContent="space-between"
       >
-        <XStack gap="$s" alignItems="center">
+        <XStack maxWidth="80%" gap="$s" alignItems="center">
           <Avatar
             size="$2xl"
             contact={parentPost.author}
             contactId={parentPost.authorId}
           />
           <ContactName
-            maxWidth="65%"
+            maxWidth="80%"
             showNickname
             fontWeight="500"
             userId={parentPost.authorId}

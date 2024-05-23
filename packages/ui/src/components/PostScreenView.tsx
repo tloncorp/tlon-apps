@@ -161,7 +161,12 @@ export function PostScreenView({
                 />
               )}
               {negotiationMatch && !editingPost && channel && canWrite && (
-                <View backgroundColor="$background" bottom={0} width="100%">
+                <View
+                  position="absolute"
+                  backgroundColor="$background"
+                  bottom={0}
+                  width="100%"
+                >
                   {isChatChannel ? (
                     <MessageInput
                       shouldBlur={inputShouldBlur}

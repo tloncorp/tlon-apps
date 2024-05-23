@@ -250,6 +250,7 @@ export default function Scroller({
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
+    alignItems: channelType === 'gallery' ? 'center' : undefined,
   }) as StyleProp<ViewStyle>;
 
   const handleScrollBeginDrag = useCallback(() => {

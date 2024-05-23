@@ -16,6 +16,7 @@ import {
   ImageBackground,
   TouchableOpacity,
 } from 'react-native';
+import { getTokenValue } from 'tamagui';
 
 import { LinearGradient, Text, View, YStack } from '../../core';
 import ChatContent from '../ChatMessage/ChatContent';
@@ -23,9 +24,17 @@ import ContentReference from '../ContentReference';
 import Pressable from '../Pressable';
 import GalleryAuthorRow from './GalleryAuthorRow';
 
-const HEIGHT_AND_WIDTH = (Dimensions.get('window').width - 46) / 2;
-const HEIGHT_DETAIL_VIEW = Dimensions.get('window').height - 236;
-const WIDTH_DETAIL_VIEW = Dimensions.get('window').width;
+// We want to show two posts per row in the gallery view, each with a margin of 16
+// and padding of 16 on all sides. This means that the width of each post should be
+// (windowWidth - 2 * padding - 2 * margin) / 2 = (windowWidth - 64) / 2
+const postPadding = getTokenValue('$l');
+const postMargin = getTokenValue('$l');
+const HEIGHT_AND_WIDTH =
+  (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
+// We want the content of the detail view to take up 70% of the screen height
+const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.7;
+// We want the content of the detail view to take up 100% of the screen width
+const WIDTH_DETAIL_VIEW_CONTENT = Dimensions.get('window').width;
 
 export default function GalleryPost({
   post,
@@ -94,11 +103,11 @@ export default function GalleryPost({
                   source={{
                     uri: postIsJustImage ? image!.src : linkedImage,
                   }}
-                  resizeMode="contain"
-                  width={WIDTH_DETAIL_VIEW}
-                  height={HEIGHT_DETAIL_VIEW}
+                  resizeMode="cover"
+                  width={WIDTH_DETAIL_VIEW_CONTENT}
+                  height={HEIGHT_DETAIL_VIEW_CONTENT}
                 />
-                {inlines.length > 0 && (
+                {inlines.length > 0 && !textPostIsJustLinkedImage && (
                   <View paddingHorizontal="$m">
                     <Text>{tiptap.inlineToString(inlines[0])}</Text>
                   </View>
@@ -133,11 +142,13 @@ export default function GalleryPost({
             backgroundColor="$background"
             borderRadius="$l"
             padding="$l"
-            width={detailView ? WIDTH_DETAIL_VIEW : HEIGHT_AND_WIDTH}
-            height={detailView ? HEIGHT_DETAIL_VIEW : HEIGHT_AND_WIDTH}
+            width={detailView ? WIDTH_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
+            height={detailView ? HEIGHT_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
           >
             <View
-              height={detailView ? HEIGHT_DETAIL_VIEW : HEIGHT_AND_WIDTH - 24}
+              height={
+                detailView ? '100%' : HEIGHT_AND_WIDTH - getTokenValue('$2xl')
+              }
               width="100%"
               overflow="hidden"
               paddingBottom="$xs"
@@ -157,7 +168,7 @@ export default function GalleryPost({
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: HEIGHT_AND_WIDTH - 24,
+                    height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
                   }}
                 />
               )}
@@ -176,14 +187,16 @@ export default function GalleryPost({
         )}
         {postIsJustReference && (
           <View
-            width={detailView ? WIDTH_DETAIL_VIEW : HEIGHT_AND_WIDTH}
-            height={detailView ? HEIGHT_DETAIL_VIEW : HEIGHT_AND_WIDTH}
+            width={detailView ? WIDTH_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
+            height={detailView ? HEIGHT_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
             borderRadius="$l"
             padding="$m"
             overflow="hidden"
           >
             <View
-              height={detailView ? HEIGHT_DETAIL_VIEW : HEIGHT_AND_WIDTH - 24}
+              height={
+                detailView ? '100%' : HEIGHT_AND_WIDTH - getTokenValue('$2xl')
+              }
               width="100%"
               overflow="hidden"
               paddingBottom="$xs"
@@ -216,7 +229,7 @@ export default function GalleryPost({
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: HEIGHT_AND_WIDTH - 24,
+                  height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
                 }}
               />
             </View>
