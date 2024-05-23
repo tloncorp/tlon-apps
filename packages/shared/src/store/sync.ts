@@ -3,6 +3,7 @@ import { backOff } from 'exponential-backoff';
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
@@ -15,6 +16,23 @@ export const syncInitData = async () => {
     await resetUnreads(initData.unreads);
     await db.insertChannels(initData.channels);
     await db.insertChannelPerms(initData.channelPerms);
+  });
+};
+
+export const syncLatestPosts = async () => {
+  return syncQueue.add('latest-posts', async () => {
+    const result = await Promise.all([
+      api.getLatestPosts({ type: 'channels' }),
+      api.getLatestPosts({ type: 'chats' }),
+    ]);
+    await db.insertStandalonePosts(result.flat().map((p) => p.latestPost));
+  });
+};
+
+export const syncChanges = async (options: api.GetChangedPostsOptions) => {
+  return syncQueue.add('changes', async () => {
+    const result = await api.getChangedPosts(options);
+    await persistPagedPostData(options.channelId, result);
   });
 };
 
@@ -65,26 +83,207 @@ const resetUnreads = async (unreads: db.Unread[]) => {
   });
 };
 
+async function handleGroupUpdate(update: api.GroupUpdate) {
+  logger.log('received group update', update.type);
+
+  let channelNavSection: db.GroupNavSectionChannel | null | undefined;
+
+  switch (update.type) {
+    case 'addGroup':
+      await db.insertGroups([update.group]);
+      break;
+    case 'editGroup':
+      await db.updateGroup({ id: update.groupId, meta: update.meta });
+      break;
+    case 'deleteGroup':
+      await db.deleteGroup(update.groupId);
+      break;
+    case 'inviteGroupMembers':
+      await db.addGroupInvites({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'revokeGroupMemberInvites':
+      await db.deleteGroupInvites({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'banGroupMembers':
+      await db.addGroupMemberBans({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'unbanGroupMembers':
+      await db.deleteGroupMemberBans({
+        groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'banAzimuthRanks':
+      await db.addGroupRankBans({
+        groupId: update.groupId,
+        ranks: update.ranks,
+      });
+      break;
+    case 'unbanAzimuthRanks':
+      await db.deleteGroupRankBans({
+        groupId: update.groupId,
+        ranks: update.ranks,
+      });
+      break;
+    case 'flagGroupPost':
+      await db.insertFlaggedPosts([
+        {
+          groupId: update.groupId,
+          channelId: update.channelId,
+          flaggedByContactId: update.flaggingUser,
+          postId: update.postId,
+        },
+      ]);
+      break;
+    case 'setGroupAsPublic':
+      await db.updateGroup({ id: update.groupId, publicOrPrivate: 'public' });
+      break;
+    case 'setGroupAsPrivate':
+      await db.updateGroup({ id: update.groupId, publicOrPrivate: 'private' });
+      break;
+    case 'setGroupAsSecret':
+      await db.updateGroup({ id: update.groupId, isSecret: true });
+      break;
+    case 'setGroupAsNotSecret':
+      await db.updateGroup({ id: update.groupId, isSecret: false });
+      break;
+    case 'addGroupMembers':
+      await db.addChatMembers({
+        chatId: update.groupId,
+        contactIds: update.ships,
+        type: 'group',
+      });
+      break;
+    case 'removeGroupMembers':
+      await db.removeChatMembers({
+        chatId: update.groupId,
+        contactIds: update.ships,
+      });
+      break;
+    case 'addRole':
+      await db.addRole({
+        id: update.roleId,
+        groupId: update.groupId,
+        ...update.meta,
+      });
+      break;
+    case 'editRole':
+      await db.updateRole({
+        id: update.roleId,
+        groupId: update.groupId,
+        ...update.meta,
+      });
+      break;
+    case 'deleteRole':
+      await db.deleteRole(update.roleId, update.groupId);
+      break;
+    case 'addGroupMembersToRole':
+      await db.addChatMembersToRoles({
+        groupId: update.groupId,
+        contactIds: update.ships,
+        roleIds: update.roles,
+      });
+      break;
+    case 'removeGroupMembersFromRole':
+      await db.removeChatMembersFromRoles({
+        groupId: update.groupId,
+        contactIds: update.ships,
+        roleIds: update.roles,
+      });
+      break;
+    case 'addChannel':
+      await db.insertChannels([update.channel]);
+      break;
+    case 'updateChannel':
+      await db.updateChannel(update.channel);
+      break;
+    case 'deleteChannel':
+      channelNavSection = await db.getChannelNavSection({
+        channelId: update.channelId,
+      });
+
+      if (channelNavSection && channelNavSection.groupNavSectionId) {
+        await db.deleteChannelFromNavSection({
+          channelId: update.channelId,
+          groupNavSectionId: channelNavSection.groupNavSectionId,
+        });
+      }
+
+      await db.deleteChannel(update.channelId);
+      break;
+    case 'joinChannel':
+      await db.setJoinedGroupChannels({ channelIds: [update.channelId] });
+      break;
+    case 'leaveChannel':
+      await db.setLeftGroupChannels({ channelIds: [update.channelId] });
+      break;
+    case 'addNavSection':
+      await db.addNavSectionToGroup({
+        id: update.navSectionId,
+        groupId: update.groupId,
+        meta: update.clientMeta,
+      });
+      break;
+    case 'editNavSection':
+      await db.updateNavSection({
+        id: update.navSectionId,
+        ...update.clientMeta,
+      });
+      break;
+    case 'deleteNavSection':
+      await db.deleteNavSection(update.navSectionId);
+      break;
+    case 'moveNavSection':
+      await db.updateNavSection({
+        id: update.navSectionId,
+        index: update.index,
+      });
+      break;
+    case 'moveChannel':
+      logger.log('moving channel', update);
+      await db.addChannelToNavSection({
+        channelId: update.channelId,
+        groupNavSectionId: update.navSectionId,
+        index: update.index,
+      });
+      break;
+    case 'addChannelToNavSection':
+      logger.log('adding channel to nav section', update);
+      await db.addChannelToNavSection({
+        channelId: update.channelId,
+        groupNavSectionId: update.navSectionId,
+        index: 0,
+      });
+      break;
+    case 'unknown':
+    default:
+      break;
+  }
+}
+
 async function handleUnreadUpdate(unread: db.Unread) {
-  logger.log('received new unread', unread.channelId);
+  logger.log('event: unread update', unread);
   await db.insertUnreads([unread]);
+  const channelExists = await db.getChannel({ id: unread.channelId });
+  if (!channelExists) {
+    logger.log('channel does not exist, skipping sync');
+    return;
+  }
+  logger.log('syncing channel', unread.channelId);
   await syncChannel(unread.channelId, unread.updatedAt);
 }
 
-type StaleChannel = db.Channel & { unread: db.Unread };
-
-export const syncStaleChannels = async () => {
-  const channels: StaleChannel[] = optimizeChannelLoadOrder(
-    await db.getStaleChannels()
-  );
-  for (const channel of channels) {
-    syncQueue.add(channel.id, () => {
-      return syncChannel(channel.id, channel.unread.updatedAt);
-    });
-  }
-};
-
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+  logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
       // first check if it's a reply. If it is and we haven't already cached
@@ -101,10 +300,47 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
             replyTime: update.post.sentAt,
           });
         }
+        // insert the reply
+        await db.insertChannelPosts({
+          channelId: update.post.channelId,
+          posts: [update.post],
+        });
       }
-
-      // finally, always insert the post itself
-      await db.insertChannelPosts(update.post.channelId, [update.post]);
+      // For non-replies, we skip inserting and sync from the api instead.
+      // This is significantly slower, but ensures that windowing stays correct. Better solutions would be:
+      // 1. Have the server send the previous post id so that we can match this up with an older window if it exists
+      // 2. Return "non-windowed" posts with first window -- would mostly work but could cause missing posts at times.
+      // TODO: Implement one of those solutions.
+      await syncPosts({
+        channelId: update.post.channelId,
+        cursor: update.post.id,
+        mode: 'around',
+        count: 3,
+      });
+      break;
+    case 'updateWriters':
+      await db.updateChannel({
+        id: update.channelId,
+        writerRoles: update.writers.map((r) => ({
+          channelId: update.channelId,
+          roleId: r,
+        })),
+      });
+      break;
+    case 'deletePost':
+      await db.deletePosts({ ids: [update.postId] });
+      break;
+    case 'hidePost':
+      await db.updatePost({ id: update.postId, hidden: true });
+      break;
+    case 'showPost':
+      await db.updatePost({ id: update.postId, hidden: false });
+      break;
+    case 'updateReactions':
+      await db.replacePostReactions({
+        postId: update.postId,
+        reactions: update.reactions,
+      });
       break;
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
@@ -115,10 +351,34 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   }
 };
 
-export const clearSyncQueue = () => {
-  // TODO: Model all sync functions as syncQueue.add calls so that this works on
-  // more than just `syncStaleChannels`
-  syncQueue.clear();
+export async function syncPosts(options: api.GetChannelPostsOptions) {
+  logger.log(
+    'syncing posts',
+    `${options.channelId}/${options.cursor}/${options.mode}`
+  );
+  const response = await api.getChannelPosts(options);
+  if (response.posts.length) {
+    await db.insertChannelPosts({
+      channelId: options.channelId,
+      posts: response.posts,
+      newer: response.newer,
+      older: response.older,
+    });
+  }
+  return response;
+}
+
+type StaleChannel = db.Channel & { unread: db.Unread };
+
+export const syncStaleChannels = async () => {
+  const channels: StaleChannel[] = optimizeChannelLoadOrder(
+    await db.getStaleChannels()
+  );
+  for (const channel of channels) {
+    syncQueue.add(channel.id, () => {
+      return syncChannel(channel.id, channel.unread.updatedAt);
+    });
+  }
 };
 
 /**
@@ -146,14 +406,6 @@ function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
   return [...topChannels, ...skippedChannels, ...restOfChannels];
 }
 
-export async function syncPosts(options: db.GetChannelPostsOptions) {
-  const response = await api.getChannelPosts(options);
-  if (response.posts.length) {
-    await db.insertChannelPosts(options.channelId, response.posts);
-  }
-  return response;
-}
-
 export async function syncChannel(id: string, remoteUpdatedAt: number) {
   const startTime = Date.now();
   const channel = await db.getChannel({ id });
@@ -166,8 +418,8 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
     const postsResponse = await api.getChannelPosts({
       channelId: id,
       ...(channel.lastPostId
-        ? { direction: 'newer', cursor: channel.lastPostId }
-        : { direction: 'older', date: new Date() }),
+        ? { mode: 'newer', cursor: channel.lastPostId }
+        : { mode: 'older', cursor: new Date() }),
       includeReplies: false,
     });
     await persistPagedPostData(channel.id, postsResponse);
@@ -186,6 +438,9 @@ export async function syncChannel(id: string, remoteUpdatedAt: number) {
 }
 
 export async function syncGroup(id: string) {
+  if (id === '') {
+    throw new Error('group id cannot be empty');
+  }
   const group = await db.getGroup({ id });
   if (!group) {
     throw new Error('no local group for' + id);
@@ -270,10 +525,10 @@ export async function syncThreadPosts({
     authorId,
     channelId,
   });
-  await db.insertChannelPosts(channelId, [
-    response,
-    ...(response.replies ?? []),
-  ]);
+  await db.insertChannelPosts({
+    channelId,
+    posts: [response, ...(response.replies ?? [])],
+  });
 }
 
 async function persistPagedPostData(
@@ -285,7 +540,12 @@ async function persistPagedPostData(
     postCount: data.totalPosts,
   });
   if (data.posts.length) {
-    await db.insertChannelPosts(channelId, data.posts);
+    await db.insertChannelPosts({
+      channelId,
+      posts: data.posts,
+      newer: data.newer,
+      older: data.older,
+    });
     const reactions = data.posts
       .map((p) => p.reactions)
       .flat()
@@ -299,14 +559,15 @@ async function persistPagedPostData(
   }
 }
 
+export const clearSyncQueue = () => {
+  // TODO: Model all sync functions as syncQueue.add calls so that this works on
+  // more than just `syncStaleChannels`
+  syncQueue.clear();
+};
+
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
+  api.subscribeGroups(handleGroupUpdate);
+  useStorage.getState().start();
 };
-
-async function runOperation(name: string, fn: () => Promise<void>) {
-  const startTime = Date.now();
-  logger.log('starting', name, Date.now());
-  await fn();
-  logger.log('synced', name, 'in', Date.now() - startTime + 'ms');
-}

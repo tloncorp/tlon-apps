@@ -117,7 +117,6 @@
 ++  suv-post-without-replies
   |=  post=v-post:c
   ^-  simple-post:c
-  =.  replies.post  ~
   (s-post (uv-post-without-replies post))
 ::
 ++  uv-replies

@@ -55,7 +55,7 @@ interface ShipMentionProps {
   ship: string;
 }
 
-function ShipMention({ ship }: ShipMentionProps) {
+export function ShipMention({ ship }: ShipMentionProps) {
   const location = useLocation();
 
   return (

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "33215800-6606-4adb-bc27-86b6b23e264c",
+  "id": "10ff6ad0-1f25-4bce-bf8c-74f103e5ff44",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -398,6 +398,176 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
+    "group_flagged_posts": {
+      "name": "group_flagged_posts",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "post_id": {
+          "name": "post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "flagged_by_contact_id": {
+          "name": "flagged_by_contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "flagged_at": {
+          "name": "flagged_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_flagged_posts_group_id_groups_id_fk": {
+          "name": "group_flagged_posts_group_id_groups_id_fk",
+          "tableFrom": "group_flagged_posts",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_flagged_posts_group_id_post_id_pk": {
+          "columns": [
+            "group_id",
+            "post_id"
+          ],
+          "name": "group_flagged_posts_group_id_post_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "group_member_bans": {
+      "name": "group_member_bans",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "banned_at": {
+          "name": "banned_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_member_bans_group_id_groups_id_fk": {
+          "name": "group_member_bans_group_id_groups_id_fk",
+          "tableFrom": "group_member_bans",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_member_bans_group_id_contact_id_pk": {
+          "columns": [
+            "contact_id",
+            "group_id"
+          ],
+          "name": "group_member_bans_group_id_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "group_member_invites": {
+      "name": "group_member_invites",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "invited_at": {
+          "name": "invited_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_member_invites_group_id_groups_id_fk": {
+          "name": "group_member_invites_group_id_groups_id_fk",
+          "tableFrom": "group_member_invites",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_member_invites_group_id_contact_id_pk": {
+          "columns": [
+            "contact_id",
+            "group_id"
+          ],
+          "name": "group_member_invites_group_id_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "group_nav_section_channels": {
       "name": "group_nav_section_channels",
       "columns": {
@@ -549,6 +719,58 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
+    "group_rank_bans": {
+      "name": "group_rank_bans",
+      "columns": {
+        "group_id": {
+          "name": "group_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rank_id": {
+          "name": "rank_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "banned_at": {
+          "name": "banned_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "group_rank_bans_group_id_groups_id_fk": {
+          "name": "group_rank_bans_group_id_groups_id_fk",
+          "tableFrom": "group_rank_bans",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "group_rank_bans_group_id_rank_id_pk": {
+          "columns": [
+            "group_id",
+            "rank_id"
+          ],
+          "name": "group_rank_bans_group_id_rank_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "group_roles": {
       "name": "group_roles",
       "columns": {
@@ -688,9 +910,9 @@
           "notNull": false,
           "autoincrement": false
         },
-        "is_secret": {
-          "name": "is_secret",
-          "type": "integer",
+        "privacy": {
+          "name": "privacy",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -870,6 +1092,45 @@
       },
       "uniqueConstraints": {}
     },
+    "post_windows": {
+      "name": "post_windows",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "oldest_post_id": {
+          "name": "oldest_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "newest_post_id": {
+          "name": "newest_post_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "post_windows_channel_id_oldest_post_id_newest_post_id_pk": {
+          "columns": [
+            "channel_id",
+            "newest_post_id",
+            "oldest_post_id"
+          ],
+          "name": "post_windows_channel_id_oldest_post_id_newest_post_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "posts": {
       "name": "posts",
       "columns": {
@@ -1020,6 +1281,13 @@
           "notNull": false,
           "autoincrement": false,
           "default": false
+        },
+        "is_edited": {
+          "name": "is_edited",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "delivery_status": {
           "name": "delivery_status",

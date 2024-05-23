@@ -4,6 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 
 import NavigationDots from '@/components/NavigationDots';
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
@@ -31,7 +32,7 @@ interface NewGroupProps {
 }
 
 export default function NewGroup({ stepMeta }: NewGroupProps) {
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
   const { mutate: createGroupMutation, status } = useCreateGroupMutation();

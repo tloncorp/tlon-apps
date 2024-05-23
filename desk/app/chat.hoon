@@ -654,6 +654,38 @@
         pins
     ==
   ::
+      [%x %heads ?(~ [@ ~])]
+    =/  since=(unit time)
+      ?~  t.t.path  ~
+      ?^  tim=(slaw %da i.t.t.path)  `u.tim
+      `(slav %ud i.t.t.path)
+    :^  ~  ~  %chat-heads
+    !>  ^-  chat-heads:c
+    %+  murn
+      %+  welp
+        (turn ~(tap by dms) |=([=@p dm:c] [ship+p pact remark]))
+      (turn ~(tap by clubs) |=([=id:club:c club:c] [club+id pact remark]))
+    |=  [=whom:c =pact:c =remark:c]
+    ^-  (unit [_whom time (unit writ:c)])
+    ::  if there is no latest post, give nothing
+    ::
+    ?~  vp=(ram:on:writs:c wit.pact)  ~
+    =*  result
+      `[whom recency.remark `val.u.vp]
+    ::  if the request is bounded, check that latest message is "in bounds"
+    ::  (and not presumably already known by the requester)
+    ::
+    ?:  ?|  ?=(~ since)
+            |((gth key.u.vp u.since) (gth recency.remark u.since))
+        ==
+      ::  latest is in range (or recency was changed), give it directly
+      ::
+      result
+    ::  unlike in channels, there is no edit or deletion, so we don't need
+    ::  to account for related edge-cases
+    ::
+    ~
+  ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
   ::
@@ -1207,7 +1239,7 @@
     |=  =action:club:c
     =/  =cage  chat-club-action+!>(action)
     =.  cor
-      (emit %give %fact ~[/clubs] cage)
+      (emit %give %fact ~[/ /clubs] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
@@ -1216,10 +1248,10 @@
     ?~  response  cu-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[cu-area] cage)
+      (emit %give %fact ~[/ cu-area] cage)
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[cu-area-writs] cage)
+      (emit %give %fact ~[/ cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1513,7 +1545,7 @@
   =/  invites
   ?:  (~(has by dms) ship)   ~(key by pending-dms)
   (~(put in ~(key by pending-dms)) ship)
-  (give %fact ~[/dm/invited] ships+!>(invites))
+  (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
@@ -1592,10 +1624,10 @@
     ?~  response  di-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area] cage)
+      (emit %give %fact ~[/ di-area] cage)
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area-writs] cage)
+      (emit %give %fact ~[/ di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff

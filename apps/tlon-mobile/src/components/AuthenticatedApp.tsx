@@ -1,4 +1,4 @@
-import { sync, useStorage } from '@tloncorp/shared';
+import { sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
@@ -19,11 +19,19 @@ function AuthenticatedApp({ initialNotificationPath }: AuthenticatedAppProps) {
   useDeepLinkListener();
 
   useEffect(() => {
-    configureClient(ship ?? '', shipUrl ?? '');
-    sync.start().catch((e) => {
-      console.warn('Sync failed', e);
+    const start = () => {
+      sync.start().catch((e) => {
+        console.warn('Sync failed', e);
+      });
+    };
+
+    configureClient({
+      shipName: ship ?? '',
+      shipUrl: shipUrl ?? '',
+      onReset: () => start(),
     });
-    useStorage.getState().start();
+
+    start();
   }, [ship, shipUrl]);
 
   return (

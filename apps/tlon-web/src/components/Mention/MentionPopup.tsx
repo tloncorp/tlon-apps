@@ -113,6 +113,10 @@ const MentionList = React.forwardRef<
     },
   }));
 
+  if (props.editor.isActive('inline-code')) {
+    return null;
+  }
+
   return (
     <div
       className={cn(
@@ -243,7 +247,8 @@ export default function getMentionPopup(
             SuggestionProps<{ id: string }>
           >(MentionList, { props, editor: props.editor });
 
-          if (!props.clientRect) {
+          // don't show popup if we're in a code block
+          if (!props.clientRect || props.editor.getText().includes('`')) {
             return;
           }
 
@@ -272,7 +277,11 @@ export default function getMentionPopup(
         onUpdate: (props) => {
           component.updateProps(props);
 
-          if (DISALLOWED_MENTION_CHARS.test(props.query)) {
+          if (
+            DISALLOWED_MENTION_CHARS.test(props.query) ||
+            // don't show popup if we're in a code block
+            props.editor.getText().includes('`')
+          ) {
             popup?.[0]?.destroy();
             component?.destroy();
             return;

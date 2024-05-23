@@ -356,3 +356,11 @@ export type BlockedByShips = string[];
 export type ToggleMessage = { hide: string } | { show: string };
 
 export type HiddenMessages = string[];
+
+export type ChatHead = {
+  recency: number;
+  whom: string;
+  latest: Writ;
+};
+
+export type ChatHeadsResponse = ChatHead[];

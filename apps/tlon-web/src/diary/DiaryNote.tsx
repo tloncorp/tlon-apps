@@ -83,6 +83,7 @@ export default function DiaryNote({ title }: ViewProps) {
     // If we have notes on the host, and we can find the real note via the sent time matching the noteId
     // then we redirect to the real note.
     if (
+      notesOnHost &&
       data?.status &&
       'complete' in data.status &&
       data.status.complete === 'yes' &&
@@ -90,23 +91,17 @@ export default function DiaryNote({ title }: ViewProps) {
       noteId !== '' &&
       (noteId === note.seal.id || note.seal.id === undefined)
     ) {
-      if (notesOnHost && typeof notesOnHost === 'object') {
-        const foundNote = Object.keys(notesOnHost).filter((n: string) => {
-          const noteOnHost: Post | null = (notesOnHost as Posts)[n];
-          if (noteOnHost) {
-            return noteOnHost.seal.id === noteId;
-          }
-          return false;
-        });
+      const foundNote = Object.entries(notesOnHost.posts).find(
+        ([, value]) => value && value.seal.id === noteId
+      );
 
-        if (foundNote.length > 0) {
-          const foundNoteId = udToDec(foundNote[0]);
+      if (foundNote) {
+        const foundNoteId = udToDec(foundNote[0]);
 
-          if (foundNoteId !== noteId) {
-            navigate(
-              `/groups/${groupFlag}/channels/diary/${chFlag}/note/${foundNoteId}`
-            );
-          }
+        if (foundNoteId !== noteId) {
+          navigate(
+            `/groups/${groupFlag}/channels/diary/${chFlag}/note/${foundNoteId}`
+          );
         }
       }
     }

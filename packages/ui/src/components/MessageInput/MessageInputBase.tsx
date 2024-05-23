@@ -1,61 +1,70 @@
-import {
-  ContentReference as ContentReferenceType,
-  Upload,
-} from '@tloncorp/shared/dist/api';
+import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { Story } from '@tloncorp/shared/dist/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 
-import { ArrowUp, Close } from '../../assets/icons';
-import { useReferences } from '../../contexts/references';
-import { View, XStack, YStack } from '../../core';
-import ContentReference from '../ContentReference';
+import { ArrowUp, Checkmark, Close } from '../../assets/icons';
+import { ThemeTokens, View, XStack, YStack } from '../../core';
+import FloatingActionButton from '../FloatingActionButton';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
-import MentionPopup from './MentionPopup';
+import InputMentionPopup from './InputMentionPopup';
+import ReferencePreview from './ReferencePreview';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
   send: (content: Story, channelId: string) => void;
   channelId: string;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
+  uploadInfo?: UploadInfo;
   groupMembers: db.ChatMember[];
+  storeDraft: (draft: JSONContent) => void;
+  clearDraft: () => void;
+  getDraft: () => Promise<JSONContent>;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost?: (post: db.Post, content: Story) => void;
+  setShowGalleryInput?: (showGalleryInput: boolean) => void;
+  showAttachmentButton?: boolean;
+  floatingActionButton?: boolean;
+  backgroundColor?: ThemeTokens;
 }
 
 export const MessageInputContainer = ({
   children,
   onPressSend,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
+  uploadInfo,
   containerHeight,
   showMentionPopup = false,
+  showAttachmentButton = true,
+  floatingActionButton = false,
   mentionText,
   groupMembers,
   onSelectMention,
+  isEditing = false,
+  cancelEditing,
+  onPressEdit,
+  editorIsEmpty,
 }: PropsWithChildren<{
-  onPressSend?: () => void;
-  setImageAttachment: (image: string | null) => void;
-  uploadedImage?: Upload | null;
-  canUpload?: boolean;
+  onPressSend: () => void;
+  uploadInfo?: UploadInfo;
   containerHeight: number;
   showMentionPopup?: boolean;
+  showAttachmentButton?: boolean;
+  floatingActionButton?: boolean;
   mentionText?: string;
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
+  isEditing?: boolean;
+  cancelEditing?: () => void;
+  onPressEdit?: () => void;
+  editorIsEmpty: boolean;
 }>) => {
-  const { references, setReferences } = useReferences();
   const hasUploadedImage = useMemo(
-    () => !!(uploadedImage && uploadedImage.url !== ''),
-    [uploadedImage]
+    () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
+    [uploadInfo]
   );
-  const uploadIsLoading = useMemo(
-    () => uploadedImage?.status === 'loading',
-    [uploadedImage]
-  );
+  const uploadIsLoading = useMemo(() => uploadInfo?.uploading, [uploadInfo]);
   const sendIconColor = useMemo(
     () => (uploadIsLoading ? '$secondaryText' : '$primaryText'),
     [uploadIsLoading]
@@ -63,55 +72,14 @@ export const MessageInputContainer = ({
 
   return (
     <YStack width="100%">
-      {Object.keys(references).length ? (
-        <YStack
-          gap="$s"
-          width="100%"
-          position="absolute"
-          bottom={containerHeight + 4}
-          zIndex={10}
-          backgroundColor="$background"
-        >
-          {Object.keys(references).map((ref) =>
-            references[ref] !== null ? (
-              <XStack
-                left={20}
-                position="relative"
-                key={ref}
-                width="100%"
-                height="auto"
-              >
-                <ContentReference
-                  asAttachment
-                  reference={references[ref]!}
-                  key={ref}
-                />
-                <View position="absolute" top={8} right={48}>
-                  <IconButton
-                    onPress={() => {
-                      setReferences({ ...references, [ref]: null });
-                    }}
-                    color="$secondaryText"
-                  >
-                    <Close />
-                  </IconButton>
-                </View>
-              </XStack>
-            ) : null
-          )}
-        </YStack>
-      ) : null}
-      {showMentionPopup ? (
-        <YStack position="absolute" bottom={containerHeight + 4} zIndex={15}>
-          <View position="relative" top={0} left={8}>
-            <MentionPopup
-              onPress={onSelectMention}
-              matchText={mentionText}
-              groupMembers={groupMembers}
-            />
-          </View>
-        </YStack>
-      ) : null}
+      <ReferencePreview containerHeight={containerHeight} />
+      <InputMentionPopup
+        containerHeight={containerHeight}
+        showMentionPopup={showMentionPopup}
+        mentionText={mentionText}
+        groupMembers={groupMembers}
+        onSelectMention={onSelectMention}
+      />
       <XStack
         paddingHorizontal="$m"
         paddingVertical="$s"
@@ -119,25 +87,42 @@ export const MessageInputContainer = ({
         alignItems="flex-end"
         justifyContent="space-between"
       >
-        {hasUploadedImage ? null : canUpload ? (
+        {isEditing ? (
           <View paddingBottom="$m">
-            <AttachmentButton
-              uploadedImage={uploadedImage}
-              setImage={setImageAttachment}
-            />
+            <IconButton onPress={cancelEditing}>
+              <Close />
+            </IconButton>
+          </View>
+        ) : null}
+        {hasUploadedImage ? null : uploadInfo?.canUpload &&
+          showAttachmentButton ? (
+          <View paddingBottom="$m">
+            <AttachmentButton uploadInfo={uploadInfo} />
           </View>
         ) : null}
         {children}
-        <View paddingBottom="$m">
-          <IconButton
-            color={sendIconColor}
-            disabled={uploadIsLoading}
-            onPress={onPressSend}
-          >
-            {/* TODO: figure out what send button should look like */}
-            <ArrowUp />
-          </IconButton>
-        </View>
+        {floatingActionButton ? (
+          <View position="absolute" bottom="$l" right="$l">
+            {editorIsEmpty ? null : (
+              <FloatingActionButton
+                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+                icon={isEditing ? <Checkmark /> : <ArrowUp />}
+              />
+            )}
+          </View>
+        ) : (
+          <View paddingBottom="$m">
+            {editorIsEmpty ? null : (
+              <IconButton
+                color={sendIconColor}
+                disabled={uploadIsLoading}
+                onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+              >
+                {isEditing ? <Checkmark /> : <ArrowUp />}
+              </IconButton>
+            )}
+          </View>
+        )}
       </XStack>
     </YStack>
   );

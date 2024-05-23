@@ -33,6 +33,7 @@ export default function ChannelListItem({
                   showNickname
                   userId={model.lastPost.authorId}
                   size="$s"
+                  color="$secondaryText"
                 />
                 :{' '}
               </>

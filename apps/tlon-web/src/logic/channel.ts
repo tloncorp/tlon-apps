@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import {
   ALPHABETICAL_SORT,
   DEFAULT_SORT,
@@ -310,7 +311,7 @@ export function useFullChannel({
   nest,
   initialize,
 }: FullChannelParams) {
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const group = useGroup(groupFlag);
   const [, chan] = nestToFlag(nest);
   const { ship } = getFlagParts(chan);

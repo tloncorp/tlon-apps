@@ -8,6 +8,8 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import Author from '@/chat/ChatMessage/Author';
 import GroupAvatar from '@/groups/GroupAvatar';
 
+import { useNavWithinTab } from '../Sidebar/util';
+
 interface ReferenceBarProps {
   nest: string;
   time: BigInteger;
@@ -35,7 +37,7 @@ export default function ReferenceBar({
   heapComment = false,
   reply = false,
 }: ReferenceBarProps) {
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const unix = new Date(daToUnix(time));
 
   const navigateToChannel = useCallback(() => {
