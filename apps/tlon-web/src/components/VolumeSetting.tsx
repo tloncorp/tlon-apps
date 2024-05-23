@@ -8,7 +8,7 @@ import {
   getVolumeMap,
   sourceToString,
 } from '@tloncorp/shared/dist/urbit/activity';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 
 import { useVolumeAdjustMutation, useVolumeSettings } from '@/state/activity';
 import { useRouteGroup } from '@/state/groups';
@@ -18,7 +18,6 @@ import Setting from './Settings/Setting';
 
 export default function VolumeSetting({ source }: { source: Source }) {
   const groupFlag = useRouteGroup();
-  const [value, setValue] = useState<NotificationLevel | ''>('');
   const { data: settings, isLoading } = useVolumeSettings();
   const currentSettings = source ? settings[sourceToString(source)] : null;
   const currentVolume = currentSettings
@@ -27,13 +26,13 @@ export default function VolumeSetting({ source }: { source: Source }) {
   const currentUnreads = currentSettings
     ? getUnreadsFromVolumeMap(currentSettings)
     : true;
-  const [unreads, setUnreads] = useState(currentUnreads);
-  const notSet = !currentVolume && !isLoading;
   const { label, volume } = getDefaultVolumeOption(source, settings, groupFlag);
-  const { mutate: setVolume } = useVolumeAdjustMutation();
-  console.log(sourceToString(source), currentSettings, settings, source);
+  const { mutate: setVolume, isLoading: settingVolume } =
+    useVolumeAdjustMutation();
 
   const options: RadioGroupOption[] = [
+    { label: NotificationNames.loud, value: 'loud' },
+    { label: NotificationNames.medium, value: 'medium' },
     { label: NotificationNames.soft, value: 'soft' },
     { label: NotificationNames.hush, value: 'hush' },
   ];
@@ -44,67 +43,46 @@ export default function VolumeSetting({ source }: { source: Source }) {
       value: 'default',
       secondaryLabel: `Your default: ${NotificationNames[volume]}`,
     });
-  } else {
-    options.unshift({ label: NotificationNames.default, value: 'default' });
   }
 
-  options.unshift({ label: NotificationNames.loud, value: 'loud' });
+  const toggle = useCallback(
+    (enabled: boolean) => {
+      if (currentVolume === null) {
+        return;
+      }
 
-  useEffect(() => {
-    if (value === '' && currentVolume && !isLoading) {
-      setValue(currentVolume);
-    }
-
-    if (value === '' && !currentVolume && !isLoading) {
-      setValue('default');
-    }
-  }, [currentVolume, value, isLoading]);
-
-  useEffect(() => {
-    if (unreads !== currentUnreads && !isLoading) {
-      setUnreads(currentUnreads);
-    }
-  }, [unreads, currentUnreads, isLoading]);
-
-  useEffect(() => {
-    if (value === '') {
-      return;
-    }
-
-    const notVolumeDefault = !(currentVolume === null && value === 'default');
-    const volumeNew = currentVolume !== value;
-    if (
-      ((notVolumeDefault && volumeNew) || unreads !== currentUnreads) &&
-      !isLoading
-    ) {
-      debugger;
       setVolume({
         source: source || { base: null },
-        volume: getVolumeMap(value, unreads),
+        volume: getVolumeMap(currentVolume, enabled),
       });
-    }
-  }, [
-    value,
-    currentVolume,
-    unreads,
-    currentUnreads,
-    isLoading,
-    source,
-    setVolume,
-  ]);
+    },
+    [source, currentVolume, setVolume]
+  );
+
+  const adjust = useCallback(
+    (value: NotificationLevel) => {
+      setVolume({
+        source: source || { base: null },
+        volume:
+          value === 'default' ? null : getVolumeMap(value, currentUnreads),
+      });
+    },
+    [currentUnreads, source, setVolume]
+  );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-[400px]">
       <Setting
-        on={unreads}
+        on={currentUnreads}
         name="Show Unread Indicator"
-        toggle={setUnreads}
+        toggle={toggle}
+        disabled={currentVolume === null}
         status={isLoading ? 'loading' : 'idle'}
         labelClassName="font-semibold"
       />
       <RadioGroup
-        value={value}
-        setValue={setValue as React.Dispatch<React.SetStateAction<string>>}
+        value={currentVolume || 'default'}
+        setValue={adjust as (value: string) => void}
         options={options}
       />
     </div>

@@ -737,7 +737,7 @@
           ==
         (send ~[action])
       =/  vm=volume-map  [[%reply & &] ~ ~]
-      (send ~[[%adjust thread vm] action])
+      (send ~[[%adjust thread `vm] action])
     ++  send
       |=  actions=(list action)
       ^+  ca-core
@@ -2061,6 +2061,7 @@
   ++  ca-leave
     =.  ca-core  ca-simple-leave
     =.  ca-core  (ca-response %leave ~)
+    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.perm.channel] ~)
     =.  gone  &
     ca-core
   --

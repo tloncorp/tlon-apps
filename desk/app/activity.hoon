@@ -213,11 +213,11 @@
     =/  [=nest:c =channel:c]  i.entries
     =.  cor
       %+  adjust  [%channel nest group.perm.channel]
-      (my [%post & |] ~)
+      `(my [%post & |] ~)
     $(entries t.entries)
   =+  .^(volume=volume-type %gx (welp groups-prefix /volume/all/noun))
   ::  set any overrides from previous volume settings
-  =.  cor  (adjust [%base ~] (~(got by old-volumes:a) base.volume))
+  =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
   =.  cor
     =/  entries  ~(tap by chan.volume)
     |-
@@ -228,7 +228,7 @@
     ?~  channel  $(entries t.entries)
     =.  cor
       %+  adjust  [%channel nest group.perm.u.channel]
-      (~(got by old-volumes:a) level)
+      `(~(got by old-volumes:a) level)
     $(entries t.entries)
   =/  entries  ~(tap by area.volume)
   |-
@@ -236,7 +236,7 @@
   =*  head  i.entries
   =.  cor
     %+  adjust  [%group -.head]
-    (~(got by old-volumes:a) +.head)
+    `(~(got by old-volumes:a) +.head)
   $(entries t.entries)
 ++  poke
   |=  [=mark =vase]
@@ -253,6 +253,7 @@
     =+  !<(=action:a vase)
     ?-  -.action
       %add     (add +.action)
+      %del     (del +.action)
       %read    (read +.action)
       %adjust  (adjust +.action)
     ==
@@ -389,6 +390,14 @@
     =.  cor  (add-to-index chan-src time-id event)
     (add-to-index group-src time-id event)
   ==
+::
+++  del
+  |=  =source:a
+  ^+  cor
+  =.  indices  (~(del by indices) source)
+  =.  volume-settings  (~(del by volume-settings) source)
+  ::  TODO: send notification removals?
+  (give %fact ~[/] activity-update+!>([%del source]))
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -550,11 +559,14 @@
   (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (~(got by activity) source)]))
 ::
 ++  adjust
-  |=  [=source:a =volume-map:a]
+  |=  [=source:a volume-map=(unit volume-map:a)]
   ^+  cor
+  =.  cor  (give %fact ~[/] activity-update+!>([%adjust source volume-map]))
+  ?~  volume-map
+    cor(volume-settings (~(del by volume-settings) source))
   =/  target  (~(gut by volume-settings) source *volume-map:a)
   =.  volume-settings
-    (~(put by volume-settings) source (~(uni by target) volume-map))
+    (~(put by volume-settings) source (~(uni by target) u.volume-map))
   cor
 ::
 ++  get-children

@@ -280,6 +280,7 @@
     %+  frond  -.u
     ?-  -.u
       %add  (added +.u)
+      %del  (source +.u)
       %read  (read +.u)
       %adjust  (adjusted +.u)
     ==
@@ -290,6 +291,7 @@
     :~  time+(time time.ad)
         event+(event event.ad)
     ==
+  ::
   ++  read
     |=  [s=source:a as=activity-summary:a]
     %-  pairs
@@ -298,10 +300,10 @@
     ==
   ::
   ++  adjusted
-    |=  [s=source:a v=volume-map:a]
+    |=  [s=source:a v=(unit volume-map:a)]
     %-  pairs
     :~  source+(source s)
-        volume+(volume-map v)
+        volume+?~(v ~ (volume-map u.v))
     ==
   --
 ::
@@ -353,6 +355,7 @@
     ^-  $-(json action:a)
     %-  of
     :~  add/add
+        del/source
         read/read
         adjust/adjust
     ==
@@ -378,7 +381,7 @@
   ++  adjust
     %-  ot
     :~  source/source
-        volume/volume-map
+        volume/(mu volume-map)
     ==
   ::
   ++  read

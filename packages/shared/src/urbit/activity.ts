@@ -23,11 +23,12 @@ export type ExtendedEventType =
   | 'flag-post'
   | 'flag-reply';
 
-export type NotificationLevel = 'hush' | 'soft' | 'default' | 'loud';
+export type NotificationLevel = 'hush' | 'soft' | 'default' | 'medium' | 'loud';
 
 export enum NotificationNames {
   loud = 'Notify for all activity',
   default = 'Posts, mentions and replies',
+  medium = 'Posts, mentions and replies ',
   soft = 'Only mentions and replies',
   hush = 'Do not notify for any activity',
 }
@@ -188,11 +189,12 @@ export interface ActivityReadAction {
 
 export interface ActivityVolumeAction {
   source: Source;
-  volume: VolumeMap;
+  volume: VolumeMap | null;
 }
 
 export type ActivityAction =
   | { add: ActivityEvent }
+  | { del: Source }
   | { read: ActivityReadAction }
   | { adjust: ActivityVolumeAction };
 
@@ -206,7 +208,7 @@ export interface ActivityReadUpdate {
 export interface ActivityVolumeUpdate {
   adjust: {
     source: Source;
-    volume: VolumeMap;
+    volume: VolumeMap | null;
   };
 }
 
@@ -217,9 +219,14 @@ export interface ActivityAddUpdate {
   };
 }
 
+export interface ActivityDeleteUpdate {
+  del: Source;
+}
+
 export type ActivityUpdate =
   | ActivityReadUpdate
   | ActivityVolumeUpdate
+  | ActivityDeleteUpdate
   | ActivityAddUpdate;
 
 export interface FullActivity {
@@ -227,7 +234,7 @@ export interface FullActivity {
   activity: Activity;
 }
 
-export type VolumeSettings = Record<string, VolumeMap>;
+export type VolumeSettings = Record<string, VolumeMap | null>;
 
 export function sourceToString(source: Source, stripPrefix = false): string {
   if ('base' in source) {
@@ -311,21 +318,17 @@ export function getUnreadsFromVolumeMap(vmap: VolumeMap): boolean {
 
 export function getLevelFromVolumeMap(vmap: VolumeMap): NotificationLevel {
   const entries = Object.entries(vmap) as [ExtendedEventType, Volume][];
-  if (_.every(entries, ([, v]) => v.unreads && v.notify)) {
+  if (_.every(entries, ([, v]) => v.notify)) {
     return 'loud';
   }
 
-  if (_.every(entries, ([, v]) => !v.unreads && !v.notify)) {
+  if (_.every(entries, ([, v]) => !v.notify)) {
     return 'hush';
-  }
-
-  if (_.every(entries, ([, v]) => v.unreads && !v.notify)) {
-    return 'soft';
   }
 
   let isDefault = true;
   entries.forEach(([k, v]) => {
-    if (onEvents.concat('post').includes(k) && (!v.unreads || !v.notify)) {
+    if (onEvents.concat('post').includes(k) && !v.notify) {
       isDefault = false;
     }
 
@@ -335,7 +338,7 @@ export function getLevelFromVolumeMap(vmap: VolumeMap): NotificationLevel {
   });
 
   if (isDefault) {
-    return 'default';
+    return 'medium';
   }
 
   return 'soft';
@@ -370,7 +373,7 @@ export function getVolumeMap(
     }
 
     if (e === 'post') {
-      acc[e] = { unreads, notify: level === 'default' };
+      acc[e] = { unreads, notify: level === 'medium' || level === 'default' };
     }
 
     return acc;
