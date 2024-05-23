@@ -3,9 +3,9 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
+import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
-import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
@@ -108,6 +108,7 @@ const ChatMessage = ({
             author={post.author}
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
+            type={post.type}
             // roles={roles}
           />
         </View>

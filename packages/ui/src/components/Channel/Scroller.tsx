@@ -35,6 +35,7 @@ type RenderItemFunction = (props: {
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
+  onPress?: (post: db.Post) => void;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
@@ -75,6 +76,7 @@ export default function Scroller({
   setInputShouldBlur,
   onStartReached,
   onEndReached,
+  onPressPost,
   onPressImage,
   onPressReplies,
   showReplies = true,
@@ -97,6 +99,7 @@ export default function Scroller({
   setInputShouldBlur?: (shouldBlur: boolean) => void;
   onStartReached?: () => void;
   onEndReached?: () => void;
+  onPressPost?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
@@ -213,7 +216,8 @@ export default function Scroller({
               showReplies={showReplies}
               onPressReplies={onPressReplies}
               onPressImage={onPressImage}
-              onLongPress={() => handlePostLongPressed(item)}
+              onLongPress={handlePostLongPressed}
+              onPress={onPressPost}
             />
           </PressableMessage>
         </View>
@@ -230,6 +234,7 @@ export default function Scroller({
       activeMessage?.id,
       currentUserId,
       showReplies,
+      onPressPost,
       onPressReplies,
       onPressImage,
       handlePostLongPressed,
@@ -245,6 +250,7 @@ export default function Scroller({
 
   const contentContainerStyle = useStyle({
     paddingHorizontal: '$m',
+    alignItems: channelType === 'gallery' ? 'center' : undefined,
   }) as StyleProp<ViewStyle>;
 
   const handleScrollBeginDrag = useCallback(() => {

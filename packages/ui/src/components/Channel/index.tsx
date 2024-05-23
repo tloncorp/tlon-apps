@@ -219,6 +219,7 @@ export function Channel({
                               unreadCount={
                                 channel.unread?.countWithoutThreads ?? 0
                               }
+                              onPressPost={goToPost}
                               onPressReplies={goToPost}
                               onPressImage={goToImageViewer}
                               setInputShouldBlur={setInputShouldBlur}
@@ -230,7 +231,7 @@ export function Channel({
                       )}
                       {negotiationMatch &&
                         !editingPost &&
-                        isChatChannel &&
+                        (isChatChannel || uploadInfo?.uploadedImage) &&
                         canWrite && (
                           <MessageInput
                             shouldBlur={inputShouldBlur}

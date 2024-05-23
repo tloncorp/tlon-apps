@@ -16,6 +16,7 @@ export default (
       editingPost={undefined}
       negotiationMatch={true}
       setEditingPost={() => {}}
+      parentPost={null}
       currentUserId="~solfer-magfed"
       contacts={initialContacts}
       calmSettings={{
