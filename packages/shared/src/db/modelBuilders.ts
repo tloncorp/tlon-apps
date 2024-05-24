@@ -91,7 +91,7 @@ export function buildPendingSingleDmChannel(
   dmPartnerId: string,
   currentUserId: string
 ): types.Channel {
-  const id = ub.createMultiDmId();
+  const id = dmPartnerId;
   const partnerMember: types.ChatMember = {
     chatId: id,
     contactId: dmPartnerId,
@@ -108,11 +108,10 @@ export function buildPendingSingleDmChannel(
 
   return {
     id,
-    type: 'groupDm',
+    type: 'dm',
     currentUserIsMember: true,
     postCount: 0,
     unreadCount: 0,
-    isPendingChannel: true,
     members: [partnerMember, currentUserMember],
   };
 }
