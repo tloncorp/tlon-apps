@@ -6,11 +6,10 @@ import { makePrettyDay, pluralize } from '@/logic/utils';
 interface DateDividerProps {
   date: Date;
   unreadCount?: number;
-  notify?: boolean;
 }
 
 function DateDividerComponent(
-  { date, unreadCount, notify }: DateDividerProps,
+  { date, unreadCount }: DateDividerProps,
   ref: Ref<HTMLDivElement>
 ) {
   const prettyDay = makePrettyDay(date);
@@ -20,7 +19,7 @@ function DateDividerComponent(
       <div
         className={cn(
           'h-[2px] w-8 rounded-sm',
-          unreadCount ? (notify ? 'bg-blue' : 'bg-gray-400') : 'bg-gray-200'
+          unreadCount ? 'bg-blue' : 'bg-gray-200'
         )}
       >
         &nbsp;
@@ -28,7 +27,7 @@ function DateDividerComponent(
       <span
         className={cn(
           'whitespace-nowrap px-3 font-semibold',
-          unreadCount && notify ? 'text-blue' : 'text-gray-400'
+          unreadCount && 'text-blue'
         )}
       >
         {prettyDay}
@@ -42,7 +41,7 @@ function DateDividerComponent(
       <div
         className={cn(
           'h-[2px] w-full rounded-sm',
-          unreadCount ? (notify ? 'bg-blue' : 'bg-gray-400') : 'bg-gray-200'
+          unreadCount ? 'bg-blue' : 'bg-gray-200'
         )}
       >
         &nbsp;

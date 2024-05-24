@@ -438,7 +438,6 @@ const ChatMessage = React.memo<
             <DateDivider
               date={unix}
               unreadCount={unread.unread.unread?.count || 0}
-              notify={unread.unread.unread?.notify}
               ref={viewRef}
             />
           ) : null}
