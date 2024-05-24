@@ -1,6 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { ScrollView } from 'react-native';
+import { useCallback, useRef } from 'react';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+} from 'react-native';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import ContactName from '../ContactName';
@@ -10,11 +15,31 @@ import { LoadingSpinner } from '../LoadingSpinner';
 export function ViewUserGroupsWidget({
   userId,
   onSelectGroup,
+  onScrollChange,
 }: {
   userId: string;
   onSelectGroup: (group: db.Group) => void;
+  onScrollChange?: (scrolling: boolean) => void;
 }) {
   const { data, isError, isLoading } = store.useGroupsHostedBy(userId);
+
+  const scrollPosition = useRef(0);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollPosition.current = event.nativeEvent.contentOffset.y;
+    },
+    []
+  );
+  const onTouchStart = useCallback(() => {
+    if (scrollPosition.current > 0) {
+      onScrollChange?.(true);
+    }
+  }, [onScrollChange]);
+
+  const onTouchEnd = useCallback(
+    () => onScrollChange?.(false),
+    [onScrollChange]
+  );
 
   return (
     <View flex={1}>
@@ -46,7 +71,11 @@ export function ViewUserGroupsWidget({
               <ContactName showNickname fontWeight="500" userId={userId} />
             </SizableText>
           </XStack>
-          <ScrollView>
+          <ScrollView
+            onScroll={handleScroll}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
             {data && data.length > 0 ? (
               data?.map((group) => (
                 <GroupPreviewListItem
