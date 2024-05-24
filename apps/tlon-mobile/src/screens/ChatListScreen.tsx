@@ -12,6 +12,7 @@ import {
   Spinner,
   StartDmSheet,
   View,
+  triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -77,6 +78,14 @@ export default function ChatListScreen(
     []
   );
 
+  const addPress = useCallback(() => {
+    setAddGroupOpen(true);
+  }, []);
+
+  const startDmPress = useCallback(() => {
+    setStartDmOpen(true);
+  }, []);
+
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
@@ -85,8 +94,8 @@ export default function ChatListScreen(
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}
-              <Icon type="Add" onPress={() => setAddGroupOpen(true)} />
-              <Icon type="Messages" onPress={() => setStartDmOpen(true)} />
+              <Icon type="Add" onPress={addPress} />
+              <Icon type="Messages" onPress={startDmPress} />
             </>
           }
         />
