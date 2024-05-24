@@ -1,11 +1,13 @@
-import { makePrettyShortDate, makePrettyTime } from '@tloncorp/shared/dist';
+import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
+import { ScrollView } from 'moti';
 import { useCallback, useMemo } from 'react';
+import { TouchableOpacity } from 'react-native-gesture-handler';
+import { getTokenValue } from 'tamagui';
 
-import { Image, Text, XStack, YStack } from '../../core';
-import { Avatar } from '../Avatar';
-import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
-import ContactName from '../ContactName';
+import { Image, Text, View, XStack, YStack } from '../../core';
+import AuthorRow from '../AuthorRow';
+import ChatContent from '../ChatMessage/ChatContent';
 import Pressable from '../Pressable';
 
 const IMAGE_HEIGHT = 268;
@@ -14,24 +16,19 @@ export default function NotebookPost({
   post,
   onPress,
   onLongPress,
-  currentUserId,
-  // TODO: handle expanded version (w/full content?)
-  // In general, there are a lot of boolean props here that I *think*
-  // could be handled by making a separate component for headline vs full post
-  expanded = false,
-  showReactions = false,
+  onPressImage,
+  detailView = false,
   showReplies = true,
   showAuthor = true,
   smallImage = false,
   smallTitle = false,
 }: {
   post: db.Post;
-  showReplies?: boolean;
-  currentUserId: string;
-  onPress?: () => void;
+  onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
-  expanded?: boolean;
-  showReactions?: boolean;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  detailView?: boolean;
+  showReplies?: boolean;
   showAuthor?: boolean;
   smallImage?: boolean;
   smallTitle?: boolean;
@@ -42,23 +39,60 @@ export default function NotebookPost({
     return makePrettyShortDate(date);
   }, [post.sentAt]);
 
-  const timeDisplay = useMemo(() => {
-    const date = new Date(post.sentAt);
-
-    return makePrettyTime(date);
-  }, [post.sentAt]);
-
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
+
+  const handleImagePressed = useCallback(() => {
+    if (post.image) {
+      onPressImage?.(post, post.image);
+    }
+  }, [post, onPressImage]);
 
   if (!post) {
     return null;
   }
 
+  if (detailView) {
+    return (
+      <ScrollView>
+        <YStack key={post.id} gap="$2xl" paddingHorizontal="$xl">
+          {post.image && (
+            <TouchableOpacity onPress={handleImagePressed} activeOpacity={0.9}>
+              <View
+                marginHorizontal={-getTokenValue('$2xl')}
+                alignItems="center"
+              >
+                <Image
+                  source={{
+                    uri: post.image,
+                  }}
+                  width="100%"
+                  height={IMAGE_HEIGHT}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
+          <YStack gap="$xl">
+            {post.title && (
+              <Text color="$primaryText" fontSize="$xl">
+                {post.title}
+              </Text>
+            )}
+            <Text color="$tertiaryText" fontSize="$l">
+              {dateDisplay}
+            </Text>
+          </YStack>
+          {/* TODO: build component for rendering notebook content */}
+          <ChatContent post={post} />
+        </YStack>
+      </ScrollView>
+    );
+  }
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress?.(post)}
       onLongPress={handleLongPress}
       delayLongPress={250}
     >
@@ -85,17 +119,12 @@ export default function NotebookPost({
         </YStack>
         <XStack gap="$l" alignItems="center" justifyContent="space-between">
           {showAuthor && (
-            <XStack gap="$s" alignItems="center">
-              <Avatar
-                size="$2xl"
-                contact={post.author}
-                contactId={post.authorId}
-              />
-              <ContactName showNickname userId={post.authorId} />
-              <Text color="$secondaryText" fontSize="$s">
-                {timeDisplay}
-              </Text>
-            </XStack>
+            <AuthorRow
+              authorId={post.authorId}
+              author={post.author}
+              sent={post.sentAt}
+              type={post.type}
+            />
           )}
           {showReplies && (
             <XStack
@@ -112,9 +141,6 @@ export default function NotebookPost({
             </XStack>
           )}
         </XStack>
-        {showReactions && (
-          <ReactionsDisplay post={post} currentUserId={currentUserId} />
-        )}
       </YStack>
     </Pressable>
   );

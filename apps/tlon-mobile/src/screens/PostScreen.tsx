@@ -131,12 +131,13 @@ export default function PostScreen(props: PostScreenProps) {
     [channel, post]
   );
 
-  return contactId && channel ? (
+  return contactId && channel && post ? (
     <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
       <PostScreenView
         contacts={contacts ?? null}
         calmSettings={defaultCalmSettings}
         currentUserId={contactId}
+        parentPost={post}
         posts={posts}
         channel={channel}
         goBack={props.navigation.goBack}
