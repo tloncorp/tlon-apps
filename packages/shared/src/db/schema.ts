@@ -59,6 +59,7 @@ export const contacts = sqliteTable('contacts', {
   color: text('color'),
   avatarImage: text('avatarImage'),
   coverImage: text('coverImage'),
+  isBlocked: boolean('blocked'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
@@ -69,7 +70,7 @@ export const contactGroups = sqliteTable(
   'contact_group_pins',
   {
     contactId: text('contact_id')
-      .references(() => contacts.id)
+      .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
       .references(() => groups.id)
@@ -164,13 +165,18 @@ export const pinRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
+export type GroupJoinStatus = 'joining' | 'errored';
 export type GroupPrivacy = 'public' | 'private' | 'secret';
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
   privacy: text('privacy').$type<GroupPrivacy>(),
-  isJoined: boolean('is_joined'),
+  haveInvite: boolean('have_invite'),
+  haveRequestedInvite: boolean('have_requested_invite'),
+  currentUserIsMember: boolean('current_user_is_member').notNull(),
+  isNew: boolean('is_new'),
+  joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
 });
@@ -193,7 +199,9 @@ export const groupRoles = sqliteTable(
   'group_roles',
   {
     id: text('id'),
-    groupId: text('group_id').references(() => groups.id),
+    groupId: text('group_id').references(() => groups.id, {
+      onDelete: 'cascade',
+    }),
     ...metaFields,
   },
   (table) => {
@@ -221,6 +229,7 @@ export const chatMembers = sqliteTable(
     chatId: text('chat_id'),
     contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
+    status: text('status').$type<'invited' | 'joined'>(),
   },
   (table) => {
     return {
@@ -235,7 +244,7 @@ export const groupFlaggedPosts = sqliteTable(
   'group_flagged_posts',
   {
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
     postId: text('post_id').notNull(),
     channelId: text('channel_id').notNull(),
@@ -277,7 +286,7 @@ export const groupMemberInvites = sqliteTable(
   'group_member_invites',
   {
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
     contactId: text('contact_id').notNull(),
     invitedAt: timestamp('invited_at'),
@@ -309,7 +318,7 @@ export const groupMemberBans = sqliteTable(
   'group_member_bans',
   {
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
     contactId: text('contact_id').notNull(),
     bannedAt: timestamp('banned_at'),
@@ -341,7 +350,7 @@ export const groupRankBans = sqliteTable(
   'group_rank_bans',
   {
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
     rankId: text('rank_id').notNull().$type<Rank>(),
     bannedAt: timestamp('banned_at'),
@@ -410,7 +419,7 @@ export const chatMemberGroupRoles = sqliteTable(
   'chat_member_roles',
   {
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
     contactId: text('contact_id').notNull(),
     roleId: text('role_id').notNull(),
@@ -440,7 +449,9 @@ export const chatMemberRolesRelations = relations(
 
 export const groupNavSections = sqliteTable('group_nav_sections', {
   id: text('id').primaryKey(),
-  groupId: text('group_id').references(() => groups.id),
+  groupId: text('group_id').references(() => groups.id, {
+    onDelete: 'cascade',
+  }),
   ...metaFields,
   index: integer('index'),
 });
@@ -489,7 +500,9 @@ export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
 export const channels = sqliteTable('channels', {
   id: text('id').primaryKey(),
   type: text('type').$type<ChannelType>().notNull(),
-  groupId: text('group_id').references(() => groups.id),
+  groupId: text('group_id').references(() => groups.id, {
+    onDelete: 'cascade',
+  }),
   ...metaFields,
   addedToGroupAt: timestamp('added_to_group_at'),
   currentUserIsMember: boolean('current_user_is_member'),
@@ -498,6 +511,8 @@ export const channels = sqliteTable('channels', {
   firstUnreadPostId: text('first_unread_post_id'),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  isPendingChannel: boolean('is_cached_pending_channel'),
+  isDmInvite: boolean('is_dm_invite'),
   /**
    * Last time we ran a sync, in local time
    */

@@ -1,6 +1,7 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
+import * as api from '../api';
 import * as db from '../db';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
@@ -12,6 +13,7 @@ export * from './useChannelSearch';
 export interface CurrentChats {
   pinned: db.Channel[];
   unpinned: db.Channel[];
+  pendingChats: (db.Group | db.Channel)[];
 }
 
 export const useCalmSettings = (options: { userId: string }) => {
@@ -35,36 +37,44 @@ export const useSettings = (options: { userId: string }) => {
 
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
-    queryFn: db.getChats,
+    queryFn: async () => {
+      const channels = await db.getChats();
+      const pendingChats = await db.getPendingChats();
+      return { channels, pendingChats };
+    },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
-    select(channels: db.Channel[]) {
+    select({ channels, pendingChats }) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
           return {
             pinned: channels.slice(0, i),
             unpinned: channels.slice(i),
+            pendingChats,
           };
         }
       }
       return {
         pinned: channels,
         unpinned: [],
+        pendingChats,
       };
     },
   });
 };
 
 export const useContact = (options: { id: string }) => {
+  const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
-    queryKey: [['contact', options]],
+    queryKey: [['contact', deps]],
     queryFn: () => db.getContact(options),
   });
 };
 
 export const useContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getContacts);
   return useQuery({
-    queryKey: ['contacts'],
-    queryFn: db.getContacts,
+    queryKey: ['contacts', deps],
+    queryFn: () => db.getContacts(),
   });
 };
 
@@ -126,6 +136,27 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   return memberRoles;
 };
 
+export const useGroupsHostedBy = (userId: string) => {
+  return useQuery({
+    queryKey: ['groupsHostedBy', userId],
+    queryFn: async () => {
+      // query backend for all groups the ship hosts
+      const groups = await api.findGroupsHostedBy(userId);
+
+      const clientGroups = api.toClientGroupsFromPreview(groups);
+      // insert any we didn't already have
+      await db.insertGroups(clientGroups, false);
+
+      const groupIds = clientGroups.map((g) => g.id);
+      const groupPreviews = await db.getGroupPreviews(groupIds);
+      return groupPreviews;
+    },
+    // this query's data rarely changes and is never invalidated elsewhere,
+    // so we set stale time manually
+    staleTime: 1000 * 60 * 30,
+  });
+};
+
 export const useChannelSearchResults = (
   channelId: string,
   postIds: string[]
@@ -139,9 +170,13 @@ export const useChannelSearchResults = (
 export const useChannelWithLastPostAndMembers = (
   options: db.GetChannelWithLastPostAndMembersOptions
 ) => {
+  const tableDeps = useKeyFromQueryDeps(db.getChannelWithLastPostAndMembers);
   return useQuery({
-    queryKey: [['channelWithLastPostAndMembers', options]],
-    queryFn: () => db.getChannelWithLastPostAndMembers(options),
+    queryKey: ['channelWithLastPostAndMembers', tableDeps, options],
+    queryFn: async () => {
+      const channel = await db.getChannelWithLastPostAndMembers(options);
+      return channel ?? null;
+    },
   });
 };
 

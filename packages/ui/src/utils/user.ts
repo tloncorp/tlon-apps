@@ -1,3 +1,4 @@
+import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { cite as shorten } from '@urbit/aura';
 
@@ -19,4 +20,8 @@ export function formatUserId(
     display: shortenedName,
     ariaLabel,
   };
+}
+
+export function getDisplayName(contact: db.Contact) {
+  return contact.nickname ? contact.nickname : contact.id;
 }

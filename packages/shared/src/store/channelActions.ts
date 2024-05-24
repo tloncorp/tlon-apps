@@ -38,3 +38,59 @@ export async function markChannelRead(
     await api.markChannelRead(channel.id);
   }
 }
+
+export async function upsertDmChannel({
+  participants,
+}: {
+  participants: string[];
+}): Promise<db.Channel> {
+  const currentUserId = api.getCurrentUserId();
+  // if it's a group dm
+  if (participants.length > 1) {
+    // see if any existing group dm has the exact same participant set
+    const multiDms = await db.getAllMultiDms();
+    const fullParticipantSet = [...participants, currentUserId];
+    const existingId = multiDms.reduce((foundId: null | db.Channel, currDm) => {
+      if (foundId !== null) return foundId;
+      if (currDm.members.length === fullParticipantSet.length) {
+        if (
+          currDm.members.every((member) =>
+            fullParticipantSet.includes(member.contactId)
+          )
+        ) {
+          return currDm;
+        }
+      }
+      return null;
+    }, null);
+
+    // if we found a match, return it
+    if (existingId) {
+      return existingId;
+    }
+
+    // if we didn't, we need to create a new pending group dm channel
+    // on the client that will only persist on the backend after sending
+    // the first message
+    const newMultiDm = db.buildPendingMultiDmChannel(
+      participants,
+      currentUserId
+    );
+    await db.insertChannels([newMultiDm]);
+    return newMultiDm;
+  }
+
+  // check for existing single dm
+  const dmPartner = participants[0];
+  const dms = await db.getAllSingleDms();
+  const existingDm = dms.find((dm) => dm.id === dmPartner);
+  if (existingDm) {
+    return existingDm;
+  }
+
+  // if it doesn't exist, we create a new one but don't need to juggle
+  // any pending state
+  const newDm = db.buildPendingSingleDmChannel(dmPartner, currentUserId);
+  await db.insertChannels([newDm]);
+  return newDm;
+}
