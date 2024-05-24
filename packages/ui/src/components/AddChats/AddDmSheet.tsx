@@ -27,12 +27,18 @@ export function StartDmSheet({
     setDmParticipants([]);
     onOpenChange(false);
     // let close animate, then reset the contact book participants
-    setTimeout(() => setContactBookKey((key) => key + 1), 300);
+    setTimeout(() => {
+      setContactBookKey((key) => key + 1);
+      setDmParticipants([]);
+    }, 300);
   }, [onOpenChange]);
 
   const handleGoToDm = useCallback(() => {
     goToDm(dmParticipants);
-    setTimeout(() => setContactBookKey((key) => key + 1), 300);
+    setTimeout(() => {
+      setContactBookKey((key) => key + 1);
+      setDmParticipants([]);
+    }, 300);
   }, [dmParticipants, goToDm]);
 
   return (

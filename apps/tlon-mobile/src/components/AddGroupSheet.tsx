@@ -193,6 +193,7 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
 function ViewContactGroupsScreen(
   props: NativeStackScreenProps<StackParamList, 'ViewContactGroups'>
 ) {
+  const { onScrollChange } = useContext(ActionContext);
   const onSelectGroup = useCallback(
     (group: db.Group) =>
       props.navigation.push('ViewGroupPreview', {
@@ -209,6 +210,7 @@ function ViewContactGroupsScreen(
       <ViewUserGroupsWidget
         userId={props.route.params.contactId}
         onSelectGroup={onSelectGroup}
+        onScrollChange={onScrollChange}
       />
     </ScreenWrapper>
   );
