@@ -149,6 +149,7 @@ const Sidebar = React.memo(() => {
       {activeTab !== 'messages' ? (
         <AddGroupSidebarItem />
       ) : (
+        //TODO if filtering for broadcasts, show "New Broadcast" button instead
         <SidebarItem
           className="group relative mx-2 mt-2 bg-blue text-white"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}

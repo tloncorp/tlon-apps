@@ -113,6 +113,7 @@ import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ShareDMLure from './profiles/ShareDMLure';
 import { useChannelsFirehose } from './state/channel/channel';
+import BroadcastDm from './dms/BroadcastDm';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -245,6 +246,8 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                 />
               )}
             </Route>
+            {/* TODO doesn't stay on messages tab */}
+            <Route path="/broadcasts/:cohort" element={<BroadcastDm />} />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
             <Route path="/groups/:ship/:name" element={<Groups />}>

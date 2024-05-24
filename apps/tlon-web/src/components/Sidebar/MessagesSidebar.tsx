@@ -15,6 +15,7 @@ import {
   useMessagesFilter,
   usePutEntryMutation,
 } from '@/state/settings';
+import { useCohorts } from '@/state/broadcasts';
 
 export default function MessagesSidebar({
   searchQuery,
@@ -30,8 +31,12 @@ export default function MessagesSidebar({
     key: 'messagesFilter',
   });
   const pinned = usePinnedChats();
+  const { refetch: refetchCohorts } = useCohorts();
 
   const setFilterMode = (mode: SidebarFilter) => {
+    if (mode === filters.broadcasts) {
+      refetchCohorts();
+    }
     mutate({ val: mode });
   };
 
@@ -67,6 +72,16 @@ export default function MessagesSidebar({
       containerClassName: cn(
         'flex items-center space-x-2 rounded-none',
         messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
+      ),
+    },
+    {
+      //TODO only show if %broadcaster agent is running
+      key: 'broadcasts',
+      onClick: () => setFilterMode(filters.broadcasts),
+      content: 'Broadcasts',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.broadcasts && 'bg-gray-50 text-gray-800'
       ),
     },
   ];

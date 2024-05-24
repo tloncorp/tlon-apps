@@ -15,6 +15,7 @@ import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
+import { CohortUnread, Cohorts, cohortToUnread, useCohorts } from '@/state/broadcasts';
 
 import {
   useDmUnreads,
@@ -31,7 +32,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
+function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread | CohortUnread]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -41,7 +42,7 @@ function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
 
 const computeItemKey = (
   _i: number,
-  [whom, _unread]: [string, Unread | DMUnread]
+  [whom, _unread]: [string, Unread | DMUnread | CohortUnread]
 ) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
@@ -59,6 +60,7 @@ export default function MessagesList({
   const { sortMessages } = useMessageSort();
   const { data: dmUnreads } = useDmUnreads();
   const channelUnreads = useUnreads();
+  const broadcasts = useCohorts();
   const unreads = useMemo(
     () => ({
       ...channelUnreads,
@@ -82,7 +84,11 @@ export default function MessagesList({
   };
 
   const messages = useMemo(() => {
-    const filteredMsgs = sortMessages(unreads).filter(([b]) => {
+    const filteredMsgs = (filter === filters.broadcasts)
+      ? sortMessages(Object.fromEntries(Object.entries(broadcasts.data || {}).map((v): [string, CohortUnread] => {
+          return [v[0], cohortToUnread(v[1])]; //REVIEW hax
+        })))
+      : sortMessages(unreads).filter(([b]) => {
       const chat = chats[b];
       const groupFlag = chat?.perms.group;
       const group = groups[groupFlag || ''];
@@ -167,6 +173,7 @@ export default function MessagesList({
     filter,
     contacts,
     clubs,
+    broadcasts,
   ]);
 
   const headerHeightRef = useRef<number>(0);
