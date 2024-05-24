@@ -505,7 +505,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/message/:idTime/volume"
+            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/message/:idTime/volume"
             element={<ThreadVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route

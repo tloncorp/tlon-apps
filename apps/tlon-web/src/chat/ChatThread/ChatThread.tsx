@@ -4,7 +4,7 @@ import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { Link, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
@@ -14,7 +14,7 @@ import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ActionMenu from '@/components/ActionMenu';
 import useLeap from '@/components/Leap/useLeap';
 import MobileHeader from '@/components/MobileHeader';
-import useActiveTab from '@/components/Sidebar/util';
+import useActiveTab, { useNavWithinTab } from '@/components/Sidebar/util';
 import VolumeSetting from '@/components/VolumeSetting';
 import BranchIcon from '@/components/icons/BranchIcon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
@@ -116,7 +116,7 @@ export default function ChatThread() {
       }),
     [replies]
   );
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
@@ -325,9 +325,7 @@ export default function ChatThread() {
                 onClick={() => {
                   navigate(
                     `/groups/${groupFlag}/channels/${nest}/message/${idTime}/volume`,
-                    {
-                      state: { backgroundLocation: location },
-                    }
+                    true
                   );
                 }}
               >
