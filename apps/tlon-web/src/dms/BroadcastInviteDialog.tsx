@@ -20,7 +20,6 @@ export default function BroadcastInviteDialog({
   mode = 'add',
 }: BroadcastInviteDialogProps) {
   const navigate = useNavigate();
-  //TODO  need to clear ships after activation/unmount/navigation
   const [ships, setShips] = useState<ShipOption[]>([]);
   const targets = useCohort(whom).targets;
   const { refetch: refetchCohorts } = useCohorts();
@@ -68,6 +67,7 @@ export default function BroadcastInviteDialog({
         onSuccess: refetchCohorts, onError: refetchCohorts
       });
       setInviteIsOpen(false);
+      setShips([]);
     }
   }, [mode, whom, showError, ships, refetchCohorts, setInviteIsOpen]);
 
@@ -101,14 +101,14 @@ export default function BroadcastInviteDialog({
                   </>
                 );
               })}
-              {invalidShips.length > 1 ? 'are' : 'is'} already in this chat.
+              {invalidShips.length > 1 ? 'are' : 'is'} {mode === 'add' ? 'already' : 'not'} in this chat.
             </div>
           )}
         </div>
         <div className="flex justify-end space-x-2">
           <button
             className="secondary-button"
-            onClick={() => setInviteIsOpen(false)}
+            onClick={() => { setInviteIsOpen(false); setShips([]); }}
           >
             Cancel
           </button>
