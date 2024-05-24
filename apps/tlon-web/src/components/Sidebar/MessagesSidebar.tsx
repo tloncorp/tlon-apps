@@ -31,7 +31,7 @@ export default function MessagesSidebar({
     key: 'messagesFilter',
   });
   const pinned = usePinnedChats();
-  const { refetch: refetchCohorts } = useCohorts();
+  const { refetch: refetchCohorts, data: cohorts } = useCohorts();
 
   const setFilterMode = (mode: SidebarFilter) => {
     if (mode === filters.broadcasts) {
@@ -73,18 +73,17 @@ export default function MessagesSidebar({
         'flex items-center space-x-2 rounded-none',
         messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
       ),
-    },
-    {
-      //TODO only show if %broadcaster agent is running
-      key: 'broadcasts',
-      onClick: () => setFilterMode(filters.broadcasts),
-      content: 'Broadcasts',
-      containerClassName: cn(
-        'flex items-center space-x-2 rounded-none',
-        messagesFilter === filters.broadcasts && 'bg-gray-50 text-gray-800'
-      ),
-    },
+    }
   ];
+  if (cohorts) filterActions.push({
+    key: 'broadcasts',
+    onClick: () => setFilterMode(filters.broadcasts),
+    content: 'Broadcasts',
+    containerClassName: cn(
+      'flex items-center space-x-2 rounded-none',
+      messagesFilter === filters.broadcasts && 'bg-gray-50 text-gray-800'
+    ),
+  });
 
   return (
     <MessagesScrollingContext.Provider value={isScrolling}>
