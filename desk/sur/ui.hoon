@@ -19,6 +19,9 @@
       =chat
       profile=?
   ==
+::
++$  mixed-heads  [chan=channel-heads:d chat=chat-heads:c]
+::
 +$  chat
   $:  clubs=(map id:club:c crew:club:c)
       dms=(set ship)

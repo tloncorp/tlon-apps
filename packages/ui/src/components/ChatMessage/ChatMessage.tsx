@@ -1,12 +1,37 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { memo, useCallback, useMemo } from 'react';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { memo, useCallback } from 'react';
 
-import { SizableText, View, YStack } from '../../core';
-import AuthorRow from './AuthorRow';
+import { SizableText, View, XStack, YStack } from '../../core';
+import AuthorRow from '../AuthorRow';
+import { Icon } from '../Icon';
+import { MessageInput } from '../MessageInput';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+
+const NoticeWrapper = ({
+  isNotice,
+  children,
+}: {
+  isNotice?: boolean;
+  children: JSX.Element;
+}) => {
+  if (isNotice) {
+    return (
+      <XStack gap="$m">
+        <Icon
+          type="AddPerson"
+          color="$secondaryText"
+          size="$m"
+          backgroundColor={'$secondaryBackground'}
+        />
+        {children}
+      </XStack>
+    );
+  }
+  return children;
+};
 
 const ChatMessage = ({
   post,
@@ -16,6 +41,9 @@ const ChatMessage = ({
   onLongPress,
   showReplies,
   currentUserId,
+  editing,
+  editPost,
+  setEditingPost,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -24,13 +52,15 @@ const ChatMessage = ({
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
+  editing?: boolean;
+  editPost?: (post: db.Post, content: Story) => void;
+  setEditingPost?: (post: db.Post | undefined) => void;
 }) => {
   const isNotice = post.type === 'notice';
 
-  const content = useMemo(
-    () => JSON.parse(post.content as string) as PostContent,
-    [post.content]
-  );
+  if (isNotice) {
+    showAuthor = false;
+  }
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -69,7 +99,8 @@ const ChatMessage = ({
       onLongPress={handleLongPress}
       key={post.id}
       gap="$l"
-      paddingVertical="$l"
+      paddingVertical="$m"
+      paddingRight="$l"
     >
       {showAuthor ? (
         <View paddingLeft="$l">
@@ -77,23 +108,41 @@ const ChatMessage = ({
             author={post.author}
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
+            type={post.type}
             // roles={roles}
           />
         </View>
       ) : null}
       <View paddingLeft="$4xl">
-        {post.hidden ? (
+        {editing ? (
+          <MessageInput
+            groupMembers={[]}
+            storeDraft={() => {}}
+            clearDraft={() => {}}
+            getDraft={async () => ({})}
+            shouldBlur={false}
+            setShouldBlur={() => {}}
+            send={() => {}}
+            channelId={post.channelId}
+            editingPost={post}
+            editPost={editPost}
+            setEditingPost={setEditingPost}
+          />
+        ) : post.hidden ? (
           <SizableText color="$secondaryText">
             You have hidden or flagged this message.
           </SizableText>
         ) : (
-          <ChatContent
-            story={content}
-            isNotice={isNotice}
-            onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
-            deliveryStatus={post.deliveryStatus}
-          />
+          <NoticeWrapper isNotice={isNotice}>
+            <ChatContent
+              post={post}
+              isNotice={isNotice}
+              onPressImage={handleImagePressed}
+              onLongPress={handleLongPress}
+              deliveryStatus={post.deliveryStatus}
+              isEdited={post.isEdited ?? false}
+            />
+          </NoticeWrapper>
         )}
       </View>
       <ReactionsDisplay post={post} currentUserId={currentUserId} />

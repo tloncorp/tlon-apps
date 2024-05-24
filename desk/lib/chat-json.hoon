@@ -322,6 +322,17 @@
         essay+(essay:enjs:dj +.writ)
     ==
   ::
+  ++  chat-heads
+    |=  heads=chat-heads:c
+    :-  %a
+    %+  turn  heads
+    |=  [=whom:c recency=^time latest=(unit writ:c)]
+    %-  pairs
+    :~  whom+s+(^whom whom)
+        recency+(time recency)
+        latest+?~(latest ~ (writ u.latest))
+    ==
+  ::
   ++  paged-writs
     |=  pw=paged-writs:c
     %-  pairs

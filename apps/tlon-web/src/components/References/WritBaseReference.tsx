@@ -12,6 +12,7 @@ import { isImageUrl, nestToFlag } from '@/logic/utils';
 import { useChannelPreview, useGang } from '@/state/groups';
 
 import ShipName from '../ShipName';
+import { useNavWithinTab } from '../Sidebar/util';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
 
@@ -31,8 +32,7 @@ function WritBaseReference({
   children,
 }: WritBaseReferenceProps) {
   const preview = useChannelPreview(nest, isScrolling);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const [app, chFlag] = nestToFlag(nest);
   const refMessageType = useMemo(() => {
     if (app === 'chat') {
@@ -93,16 +93,12 @@ function WritBaseReference({
       if ('post' in reference) {
         navigate(
           `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.post.seal.id}`,
-          {
-            state: { backgroundLocation: location },
-          }
+          true
         );
       } else {
         navigate(
           `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.reply['id-post']}`,
-          {
-            state: { backgroundLocation: location },
-          }
+          true
         );
       }
       return;

@@ -1,7 +1,6 @@
 import { constructStory } from '@tloncorp/shared/dist/urbit/channel';
 import { JSONContent } from '@tloncorp/shared/dist/urbit/content';
 import cn from 'classnames';
-import { isFirstDayOfMonth } from 'date-fns';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -18,7 +17,6 @@ import Tooltip from '@/components/Tooltip';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { useChannelCompatibility } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';

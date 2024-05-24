@@ -1,9 +1,11 @@
 import { formatUd, unixToDa } from '@urbit/aura';
 import { useMemo } from 'react';
 
+import { GroupPrivacy } from '../db/schema';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
+import * as ubg from './groups';
 
 type App = 'chat' | 'heap' | 'diary';
 
@@ -153,7 +155,19 @@ export function stringToTa(string: string) {
   return `~~${out}`;
 }
 
+export function idIsNest(id: string) {
+  return id.split('/').length === 3;
+}
+
 export function getChannelType(channelId: string) {
+  if (!idIsNest(channelId)) {
+    if (whomIsDm(channelId)) {
+      return 'dm';
+    }
+    if (whomIsMultiDm(channelId)) {
+      return 'groupDm';
+    }
+  }
   const [app] = nestToFlag(channelId);
 
   if (app === 'chat') {
@@ -186,9 +200,9 @@ export function getTextContent(story?: ub.Story | undefined) {
 
 export function getBlockContent(block: ub.Block) {
   if (ub.isImage(block)) {
-    return '[image]';
+    return '(Image)';
   } else if (ub.isCite(block)) {
-    return '[ref]';
+    return '(Reference)';
   } else if (ubc.isHeader(block)) {
     return block.header.content.map(getInlineContent);
   } else if (ubc.isCode(block)) {
@@ -305,4 +319,16 @@ export function whomIsMultiDm(whom: string): boolean {
 
 export function useIsDmOrMultiDm(whom: string) {
   return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function extractGroupPrivacy(preview: ubg.Group | null): GroupPrivacy {
+  if (!preview) {
+    return 'public';
+  }
+
+  return preview.secret
+    ? 'secret'
+    : preview.cordon && 'shut' in preview.cordon
+      ? 'private'
+      : 'public';
 }

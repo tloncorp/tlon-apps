@@ -1,13 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { PostScreenView } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo } from 'react';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { PostScreenView, View } from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useShip } from '../contexts/ship';
 import { useImageUpload } from '../hooks/useImageUpload';
+import storage from '../lib/storage';
 import type { HomeStackParamList } from '../types';
 
 type PostScreenProps = NativeStackScreenProps<HomeStackParamList, 'Post'>;
@@ -22,6 +24,9 @@ const defaultCalmSettings = {
 };
 
 export default function PostScreen(props: PostScreenProps) {
+  const { bottom } = useSafeAreaInsets();
+  const [editingPost, setEditingPost] = useState<db.Post>();
+
   const postParam = props.route.params.post;
   const { data: post } = store.usePostWithRelations({
     id: postParam.id,
@@ -42,12 +47,25 @@ export default function PostScreen(props: PostScreenProps) {
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
 
+  const channelHost = useMemo(
+    () => postParam.channelId.split('/')[1],
+    [postParam.channelId]
+  );
+
+  const { matchedOrPending } = store.useNegotiate(
+    channelHost,
+    'channels',
+    'channels-server'
+  );
+
   const posts = useMemo(() => {
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);
 
   useEffect(() => {
-    sync.syncGroup(channel?.groupId ?? '');
+    if (channel?.groupId) {
+      store.syncGroup(channel?.groupId);
+    }
   }, [channel?.groupId]);
 
   const sendReply = async (content: urbit.Story) => {
@@ -69,18 +87,72 @@ export default function PostScreen(props: PostScreenProps) {
     [props.navigation]
   );
 
-  return contactId ? (
-    <PostScreenView
-      contacts={contacts ?? null}
-      calmSettings={defaultCalmSettings}
-      currentUserId={contactId}
-      posts={posts}
-      channel={channel ?? null}
-      goBack={props.navigation.goBack}
-      sendReply={sendReply}
-      groupMembers={groupQuery.data?.members ?? []}
-      uploadInfo={uploadInfo}
-      handleGoToImage={handleGoToImage}
-    />
+  const getDraft = useCallback(async () => {
+    try {
+      const draft = await storage.load({ key: `draft-${postParam.id}` });
+      return draft;
+    } catch (e) {
+      return null;
+    }
+  }, [postParam.id]);
+
+  const storeDraft = useCallback(
+    async (draft: urbit.JSONContent) => {
+      try {
+        await storage.save({ key: `draft-${postParam.id}`, data: draft });
+      } catch (e) {
+        return;
+      }
+    },
+    [postParam.id]
+  );
+
+  const clearDraft = useCallback(async () => {
+    try {
+      await storage.remove({ key: `draft-${postParam.id}` });
+    } catch (e) {
+      return;
+    }
+  }, [postParam.id]);
+
+  const editPost = useCallback(
+    async (editedPost: db.Post, content: Story) => {
+      if (!channel || !post) {
+        return;
+      }
+
+      store.editPost({
+        post: editedPost,
+        content,
+        parentId: post.id,
+      });
+      setEditingPost(undefined);
+    },
+    [channel, post]
+  );
+
+  return contactId && channel && post ? (
+    <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+      <PostScreenView
+        contacts={contacts ?? null}
+        calmSettings={defaultCalmSettings}
+        currentUserId={contactId}
+        parentPost={post}
+        posts={posts}
+        channel={channel}
+        goBack={props.navigation.goBack}
+        sendReply={sendReply}
+        groupMembers={groupQuery.data?.members ?? []}
+        uploadInfo={uploadInfo}
+        handleGoToImage={handleGoToImage}
+        getDraft={getDraft}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+        negotiationMatch={matchedOrPending}
+      />
+    </View>
   ) : null;
 }

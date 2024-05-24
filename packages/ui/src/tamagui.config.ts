@@ -96,6 +96,7 @@ export const themes = {
     color: '#FFFFFF',
     secondaryText: '#B3B3B3',
     background: '#1A1818',
+    transparentBackground: 'rgba(24, 24, 24, 0)',
     secondaryBackground: '#322E2E',
     tertiaryText: '#808080',
     border: '#333333',
@@ -116,6 +117,7 @@ export const themes = {
     color: '#1A1818',
     secondaryText: '#666666',
     background: '#FFFFFF',
+    transparentBackground: 'rgba(255, 255, 255, 0)',
     secondaryBackground: '#F5F5F5',
     tertiaryText: '#999999',
     border: '#E5E5E5',
@@ -217,6 +219,7 @@ export const systemFont = createFont({
   family:
     "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
   size: {
+    xs: 12,
     s: 14,
     m: 16,
     true: 16,

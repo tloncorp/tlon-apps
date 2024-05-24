@@ -36,7 +36,7 @@ export const useSettings = (options: { userId: string }) => {
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: db.getChats,
-    queryKey: ['currentChats', useKeyFromQueryDeps(db.getGroup)],
+    queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     select(channels: db.Channel[]) {
       for (let i = 0; i < channels.length; ++i) {
         if (!channels[i].pin) {
@@ -89,13 +89,19 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroup = (options: { id: string }) => {
+export const useGroup = (options: { id?: string }) => {
   return useQuery({
+    enabled: !!options.id,
     queryKey: [['group', options], useKeyFromQueryDeps(db.getGroup, options)],
-    queryFn: () =>
-      db.getGroup(options).then((r) => {
-        return r ?? null;
-      }),
+    queryFn: () => {
+      if (!options.id) {
+        // This should never actually get thrown as the query is disabled if id
+        // is missing
+        throw new Error('missing id');
+      }
+      const enabledOptions = options as { id: string };
+      return db.getGroup(enabledOptions);
+    },
   });
 };
 
@@ -118,15 +124,6 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   );
 
   return memberRoles;
-};
-
-export const useChannelPostsAround = (
-  options: db.GetChannelPostsAroundOptions
-) => {
-  return useQuery({
-    queryKey: [['channelPostsAround', options]],
-    queryFn: () => db.getChannelPostsAround(options),
-  });
 };
 
 export const useChannelSearchResults = (

@@ -46,6 +46,12 @@ function GroupHeader() {
   const calm = useCalm();
   const isDark = useIsDark();
 
+  useEffect(() => {
+    if (realGroup) {
+      lastGroupRef.current = realGroup;
+    }
+  }, [realGroup]);
+
   const bgStyle = useCallback(() => {
     if (
       group &&

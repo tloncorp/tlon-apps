@@ -3,12 +3,6 @@ import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import { RefObject, useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent, View as RNView } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSpring,
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { View, YStack } from '../../../core';
@@ -16,25 +10,19 @@ import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
 
-interface LayoutStruct {
-  x: number;
-  y: number;
-  height: number;
-  width: number;
-}
-
 export function ChatMessageActions({
   post,
   currentUserId,
-  postRef,
   channelType,
   onDismiss,
+  onReply,
 }: {
   post: db.Post;
   currentUserId: string;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;
   onDismiss: () => void;
+  onReply?: (post: db.Post) => void;
 }) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
@@ -86,6 +74,7 @@ export function ChatMessageActions({
             post={post}
             channelType={channelType}
             dismiss={onDismiss}
+            onReply={onReply}
           />
         </YStack>
       </View>

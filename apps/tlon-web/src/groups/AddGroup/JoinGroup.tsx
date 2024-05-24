@@ -1,4 +1,5 @@
 import { DialogTitle } from '@radix-ui/react-dialog';
+import { isValidPatp } from '@urbit/aura';
 import cn from 'classnames';
 import { useRef, useState } from 'react';
 
@@ -87,6 +88,9 @@ export function JoinGroupDialog() {
             isMulti={false}
             isClearable={true}
             hasPrompt={false}
+            isValidNewOption={(value) =>
+              whomIsFlag(value) || isValidPatp(value)
+            }
             ships={ship ? [ship] : []}
             setShips={selectShip}
             menuPlacement="bottom"

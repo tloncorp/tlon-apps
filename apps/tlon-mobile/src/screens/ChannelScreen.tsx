@@ -4,24 +4,44 @@ import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
-import type { Story } from '@tloncorp/shared/dist/urbit';
+import { Block, JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useImageUpload } from '../hooks/useImageUpload';
+import storage from '../lib/storage';
 import type { HomeStackParamList } from '../types';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
+  useLayoutEffect(() => {
+    if (props.navigation.isFocused()) {
+      props.navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: 'none',
+        },
+      });
+    }
+
+    return () => {
+      props.navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: undefined,
+        },
+      });
+    };
+  }, [props.navigation]);
+
   useFocusEffect(
     useCallback(() => {
       store.clearSyncQueue();
     }, [])
   );
 
+  const [editingPost, setEditingPost] = React.useState<db.Post>();
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
@@ -29,34 +49,52 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const calmSettingsQuery = store.useCalmSettings({
     userId: useCurrentUserId(),
   });
+
+  const channelHost = useMemo(
+    () => currentChannelId.split('/')[1],
+    [currentChannelId]
+  );
+
+  const { matchedOrPending } = store.useNegotiate(
+    channelHost,
+    'channels',
+    'channels-server'
+  );
+
   const channelQuery = store.useChannelWithLastPostAndMembers({
     id: currentChannelId,
   });
   const groupQuery = store.useGroup({
     id: channelQuery.data?.groupId ?? '',
   });
-  const selectedPost = props.route.params.selectedPost;
-  const hasSelectedPost = !!selectedPost;
-
   const uploadInfo = useImageUpload({
     uploaderKey: `${props.route.params.channel.id}`,
   });
 
+  const selectedPostId = props.route.params.selectedPost?.id;
+  const unread = channelQuery.data?.unread;
+  const firstUnreadId =
+    unread &&
+    (unread.countWithoutThreads ?? 0) > 0 &&
+    unread?.firstUnreadPostId;
+  const cursor = selectedPostId || firstUnreadId;
   const postsQuery = store.useChannelPosts({
+    enabled: !!channelQuery.data,
     channelId: currentChannelId,
-    ...(hasSelectedPost
+    ...(cursor
       ? {
-          direction: 'around',
-          cursor: selectedPost.id,
+          mode: 'around',
+          cursor,
+          count: 10,
         }
       : {
-          anchorToNewest: true,
+          mode: 'newest',
+          count: 10,
         }),
-    count: 50,
   });
 
-  const posts = useMemo<db.Post[]>(
-    () => postsQuery.data?.pages.flatMap((p) => p) ?? [],
+  const posts = useMemo<db.Post[] | null>(
+    () => postsQuery.data?.pages.flatMap((p) => p) ?? null,
     [postsQuery.data]
   );
 
@@ -66,10 +104,35 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const currentUserId = useCurrentUserId();
 
   const messageSender = useCallback(
-    async (content: Story, channelId: string) => {
+    async (content: Story, _channelId: string) => {
       if (!currentUserId || !channelQuery.data) {
         return;
       }
+
+      if (
+        content.length === 0 &&
+        uploadInfo.uploadedImage &&
+        channelQuery.data.type === 'gallery'
+      ) {
+        const uploadedImage = uploadInfo.uploadedImage;
+        const blocks: Block[] = [];
+
+        if (uploadedImage) {
+          blocks.push({
+            image: {
+              src: uploadedImage.url,
+              height: uploadedImage.height ? uploadedImage.height : 200,
+              width: uploadedImage.width ? uploadedImage.width : 200,
+              alt: 'image',
+            },
+          });
+        }
+
+        if (blocks && blocks.length > 0) {
+          content.push(...blocks.map((block) => ({ block })));
+        }
+      }
+
       store.sendPost({
         channel: channelQuery.data,
         authorId: currentUserId,
@@ -80,8 +143,25 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [currentUserId, channelQuery.data, uploadInfo]
   );
 
+  const editPost = useCallback(
+    async (post: db.Post, content: Story) => {
+      if (!channelQuery.data) {
+        return;
+      }
+
+      store.editPost({
+        post,
+        content,
+      });
+      setEditingPost(undefined);
+    },
+    [channelQuery.data]
+  );
+
   useEffect(() => {
-    sync.syncGroup(channelQuery.data?.groupId ?? '');
+    if (channelQuery.data?.groupId) {
+      sync.syncGroup(channelQuery.data?.groupId);
+    }
   }, [channelQuery.data?.groupId]);
 
   useEffect(() => {
@@ -93,13 +173,21 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   // TODO: Removed sync-on-enter behavior while figuring out data flow.
 
   const handleScrollEndReached = useCallback(() => {
-    if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
+    if (
+      !postsQuery.isPaused &&
+      postsQuery.hasNextPage &&
+      !postsQuery.isFetchingNextPage
+    ) {
       postsQuery.fetchNextPage();
     }
   }, [postsQuery]);
 
   const handleScrollStartReached = useCallback(() => {
-    if (postsQuery.hasPreviousPage && !postsQuery.isFetchingPreviousPage) {
+    if (
+      !postsQuery.isPaused &&
+      postsQuery.hasPreviousPage &&
+      !postsQuery.isFetchingPreviousPage
+    ) {
       postsQuery.fetchPreviousPage();
     }
   }, [postsQuery]);
@@ -148,25 +236,57 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
+  const getDraft = useCallback(async () => {
+    try {
+      const draft = await storage.load({ key: `draft-${currentChannelId}` });
+
+      return draft;
+    } catch (e) {
+      return null;
+    }
+  }, [currentChannelId]);
+
+  const storeDraft = useCallback(
+    async (draft: JSONContent) => {
+      try {
+        await storage.save({ key: `draft-${currentChannelId}`, data: draft });
+      } catch (e) {
+        return;
+      }
+    },
+    [currentChannelId]
+  );
+
+  const clearDraft = useCallback(async () => {
+    try {
+      await storage.remove({ key: `draft-${currentChannelId}` });
+    } catch (e) {
+      return;
+    }
+  }, [currentChannelId]);
+
   if (!channelQuery.data) {
     return null;
   }
 
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
       <Channel
         channel={channelQuery.data}
         currentUserId={currentUserId}
         calmSettings={calmSettingsQuery.data}
         isLoadingPosts={
-          postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
+          postsQuery.isPending ||
+          postsQuery.isPaused ||
+          postsQuery.isFetchingNextPage ||
+          postsQuery.isFetchingPreviousPage
         }
+        hasNewerPosts={postsQuery.hasPreviousPage}
+        hasOlderPosts={postsQuery.hasNextPage}
         group={groupQuery.data ?? null}
         contacts={contactsQuery.data ?? null}
         posts={posts}
-        selectedPost={
-          hasSelectedPost && posts?.length ? selectedPost?.id : undefined
-        }
+        selectedPostId={selectedPostId}
         goBack={props.navigation.goBack}
         messageSender={messageSender}
         goToPost={handleGoToPost}
@@ -179,6 +299,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onPressRef={handleGoToRef}
         usePost={usePostWithRelations}
         useChannel={useChannel}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+        negotiationMatch={matchedOrPending}
       />
       {groupQuery.data && (
         <ChannelSwitcherSheet

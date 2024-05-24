@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { NavigateOptions, To, useLocation, useNavigate } from 'react-router';
 
 import { useNavState, usePutEntryMutation } from '@/state/settings';
 
@@ -48,6 +48,57 @@ export function useNavToTab() {
     },
     [navState, navigate]
   );
+}
+
+export function useNavWithinTab() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isActive = (path: string) => location.pathname.startsWith(path);
+
+  const navTo = useCallback(
+    (to: number | To, modal = false, options?: NavigateOptions) => {
+      const opts = modal
+        ? {
+            ...options,
+            state: location.state || {
+              ...options?.state,
+              backgroundLocation: location,
+            },
+          }
+        : options;
+
+      if (typeof to === 'number') {
+        navigate(to);
+        return;
+      }
+
+      const isStringPath = typeof to === 'string';
+      let path = isStringPath ? to : to.pathname || '';
+
+      if (isActive('/groups') || location.pathname === '/') {
+        path = path.replace(/^\/dm/, '');
+      }
+
+      if (isActive('/messages') || isActive('/dm')) {
+        path = path.replace(/^\/groups/, '/dm/groups');
+      }
+
+      navigate(
+        !isStringPath
+          ? {
+              ...to,
+              pathname: path,
+            }
+          : path,
+        opts
+      );
+    },
+    [location, navigate]
+  );
+
+  return {
+    navigate: navTo,
+  };
 }
 
 export function useSaveNavState() {

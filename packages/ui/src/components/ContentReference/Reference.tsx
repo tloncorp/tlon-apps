@@ -12,8 +12,10 @@ export type ReferenceProps = {
 
 export const ReferenceContext = createStyledContext<{
   asAttachment?: boolean;
+  viewMode?: 'block' | 'chat' | 'note';
 }>({
   asAttachment: false,
+  viewMode: 'chat',
 });
 
 const ReferenceFrame = styled(YStack, {
@@ -28,8 +30,18 @@ const ReferenceFrame = styled(YStack, {
   variants: {
     asAttachment: {
       true: {
-        borderRadius: 0,
-        width: Dimensions.get('window').width - 40,
+        width: Dimensions.get('window').width - 30,
+      },
+    },
+    viewMode: {
+      block: {
+        marginLeft: '$m',
+      },
+      chat: {
+        marginLeft: 0,
+      },
+      note: {
+        marginLeft: 0,
       },
     },
   } as const,
@@ -37,7 +49,8 @@ const ReferenceFrame = styled(YStack, {
 
 const ReferenceHeader = styled(XStack, {
   context: ReferenceContext,
-  padding: '$l',
+  paddingHorizontal: '$l',
+  paddingVertical: '$m',
   alignItems: 'center',
   justifyContent: 'space-between',
   borderBottomColor: '$border',
@@ -45,7 +58,7 @@ const ReferenceHeader = styled(XStack, {
   variants: {
     asAttachment: {
       true: {
-        width: Dimensions.get('window').width - 40,
+        width: Dimensions.get('window').width - 30,
       },
     },
   } as const,
@@ -66,11 +79,23 @@ const ReferenceIcon = styled(Icon, {
         display: 'none',
       },
     },
+    viewMode: {
+      block: {
+        display: 'none',
+      },
+      chat: {
+        display: 'flex',
+      },
+      note: {
+        display: 'flex',
+      },
+    },
   } as const,
 });
 
 const ReferenceBody = styled(View, {
-  padding: '$l',
+  paddingHorizontal: '$l',
+  paddingBottom: '$m',
 });
 
 const ReferenceFrameComponent = ({

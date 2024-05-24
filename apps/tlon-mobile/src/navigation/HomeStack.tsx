@@ -1,7 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Icon } from '@tloncorp/ui';
-import React, { useEffect } from 'react';
 
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import ChannelScreen from '../screens/ChannelScreen';

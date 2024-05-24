@@ -16,22 +16,17 @@ export default function ReferenceSkeleton({
       borderColor="$border"
       borderWidth={1}
     >
-      <XStack
-        alignItems="center"
-        paddingBottom="$s"
-        justifyContent="space-between"
-      >
-        <XStack padding="$l" gap="$l" alignItems="center">
+      <XStack alignItems="center" justifyContent="space-between">
+        <XStack padding="$m" gap="$m" alignItems="center">
           {messageType === 'loading' ? (
             <LoadingSpinner />
           ) : (
             // TODO: Replace with proper error icon when available
             <Icon type="Placeholder" color="$tertiaryText" size="$l" />
           )}
-          <Text fontSize="$l" color="$tertiaryText" flex={1}>
+          <Text fontSize="$s" color="$tertiaryText" flex={1}>
             {message}
           </Text>
-          <Icon type="ArrowRef" color="$tertiaryText" size="$m" />
         </XStack>
       </XStack>
     </YStack>
