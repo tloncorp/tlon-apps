@@ -1,4 +1,3 @@
-import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,11 +41,12 @@ export function StartDmSheet({
 
   const handleGoToDm = useCallback(() => {
     goToDm(dmParticipants);
+    onOpenChange(false);
     setTimeout(() => {
       setContactBookKey((key) => key + 1);
       setDmParticipants([]);
     }, 300);
-  }, [dmParticipants, goToDm]);
+  }, [dmParticipants, goToDm, onOpenChange]);
 
   return (
     <Sheet
