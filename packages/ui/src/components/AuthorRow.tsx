@@ -111,27 +111,7 @@ export default function AuthorRow({
       >
         <XStack gap="$s" alignItems="center">
           <Avatar size="$2xl" contact={author} contactId={authorId} />
-          <ContactName
-            maxWidth="65%"
-            showNickname
-            userId={authorId}
-            fontWeight="500"
-            // Shadow added so that we can see the author even if the image
-            // is dark
-            textShadowColor="$background"
-            textShadowOffset={{ width: 0, height: 1 }}
-            textShadowRadius={8}
-            size="$s"
-          />
         </XStack>
-        <SizableText
-          color="$primaryText"
-          size="$xs"
-          position="relative"
-          top={1}
-        >
-          {timeDisplay}
-        </SizableText>
       </XStack>
     );
   }
