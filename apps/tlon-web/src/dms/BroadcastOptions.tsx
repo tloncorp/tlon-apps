@@ -94,7 +94,7 @@ export default function BroadcastOptions({
   actions.push({
     key: 'delete',
     type: 'destructive',
-    onClick: onDelete,
+    onClick: () => setDialog(true),
     content: 'Delete Cohort',
   });
 
@@ -128,7 +128,7 @@ export default function BroadcastOptions({
       </ActionMenu>
       <Dialog open={dialog} onOpenChange={setDialog} containerClass="max-w-md">
         <div className="flex flex-col">
-          <h2 className="mb-4 text-lg font-bold">Delete Cohorty</h2>
+          <h2 className="mb-4 text-lg font-bold">Delete Cohort</h2>
           <p className="mb-7 leading-5">
             Are you sure you want to delete this broadcast? Deleting will
             remove this collection of ships and its history, but will not
@@ -144,7 +144,7 @@ export default function BroadcastOptions({
               className="button bg-red text-white"
               type="button"
             >
-              Delete Cohortx
+              Delete Cohort
             </button>
           </div>
         </div>
