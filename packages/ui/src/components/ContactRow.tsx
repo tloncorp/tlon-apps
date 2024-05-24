@@ -25,7 +25,7 @@ function ContactRowItemRaw({
   const handlePress = useCallback(
     (id: string) => () => {
       onPress(id);
-      if (selectable && !selected) {
+      if (!selectable || !selected) {
         triggerHaptic('baseButtonClick');
       }
     },
