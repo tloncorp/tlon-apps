@@ -42,11 +42,12 @@ export function StartDmSheet({
 
   const handleGoToDm = useCallback(() => {
     goToDm(dmParticipants);
+    onOpenChange(false);
     setTimeout(() => {
       setContactBookKey((key) => key + 1);
       setDmParticipants([]);
     }, 300);
-  }, [dmParticipants, goToDm]);
+  }, [dmParticipants, goToDm, onOpenChange]);
 
   return (
     <Sheet
