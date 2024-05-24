@@ -15,6 +15,7 @@ import {
   triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
+import * as DropdownMenu from 'zeego/dropdown-menu';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
@@ -94,8 +95,9 @@ export default function ChatListScreen(
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}
-              <Icon type="Add" onPress={addPress} />
-              <Icon type="Messages" onPress={startDmPress} />
+              {/* <Icon type="Add" onPress={addPress} />
+              <Icon type="Messages" onPress={startDmPress} /> */}
+              <AddDropdown onAddDm={startDmPress} onAddGroup={addPress} />
             </>
           }
         />
@@ -131,5 +133,35 @@ export default function ChatListScreen(
       </View>
       <NavBar navigation={props.navigation} />
     </ContactsProvider>
+  );
+}
+
+function AddDropdown({
+  onAddDm,
+  onAddGroup,
+}: {
+  onAddDm: () => void;
+  onAddGroup: () => void;
+}) {
+  const onOpen = useCallback(() => {
+    triggerHaptic('baseButtonClick');
+  }, []);
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <Icon type="Add" onPress={onOpen} />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content>
+        <DropdownMenu.Group>
+          <DropdownMenu.Item key="add-dm" onSelect={onAddDm}>
+            <DropdownMenu.ItemTitle>Start a DM</DropdownMenu.ItemTitle>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item key="add-group" onSelect={onAddGroup}>
+            <DropdownMenu.ItemTitle>Add a new group</DropdownMenu.ItemTitle>
+          </DropdownMenu.Item>
+        </DropdownMenu.Group>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   );
 }
