@@ -1017,7 +1017,10 @@ export const insertChannels = createWriteQuery(
           await tx
             .delete($chatMembers)
             .where(eq($chatMembers.chatId, channel.id));
-          await tx.insert($chatMembers).values(channel.members);
+          await tx
+            .insert($chatMembers)
+            .values(channel.members)
+            .onConflictDoNothing();
         }
       }
       await setLastPosts(tx);
