@@ -19,12 +19,14 @@ import {
   ViewUserGroupsWidget,
   XStack,
   YStack,
+  triggerHaptic,
   useTheme,
 } from '@tloncorp/ui/src';
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -87,6 +89,12 @@ export default function AddGroupSheet({
     // reopening
     setTimeout(() => setScreenKey((key) => key + 1), 300);
   }, [onOpenChange]);
+
+  useEffect(() => {
+    if (open) {
+      triggerHaptic('sheetOpen');
+    }
+  }, [open]);
 
   return (
     <Sheet

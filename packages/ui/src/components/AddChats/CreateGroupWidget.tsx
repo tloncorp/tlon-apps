@@ -6,6 +6,7 @@ import { TextInput } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
 import { SizableText, XStack, YStack, useTheme } from '../../core';
+import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
 import { PrimaryButton } from '../Buttons';
 import { Icon } from '../Icon';
@@ -38,6 +39,7 @@ export function CreateGroupWidget(props: {
         shortCode,
       });
       props.onCreatedGroup({ group, channel });
+      triggerHaptic('success');
     } catch (e) {
       console.error(e);
     } finally {

@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { View } from '../core';
+import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import { PrimaryButton } from './Buttons';
@@ -32,6 +33,12 @@ export function GroupPreviewSheet({
   group,
   onActionComplete,
 }: Props) {
+  useEffect(() => {
+    if (open) {
+      triggerHaptic('sheetOpen');
+    }
+  }, [open]);
+
   const actionHandler = useCallback(
     (action: GroupPreviewAction, updatedGroup: db.Group) => {
       onActionComplete?.(action, updatedGroup);
