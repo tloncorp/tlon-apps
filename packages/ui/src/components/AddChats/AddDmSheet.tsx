@@ -30,6 +30,11 @@ export function StartDmSheet({
     setTimeout(() => setContactBookKey((key) => key + 1), 300);
   }, [onOpenChange]);
 
+  const handleGoToDm = useCallback(() => {
+    goToDm(dmParticipants);
+    setTimeout(() => setContactBookKey((key) => key + 1), 300);
+  }, [dmParticipants, goToDm]);
+
   return (
     <Sheet
       open={open}
@@ -61,7 +66,7 @@ export function StartDmSheet({
               >
                 <StartDMButton
                   participants={dmParticipants}
-                  onPress={() => goToDm(dmParticipants)}
+                  onPress={handleGoToDm}
                 />
               </XStack>
             )}
