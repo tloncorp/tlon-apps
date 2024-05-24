@@ -109,6 +109,7 @@ export function ContactBook({
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
+            areaProps={{ spellCheck: false }}
           />
         </View>
       )}

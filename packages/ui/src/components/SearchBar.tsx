@@ -1,6 +1,6 @@
 import { debounce } from 'lodash';
 import { ComponentProps, useCallback, useState } from 'react';
-import { SizeTokens, View } from 'tamagui';
+import { Input as TInput, View } from 'tamagui';
 
 import { Circle } from '../core';
 import { Icon } from './Icon';
@@ -10,11 +10,13 @@ export function SearchBar({
   placeholder,
   onChangeQuery,
   debounceTime = 300,
+  areaProps,
   ...rest
 }: {
   placeholder?: string;
   onChangeQuery: (query: string) => void;
   debounceTime?: number;
+  areaProps?: ComponentProps<typeof TInput>;
 } & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
   const debouncedOnChangeQuery = useCallback(
@@ -51,6 +53,7 @@ export function SearchBar({
           placeholder={placeholder ?? 'Search...'}
           value={value}
           onChangeText={onTextChange}
+          {...areaProps}
         />
 
         <Input.Icon
