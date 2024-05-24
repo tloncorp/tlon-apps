@@ -581,18 +581,6 @@
       %channel  &(?=(%thread -.src) =(nest.source channel.src))
       %dm  &(?=(%dm-thread -.src) =(whom.source whom.src))
   ==
-++  source-order
-  |=  =source:a
-  ^-  @ud
-  =-  (~(got by -) -.source)
-  %-  my
-  :~  [%thread 6]
-      [%channel 5]
-      [%group 4]
-      [%dm-thread 3]
-      [%dm 2]
-      [%base 1]
-  ==
 ++  summarize-unreads
   |=  [=source:a index:a]
   ^-  activity-summary:a
