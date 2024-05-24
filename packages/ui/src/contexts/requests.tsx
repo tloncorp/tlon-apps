@@ -1,5 +1,6 @@
 import {
   useChannel as useChannelFromStore,
+  useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
@@ -7,7 +8,7 @@ import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 type State = {
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelFromStore;
-  useGroup: (id: string) => void;
+  useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
 };
 
@@ -16,7 +17,7 @@ type ContextValue = State;
 const Context = createContext<ContextValue>({
   usePost: usePostWithRelations,
   useChannel: useChannelFromStore,
-  useGroup: () => {},
+  useGroup: useGroupPreview,
   useApp: () => {},
 });
 
@@ -33,7 +34,7 @@ export const useRequests = () => {
 type RequestProviderProps = {
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelFromStore;
-  useGroup: (id: string) => void;
+  useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
 };
 

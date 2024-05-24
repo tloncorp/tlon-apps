@@ -2,6 +2,10 @@ import * as api from '../api';
 import * as db from '../db';
 import * as logic from '../logic';
 
+export async function getChannel(channelId: string) {
+  return db.getChannelWithLastPostAndMembers({ id: channelId });
+}
+
 export async function pinItem(channel: db.Channel) {
   // optimistic update
   const partialPin = logic.getPinPartial(channel);

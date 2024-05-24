@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { View } from '../core';
 import { ActionSheet } from './ActionSheet';
@@ -11,6 +11,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onActionComplete?: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
 }
 
@@ -22,14 +23,25 @@ interface JoinStatus {
   requestedInvite: boolean;
 }
 
-export function GroupPreviewSheet({ open, onOpenChange, group }: Props) {
+export type GroupPreviewAction = 'goTo' | 'joined' | 'other';
+
+export function GroupPreviewSheet({
+  open,
+  onOpenChange,
+  group,
+  onActionComplete,
+}: Props) {
+  const actionHandler = useCallback(
+    (action: GroupPreviewAction, updatedGroup: db.Group) => {
+      onActionComplete?.(action, updatedGroup);
+    },
+    [onActionComplete]
+  );
+
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
-        <GroupPreviewPane
-          group={group}
-          onActionComplete={() => onOpenChange(false)}
-        />
+        <GroupPreviewPane group={group} onActionComplete={actionHandler} />
       ) : (
         <LoadingSpinner />
       )}
@@ -42,7 +54,10 @@ export function GroupPreviewPane({
   onActionComplete,
 }: {
   group: db.Group;
-  onActionComplete: () => void;
+  onActionComplete: (
+    action: GroupPreviewAction,
+    updatedGroup: db.Group
+  ) => void;
 }) {
   const [isJoining, setIsJoining] = useState(group?.joinStatus === 'joining');
 
@@ -74,21 +89,25 @@ export function GroupPreviewPane({
       store.acceptGroupInvitation(group);
     } else {
       store.rejectGroupInvitation(group);
-      onActionComplete();
+      onActionComplete('other', group);
     }
   };
 
   const requestInvite = () => {
     store.requestGroupInvitation(group);
-    onActionComplete();
+    onActionComplete('other', group);
   };
   const rescindInvite = () => {
     store.rescindGroupInvitationRequest(group);
-    onActionComplete();
+    onActionComplete('other', group);
   };
   const joinGroup = () => {
     store.joinGroup(group);
     setIsJoining(true);
+  };
+
+  const goToGroup = () => {
+    onActionComplete('goTo', group);
   };
 
   // Dismiss sheet once the group join is complete
@@ -100,7 +119,9 @@ export function GroupPreviewPane({
         // TODO: handle case whare joinStatus === 'errored'
         if (nextGroup?.currentUserIsMember === true) {
           setIsJoining(false);
-          store.markGroupNew(nextGroup).finally(() => onActionComplete());
+          store
+            .markGroupNew(nextGroup)
+            .finally(() => onActionComplete('joined', nextGroup));
           clearInterval(interval);
         }
       }, 1_000);
@@ -135,7 +156,13 @@ export function GroupPreviewPane({
       <View marginTop="$m" gap={isJoining ? '$2xl' : '$l'}>
         <GroupActions
           status={status}
-          actions={{ respondToInvite, requestInvite, rescindInvite, joinGroup }}
+          actions={{
+            respondToInvite,
+            requestInvite,
+            rescindInvite,
+            joinGroup,
+            goToGroup,
+          }}
         />
       </View>
     </>
@@ -152,11 +179,12 @@ export function GroupActions({
     requestInvite: () => void;
     rescindInvite: () => void;
     joinGroup: () => void;
+    goToGroup: () => void;
   };
 }) {
   if (status.isMember) {
     return (
-      <Button hero>
+      <Button hero onPress={() => actions.goToGroup()}>
         <Button.Text>Go to Group</Button.Text>
       </Button>
     );
