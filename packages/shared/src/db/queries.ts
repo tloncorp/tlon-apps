@@ -26,7 +26,7 @@ import {
 
 import { ChannelInit } from '../api';
 import { createDevLogger } from '../debug';
-import { appendContactIdToReplies } from '../logic';
+import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { Rank, desig, extractGroupPrivacy } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
@@ -71,6 +71,16 @@ import {
 } from './types';
 
 const logger = createDevLogger('queries', false);
+
+const GROUP_META_COLUMNS = {
+  id: true,
+  title: true,
+  description: true,
+  iconImage: true,
+  iconImageColor: true,
+  coverImage: true,
+  coverImageColor: true,
+};
 
 export interface GetGroupsOptions {
   includeUnjoined?: boolean;
@@ -441,13 +451,42 @@ export const deleteGroup = createWriteQuery(
 export const insertUnjoinedGroups = createWriteQuery(
   'insertUnjoinedGroups',
   async (groups: Group[]) => {
-    return client
-      .insert($groups)
-      .values(groups)
-      .onConflictDoUpdate({
-        target: $groups.id,
-        set: conflictUpdateSetAll($groups),
-      });
+    return client.transaction(async (tx) => {
+      // ensure we never delete metadata if we get a partial for some reason
+      // during the join process
+      const existingUnjoined = await getUnjoinedGroupMeta(tx);
+      const compositeUnjoined = getCompositeGroups(groups, existingUnjoined);
+
+      await tx
+        .insert($groups)
+        .values(compositeUnjoined)
+        .onConflictDoUpdate({
+          target: $groups.id,
+          setWhere: eq($groups.currentUserIsMember, false),
+          set: conflictUpdateSetAll($groups),
+        });
+    });
+  },
+  ['groups']
+);
+
+export const getUnjoinedGroupMeta = createReadQuery(
+  'getUnjoinedGroupMeta',
+  async (tx: AnySqliteTransaction | AnySqliteDatabase) => {
+    return tx.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, false),
+      columns: GROUP_META_COLUMNS,
+    });
+  },
+  ['groups']
+);
+
+export const getUnjoinedGroups = createReadQuery(
+  'getUnjoinedGroups',
+  async () => {
+    return client.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, false),
+    });
   },
   ['groups']
 );

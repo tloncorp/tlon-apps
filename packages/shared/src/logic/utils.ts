@@ -331,3 +331,23 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
 
   return false;
 };
+
+export const getCompositeGroups = (
+  groups: db.Group[],
+  base: Partial<db.Group>[]
+): db.Group[] => {
+  const baseIndex = base.reduce(
+    (acc, curr) => {
+      if (curr.id) {
+        acc[curr.id] = curr;
+      }
+      return acc;
+    },
+    {} as Record<string, Partial<db.Group>>
+  );
+
+  return groups.map((group) => {
+    const baseGroup = baseIndex[group.id] ?? {};
+    return { ...baseGroup, ...group };
+  });
+};

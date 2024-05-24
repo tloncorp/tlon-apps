@@ -13,6 +13,7 @@ import { scry } from './urbit';
 export interface InitData {
   pins: db.Pin[];
   groups: db.Group[];
+  unjoinedGroups: db.Group[];
   unreads: db.Unread[];
   channels: db.Channel[];
 }
@@ -25,10 +26,8 @@ export const getInitData = async () => {
 
   const pins = toClientPinnedItems(response.pins);
   const channelsInit = toClientChannelsInit(response.channels);
-  const groups = [
-    ...toClientGroupsFromGangs(response.gangs),
-    ...toClientGroups(response.groups, true),
-  ];
+  const groups = toClientGroups(response.groups, true);
+  const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
   const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);
   const groupDmChannels = toClientGroupDms(response.chat.clubs);
@@ -38,6 +37,7 @@ export const getInitData = async () => {
   return {
     pins,
     groups,
+    unjoinedGroups,
     unreads: [...channelUnreads, ...talkUnreads],
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,

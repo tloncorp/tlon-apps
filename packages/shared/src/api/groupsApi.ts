@@ -856,7 +856,7 @@ const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
 };
 
 export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
-  const privacy = extractGroupPrivacy(gang.preview);
+  const privacy = extractGroupPrivacy(gang.preview, gang.claim ?? undefined);
   const joinStatus = getJoinStatusFromGang(gang);
   return {
     id,

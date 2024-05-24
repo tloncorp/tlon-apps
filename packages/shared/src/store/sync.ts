@@ -13,6 +13,7 @@ export const syncInitData = async () => {
     const initData = await api.getInitData();
     await db.insertPinnedItems(initData.pins);
     await db.insertGroups(initData.groups);
+    await db.insertUnjoinedGroups(initData.unjoinedGroups);
     await db.insertChannels(initData.channels);
     await resetUnreads(initData.unreads);
     await db.insertChannelPerms(initData.channelPerms);

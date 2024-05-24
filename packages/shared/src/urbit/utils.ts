@@ -349,10 +349,18 @@ export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
 }
 
 export function extractGroupPrivacy(
-  preview: ubg.GroupPreview | ubg.Group | null
+  preview: ubg.GroupPreview | ubg.Group | null,
+  claim?: ubg.GroupClaim
 ): GroupPrivacy {
   if (!preview) {
-    return 'public';
+    if (claim?.progress === 'knocking') {
+      // sometimes gangs are missing the preview while joining,
+      // however we'll know it's private if the claim is 'knocking'
+      return 'private';
+    }
+
+    // conservative default if something is wrong and we don't otherwise know
+    return 'private';
   }
 
   return preview.secret
