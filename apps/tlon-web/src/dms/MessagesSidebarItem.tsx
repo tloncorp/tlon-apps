@@ -85,8 +85,7 @@ function BroadcastSidebarItem({
   ...props
 }: MessagesSidebarItemWithOptionsProps) {
   const cohort = useCohort(whom);
-
-  const to = `/broadcasts/${whom}`;
+  const to = `/dm/broadcasts/${whom}`;
 
   return (
     <SidebarItem

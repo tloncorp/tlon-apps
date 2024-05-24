@@ -196,6 +196,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             />
             <Route path="/dm/" element={<Dms />}>
               <Route index element={<DMHome />} />
+              <Route path="broadcasts/:cohort" element={<BroadcastDm />} />
               <Route path="new">
                 <Route index element={<NewDM />} />
                 <Route path=":ship" element={<Message />} />
@@ -246,8 +247,6 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                 />
               )}
             </Route>
-            {/* TODO doesn't stay on messages tab */}
-            <Route path="/broadcasts/:cohort" element={<BroadcastDm />} />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
             <Route path="/groups/:ship/:name" element={<Groups />}>
