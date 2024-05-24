@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import { SizableText, View, XStack, YStack } from '../../core';
+import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { ListItem, ListItemProps } from '../ListItem';
 import { LoadingSpinner } from '../LoadingSpinner';
@@ -65,10 +66,10 @@ export function ViewUserGroupsWidget({
         </YStack>
       ) : (
         <>
-          <XStack justifyContent="center" marginBottom="$xl">
-            <SizableText>
+          <XStack marginLeft="$m" marginVertical="$xl">
+            <SizableText fontSize="$l">
               Groups hosted by{' '}
-              <ContactName showNickname fontWeight="500" userId={userId} />
+              <ContactName showNickname fontWeight="500" userId={userId} />:
             </SizableText>
           </XStack>
           <ScrollView
@@ -97,6 +98,13 @@ export function ViewUserGroupsWidget({
 }
 
 function GroupPreviewListItem({ model, onPress }: ListItemProps<db.Group>) {
+  const badgeText = useMemo(() => {
+    if (model.currentUserIsMember) {
+      return 'Joined';
+    }
+    return model.privacy === 'private' ? 'Private' : '';
+  }, [model.currentUserIsMember, model.privacy]);
+
   return (
     <ListItem onPress={() => onPress?.(model)}>
       <ListItem.Icon
@@ -107,6 +115,11 @@ function GroupPreviewListItem({ model, onPress }: ListItemProps<db.Group>) {
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
       </ListItem.MainContent>
+      {badgeText && (
+        <ListItem.EndContent justifyContent="center">
+          <Badge text={badgeText} type="neutral" />
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 }
