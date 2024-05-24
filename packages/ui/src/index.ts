@@ -34,6 +34,7 @@ export * from './components/Channel/ChannelDivider';
 export * from './components/Embed';
 export * from './components/AddChats';
 export * from './components/ContactBook';
+export * from './components/Buttons';
 export * from './tamagui.config';
 export * from './contexts';
 export * from './components/Input';

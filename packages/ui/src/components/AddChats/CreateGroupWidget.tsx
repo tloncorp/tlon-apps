@@ -7,6 +7,7 @@ import { getTokenValue } from 'tamagui';
 
 import { SizableText, XStack, YStack, useTheme } from '../../core';
 import { Button } from '../Button';
+import { PrimaryButton } from '../Buttons';
 import { Icon } from '../Icon';
 
 export function CreateGroupWidget(props: {
@@ -68,13 +69,13 @@ export function CreateGroupWidget(props: {
         onChangeText={setGroupName}
         placeholder="Group name"
       />
-      <Button
-        hero
+      <PrimaryButton
         disabled={groupName.length < 3 || loading}
+        loading={loading}
         onPress={onCreateGroup}
       >
-        <Button.Text>Create Group</Button.Text>
-      </Button>
+        Create Group
+      </PrimaryButton>
     </YStack>
   );
 }

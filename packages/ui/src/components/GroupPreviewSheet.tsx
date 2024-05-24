@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
+import { PrimaryButton } from './Buttons';
 import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -34,8 +35,9 @@ export function GroupPreviewSheet({
   const actionHandler = useCallback(
     (action: GroupPreviewAction, updatedGroup: db.Group) => {
       onActionComplete?.(action, updatedGroup);
+      onOpenChange(false);
     },
-    [onActionComplete]
+    [onActionComplete, onOpenChange]
   );
 
   return (
@@ -163,6 +165,7 @@ export function GroupPreviewPane({
             joinGroup,
             goToGroup,
           }}
+          loading={isJoining}
         />
       </View>
     </>
@@ -172,6 +175,7 @@ export function GroupPreviewPane({
 export function GroupActions({
   status,
   actions,
+  loading,
 }: {
   status: JoinStatus;
   actions: {
@@ -181,21 +185,22 @@ export function GroupActions({
     joinGroup: () => void;
     goToGroup: () => void;
   };
+  loading: boolean;
 }) {
   if (status.isMember) {
     return (
-      <Button hero onPress={() => actions.goToGroup()}>
+      <PrimaryButton onPress={() => actions.goToGroup()}>
         <Button.Text>Go to Group</Button.Text>
-      </Button>
+      </PrimaryButton>
     );
   }
 
   if (status.isJoining) {
     return (
       <>
-        <Button hero disabled={true}>
-          <Button.Text>Joining, please wait...</Button.Text>
-        </Button>
+        <PrimaryButton disabled={true} loading={true}>
+          <Button.Text>Joining, please wait</Button.Text>
+        </PrimaryButton>
       </>
     );
   }
@@ -203,9 +208,9 @@ export function GroupActions({
   if (status.hasInvite) {
     return (
       <>
-        <Button hero onPress={() => actions.respondToInvite(true)}>
+        <PrimaryButton onPress={() => actions.respondToInvite(true)}>
           <Button.Text>Accept invite</Button.Text>
-        </Button>
+        </PrimaryButton>
         <Button secondary onPress={() => actions.respondToInvite(false)}>
           <Button.Text>Reject invite</Button.Text>
         </Button>
@@ -216,15 +221,14 @@ export function GroupActions({
   if (status.needsInvite && !status.hasInvite) {
     return (
       <>
-        <Button
-          hero
+        <PrimaryButton
           disabled={status.requestedInvite}
           onPress={actions.requestInvite}
         >
           <Button.Text>
             {status.requestedInvite ? 'Requested' : 'Request an invite'}
           </Button.Text>
-        </Button>
+        </PrimaryButton>
         {status.requestedInvite && (
           <Button secondary onPress={actions.rescindInvite}>
             <Button.Text>Cancel request</Button.Text>
@@ -236,9 +240,9 @@ export function GroupActions({
 
   return (
     <>
-      <Button hero onPress={actions.joinGroup}>
+      <PrimaryButton onPress={actions.joinGroup}>
         <Button.Text>Join</Button.Text>
-      </Button>
+      </PrimaryButton>
     </>
   );
 }

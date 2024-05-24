@@ -182,7 +182,7 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
         />
         <View position="absolute" bottom={insets.bottom + 8}>
           <Button hero onPress={() => props.navigation.push('CreateGroup')}>
-            <Button.Text>Start a new group</Button.Text>
+            <Button.Text width="100%">Start a new group</Button.Text>
           </Button>
         </View>
       </YStack>
