@@ -501,11 +501,11 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             element={<GroupInfo title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/volume"
+            path="/dm?/groups/:ship/:name/volume"
             element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
+            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
