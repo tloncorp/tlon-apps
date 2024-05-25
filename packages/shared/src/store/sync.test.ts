@@ -154,6 +154,8 @@ test('syncs dms', async () => {
     lastPostAt: null,
     syncedAt: null,
     remoteUpdatedAt: null,
+    isPendingChannel: null,
+    isDmInvite: false,
     members: [
       {
         chatId: '~solfer-magfed',
@@ -161,6 +163,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: null,
       },
     ],
   });
@@ -187,6 +190,8 @@ test('syncs dms', async () => {
     lastPostAt: null,
     syncedAt: null,
     remoteUpdatedAt: null,
+    isPendingChannel: null,
+    isDmInvite: false,
     members: [
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -194,6 +199,15 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
+      },
+      {
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contact: null,
+        contactId: '~latter-bolden',
+        joinedAt: null,
+        membershipType: 'channel',
+        status: 'invited',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -201,6 +215,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -208,6 +223,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -215,6 +231,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -222,6 +239,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -229,6 +247,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
     ],
   });

@@ -1,3 +1,4 @@
+import anyAscii from 'any-ascii';
 import {
   differenceInCalendarDays,
   differenceInDays,
@@ -25,14 +26,6 @@ export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
-}
-
-export function isChatChannel(channel: db.Channel): boolean {
-  return (
-    channel.type === 'chat' ||
-    channel.type === 'dm' ||
-    channel.type === 'groupDm'
-  );
 }
 
 export async function jsonFetch<T>(
@@ -221,6 +214,19 @@ export const appendContactIdToReplies = (
   return newArray;
 };
 
+export function convertToAscii(str: string): string {
+  const ascii = anyAscii(str);
+  return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
+}
+
+export const createShortCodeFromTitle = (title: string): string => {
+  const shortCode = convertToAscii(title).replace(
+    /[^a-z]*([a-z][-\w\d]+)/i,
+    '$1'
+  );
+  return shortCode;
+};
+
 export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
   const inlines =
     story !== null
@@ -324,4 +330,24 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
   }
 
   return false;
+};
+
+export const getCompositeGroups = (
+  groups: db.Group[],
+  base: Partial<db.Group>[]
+): db.Group[] => {
+  const baseIndex = base.reduce(
+    (acc, curr) => {
+      if (curr.id) {
+        acc[curr.id] = curr;
+      }
+      return acc;
+    },
+    {} as Record<string, Partial<db.Group>>
+  );
+
+  return groups.map((group) => {
+    const baseGroup = baseIndex[group.id] ?? {};
+    return { ...baseGroup, ...group };
+  });
 };

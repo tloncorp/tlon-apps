@@ -12,6 +12,7 @@ export function mockUrbit() {
   vi.mock('../api/urbit', async () => {
     return {
       scry: vi.fn(),
+      getCurrentUserId: () => '~solfer-magfed',
     };
   });
 }
