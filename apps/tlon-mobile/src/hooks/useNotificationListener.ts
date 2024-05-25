@@ -1,10 +1,10 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
-import { syncDms, syncGroups } from 'packages/shared/dist';
-import { whomIsDm, whomIsMultiDm } from 'packages/shared/dist/urbit';
 import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
