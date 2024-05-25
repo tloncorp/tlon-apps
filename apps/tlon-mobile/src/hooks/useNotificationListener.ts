@@ -10,13 +10,26 @@ import { useEffect, useState } from 'react';
 import { connectNotifications } from '../lib/notifications';
 import type { HomeStackParamList } from '../types';
 
-export default function useNotificationListener(
-  notificationChannelId?: string
-) {
+export type Props = {
+  notificationPath?: string;
+  notificationChannelId?: string;
+};
+
+export default function useNotificationListener({
+  notificationPath,
+  notificationChannelId,
+}: Props) {
   const navigation = useNavigation<NavigationProp<HomeStackParamList>>();
-  const [gotoChannelId, setGotoChannelId] = useState<string | null>(
-    notificationChannelId ?? null
-  );
+  const [gotoData, setGotoData] = useState<{
+    path?: string;
+    channelId?: string;
+  }>({
+    path: notificationPath,
+    channelId: notificationChannelId,
+  });
+
+  const resetGotoData = () =>
+    setGotoData({ path: undefined, channelId: undefined });
 
   // Start notifications prompt
   useEffect(() => {
@@ -42,7 +55,10 @@ export default function useNotificationListener(
         } else if (actionIdentifier === 'reply' && userText) {
           // TODO: Send reply
         } else if (data.channelId) {
-          setGotoChannelId(data.channelId);
+          setGotoData({
+            path: data.wer,
+            channelId: data.channelId,
+          });
         }
       }
     );
@@ -55,15 +71,18 @@ export default function useNotificationListener(
 
   // If notification tapped, push channel on stack
   useEffect(() => {
-    if (gotoChannelId) {
+    const { channelId } = gotoData;
+    if (channelId) {
       const goToChannel = async () => {
-        const channel = await db.getChannel({ id: gotoChannelId });
+        const channel = await db.getChannel({ id: channelId });
         if (!channel) {
           return false;
         }
 
+        // TODO: parse path and convert it to Post ID to navigate to selected post or thread
+
         navigation.navigate('Channel', { channel });
-        setGotoChannelId(null);
+        resetGotoData();
         return true;
       };
 
@@ -73,7 +92,7 @@ export default function useNotificationListener(
 
         // If not, sync from source and try again
         if (!didNavigate) {
-          if (whomIsDm(gotoChannelId) || whomIsMultiDm(gotoChannelId)) {
+          if (whomIsDm(channelId) || whomIsMultiDm(channelId)) {
             await syncDms();
           } else {
             await syncGroups();
@@ -83,10 +102,10 @@ export default function useNotificationListener(
 
           // If still not found, clear out the requested channel ID
           if (!didNavigate) {
-            setGotoChannelId(null);
+            resetGotoData();
           }
         }
       })();
     }
-  }, [gotoChannelId, navigation]);
+  }, [gotoData, navigation]);
 }

@@ -40,13 +40,17 @@ import type { OnboardingStackParamList } from './types';
 import { posthogAsync } from './utils/posthog';
 
 type Props = {
+  wer?: string;
   channelId?: string;
 };
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 // on Android if a notification click causes the app to open, the corresponding channel ID is passed in here
-const App = ({ channelId }: Props) => {
+const App = ({
+  wer: notificationPath,
+  channelId: notificationChannelId,
+}: Props) => {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated } = useShip();
@@ -74,7 +78,12 @@ const App = ({ channelId }: Props) => {
             <LoadingSpinner />
           </View>
         ) : isAuthenticated ? (
-          <AuthenticatedApp notificationChannelId={channelId} />
+          <AuthenticatedApp
+            notificationListenerProps={{
+              notificationPath,
+              notificationChannelId,
+            }}
+          />
         ) : (
           <OnboardingStack.Navigator
             initialRouteName="Welcome"

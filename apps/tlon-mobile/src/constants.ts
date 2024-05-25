@@ -33,3 +33,4 @@ export const DEFAULT_SHIP_LOGIN_URL = extra.defaultShipLoginUrl ?? '';
 export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
   extra.defaultShipLoginAccessCode ?? '';
 export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
+export const IGNORE_COSMOS = extra.ignoreCosmos === 'true' ?? false;

@@ -5,17 +5,21 @@ import { useEffect } from 'react';
 
 import { useShip } from '../contexts/ship';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
-import useNotificationListener from '../hooks/useNotificationListener';
+import useNotificationListener, {
+  type Props as NotificationListenerProps,
+} from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
-  notificationChannelId?: string;
+  notificationListenerProps: NotificationListenerProps;
 }
 
-function AuthenticatedApp({ notificationChannelId }: AuthenticatedAppProps) {
+function AuthenticatedApp({
+  notificationListenerProps,
+}: AuthenticatedAppProps) {
   const { ship, shipUrl } = useShip();
-  useNotificationListener(notificationChannelId);
+  useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
 
   useEffect(() => {
