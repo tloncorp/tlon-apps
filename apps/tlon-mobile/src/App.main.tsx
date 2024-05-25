@@ -46,7 +46,7 @@ type Props = {
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-// on Android if a notification click causes the app to open, the corresponding channel ID is passed in here
+// Android notification tap handler passes initial params here
 const App = ({
   wer: notificationPath,
   channelId: notificationChannelId,
