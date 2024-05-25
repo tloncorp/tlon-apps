@@ -20,7 +20,13 @@ export default function useNotificationListener({
   notificationChannelId,
 }: Props) {
   const navigation = useNavigation<NavigationProp<HomeStackParamList>>();
-  const [gotoData, setGotoData] = useState<{
+  const [
+    {
+      // path,
+      channelId,
+    },
+    setGotoData,
+  ] = useState<{
     path?: string;
     channelId?: string;
   }>({
@@ -71,7 +77,6 @@ export default function useNotificationListener({
 
   // If notification tapped, push channel on stack
   useEffect(() => {
-    const { channelId } = gotoData;
     if (channelId) {
       const goToChannel = async () => {
         const channel = await db.getChannel({ id: channelId });
@@ -107,5 +112,5 @@ export default function useNotificationListener({
         }
       })();
     }
-  }, [gotoData, navigation]);
+  }, [channelId, navigation]);
 }
