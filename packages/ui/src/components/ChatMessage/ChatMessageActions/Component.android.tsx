@@ -16,6 +16,7 @@ export function ChatMessageActions({
   channelType,
   onDismiss,
   onReply,
+  onEdit,
 }: {
   post: db.Post;
   currentUserId: string;
@@ -23,6 +24,7 @@ export function ChatMessageActions({
   channelType: db.ChannelType;
   onDismiss: () => void;
   onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
 }) {
   const [topOffset, setTopOffset] = useState(0);
   const insets = useSafeAreaInsets();
@@ -75,6 +77,7 @@ export function ChatMessageActions({
             channelType={channelType}
             dismiss={onDismiss}
             onReply={onReply}
+            onEdit={onEdit}
           />
         </YStack>
       </View>
