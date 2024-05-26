@@ -14,17 +14,23 @@ export default function MessageActions({
   onReply,
   channelType,
   post,
+  currentUserId,
   onEdit,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   post: db.Post;
+  currentUserId: string;
   channelType: db.ChannelType;
 }) {
   const { setReferences } = useReferences();
   const postActions = useMemo(() => {
-    return getPostActions(post, channelType).filter((action) => {
+    return getPostActions({
+      post,
+      channelType,
+      canEdit: post.authorId === currentUserId,
+    }).filter((action) => {
       // if undelivered or already in a thread, don't show reply
       if (
         action.id === 'startThread' &&
@@ -34,7 +40,7 @@ export default function MessageActions({
       }
       return true;
     });
-  }, [post, channelType]);
+  }, [post, channelType, currentUserId]);
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -67,16 +73,21 @@ interface ChannelAction {
   label: string;
   actionType?: 'destructive';
 }
-function getPostActions(
-  post: db.Post,
-  channelType: db.ChannelType
-): ChannelAction[] {
+function getPostActions({
+  post,
+  channelType,
+  canEdit,
+}: {
+  post: db.Post;
+  channelType: db.ChannelType;
+  canEdit: boolean;
+}): ChannelAction[] {
   switch (channelType) {
     case 'gallery':
       return [
         { id: 'startThread', label: 'Comment on post' },
         { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit message' },
+        ...(canEdit ? [{ id: 'edit', label: 'Edit message' }] : []),
         { id: 'visibility', label: 'Hide' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
@@ -85,7 +96,7 @@ function getPostActions(
         { id: 'startThread', label: 'Comment on post' },
         { id: 'pin', label: 'Pin post' },
         { id: 'copyRef', label: 'Copy link to post' },
-        { id: 'edit', label: 'Edit message' },
+        ...(canEdit ? [{ id: 'edit', label: 'Edit message' }] : []),
         { id: 'visibility', label: 'Hide' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
@@ -105,7 +116,7 @@ function getPostActions(
         { id: 'startThread', label: 'Start thread' },
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
-        { id: 'edit', label: 'Edit message' },
+        ...(canEdit ? [{ id: 'edit', label: 'Edit message' }] : []),
         { id: 'visibility', label: post.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
