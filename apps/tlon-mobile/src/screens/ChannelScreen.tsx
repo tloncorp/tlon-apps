@@ -9,7 +9,7 @@ import {
 } from '@tloncorp/shared/dist/store';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
-import React, { useCallback, useLayoutEffect, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import type { HomeStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
@@ -17,24 +17,6 @@ import { useChannelContext } from './useChannelContext';
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
-  useLayoutEffect(() => {
-    if (props.navigation.isFocused()) {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: 'none',
-        },
-      });
-    }
-
-    return () => {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: undefined,
-        },
-      });
-    };
-  }, [props.navigation]);
-
   useFocusEffect(
     useCallback(() => {
       store.clearSyncQueue();
