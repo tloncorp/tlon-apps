@@ -2,7 +2,7 @@ import { decToUd, unixToDa } from '@urbit/api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import type * as ub from '../urbit';
+import * as ub from '../urbit';
 import { stringToTa } from '../urbit/utils';
 import { getCanonicalPostId } from './apiUtils';
 import {
@@ -11,7 +11,7 @@ import {
   toPostReplyData,
   toReactionsData,
 } from './postsApi';
-import { poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe, trackedPoke } from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
 
@@ -243,6 +243,44 @@ export const toChannelsUpdate = (
 
   logger.log(`unknown event`);
   return { type: 'unknown' };
+};
+
+export const createNewGroupDefaultChannel = async ({
+  groupId,
+  currentUserId,
+}: {
+  groupId: string;
+  currentUserId: string;
+}) => {
+  const randomNumber = Math.floor(Math.random() * 10000);
+  const channelPayload: ub.Create = {
+    kind: 'chat',
+    group: groupId,
+    name: `welcome-${randomNumber}`,
+    title: 'Welcome',
+    description: 'Welcome to your new group!',
+    readers: [],
+    writers: [],
+  };
+
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        create: channelPayload,
+      },
+    },
+    { app: 'channels', path: '/v1' },
+    (event) => {
+      const { response, nest } = event;
+      return (
+        'create' in response &&
+        nest ===
+          `${channelPayload.kind}/${currentUserId}/${channelPayload.name}`
+      );
+    }
+  );
 };
 
 export const searchChatChannel = async (params: {

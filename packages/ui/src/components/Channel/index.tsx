@@ -29,6 +29,7 @@ import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
+import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
@@ -231,6 +232,7 @@ export function Channel({
                       )}
                       {negotiationMatch &&
                         !editingPost &&
+                        !channel.isDmInvite &&
                         (isChatChannel || uploadInfo?.uploadedImage) &&
                         canWrite && (
                           <MessageInput
@@ -245,6 +247,9 @@ export function Channel({
                             getDraft={getDraft}
                           />
                         )}
+                      {channel.isDmInvite && (
+                        <DmInviteOptions channel={channel} goBack={goBack} />
+                      )}
                       {!negotiationMatch && isChatChannel && canWrite && (
                         <NegotionMismatchNotice />
                       )}

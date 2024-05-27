@@ -641,52 +641,6 @@ export function toPostData(
   };
 }
 
-export function buildCachePost({
-  authorId,
-  channel,
-  content,
-  parentId,
-}: {
-  authorId: string;
-  channel: db.Channel;
-  content: ub.Story;
-  parentId?: string;
-}): db.Post {
-  const sentAt = Date.now();
-  const id = getCanonicalPostId(unixToDa(sentAt).toString());
-  const [postContent, postFlags] = toPostContent(content);
-
-  // TODO: punt on DM delivery status until we have a single subscription
-  // to lean on
-  const deliveryStatus =
-    isDmChannelId(channel.id) || isGroupDmChannelId(channel.id)
-      ? null
-      : 'pending';
-
-  return {
-    id,
-    authorId,
-    channelId: channel.id,
-    groupId: channel.groupId,
-    type: parentId ? 'reply' : (channel.id.split('/')[0] as db.PostType),
-    sentAt,
-    receivedAt: sentAt,
-    title: '',
-    image: '',
-    content: JSON.stringify(postContent),
-    textContent: getTextContent(content),
-    images: getContentImages(id, content),
-    reactions: [],
-    replies: [],
-    replyContactIds: [],
-    replyCount: 0,
-    hidden: false,
-    parentId,
-    deliveryStatus,
-    ...postFlags,
-  };
-}
-
 function getReceivedAtFromId(postId: string) {
   return udToDate(postId.split('/').pop() ?? postId);
 }
@@ -820,7 +774,7 @@ function isChatData(data: KindData): data is KindDataChat {
   return 'chat' in (data ?? {});
 }
 
-function getContentImages(postId: string, content?: ub.Story | null) {
+export function getContentImages(postId: string, content?: ub.Story | null) {
   return (content || []).reduce<db.PostImage[]>((memo, story) => {
     if (ub.isBlock(story) && ub.isImage(story.block)) {
       memo.push({ ...story.block.image, postId });

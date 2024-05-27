@@ -1,5 +1,5 @@
 import { debounce } from 'lodash';
-import { useCallback, useState } from 'react';
+import { ComponentProps, useCallback, useState } from 'react';
 import { SizeTokens, View } from 'tamagui';
 
 import { Circle } from '../core';
@@ -8,20 +8,21 @@ import { Input } from './Input';
 
 export function SearchBar({
   placeholder,
-  size,
   onChangeQuery,
+  debounceTime = 300,
+  ...rest
 }: {
   placeholder?: string;
-  size?: SizeTokens;
   onChangeQuery: (query: string) => void;
-}) {
+  debounceTime?: number;
+} & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
   const debouncedOnChangeQuery = useCallback(
     debounce(
       (text: string) => {
         onChangeQuery(text);
       },
-      300,
+      debounceTime,
       { leading: false, trailing: true }
     ),
     []
@@ -36,12 +37,12 @@ export function SearchBar({
 
   return (
     <View
-      flex={1}
+      flexGrow={1}
       flexDirection="column"
       justifyContent="center"
       alignItems="center"
     >
-      <Input size="$m" search>
+      <Input size="$m" {...rest} search>
         <Input.Icon>
           <Icon type="Search" color="$secondaryText" />
         </Input.Icon>

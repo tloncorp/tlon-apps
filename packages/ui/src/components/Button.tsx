@@ -5,8 +5,6 @@ import {
   Stack,
   Text,
   ThemeTokens,
-  Variable,
-  View,
   createStyledContext,
   styled,
   useTheme,
@@ -17,11 +15,17 @@ export const ButtonContext = createStyledContext<{
   size: SizeTokens;
   color: ThemeTokens;
   minimal: boolean;
+  hero: boolean;
+  secondary: boolean;
+  disabled: boolean;
   onPress?: () => void;
 }>({
   size: '$m',
   color: '$primaryText',
   minimal: false,
+  hero: false,
+  secondary: false,
+  disabled: false,
 });
 
 export const ButtonFrame = styled(Stack, {
@@ -66,6 +70,26 @@ export const ButtonFrame = styled(Stack, {
         },
       },
     } as const,
+    hero: {
+      true: {
+        backgroundColor: '$black',
+        padding: '$xl',
+        borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$positiveBackground',
+        },
+      },
+    } as const,
+    secondary: {
+      true: {
+        backgroundColor: '$border',
+        padding: '$xl',
+        borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$positiveBackground',
+        },
+      },
+    } as const,
   },
 });
 
@@ -92,6 +116,27 @@ export const ButtonText = styled(Text, {
         '$group-button-press': {
           color: '$secondaryText',
         },
+      },
+    },
+    hero: {
+      true: {
+        color: '$white',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+    secondary: {
+      true: {
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+
+    disabled: {
+      true: {
+        color: '$tertiaryText',
       },
     },
   } as const,
