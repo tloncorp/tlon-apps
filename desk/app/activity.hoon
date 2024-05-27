@@ -71,11 +71,12 @@
 ::
 ++  init
   ^+  cor
-  =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
-  =.  cor  set-chat-reads
-  =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
-  =.  cor  (set-volumes channels)
-  (set-channel-reads channels)
+  cor(indices (~(put by indices) [%base ~] [*stream:a *reads:a]))
+  :: =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
+  :: =.  cor  set-chat-reads
+  :: =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
+  :: =.  cor  (set-volumes channels)
+  :: (set-channel-reads channels)
 ::
 ++  load
   |=  =vase
