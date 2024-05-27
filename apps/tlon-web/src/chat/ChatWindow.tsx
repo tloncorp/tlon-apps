@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -60,6 +61,10 @@ const ChatWindow = React.memo(
     } = useInfinitePosts(nest, scrollToId);
     const { markRead } = useMarkChannelRead(nest);
     const scrollerRef = useRef<VirtuosoHandle>(null);
+    const whomRef = useRef(whom);
+    const fetchingNewest =
+      isFetching && (!isFetchingNextPage || !isFetchingPreviousPage);
+    const [showUnreadBanner, setShowUnreadBanner] = useState(false);
     const readTimeout = useChatInfo(whom).unread?.readTimeout;
     const clearOnNavRef = useRef({ readTimeout, nest, whom, markRead });
     const { compatible } = useChannelCompatibility(nest);
@@ -139,6 +144,30 @@ const ChatWindow = React.memo(
       }
     }, [fetchNextPage, hasNextPage, isFetching]);
 
+    /**
+     * we want to show unread banner after messages have had a chance to
+     * render, so that we don't flash it right before removing it because
+     * we saw the unread marker
+     */
+    useEffect(() => {
+      if (whomRef.current === whom) {
+        return;
+      }
+
+      let timeout = 0;
+      setShowUnreadBanner(false);
+      if (!fetchingNewest) {
+        timeout = setTimeout(() => {
+          whomRef.current = whom;
+          setShowUnreadBanner(true);
+        }, 250) as unknown as number;
+      }
+
+      return () => {
+        clearTimeout(timeout);
+      };
+    }, [whom, fetchingNewest]);
+
     // read the messages once navigated away
     useEffect(() => {
       clearOnNavRef.current = { readTimeout, nest, whom, markRead };
@@ -195,7 +224,9 @@ const ChatWindow = React.memo(
 
     return (
       <div className="relative h-full">
-        <UnreadAlerts whom={whom} root={root} />
+        {showUnreadBanner && !fetchingNewest ? (
+          <UnreadAlerts whom={whom} root={root} />
+        ) : null}
         <div className="flex h-full w-full flex-col overflow-hidden">
           <ChatScroller
             /**

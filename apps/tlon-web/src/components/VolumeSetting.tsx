@@ -1,77 +1,90 @@
 import {
+  NotificationLevel,
+  NotificationNames,
   Source,
-  VolumeLevel,
-  VolumeNames,
   getDefaultVolumeOption,
   getLevelFromVolumeMap,
-  getVolumeMapFromLevel,
+  getUnreadsFromVolumeMap,
+  getVolumeMap,
   sourceToString,
 } from '@tloncorp/shared/dist/urbit/activity';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 
 import { useVolumeAdjustMutation, useVolumeSettings } from '@/state/activity';
 import { useRouteGroup } from '@/state/groups';
 
 import RadioGroup, { RadioGroupOption } from './RadioGroup';
+import Setting from './Settings/Setting';
 
 export default function VolumeSetting({ source }: { source: Source }) {
   const groupFlag = useRouteGroup();
-  const [value, setValue] = useState<VolumeLevel | ''>('');
   const { data: settings, isLoading } = useVolumeSettings();
   const currentSettings = source ? settings[sourceToString(source)] : null;
   const currentVolume = currentSettings
     ? getLevelFromVolumeMap(currentSettings)
     : null;
-  const notSet = !currentVolume && !isLoading;
+  const currentUnreads = currentSettings
+    ? getUnreadsFromVolumeMap(currentSettings)
+    : true;
   const { label, volume } = getDefaultVolumeOption(source, settings, groupFlag);
-  const { mutate: setVolume } = useVolumeAdjustMutation();
+  const { mutate: setVolume, isLoading: settingVolume } =
+    useVolumeAdjustMutation();
 
   const options: RadioGroupOption[] = [
-    { label: VolumeNames.medium, value: 'medium' },
-    { label: VolumeNames.soft, value: 'soft' },
-    { label: VolumeNames.hush, value: 'hush' },
+    { label: NotificationNames.loud, value: 'loud' },
+    { label: NotificationNames.medium, value: 'medium' },
+    { label: NotificationNames.soft, value: 'soft' },
+    { label: NotificationNames.hush, value: 'hush' },
   ];
 
-  if (!('base' in source) && notSet) {
+  if (!('base' in source)) {
     options.unshift({
       label,
       value: 'default',
-      secondaryLabel: `Your default: ${VolumeNames[volume]}`,
+      secondaryLabel: `Your default: ${NotificationNames[volume]}`,
     });
-  } else if (notSet) {
-    options.unshift({ label: VolumeNames.default, value: 'default' });
   }
 
-  options.unshift({ label: VolumeNames.loud, value: 'loud' });
+  const toggle = useCallback(
+    (enabled: boolean) => {
+      if (currentVolume === null) {
+        return;
+      }
 
-  useEffect(() => {
-    if (value === '' && currentVolume && !isLoading) {
-      setValue(currentVolume);
-    }
-
-    if (value === '' && !currentVolume && !isLoading) {
-      setValue('default');
-    }
-  }, [currentVolume, value, isLoading]);
-
-  useEffect(() => {
-    if (
-      !(currentVolume === null && value === 'default') &&
-      currentVolume !== value &&
-      !isLoading
-    ) {
       setVolume({
         source: source || { base: null },
-        volume: getVolumeMapFromLevel(value === '' ? 'default' : value),
+        volume: getVolumeMap(currentVolume, enabled),
       });
-    }
-  }, [value, currentVolume, isLoading, source, setVolume]);
+    },
+    [source, currentVolume, setVolume]
+  );
+
+  const adjust = useCallback(
+    (value: NotificationLevel) => {
+      setVolume({
+        source: source || { base: null },
+        volume:
+          value === 'default' ? null : getVolumeMap(value, currentUnreads),
+      });
+    },
+    [currentUnreads, source, setVolume]
+  );
 
   return (
-    <RadioGroup
-      value={value}
-      setValue={setValue as React.Dispatch<React.SetStateAction<string>>}
-      options={options}
-    />
+    <div className="space-y-4 min-w-[400px]">
+      <Setting
+        on={currentUnreads}
+        name="Show Unread Indicator"
+        toggle={toggle}
+        disabled={currentVolume === null}
+        status={isLoading ? 'loading' : 'idle'}
+        labelClassName="font-semibold"
+      />
+      <RadioGroup
+        value={currentVolume || 'default'}
+        setValue={adjust as (value: string) => void}
+        options={options}
+      />
+    </div>
   );
 }

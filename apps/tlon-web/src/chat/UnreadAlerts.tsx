@@ -36,8 +36,8 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
 
   const unread = chatInfo.unread.unread as ActivitySummary;
   const { unread: mainChat } = unread;
-  const isEmpty = mainChat?.count === 0;
-  if (isEmpty || mainChat === null) {
+  const isEmpty = mainChat?.count === 0 || mainChat === null;
+  if (isEmpty) {
     return null;
   }
 
@@ -47,9 +47,9 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
-  const unreadMessage = `${unread.count} new ${pluralize(
+  const unreadMessage = `${mainChat.count} new ${pluralize(
     'message',
-    unread.count
+    mainChat.count
   )} since ${since}`;
 
   return (

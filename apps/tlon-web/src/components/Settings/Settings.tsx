@@ -26,6 +26,7 @@ export default function Settings() {
     disableNicknames,
     disableSpellcheck,
     disableRemoteContent,
+    showUnreadCounts,
   } = useCalm();
   const theme = useTheme();
   const { mutate, status } = useThemeMutation();
@@ -37,6 +38,8 @@ export default function Settings() {
     useCalmSettingMutation('disableSpellcheck');
   const { mutate: toggleRemoteContent, status: remoteContentStatus } =
     useCalmSettingMutation('disableRemoteContent');
+  const { mutate: toggleShowCounts, status: showCountsStatus } =
+    useCalmSettingMutation('showUnreadCounts');
   const { mutate: toggleLogActivity, status: logActivityStatus } =
     usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
   const { mutate: resetAnalyticsId, status: resetAnalyticsIdStatus } =
@@ -65,6 +68,17 @@ export default function Settings() {
             Tune the behavior of attention-grabbing interfaces in Tlon
           </span>
         </div>
+        <Setting
+          on={showUnreadCounts}
+          toggle={() => toggleShowCounts(!showUnreadCounts)}
+          status={showCountsStatus}
+          name="Show unread counts"
+          labelClassName="font-semibold"
+        >
+          <p className="mb-4 leading-5 text-gray-600">
+            Show the number of unread activity in each channel and group
+          </p>
+        </Setting>
         <Setting
           on={disableAvatars}
           toggle={() => toggleAvatars(!disableAvatars)}

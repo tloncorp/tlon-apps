@@ -1170,7 +1170,9 @@ export const setJoinedGroupChannels = createWriteQuery(
     return await client
       .update($channels)
       .set({
-        currentUserIsMember: inArray($channels.id, channelIds),
+        currentUserIsMember: channelIds.length
+          ? inArray($channels.id, channelIds)
+          : false,
       })
       .where(isNotNull($channels.groupId));
   },
@@ -1977,6 +1979,7 @@ export const deleteContact = createWriteQuery(
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
   async (unreads: Unread[]) => {
+    if (!unreads.length) return;
     return client.transaction(async (tx) => {
       await tx
         .insert($unreads)

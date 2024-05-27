@@ -104,7 +104,7 @@ export function useObjectChangeLogging(
   const lastValues = useRef(o);
   Object.entries(o).forEach(([k, v]) => {
     if (v !== lastValues.current[k]) {
-      logger.log('[change]', k);
+      logger.log('[change]', k, 'old:', lastValues.current[k], 'new:', v);
       lastValues.current[k] = v;
     }
   });

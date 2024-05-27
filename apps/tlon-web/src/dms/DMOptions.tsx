@@ -63,9 +63,10 @@ export default function DmOptions({
   const pinned = usePinnedChats();
   const chatUnread = useChatUnread(whom);
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
+  const hasNotify = !!chatUnread?.unread?.notify;
   const hasActivity =
-    pending || ((chatUnread?.unread.count || 0) > 0 && !chatUnread?.seen);
-  const hasNotify = hasActivity && chatUnread?.unread?.notify;
+    pending ||
+    (((chatUnread?.unread.count || 0) > 0 || hasNotify) && !chatUnread?.seen);
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
@@ -156,6 +157,7 @@ export default function DmOptions({
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
       <UnreadIndicator
+        count={chatUnread?.unread.count || 0}
         notify={hasNotify}
         className="group-focus-within:opacity-0 group-hover:opacity-0"
       />
@@ -239,6 +241,7 @@ export default function DmOptions({
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
+                count={chatUnread?.unread.count || 0}
                 notify={hasNotify}
                 className="group-focus-within:opacity-0 group-hover:opacity-0"
               />

@@ -1,6 +1,7 @@
 import cn from 'classnames';
 
 import { useNotifications } from '@/notifications/useNotifications';
+import { useCalmSetting } from '@/state/settings';
 
 import BellIcon from '../icons/BellIcon';
 import BulletIcon from '../icons/BulletIcon';
@@ -18,6 +19,7 @@ export default function ActivityIndicator({
   bg = 'bg-gray-100',
   className,
 }: ActivityIndicatorProps) {
+  const showCounts = useCalmSetting('showUnreadCounts');
   return (
     <div
       className={cn(
@@ -26,7 +28,7 @@ export default function ActivityIndicator({
         className
       )}
     >
-      {count === 0 ? (
+      {count === 0 || !showCounts ? (
         <BulletIcon className="m-0.5 h-5 w-5" />
       ) : count > 99 ? (
         '99+'

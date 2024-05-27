@@ -94,6 +94,7 @@ import {
 } from '@/state/settings';
 
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
+import ThreadVolumeDialog from './channels/ThreadVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import DevLog from './components/DevLog/DevLog';
 import DevLogsView from './components/DevLog/DevLogView';
@@ -330,17 +331,11 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                   element={<ChatChannel title={` • ${groupsTitle}`} />}
                 >
                   {isSmall ? null : (
-                    <Route
-                      path="message/:idTime/:idReplyTime?"
-                      element={<ChatThread />}
-                    />
+                    <Route path="message/:idTime/" element={<ChatThread />} />
                   )}
                 </Route>
                 {isSmall ? (
-                  <Route
-                    path="message/:idTime/:idReplyTime?"
-                    element={<ChatThread />}
-                  />
+                  <Route path="message/:idTime" element={<ChatThread />} />
                 ) : null}
                 {isMobile && (
                   <Route path="search/:query?" element={<MobileChatSearch />} />
@@ -355,7 +350,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                   element={<HeapChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="curio/:idTime/:idReplyTime?"
+                  path="curio/:idTime"
                   element={<HeapDetail title={` • ${groupsTitle}`} />}
                 />
               </Route>
@@ -368,7 +363,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                   element={<DiaryChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="note/:noteId/:idReplyTime?"
+                  path="note/:noteId"
                   element={<DiaryNote title={` • ${groupsTitle}`} />}
                 />
                 <Route path="edit">
@@ -502,12 +497,16 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             element={<GroupInfo title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/volume"
+            path="/dm?/groups/:ship/:name/volume"
             element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
+            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
+          />
+          <Route
+            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/message/:idTime/volume"
+            element={<ThreadVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
             path="/groups/:ship/:name/leave"
@@ -544,7 +543,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                 element={<EmojiPicker />}
               />
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/:idReplyTime/picker/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route

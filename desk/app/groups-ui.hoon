@@ -1,4 +1,4 @@
-/-  u=ui, g=groups, c=chat, d=channels
+/-  u=ui, g=groups, c=chat, d=channels, a=activity
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -104,10 +104,12 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
+      [%x %pins ~]  ``ui-pins+!>(pins)
+  ::
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
     =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
-    =+  .^(=chat:u (scry %gx %chat /init/noun))
+    =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  =init-0:u
       :*  groups-ui
@@ -118,13 +120,13 @@
           chat
           profile
       ==
-    ``ui-init+!>(init)
+    ``ui-init+!>(init-0)
       [%x %v1 %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
     =+  .^([=unreads:d =channels:d] (scry %gx %channels /v2/init/noun))
-    =+  .^(=chat:u (scry %gx %chat /init/noun))
+    =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
-    =/  =init:u
+    =/  =init-1:u
       :*  groups-ui
           gangs
           channels
@@ -133,15 +135,29 @@
           chat
           profile
       ==
-    ``ui-init-1+!>(init)
+    ``ui-init-1+!>(init-1)
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
     =+  .^(chat=chat-heads:c (scry %gx %chat %heads (snoc since.pole %chat-heads)))
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
-      [%x %pins ~]
-    ``ui-pins+!>(pins)
+      [%x %v2 %init ~]
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
+    =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
+    =+  .^(=activity:a (scry %gx %activity /activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  =init:u
+      :*  groups-ui
+          gangs
+          channels
+          activity
+          pins
+          [clubs dms invited]:chat
+          profile
+      ==
+    ``ui-init-2+!>(init)
   ==
 ::
 ++  poke
