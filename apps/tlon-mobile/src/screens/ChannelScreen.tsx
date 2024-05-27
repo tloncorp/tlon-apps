@@ -9,7 +9,7 @@ import {
 } from '@tloncorp/shared/dist/store';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 
 import type { HomeStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
@@ -63,7 +63,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     (unread.countWithoutThreads ?? 0) > 0 &&
     unread?.firstUnreadPostId;
   const cursor = selectedPostId || firstUnreadId;
-  const postsQuery = store.useChannelPosts({
+  const {
+    posts,
+    query: postsQuery,
+    loadNewer,
+    loadOlder,
+    isLoading: isLoadingPosts,
+  } = store.useChannelPosts({
     enabled: !!channel,
     channelId: currentChannelId,
     ...(cursor
@@ -77,11 +83,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           count: 10,
         }),
   });
-
-  const posts = useMemo<db.Post[] | null>(
-    () => postsQuery.data?.pages.flatMap((p) => p) ?? null,
-    [postsQuery.data]
-  );
 
   const sendPost = useCallback(
     async (content: Story, _channelId: string) => {
@@ -98,26 +99,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     },
     [currentUserId, channel, uploadInfo]
   );
-
-  const handleScrollEndReached = useCallback(() => {
-    if (
-      !postsQuery.isPaused &&
-      postsQuery.hasNextPage &&
-      !postsQuery.isFetchingNextPage
-    ) {
-      postsQuery.fetchNextPage();
-    }
-  }, [postsQuery]);
-
-  const handleScrollStartReached = useCallback(() => {
-    if (
-      !postsQuery.isPaused &&
-      postsQuery.hasPreviousPage &&
-      !postsQuery.isFetchingPreviousPage
-    ) {
-      postsQuery.fetchPreviousPage();
-    }
-  }, [postsQuery]);
 
   const handleChannelNavButtonPressed = useCallback(() => {
     setChannelNavOpen(true);
@@ -138,12 +119,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         channel={channel}
         currentUserId={currentUserId}
         calmSettings={calmSettings}
-        isLoadingPosts={
-          postsQuery.isPending ||
-          postsQuery.isPaused ||
-          postsQuery.isFetchingNextPage ||
-          postsQuery.isFetchingPreviousPage
-        }
+        isLoadingPosts={isLoadingPosts}
         hasNewerPosts={postsQuery.hasPreviousPage}
         hasOlderPosts={postsQuery.hasNextPage}
         group={group}
@@ -157,8 +133,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={navigateToSearch}
         uploadInfo={uploadInfo}
-        onScrollEndReached={handleScrollEndReached}
-        onScrollStartReached={handleScrollStartReached}
+        onScrollEndReached={loadOlder}
+        onScrollStartReached={loadNewer}
         onPressRef={navigateToRef}
         usePost={usePostWithRelations}
         useGroup={useGroupPreview}
