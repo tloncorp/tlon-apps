@@ -33,7 +33,7 @@ export const CalmProvider = ({
   calmSettings,
 }: {
   children: ReactNode;
-  calmSettings?: CalmState;
+  calmSettings?: CalmState | null;
 }) => {
   return (
     <Context.Provider value={calmSettings ?? defaultState}>
