@@ -181,7 +181,7 @@ export function Channel({
                     style={{ flex: 1 }}
                     contentContainerStyle={{ flex: 1 }}
                   >
-                    <YStack alignItems="center" flex={1}>
+                    <YStack flex={1}>
                       {showGalleryInput ? (
                         <MessageInput
                           shouldBlur={inputShouldBlur}
