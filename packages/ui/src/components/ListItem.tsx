@@ -6,10 +6,11 @@ import {
   ReactElement,
   useMemo,
 } from 'react';
-import { ColorProp, styled, withStaticProperties } from 'tamagui';
+import { Platform } from 'react-native';
+import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
-import { Avatar } from './Avatar';
+import { Avatar, AvatarSize } from './Avatar';
 import { Icon, IconType } from './Icon';
 
 export interface BaseListItemProps<T> {
@@ -52,6 +53,7 @@ export const ListItemFrame = styled(XStack, {
 function ListItemIcon({
   imageUrl,
   icon,
+  rounded,
   contactId,
   contact,
   backgroundColor,
@@ -62,6 +64,7 @@ function ListItemIcon({
   contactId?: string | null;
   contact?: db.Contact | null;
   backgroundColor?: ColorProp;
+  rounded?: boolean;
   /**
    * Text to display when there's no image set. Should be a single character.
    */
@@ -75,7 +78,13 @@ function ListItemIcon({
       />
     );
   } else if (icon) {
-    return <ListItemTypeIcon icon={icon} backgroundColor={backgroundColor} />;
+    return (
+      <ListItemTypeIcon
+        icon={icon}
+        backgroundColor={backgroundColor}
+        rounded={rounded}
+      />
+    );
   } else if (contactId) {
     return (
       <ListItemAvatarIcon
@@ -106,6 +115,7 @@ const ListItemImageIcon = ({
       <Image
         width={'100%'}
         height={'100%'}
+        contentFit="cover"
         source={{
           uri: imageUrl,
         }}
@@ -136,14 +146,17 @@ const ListItemAvatarIcon = ({
   contactId,
   contact,
   backgroundColor,
+  size = '$4xl',
+  ...props
 }: {
   contactId: string;
   contact?: db.Contact | null;
   backgroundColor?: ColorProp;
-}) => {
+  size?: AvatarSize;
+} & ComponentProps<typeof ListItemIconContainer>) => {
   return (
-    <ListItemIconContainer backgroundColor={backgroundColor}>
-      <Avatar size={'$4xl'} contactId={contactId} contact={contact} />
+    <ListItemIconContainer {...props} backgroundColor={backgroundColor}>
+      <Avatar size={size} contactId={contactId} contact={contact} />
     </ListItemIconContainer>
   );
 };
@@ -151,32 +164,43 @@ const ListItemAvatarIcon = ({
 const ListItemTypeIcon = ({
   icon,
   backgroundColor,
+  rounded,
 }: {
   icon?: IconType;
   backgroundColor?: ColorProp;
+  rounded?: boolean;
 }) => {
   return (
-    <ListItemIconContainer backgroundColor={backgroundColor ?? 'transparent'}>
+    <ListItemIconContainer
+      backgroundColor={backgroundColor ?? 'transparent'}
+      rounded={rounded}
+    >
       <Icon type={icon || 'Channel'} width="$4xl" height="$4xl" />
     </ListItemIconContainer>
   );
 };
 
 const ListItemIconContainer = ({
-  backgroundColor,
+  backgroundColor = '$secondaryBackground',
+  rounded,
+  width = '$4xl',
+  height = '$4xl',
   children,
 }: PropsWithChildren<{
-  backgroundColor: ColorProp;
+  backgroundColor?: ColorProp;
+  width?: SizeTokens;
+  height?: SizeTokens;
+  rounded?: boolean;
 }>) => {
   return (
     <View
-      width="$4xl"
-      height="$4xl"
-      borderRadius="$s"
+      width={width}
+      height={height}
+      borderRadius={rounded ? '$2xl' : '$s'}
       overflow="hidden"
       flex={0}
-      // @ts-expect-error
-      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+      // @ts-expect-error user-supplied color
+      backgroundColor={backgroundColor}
     >
       {children}
     </View>
@@ -256,7 +280,11 @@ const ListItemTime = ListItemTimeText.styleable<{
       return meta.time;
     }
   }, [time]);
-  return <ListItemTimeText {...props}>{formattedTime ?? ''}</ListItemTimeText>;
+  return (
+    <ListItemTimeText {...props} ref={ref}>
+      {formattedTime ?? ''}
+    </ListItemTimeText>
+  );
 });
 
 const ListItemCount = ({ children }: PropsWithChildren) => {
@@ -272,7 +300,7 @@ const ListItemCount = ({ children }: PropsWithChildren) => {
     >
       <SizableText
         size="$s"
-        lineHeight={0}
+        lineHeight={Platform.OS === 'ios' ? 0 : 17}
         color="$secondaryText"
         textAlign="center"
       >

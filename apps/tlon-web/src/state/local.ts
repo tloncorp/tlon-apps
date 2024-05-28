@@ -1,4 +1,3 @@
-/* eslint-disable import/no-cycle */
 import { format } from 'date-fns';
 import produce from 'immer';
 import create from 'zustand';

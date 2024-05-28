@@ -25,7 +25,6 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import TextIcon from '@/components/icons/Text16Icon';
 import TwitterIcon from '@/components/icons/TwitterIcon';
-// eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import { linkUrlFromContent, useChannelFlag } from '@/logic/channel';
 import { firstInlineSummary } from '@/logic/tiptap';

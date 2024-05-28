@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router';
 
+import { useNavWithinTab } from '@/components/Sidebar/util';
 import { useCreateMutation } from '@/state/channel/channel';
 import { useCreateGroupMutation } from '@/state/groups';
 
@@ -8,7 +9,7 @@ export default function useCreateDefaultGroup() {
     useCreateGroupMutation();
   const { mutateAsync: createChannelMutation, isLoading: channelIsLoading } =
     useCreateMutation();
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
 
   async function createGroup({
     title,

@@ -1,5 +1,6 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
+import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function GroupListItemContent({
@@ -7,7 +8,7 @@ export default function GroupListItemContent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.GroupSummary>) {
+}: ListItemProps<db.Group>) {
   return (
     <ListItem
       {...props}
@@ -21,12 +22,20 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        <ListItem.Subtitle>
-          {model.lastPost?.textContent ?? ''}
-        </ListItem.Subtitle>
+        {model.lastPost && (
+          <ListItem.Subtitle>
+            <ContactName
+              userId={model.lastPost.authorId}
+              showNickname
+              color={'$secondaryText'}
+              size={'$s'}
+            />
+            : {model.lastPost?.textContent ?? ''}
+          </ListItem.Subtitle>
+        )}
       </ListItem.MainContent>
       <ListItem.EndContent>
-        {true ? <ListItem.Time time={model.lastPostAt} /> : null}
+        <ListItem.Time time={model.lastPostAt} />
         {model.unreadCount && model.unreadCount > 0 ? (
           <ListItem.Count>{model.unreadCount}</ListItem.Count>
         ) : null}

@@ -4,6 +4,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
 const boolean = (name: string) => {
@@ -23,6 +24,31 @@ const metaFields = {
   description: text('description'),
 };
 
+export const settings = sqliteTable('settings', {
+  userId: text('user_id').primaryKey(),
+  theme: text('theme'),
+  disableAppTileUnreads: boolean('disable_app_tile_unreads'),
+  disableAvatars: boolean('disable_avatars'),
+  disableRemoteContent: boolean('disable_remote_content'),
+  disableSpellcheck: boolean('disable_spellcheck'),
+  disableNicknames: boolean('disable_nicknames'),
+  orderedGroupPins: text('ordered_group_pins', { mode: 'json' }),
+  sideBarSort: text('side_bar_sort').$type<
+    'alphabetical' | 'arranged' | 'recent'
+  >(),
+  groupSideBarSort: text('group_side_bar_sort', { mode: 'json' }),
+  showActivityMessage: boolean('show_activity_message'),
+  logActivity: boolean('log_activity'),
+  analyticsId: text('analytics_id'),
+  seenWelcomeCard: boolean('seen_welcome_card'),
+  newGroupFlags: text('new_group_flags', { mode: 'json' }),
+  groupsNavState: text('groups_nav_state'),
+  messagesNavState: text('messages_nav_state'),
+  messagesFilter: text('messages_filter'),
+  gallerySettings: text('gallery_settings'),
+  notebookSettings: text('notebook_settings', { mode: 'json' }),
+});
+
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
   nickname: text('nickname'),
@@ -33,7 +59,7 @@ export const contacts = sqliteTable('contacts', {
   coverImage: text('coverImage'),
 });
 
-export const contactsRelations = relations(contacts, ({ one, many }) => ({
+export const contactsRelations = relations(contacts, ({ many }) => ({
   pinnedGroups: many(contactGroups),
 }));
 
@@ -110,10 +136,11 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   }),
 }));
 
+export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
 export const pins = sqliteTable(
   'pins',
   {
-    type: text('type').$type<'group' | 'dm' | 'groupDm'>().notNull(),
+    type: text('type').$type<PinType>().notNull(),
     index: integer('index').notNull(),
     itemId: text('item_id').notNull(),
   },
@@ -123,6 +150,17 @@ export const pins = sqliteTable(
     };
   }
 );
+
+export const pinRelations = relations(pins, ({ one }) => ({
+  group: one(groups, {
+    fields: [pins.itemId],
+    references: [groups.id],
+  }),
+  channel: one(channels, {
+    fields: [pins.itemId],
+    references: [channels.id],
+  }),
+}));
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
@@ -134,6 +172,7 @@ export const groups = sqliteTable('groups', {
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
+  pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
   navSections: many(groupNavSections),
@@ -165,6 +204,7 @@ export const groupRolesRelations = relations(groupRoles, ({ one, many }) => ({
     fields: [groupRoles.groupId],
     references: [groups.id],
   }),
+  writeChannels: many(channelWriters),
 }));
 
 export const chatMembers = sqliteTable(
@@ -185,6 +225,34 @@ export const chatMembers = sqliteTable(
     };
   }
 );
+
+export const channelWriters = sqliteTable(
+  'channel_writers',
+  {
+    channelId: text('channel_id').notNull(),
+    roleId: text('role_id').notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.channelId, table.roleId],
+      }),
+    };
+  }
+);
+
+export const channelWriterRelations = relations(channelWriters, ({ one }) => {
+  return {
+    channel: one(channels, {
+      fields: [channelWriters.channelId],
+      references: [channels.id],
+    }),
+    role: one(groupRoles, {
+      fields: [channelWriters.roleId],
+      references: [groupRoles.id],
+    }),
+  };
+});
 
 export const chatMembersRelations = relations(chatMembers, ({ one, many }) => ({
   roles: many(chatMemberGroupRoles),
@@ -208,9 +276,7 @@ export const chatMemberGroupRoles = sqliteTable(
     groupId: text('group_id')
       .references(() => groups.id)
       .notNull(),
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     roleId: text('role_id').notNull(),
   },
   (table) => {
@@ -282,11 +348,11 @@ export const groupNavSectionChannelsRelations = relations(
   })
 );
 
+export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+
 export const channels = sqliteTable('channels', {
   id: text('id').primaryKey(),
-  type: text('type')
-    .$type<'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm'>()
-    .notNull(),
+  type: text('type').$type<ChannelType>().notNull(),
   groupId: text('group_id').references(() => groups.id),
   ...metaFields,
   addedToGroupAt: timestamp('added_to_group_at'),
@@ -308,6 +374,7 @@ export const channels = sqliteTable('channels', {
 });
 
 export const channelRelations = relations(channels, ({ one, many }) => ({
+  pin: one(pins),
   group: one(groups, {
     fields: [channels.groupId],
     references: [groups.id],
@@ -323,28 +390,46 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
   threadUnreads: many(threadUnreads),
   members: many(chatMembers),
+  writerRoles: many(channelWriters),
 }));
 
-export const posts = sqliteTable('posts', {
-  id: text('id').primaryKey().notNull(),
-  authorId: text('author_id').notNull(),
-  channelId: text('channel_id').notNull(),
-  groupId: text('group_id'),
-  type: text('type').$type<'block' | 'chat' | 'notice' | 'note'>().notNull(),
-  title: text('title'),
-  image: text('image'),
-  content: text('content', { mode: 'json' }),
-  receivedAt: timestamp('received_at').notNull(),
-  sentAt: timestamp('sent_at').notNull(),
-  // client-side time
-  replyCount: integer('reply_count'),
-  textContent: text('text_content'),
-  hasAppReference: boolean('has_app_reference'),
-  hasChannelReference: boolean('has_channel_reference'),
-  hasGroupReference: boolean('has_group_reference'),
-  hasLink: boolean('has_link'),
-  hasImage: boolean('has_image'),
-});
+export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
+
+export const posts = sqliteTable(
+  'posts',
+  {
+    id: text('id').primaryKey().notNull(),
+    authorId: text('author_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    groupId: text('group_id'),
+    parentId: text('parent_id'),
+    type: text('type')
+      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
+      .notNull(),
+    title: text('title'),
+    image: text('image'),
+    content: text('content', { mode: 'json' }),
+    receivedAt: timestamp('received_at').notNull(),
+    sentAt: timestamp('sent_at').unique().notNull(),
+    // client-side time
+    replyCount: integer('reply_count'),
+    replyTime: timestamp('reply_time'),
+    replyContactIds: text('reply_contact_ids', {
+      mode: 'json',
+    }).$type<string[]>(),
+    textContent: text('text_content'),
+    hasAppReference: boolean('has_app_reference'),
+    hasChannelReference: boolean('has_channel_reference'),
+    hasGroupReference: boolean('has_group_reference'),
+    hasLink: boolean('has_link'),
+    hasImage: boolean('has_image'),
+    hidden: boolean('hidden').default(false),
+    deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+  },
+  (table) => ({
+    cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
+  })
+);
 
 export const postsRelations = relations(posts, ({ one, many }) => ({
   channel: one(channels, {
@@ -360,6 +445,12 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.authorId],
     references: [contacts.id],
   }),
+  parent: one(posts, {
+    fields: [posts.parentId],
+    references: [posts.id],
+    relationName: 'parent',
+  }),
+  replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
 }));
 
@@ -387,9 +478,7 @@ export const postImageRelations = relations(postImages, ({ one }) => ({
 export const postReactions = sqliteTable(
   'post_reactions',
   {
-    contactId: text('contact_id')
-      .references(() => contacts.id)
-      .notNull(),
+    contactId: text('contact_id').notNull(),
     postId: text('post_id')
       .references(() => posts.id)
       .notNull(),

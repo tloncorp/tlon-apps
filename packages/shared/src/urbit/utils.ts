@@ -1,5 +1,5 @@
 import { formatUd, unixToDa } from '@urbit/aura';
-import {useMemo} from 'react';
+import { useMemo } from 'react';
 
 import * as ub from './channel';
 import * as ubc from './content';
@@ -30,6 +30,14 @@ export function preSig(ship: string): string {
   }
 
   return '~'.concat(ship.trim());
+}
+
+export function desig(ship: string): string {
+  if (!ship) {
+    return '';
+  }
+
+  return ship.trim().replace('~', '');
 }
 
 export function getFirstInline(content: ub.Story) {
@@ -178,9 +186,9 @@ export function getTextContent(story?: ub.Story | undefined) {
 
 export function getBlockContent(block: ub.Block) {
   if (ub.isImage(block)) {
-    return '[image]';
+    return '(Image)';
   } else if (ub.isCite(block)) {
-    return '[ref]';
+    return '(Reference)';
   } else if (ubc.isHeader(block)) {
     return block.header.content.map(getInlineContent);
   } else if (ubc.isCode(block)) {
@@ -286,7 +294,6 @@ export function createMessage(
 
   return { id, cacheId, delta };
 }
-
 
 export function whomIsDm(whom: string): boolean {
   return whom.startsWith('~') && !whom.match('/');

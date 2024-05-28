@@ -32,7 +32,7 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
       - name: Create build vars
         id: vars
         run: |

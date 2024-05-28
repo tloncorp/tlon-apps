@@ -1,0 +1,13 @@
+diff --git a/dist/index.js b/dist/index.js
+index ca146b7c9952320c5c607e82a936711ef6916228..8ae800886426e8413ef631aded1c290185ab768c 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -58,7 +58,7 @@ class PureEditorContent extends React.Component {
+     }
+     init() {
+         const { editor } = this.props;
+-        if (editor && editor.options.element) {
++        if (editor && !editor.isDestroyed && editor.options.element) {
+             if (editor.contentComponent) {
+                 return;
+             }

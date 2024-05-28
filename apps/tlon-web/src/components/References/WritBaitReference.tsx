@@ -6,7 +6,6 @@ import { useRemotePost } from '@/state/channel/channel';
 
 import UnavailableReference from './UnavailableReference';
 // import { useWritByFlagAndGraphIndex } from '@/state/chat';
-// eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
 
 export default function WritBaitReference(props: {

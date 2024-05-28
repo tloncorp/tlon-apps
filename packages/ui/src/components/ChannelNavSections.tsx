@@ -11,8 +11,8 @@ export default function ChannelNavSections({
   onSelect,
   paddingBottom,
 }: {
-  group: db.GroupWithRelations;
-  channels: db.ChannelWithLastPostAndMembers[];
+  group: db.Group;
+  channels: db.Channel[];
   onSelect: (channel: any) => void;
   paddingBottom?: number;
 }) {
@@ -20,8 +20,8 @@ export default function ChannelNavSections({
     () =>
       channels.filter(
         (c) =>
-          !group.navSections.some((s) =>
-            s.channels.some((sc) => sc.channelId === c.id)
+          !group.navSections?.some((s) =>
+            s.channels?.some((sc) => sc.channelId === c.id)
           )
       ),
     [channels, group.navSections]
@@ -34,7 +34,7 @@ export default function ChannelNavSections({
 
   return (
     <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
-      {group.navSections.map((section) => (
+      {group.navSections?.map((section) => (
         <ChannelNavSection
           key={section.id}
           section={section}

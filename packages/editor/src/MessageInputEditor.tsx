@@ -11,36 +11,42 @@ import {
   UnderlineBridge,
   useTenTap,
 } from '@10play/tentap-editor';
-import { Extension, KeyboardShortcutCommand } from '@tiptap/core';
 import CodeBlock from '@tiptap/extension-code-block';
+import { Slice } from '@tiptap/pm/model';
+import { EditorView } from '@tiptap/pm/view';
 import { EditorContent } from '@tiptap/react';
+import { useCallback } from 'react';
 
-export function Shortcuts(bindings: {
-  [keyCode: string]: KeyboardShortcutCommand;
-}) {
-  return Extension.create({
-    addKeyboardShortcuts() {
-      return bindings;
-    },
-  });
-}
+import { MentionsBridge, ShortcutsBridge } from './bridges';
+import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
+  const handlePaste = useCallback(
+    (_view: EditorView, event: ClipboardEvent, _slice: Slice) => {
+      const text = event.clipboardData?.getData('text/plain');
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({ type: 'paste', payload: text })
+      );
+    },
+    []
+  );
+
   const editor = useTenTap({
     bridges: [
       CoreBridge,
       BoldBridge,
       ItalicBridge,
       StrikeBridge,
+      ShortcutsBridge,
       BlockquoteBridge,
       HistoryBridge.configureExtension({
         newGroupDelay: 100,
       }),
       CodeBridge,
       UnderlineBridge,
-      PlaceholderBridge.configureExtension({
-        placeholder: 'Message',
-      }),
+      PlaceholderBridge,
+      MentionsBridge,
       LinkBridge.configureExtension({
         openOnClick: false,
       }).extendExtension({
@@ -48,33 +54,25 @@ export const MessageInputEditor = () => {
       }),
     ],
     tiptapOptions: {
-      extensions: [
-        CodeBlock,
-        Shortcuts({
-          // this is necessary to override the default behavior of the editor
-          // which is to insert a new paragraph when the user presses enter.
-          // We want enter to send the message instead.
-          Enter: () => true,
-          // TODO: figure out why shift-enter is not working
-          'Shift-Enter': ({ editor }) =>
-            editor.commands.first(({ commands }) => [
-              () => commands.newlineInCode(),
-              () => commands.createParagraphNear(),
-              () => commands.liftEmptyBlock(),
-              () => commands.splitBlock(),
-            ]),
-        }),
-      ],
+      extensions: [CodeBlock],
+      editorProps: {
+        handlePaste,
+      },
     },
   });
 
   return (
     <EditorContent
       style={{
-        flex: 1,
+        overflow: 'auto',
+        height: 'auto',
+        // making this explicit
+        fontSize: 16,
+        color: useIsDark() ? 'white' : 'black',
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
       }}
+      // @ts-expect-error bad
       editor={editor}
     />
   );

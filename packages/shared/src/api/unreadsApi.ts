@@ -1,9 +1,7 @@
-import { daToDate, decToUd, udToDec } from '@urbit/api';
-
 import * as db from '../db';
-import { threadUnreads } from '../db/schema';
 import type * as ub from '../urbit';
 import { udToDate } from './converters';
+import { getCanonicalPostId } from './postsApi';
 import { scry, subscribe } from './urbit';
 
 export const getChannelUnreads = async () => {
@@ -63,7 +61,7 @@ export const subscribeUnreads = async (
 export const toClientUnreads = (
   unreads: ub.Unreads,
   type: db.Unread['type']
-): (db.Unread & { threadUnreads: db.ThreadUnreadState[] })[] => {
+): db.Unread[] => {
   return Object.entries(unreads).map(([id, contact]) =>
     toClientUnread(id, contact, type)
   );
@@ -74,27 +72,34 @@ export const toClientUnread = (
   unread: ub.Unread,
   type: db.Unread['type']
 ): db.Unread & { threadUnreads: db.ThreadUnreadState[] } => {
+  const firstUnreadPostId = unread.unread?.id
+    ? getCanonicalPostId(unread.unread.id)
+    : null;
   return {
     channelId,
     type,
     updatedAt: unread.recency,
     count: unread.count,
     countWithoutThreads: unread.unread?.count ?? 0,
-    firstUnreadPostId: unread.unread?.id ?? null,
-    firstUnreadPostReceivedAt: unread.unread?.id
-      ? type === 'dm'
-        ? udToDate(decToUd(unread.unread.id.split('/')[1]))
-        : udToDate(unread.unread.id)
+    firstUnreadPostId,
+    firstUnreadPostReceivedAt: firstUnreadPostId
+      ? udToDate(firstUnreadPostId)
       : null,
     threadUnreads: Object.entries(unread.threads ?? {}).map(
-      ([threadId, thread]) =>
-        ({
+      ([threadId, thread]) => {
+        const firstUnreadPostId = thread.id
+          ? getCanonicalPostId(thread.id)
+          : null;
+        return {
           channelId,
-          threadId,
+          threadId: getCanonicalPostId(threadId),
           count: thread.count,
-          firstUnreadPostId: thread.id ?? null,
-          firstUnreadPostReceivedAt: thread.id ? udToDate(thread.id) : null,
-        }) as const
+          firstUnreadPostId,
+          firstUnreadPostReceivedAt: firstUnreadPostId
+            ? udToDate(firstUnreadPostId)
+            : null,
+        } as const;
+      }
     ),
   };
 };

@@ -20,12 +20,10 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import TwitterIcon from '@/components/icons/TwitterIcon';
-// eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { linkUrlFromContent, useChannelFlag } from '@/logic/channel';
 import getHeapContentType from '@/logic/useHeapContentType';
-// eslint-disable-next-line import/no-cycle
 import useLongPress from '@/logic/useLongPress';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import {

@@ -1,5 +1,6 @@
 import { getSpace } from '@tamagui/get-token';
 import {
+  Input as CInput,
   FontSizeTokens,
   SizeTokens,
   XGroup,
@@ -10,7 +11,7 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { Input as CInput, View } from '../core';
+import { View } from '../core';
 
 type InputSize = '$s' | '$m' | '$l';
 

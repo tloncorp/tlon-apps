@@ -1,10 +1,23 @@
 {
   "name": "@tloncorp/editor",
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run post-build",
+    "tsc": "tsc --noEmit",
+    "build": "vite build && pnpm post-build",
     "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html",
-    "postinstall": "npm run build"
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --quiet",
+    "lint:format": "prettier src/ --write"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "pnpm lint:fix",
+      "pnpm lint:format"
+    ]
   },
   "dependencies": {
     "@tiptap/core": "^2.0.3",

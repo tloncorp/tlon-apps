@@ -1,7 +1,5 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
-import { TamaguiProvider, config } from '@tloncorp/ui';
-import '@tloncorp/ui/src/tamagui.d.ts';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -183,7 +181,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   }, [loaded]);
 
   return (
-    <TamaguiProvider config={config} defaultTheme={currentTheme}>
+    <>
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<AppNav />}>
@@ -503,11 +501,11 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             element={<GroupInfo title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/volume"
+            path="/dm?/groups/:ship/:name/volume"
             element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
-            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
+            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
@@ -561,7 +559,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
           ) : null}
         </Routes>
       ) : null}
-    </TamaguiProvider>
+    </>
   );
 });
 

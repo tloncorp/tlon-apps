@@ -135,6 +135,11 @@
       ==
     ``ui-init-1+!>(init)
   ::
+      [%x %v1 %heads since=?(~ [u=@ ~])]
+    =+  .^(chan=channel-heads:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
+    =+  .^(chat=chat-heads:c (scry %gx %chat %heads (snoc since.pole %chat-heads)))
+    ``ui-heads+!>(`mixed-heads:u`[chan chat])
+  ::
       [%x %pins ~]
     ``ui-pins+!>(pins)
   ==

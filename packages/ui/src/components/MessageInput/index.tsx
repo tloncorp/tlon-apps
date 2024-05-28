@@ -1,62 +1,43 @@
-import { JSONContent } from '@tiptap/core';
-import type * as db from '@tloncorp/shared/dist/db';
 import { useState } from 'react';
 
-import { Attachment, Camera, ChannelGalleries, Send } from '../../assets/icons';
-import { TextArea, XStack } from '../../core';
-import { IconButton } from '../IconButton';
+import { TextArea } from '../../core';
+import { MessageInputProps } from './MessageInputBase';
+import { MessageInputContainer } from './MessageInputBase';
 
 export function MessageInput({
   shouldBlur,
   setShouldBlur,
   send,
   channelId,
-}: {
-  shouldBlur: boolean;
-  setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: JSONContent, channelId: string) => void;
-  channelId: string;
-}) {
+  setImageAttachment,
+  uploadedImage,
+  canUpload,
+  groupMembers,
+}: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <XStack
-      paddingHorizontal="$m"
-      paddingVertical="$s"
-      gap="$l"
-      alignItems="center"
+    <MessageInputContainer
+      setImageAttachment={setImageAttachment}
+      canUpload={canUpload}
+      containerHeight={0}
+      groupMembers={groupMembers}
+      onSelectMention={() => {}}
     >
-      <XStack gap="$l">
-        <IconButton onPress={() => {}}>
-          <Camera />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <Attachment />
-        </IconButton>
-        <IconButton onPress={() => {}}>
-          <ChannelGalleries />
-        </IconButton>
-      </XStack>
-      <XStack flex={1} gap="$l" alignItems="center">
-        <TextArea
-          flexGrow={1}
-          borderRadius="$xl"
-          borderWidth={0}
-          fontWeight="$s"
-          backgroundColor="$secondaryBackground"
-          size="$m"
-          height="auto"
-          placeholder="Message"
-          enterKeyHint="send"
-          multiline={true}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-        />
-        <IconButton onPress={() => {}}>
-          {/* TODO: figure out what send button should look like */}
-          <Send />
-        </IconButton>
-      </XStack>
-    </XStack>
+      <TextArea
+        flexGrow={1}
+        borderRadius="$xl"
+        borderWidth={0}
+        fontWeight="$s"
+        backgroundColor="$secondaryBackground"
+        size="$m"
+        height="auto"
+        placeholder="Message"
+        enterKeyHint="send"
+        multiline={true}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+      />
+    </MessageInputContainer>
   );
 }
