@@ -71,6 +71,9 @@
 ::
 ++  init
   ^+  cor
+  (emit %pass /migrate %agent [our.bowl dap.bowl] %poke noun+!>(%migrate))
+::
+++  migrate
   =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
   =.  cor  set-chat-reads
   =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
@@ -246,7 +249,7 @@
     ?+  q.vase  ~|(bad-poke+mark !!)
         %migrate
       =.  state  *state-1
-      init
+      migrate
     ==
   ::
       %activity-action
