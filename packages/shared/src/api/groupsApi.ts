@@ -6,9 +6,10 @@ import {
   Rank,
   extractGroupPrivacy,
   getChannelType,
+  getJoinStatusFromGang,
 } from '../urbit';
 import { toClientMeta } from './apiUtils';
-import { poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -33,6 +34,32 @@ export const toClientPinnedItem = (rawItem: string, index: number): db.Pin => {
     itemId: rawItem,
   };
 };
+
+export function cancelGroupJoin(groupId: string) {
+  return poke({
+    app: 'groups',
+    mark: 'group-cancel',
+    json: groupId,
+  });
+}
+
+export function rescindGroupInvitationRequest(groupId: string) {
+  logger.log('api rescinding', groupId);
+  return poke({
+    app: 'groups',
+    mark: 'group-rescind',
+    json: groupId,
+  });
+}
+
+export function requestGroupInvitation(groupId: string) {
+  logger.log('api knocking', groupId);
+  return poke({
+    app: 'groups',
+    mark: 'group-knock',
+    json: groupId,
+  });
+}
 
 export const getPinnedItemType = (rawItem: string) => {
   if (rawItem.startsWith('~')) {
@@ -70,6 +97,73 @@ export const pinItem = async (itemId: string) => {
       },
     },
   });
+};
+
+export const getGroupPreview = async (groupId: string) => {
+  const result = await subscribeOnce<ub.GroupPreview>({
+    app: 'groups',
+    path: `/gangs/${groupId}/preview`,
+  });
+
+  return toClientGroupFromPreview(groupId, result);
+};
+
+export const findGroupsHostedBy = async (userId: string) => {
+  const result = await subscribeOnce<ub.GroupIndex>(
+    {
+      app: 'groups',
+      path: `/gangs/index/${userId}`,
+    },
+    30_000
+  );
+
+  logger.log('findGroupsHostedBy result', result);
+
+  return result;
+};
+
+export const createGroup = async ({
+  title,
+  shortCode,
+}: {
+  title: string;
+  shortCode: string;
+}) => {
+  const createGroupPayload: ub.GroupCreate = {
+    title,
+    description: '',
+    image: '#999999',
+    cover: '#D9D9D9',
+    name: shortCode,
+    members: {},
+    cordon: {
+      open: {
+        ships: [],
+        ranks: [],
+      },
+    },
+    secret: false,
+  };
+
+  return trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-create',
+      json: createGroupPayload,
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return (
+        'create' in update.diff &&
+        createGroupPayload.title === update.diff.create.meta.title
+      );
+    }
+  );
 };
 
 export const getGroup = async (groupId: string) => {
@@ -282,6 +376,11 @@ export type GroupFlagContent = {
   flaggingUser: string;
 };
 
+export type SetUnjoinedGroups = {
+  type: 'setUnjoinedGroups';
+  groups: db.Group[];
+};
+
 export type GroupUpdateUnknown = {
   type: 'unknown';
 };
@@ -319,6 +418,7 @@ export type GroupUpdate =
   | GroupSetAsSecret
   | GroupSetAsNotSecret
   | GroupFlagContent
+  | SetUnjoinedGroups
   | GroupUpdateUnknown;
 
 export const subscribeGroups = async (
@@ -331,6 +431,11 @@ export const subscribeGroups = async (
       eventHandler(toGroupUpdate(groupUpdateEvent));
     }
   );
+
+  subscribe({ app: 'groups', path: '/gangs/updates' }, (rawEvent: ub.Gangs) => {
+    logger.log('gangsUpdateEvent:', rawEvent);
+    eventHandler(toGangsGroupsUpdate(rawEvent));
+  });
 };
 
 export const toGroupUpdate = (
@@ -686,10 +791,11 @@ export function toClientGroup(
   });
   return {
     id,
-    isJoined,
     roles,
     privacy: extractGroupPrivacy(group),
     ...toClientMeta(group.meta),
+    haveInvite: false,
+    currentUserIsMember: isJoined,
     flaggedPosts,
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
@@ -724,6 +830,51 @@ export function toClientGroup(
     channels: group.channels
       ? toClientChannels({ channels: group.channels, groupId: id })
       : [],
+  };
+}
+
+export function toClientGroupsFromPreview(
+  groups: Record<string, ub.GroupPreview>
+) {
+  return Object.entries(groups).map(([id, preview]) => {
+    return toClientGroupFromPreview(id, preview);
+  });
+}
+
+export function toClientGroupFromPreview(
+  id: string,
+  preview: ub.GroupPreview
+): db.Group {
+  return {
+    id,
+    currentUserIsMember: false,
+    privacy: extractGroupPrivacy(preview),
+    ...toClientMeta(preview.meta),
+  };
+}
+
+export function toClientGroupsFromGangs(gangs: Record<string, ub.Gang>) {
+  return Object.entries(gangs).map(([id, gang]) => {
+    return toClientGroupFromGang(id, gang);
+  });
+}
+
+const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
+  const groups = toClientGroupsFromGangs(gangsEvent);
+  return { type: 'setUnjoinedGroups', groups };
+};
+
+export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
+  const privacy = extractGroupPrivacy(gang.preview, gang.claim ?? undefined);
+  const joinStatus = getJoinStatusFromGang(gang);
+  return {
+    id,
+    privacy,
+    currentUserIsMember: false,
+    haveInvite: !!gang.invite,
+    haveRequestedInvite: gang.claim?.progress === 'knocking',
+    joinStatus,
+    ...(gang.preview ? toClientMeta(gang.preview.meta) : {}),
   };
 }
 
@@ -788,3 +939,26 @@ function omitEmpty(val: string) {
 export function isColor(value: string) {
   return value[0] === '#';
 }
+
+export const joinGroup = async (id: string) =>
+  poke({
+    app: 'groups',
+    mark: 'group-join',
+    json: {
+      flag: id,
+      'join-all': true,
+    },
+  });
+
+export const rejectGroupInvitation = async (id: string) =>
+  poke({
+    app: 'groups',
+    mark: 'invite-decline',
+    json: id,
+  });
+
+export type GroupsUpdate =
+  | { type: 'unknown' }
+  | { type: 'addGroups'; groups: db.Group[] }
+  | { type: 'deleteGroup'; groupId: string }
+  | { type: 'setUnjoinedGroups'; groups: db.Group[] };

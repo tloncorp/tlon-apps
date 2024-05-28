@@ -1,6 +1,7 @@
 import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
+  useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
@@ -25,16 +26,17 @@ import AddGalleryPost from '../AddGalleryPost';
 import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
+import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
+import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
 //TODO implement usePost and useChannel
-const useGroup = () => {};
 const useApp = () => {};
 
 export function Channel({
@@ -57,6 +59,8 @@ export function Channel({
   isLoadingPosts,
   onPressRef,
   usePost,
+  useGroup,
+  onGroupAction,
   useChannel,
   storeDraft,
   clearDraft,
@@ -87,6 +91,8 @@ export function Channel({
   isLoadingPosts?: boolean;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   usePost: typeof usePostWithRelations;
+  useGroup: typeof useGroupPreview;
+  onGroupAction: (action: string, group: db.Group) => void;
   useChannel: typeof useChannelFromStore;
   storeDraft: (draft: JSONContent) => void;
   clearDraft: () => void;
@@ -101,6 +107,7 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showGalleryInput, setShowGalleryInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
+  const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -114,6 +121,18 @@ export function Channel({
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
+
+  const onPressGroupRef = useCallback((group: db.Group) => {
+    setGroupPreview(group);
+  }, []);
+
+  const handleGroupAction = useCallback(
+    (action: string, group: db.Group) => {
+      onGroupAction(action, group);
+      setGroupPreview(null);
+    },
+    [onGroupAction]
+  );
 
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
     if (channel.type === 'notebook') {
@@ -139,7 +158,10 @@ export function Channel({
             useGroup={useGroup}
             useApp={useApp}
           >
-            <NavigationProvider onPressRef={onPressRef}>
+            <NavigationProvider
+              onPressRef={onPressRef}
+              onPressGroupRef={onPressGroupRef}
+            >
               <ReferencesProvider>
                 <YStack
                   justifyContent="space-between"
@@ -184,7 +206,7 @@ export function Channel({
                           resetImageAttachment={uploadInfo.resetImageAttachment}
                         />
                       ) : (
-                        <View flex={1}>
+                        <View flex={1} width="100%">
                           <View
                             position="absolute"
                             top={0}
@@ -231,6 +253,7 @@ export function Channel({
                       )}
                       {negotiationMatch &&
                         !editingPost &&
+                        !channel.isDmInvite &&
                         (isChatChannel || uploadInfo?.uploadedImage) &&
                         canWrite && (
                           <MessageInput
@@ -245,6 +268,9 @@ export function Channel({
                             getDraft={getDraft}
                           />
                         )}
+                      {channel.isDmInvite && (
+                        <DmInviteOptions channel={channel} goBack={goBack} />
+                      )}
                       {!negotiationMatch && isChatChannel && canWrite && (
                         <NegotionMismatchNotice />
                       )}
@@ -278,6 +304,12 @@ export function Channel({
                       )}
                     </YStack>
                   </KeyboardAvoidingView>
+                  <GroupPreviewSheet
+                    group={groupPreview ?? undefined}
+                    open={!!groupPreview}
+                    onOpenChange={() => setGroupPreview(null)}
+                    onActionComplete={handleGroupAction}
+                  />
                 </YStack>
               </ReferencesProvider>
             </NavigationProvider>

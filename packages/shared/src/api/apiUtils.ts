@@ -80,6 +80,18 @@ export function getChannelIdType(channelId: string) {
     throw new Error('invalid channel id');
   }
 }
+
+// distinguish between channel and group IDs
+export function isChannelId(id: string): boolean {
+  // if has no path parts, is a dm or multi-dm
+  if (id.split('/').length === 1) {
+    return true;
+  }
+
+  // otherwise, check if its a group channel
+  return isGroupChannelId(id);
+}
+
 export async function with404Handler<T>(
   scryRequest: Promise<any>,
   defaultValue: T

@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import React, { useCallback, useMemo } from 'react';
 import {
@@ -18,27 +19,30 @@ import { ListSectionHeader } from './ListSectionHeader';
 import { navHeight } from './NavBar/NavBar';
 import { SwipableChatRow } from './SwipableChatListItem';
 
+type ListItem = db.Channel | db.Group;
+
 export function ChatList({
   pinned,
   unpinned,
+  pendingChats,
   onLongPressItem,
   onPressItem,
 }: store.CurrentChats & {
-  onPressItem?: (chat: db.Channel) => void;
-  onLongPressItem?: (chat: db.Channel) => void;
+  onPressItem?: (chat: ListItem) => void;
+  onLongPressItem?: (chat: ListItem) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
 
   const data = useMemo(() => {
     if (pinned.length === 0) {
-      return [{ title: 'All', data: unpinned }];
+      return [{ title: 'All', data: [...pendingChats, ...unpinned] }];
     }
 
     return [
       { title: 'Pinned', data: pinned },
-      { title: 'All', data: unpinned },
+      { title: 'All', data: [...pendingChats, ...unpinned] },
     ];
-  }, [pinned, unpinned]);
+  }, [pinned, unpinned, pendingChats]);
 
   const contentContainerStyle = useStyle(
     {
@@ -51,25 +55,28 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<db.Channel, { title: string }>) => {
-      return (
+    ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
+      if (logic.isChannel(item)) {
         <SwipableChatRow model={item}>
           <ChatListItem
             model={item}
             onPress={onPressItem}
             onLongPress={onLongPressItem}
           />
-        </SwipableChatRow>
-      );
+        </SwipableChatRow>;
+      }
+
+      // Pending items not affected by swipe
+      return <ChatListItem model={item} onPress={onPressItem} />;
     },
-    []
+    [onPressItem, onLongPressItem]
   );
 
   const renderSectionHeader = useCallback(
     ({
       section,
     }: {
-      section: SectionListData<db.Channel, { title: string }>;
+      section: SectionListData<ListItem, { title: string }>;
     }) => {
       return <ListSectionHeader>{section.title}</ListSectionHeader>;
     },
@@ -95,8 +102,9 @@ export function ChatList({
   );
 }
 
-function getChannelKey(channel: db.Channel) {
-  return channel.id + channel.pin?.itemId ?? '';
+function getChannelKey(item: ListItem) {
+  if (logic.isGroup(item)) return item.id;
+  return item.id + item.pin?.itemId ?? '';
 }
 
 const ChatListItem = React.memo(function ChatListItemComponent({
@@ -104,7 +112,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<db.Channel>) {
+}: ListItemProps<ListItem>) {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [model, onPress]);
@@ -113,35 +121,51 @@ const ChatListItem = React.memo(function ChatListItemComponent({
     onLongPress?.(model);
   }, [model, onLongPress]);
 
-  if (
-    model.type === 'dm' ||
-    model.type === 'groupDm' ||
-    model.pin?.type === 'channel'
-  ) {
-    return (
-      <ChannelListItem
-        model={model}
-        onPress={handlePress}
-        onLongPress={handleLongPress}
-        {...props}
-      />
-    );
-  } else if (model.group) {
+  // if the chat list item is a group, it's pending
+  if (logic.isGroup(model)) {
     return (
       <GroupListItem
         onPress={handlePress}
-        onLongPress={handleLongPress}
         model={{
-          ...model.group,
-          unreadCount: model.unread?.count,
-          lastPost: model.lastPost,
+          ...model,
         }}
         borderRadius="$m"
         {...props}
       />
     );
-  } else {
-    console.warn('unable to render chat list item', model.id);
-    return null;
   }
+
+  if (logic.isChannel(model)) {
+    if (
+      model.type === 'dm' ||
+      model.type === 'groupDm' ||
+      model.pin?.type === 'channel'
+    ) {
+      return (
+        <ChannelListItem
+          model={model}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          {...props}
+        />
+      );
+    } else if (model.group) {
+      return (
+        <GroupListItem
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+          model={{
+            ...model.group,
+            unreadCount: model.unread?.count,
+            lastPost: model.lastPost,
+          }}
+          borderRadius="$m"
+          {...props}
+        />
+      );
+    }
+  }
+
+  console.warn('unable to render chat list item', model.id, model);
+  return null;
 });

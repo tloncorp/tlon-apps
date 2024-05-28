@@ -1,11 +1,20 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { sync } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
+import {
+  useChannel,
+  useGroupPreview,
+  usePostWithRelations,
+} from '@tloncorp/shared/dist/store';
 import { Block, JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
+import {
+  Channel,
+  ChannelSwitcherSheet,
+  GroupPreviewAction,
+  View,
+} from '@tloncorp/ui';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,7 +47,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
       store.clearSyncQueue();
-    }, [])
+      if (props.route.params.channel.group?.isNew) {
+        store.markGroupVisited(props.route.params.channel.group);
+      }
+    }, [props.route.params.channel.group])
   );
 
   const [editingPost, setEditingPost] = React.useState<db.Post>();
@@ -210,6 +222,24 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [props.navigation, currentChannelId]
   );
 
+  const handleGroupAction = useCallback(
+    async (action: GroupPreviewAction, updatedGroup: db.Group) => {
+      if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
+        const channel = await db.getChannel({
+          id: updatedGroup.lastPost.channelId,
+        });
+        if (channel) {
+          props.navigation.navigate('Channel', { channel });
+        }
+      }
+
+      if (action === 'joined') {
+        props.navigation.navigate('ChatList');
+      }
+    },
+    [props.navigation]
+  );
+
   const handleGoToImage = useCallback(
     (post: db.Post, uri?: string) => {
       // @ts-expect-error TODO: fix typing for nested stack navigation
@@ -298,6 +328,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollStartReached={handleScrollStartReached}
         onPressRef={handleGoToRef}
         usePost={usePostWithRelations}
+        useGroup={useGroupPreview}
+        onGroupAction={handleGroupAction}
         useChannel={useChannel}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
