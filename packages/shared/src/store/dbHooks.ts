@@ -146,7 +146,7 @@ export const useGroupPreview = (groupId: string) => {
         return group;
       }
 
-      const groupPreview = await api.findGroupPreview(groupId);
+      const groupPreview = await api.getGroupPreview(groupId);
       await db.insertUnjoinedGroups([groupPreview]);
       return groupPreview;
     },
@@ -200,7 +200,7 @@ export const useChannelWithLastPostAndMembers = (
 export const useChannel = (options: { id: string }) => {
   return useQuery({
     queryKey: [['channel', options]],
-    queryFn: () => db.getChannel(options),
+    queryFn: () => db.getChannelWithLastPostAndMembers(options),
   });
 };
 

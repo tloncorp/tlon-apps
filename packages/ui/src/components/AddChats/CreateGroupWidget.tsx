@@ -7,7 +7,6 @@ import { getTokenValue } from 'tamagui';
 
 import { SizableText, XStack, YStack, useTheme } from '../../core';
 import { triggerHaptic } from '../../utils';
-import { Button } from '../Button';
 import { PrimaryButton } from '../Buttons';
 import { Icon } from '../Icon';
 

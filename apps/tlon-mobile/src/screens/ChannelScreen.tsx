@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { sync } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   useChannel,
@@ -225,7 +225,9 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const handleGroupAction = useCallback(
     async (action: GroupPreviewAction, updatedGroup: db.Group) => {
       if (action === 'goTo' && updatedGroup.lastPost?.channelId) {
-        const channel = await store.getChannel(updatedGroup.lastPost.channelId);
+        const channel = await db.getChannel({
+          id: updatedGroup.lastPost.channelId,
+        });
         if (channel) {
           props.navigation.navigate('Channel', { channel });
         }

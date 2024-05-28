@@ -74,7 +74,7 @@ export const ButtonFrame = styled(Stack, {
     } as const,
     hero: {
       true: {
-        backgroundColor: '$black',
+        backgroundColor: '$darkBackground',
         padding: '$xl',
         borderWidth: 0,
         pressStyle: {
@@ -91,7 +91,7 @@ export const ButtonFrame = styled(Stack, {
         padding: '$xl',
         borderWidth: 0,
         pressStyle: {
-          backgroundColor: '$gray300',
+          backgroundColor: '$secondaryBackground',
         },
       },
     } as const,

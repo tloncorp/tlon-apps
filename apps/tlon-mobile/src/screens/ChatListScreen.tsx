@@ -12,10 +12,8 @@ import {
   Spinner,
   StartDmSheet,
   View,
-  triggerHaptic,
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import * as DropdownMenu from 'zeego/dropdown-menu';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
@@ -79,14 +77,6 @@ export default function ChatListScreen(
     []
   );
 
-  const addPress = useCallback(() => {
-    setAddGroupOpen(true);
-  }, []);
-
-  const startDmPress = useCallback(() => {
-    setStartDmOpen(true);
-  }, []);
-
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
@@ -95,9 +85,8 @@ export default function ChatListScreen(
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}
-              {/* <Icon type="Add" onPress={addPress} />
-              <Icon type="Messages" onPress={startDmPress} /> */}
-              <AddDropdown onAddDm={startDmPress} onAddGroup={addPress} />
+              <Icon type="Add" onPress={() => setAddGroupOpen(true)} />
+              <Icon type="Messages" onPress={() => setStartDmOpen(true)} />
             </>
           }
         />
@@ -133,35 +122,5 @@ export default function ChatListScreen(
       </View>
       <NavBar navigation={props.navigation} />
     </ContactsProvider>
-  );
-}
-
-function AddDropdown({
-  onAddDm,
-  onAddGroup,
-}: {
-  onAddDm: () => void;
-  onAddGroup: () => void;
-}) {
-  const onOpen = useCallback(() => {
-    triggerHaptic('baseButtonClick');
-  }, []);
-
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Icon type="Add" onPress={onOpen} />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
-        <DropdownMenu.Group>
-          <DropdownMenu.Item key="add-dm" onSelect={onAddDm}>
-            <DropdownMenu.ItemTitle>Start a DM</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item key="add-group" onSelect={onAddGroup}>
-            <DropdownMenu.ItemTitle>Add a new group</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-        </DropdownMenu.Group>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
   );
 }

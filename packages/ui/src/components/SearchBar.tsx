@@ -1,5 +1,5 @@
 import { debounce } from 'lodash';
-import { ComponentProps, useCallback, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { Input as TInput, View } from 'tamagui';
 
 import { Circle } from '../core';
@@ -19,15 +19,13 @@ export function SearchBar({
   areaProps?: ComponentProps<typeof TInput>;
 } & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
-  const debouncedOnChangeQuery = useCallback(
-    debounce(
-      (text: string) => {
-        onChangeQuery(text);
-      },
-      debounceTime,
-      { leading: false, trailing: true }
-    ),
-    []
+  const debouncedOnChangeQuery = useMemo(
+    () =>
+      debounce(onChangeQuery, debounceTime, {
+        leading: false,
+        trailing: true,
+      }),
+    [debounceTime, onChangeQuery]
   );
 
   const onTextChange = useCallback((text: string) => {

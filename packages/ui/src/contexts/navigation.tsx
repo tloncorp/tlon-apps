@@ -32,6 +32,9 @@ export const NavigationProvider = ({
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   onPressGroupRef: (group: db.Group) => void;
 }) => {
-  const value = useMemo(() => ({ onPressRef, onPressGroupRef }), [onPressRef]);
+  const value = useMemo(
+    () => ({ onPressRef, onPressGroupRef }),
+    [onPressRef, onPressGroupRef]
+  );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

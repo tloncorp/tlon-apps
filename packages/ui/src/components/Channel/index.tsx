@@ -37,7 +37,6 @@ import Scroller, { ScrollAnchor } from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
 //TODO implement usePost and useChannel
-// const useGroup = () => {};
 const useApp = () => {};
 
 export function Channel({
