@@ -239,15 +239,12 @@ function SwitcherFixture({
 }: {
   switcher: ReturnType<typeof useChannelSwitcher>;
 }) {
-  const { bottom } = useSafeAreaInsets();
-
   return (
     <ChannelSwitcherSheet
       open={switcher.isOpen}
       onOpenChange={switcher.toggle}
       group={group}
       channels={group.channels || []}
-      paddingBottom={bottom}
       onSelect={(channel: db.Channel) => {
         switcher.setActiveChannel(channel);
         switcher.close();
