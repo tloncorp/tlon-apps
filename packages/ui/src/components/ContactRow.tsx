@@ -4,7 +4,7 @@ import React from 'react';
 import { ListItemProps } from 'tamagui';
 
 import { Stack, View, XStack } from '../core';
-import { getDisplayName } from '../utils';
+import { getDisplayName, triggerHaptic } from '../utils';
 import { Icon } from './Icon';
 import { ListItem } from './ListItem';
 
@@ -25,8 +25,11 @@ function ContactRowItemRaw({
   const handlePress = useCallback(
     (id: string) => () => {
       onPress(id);
+      if (!selectable || !selected) {
+        triggerHaptic('baseButtonClick');
+      }
     },
-    [onPress]
+    [onPress, selectable, selected]
   );
 
   return (

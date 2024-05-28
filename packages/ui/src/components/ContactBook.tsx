@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
@@ -109,10 +110,11 @@ export function ContactBook({
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
+            areaProps={{ spellCheck: false }}
           />
         </View>
       )}
-      <View flex={1}>
+      <View flex={1} onTouchStart={Keyboard.dismiss}>
         {searchable && query.length > 0 ? (
           <ContactSearchResults
             contacts={queryContacts}

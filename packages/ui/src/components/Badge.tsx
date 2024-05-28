@@ -1,4 +1,4 @@
-import { ColorTokens, SizableText, Stack } from '../core';
+import { ColorTokens, SizableText, View } from '../core';
 
 type BadgeType = 'positive' | 'warning' | 'neutral';
 
@@ -22,15 +22,20 @@ export function Badge({
   type?: BadgeType;
 }) {
   return (
-    <Stack
+    <View
       backgroundColor={badgeBackground[type]}
       paddingVertical="$xs"
       paddingHorizontal="$l"
       borderRadius="$xl"
     >
-      <SizableText size="$s" color={badgeText[type]}>
+      <SizableText
+        size="$s"
+        color={badgeText[type]}
+        flexShrink={1}
+        width="auto"
+      >
         {text}
       </SizableText>
-    </Stack>
+    </View>
   );
 }

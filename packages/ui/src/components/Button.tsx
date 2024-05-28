@@ -1,6 +1,7 @@
 import { getSize, getSpace } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
 import {
+  ColorTokens,
   SizeTokens,
   Stack,
   Text,
@@ -34,6 +35,7 @@ export const ButtonFrame = styled(Stack, {
   backgroundColor: '$background',
   alignItems: 'center',
   flexDirection: 'row',
+  justifyContent: 'center',
   pressStyle: {
     backgroundColor: '$positiveBackground',
   },
@@ -72,11 +74,14 @@ export const ButtonFrame = styled(Stack, {
     } as const,
     hero: {
       true: {
-        backgroundColor: '$black',
+        backgroundColor: '$darkBackground',
         padding: '$xl',
         borderWidth: 0,
         pressStyle: {
-          backgroundColor: '$positiveBackground',
+          backgroundColor: '$gray700',
+        },
+        disabledStyle: {
+          backgroundColor: '$gray600',
         },
       },
     } as const,
@@ -86,7 +91,7 @@ export const ButtonFrame = styled(Stack, {
         padding: '$xl',
         borderWidth: 0,
         pressStyle: {
-          backgroundColor: '$positiveBackground',
+          backgroundColor: '$secondaryBackground',
         },
       },
     } as const,
@@ -134,23 +139,23 @@ export const ButtonText = styled(Text, {
       },
     },
 
-    disabled: {
-      true: {
-        color: '$tertiaryText',
-      },
-    },
+    // disabled: {
+    //   true: {
+    //     color: '$tertiaryText',
+    //   },
+    // },
   } as const,
 });
 
-const ButtonIcon = (props: { color?: ThemeTokens; children: any }) => {
-  const { size, color } = useContext(ButtonContext.context);
+const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
+  const { size, color, hero } = useContext(ButtonContext.context);
   const smaller = getSize(size, {
-    shift: -2,
+    shift: -1,
   });
   const theme = useTheme();
   return cloneElement(props.children, {
-    size: smaller.val * 0.5,
-    color: props.color ?? color ?? theme.primaryText?.get(),
+    size: smaller.val,
+    color: props.color ?? color ?? (hero ? '$white' : '$primaryText'),
   });
 };
 

@@ -99,6 +99,15 @@ export const pinItem = async (itemId: string) => {
   });
 };
 
+export const getGroupPreview = async (groupId: string) => {
+  const result = await subscribeOnce<ub.GroupPreview>({
+    app: 'groups',
+    path: `/gangs/${groupId}/preview`,
+  });
+
+  return toClientGroupFromPreview(groupId, result);
+};
+
 export const findGroupsHostedBy = async (userId: string) => {
   const result = await subscribeOnce<ub.GroupIndex>(
     {

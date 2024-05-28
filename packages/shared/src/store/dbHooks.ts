@@ -136,6 +136,23 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   return memberRoles;
 };
 
+export const useGroupPreview = (groupId: string) => {
+  const tableDeps = useKeyFromQueryDeps(db.getGroup);
+  return useQuery({
+    queryKey: ['groupPreview', tableDeps, groupId],
+    queryFn: async () => {
+      const group = await db.getGroup({ id: groupId });
+      if (group) {
+        return group;
+      }
+
+      const groupPreview = await api.getGroupPreview(groupId);
+      await db.insertUnjoinedGroups([groupPreview]);
+      return groupPreview;
+    },
+  });
+};
+
 export const useGroupsHostedBy = (userId: string) => {
   return useQuery({
     queryKey: ['groupsHostedBy', userId],
@@ -183,7 +200,7 @@ export const useChannelWithLastPostAndMembers = (
 export const useChannel = (options: { id: string }) => {
   return useQuery({
     queryKey: [['channel', options]],
-    queryFn: () => db.getChannel(options),
+    queryFn: () => db.getChannelWithLastPostAndMembers(options),
   });
 };
 

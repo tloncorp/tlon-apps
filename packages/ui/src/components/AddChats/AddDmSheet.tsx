@@ -1,9 +1,9 @@
-import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { XStack, YStack, ZStack } from '../../core';
+import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
 import { ContactBook } from '../ContactBook';
 import { LoadingSpinner } from '../LoadingSpinner';
@@ -23,12 +23,30 @@ export function StartDmSheet({
   const [dmParticipants, setDmParticipants] = useState<string[]>([]);
   const [contactBookKey, setContactBookKey] = useState<number>(0);
 
+  useEffect(() => {
+    if (open) {
+      triggerHaptic('sheetOpen');
+    }
+  }, [open]);
+
   const handleDismiss = useCallback(() => {
     setDmParticipants([]);
     onOpenChange(false);
     // let close animate, then reset the contact book participants
-    setTimeout(() => setContactBookKey((key) => key + 1), 300);
+    setTimeout(() => {
+      setContactBookKey((key) => key + 1);
+      setDmParticipants([]);
+    }, 300);
   }, [onOpenChange]);
+
+  const handleGoToDm = useCallback(() => {
+    goToDm(dmParticipants);
+    onOpenChange(false);
+    setTimeout(() => {
+      setContactBookKey((key) => key + 1);
+      setDmParticipants([]);
+    }, 300);
+  }, [dmParticipants, goToDm, onOpenChange]);
 
   return (
     <Sheet
@@ -61,7 +79,7 @@ export function StartDmSheet({
               >
                 <StartDMButton
                   participants={dmParticipants}
-                  onPress={() => goToDm(dmParticipants)}
+                  onPress={handleGoToDm}
                 />
               </XStack>
             )}

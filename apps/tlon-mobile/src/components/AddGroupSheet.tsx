@@ -19,12 +19,14 @@ import {
   ViewUserGroupsWidget,
   XStack,
   YStack,
+  triggerHaptic,
   useTheme,
 } from '@tloncorp/ui/src';
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -87,6 +89,12 @@ export default function AddGroupSheet({
     // reopening
     setTimeout(() => setScreenKey((key) => key + 1), 300);
   }, [onOpenChange]);
+
+  useEffect(() => {
+    if (open) {
+      triggerHaptic('sheetOpen');
+    }
+  }, [open]);
 
   return (
     <Sheet
@@ -182,7 +190,7 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
         />
         <View position="absolute" bottom={insets.bottom + 8}>
           <Button hero onPress={() => props.navigation.push('CreateGroup')}>
-            <Button.Text>Start a new group</Button.Text>
+            <Button.Text width="100%">Start a new group</Button.Text>
           </Button>
         </View>
       </YStack>
@@ -193,6 +201,7 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
 function ViewContactGroupsScreen(
   props: NativeStackScreenProps<StackParamList, 'ViewContactGroups'>
 ) {
+  const { onScrollChange } = useContext(ActionContext);
   const onSelectGroup = useCallback(
     (group: db.Group) =>
       props.navigation.push('ViewGroupPreview', {
@@ -209,6 +218,7 @@ function ViewContactGroupsScreen(
       <ViewUserGroupsWidget
         userId={props.route.params.contactId}
         onSelectGroup={onSelectGroup}
+        onScrollChange={onScrollChange}
       />
     </ScreenWrapper>
   );
