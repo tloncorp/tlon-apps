@@ -804,6 +804,7 @@
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group.create
     =.  last-read.remark.channel  now.bowl
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init nest group.create]])
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld ca-area /create) %agent [our.bowl server] %poke cage)
   ::
