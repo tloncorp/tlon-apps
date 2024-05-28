@@ -1,27 +1,29 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
-import { toClientChannelsInit } from './channelsApi';
+// import { toClientUnreads } from './unreadsApi';
+import { ActivityInit, toClientActivity } from './activityApi';
+import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
   toClientGroups,
   toClientGroupsFromGangs,
   toClientPinnedItems,
 } from './groupsApi';
-import { toClientUnreads } from './unreadsApi';
 import { scry } from './urbit';
 
 export interface InitData {
   pins: db.Pin[];
   groups: db.Group[];
   unjoinedGroups: db.Group[];
-  unreads: db.Unread[];
+  activity: ActivityInit;
   channels: db.Channel[];
+  channelPerms: ChannelInit[];
 }
 
-export const getInitData = async () => {
+export const getInitData = async (): Promise<InitData> => {
   const response = await scry<ub.GroupsInit>({
     app: 'groups-ui',
-    path: '/v1/init',
+    path: '/v2/init',
   });
 
   const pins = toClientPinnedItems(response.pins);
@@ -33,13 +35,14 @@ export const getInitData = async () => {
   const groupDmChannels = toClientGroupDms(response.chat.clubs);
   const invitedDms = toClientDms(response.chat.invited, true);
   // const talkUnreads = toClientUnreads(response.chat.unreads, 'dm');
+  const activity = toClientActivity(response.activity ?? {});
 
   return {
     pins,
     groups,
     unjoinedGroups,
     // unreads: [...channelUnreads, ...talkUnreads],
-    unreads: [],
+    activity,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
   };

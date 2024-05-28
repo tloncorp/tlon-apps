@@ -97,6 +97,7 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
 export const unreads = sqliteTable('unreads', {
   channelId: text('channel_id').primaryKey(),
   type: text('type').$type<'channel' | 'dm'>().notNull(),
+  notify: boolean('notify').notNull(),
   count: integer('count').notNull(),
   countWithoutThreads: integer('count_without_threads').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
@@ -117,6 +118,7 @@ export const threadUnreads = sqliteTable(
   {
     channelId: text('channel_id'),
     threadId: text('thread_id'),
+    notify: boolean('notify'),
     count: integer('count'),
     firstUnreadPostId: text('first_unread_post_id'),
     firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),

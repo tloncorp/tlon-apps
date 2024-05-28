@@ -8,6 +8,7 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
+import { ThreadProvider } from '../contexts/thread';
 import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
 import AuthorRow from './AuthorRow';
@@ -24,9 +25,11 @@ export function PostScreenView({
   currentUserId,
   contacts,
   channel,
+  group,
   parentPost,
   posts,
   sendReply,
+  markRead,
   goBack,
   groupMembers,
   calmSettings,
@@ -39,14 +42,17 @@ export function PostScreenView({
   setEditingPost,
   editPost,
   negotiationMatch,
+  activity,
 }: {
   currentUserId: string;
   calmSettings?: CalmState;
   contacts: db.Contact[] | null;
   channel: db.Channel;
+  group?: db.Group | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
+  markRead: (post: db.Post) => void;
   goBack?: () => void;
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
@@ -58,6 +64,7 @@ export function PostScreenView({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
   negotiationMatch: boolean;
+  activity?: db.ThreadUnreadState;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -78,129 +85,136 @@ export function PostScreenView({
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
         <ReferencesProvider>
-          <YStack flex={1} backgroundColor={'$background'}>
-            <ChannelHeader
-              title={headerTitle}
-              goBack={goBack}
-              showPickerButton={false}
-              showSearchButton={false}
-            />
-            <KeyboardAvoidingView
-              //TODO: Standardize this component, account for tab bar in a better way
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              keyboardVerticalOffset={70}
-              style={{ flex: 1 }}
-            >
-              {parentPost && channel.type === 'gallery' && (
-                <GalleryPost
-                  post={parentPost}
-                  detailView
-                  onPressImage={handleGoToImage}
-                />
-              )}
-              {parentPost && channel.type === 'notebook' && (
-                <NotebookPost
-                  post={parentPost}
-                  detailView
-                  onPressImage={handleGoToImage}
-                />
-              )}
-              {uploadInfo.imageAttachment ? (
-                <UploadedImagePreview
-                  imageAttachment={uploadInfo.imageAttachment}
-                  resetImageAttachment={uploadInfo.resetImageAttachment}
-                />
-              ) : (
-                posts &&
-                // Delay rendering until replies have been loaded.
-                posts.length > 1 &&
-                channel &&
-                isChatChannel && (
-                  <Scroller
-                    setInputShouldBlur={setInputShouldBlur}
-                    inverted
-                    renderItem={ChatMessage}
-                    channelType="chat"
+          <ThreadProvider value={{ channel, group, post: parentPost }}>
+            <YStack flex={1} backgroundColor={'$background'}>
+              <ChannelHeader
+                title={headerTitle}
+                goBack={goBack}
+                showPickerButton={false}
+                showSearchButton={false}
+              />
+              <KeyboardAvoidingView
+                //TODO: Standardize this component, account for tab bar in a better way
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={70}
+                style={{ flex: 1 }}
+              >
+                {parentPost && channel.type === 'gallery' && (
+                  <GalleryPost
+                    post={parentPost}
+                    detailView
+                    onPressImage={handleGoToImage}
+                  />
+                )}
+                {parentPost && channel.type === 'notebook' && (
+                  <NotebookPost
+                    post={parentPost}
+                    detailView
+                    onPressImage={handleGoToImage}
+                  />
+                )}
+                {uploadInfo.imageAttachment ? (
+                  <UploadedImagePreview
+                    imageAttachment={uploadInfo.imageAttachment}
+                    resetImageAttachment={uploadInfo.resetImageAttachment}
+                  />
+                ) : (
+                  posts &&
+                  // Delay rendering until replies have been loaded.
+                  posts.length > 1 &&
+                  channel &&
+                  isChatChannel && (
+                    <Scroller
+                      setInputShouldBlur={setInputShouldBlur}
+                      inverted
+                      renderItem={ChatMessage}
+                      channelType="chat"
+                      channelId={channel.id}
+                      currentUserId={currentUserId}
+                      editingPost={editingPost}
+                      setEditingPost={setEditingPost}
+                      editPost={editPost}
+                      posts={posts}
+                      showReplies={false}
+                      onPressImage={handleGoToImage}
+                      onDividerSeen={markRead}
+                      unreadCount={activity?.count}
+                      firstUnreadId={activity?.firstUnreadPostId}
+                    />
+                  )
+                )}
+                {parentPost && (
+                  <CommentsScrollerSheet
+                    open={showComments}
+                    setOpen={setShowComments}
                     channelId={channel.id}
                     currentUserId={currentUserId}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
-                    posts={posts}
-                    showReplies={false}
+                    posts={postsWithoutParent}
+                    parentPost={parentPost}
                     onPressImage={handleGoToImage}
+                    sendReply={sendReply}
+                    uploadInfo={uploadInfo}
+                    groupMembers={groupMembers}
+                    storeDraft={storeDraft}
+                    clearDraft={clearDraft}
+                    getDraft={getDraft}
+                    unreadCount={activity?.count}
+                    firstUnreadId={activity?.firstUnreadPostId}
                   />
-                )
-              )}
-              {parentPost && (
-                <CommentsScrollerSheet
-                  open={showComments}
-                  setOpen={setShowComments}
-                  channelId={channel.id}
-                  currentUserId={currentUserId}
-                  editingPost={editingPost}
-                  setEditingPost={setEditingPost}
-                  editPost={editPost}
-                  posts={postsWithoutParent}
-                  parentPost={parentPost}
-                  onPressImage={handleGoToImage}
-                  sendReply={sendReply}
-                  uploadInfo={uploadInfo}
-                  groupMembers={groupMembers}
-                  storeDraft={storeDraft}
-                  clearDraft={clearDraft}
-                  getDraft={getDraft}
-                />
-              )}
-              {negotiationMatch && !editingPost && channel && canWrite && (
-                <View
-                  position={isChatChannel ? undefined : 'absolute'}
-                  backgroundColor="$background"
-                  bottom={0}
-                  width="100%"
-                >
-                  {isChatChannel ? (
-                    <MessageInput
-                      shouldBlur={inputShouldBlur}
-                      setShouldBlur={setInputShouldBlur}
-                      send={sendReply}
-                      channelId={channel.id}
-                      uploadInfo={uploadInfo}
-                      groupMembers={groupMembers}
-                      storeDraft={storeDraft}
-                      clearDraft={clearDraft}
-                      getDraft={getDraft}
-                    />
-                  ) : parentPost ? (
-                    <AuthorRow
-                      parentPost={parentPost}
-                      setShowComments={setShowComments}
-                      authorId={parentPost.authorId}
-                      author={parentPost.author}
-                      sent={parentPost.sentAt}
-                    />
-                  ) : null}
-                </View>
-              )}
-              {!negotiationMatch && channel && canWrite && (
-                <View
-                  position={isChatChannel ? undefined : 'absolute'}
-                  bottom={0}
-                  width="90%"
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="$secondaryBackground"
-                  borderRadius="$xl"
-                  padding="$l"
-                >
-                  <Text>
-                    Your ship&apos;s version of the Tlon app doesn&apos;t match
-                    the channel host.
-                  </Text>
-                </View>
-              )}
-            </KeyboardAvoidingView>
-          </YStack>
+                )}
+                {negotiationMatch && !editingPost && channel && canWrite && (
+                  <View
+                    position={isChatChannel ? undefined : 'absolute'}
+                    backgroundColor="$background"
+                    bottom={0}
+                    width="100%"
+                  >
+                    {isChatChannel ? (
+                      <MessageInput
+                        shouldBlur={inputShouldBlur}
+                        setShouldBlur={setInputShouldBlur}
+                        send={sendReply}
+                        channelId={channel.id}
+                        uploadInfo={uploadInfo}
+                        groupMembers={groupMembers}
+                        storeDraft={storeDraft}
+                        clearDraft={clearDraft}
+                        getDraft={getDraft}
+                      />
+                    ) : parentPost ? (
+                      <AuthorRow
+                        parentPost={parentPost}
+                        setShowComments={setShowComments}
+                        authorId={parentPost.authorId}
+                        author={parentPost.author}
+                        sent={parentPost.sentAt}
+                      />
+                    ) : null}
+                  </View>
+                )}
+                {!negotiationMatch && channel && canWrite && (
+                  <View
+                    position={isChatChannel ? undefined : 'absolute'}
+                    bottom={0}
+                    width="90%"
+                    alignItems="center"
+                    justifyContent="center"
+                    backgroundColor="$secondaryBackground"
+                    borderRadius="$xl"
+                    padding="$l"
+                  >
+                    <Text>
+                      Your ship&apos;s version of the Tlon app doesn&apos;t
+                      match the channel host.
+                    </Text>
+                  </View>
+                )}
+              </KeyboardAvoidingView>
+            </YStack>
+          </ThreadProvider>
         </ReferencesProvider>
       </ContactsProvider>
     </CalmProvider>

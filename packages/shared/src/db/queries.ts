@@ -67,6 +67,7 @@ import {
   Reaction,
   Settings,
   TableName,
+  ThreadUnreadState,
   Unread,
 } from './types';
 
@@ -521,13 +522,18 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  (channelsInit: ChannelInit[]) => {
+  (channelsInit: ChannelInit[]): any => {
     const writers = channelsInit.flatMap((chanInit) =>
       chanInit.writers.map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
+
+    if (!writers.length) {
+      return;
+    }
+
     return client
       .insert($channelWriters)
       .values(writers)
@@ -892,6 +898,19 @@ export const getAllUnreadsCounts = createReadQuery(
     };
   },
   ['unreads']
+);
+
+export const getThreadActivity = createReadQuery(
+  'getThreadActivity',
+  async ({ channelId, postId }: { channelId: string; postId: string }) => {
+    return client.query.threadUnreads.findFirst({
+      where: and(
+        eq($threadUnreads.channelId, channelId),
+        eq($threadUnreads.threadId, postId)
+      ),
+    });
+  },
+  ['unreads', 'threadUnreads']
 );
 
 export const getChannel = createReadQuery(
@@ -1956,6 +1975,10 @@ export const insertContacts = createWriteQuery(
         set: conflictUpdateSetAll($contacts),
       });
 
+    if (contactGroups.length === 0) {
+      return;
+    }
+
     if (targetGroups.length) {
       await client.insert($groups).values(targetGroups).onConflictDoNothing();
     }
@@ -2003,6 +2026,21 @@ export const insertUnreads = createWriteQuery(
     });
   },
   ['unreads']
+);
+
+export const insertThreadActivity = createWriteQuery(
+  'insertThreadActivity',
+  async (threadActivity: ThreadUnreadState[]) => {
+    if (!threadActivity.length) return;
+    return client
+      .insert($threadUnreads)
+      .values(threadActivity)
+      .onConflictDoUpdate({
+        target: [$threadUnreads.threadId, $threadUnreads.channelId],
+        set: conflictUpdateSetAll($threadUnreads),
+      });
+  },
+  ['threadUnreads', 'unreads']
 );
 
 export const insertPinnedItems = createWriteQuery(

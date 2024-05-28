@@ -239,6 +239,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
+  const handleMarkRead = useCallback(() => {
+    const channel = channelQuery.data;
+    if (channel) {
+      // for now, trigger a simple delayed read when the unread divider is displayed
+      setTimeout(() => store.markChannelRead(channel), 10_000);
+    }
+  }, [channelQuery.data]);
+
   const getDraft = useCallback(async () => {
     try {
       const draft = await storage.load({ key: `draft-${currentChannelId}` });
@@ -299,6 +307,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         uploadInfo={uploadInfo}
         onScrollEndReached={handleScrollEndReached}
         onScrollStartReached={handleScrollStartReached}
+        markRead={handleMarkRead}
         onPressRef={handleGoToRef}
         usePost={usePostWithRelations}
         useChannel={useChannel}

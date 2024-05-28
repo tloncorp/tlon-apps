@@ -29,6 +29,8 @@ export default function CommentsScrollerSheet({
   clearDraft,
   getDraft,
   onPressImage,
+  firstUnreadId,
+  unreadCount,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -46,6 +48,8 @@ export default function CommentsScrollerSheet({
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   onPressImage?: (post: db.Post, uri?: string) => void;
+  firstUnreadId?: string | null;
+  unreadCount?: number | null;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
@@ -78,6 +82,8 @@ export default function CommentsScrollerSheet({
           posts={posts}
           showReplies={false}
           onPressImage={onPressImage}
+          unreadCount={unreadCount}
+          firstUnreadId={firstUnreadId}
         />
         <View
           backgroundColor="$background"

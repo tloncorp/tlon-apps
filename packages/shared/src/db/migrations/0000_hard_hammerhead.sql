@@ -234,6 +234,7 @@ CREATE TABLE `settings` (
 CREATE TABLE `thread_unreads` (
 	`channel_id` text,
 	`thread_id` text,
+	`notify` integer,
 	`count` integer,
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
@@ -243,6 +244,7 @@ CREATE TABLE `thread_unreads` (
 CREATE TABLE `unreads` (
 	`channel_id` text PRIMARY KEY NOT NULL,
 	`type` text NOT NULL,
+	`notify` integer NOT NULL,
 	`count` integer NOT NULL,
 	`count_without_threads` integer NOT NULL,
 	`updated_at` integer NOT NULL,

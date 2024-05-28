@@ -1,4 +1,5 @@
 import { backOff } from 'exponential-backoff';
+import _ from 'lodash';
 
 import * as api from '../api';
 import * as db from '../db';
@@ -15,7 +16,7 @@ export const syncInitData = async () => {
     await db.insertGroups(initData.groups);
     await db.insertUnjoinedGroups(initData.unjoinedGroups);
     await db.insertChannels(initData.channels);
-    await resetUnreads(initData.unreads);
+    await resetActivity(initData.activity);
     await db.insertChannelPerms(initData.channelPerms);
   });
 };
@@ -67,18 +68,21 @@ export const syncDms = async () => {
 };
 
 export const syncUnreads = async () => {
-  const [channelUnreads, dmUnreads] = await Promise.all([
-    api.getChannelUnreads(),
-    api.getDMUnreads(),
-  ]);
-  const unreads = [...channelUnreads, ...dmUnreads];
-  await resetUnreads(unreads);
+  // const [channelUnreads, dmUnreads] = await Promise.all([
+  //   api.getChannelUnreads(),
+  //   api.getDMUnreads(),
+  // ]);
+  // const unreads = [...channelUnreads, ...dmUnreads];
+  // await resetUnreads(unreads);
 };
 
-const resetUnreads = async (unreads: db.Unread[]) => {
-  await db.insertUnreads(unreads);
+const resetActivity = async (activity: api.ActivityInit) => {
+  const { channelActivity, threadActivity } = activity;
+  await db.insertUnreads(channelActivity);
+  await db.insertThreadActivity(threadActivity);
+
   await db.setJoinedGroupChannels({
-    channelIds: unreads
+    channelIds: channelActivity
       .filter((u) => u.type === 'channel')
       .map((u) => u.channelId),
   });
@@ -274,17 +278,53 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-async function handleUnreadUpdate(unread: db.Unread) {
-  logger.log('event: unread update', unread);
-  await db.insertUnreads([unread]);
-  const channelExists = await db.getChannel({ id: unread.channelId });
-  if (!channelExists) {
-    logger.log('channel does not exist, skipping sync');
-    return;
-  }
-  logger.log('syncing channel', unread.channelId);
-  await syncChannel(unread.channelId, unread.updatedAt);
-}
+// async function handleUnreadUpdate(unread: db.Unread) {
+//   logger.log('event: unread update', unread);
+//   await db.insertUnreads([unread]);
+//   const channelExists = await db.getChannel({ id: unread.channelId });
+//   if (!channelExists) {
+//     logger.log('channel does not exist, skipping sync');
+//     return;
+//   }
+//   logger.log('syncing channel', unread.channelId);
+//   await syncChannel(unread.channelId, unread.updatedAt);
+// }
+
+const handleActivityUpdate = (queueDebounce: number = 500) => {
+  const queue: api.ActivityInit = { channelActivity: [], threadActivity: [] };
+  const processQueue = () =>
+    _.debounce(
+      async () => {
+        const activitySnapshot = _.cloneDeep(queue);
+        queue.channelActivity = [];
+        queue.threadActivity = [];
+
+        logger.log(
+          `processing activity queue`,
+          activitySnapshot.channelActivity.length,
+          activitySnapshot.threadActivity.length
+        );
+        await db.insertUnreads(activitySnapshot.channelActivity);
+        await db.insertThreadActivity(activitySnapshot.threadActivity);
+      },
+      queueDebounce,
+      { leading: true, trailing: true }
+    );
+
+  return (event: api.ActivityEvent) => {
+    logger.log('received activity event', event);
+    switch (event.type) {
+      case 'updateChannelActivity':
+        queue.channelActivity.push(event.activity);
+        processQueue();
+        break;
+      case 'updateThreadActivity':
+        queue.threadActivity.push(event.activity);
+        processQueue();
+        break;
+    }
+  };
+};
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
@@ -599,7 +639,8 @@ export const clearSyncQueue = () => {
 };
 
 export const start = async () => {
-  api.subscribeUnreads(handleUnreadUpdate);
+  // api.subscribeUnreads(handleUnreadUpdate);
+  api.subscribeToActivity(handleActivityUpdate());
   api.subscribeGroups(handleGroupUpdate);
   api.subscribeToChannelsUpdates(handleChannelsUpdate);
   api.subscribeToChatUpdates(handleChatUpdate);

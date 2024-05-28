@@ -29,14 +29,25 @@ export async function unpinItem(pin: db.Pin) {
   }
 }
 
-export async function markChannelRead(
-  channel: db.Channel | { id: string; type: db.ChannelType }
-) {
-  if (channel.type === 'dm' || channel.type === 'groupDm') {
-    await api.markChatRead(channel.id);
-  } else {
-    await api.markChannelRead(channel.id);
-  }
+export async function markChannelRead(channel: db.Channel) {
+  // if (channel.type === 'dm' || channel.type === 'groupDm') {
+  //   await api.markChatRead(channel.id);
+  // } else {
+  //   await api.markChannelRead(channel.id);
+  // }
+  await api.readChannel(channel);
+}
+
+export async function markThreadRead({
+  parentPost,
+  post,
+  channel,
+}: {
+  post: db.Post;
+  parentPost: db.Post;
+  channel: db.Channel;
+}) {
+  await api.readThread({ parentPost, post, channel });
 }
 
 export async function upsertDmChannel({

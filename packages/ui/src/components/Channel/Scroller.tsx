@@ -79,6 +79,7 @@ export default function Scroller({
   onPressPost,
   onPressImage,
   onPressReplies,
+  onDividerSeen,
   showReplies = true,
   editingPost,
   setEditingPost,
@@ -102,6 +103,7 @@ export default function Scroller({
   onPressPost?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
+  onDividerSeen?: (post: db.Post) => void;
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -194,13 +196,19 @@ export default function Scroller({
         <View onLayout={() => handleItemLayout(item, index)}>
           {isFirstUnread ? (
             <ChannelDivider
-              timestamp={item.receivedAt}
+              // timestamp={item.receivedAt}
+              post={item}
               unreadCount={unreadCount ?? 0}
               isFirstPostOfDay={isFirstPostOfDay}
-              channelInfo={{ id: channelId, type: channelType }}
+              onSeen={onDividerSeen}
+              // channelInfo={{ id: channelId, type: channelType }}
             />
           ) : isFirstPostOfDay && item.type === 'chat' ? (
-            <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
+            <ChannelDivider
+              unreadCount={0}
+              post={item}
+              onSeen={onDividerSeen}
+            />
           ) : null}
           <PressableMessage
             ref={activeMessageRefs.current[item.id]}

@@ -228,16 +228,16 @@ export interface PagedWritsMap extends Omit<PagedWrits, 'writs'> {
   writs: WritPageMap;
 }
 
-export interface MessageKey {
+export interface DmUnreadMessageKey {
   id: string;
   time: string;
 }
 
-export interface DMUnreadPoint extends MessageKey {
+export interface DMUnreadPoint extends DmUnreadMessageKey {
   count: number;
 }
 
-export interface UnreadThread extends DMUnreadPoint {
+export interface DMUnreadThread extends DMUnreadPoint {
   'parent-time': string;
 }
 
@@ -245,7 +245,7 @@ export interface DMUnread {
   recency: number;
   count: number;
   unread: DMUnreadPoint | null;
-  threads: Record<string, UnreadThread>;
+  threads: Record<string, DMUnreadThread>;
 }
 
 export interface DMUnreads {
@@ -256,6 +256,7 @@ export interface DMUnreadUpdate {
   whom: DMWhom;
   unread: DMUnread;
 }
+
 /**
  * Either a `@p` or `@uv` rendered as string
  */

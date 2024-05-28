@@ -92,6 +92,20 @@ export const useUnreads = (options: db.GetUnreadsOptions) => {
   });
 };
 
+export const useThreadActivity = ({
+  channelId,
+  postId,
+}: {
+  channelId: string;
+  postId: string;
+}) => {
+  const key = useKeyFromQueryDeps(db.getThreadActivity);
+  return useQuery({
+    queryKey: ['threadActivity', key, { channelId, postId }],
+    queryFn: () => db.getThreadActivity({ channelId, postId }),
+  });
+};
+
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups'],

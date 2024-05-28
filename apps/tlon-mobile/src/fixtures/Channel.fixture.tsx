@@ -88,6 +88,7 @@ export const ChannelFixture = (props: {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        markRead={() => {}}
         editPost={() => {}}
         uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
@@ -121,6 +122,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        markRead={() => {}}
         editPost={() => {}}
         getDraft={async () => ({})}
         storeDraft={() => {}}
@@ -173,6 +175,7 @@ const ChannelFixtureWithImage = () => {
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        markRead={() => {}}
         editPost={() => {}}
         negotiationMatch={true}
         isLoadingPosts={false}

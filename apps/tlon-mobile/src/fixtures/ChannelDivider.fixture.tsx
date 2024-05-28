@@ -13,7 +13,7 @@ export default (
       currentUserId="~solfer-magfed"
       post={posts[0]}
     ></ChatMessage>
-    <ChannelDivider timestamp={Date.now()} unreadCount={3} />
+    <ChannelDivider post={posts[1]} unreadCount={3} />
     <ChatMessage
       currentUserId="~solfer-magfed"
       post={posts[1]}

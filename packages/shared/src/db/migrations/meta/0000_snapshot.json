@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "6437e540-2bea-411a-ae8d-9a03afab8a6c",
+  "id": "fb9695f3-feaf-47fc-8d18-9c9e893fc66f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -1540,6 +1540,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "notify": {
+          "name": "notify",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "count": {
           "name": "count",
           "type": "integer",
@@ -1588,6 +1595,13 @@
         "type": {
           "name": "type",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notify": {
+          "name": "notify",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

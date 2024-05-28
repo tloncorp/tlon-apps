@@ -38,6 +38,10 @@ export default function PostScreen(props: PostScreenProps) {
   });
 
   const { data: channel } = store.useChannel({ id: postParam.channelId });
+  const { data: threadActivity } = store.useThreadActivity({
+    channelId: postParam.channelId,
+    postId: postParam.id,
+  });
   const groupQuery = store.useGroup({
     id: channel?.groupId ?? '',
   });
@@ -107,6 +111,24 @@ export default function PostScreen(props: PostScreenProps) {
     [postParam.id]
   );
 
+  const markRead = useCallback(
+    (threadPost: db.Post) => {
+      if (channel && post) {
+        // for now, trigger a simple delayed read when the unread divider is displayed
+        setTimeout(
+          () =>
+            store.markThreadRead({
+              channel,
+              parentPost: post,
+              post: threadPost,
+            }),
+          10_000
+        );
+      }
+    },
+    [channel, post]
+  );
+
   const clearDraft = useCallback(async () => {
     try {
       await storage.remove({ key: `draft-${postParam.id}` });
@@ -143,6 +165,8 @@ export default function PostScreen(props: PostScreenProps) {
         goBack={props.navigation.goBack}
         sendReply={sendReply}
         groupMembers={groupQuery.data?.members ?? []}
+        group={groupQuery.data}
+        markRead={markRead}
         uploadInfo={uploadInfo}
         handleGoToImage={handleGoToImage}
         getDraft={getDraft}
