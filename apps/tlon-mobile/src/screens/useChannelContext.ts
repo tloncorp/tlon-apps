@@ -5,7 +5,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { JSONContent } from '@tloncorp/shared/dist/urbit';
-import { GroupPreviewAction } from 'packages/ui/src';
+import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';

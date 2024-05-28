@@ -26,6 +26,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }, [props.route.params.channel.group])
   );
 
+  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
+  const [currentChannelId, setCurrentChannelId] = React.useState(
+    props.route.params.channel.id
+  );
+
   const {
     negotiationStatus,
     getDraft,
@@ -46,15 +51,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     currentUserId,
     performGroupAction,
   } = useChannelContext({
-    channelId: props.route.params.channel.id,
-    draftKey: props.route.params.channel.id,
-    uploaderKey: `${props.route.params.channel.id}`,
+    channelId: currentChannelId,
+    draftKey: currentChannelId,
+    uploaderKey: `${currentChannelId}`,
   });
-
-  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
-  const [currentChannelId, setCurrentChannelId] = React.useState(
-    props.route.params.channel.id
-  );
 
   const selectedPostId = props.route.params.selectedPost?.id;
   const unread = channel?.unread;
