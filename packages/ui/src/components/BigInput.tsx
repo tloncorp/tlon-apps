@@ -1,5 +1,7 @@
+import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -12,14 +14,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ScrollView } from 'react-native-reanimated/lib/typescript/Animated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'tamagui';
-import { Input, useWindowDimensions } from 'tamagui';
+import { Image, Input, getToken } from 'tamagui';
 
 import { Text, View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MessageInput } from './MessageInput';
+import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
 
 export function BigInput({
@@ -43,6 +45,10 @@ export function BigInput({
 } & MessageInputProps) {
   const [title, setTitle] = useState('');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+  const editorRef = useRef<{
+    editor: EditorBridge | null;
+    setEditor: (editor: EditorBridge) => void;
+  }>(null);
   const scrollY = useSharedValue(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const isScrolledPastThreshold = useSharedValue(false);
@@ -79,6 +85,11 @@ export function BigInput({
       scrollViewRef.current?.scrollTo({ y: -150, animated: true });
     }
   };
+
+  const { top } = useSafeAreaInsets();
+  const { width } = Dimensions.get('screen');
+  const titleInputHeight = getToken('$4xl', 'space');
+  const keyboardVerticalOffset = top + titleInputHeight;
 
   return (
     <YStack height="100%" width="100%">
@@ -148,6 +159,7 @@ export function BigInput({
       <Animated.ScrollView
         ref={scrollViewRef}
         style={[{ height: '100%', width: '100%' }]}
+        // scrollEnabled={!editorIsFocused}
         onScroll={scrollHandler}
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
@@ -160,7 +172,7 @@ export function BigInput({
           <View backgroundColor="$background" width="100%">
             <Input
               size="$xl"
-              height="$4xl"
+              height={titleInputHeight}
               backgroundColor="$background"
               borderColor="transparent"
               placeholder="New Title"
@@ -192,9 +204,26 @@ export function BigInput({
             bigInput
             showToolbar={channelType === 'notebook'}
             channelType={channelType}
+            ref={editorRef}
           />
         </View>
       </Animated.ScrollView>
+      {channelType === 'notebook' &&
+        editorRef.current &&
+        editorRef.current.editor && (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+            keyboardVerticalOffset={keyboardVerticalOffset}
+            style={{
+              width,
+              position: 'absolute',
+              bottom: 0,
+              flex: 1,
+            }}
+          >
+            <InputToolbar editor={editorRef.current.editor} />
+          </KeyboardAvoidingView>
+        )}
       {channelType === 'notebook' && uploadInfo && (
         <AttachmentSheet
           showAttachmentSheet={showAttachmentSheet}

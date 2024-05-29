@@ -1,3 +1,4 @@
+import { EditorBridge } from '@10play/tentap-editor';
 import { UploadInfo, UploadedFile } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
@@ -36,6 +37,10 @@ export interface MessageInputProps {
   image?: UploadedFile;
   showToolbar?: boolean;
   channelType?: db.ChannelType;
+  ref?: React.RefObject<{
+    editor: EditorBridge | null;
+    setEditor: (editor: EditorBridge) => void;
+  }>;
 }
 
 export const MessageInputContainer = ({
