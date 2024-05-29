@@ -104,7 +104,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const currentUserId = useCurrentUserId();
 
   const messageSender = useCallback(
-    async (content: Story, _channelId: string) => {
+    async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
       if (!currentUserId || !channelQuery.data) {
         return;
       }
@@ -133,10 +133,13 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
       }
 
+      console.log({ metadata });
+
       store.sendPost({
         channel: channelQuery.data,
         authorId: currentUserId,
         content,
+        metadata,
       });
       uploadInfo.resetImageAttachment();
     },

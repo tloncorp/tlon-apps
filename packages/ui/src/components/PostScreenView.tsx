@@ -74,6 +74,8 @@ export function PostScreenView({
       ? parentPost.title
       : `Post: ${channel?.title ?? null}`;
 
+  const authorRowHeight = 48;
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
@@ -92,18 +94,22 @@ export function PostScreenView({
               style={{ flex: 1 }}
             >
               {parentPost && channel.type === 'gallery' && (
-                <GalleryPost
-                  post={parentPost}
-                  detailView
-                  onPressImage={handleGoToImage}
-                />
+                <View paddingBottom={authorRowHeight}>
+                  <GalleryPost
+                    post={parentPost}
+                    detailView
+                    onPressImage={handleGoToImage}
+                  />
+                </View>
               )}
               {parentPost && channel.type === 'notebook' && (
-                <NotebookPost
-                  post={parentPost}
-                  detailView
-                  onPressImage={handleGoToImage}
-                />
+                <View paddingBottom={authorRowHeight}>
+                  <NotebookPost
+                    post={parentPost}
+                    detailView
+                    onPressImage={handleGoToImage}
+                  />
+                </View>
               )}
               {uploadInfo.imageAttachment ? (
                 <UploadedImagePreview

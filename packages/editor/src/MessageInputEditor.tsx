@@ -1,5 +1,9 @@
 import {
   BlockquoteBridge,
+  ListItemBridge,
+  BulletListBridge,
+  OrderedListBridge,
+  TaskListBridge,
   BoldBridge,
   CodeBridge,
   CoreBridge,
@@ -10,6 +14,8 @@ import {
   StrikeBridge,
   UnderlineBridge,
   useTenTap,
+  HeadingBridge,
+  ImageBridge,
 } from '@10play/tentap-editor';
 import CodeBlock from '@tiptap/extension-code-block';
 import { Slice } from '@tiptap/pm/model';
@@ -37,6 +43,12 @@ export const MessageInputEditor = () => {
       CoreBridge,
       BoldBridge,
       ItalicBridge,
+      HeadingBridge,
+      BulletListBridge,
+      ListItemBridge,
+      OrderedListBridge,
+      TaskListBridge,
+      ImageBridge,
       StrikeBridge,
       ShortcutsBridge,
       BlockquoteBridge,

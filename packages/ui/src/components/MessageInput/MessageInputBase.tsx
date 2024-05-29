@@ -2,6 +2,7 @@ import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
+import { SpaceTokens } from 'tamagui';
 
 import { ArrowUp, Checkmark, Close } from '../../assets/icons';
 import { ThemeTokens, View, XStack, YStack } from '../../core';
@@ -14,7 +15,7 @@ import ReferencePreview from './ReferencePreview';
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: Story, channelId: string) => void;
+  send: (content: Story, channelId: string, metadata?: db.PostMetadata) => void;
   channelId: string;
   uploadInfo?: UploadInfo;
   groupMembers: db.ChatMember[];
@@ -24,10 +25,14 @@ export interface MessageInputProps {
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => void;
-  setShowGalleryInput?: (showGalleryInput: boolean) => void;
+  setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
   floatingActionButton?: boolean;
+  paddingHorizontal?: SpaceTokens;
   backgroundColor?: ThemeTokens;
+  placeholder?: string;
+  bigInput?: boolean;
+  title?: string;
 }
 
 export const MessageInputContainer = ({
@@ -45,6 +50,7 @@ export const MessageInputContainer = ({
   cancelEditing,
   onPressEdit,
   editorIsEmpty,
+  titleIsEmpty
 }: PropsWithChildren<{
   onPressSend: () => void;
   uploadInfo?: UploadInfo;
@@ -59,6 +65,7 @@ export const MessageInputContainer = ({
   cancelEditing?: () => void;
   onPressEdit?: () => void;
   editorIsEmpty: boolean;
+  titleIsEmpty: boolean;
 }>) => {
   const hasUploadedImage = useMemo(
     () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
@@ -103,7 +110,7 @@ export const MessageInputContainer = ({
         {children}
         {floatingActionButton ? (
           <View position="absolute" bottom="$l" right="$l">
-            {editorIsEmpty ? null : (
+            {editorIsEmpty || titleIsEmpty ? null : (
               <FloatingActionButton
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
                 icon={isEditing ? <Checkmark /> : <ArrowUp />}

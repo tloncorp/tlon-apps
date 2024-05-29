@@ -22,9 +22,11 @@ import { RequestsProvider } from '../../contexts/requests';
 import { SizableText, Spinner, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
+import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
+// import { Input } from '../Input';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -99,7 +101,7 @@ export function Channel({
   hasOlderPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
-  const [showGalleryInput, setShowGalleryInput] = useState(false);
+  const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
@@ -160,23 +162,22 @@ export function Channel({
                     contentContainerStyle={{ flex: 1 }}
                   >
                     <YStack alignItems="center" flex={1}>
-                      {showGalleryInput ? (
-                        <MessageInput
+                      {showBigInput ? (
+                        <BigInput
+                          channelType={channel.type}
+                          channelId={channel.id}
+                          groupMembers={group?.members ?? []}
                           shouldBlur={inputShouldBlur}
                           setShouldBlur={setInputShouldBlur}
                           send={messageSender}
-                          channelId={channel.id}
-                          groupMembers={group?.members ?? []}
                           storeDraft={storeDraft}
                           clearDraft={clearDraft}
                           getDraft={getDraft}
                           editingPost={editingPost}
                           setEditingPost={setEditingPost}
                           editPost={editPost}
-                          setShowGalleryInput={setShowGalleryInput}
-                          floatingActionButton
-                          showAttachmentButton={false}
-                          backgroundColor="$background"
+                          setShowBigInput={setShowBigInput}
+                          placeholder=""
                         />
                       ) : uploadInfo.imageAttachment ? (
                         <UploadedImagePreview
@@ -248,7 +249,7 @@ export function Channel({
                       {!negotiationMatch && isChatChannel && canWrite && (
                         <NegotionMismatchNotice />
                       )}
-                      {!isChatChannel && canWrite && !showGalleryInput && (
+                      {!isChatChannel && canWrite && !showBigInput && (
                         <View position="absolute" bottom="$l" right="$l">
                           {uploadInfo.uploadedImage && uploadInfo.uploading ? (
                             <View alignItems="center" padding="$m">
@@ -259,7 +260,9 @@ export function Channel({
                               onPress={() =>
                                 uploadInfo.uploadedImage
                                   ? messageSender([], channel.id)
-                                  : setShowAddGalleryPost(true)
+                                  : channel.type === 'gallery'
+                                    ? setShowAddGalleryPost(true)
+                                    : setShowBigInput(true)
                               }
                               icon={
                                 uploadInfo.uploadedImage ? <ArrowUp /> : <Add />
@@ -272,7 +275,7 @@ export function Channel({
                         <AddGalleryPost
                           showAddGalleryPost={showAddGalleryPost}
                           setShowAddGalleryPost={setShowAddGalleryPost}
-                          setShowGalleryInput={setShowGalleryInput}
+                          setShowGalleryInput={setShowBigInput}
                           setImage={uploadInfo.setAttachments}
                         />
                       )}

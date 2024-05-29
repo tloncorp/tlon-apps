@@ -23,17 +23,23 @@ import {
   pathToCite,
 } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
+import { getToken, useWindowDimensions } from 'tamagui';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
+import { InputToolbar } from './InputToolbar';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
+import { DEFAULT_TOOLBAR_ITEMS, ToolbarItem } from './toolbarActions';
 
 type MessageEditorMessage = {
   type: 'contentHeight';
   payload: number;
 } & EditorMessage;
+
+const toolbarItems: ToolbarItem[] = DEFAULT_TOOLBAR_ITEMS;
 
 // This function and the one below it are taken from RichText.tsx
 // in the tentap-editor package.
@@ -85,10 +91,14 @@ export function MessageInput({
   editingPost,
   setEditingPost,
   editPost,
-  setShowGalleryInput,
+  setShowBigInput,
   showAttachmentButton = true,
   floatingActionButton = false,
   backgroundColor = '$secondaryBackground',
+  paddingHorizontal = '$l',
+  placeholder = 'Message',
+  bigInput = false,
+  title,
 }: MessageInputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
@@ -98,17 +108,20 @@ export function MessageInput({
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [showMentionPopup, setShowMentionPopup] = useState(false);
   const { references, setReferences } = useReferences();
+  const bridgeExtensions = [...TenTapStartKit, MentionsBridge, ShortcutsBridge];
+
+  if (placeholder) {
+    bridgeExtensions.push(
+      PlaceholderBridge.configureExtension({
+        placeholder,
+      })
+    );
+  }
+
   const editor = useEditorBridge({
     customSource: editorHtml,
     autofocus: false,
-    bridgeExtensions: [
-      ...TenTapStartKit,
-      PlaceholderBridge.configureExtension({
-        placeholder: 'Message',
-      }),
-      MentionsBridge,
-      ShortcutsBridge,
-    ],
+    bridgeExtensions,
   });
   const editorState = useBridgeState(editor);
   const webviewRef = editor.webviewRef;
@@ -387,13 +400,17 @@ export function MessageInput({
         await editPost?.(editingPost, story);
         setEditingPost?.(undefined);
       } else {
-        await send(story, channelId);
+        if (title && title.length > 0) {
+          await send(story, channelId, { title });
+        } else {
+          await send(story, channelId);
+        }
       }
 
       editor.setContent('');
       setReferences({});
       clearDraft();
-      setShowGalleryInput?.(false);
+      setShowBigInput?.(false);
     },
     [
       editor,
@@ -406,7 +423,8 @@ export function MessageInput({
       editPost,
       editingPost,
       setEditingPost,
-      setShowGalleryInput,
+      setShowBigInput,
+      title,
     ]
   );
 
@@ -490,6 +508,15 @@ export function MessageInput({
     [editor.bridgeExtensions]
   );
 
+  const { bottom, top } = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
+  const headerHeight = 48;
+  const titleInputHeight = 48;
+  const inputBasePadding = getToken('$s', 'space');
+  const basicOffset = top + headerHeight + titleInputHeight;
+  const bigInputHeight = height - basicOffset - bottom - inputBasePadding * 2;
+  const keyboardVerticalOffset = basicOffset + inputBasePadding;
+
   return (
     <MessageInputContainer
       onPressSend={handleSend}
@@ -503,14 +530,16 @@ export function MessageInput({
       isEditing={!!editingPost}
       cancelEditing={() => setEditingPost?.(undefined)}
       editorIsEmpty={editorIsEmpty}
+      titleIsEmpty={!title || title.length === 0}
       showAttachmentButton={showAttachmentButton}
       floatingActionButton={floatingActionButton}
     >
       <XStack
         borderRadius="$xl"
-        height={containerHeight}
+        height={bigInput ? bigInputHeight : containerHeight}
+        width="100%"
         backgroundColor={backgroundColor}
-        paddingHorizontal="$l"
+        paddingHorizontal={paddingHorizontal}
         flex={1}
       >
         <RichText
@@ -544,6 +573,19 @@ export function MessageInput({
               });
             `}
         />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+          style={{
+            width,
+            position: 'absolute',
+            bottom: 0,
+            flex: 1,
+            marginHorizontal: -16,
+          }}
+        >
+          <InputToolbar editor={editor} items={toolbarItems} />
+        </KeyboardAvoidingView>
       </XStack>
     </MessageInputContainer>
   );

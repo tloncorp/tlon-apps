@@ -142,6 +142,8 @@ export const sendPost = async ({
     metadata,
   });
 
+  console.log('sendPost essay:', essay);
+
   await poke(
     channelPostAction(channelId, {
       add: essay,
