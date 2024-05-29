@@ -24,7 +24,12 @@ import ContentReference from '../ContentReference';
 import ChatEmbedContent from './ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
-function ShipMention({ ship }: { ship: string }) {
+interface ShipMentionProps {
+  ship: string;
+  [key: string]: any;
+}
+
+function ShipMention({ ship, ...rest }: ShipMentionProps) {
   return (
     <ContactName
       onPress={() => {}}
@@ -32,6 +37,7 @@ function ShipMention({ ship }: { ship: string }) {
       color="$positiveActionText"
       userId={ship}
       showNickname
+      {...rest}
     />
   );
 }
@@ -271,9 +277,8 @@ const LineRenderer = memo(
           currentLine.push(
             <Text
               key={`string-${inline}-${index}`}
-              color={isNotice ? '$tertiaryText' : color}
-              fontSize={viewMode === 'block' ? '$s' : '$m'}
-              fontWeight={isNotice ? '500' : 'normal'}
+              color={isNotice ? '$secondaryText' : color}
+              fontSize={viewMode === 'block' || isNotice ? '$s' : '$m'}
               lineHeight="$m"
             >
               {inline}
@@ -306,7 +311,11 @@ const LineRenderer = memo(
         currentLine = [];
       } else if (isShip(inline)) {
         currentLine.push(
-          <ShipMention key={`ship-${index}`} ship={inline.ship} />
+          <ShipMention
+            key={`ship-${index}`}
+            ship={inline.ship}
+            fontSize={isNotice ? '$s' : 'unset'}
+          />
         );
       } else {
         currentLine.push(
