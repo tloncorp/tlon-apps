@@ -113,6 +113,7 @@ export function BigInput({
             onPress={() => {
               if (isScrolledPastThreshold.value) {
                 setShowAttachmentSheet(true);
+                editorRef.current?.editor?.blur();
               } else {
                 scrollViewRef.current?.scrollTo({ y: -150, animated: true });
               }
