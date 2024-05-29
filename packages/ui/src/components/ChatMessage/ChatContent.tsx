@@ -15,7 +15,14 @@ import {
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
 import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
-import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  ReactElement,
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
 import { TouchableOpacity } from 'react-native';
 
 import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
@@ -24,20 +31,14 @@ import ContentReference from '../ContentReference';
 import ChatEmbedContent from './ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
-interface ShipMentionProps {
-  ship: string;
-  [key: string]: any;
-}
-
-function ShipMention({ ship, ...rest }: ShipMentionProps) {
+function ShipMention(props: ComponentProps<typeof ContactName>) {
   return (
     <ContactName
       onPress={() => {}}
       fontWeight={'500'}
       color="$positiveActionText"
-      userId={ship}
       showNickname
-      {...rest}
+      {...props}
     />
   );
 }
@@ -171,7 +172,7 @@ export function InlineContent({
     return <Text height="$s" />;
   }
   if (isShip(inline)) {
-    return <ShipMention ship={inline.ship} />;
+    return <ShipMention userId={inline.ship} />;
   }
   console.error(`Unhandled message type: ${JSON.stringify(inline)}`);
   return (
@@ -313,7 +314,7 @@ const LineRenderer = memo(
         currentLine.push(
           <ShipMention
             key={`ship-${index}`}
-            ship={inline.ship}
+            userId={inline.ship}
             fontSize={isNotice ? '$s' : 'unset'}
           />
         );
