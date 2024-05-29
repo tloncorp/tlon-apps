@@ -13,7 +13,7 @@ export const ListSectionHeader = ({ children }: { children: string }) => {
 
 const ListSectionHeaderContainer = styled(View, {
   paddingHorizontal: '$l',
-  paddingVertical: '$xl',
+  paddingVertical: '$m',
 });
 
 const Text = styled(SizableText, {

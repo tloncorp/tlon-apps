@@ -19,11 +19,7 @@ export const ScreenHeaderComponent = ({
 }>) => {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      paddingTop={insets.top}
-      borderBottomWidth={1}
-      borderBottomColor={'$border'}
-    >
+    <View paddingTop={insets.top}>
       <XStack
         height="$4xl"
         paddingVertical="$m"
