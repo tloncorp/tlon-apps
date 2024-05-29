@@ -14,8 +14,8 @@ import {
   useSortedContacts,
 } from '../hooks/contactSorters';
 import { ContactRow } from './ContactRow';
-import { BlockSectionList } from './ListSectionHeader';
 import { SearchBar } from './SearchBar';
+import { BlockSectionList } from './SectionList';
 
 export function ContactBook({
   searchable = false,
