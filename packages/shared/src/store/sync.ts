@@ -13,8 +13,9 @@ export const syncInitData = async () => {
     const initData = await api.getInitData();
     await db.insertPinnedItems(initData.pins);
     await db.insertGroups(initData.groups);
-    await resetUnreads(initData.unreads);
+    await db.insertUnjoinedGroups(initData.unjoinedGroups);
     await db.insertChannels(initData.channels);
+    await resetUnreads(initData.unreads);
     await db.insertChannelPerms(initData.channelPerms);
   });
 };
@@ -94,7 +95,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.insertGroups([update.group]);
       break;
     case 'editGroup':
-      await db.updateGroup({ id: update.groupId, meta: update.meta });
+      await db.updateGroup({ id: update.groupId, ...update.meta });
       break;
     case 'deleteGroup':
       await db.deleteGroup(update.groupId);
@@ -146,16 +147,16 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       ]);
       break;
     case 'setGroupAsPublic':
-      await db.updateGroup({ id: update.groupId, publicOrPrivate: 'public' });
+      await db.updateGroup({ id: update.groupId, privacy: 'public' });
       break;
     case 'setGroupAsPrivate':
-      await db.updateGroup({ id: update.groupId, publicOrPrivate: 'private' });
+      await db.updateGroup({ id: update.groupId, privacy: 'private' });
       break;
     case 'setGroupAsSecret':
-      await db.updateGroup({ id: update.groupId, isSecret: true });
+      await db.updateGroup({ id: update.groupId, privacy: 'secret' });
       break;
     case 'setGroupAsNotSecret':
-      await db.updateGroup({ id: update.groupId, isSecret: false });
+      await db.updateGroup({ id: update.groupId, privacy: 'private' });
       break;
     case 'addGroupMembers':
       await db.addChatMembers({
@@ -265,6 +266,9 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         index: 0,
       });
       break;
+    case 'setUnjoinedGroups':
+      await db.insertUnjoinedGroups(update.groups);
+      break;
     case 'unknown':
     default:
       break;
@@ -282,6 +286,17 @@ async function handleUnreadUpdate(unread: db.Unread) {
   logger.log('syncing channel', unread.channelId);
   await syncChannel(unread.channelId, unread.updatedAt);
 }
+
+export const handleContactUpdate = async (update: api.ContactsUpdate) => {
+  switch (update.type) {
+    case 'add':
+      await db.insertContacts([update.contact]);
+      break;
+    case 'delete':
+      await db.deleteContact(update.contactId);
+      break;
+  }
+};
 
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
@@ -348,6 +363,19 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       break;
     case 'unknown':
     default:
+      break;
+  }
+};
+
+export const handleChatUpdate = async (event: api.ChatEvent) => {
+  switch (event.type) {
+    case 'addDmInvites':
+      // insert the new DMs
+      db.insertChannels(event.channels);
+      break;
+
+    case 'groupDmsUpdate':
+      syncDms();
       break;
   }
 };
@@ -446,6 +474,11 @@ export async function syncGroup(id: string) {
   if (!group) {
     throw new Error('no local group for' + id);
   }
+  const response = await api.getGroup(id);
+  await db.insertGroups([response]);
+}
+
+export async function syncNewGroup(id: string) {
   const response = await api.getGroup(id);
   await db.insertGroups([response]);
 }
@@ -568,7 +601,9 @@ export const clearSyncQueue = () => {
 
 export const start = async () => {
   api.subscribeUnreads(handleUnreadUpdate);
-  api.subscribeToChannelsUpdates(handleChannelsUpdate);
   api.subscribeGroups(handleGroupUpdate);
+  api.subscribeToChannelsUpdates(handleChannelsUpdate);
+  api.subscribeToChatUpdates(handleChatUpdate);
+  api.subscribeToContactUpdates(handleContactUpdate);
   useStorage.getState().start();
 };

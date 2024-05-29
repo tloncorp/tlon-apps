@@ -59,7 +59,7 @@ const InputImpl = InputFrame.styleable((props, ref) => {
   const { size } = InputContext.useStyledContext();
   return (
     <View flex={1}>
-      <InputFrame flex={1} height="100%" ref={ref} size={size} {...props} />
+      <InputFrame flex={1} ref={ref} size={size} {...props} />
     </View>
   );
 });
