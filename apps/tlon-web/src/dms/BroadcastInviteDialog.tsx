@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router';
 
 import Dialog from '../components/Dialog';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
-import { useCohort, useCohorts } from '@/state/broadcasts';
+import { refetchCohort, useCohort, useCohorts } from '@/state/broadcasts';
 import api from '@/api';
+import { stringToTa } from '@/logic/utils';
 
 interface BroadcastInviteDialogProps {
   inviteIsOpen: boolean;
   setInviteIsOpen: (open: boolean) => void;
   whom: string;
   mode: 'add' | 'del';
+  create: boolean;
 }
 
 export default function BroadcastInviteDialog({
@@ -18,11 +20,11 @@ export default function BroadcastInviteDialog({
   setInviteIsOpen,
   whom,
   mode = 'add',
+  create = false,
 }: BroadcastInviteDialogProps) {
   const navigate = useNavigate();
   const [ships, setShips] = useState<ShipOption[]>([]);
   const targets = useCohort(whom).targets;
-  const { refetch: refetchCohorts } = useCohorts();
   const invalidShips = ships.filter((ship) => {
     if (!targets) {
       return false;
@@ -34,12 +36,36 @@ export default function BroadcastInviteDialog({
     }
   });
   const showError = invalidShips.length > 0;
+  const [nameValue, setNameValue] = useState('');
+  const { refetch: refetchCohorts } = useCohorts();
 
   const onEnter = useCallback(async () => {
-    navigate(`/broadcasts/${whom}`);
+    navigate(`/dm/broadcasts/${whom}`);
   }, [navigate, whom]);
 
   const submitHandler = useCallback(async () => {
+    if (create && nameValue) {
+      const ta = stringToTa(nameValue);
+      const json = {
+        'add-cohort': {
+          cohort: ta,
+          targets: ships.map((so) => {
+            return so.value;
+          })
+        }
+      };
+      const after = () => {
+        refetchCohorts();
+        navigate(`/dm/broadcasts/${ta}`);
+        setInviteIsOpen(false);
+        setNameValue('');
+        setShips([]);
+      };
+      api.poke({
+        mark: 'broadcaster-action', app: 'broadcaster', json,
+        onSuccess: ()=>after(), onError: ()=>after()
+      });
+    } else
     if (whom && !showError) {
       let json;
       if (mode === 'add') {
@@ -69,7 +95,7 @@ export default function BroadcastInviteDialog({
       setInviteIsOpen(false);
       setShips([]);
     }
-  }, [mode, whom, showError, ships, refetchCohorts, setInviteIsOpen]);
+  }, [nameValue, create, whom, showError, ships, refetchCohorts, navigate, mode, setInviteIsOpen]);
 
   return (
     <Dialog
@@ -80,7 +106,15 @@ export default function BroadcastInviteDialog({
     >
       <div className="card">
         <div className="mb-4 flex flex-col space-y-4">
-          <h2 className="text-lg font-bold">Invite to Chat</h2>
+          <h2 className="text-lg font-bold">Add to Broadcast</h2>
+          {create ? (<input
+            autoFocus
+            type="text"
+            placeholder="Cohort Name"
+            value={nameValue}
+            onChange={(e)=>setNameValue(e.target.value)}
+            className="input alt-highlight w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
+          />) : null}
           <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
           {showError && (
             <div className="text-red">

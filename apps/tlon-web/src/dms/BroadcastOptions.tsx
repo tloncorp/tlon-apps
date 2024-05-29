@@ -68,7 +68,6 @@ export default function BroadcastOptions({
   const [dialog, setDialog] = useState(false);
 
   const onDelete = async () => {
-    //TODO  show dialog & await confirmation first
     api.poke({ mark: 'broadcaster-action', app: 'broadcaster', json: {
       'del-cohort': { cohort: whom, targets: [] }
     }, onSuccess: refetchCohorts, onError: refetchCohorts });
@@ -154,6 +153,7 @@ export default function BroadcastOptions({
         inviteIsOpen={inviteIsOpen}
         setInviteIsOpen={setInviteIsOpen}
         whom={whom}
+        create={false}
       />
     </>
   );

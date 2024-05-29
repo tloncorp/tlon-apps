@@ -30,6 +30,8 @@ import SidebarItem from './SidebarItem';
 import SidebarSorter from './SidebarSorter';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
 import useActiveTab from './util';
+import { filters, useMessagesFilter } from '@/state/settings';
+import BroadcastInviteDialog from '@/dms/BroadcastInviteDialog';
 
 const Sidebar = React.memo(() => {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -45,6 +47,8 @@ const Sidebar = React.memo(() => {
   const searchRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeTab = useActiveTab();
+  const broadcastMode = useMessagesFilter() === filters.broadcasts;
+  const [broadcastIsOpen, setBroadcastIsOpen] = useState(false);
 
   const [searchInput, setSearchInput] = useState('');
   const hasSearch = searchInput.length > 0;
@@ -148,8 +152,16 @@ const Sidebar = React.memo(() => {
     <nav className="flex h-full w-full flex-none flex-col bg-white">
       {activeTab !== 'messages' ? (
         <AddGroupSidebarItem />
+      ) : broadcastMode ? (
+        <SidebarItem
+          className="group relative mx-2 mt-2 bg-blue text-white"
+          icon={<AddIcon16 className="m-1 h-4 w-4" />}
+          onClick={()=>setBroadcastIsOpen(true)}
+          highlight="transparent"
+        >
+          <span className="text-white">New Broadcast</span>
+        </SidebarItem>
       ) : (
-        //TODO if filtering for broadcasts, show "New Broadcast" button instead
         <SidebarItem
           className="group relative mx-2 mt-2 bg-blue text-white"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
@@ -257,6 +269,13 @@ const Sidebar = React.memo(() => {
           <MessagesSidebar searchQuery={searchInput} />
         )}
       </div>
+      <BroadcastInviteDialog
+        mode="add"
+        inviteIsOpen={broadcastIsOpen}
+        setInviteIsOpen={setBroadcastIsOpen}
+        whom=""
+        create={true}
+      />
     </nav>
   );
 });
