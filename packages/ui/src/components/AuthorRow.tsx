@@ -120,7 +120,7 @@ export default function AuthorRow({
     return (
       <XStack gap="$s" alignItems="center">
         <Avatar size="$2xl" contact={author} contactId={authorId} />
-        <ContactName showNickname userId={authorId} />
+        <ContactName width="50%" showNickname userId={authorId} />
         <SizableText color="$secondaryText" fontSize="$s">
           {timeDisplay}
         </SizableText>
