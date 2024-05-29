@@ -1,4 +1,4 @@
-import { MessageInput, View, BigInput } from '@tloncorp/ui';
+import { BigInput, MessageInput, View } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
