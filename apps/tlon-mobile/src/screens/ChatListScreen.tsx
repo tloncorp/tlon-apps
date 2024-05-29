@@ -13,7 +13,7 @@ import {
   StartDmSheet,
   View,
 } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
@@ -36,6 +36,13 @@ export default function ChatListScreen(
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const { data: chats } = store.useCurrentChats();
   const { data: contacts } = store.useContacts();
+  const resolvedChats = useMemo(() => {
+    return {
+      pinned: chats?.pinned ?? [],
+      unpinned: chats?.unpinned ?? [],
+      pendingChats: chats?.pendingChats ?? [],
+    };
+  }, [chats]);
 
   const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
   useRefetchQueryOnFocus(refetch);
@@ -71,10 +78,41 @@ export default function ChatListScreen(
     [props.navigation]
   );
 
-  const onLongPressItem = useCallback(
-    (item: db.Channel | db.Group) =>
-      logic.isChannel(item) ? setLongPressedItem(item) : null,
-    []
+  const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
+    console.log('kong press', item);
+    logic.isChannel(item) ? setLongPressedItem(item) : null;
+  }, []);
+
+  const handleDmOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setStartDmOpen(false);
+    }
+  }, []);
+
+  const handleAddGroupOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setAddGroupOpen(false);
+    }
+  }, []);
+
+  const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setSelectedGroup(null);
+    }
+  }, []);
+
+  const handleChatOptionsOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setLongPressedItem(null);
+      }
+    },
+    [setLongPressedItem]
+  );
+
+  const handleGroupCreated = useCallback(
+    ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
+    [goToChannel]
   );
 
   return (
@@ -92,31 +130,31 @@ export default function ChatListScreen(
         />
         {chats && (chats.unpinned.length || !isFetchingInitData) ? (
           <ChatList
-            pinned={chats.pinned ?? []}
-            unpinned={chats.unpinned ?? []}
-            pendingChats={chats.pendingChats ?? []}
+            pinned={resolvedChats.pinned}
+            unpinned={resolvedChats.unpinned}
+            pendingChats={resolvedChats.pendingChats}
             onLongPressItem={onLongPressItem}
             onPressItem={onPressChat}
           />
         ) : null}
         <ChatOptionsSheet
           open={longPressedItem !== null}
-          onOpenChange={(open) => (!open ? setLongPressedItem(null) : 'noop')}
+          onOpenChange={handleChatOptionsOpenChange}
           channel={longPressedItem ?? undefined}
         />
         <StartDmSheet
           goToDm={goToDm}
           open={startDmOpen}
-          onOpenChange={() => setStartDmOpen(false)}
+          onOpenChange={handleDmOpenChange}
         />
         <AddGroupSheet
           open={addGroupOpen}
-          onOpenChange={() => setAddGroupOpen(false)}
-          onCreatedGroup={({ channel }) => goToChannel({ channel })}
+          onOpenChange={handleAddGroupOpenChange}
+          onCreatedGroup={handleGroupCreated}
         />
         <GroupPreviewSheet
           open={selectedGroup !== null}
-          onOpenChange={() => setSelectedGroup(null)}
+          onOpenChange={handleGroupPreviewSheetOpenChange}
           group={selectedGroup ?? undefined}
         />
       </View>
