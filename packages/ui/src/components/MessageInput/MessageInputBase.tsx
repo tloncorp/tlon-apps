@@ -1,4 +1,4 @@
-import { UploadInfo } from '@tloncorp/shared/dist/api';
+import { UploadInfo, UploadedFile } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
@@ -33,6 +33,9 @@ export interface MessageInputProps {
   placeholder?: string;
   bigInput?: boolean;
   title?: string;
+  image?: UploadedFile;
+  showToolbar?: boolean;
+  channelType?: db.ChannelType;
 }
 
 export const MessageInputContainer = ({
@@ -50,7 +53,8 @@ export const MessageInputContainer = ({
   cancelEditing,
   onPressEdit,
   editorIsEmpty,
-  titleIsEmpty
+  titleIsEmpty,
+  channelType,
 }: PropsWithChildren<{
   onPressSend: () => void;
   uploadInfo?: UploadInfo;
@@ -66,6 +70,7 @@ export const MessageInputContainer = ({
   onPressEdit?: () => void;
   editorIsEmpty: boolean;
   titleIsEmpty: boolean;
+  channelType?: db.ChannelType;
 }>) => {
   const hasUploadedImage = useMemo(
     () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
@@ -110,7 +115,8 @@ export const MessageInputContainer = ({
         {children}
         {floatingActionButton ? (
           <View position="absolute" bottom="$l" right="$l">
-            {editorIsEmpty || titleIsEmpty ? null : (
+            {editorIsEmpty ||
+            (channelType === 'notebook' && titleIsEmpty) ? null : (
               <FloatingActionButton
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
                 icon={isEditing ? <Checkmark /> : <ArrowUp />}

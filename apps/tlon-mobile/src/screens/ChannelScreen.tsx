@@ -109,32 +109,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         return;
       }
 
-      if (
-        content.length === 0 &&
-        uploadInfo.uploadedImage &&
-        channelQuery.data.type === 'gallery'
-      ) {
-        const uploadedImage = uploadInfo.uploadedImage;
-        const blocks: Block[] = [];
-
-        if (uploadedImage) {
-          blocks.push({
-            image: {
-              src: uploadedImage.url,
-              height: uploadedImage.height ? uploadedImage.height : 200,
-              width: uploadedImage.width ? uploadedImage.width : 200,
-              alt: 'image',
-            },
-          });
-        }
-
-        if (blocks && blocks.length > 0) {
-          content.push(...blocks.map((block) => ({ block })));
-        }
-      }
-
-      console.log({ metadata });
-
       store.sendPost({
         channel: channelQuery.data,
         authorId: currentUserId,

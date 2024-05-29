@@ -9,7 +9,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 
-import { Add, ArrowUp } from '../../assets/icons';
+import { Add } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -19,14 +19,13 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { SizableText, Spinner, View, YStack } from '../../core';
+import { SizableText, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
-// import { Input } from '../Input';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -131,6 +130,11 @@ export function Channel({
     return null;
   }, [selectedPostId, channel]);
 
+  const bigInputGoBack = () => {
+    setShowBigInput(false);
+    uploadInfo.resetImageAttachment();
+  };
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <GroupsProvider groups={groups}>
@@ -150,7 +154,7 @@ export function Channel({
                 >
                   <ChannelHeader
                     title={title}
-                    goBack={goBack}
+                    goBack={() => (showBigInput ? bigInputGoBack() : goBack())}
                     goToChannels={goToChannels}
                     goToSearch={goToSearch}
                     showPickerButton={!!group}
@@ -178,8 +182,10 @@ export function Channel({
                           editPost={editPost}
                           setShowBigInput={setShowBigInput}
                           placeholder=""
+                          uploadInfo={uploadInfo}
                         />
-                      ) : uploadInfo.imageAttachment ? (
+                      ) : uploadInfo.imageAttachment &&
+                        channel.type !== 'notebook' ? (
                         <UploadedImagePreview
                           imageAttachment={uploadInfo.imageAttachment}
                           resetImageAttachment={uploadInfo.resetImageAttachment}
@@ -232,14 +238,20 @@ export function Channel({
                       )}
                       {negotiationMatch &&
                         !editingPost &&
-                        (isChatChannel || uploadInfo?.uploadedImage) &&
+                        (isChatChannel ||
+                          (channel.type === 'gallery' &&
+                            uploadInfo?.uploadedImage)) &&
                         canWrite && (
                           <MessageInput
                             shouldBlur={inputShouldBlur}
                             setShouldBlur={setInputShouldBlur}
                             send={messageSender}
                             channelId={channel.id}
-                            uploadInfo={uploadInfo}
+                            uploadInfo={
+                              channel.type === 'notebook'
+                                ? undefined
+                                : uploadInfo
+                            }
                             groupMembers={group?.members ?? []}
                             storeDraft={storeDraft}
                             clearDraft={clearDraft}
@@ -251,22 +263,15 @@ export function Channel({
                       )}
                       {!isChatChannel && canWrite && !showBigInput && (
                         <View position="absolute" bottom="$l" right="$l">
-                          {uploadInfo.uploadedImage && uploadInfo.uploading ? (
-                            <View alignItems="center" padding="$m">
-                              <Spinner />
-                            </View>
-                          ) : (
+                          {(channel.type === 'gallery' && showAddGalleryPost) ||
+                          uploadInfo.imageAttachment ? null : (
                             <FloatingActionButton
                               onPress={() =>
-                                uploadInfo.uploadedImage
-                                  ? messageSender([], channel.id)
-                                  : channel.type === 'gallery'
-                                    ? setShowAddGalleryPost(true)
-                                    : setShowBigInput(true)
+                                channel.type === 'gallery'
+                                  ? setShowAddGalleryPost(true)
+                                  : setShowBigInput(true)
                               }
-                              icon={
-                                uploadInfo.uploadedImage ? <ArrowUp /> : <Add />
-                              }
+                              icon={<Add />}
                             />
                           )}
                         </View>

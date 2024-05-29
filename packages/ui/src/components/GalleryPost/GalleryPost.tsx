@@ -20,8 +20,8 @@ import { getTokenValue } from 'tamagui';
 
 import { LinearGradient, Text, View, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ChatContent from '../ChatMessage/ChatContent';
 import ContentReference from '../ContentReference';
+import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
 
 export default function GalleryPost({
@@ -155,7 +155,7 @@ export default function GalleryPost({
               paddingBottom="$xs"
               position="relative"
             >
-              <ChatContent
+              <ContentRenderer
                 viewMode={detailView ? undefined : 'block'}
                 post={post}
               />

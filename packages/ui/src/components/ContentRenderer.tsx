@@ -47,11 +47,11 @@ import {
   View,
   XStack,
   YStack,
-} from '../../core';
-import ContactName from '../ContactName';
-import ContentReference from '../ContentReference';
-import ChatEmbedContent from './ChatEmbedContent';
-import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
+} from '../core';
+import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
+import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
+import ContactName from './ContactName';
+import ContentReference from './ContentReference';
 
 refractor.register(hoon);
 

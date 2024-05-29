@@ -4,9 +4,9 @@ import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
+import ChatContent from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
-import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 

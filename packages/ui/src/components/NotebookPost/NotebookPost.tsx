@@ -7,7 +7,7 @@ import { getTokenValue } from 'tamagui';
 
 import { Image, Text, View, XStack, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ChatContent from '../ChatMessage/ChatContent';
+import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
 
 const IMAGE_HEIGHT = 268;
@@ -84,7 +84,7 @@ export default function NotebookPost({
             </Text>
           </YStack>
           {/* TODO: build component for rendering notebook content */}
-          <ChatContent post={post} />
+          <ContentRenderer post={post} />
         </YStack>
       </ScrollView>
     );

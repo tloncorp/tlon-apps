@@ -98,7 +98,10 @@ export function MessageInput({
   paddingHorizontal = '$l',
   placeholder = 'Message',
   bigInput = false,
+  showToolbar = false,
   title,
+  image,
+  channelType,
 }: MessageInputProps) {
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [containerHeight, setContainerHeight] = useState(
@@ -381,7 +384,7 @@ export function MessageInput({
         });
       }
 
-      if (uploadInfo?.uploadedImage) {
+      if (!image && uploadInfo?.uploadedImage) {
         blocks.push({
           image: {
             src: uploadInfo.uploadedImage.url,
@@ -400,11 +403,16 @@ export function MessageInput({
         await editPost?.(editingPost, story);
         setEditingPost?.(undefined);
       } else {
+        const metadata: db.PostMetadata = {};
         if (title && title.length > 0) {
-          await send(story, channelId, { title });
-        } else {
-          await send(story, channelId);
+          metadata['title'] = title;
         }
+
+        if (image && image.url && image.url.length > 0) {
+          metadata['image'] = image.url;
+        }
+
+        await send(story, channelId, metadata);
       }
 
       editor.setContent('');
@@ -425,6 +433,7 @@ export function MessageInput({
       setEditingPost,
       setShowBigInput,
       title,
+      image,
     ]
   );
 
@@ -513,7 +522,9 @@ export function MessageInput({
   const headerHeight = 48;
   const titleInputHeight = 48;
   const inputBasePadding = getToken('$s', 'space');
-  const basicOffset = top + headerHeight + titleInputHeight;
+  const imageInputButtonHeight = 50;
+  const basicOffset =
+    top + headerHeight + titleInputHeight + imageInputButtonHeight;
   const bigInputHeight = height - basicOffset - bottom - inputBasePadding * 2;
   const keyboardVerticalOffset = basicOffset + inputBasePadding;
 
@@ -533,6 +544,7 @@ export function MessageInput({
       titleIsEmpty={!title || title.length === 0}
       showAttachmentButton={showAttachmentButton}
       floatingActionButton={floatingActionButton}
+      channelType={channelType}
     >
       <XStack
         borderRadius="$xl"
@@ -584,7 +596,7 @@ export function MessageInput({
             marginHorizontal: -16,
           }}
         >
-          <InputToolbar editor={editor} items={toolbarItems} />
+          {showToolbar && <InputToolbar editor={editor} items={toolbarItems} />}
         </KeyboardAvoidingView>
       </XStack>
     </MessageInputContainer>

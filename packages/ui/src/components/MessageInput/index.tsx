@@ -21,6 +21,7 @@ export function MessageInput({
       onSelectMention={() => {}}
       editorIsEmpty={true}
       onPressSend={() => {}}
+      titleIsEmpty={true}
     >
       <TextArea
         flexGrow={1}

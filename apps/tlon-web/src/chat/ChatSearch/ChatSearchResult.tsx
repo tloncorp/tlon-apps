@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 
 import ReplyReactions from '@/replies/ReplyReactions/ReplyReactions';
 
-import ChatContent from '../ChatContent/ChatContent';
+import ContentRenderer from '../ChatContent/ChatContent';
 import Author from '../ChatMessage/Author';
 import ChatReactions from '../ChatReactions/ChatReactions';
 
@@ -86,7 +86,7 @@ function ChatSearchResult({
     >
       <Author ship={author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
-        <ChatContent story={content} isScrolling={isScrolling} />
+        <ContentRenderer story={content} isScrolling={isScrolling} />
         {reacts &&
           Object.keys(reacts).length > 0 &&
           ('parent-id' in writ.seal ? (
