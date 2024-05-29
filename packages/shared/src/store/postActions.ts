@@ -14,8 +14,21 @@ export async function sendPost({
   content: urbit.Story;
   metadata?: db.PostMetadata;
 }) {
+  // if first message of a pending group dm, we need to first create
+  // it on the backend
+  if (channel.type === 'groupDm' && channel.isPendingChannel) {
+    await api.createGroupDm({
+      id: channel.id,
+      members:
+        channel.members
+          ?.map((m) => m.contactId)
+          .filter((m) => m !== authorId) ?? [],
+    });
+    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+  }
+
   // optimistic update
-  const cachePost = api.buildCachePost({ authorId, channel, content });
+  const cachePost = db.buildPendingPost({ authorId, channel, content });
   await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
   try {
     await api.sendPost({
@@ -79,7 +92,7 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   // optimistic update
-  const cachePost = api.buildCachePost({
+  const cachePost = db.buildPendingPost({
     authorId,
     channel: channel,
     content,

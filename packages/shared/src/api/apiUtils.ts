@@ -3,13 +3,16 @@ import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
 import type * as db from '../db/types';
 import type * as ub from '../urbit';
-import { isColor } from './groupsApi';
 import { BadResponseError } from './urbit';
 
 export function formatScryPath(
   ...segments: (string | number | null | undefined)[]
 ) {
   return '/' + segments.filter((s) => !!s).join('/');
+}
+
+export function isColor(value: string) {
+  return value[0] === '#';
 }
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
@@ -80,6 +83,18 @@ export function getChannelIdType(channelId: string) {
     throw new Error('invalid channel id');
   }
 }
+
+// distinguish between channel and group IDs
+export function isChannelId(id: string): boolean {
+  // if has no path parts, is a dm or multi-dm
+  if (id.split('/').length === 1) {
+    return true;
+  }
+
+  // otherwise, check if its a group channel
+  return isGroupChannelId(id);
+}
+
 export async function with404Handler<T>(
   scryRequest: Promise<any>,
   defaultValue: T

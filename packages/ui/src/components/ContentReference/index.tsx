@@ -4,6 +4,7 @@ import { Text } from '../../core';
 import { PostViewMode } from '../ContentRenderer';
 import Pressable from '../Pressable';
 import ChannelReference from './ChannelReference';
+import { GroupReference } from './GroupReference';
 
 export default function ContentReference({
   reference,
@@ -26,13 +27,7 @@ export default function ContentReference({
   }
 
   if (reference.referenceType === 'group') {
-    return (
-      <Pressable>
-        <Text fontSize="$m" color="$primaryText" marginLeft="$s">
-          Group
-        </Text>
-      </Pressable>
-    );
+    return <GroupReference groupId={reference.groupId} />;
   }
 
   if (reference.referenceType === 'app') {

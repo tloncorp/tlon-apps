@@ -1,4 +1,8 @@
-import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist';
+import {
+  useChannel,
+  useGroupPreview,
+  usePostWithRelations,
+} from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
@@ -93,6 +97,8 @@ export const ChannelFixture = (props: {
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
+        useGroup={useGroupPreview}
+        onGroupAction={() => {}}
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
@@ -129,6 +135,8 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         useChannel={useChannel}
+        useGroup={useGroupPreview}
+        onGroupAction={() => {}}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -189,6 +197,8 @@ const ChannelFixtureWithImage = () => {
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
+        useGroup={useGroupPreview}
+        onGroupAction={() => {}}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -229,15 +239,12 @@ function SwitcherFixture({
 }: {
   switcher: ReturnType<typeof useChannelSwitcher>;
 }) {
-  const { bottom } = useSafeAreaInsets();
-
   return (
     <ChannelSwitcherSheet
       open={switcher.isOpen}
       onOpenChange={switcher.toggle}
       group={group}
       channels={group.channels || []}
-      paddingBottom={bottom}
       onSelect={(channel: db.Channel) => {
         switcher.setActiveChannel(channel);
         switcher.close();

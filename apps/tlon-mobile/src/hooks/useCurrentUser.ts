@@ -4,8 +4,15 @@ import { useShip } from '../contexts/ship';
 
 export function useCurrentUserId() {
   const { ship, contactId } = useShip();
-  // this should be redundant (contactId should always be present), but
-  // using defensive fallback to avoid ever having a missing current
-  // user when authenticated
-  return contactId ? urbit.preSig(contactId) : ship ? urbit.preSig(ship) : '';
+  const userId = contactId
+    ? urbit.preSig(contactId)
+    : ship
+      ? urbit.preSig(ship)
+      : null;
+  // this should be redundant (contactId should always be present), but throw
+  // error to avoid ever having a missing current user when authenticated
+  if (!userId) {
+    throw new Error('Missing user id');
+  }
+  return userId;
 }

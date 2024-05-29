@@ -107,6 +107,30 @@ DEFAULT_SHIP_LOGIN_ACCESS_CODE=
 
 See `.env.sample` for other configurable env variables.
 
+### Notifications
+
+**Note:** dev mode push notifications are only sent to connected devices, not simulators.
+
+Update environment variables to use one of the following debug notify services for testing push notifications when building to devices:
+
+```
+# Preview Debug
+NOTIFY_PROVIDER=wannec-dozzod-marnus
+NOTIFY_SERVICE=tlon-preview-debug
+```
+
+```
+# Production Debug
+NOTIFY_PROVIDER=wannec-dozzod-marnus
+NOTIFY_SERVICE=groups-native-dev
+```
+
+Update environment variables to disable the React Cosmos `NativeFixtureLoader` wrapper component if testing notification tap handlers:
+
+```
+IGNORE_COSMOS=true
+```
+
 ## Deployment
 
 Deployment is handled by [Expo Application Services](https://expo.dev/eas).

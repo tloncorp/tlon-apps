@@ -1,16 +1,29 @@
+import { preSig } from '@urbit/api';
 import { deSig } from '@urbit/aura';
 import { Urbit } from '@urbit/http-api';
+import _ from 'lodash';
 
 import { createDevLogger } from '../debug';
 
-const logger = createDevLogger('urbit', false);
+const logger = createDevLogger('urbit', true);
 
 const config = {
   shipName: '',
   shipUrl: '',
 };
 
+type Predicate = (event: any, mark: string) => boolean;
+interface Watcher {
+  id: string;
+  predicate: Predicate;
+  resolve: (value: void | PromiseLike<void>) => void;
+  reject: (reason?: any) => void;
+}
+
+type Watchers = Record<string, Map<string, Watcher>>;
+
 let clientInstance: Urbit | null = null;
+let subWatchers: Watchers = {};
 
 export const client = new Proxy(
   {},
@@ -23,6 +36,13 @@ export const client = new Proxy(
     },
   }
 ) as Urbit;
+
+export const getCurrentUserId = () => {
+  if (!client.our) {
+    throw new Error('Client not initialized');
+  }
+  return client.our;
+};
 
 export function configureClient({
   shipName,
@@ -40,6 +60,7 @@ export function configureClient({
   logger.log('configuring client', shipName, shipUrl);
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
   clientInstance.ship = deSig(shipName);
+  clientInstance.our = preSig(shipName);
   clientInstance.verbose = verbose;
   clientInstance.on('status-update', (status) => {
     logger.log('status-update', status);
@@ -51,6 +72,10 @@ export function configureClient({
 
   clientInstance.on('reset', () => {
     logger.log('client reset');
+    Object.values(subWatchers).forEach((watchers) => {
+      watchers.forEach((watcher) => watcher.reject('Client reset'));
+    });
+    subWatchers = {};
     onReset?.();
   });
 
@@ -61,6 +86,8 @@ export function configureClient({
   clientInstance.on('error', (error) => {
     logger.log('client error', error);
   });
+
+  subWatchers = {};
 }
 
 export function removeUrbitClient() {
@@ -93,12 +120,30 @@ export function subscribe<T>(
   clientInstance.subscribe({
     app: endpoint.app,
     path: endpoint.path,
-    event: (data: T) => {
+    event: (event: any, mark: string, id?: number) => {
       logger.debug(
         `got subscription event on ${printEndpoint(endpoint)}:`,
-        data
+        event
       );
-      handler(data);
+
+      // first check if anything is watching the subscription for
+      // tracked pokes
+      const endpointKey = printEndpoint(endpoint);
+      const endpointWatchers = subWatchers[endpointKey];
+      if (endpointWatchers) {
+        endpointWatchers.forEach((watcher) => {
+          if (watcher.predicate(event, mark)) {
+            logger.debug(`watcher ${watcher.id} predicate met`, event);
+            watcher.resolve();
+            endpointWatchers.delete(watcher.id);
+          } else {
+            logger.debug(`watcher ${watcher.id} predicate failed`, event);
+          }
+        });
+      }
+
+      // then pass the event along to the subscription handler
+      handler(event);
     },
     quit: () => {
       logger.log('subscription quit on', printEndpoint(endpoint));
@@ -109,6 +154,14 @@ export function subscribe<T>(
     },
   });
 }
+
+export const subscribeOnce = async <T>(
+  endpoint: UrbitEndpoint,
+  timeout?: number
+) => {
+  logger.log('subscribing once to', printEndpoint(endpoint));
+  return client.subscribeOnce<T>(endpoint.app, endpoint.path, timeout);
+};
 
 export const configureApi = (shipName: string, shipUrl: string) => {
   config.shipName = deSig(shipName);
@@ -130,6 +183,45 @@ export const poke = async ({
     app,
     mark,
     json,
+  });
+};
+
+export type PokeParams = {
+  app: string;
+  mark: string;
+  json: any;
+};
+
+export const trackedPoke = async <T, R = T>(
+  params: PokeParams,
+  endpoint: UrbitEndpoint,
+  predicate: (event: R) => boolean
+) => {
+  try {
+    const tracking = track(endpoint, predicate);
+    const poking = poke(params);
+    await Promise.all([tracking, poking]);
+  } catch (e) {
+    logger.error(`tracked poke failed`, e);
+    throw e;
+  }
+};
+
+const track = async <R>(
+  endpoint: UrbitEndpoint,
+  predicate: (event: R) => boolean
+) => {
+  const endpointKey = printEndpoint(endpoint);
+  return new Promise((resolve, reject) => {
+    const watchers = subWatchers[endpointKey] || new Map();
+    const id = _.uniqueId();
+
+    subWatchers[endpointKey] = watchers.set(id, {
+      id,
+      predicate,
+      resolve,
+      reject,
+    });
   });
 };
 

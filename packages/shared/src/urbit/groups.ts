@@ -372,7 +372,7 @@ export type JoinProgress =
   | 'done'
   | 'error';
 
-interface GroupClaim {
+export interface GroupClaim {
   progress: JoinProgress;
   'join-all': boolean;
 }

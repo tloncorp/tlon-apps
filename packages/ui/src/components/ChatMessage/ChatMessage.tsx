@@ -19,14 +19,16 @@ const NoticeWrapper = ({
 }) => {
   if (isNotice) {
     return (
-      <XStack gap="$m">
-        <Icon
-          type="AddPerson"
-          color="$secondaryText"
-          size="$m"
-          backgroundColor={'$secondaryBackground'}
-        />
-        {children}
+      <XStack alignItems="center" padding="$l">
+        <View width={'$2xl'} flex={1} height={1} backgroundColor="$border" />
+        <View
+          paddingHorizontal="$m"
+          backgroundColor="$border"
+          borderRadius={'$2xl'}
+        >
+          {children}
+        </View>
+        <View flex={1} height={1} backgroundColor="$border" />
       </XStack>
     );
   }
@@ -113,7 +115,7 @@ const ChatMessage = ({
           />
         </View>
       ) : null}
-      <View paddingLeft="$4xl">
+      <View paddingLeft={!isNotice && '$4xl'}>
         {editing ? (
           <MessageInput
             groupMembers={[]}

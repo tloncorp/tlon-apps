@@ -38,17 +38,19 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync } from './utils/posthog';
-import { getPathFromWer } from './utils/string';
 
 type Props = {
   wer?: string;
+  channelId?: string;
 };
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-// on Android if a notification click causes the app to open, the corresponding notification
-// path is passed in here as "wer"
-const App = ({ wer }: Props) => {
+// Android notification tap handler passes initial params here
+const App = ({
+  wer: notificationPath,
+  channelId: notificationChannelId,
+}: Props) => {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated } = useShip();
@@ -77,7 +79,10 @@ const App = ({ wer }: Props) => {
           </View>
         ) : isAuthenticated ? (
           <AuthenticatedApp
-            initialNotificationPath={getPathFromWer(wer ?? '')}
+            notificationListenerProps={{
+              notificationPath,
+              notificationChannelId,
+            }}
           />
         ) : (
           <OnboardingStack.Navigator
