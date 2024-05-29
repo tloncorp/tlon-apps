@@ -79,7 +79,6 @@ export default function ChatListScreen(
   );
 
   const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
-    console.log('kong press', item);
     logic.isChannel(item) ? setLongPressedItem(item) : null;
   }, []);
 
