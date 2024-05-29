@@ -776,6 +776,12 @@
       :~  href/so
           content/so
       ==
+    ::
+      :-  %task
+      %-  ot
+      :~  checked/bo
+          content/(ar inline)
+      ==
     ==
   ::
   ++  memo
