@@ -936,10 +936,6 @@ function omitEmpty(val: string) {
   return val === '' ? null : val;
 }
 
-export function isColor(value: string) {
-  return value[0] === '#';
-}
-
 export const joinGroup = async (id: string) =>
   poke({
     app: 'groups',
