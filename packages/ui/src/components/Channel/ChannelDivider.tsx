@@ -19,7 +19,7 @@ export function ChannelDivider({
     type: db.ChannelType;
   };
 }) {
-  const color = unreadCount ? '$positiveActionText' : '$tertiaryText';
+  const color = unreadCount ? '$positiveActionText' : '$border';
   const hideTime = unreadCount && isToday(timestamp) && !isFirstPostOfDay;
   const time = useMemo(() => {
     return makePrettyDay(new Date(timestamp));
@@ -33,15 +33,27 @@ export function ChannelDivider({
   }, [channelInfo, unreadCount]);
 
   return (
-    <XStack alignItems="center" padding="$l" gap="$l" onLayout={handleLayout}>
-      <View width={'$2xl'} height={1} backgroundColor={color} />
-      <SizableText size="$s" fontWeight="$l" color={color}>
-        {!hideTime ? `${time}` : null}
-        {!hideTime && unreadCount ? ' • ' : null}
-        {unreadCount
-          ? `${unreadCount} new message${unreadCount === 1 ? '' : 's'} below`
-          : null}
-      </SizableText>
+    <XStack alignItems="center" padding="$l" onLayout={handleLayout}>
+      <View width={'$2xl'} flex={1} height={1} backgroundColor={color} />
+      <View
+        paddingHorizontal="$m"
+        backgroundColor={color}
+        borderRadius={'$2xl'}
+      >
+        <SizableText
+          ellipsizeMode="middle"
+          numberOfLines={1}
+          size="$s"
+          fontWeight="$l"
+          color={unreadCount ? '$background' : '$secondaryText'}
+        >
+          {!hideTime ? `${time}` : null}
+          {!hideTime && unreadCount ? ' • ' : null}
+          {unreadCount
+            ? `${unreadCount} new message${unreadCount === 1 ? '' : 's'} below`
+            : null}
+        </SizableText>
+      </View>
       <View flex={1} height={1} backgroundColor={color} />
     </XStack>
   );
