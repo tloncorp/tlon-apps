@@ -293,9 +293,9 @@ export function Channel({
                               editingPost={editingPost}
                               setEditingPost={setEditingPost}
                               editPost={editPost}
-                              floatingActionButton
-                              showAttachmentButton={false}
-                              backgroundColor="$background"
+                              floatingActionButton={channel.type === 'gallery'}
+                              showAttachmentButton={channel.type !== 'gallery'}
+                              backgroundColor="$secondaryBackground"
                             />
                           )}
                         {!isChatChannel && canWrite && !showBigInput && (
