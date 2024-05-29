@@ -59,7 +59,7 @@ export function StartDmSheet({
       animation="quick"
     >
       <Sheet.Overlay />
-      <Sheet.Frame paddingTop="$s" paddingHorizontal="$2xl">
+      <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
         <Sheet.Handle marginBottom="$l" />
         <ZStack flex={1}>
           <YStack flex={1} gap="$2xl">
@@ -85,7 +85,7 @@ export function StartDmSheet({
             )}
           </YStack>
         </ZStack>
-      </Sheet.Frame>
+      </Sheet.LazyFrame>
     </Sheet>
   );
 }
