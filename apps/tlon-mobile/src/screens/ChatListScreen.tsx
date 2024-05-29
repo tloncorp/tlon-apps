@@ -81,7 +81,7 @@ export default function ChatListScreen(
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
         <ScreenHeader
-          title={<Icon type="TBlock" size="$xl" flex={1} rotate="-6deg" />}
+          title={<Icon type="TBlock" size="$m" flex={1} rotate="-6deg" />}
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}
