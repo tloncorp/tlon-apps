@@ -1,20 +1,20 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  FlatList,
   Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  SectionListRenderItemInfo,
 } from 'react-native';
 
 import { useContactIndex, useContacts } from '../contexts';
-import { ScrollView, SizableText, View, XStack, YStack } from '../core';
+import { View } from '../core';
 import {
-  AlphaContactsSegment,
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
 } from '../hooks/contactSorters';
 import { ContactRow } from './ContactRow';
+import { BlockSectionList } from './ListSectionHeader';
 import { SearchBar } from './SearchBar';
 
 export function ContactBook({
@@ -45,6 +45,15 @@ export function ContactBook({
     query,
     sortOrder: [],
   });
+  const showSearchResults = searchable && query.length > 0;
+  const sections = useMemo(() => {
+    if (showSearchResults) {
+      const label = `Contacts matching ‘${query}’`;
+      return queryContacts?.length ? [{ label, data: queryContacts }] : [];
+    } else {
+      return segmentedContacts;
+    }
+  }, [showSearchResults, query, queryContacts, segmentedContacts]);
 
   const [selected, setSelected] = useState<string[]>([]);
   const handleSelect = useCallback(
@@ -67,20 +76,21 @@ export function ContactBook({
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: AlphaContactsSegment }) => {
+    ({ item }: SectionListRenderItemInfo<db.Contact, { label: string }>) => {
+      const isSelected = !!selected?.includes(item.id);
       return (
-        <LetterSection
-          letter={item.alphaKey}
-          contacts={item.contacts}
-          onSelect={handleSelect}
-          selected={multiSelect ? selected : undefined}
+        <ContactRow
+          backgroundColor={'$secondaryBackground'}
+          key={item.id}
+          contact={item}
+          selectable={multiSelect}
+          selected={isSelected}
+          onPress={handleSelect}
         />
       );
     },
-    [handleSelect, multiSelect, selected]
+    [selected, multiSelect, handleSelect]
   );
-
-  const itemSeperator = useCallback(() => <View height="$xl" />, []);
 
   const scrollPosition = useRef(0);
   const handleScroll = useCallback(
@@ -115,146 +125,14 @@ export function ContactBook({
         </View>
       )}
       <View flex={1} onTouchStart={Keyboard.dismiss}>
-        {searchable && query.length > 0 ? (
-          <ContactSearchResults
-            contacts={queryContacts}
-            onSelect={handleSelect}
-            selected={multiSelect ? selected : undefined}
-            onScrollChange={onScrollChange}
-          />
-        ) : (
-          <FlatList
-            data={segmentedContacts}
-            renderItem={renderItem}
-            ItemSeparatorComponent={itemSeperator}
-            onScroll={handleScroll}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          />
-        )}
+        <BlockSectionList
+          sections={sections}
+          onScroll={handleScroll}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          renderItem={renderItem}
+        />
       </View>
     </View>
-  );
-}
-
-function LetterSection({
-  letter,
-  contacts,
-  onSelect,
-  selected,
-}: {
-  letter: string;
-  contacts: db.Contact[];
-  selected?: string[];
-  onSelect: (contactId: string) => void;
-}) {
-  const contactRows = useMemo(
-    () =>
-      contacts.map((contact) => {
-        const isSelected = !!selected?.includes(contact.id);
-        return (
-          <ContactRow
-            backgroundColor="$secondaryBackground"
-            key={contact.id}
-            contact={contact}
-            selectable={!!selected}
-            selected={isSelected}
-            onPress={onSelect}
-          />
-        );
-      }),
-    [contacts, onSelect, selected]
-  );
-
-  return (
-    <YStack
-      backgroundColor="$secondaryBackground"
-      borderRadius="$3xl"
-      paddingVertical="$xl"
-      paddingHorizontal="$m"
-    >
-      <XStack paddingHorizontal="$xl" paddingBottom="$m">
-        <SizableText color="$secondaryText">
-          {letter === '_' ? 'Other' : letter}
-        </SizableText>
-      </XStack>
-      {contactRows}
-    </YStack>
-  );
-}
-
-function ContactSearchResults({
-  contacts,
-  onSelect,
-  selected,
-  onScrollChange,
-}: {
-  contacts: db.Contact[];
-  selected?: string[];
-  onSelect: (contactId: string) => void;
-  onScrollChange?: (scrolling: boolean) => void;
-}) {
-  const contactRows = useMemo(() => {
-    return contacts.map((contact) => {
-      const isSelected = !!selected?.includes(contact.id);
-      return (
-        <ContactRow
-          backgroundColor="$secondaryBackground"
-          key={contact.id}
-          contact={contact}
-          selectable={!!selected}
-          selected={isSelected}
-          onPress={onSelect}
-        />
-      );
-    });
-  }, [contacts, onSelect, selected]);
-
-  const scrollPosition = useRef(0);
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollPosition.current = event.nativeEvent.contentOffset.y;
-    },
-    []
-  );
-
-  const onTouchStart = useCallback(() => {
-    if (scrollPosition.current > 0) {
-      onScrollChange?.(true);
-    }
-  }, [onScrollChange]);
-
-  const onTouchEnd = useCallback(
-    () => onScrollChange?.(false),
-    [onScrollChange]
-  );
-
-  return contacts.length === 0 ? (
-    <XStack justifyContent="center" paddingTop="$m">
-      <SizableText>No results found</SizableText>
-    </XStack>
-  ) : (
-    <ContactContainer>
-      <ScrollView
-        onScroll={handleScroll}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
-        {contactRows}
-      </ScrollView>
-    </ContactContainer>
-  );
-}
-
-function ContactContainer({ children }: { children: React.ReactNode }) {
-  return (
-    <YStack
-      backgroundColor="$secondaryBackground"
-      borderRadius="$3xl"
-      paddingVertical="$xl"
-      paddingHorizontal="$m"
-    >
-      {children}
-    </YStack>
   );
 }

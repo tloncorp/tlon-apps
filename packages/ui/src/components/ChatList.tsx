@@ -15,7 +15,7 @@ import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
-import { ListSectionHeader } from './ListSectionHeader';
+import { SectionListHeader } from './ListSectionHeader';
 import { navHeight } from './NavBar/NavBar';
 import { SwipableChatRow } from './SwipableChatListItem';
 
@@ -78,7 +78,11 @@ export function ChatList({
     }: {
       section: SectionListData<ListItem, { title: string }>;
     }) => {
-      return <ListSectionHeader>{section.title}</ListSectionHeader>;
+      return (
+        <SectionListHeader>
+          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
+        </SectionListHeader>
+      );
     },
     []
   );
