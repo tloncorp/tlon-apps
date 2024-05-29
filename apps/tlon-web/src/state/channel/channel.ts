@@ -66,8 +66,6 @@ import {
 import queryClient from '@/queryClient';
 
 import { unreadsKey, useUnreads } from '../activity';
-// eslint-disable-next-line import/no-cycle
-import ChatQueryKeys from '../chat/keys';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 

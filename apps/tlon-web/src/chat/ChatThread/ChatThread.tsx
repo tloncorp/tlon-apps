@@ -299,24 +299,6 @@ export default function ChatThread() {
             </BackButton>
 
             <div className="flex space-x-2">
-              {/* <ActionMenu
-                open={isMenuOpen}
-                onOpenChange={setIsMenuOpen}
-                className="max-w-full"
-                actions={[
-                  {
-                    key: 'notifications',
-                    onClick: () => {
-                      if (isMobile) {
-                        // setShowNotifications(true);
-                      } else {
-
-                      }
-                    },
-                    content: 'Notifications',
-                  },
-                ]}
-              > */}
               <button
                 className={cn(
                   'default-focus flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
@@ -331,7 +313,6 @@ export default function ChatThread() {
               >
                 <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
               </button>
-              {/* </ActionMenu> */}
               <Link
                 to={returnURL()}
                 aria-label="Close"

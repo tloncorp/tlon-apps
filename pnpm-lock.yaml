@@ -957,7 +957,7 @@ importers:
         specifier: ^2.0.3
         version: 2.0.3(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.0.3(@tiptap/core@2.0.3))
       '@urbit/api':
-        specifier: ^2.2.0
+        specifier: 2.2.0
         version: 2.2.0
       big-integer:
         specifier: ^1.6.52
@@ -7997,6 +7997,7 @@ packages:
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
+    deprecated: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
