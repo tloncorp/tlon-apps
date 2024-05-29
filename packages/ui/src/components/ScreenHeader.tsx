@@ -13,7 +13,7 @@ export const ScreenHeaderComponent = ({
   leftControls,
   rightControls,
 }: PropsWithChildren<{
-  title?: string;
+  title?: string | ReactNode;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
 }>) => {
@@ -27,7 +27,7 @@ export const ScreenHeaderComponent = ({
         alignItems="center"
       >
         <HeaderControls side="left">{leftControls}</HeaderControls>
-        <HeaderTitle>{title}</HeaderTitle>
+        {typeof title === 'string' ? <HeaderTitle>{title}</HeaderTitle> : title}
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}
       </XStack>
