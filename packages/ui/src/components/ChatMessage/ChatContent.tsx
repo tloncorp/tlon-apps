@@ -15,7 +15,14 @@ import {
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
 import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
-import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  ReactElement,
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
 import { TouchableOpacity } from 'react-native';
 
 import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
@@ -24,14 +31,14 @@ import ContentReference from '../ContentReference';
 import ChatEmbedContent from './ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
-function ShipMention({ ship }: { ship: string }) {
+function ShipMention(props: ComponentProps<typeof ContactName>) {
   return (
     <ContactName
       onPress={() => {}}
       fontWeight={'500'}
       color="$positiveActionText"
-      userId={ship}
       showNickname
+      {...props}
     />
   );
 }
@@ -165,7 +172,7 @@ export function InlineContent({
     return <Text height="$s" />;
   }
   if (isShip(inline)) {
-    return <ShipMention ship={inline.ship} />;
+    return <ShipMention userId={inline.ship} />;
   }
   console.error(`Unhandled message type: ${JSON.stringify(inline)}`);
   return (
@@ -271,9 +278,8 @@ const LineRenderer = memo(
           currentLine.push(
             <Text
               key={`string-${inline}-${index}`}
-              color={isNotice ? '$tertiaryText' : color}
-              fontSize={viewMode === 'block' ? '$s' : '$m'}
-              fontWeight={isNotice ? '500' : 'normal'}
+              color={isNotice ? '$secondaryText' : color}
+              fontSize={viewMode === 'block' || isNotice ? '$s' : '$m'}
               lineHeight="$m"
             >
               {inline}
@@ -306,7 +312,11 @@ const LineRenderer = memo(
         currentLine = [];
       } else if (isShip(inline)) {
         currentLine.push(
-          <ShipMention key={`ship-${index}`} ship={inline.ship} />
+          <ShipMention
+            key={`ship-${index}`}
+            userId={inline.ship}
+            fontSize={isNotice ? '$s' : 'unset'}
+          />
         );
       } else {
         currentLine.push(
