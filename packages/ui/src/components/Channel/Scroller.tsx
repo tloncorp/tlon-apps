@@ -2,10 +2,7 @@ import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   extractContentTypesFromPost,
-  isImagePost,
-  isReferencePost,
   isSameDay,
-  isTextPost,
 } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { MotiView } from 'moti';
