@@ -12,7 +12,6 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
-import { Add } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -30,6 +29,7 @@ import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
+import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -319,7 +319,13 @@ export function Channel({
                             />
                           )}
                         {!isChatChannel && canWrite && !showBigInput && (
-                          <View position="absolute" bottom="$l" right="$l">
+                          <View
+                            position="absolute"
+                            bottom={bottom}
+                            flex={1}
+                            width="100%"
+                            alignItems="center"
+                          >
                             {(channel.type === 'gallery' &&
                               showAddGalleryPost) ||
                             uploadInfo.imageAttachment ? null : (
@@ -329,7 +335,14 @@ export function Channel({
                                     ? setShowAddGalleryPost(true)
                                     : setShowBigInput(true)
                                 }
-                                icon={<Add />}
+                                label="New Post"
+                                icon={
+                                  <Icon
+                                    type="Add"
+                                    size={'$s'}
+                                    marginRight={'$s'}
+                                  />
+                                }
                               />
                             )}
                           </View>

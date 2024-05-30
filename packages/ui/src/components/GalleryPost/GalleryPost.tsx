@@ -140,7 +140,9 @@ export default function GalleryPost({
           ))}
         {postIsJustText && !textPostIsJustLinkedImage && (
           <View
-            backgroundColor="$background"
+            backgroundColor={
+              !detailView ? '$secondaryBackground' : '$background'
+            }
             borderRadius="$l"
             padding="$l"
             width={detailView ? WIDTH_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
@@ -161,7 +163,7 @@ export default function GalleryPost({
               />
               {!detailView && (
                 <LinearGradient
-                  colors={['$transparentBackground', '$background']}
+                  colors={['$transparentBackground', '$secondaryBackground']}
                   start={{ x: 0, y: 0.4 }}
                   end={{ x: 0, y: 1 }}
                   style={{

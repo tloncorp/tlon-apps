@@ -8,6 +8,7 @@ import { SpaceTokens } from 'tamagui';
 import { ArrowUp, Checkmark, Close } from '../../assets/icons';
 import { ThemeTokens, View, XStack, YStack } from '../../core';
 import FloatingActionButton from '../FloatingActionButton';
+import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -123,9 +124,15 @@ export const MessageInputContainer = ({
             {editorIsEmpty ||
             (channelType === 'notebook' && titleIsEmpty) ? null : (
               <FloatingActionButton
-                inverted
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                icon={isEditing ? <Checkmark /> : <ArrowUp />}
+                label={isEditing ? 'Save' : 'Send'}
+                icon={
+                  isEditing ? (
+                    <Icon type="Checkmark" />
+                  ) : (
+                    <Icon type="ArrowUp" />
+                  )
+                }
               />
             )}
           </View>

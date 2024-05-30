@@ -72,15 +72,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   } = store.useChannelPosts({
     enabled: !!channel,
     channelId: currentChannelId,
+    count: 50,
     ...(cursor
       ? {
           mode: 'around',
           cursor,
-          count: 10,
+          firstPageCount: 10,
         }
       : {
           mode: 'newest',
-          count: 10,
+          firstPageCount: 10,
         }),
   });
 
