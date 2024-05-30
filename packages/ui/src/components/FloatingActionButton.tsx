@@ -9,11 +9,14 @@ export default function FloatingActionButton({
 }) {
   return (
     <IconButton
-      backgroundColor="$primaryText"
+      backgroundColor="$background"
       backgroundColorOnPress="$tertiaryText"
-      color="$background"
-      radius="$xl"
+      color="$primaryText"
+      radius="$4xl"
       onPress={onPress}
+      height="$5xl"
+      width="$5xl"
+      size="$5xl"
     >
       {icon}
     </IconButton>
