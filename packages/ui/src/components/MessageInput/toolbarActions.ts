@@ -22,7 +22,6 @@ import {
   OrderedList,
   Redo,
   Strikethrough,
-  Underline,
   Undo,
 } from '../../assets/icons';
 
@@ -96,15 +95,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     disabled: ({ editorState }) =>
       !editorState.isLinkActive && !editorState.canSetLink,
     icon: () => react.createElement(Link),
-  },
-  {
-    onPress:
-      ({ editor }) =>
-      () =>
-        editor.toggleUnderline(),
-    active: ({ editorState }) => editorState.isUnderlineActive,
-    disabled: ({ editorState }) => !editorState.canToggleUnderline,
-    icon: () => react.createElement(Underline),
   },
   {
     onPress:

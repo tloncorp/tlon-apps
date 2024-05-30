@@ -1,21 +1,20 @@
 import {
   BlockquoteBridge,
-  ListItemBridge,
-  BulletListBridge,
-  OrderedListBridge,
-  TaskListBridge,
   BoldBridge,
+  BulletListBridge,
   CodeBridge,
   CoreBridge,
+  HeadingBridge,
   HistoryBridge,
+  ImageBridge,
   ItalicBridge,
   LinkBridge,
+  ListItemBridge,
+  OrderedListBridge,
   PlaceholderBridge,
   StrikeBridge,
-  UnderlineBridge,
+  TaskListBridge,
   useTenTap,
-  HeadingBridge,
-  ImageBridge,
 } from '@10play/tentap-editor';
 import CodeBlock from '@tiptap/extension-code-block';
 import { Slice } from '@tiptap/pm/model';
@@ -56,7 +55,6 @@ export const MessageInputEditor = () => {
         newGroupDelay: 100,
       }),
       CodeBridge,
-      UnderlineBridge,
       PlaceholderBridge,
       MentionsBridge,
       LinkBridge.configureExtension({
