@@ -19,7 +19,8 @@ const NavBarView = (props: { navigation: any }) => {
         type="Home"
         activeType="HomeFilled"
         isActive={isRouteActive('ChatList')}
-        hasUnreads={(unreadCount?.channels ?? 0) > 0}
+        // hasUnreads={(unreadCount?.channels ?? 0) > 0}
+        hasUnreads={false}
         onPress={() => props.navigation.navigate('ChatList')}
       />
       <NavIcon
@@ -29,7 +30,7 @@ const NavBarView = (props: { navigation: any }) => {
         isActive={isRouteActive('Activity')}
         onPress={() => props.navigation.navigate('Activity')}
       />
-      {contact && (
+      {/* {contact && (
         <AvatarNavIcon
           id={currentUserId}
           contact={contact}
@@ -37,7 +38,14 @@ const NavBarView = (props: { navigation: any }) => {
           focused={isRouteActive('Profile')}
           onPress={() => props.navigation.navigate('Profile')}
         />
-      )}
+      )} */}
+      <AvatarNavIcon
+        id={currentUserId}
+        contact={contact ?? null}
+        isLoading={isLoading}
+        focused={isRouteActive('Profile')}
+        onPress={() => props.navigation.navigate('Profile')}
+      />
     </NavBar>
   );
 };

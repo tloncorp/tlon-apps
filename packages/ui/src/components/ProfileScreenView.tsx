@@ -1,14 +1,24 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useState } from 'react';
 import { Dimensions, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, XStack, getTokens } from 'tamagui';
+import {
+  Checkbox,
+  Circle,
+  Label,
+  RadioGroup,
+  ScrollView,
+  SizableText,
+  XStack,
+  getTokens,
+} from 'tamagui';
 
+import { ChevronLeft } from '../assets/icons';
 import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
-import { IconType } from './Icon';
+import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { navHeight } from './NavBar/NavBar';
 
@@ -27,9 +37,15 @@ export function ProfileScreenView({
   );
 }
 
+type NotificationState = { open: boolean; setting: 1 | 2 | 3 };
+
 export function Wrapped(props: Props) {
   const { top, bottom } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
+  const [notifState, setNotifState] = useState<NotificationState>({
+    open: false,
+    setting: 1,
+  });
 
   return (
     <ScrollView>
@@ -39,25 +55,99 @@ export function Wrapped(props: Props) {
         paddingTop={top}
         paddingBottom={navHeight + bottom}
       >
-        <View marginTop="$l">
-          {contact ? (
-            <ProfileDisplayWidget
-              contact={contact}
-              contactId={props.currentUserId}
-            />
-          ) : (
-            <View backgroundColor="$secondaryBackground" borderRadius="$m">
-              <ProfileRow dark contactId={props.currentUserId} />
+        {!notifState.open && (
+          <>
+            <View marginTop="$l">
+              {contact ? (
+                <ProfileDisplayWidget
+                  contact={contact}
+                  contactId={props.currentUserId}
+                />
+              ) : (
+                <View backgroundColor="$secondaryBackground" borderRadius="$m">
+                  <ProfileRow dark contactId={props.currentUserId} />
+                </View>
+              )}
             </View>
-          )}
-        </View>
-        <View marginTop="$xl">
-          <ProfileAction title="Edit profile" icon="Draw" />
-          <ProfileAction title="App Settings" icon="Settings" />
-          <ProfileAction title="Connected Accounts" icon="Face" />
-          <ProfileAction title="Submit Feedback" icon="Mail" />
-          <ProfileAction title="Contact Support" icon="Messages" />
-        </View>
+            <View marginTop="$xl">
+              <ProfileAction title="Edit profile" icon="Draw" />
+              <ProfileAction title="App Settings" icon="Settings" />
+              <ProfileAction
+                title="Notifications"
+                icon="Notifications"
+                onPress={() =>
+                  setNotifState((prev) => ({ ...prev, open: true }))
+                }
+              />
+              <ProfileAction title="Connected Accounts" icon="Face" />
+              <ProfileAction title="Submit Feedback" icon="Mail" />
+              <ProfileAction title="Contact Support" icon="Messages" />
+            </View>
+          </>
+        )}
+        {notifState.open && (
+          <View marginTop="$4xl">
+            <XStack alignItems="center">
+              <Icon
+                type="ChevronLeft"
+                onPress={() => setNotifState({ open: false, setting: 1 })}
+              />
+              <SizableText size="$l" fontWeight="500">
+                Notification Settings
+              </SizableText>
+            </XStack>
+
+            <SizableText marginLeft="$m" marginTop="$xl" size="$m">
+              Configure what kinds of activity will send you notifications.
+            </SizableText>
+
+            <YStack marginLeft="$m" marginTop="$3xl">
+              <XStack>
+                <View
+                  borderRadius="$4xl"
+                  borderWidth={1}
+                  borderColor="$secondaryBorder"
+                  height="$2xl"
+                  width="$2xl"
+                />
+                <SizableText marginLeft="$l">All messages</SizableText>
+              </XStack>
+
+              <XStack marginTop="$xl">
+                <View
+                  height="$2xl"
+                  width="$2xl"
+                  justifyContent="center"
+                  alignItems="center"
+                >
+                  <Icon type="Checkmark" />
+                </View>
+                <YStack marginLeft="$l">
+                  <SizableText>Only mentions and replies</SizableText>
+                  <SizableText
+                    width="80%"
+                    marginTop="$m"
+                    size="$s"
+                    color="$secondaryText"
+                  >
+                    Direct messages will always notify unless you mute them.
+                  </SizableText>
+                </YStack>
+              </XStack>
+
+              <XStack marginTop="$xl">
+                <View
+                  borderRadius="$4xl"
+                  borderWidth={1}
+                  borderColor="$secondaryBorder"
+                  height="$2xl"
+                  width="$2xl"
+                />
+                <SizableText marginLeft="$l">Nothing</SizableText>
+              </XStack>
+            </YStack>
+          </View>
+        )}
       </YStack>
     </ScrollView>
   );

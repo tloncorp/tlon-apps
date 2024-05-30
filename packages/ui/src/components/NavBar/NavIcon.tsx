@@ -14,7 +14,7 @@ export function AvatarNavIcon({
 }: {
   id: string;
   focused: boolean;
-  contact: Contact;
+  contact?: Contact | null;
   isLoading: boolean;
   onPress?: () => void;
 }) {

@@ -98,6 +98,7 @@ function getPostActions(
       return [
         // { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
+        { id: 'muteThread', label: 'Mute thread' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'visibility', label: 'Hide' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
@@ -107,6 +108,7 @@ function getPostActions(
       return [
         { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
+        { id: 'muteThread', label: 'Mute thread' },
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },

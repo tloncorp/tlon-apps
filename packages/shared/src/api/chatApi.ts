@@ -115,6 +115,7 @@ export function subscribeToChatUpdates(
         return;
       }
 
+      const channelId = event.whom;
       const id = getCanonicalPostId(event.id);
       const delta = event.response;
 

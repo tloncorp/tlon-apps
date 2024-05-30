@@ -133,6 +133,7 @@ export type WritResponseDelta =
   | ReplyDelta;
 
 export interface WritResponse {
+  whom: string;
   id: string;
   response: WritResponseDelta;
 }

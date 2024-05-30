@@ -12,3 +12,4 @@ export * from './storage';
 export * from './groupActions';
 export * from './dmActions';
 export * from './useNegotiation';
+export * from './activityActions';

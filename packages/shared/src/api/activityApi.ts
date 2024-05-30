@@ -187,6 +187,24 @@ export const readThread = async ({
   return poke(action);
 };
 
+export function getRootSourceFromChannel(channel: db.Channel): {
+  source: ub.Source;
+  sourceId: string;
+} {
+  let source: ub.Source;
+  if (channel.type === 'dm') {
+    source = { dm: { ship: channel.id } };
+  } else if (channel.type === 'groupDm') {
+    source = { dm: { club: channel.id } };
+  } else {
+    source = { group: channel.groupId! };
+  }
+
+  const sourceId = ub.sourceToString(source);
+
+  return { source, sourceId };
+}
+
 export async function adjustVolumeSetting(
   source: ub.Source,
   volume: ub.VolumeMap | null

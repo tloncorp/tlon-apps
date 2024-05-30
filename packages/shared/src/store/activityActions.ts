@@ -5,36 +5,33 @@ import * as ub from '../urbit';
 
 const logger = createDevLogger('activityActions', true);
 
-export async function muteGroup(group: db.Group) {
-  const source: ub.Source = { group: group.id };
-  const sourceId = ub.sourceToString(source);
-  const volume = ub.getVolumeMap('hush', true);
+export async function muteChat(channel: db.Channel) {
+  const { source, sourceId } = api.getRootSourceFromChannel(channel);
+  const volume = ub.getVolumeMap('soft', true);
 
   // optimistic update
   db.mergeVolumeSettings([{ sourceId, volume }]);
 
   try {
-    await api.adjustVolumeSetting(source, volume);
+    // await api.adjustVolumeSetting(source, volume);
   } catch (e) {
-    logger.log(`failed to mute group ${group.id}`, e);
+    logger.log(`failed to mute group ${channel.id}`, e);
     // revert the optimistic update
     db.mergeVolumeSettings([{ sourceId, volume: null }]);
   }
 }
 
-export async function unmuteGroup(group: db.Group) {
+export async function unmuteChat(channel: db.Channel) {
+  const { source, sourceId } = api.getRootSourceFromChannel(channel);
   const existingSettings = await db.getVolumeSettings();
-
-  const source: ub.Source = { group: group.id };
-  const sourceId = ub.sourceToString(source);
 
   // optimistic update
   db.mergeVolumeSettings([{ sourceId, volume: null }]);
 
   try {
-    await api.adjustVolumeSetting(source, null);
+    // await api.adjustVolumeSetting(source, null);
   } catch (e) {
-    logger.log(`failed to unmute group ${group.id}`, e);
+    logger.log(`failed to unmute chat ${channel.id}`, e);
     // revert the optimistic update
     db.mergeVolumeSettings([
       { sourceId, volume: existingSettings[sourceId] ?? null },
@@ -75,7 +72,7 @@ export async function muteThread({
     };
   }
   const sourceId = ub.sourceToString(source);
-  const volume = ub.getVolumeMap('hush', true);
+  const volume = ub.getVolumeMap('soft', true);
 
   // optimistic update
   db.mergeVolumeSettings([{ sourceId, volume }]);

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import { getLevelFromVolumeMap } from '../urbit';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -33,6 +34,36 @@ export const useSettings = (options: { userId: string }) => {
     queryKey: ['settings'],
     queryFn: () => db.getSettings(options.userId),
   });
+};
+
+export const useVolumeSettings = () => {
+  return useQuery({
+    queryKey: db.VOLUME_SETTINGS_QUERY_KEY,
+    queryFn: db.getVolumeSettings,
+  });
+};
+
+export const useChannelIsMuted = (channel: db.Channel): boolean => {
+  const { data: volumeSettings } = useVolumeSettings();
+
+  const isMuted = useMemo(() => {
+    console.log(`checking is muted ${channel.id}`);
+    const { sourceId } = api.getRootSourceFromChannel(channel);
+    if (volumeSettings) {
+      const volumeMap = volumeSettings[sourceId];
+      if (volumeMap) {
+        console.log(
+          `got a volume map, is it muted?`,
+          getLevelFromVolumeMap(volumeMap)
+        );
+        return getLevelFromVolumeMap(volumeMap) === 'soft';
+      }
+    }
+
+    return false;
+  }, [channel, volumeSettings]);
+
+  return isMuted;
 };
 
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {

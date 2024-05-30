@@ -1,9 +1,11 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
+import { Icon } from '../Icon';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ChannelListItem({
@@ -15,6 +17,7 @@ export default function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
+  const isMuted = store.useChannelIsMuted(model);
   const title = utils.getChannelTitle(model);
 
   return (
@@ -25,7 +28,9 @@ export default function ChannelListItem({
     >
       <ChannelListItemIcon model={model} useTypeIcon={useTypeIcon} />
       <ListItem.MainContent>
-        <ListItem.Title>{title}</ListItem.Title>
+        <ListItem.Title>
+          {title} {isMuted ? <Icon type="Notifications" size="$m" /> : null}
+        </ListItem.Title>
         {model.lastPost && (
           <ListItem.Subtitle>
             {model.type !== 'dm' ? (
@@ -51,7 +56,9 @@ export default function ChannelListItem({
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
           {model.unread?.count && model.unread.count > 0 ? (
-            <ListItem.Count>{model.unread.count}</ListItem.Count>
+            <ListItem.Count muted={isMuted}>
+              {model.unread.count}
+            </ListItem.Count>
           ) : null}
         </ListItem.EndContent>
       )}
