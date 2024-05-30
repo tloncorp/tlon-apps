@@ -24,9 +24,6 @@ export default function BroadcastWindow({
 
   const logs = useCohort(whom).logging;
   const writs: WritTuple[] = useMemo(() => {
-    //TODO  custom chatscroller items instead?
-    //      writ rendering crashes on-hover. we could fix that, but since
-    //      these are fake writs, custom component might be more appropriate.
     return logs.map(cohortLogToWrit).reverse();
   }, [logs]);
 
@@ -45,6 +42,7 @@ export default function BroadcastWindow({
            */
           key={whom}
           messages={writs}
+          hideOptions={true}
           isLoadingOlder={false}
           isLoadingNewer={false}
           whom={whom}
