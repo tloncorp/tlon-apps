@@ -1,6 +1,6 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import type * as ub from '../urbit';
+import * as ub from '../urbit';
 import { getCanonicalPostId, udToDate } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
@@ -15,18 +15,32 @@ export async function getActivity() {
   return deserialized;
 }
 
+export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
+  const settings = await scry<ub.VolumeSettings>({
+    app: 'activity',
+    path: '/volume-settings',
+  });
+  return settings;
+}
+
+export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {
       type: 'updateChannelActivity';
       activity: db.Unread;
     }
-  | { type: 'updateThreadActivity'; activity: db.ThreadUnreadState };
+  | { type: 'updateThreadActivity'; activity: db.ThreadUnreadState }
+  | {
+      type: 'updateVolumeSetting';
+      update: VolumeUpdate;
+    };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/' },
     async (update: ub.ActivityUpdate) => {
-      // reads
+      logger.log(`raw activity sub event`, update);
+      // a 'read' update corresponds to any change in an activity summary
       if ('read' in update) {
         const { source, activity: summary } = update.read;
         if ('dm' in source) {
@@ -50,9 +64,23 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const threadId = getPostIdFromSource(source);
           return handler({
             type: 'updateThreadActivity',
-            activity: toThreadActivity(channelId, threadId, summary),
+            activity: toThreadActivity(
+              channelId,
+              threadId,
+              summary,
+              'dm-thread' in source ? 'dm' : 'channel'
+            ),
           });
         }
+      }
+
+      if ('adjust' in update) {
+        const { source, volume } = update.adjust;
+        const sourceId = ub.sourceToString(source);
+        return handler({
+          type: 'updateVolumeSetting',
+          update: { sourceId, volume },
+        });
       }
 
       // add
@@ -159,6 +187,20 @@ export const readThread = async ({
   return poke(action);
 };
 
+export async function adjustVolumeSetting(
+  source: ub.Source,
+  volume: ub.VolumeMap | null
+) {
+  const action = activityAction({ adjust: { source, volume } });
+  return poke(action);
+}
+
+export type ActivityUpdateQueue = {
+  channelActivity: db.Unread[];
+  threadActivity: db.ThreadUnreadState[];
+  volumeSettings: VolumeUpdate[];
+};
+
 export type ActivityInit = {
   channelActivity: db.Unread[];
   threadActivity: db.ThreadUnreadState[];
@@ -184,7 +226,14 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
     if (activityId === 'thread' || activityId === 'dm-thread') {
       const channelId = rest.slice(0, -2).join('/');
       const threadId = rest.slice(-2).join('/');
-      threadActivity.push(toThreadActivity(channelId, threadId, summary));
+      threadActivity.push(
+        toThreadActivity(
+          channelId,
+          threadId,
+          summary,
+          activityId === 'dm-thread' ? 'dm' : 'channel'
+        )
+      );
     }
 
     // discard everything else for now
@@ -198,9 +247,11 @@ export const toChannelActivity = (
   summary: ub.ActivitySummary,
   type: db.Unread['type']
 ): db.Unread & { threadUnreads: db.ThreadUnreadState[] } => {
-  const firstUnreadPostId = summary.unread?.id
-    ? getCanonicalPostId(summary.unread.id)
-    : null;
+  const summaryKey = type === 'dm' ? 'id' : 'time';
+  const firstUnreadPostId =
+    summary.unread && summary.unread[summaryKey]
+      ? getCanonicalPostId(summary.unread[summaryKey])
+      : null;
   return {
     channelId,
     type,
@@ -219,11 +270,14 @@ export const toChannelActivity = (
 export const toThreadActivity = (
   channelId: string,
   threadId: string,
-  summary: ub.ActivitySummary
+  summary: ub.ActivitySummary,
+  type: db.Unread['type']
 ): db.ThreadUnreadState => {
-  const firstUnreadPostId = summary.unread?.id
-    ? getCanonicalPostId(summary.unread.id)
-    : null;
+  const summaryKey = type === 'dm' ? 'id' : 'time';
+  const firstUnreadPostId =
+    summary.unread && summary.unread[summaryKey]
+      ? getCanonicalPostId(summary.unread[summaryKey])
+      : null;
   return {
     channelId,
     threadId: getCanonicalPostId(threadId),

@@ -1,7 +1,8 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
-import { toClientMeta } from './apiUtils';
+import { getCanonicalPostId, toClientMeta } from './apiUtils';
+import { toPostData } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('chatApi', true);
@@ -61,42 +62,101 @@ export const respondToDMInvite = ({
 
 export type ChatEvent =
   | { type: 'addDmInvites'; channels: db.Channel[] }
-  | { type: 'groupDmsUpdate' };
+  | { type: 'groupDmsUpdate' }
+  | { type: 'unknown' };
 export function subscribeToChatUpdates(
-  eventHandler: (event: ChatEvent, currentUserId: string) => void
+  eventHandler: (event: ChatEvent) => void
 ) {
   const currentUserId = getCurrentUserId();
 
-  subscribe(
-    {
-      app: 'chat',
-      path: '/dm/invited',
-    },
-    (data) => {
-      logger.log('subscribeToChatUpdates', data);
-      eventHandler(
-        {
-          type: 'addDmInvites',
-          channels: toClientDms(data as string[], true),
-        },
-        currentUserId
-      );
-    }
-  );
+  // subscribe(
+  //   {
+  //     app: 'chat',
+  //     path: '/dm/invited',
+  //   },
+  //   (data) => {
+  //     logger.log('subscribeToChatUpdates', data);
+  //     eventHandler(
+  //       {
+  //         type: 'addDmInvites',
+  //         channels: toClientDms(data as string[], true),
+  //       },
+  //       currentUserId
+  //     );
+  //   }
+  // );
+
+  // subscribe(
+  //   {
+  //     app: 'chat',
+  //     path: '/clubs',
+  //   },
+  //   (data) => {
+  //     logger.log('subscribeToChatUpdates', data);
+  //     eventHandler(
+  //       {
+  //         type: 'groupDmsUpdate',
+  //       },
+  //       currentUserId
+  //     );
+  //   }
+  // );
 
   subscribe(
     {
       app: 'chat',
-      path: '/clubs',
+      path: '/',
     },
-    (data) => {
-      logger.log('subscribeToChatUpdates', data);
-      eventHandler(
-        {
-          type: 'groupDmsUpdate',
-        },
-        currentUserId
-      );
+    (event: ub.WritResponse | { unknown: 'placeholder' }) => {
+      logger.log('raw chat sub event', event);
+
+      if (!('response' in event)) {
+        logger.log('unknown event type');
+        return;
+      }
+
+      const id = getCanonicalPostId(event.id);
+      const delta = event.response;
+
+      if ('add' in delta) {
+        logger.log('add dm', id, delta);
+      }
+
+      if ('del' in delta) {
+        logger.log('del dm', id, delta);
+      }
+
+      if ('add-react' in delta) {
+        logger.log('add react', id, delta);
+      }
+
+      if ('del-react' in delta) {
+        logger.log('del react', id, delta);
+      }
+
+      if ('reply' in delta) {
+        const replyId = getCanonicalPostId(delta.reply.id);
+        const replyDelta = delta.reply.delta;
+        const replyMeta = delta.reply.meta;
+
+        if ('add' in replyDelta) {
+          logger.log('add dm reply', id, delta);
+        }
+
+        if ('del' in replyDelta) {
+          logger.log('del dm reply', id, delta);
+        }
+
+        if ('add-react' in delta) {
+          logger.log('add react reply', id, delta);
+        }
+
+        if ('del-react' in replyDelta) {
+          logger.log('del react reply', id, delta);
+        }
+      }
+
+      eventHandler({ type: 'unknown' });
     }
   );
 }

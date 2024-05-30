@@ -5,6 +5,7 @@ import {
   syncInitData,
   syncLatestPosts,
   syncSettings,
+  syncVolumeSettings,
 } from './sync';
 import { QueueClearedError } from './syncQueue';
 
@@ -14,6 +15,7 @@ export const useInitialSync = () => {
       try {
         await Promise.all([syncLatestPosts(), syncInitData(), syncContacts()]);
         await syncSettings();
+        await syncVolumeSettings(); // TODO: move this to the concurrent fetch?
       } catch (e) {
         if (!(e instanceof QueueClearedError)) {
           console.log('SYNC ERROR', e);

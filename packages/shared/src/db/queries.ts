@@ -285,7 +285,7 @@ export const getChats = createReadQuery(
       };
     });
   },
-  ['groups', 'channels']
+  ['groups', 'channels', 'unreads', 'threadUnreads']
 );
 
 export const insertGroups = createWriteQuery(

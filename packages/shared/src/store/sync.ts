@@ -45,6 +45,13 @@ export const syncSettings = async () => {
   });
 };
 
+export const syncVolumeSettings = async () => {
+  return syncQueue.add('volumeSettings', async () => {
+    const volumeSettings = await api.getVolumeSettings();
+    await db.storeVolumeSettings(volumeSettings);
+  });
+};
+
 export const syncContacts = async () => {
   return syncQueue.add('contacts', async () => {
     const contacts = await api.getContacts();
@@ -291,38 +298,46 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 // }
 
 const handleActivityUpdate = (queueDebounce: number = 500) => {
-  const queue: api.ActivityInit = { channelActivity: [], threadActivity: [] };
-  const processQueue = () =>
-    _.debounce(
-      async () => {
-        const activitySnapshot = _.cloneDeep(queue);
-        queue.channelActivity = [];
-        queue.threadActivity = [];
+  const queue: api.ActivityUpdateQueue = {
+    channelActivity: [],
+    threadActivity: [],
+    volumeSettings: [],
+  };
+  const processQueue = _.debounce(
+    async () => {
+      const activitySnapshot = _.cloneDeep(queue);
+      queue.channelActivity = [];
+      queue.threadActivity = [];
+      queue.volumeSettings = [];
 
-        logger.log(
-          `processing activity queue`,
-          activitySnapshot.channelActivity.length,
-          activitySnapshot.threadActivity.length
-        );
-        await db.insertUnreads(activitySnapshot.channelActivity);
-        await db.insertThreadActivity(activitySnapshot.threadActivity);
-      },
-      queueDebounce,
-      { leading: true, trailing: true }
-    );
+      logger.log(
+        `processing activity queue`,
+        activitySnapshot.channelActivity.length,
+        activitySnapshot.threadActivity.length,
+        activitySnapshot.volumeSettings.length
+      );
+      await db.insertUnreads(activitySnapshot.channelActivity);
+      await db.insertThreadActivity(activitySnapshot.threadActivity);
+      await db.mergeVolumeSettings(activitySnapshot.volumeSettings);
+    },
+    queueDebounce,
+    { leading: true, trailing: true }
+  );
 
   return (event: api.ActivityEvent) => {
     logger.log('received activity event', event);
     switch (event.type) {
       case 'updateChannelActivity':
         queue.channelActivity.push(event.activity);
-        processQueue();
         break;
       case 'updateThreadActivity':
         queue.threadActivity.push(event.activity);
-        processQueue();
+        break;
+      case 'updateVolumeSetting':
+        queue.volumeSettings.push(event.update);
         break;
     }
+    processQueue();
   };
 };
 
