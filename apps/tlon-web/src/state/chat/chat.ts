@@ -1,5 +1,9 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { MessageKey, Source } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  MessageKey,
+  Source,
+  getKey,
+} from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   ChannelsAction,
@@ -43,7 +47,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
 import api from '@/api';
-import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
+import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import {
   LARGE_MESSAGE_FETCH_PAGE_SIZE,
   STANDARD_MESSAGE_FETCH_PAGE_SIZE,
@@ -54,8 +58,9 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { whomIsDm, whomIsNest } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { unreadsKey, useMarkReadMutation, useUnreads } from '../activity';
+import { unreadsKey, useMarkReadMutation } from '../activity';
 import { PostStatus, TrackedPost } from '../channel/channel';
+import { useUnread } from '../unreads';
 import ChatKeys from './keys';
 import emptyMultiDm, {
   appendWritToLastPage,
@@ -679,15 +684,6 @@ export function useMarkDmReadMutation(whom: string, thread?: MessageKey) {
   };
 }
 
-export function useDmUnread(whom: string) {
-  const unreads = useUnreads();
-  const dmUnreads = useMemo(
-    () => _.pickBy(unreads, (v, k) => !whomIsNest(k)),
-    [unreads]
-  );
-  return dmUnreads[whom];
-}
-
 export function useArchiveDm() {
   const mutationFn = async ({ whom }: { whom: string }) => {
     await api.poke({
@@ -1230,7 +1226,7 @@ export const infiniteDMsQueryFn =
   };
 
 export function useInfiniteDMs(whom: string, initialTime?: string) {
-  const unread = useDmUnread(whom);
+  const unread = useUnread(getKey(whom));
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
@@ -1624,9 +1620,8 @@ export function useDeleteDMReplyReactMutation() {
 }
 
 export function useIsDmUnread(whom: string) {
-  const chatInfo = useChatInfo(whom);
-  const unread = chatInfo?.unread;
-  return Boolean(unread && !unread.seen);
+  const unread = useUnread(getKey(whom));
+  return Boolean(unread && unread.status !== 'read');
 }
 
 const selChats = (s: ChatStore) => s.chats;
@@ -1663,7 +1658,7 @@ export function useChatStoreDmUnreads(): string[] {
 }
 
 export function useMultiDmIsPending(id: string): boolean {
-  const unread = useDmUnread(id);
+  const unread = useUnread(getKey(id));
   const chat = useMultiDm(id);
 
   const isPending = chat && chat.hive.includes(window.our);

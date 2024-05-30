@@ -23,6 +23,8 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import { createDevLogger, nestToFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { useUnreadsStore } from './unreads';
+
 const actLogger = createDevLogger('activity', false);
 
 export const unreadsKey = ['activity', 'unreads'];
@@ -111,6 +113,7 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
   if (readEvents.length > 0) {
     const { chat, unreads } = activityReadUpdates(readEvents);
     useChatStore.getState().update(chat);
+    useUnreadsStore.getState().update(unreads);
     queryClient.setQueryData(unreadsKey, (d: Activity | undefined) => {
       if (d === undefined) {
         return undefined;
@@ -207,7 +210,9 @@ export function useMarkReadMutation() {
   return useMutation({
     mutationFn,
     onSuccess: () => {
-      queryClient.invalidateQueries(unreadsKey);
+      queryClient.invalidateQueries(unreadsKey, undefined, {
+        cancelRefetch: true,
+      });
     },
   });
 }

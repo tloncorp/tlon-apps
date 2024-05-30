@@ -1,6 +1,10 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Editor } from '@tiptap/react';
-import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  ActivitySummary,
+  getKey,
+  getThreadKey,
+} from '@tloncorp/shared/dist/urbit/activity';
 import {
   Post,
   Story,
@@ -55,6 +59,7 @@ import {
   useMessageToggler,
   useTrackedMessageStatus,
 } from '@/state/chat';
+import { Unread, useUnread } from '@/state/unreads';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import {
@@ -83,12 +88,11 @@ export interface ChatMessageProps {
 }
 
 function getUnreadDisplay(
-  unread: ActivitySummary | undefined,
+  unread: Unread | undefined,
   id: string,
-  thread: ActivitySummary | undefined
+  thread: Unread | undefined
 ): 'none' | 'top' | 'thread' | 'top-with-thread' {
-  const mainChat = unread?.unread;
-  const isTop = mainChat?.id === id;
+  const isTop = unread?.lastUnread?.id === id;
 
   // if this message is the oldest unread in the main chat,
   // and has an unread thread, show the divider and thread indicator
@@ -98,7 +102,7 @@ function getUnreadDisplay(
 
   // if we have a thread, only mark it as explicitly unread
   // if it's not nested under main chat unreads
-  if (thread) {
+  if (thread && thread.status !== 'read') {
     return 'thread';
   }
 
@@ -169,25 +173,20 @@ const ChatMessage = React.memo<
       const isMobile = useIsMobile();
       const isThreadOnMobile = isThread && isMobile;
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-      const unreadId = !whomIsFlag(whom)
+      const isChannel = whomIsFlag(whom);
+      const unreadId = !isChannel
         ? seal.id
         : `${essay.author}/${formatUd(unixToDa(essay.sent))}`;
-      const keys = useChatKeys();
       const chatInfo = useChatInfo(whom);
-      const threadInfo = useChatInfo(`${whom}/${unreadId}`);
-      const unread = chatInfo?.unread;
+      const unread = useUnread(getKey(whom));
+      const threadUr = useUnread(getThreadKey(whom, unreadId));
       const unreadDisplay = useMemo(
-        () =>
-          getUnreadDisplay(
-            unread?.unread,
-            unreadId,
-            threadInfo?.unread?.unread
-          ),
-        [unread, threadInfo, seal.id, whom, essay]
+        () => getUnreadDisplay(unread, unreadId, threadUr),
+        [unread, threadUr, unreadId]
       );
       const topUnread =
         unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
-      const threadNotify = threadInfo?.unread?.unread?.notify;
+      const threadNotify = threadUr?.notify;
       const threadUnread =
         unreadDisplay === 'thread' ||
         unreadDisplay === 'top-with-thread' ||
@@ -212,10 +211,10 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const { unread: brief, seen } = unread;
+            const unseen = unread.status === 'unread';
             /* the first fire of this function
                which we don't to do anything with. */
-            if (!inView && !seen) {
+            if (!inView && unseen) {
               return;
             }
 
@@ -227,7 +226,7 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadDisplay === 'top' && !seen) {
+            if (inView && unreadDisplay === 'top' && unseen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -435,11 +434,7 @@ const ChatMessage = React.memo<
           {...handlers}
         >
           {unread && topUnread ? (
-            <DateDivider
-              date={unix}
-              unreadCount={unread.unread.unread?.count || 0}
-              ref={viewRef}
-            />
+            <DateDivider date={unix} unreadCount={unread.count} ref={viewRef} />
           ) : null}
           {newDay && unreadDisplay === 'none' ? (
             <DateDivider date={unix} />

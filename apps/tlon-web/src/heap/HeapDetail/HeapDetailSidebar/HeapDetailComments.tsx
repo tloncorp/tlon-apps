@@ -9,9 +9,10 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
-import { usePerms, useUnread } from '@/state/channel/channel';
+import { usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
+import { useUnread } from '@/state/unreads';
 
 import HeapDetailCommentField from './HeapDetailCommentField';
 
@@ -39,7 +40,7 @@ export default function HeapDetailComments({
   const sort = useDiaryCommentSortMode(chFlag ?? '');
   const vessel = useVessel(groupFlag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const unread = useUnread(nest);
+  const unread = useUnread(`thread/${nest}/${parent.id}`);
   const sortedComments =
     comments?.sort(([a], [b]) => {
       if (sort === 'asc') {

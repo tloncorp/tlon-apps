@@ -19,6 +19,7 @@ import usePalsState from './pals';
 import { pinsKey } from './pins';
 import useSchedulerStore from './scheduler';
 import { useStorage } from './storage';
+import { useUnreadsStore } from './unreads';
 
 const emptyGroupsInit: GroupsInit = {
   groups: {},
@@ -51,6 +52,7 @@ async function startGroups() {
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
 
+  useUnreadsStore.getState().update(activity);
   // strip channel/ship/club from start
   const unreads = stripPrefixes(activity);
   queryClient.setQueryData(unreadsKey, unreads);
@@ -62,6 +64,7 @@ async function startGroups() {
       (v, k) => k.replace(/\w*\//, '')
     )
   );
+  console.log(unreads, useChatStore.getState().chats);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';

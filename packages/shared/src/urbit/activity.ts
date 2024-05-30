@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { Story } from './channel';
-import { whomIsDm, whomIsMultiDm } from './utils';
+import { whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -444,8 +444,12 @@ export function getDefaultVolumeOption(
   };
 }
 
+export function stripSourcePrefix(source: string) {
+  return source.replace(/^[-\w]*\//, '');
+}
+
 export function stripPrefixes(unreads: Activity) {
-  return _.mapKeys(unreads, (v, k) => k.replace(/^\w*\//, ''));
+  return _.mapKeys(unreads, (v, k) => stripSourcePrefix);
 }
 
 export function onlyChats(unreads: Activity) {
@@ -453,4 +457,17 @@ export function onlyChats(unreads: Activity) {
     unreads,
     (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)
   );
+}
+
+export function getKey(whom: string) {
+  return whomIsFlag(whom)
+    ? `channel/chat/${whom}`
+    : whomIsDm(whom)
+      ? `ship/${whom}`
+      : `club/${whom}`;
+}
+
+export function getThreadKey(whom: string, id: string) {
+  const prefix = whomIsFlag(whom) ? 'thread/chat' : 'dm-thread';
+  return `${prefix}/${whom}/${id}`;
 }

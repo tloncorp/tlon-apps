@@ -611,7 +611,6 @@
 ++  stream-to-unreads
   |=  [=stream:a floor=time children=(list source:a)]
   ^-  activity-summary:a
-  =/  newest=time  floor
   =/  cs=activity-summary:a
     %+  roll
       children
@@ -622,7 +621,9 @@
     %=  sum
       count  (^add count.sum count.as)
       notify  &(notify.sum notify.as)
+      newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
+  =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
   =/  main  0
   =/  notified=?  notify.cs

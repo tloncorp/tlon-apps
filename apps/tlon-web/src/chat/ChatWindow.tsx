@@ -1,3 +1,4 @@
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import bigInt from 'big-integer';
 import React, {
   ReactElement,
@@ -16,10 +17,11 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChannelCompatibility, useMarkChannelRead } from '@/logic/channel';
 import { log } from '@/logic/utils';
 import { useInfinitePosts } from '@/state/channel/channel';
+import { useUnread } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 import UnreadAlerts from './UnreadAlerts';
-import { useChatInfo, useChatStore } from './useChatStore';
+import { useChatStore } from './useChatStore';
 
 interface ChatWindowProps {
   whom: string;
@@ -62,7 +64,7 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   const fetchingNewest =
     isFetching && (!isFetchingNextPage || !isFetchingPreviousPage);
   const [showUnreadBanner, setShowUnreadBanner] = useState(false);
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const readTimeout = useUnread(getKey(whom))?.readTimeout;
   const clearOnNavRef = useRef({ readTimeout, nest, whom, markRead });
   const { compatible } = useChannelCompatibility(nest);
   const navigate = useNavigate();

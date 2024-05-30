@@ -5,14 +5,13 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useNavWithinTab } from '@/components/Sidebar/util';
 import VolumeSetting from '@/components/VolumeSetting';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import useGroupUnread from '@/logic/useIsGroupUnread';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   citeToPath,
@@ -28,6 +27,7 @@ import {
   usePinnedGroups,
 } from '@/state/groups';
 import { useAddPinMutation, useDeletePinMutation } from '@/state/pins';
+import { useUnread } from '@/state/unreads';
 
 import GroupHostConnection from './GroupHostConnection';
 
@@ -114,12 +114,11 @@ const GroupActions = React.memo(
     children,
   }: GroupActionsProps) => {
     const [showNotifications, setShowNotifications] = useState(false);
-    const { getGroupUnread } = useGroupUnread();
     const { claim } = useGang(flag);
     const location = useLocation();
     const { navigate } = useNavWithinTab();
     const [host, name] = flag.split('/');
-    const activity = getGroupUnread(flag);
+    const activity = useUnread(`group/${flag}`);
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : undefined;
     const isAdmin = useAmAdmin(flag);
@@ -349,7 +348,9 @@ const GroupActions = React.memo(
         >
           {children || (
             <div className="relative h-6 w-6">
-              {(isMobile || !isOpen) && activity.unread ? (
+              {(isMobile || !isOpen) &&
+              activity &&
+              activity.status !== 'read' ? (
                 <UnreadIndicator
                   count={activity.count}
                   notify={activity.notify}
@@ -361,7 +362,7 @@ const GroupActions = React.memo(
                 <button
                   className={cn(
                     'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 sm:hover:opacity-100 sm:group-hover:opacity-100',
-                    activity.unread
+                    activity && activity.status !== 'read'
                       ? activity.notify
                         ? 'text-blue'
                         : 'text-gray-400'

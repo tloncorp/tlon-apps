@@ -1,4 +1,4 @@
-import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
+import { ActivitySummary, getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -9,8 +9,9 @@ import XIcon from '@/components/icons/XIcon';
 import { useMarkChannelRead } from '@/logic/channel';
 import { pluralize, whomIsFlag } from '@/logic/utils';
 import { useMarkDmReadMutation } from '@/state/chat';
+import { useUnread } from '@/state/unreads';
 
-import { useChatInfo, useChatStore } from './useChatStore';
+import { useChatStore } from './useChatStore';
 
 interface UnreadAlertsProps {
   whom: string;
@@ -18,7 +19,7 @@ interface UnreadAlertsProps {
 }
 
 export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
-  const chatInfo = useChatInfo(whom);
+  const unread = useUnread(getKey(whom));
   const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
   const { markDmRead } = useMarkDmReadMutation(whom);
   const markRead = useCallback(() => {
@@ -30,26 +31,23 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
     useChatStore.getState().read(whom);
   }, [whom, markReadChannel, markDmRead]);
 
-  if (!chatInfo?.unread || chatInfo.unread.seen) {
+  if (!unread || unread.status === 'seen') {
     return null;
   }
 
-  const unread = chatInfo.unread.unread as ActivitySummary;
-  const { unread: mainChat } = unread;
-  const isEmpty = mainChat?.count === 0 || mainChat === null;
-  if (isEmpty) {
+  if (unread.count === 0 || !unread.lastUnread) {
     return null;
   }
 
-  const to = `${root}?msg=${mainChat.time}`;
-  const date = new Date(daToUnix(bigInt(mainChat.time)));
+  const to = `${root}?msg=${unread.lastUnread.time}`;
+  const date = new Date(daToUnix(bigInt(unread.lastUnread.time)));
 
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
-  const unreadMessage = `${mainChat.count} new ${pluralize(
+  const unreadMessage = `${unread.count} new ${pluralize(
     'message',
-    mainChat.count
+    unread.count
   )} since ${since}`;
 
   return (

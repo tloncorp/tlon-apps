@@ -201,6 +201,7 @@ function MessagesSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
     }
   }, [action, isMobile]);
 
+  console.log(whom);
   let ResolvedSidebarItem = ChannelSidebarItem;
 
   if (whomIsDm(whom)) {
