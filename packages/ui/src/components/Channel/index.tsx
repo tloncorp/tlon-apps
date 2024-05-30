@@ -10,6 +10,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnimatePresence } from 'tamagui';
 
 import { Add } from '../../assets/icons';
 import {
@@ -198,78 +199,97 @@ export function Channel({
                       contentContainerStyle={{ flex: 1 }}
                     >
                       <YStack alignItems="center" flex={1}>
-                        {showBigInput ? (
-                          <BigInput
-                            channelType={channel.type}
-                            channelId={channel.id}
-                            groupMembers={group?.members ?? []}
-                            shouldBlur={inputShouldBlur}
-                            setShouldBlur={setInputShouldBlur}
-                            send={messageSender}
-                            storeDraft={storeDraft}
-                            clearDraft={clearDraft}
-                            getDraft={getDraft}
-                            editingPost={editingPost}
-                            setEditingPost={setEditingPost}
-                            editPost={editPost}
-                            setShowBigInput={setShowBigInput}
-                            placeholder=""
-                            uploadInfo={uploadInfo}
-                          />
-                        ) : uploadInfo.imageAttachment &&
-                          channel.type !== 'notebook' ? (
-                          <UploadedImagePreview
-                            imageAttachment={uploadInfo.imageAttachment}
-                            resetImageAttachment={
-                              uploadInfo.resetImageAttachment
-                            }
-                          />
-                        ) : (
-                          <View flex={1}>
+                        <AnimatePresence>
+                          {showBigInput ? (
                             <View
-                              position="absolute"
-                              top={0}
-                              left={0}
-                              width="100%"
+                              key="big-input"
+                              animation="simple"
+                              enterStyle={{
+                                y: 100,
+                                opacity: 0,
+                              }}
+                              exitStyle={{
+                                y: 100,
+                                opacity: 0,
+                              }}
+                              y={0}
+                              opacity={1}
                               height="100%"
-                              alignItems="center"
-                              justifyContent="center"
+                              width="100%"
                             >
-                              <LoadingSpinner />
-                            </View>
-                            {channel && posts && (
-                              <Scroller
-                                inverted={isChatChannel ? true : false}
-                                renderItem={renderItem}
-                                renderEmptyComponent={renderEmptyComponent}
-                                currentUserId={currentUserId}
-                                anchor={scrollerAnchor}
-                                posts={posts}
-                                hasNewerPosts={hasNewerPosts}
-                                hasOlderPosts={hasOlderPosts}
+                              <BigInput
+                                channelType={channel.type}
+                                channelId={channel.id}
+                                groupMembers={group?.members ?? []}
+                                shouldBlur={inputShouldBlur}
+                                setShouldBlur={setInputShouldBlur}
+                                send={messageSender}
+                                storeDraft={storeDraft}
+                                clearDraft={clearDraft}
+                                getDraft={getDraft}
                                 editingPost={editingPost}
                                 setEditingPost={setEditingPost}
                                 editPost={editPost}
-                                channelType={channel.type}
-                                channelId={channel.id}
-                                firstUnreadId={
-                                  channel.unread?.countWithoutThreads ?? 0 > 0
-                                    ? channel.unread?.firstUnreadPostId
-                                    : null
-                                }
-                                unreadCount={
-                                  channel.unread?.countWithoutThreads ?? 0
-                                }
-                                onPressPost={goToPost}
-                                onPressReplies={goToPost}
-                                onPressImage={goToImageViewer}
-                                setInputShouldBlur={setInputShouldBlur}
-                                onEndReached={onScrollEndReached}
-                                onStartReached={onScrollStartReached}
+                                setShowBigInput={setShowBigInput}
+                                placeholder=""
+                                uploadInfo={uploadInfo}
                               />
-                            )}
-                          </View>
-                        )}
+                            </View>
+                          ) : uploadInfo.imageAttachment &&
+                            channel.type !== 'notebook' ? (
+                            <UploadedImagePreview
+                              imageAttachment={uploadInfo.imageAttachment}
+                              resetImageAttachment={
+                                uploadInfo.resetImageAttachment
+                              }
+                            />
+                          ) : (
+                            <View flex={1}>
+                              <View
+                                position="absolute"
+                                top={0}
+                                left={0}
+                                width="100%"
+                                height="100%"
+                                alignItems="center"
+                                justifyContent="center"
+                              >
+                                <LoadingSpinner />
+                              </View>
+                              {channel && posts && (
+                                <Scroller
+                                  inverted={isChatChannel ? true : false}
+                                  renderItem={renderItem}
+                                  renderEmptyComponent={renderEmptyComponent}
+                                  currentUserId={currentUserId}
+                                  anchor={scrollerAnchor}
+                                  posts={posts}
+                                  hasNewerPosts={hasNewerPosts}
+                                  hasOlderPosts={hasOlderPosts}
+                                  editingPost={editingPost}
+                                  setEditingPost={setEditingPost}
+                                  editPost={editPost}
+                                  channelType={channel.type}
+                                  channelId={channel.id}
+                                  firstUnreadId={
+                                    channel.unread?.countWithoutThreads ?? 0 > 0
+                                      ? channel.unread?.firstUnreadPostId
+                                      : null
+                                  }
+                                  unreadCount={
+                                    channel.unread?.countWithoutThreads ?? 0
+                                  }
+                                  onPressPost={goToPost}
+                                  onPressReplies={goToPost}
+                                  onPressImage={goToImageViewer}
+                                  setInputShouldBlur={setInputShouldBlur}
+                                  onEndReached={onScrollEndReached}
+                                  onStartReached={onScrollStartReached}
+                                />
+                              )}
+                            </View>
+                          )}
+                        </AnimatePresence>
                         {negotiationMatch &&
                           !editingPost &&
                           (isChatChannel ||
