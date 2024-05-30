@@ -1,6 +1,6 @@
 import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import Animated, {
@@ -155,32 +155,31 @@ export function BigInput({
               </YStack>
             )}
           </TouchableOpacity>
+          {channelType === 'notebook' && (
+            <View backgroundColor="$background" width="100%">
+              <Input
+                size="$xl"
+                height={titleInputHeight}
+                backgroundColor="$background"
+                borderColor="transparent"
+                placeholder="New Title"
+                onChangeText={setTitle}
+              />
+            </View>
+          )}
         </Animated.View>
       )}
       <Animated.ScrollView
         ref={scrollViewRef}
         style={[{ height: '100%', width: '100%' }]}
-        // scrollEnabled={!editorIsFocused}
         onScroll={scrollHandler}
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         scrollToOverflowEnabled
         contentContainerStyle={{
-          paddingTop: channelType === 'notebook' ? 50 : 0,
+          paddingTop: channelType === 'notebook' ? 100 : 0,
         }}
       >
-        {channelType === 'notebook' && (
-          <View backgroundColor="$background" width="100%">
-            <Input
-              size="$xl"
-              height={titleInputHeight}
-              backgroundColor="$background"
-              borderColor="transparent"
-              placeholder="New Title"
-              onChangeText={setTitle}
-            />
-          </View>
-        )}
         <View width="100%" height="100%">
           <MessageInput
             shouldBlur={shouldBlur}

@@ -123,6 +123,7 @@ export const MessageInputContainer = ({
             {editorIsEmpty ||
             (channelType === 'notebook' && titleIsEmpty) ? null : (
               <FloatingActionButton
+                inverted
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
                 icon={isEditing ? <Checkmark /> : <ArrowUp />}
               />
