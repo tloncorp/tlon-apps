@@ -15,8 +15,8 @@ import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
-import { ListSectionHeader } from './ListSectionHeader';
 import { navHeight } from './NavBar/NavBar';
+import { SectionListHeader } from './SectionList';
 import { SwipableChatRow } from './SwipableChatListItem';
 
 type ListItem = db.Channel | db.Group;
@@ -56,18 +56,20 @@ export function ChatList({
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
+      const listItemElement = (
+        <ChatListItem
+          model={item}
+          onPress={onPressItem}
+          onLongPress={onLongPressItem}
+        />
+      );
       if (logic.isChannel(item)) {
-        <SwipableChatRow model={item}>
-          <ChatListItem
-            model={item}
-            onPress={onPressItem}
-            onLongPress={onLongPressItem}
-          />
-        </SwipableChatRow>;
+        return (
+          <SwipableChatRow model={item}>{listItemElement}</SwipableChatRow>
+        );
       }
-
       // Pending items not affected by swipe
-      return <ChatListItem model={item} onPress={onPressItem} />;
+      return listItemElement;
     },
     [onPressItem, onLongPressItem]
   );
@@ -78,7 +80,11 @@ export function ChatList({
     }: {
       section: SectionListData<ListItem, { title: string }>;
     }) => {
-      return <ListSectionHeader>{section.title}</ListSectionHeader>;
+      return (
+        <SectionListHeader>
+          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
+        </SectionListHeader>
+      );
     },
     []
   );
