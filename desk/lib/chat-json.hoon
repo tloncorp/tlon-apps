@@ -211,9 +211,10 @@
       ==
     ==
   ++  writs-response
-    |=  =response:writs:c
+    |=  [=whom:c =response:writs:c]
     %-  pairs
-    :~  id/(id id.response)
+    :~  whom/s/(^whom whom)
+        id/(id id.response)
         response/(response-delta response.response)
     ==
   ::
