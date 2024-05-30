@@ -25,7 +25,7 @@
     |=  k=message-key:a
     %-  pairs
     :~  id/s+(msg-id id.k)
-        time+(time time.k)
+        time+s+(scot %ud time.k)
     ==
   ::
   ++  msg-id

@@ -129,7 +129,7 @@
       ~(tap by threads.unread)
     |=  [=id-post:c [id=id-reply:c count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  post=(unit (unit post:c))  (~(get by posts.u.channel) id-post)
+    =/  post=(unit (unit post:c))  (get:on-posts:c posts.u.channel id-post)
     ?~  post  ~
     ?~  u.post  ~
     %-  some
@@ -191,7 +191,7 @@
       ~(tap by threads.unread)
     |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  writ=(unit writ:ch)  (~(get by wit.pact) time.parent)
+    =/  writ=(unit writ:ch)  (get:on:writs:ch wit.pact time.parent)
     ?~  writ  ~
     %-  some
     %+  turn
@@ -356,7 +356,7 @@
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
   =/  notify  &(should-notify notify:(get-volume inc))
-  =/  =event:a  [inc notify]
+  =/  =event:a  [inc notify |]
   =.  cor
     (give %fact ~[/] activity-update+!>([%add time-id event]))
   =?  cor  notify
@@ -369,24 +369,24 @@
       %chan-init
     =/  group-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
-    (add-to-index group-src time-id event)
+    (add-to-index group-src time-id event(child &))
   ::
       %dm-reply
     =/  parent-src  [%dm whom.event]
     =.  cor  (add-to-index source time-id event)
-    (add-to-index parent-src time-id event)
+    (add-to-index parent-src time-id event(child &))
   ::
       %post
     =/  parent-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
-    (add-to-index parent-src time-id event)
+    (add-to-index parent-src time-id event(child &))
   ::
       %reply
     =/  chan-src  [%channel channel.event group.event]
     =/  group-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
-    =.  cor  (add-to-index chan-src time-id event)
-    (add-to-index group-src time-id event)
+    =.  cor  (add-to-index chan-src time-id event(child &))
+    (add-to-index group-src time-id event(child &))
   ==
 ::
 ++  del
@@ -598,23 +598,16 @@
   ::  TODO: flip around and iterate over stream once, cleaning reads out
   ::        and segment replies for unread threads tracking
   |-
-  ?~  read-items
+  =;  unread-stream=stream:a
     =/  children  (get-children source)
-    (stream-to-unreads stream floor.reads children)
-  =/  [[=time *] rest=read-items:a]  (pop:on-read-items:a read-items)
-  %=  $
-      read-items  rest
-  ::
-      stream
-    =-  +.-
-    %^  (dip:on-event:a @)  stream
-      ~
-    |=  [@ key=@da =event:a]
-    ^-  [(unit event:a) ? @]
-    ?:  =(time key)
-      [~ | ~]
-    [`event | ~]
-  ==
+    (stream-to-unreads unread-stream floor.reads children)
+  %+  gas:on-event:a  *stream:a
+  %+  murn
+    (tap:on-event:a stream)
+  |=  [=time =event:a]
+  ?:  (has:on-read-items:a items.reads time)  ~
+  ?:  child.event  ~
+  `[time event]
 ++  stream-to-unreads
   |=  [=stream:a floor=time children=(list source:a)]
   ^-  activity-summary:a
@@ -650,8 +643,8 @@
       ==
     $(stream rest)
   =.  total  +(total)
-  =?  main  ?=(?(%post %dm-post) -<.event)  +(main)
-  =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume notified.event)  &
+  =.  main   +(main)
+  =?  main-notified  &(notify:volume notified.event)  &
   =.  newest  time.key.event
   =.  last
     ?~  last  `key.event
