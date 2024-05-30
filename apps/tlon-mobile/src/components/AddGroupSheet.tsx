@@ -106,7 +106,7 @@ export default function AddGroupSheet({
       modal
     >
       <Sheet.Overlay />
-      <Sheet.Frame>
+      <Sheet.LazyFrame>
         <Sheet.Handle marginBottom="$l" />
         <KeyboardAvoidingView style={{ flex: 1 }}>
           <NavigationContainer independent={true} ref={navigationRef}>
@@ -142,7 +142,7 @@ export default function AddGroupSheet({
             </ActionContext.Provider>
           </NavigationContainer>
         </KeyboardAvoidingView>
-      </Sheet.Frame>
+      </Sheet.LazyFrame>
     </Sheet>
   );
 }

@@ -1,21 +1,34 @@
-import { IconButton } from './IconButton';
+import { Button } from '../core/Button';
+import { SizableText } from '../core/Text';
 
 export default function FloatingActionButton({
   onPress,
   icon,
+  label,
 }: {
   onPress: () => void;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
+  label?: string;
 }) {
   return (
-    <IconButton
-      backgroundColor="$primaryText"
-      backgroundColorOnPress="$tertiaryText"
-      color="$background"
-      radius="$xl"
+    <Button
+      paddingHorizontal="$m"
+      paddingVertical="$s"
+      alignItems="center"
       onPress={onPress}
     >
       {icon}
-    </IconButton>
+      {label && (
+        <SizableText
+          ellipsizeMode="tail"
+          numberOfLines={1}
+          fontSize={'$s'}
+          maxWidth={200}
+          height={'$2xl'}
+        >
+          {label}
+        </SizableText>
+      )}
+    </Button>
   );
 }

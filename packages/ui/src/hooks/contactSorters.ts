@@ -11,8 +11,8 @@ const DEFAULT_SORT_ORDER: UrbitSort[] = ['nickname', 'alphabetical'];
 const logger = createDevLogger('urbitSorter', false);
 
 export type AlphaContactsSegment = {
-  alphaKey: string;
-  contacts: db.Contact[];
+  label: string;
+  data: db.Contact[];
 };
 
 export type AlphaSegmentedContacts = AlphaContactsSegment[];
@@ -57,7 +57,7 @@ export function useAlphabeticallySegmentedContacts(
       const segmentedContacts = Object.entries(segmented)
         .filter(([_k, results]) => results.length > 0)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([alphaKey, results]) => {
+        .map(([label, results]) => {
           const segmentContacts = sortContacts(
             results.map((r) => r.contact),
             ['nickname', 'alphabetical'],
@@ -65,14 +65,14 @@ export function useAlphabeticallySegmentedContacts(
           );
           // .sort((a, b) => a.sortable.localeCompare(b.sortable))
           // .map((result) => contactsIndex[result.id]);
-          return { alphaKey, contacts: segmentContacts };
+          return { label, data: segmentContacts };
         });
 
       // add non-alphabetical names to the end
       if (nonAlphaNames && nonAlphaNames.length) {
         segmentedContacts.push({
-          alphaKey: '_',
-          contacts: nonAlphaNames.map((result) => contactsIndex[result.id]),
+          label: '_',
+          data: nonAlphaNames.map((result) => contactsIndex[result.id]),
         });
       }
 
