@@ -32,6 +32,18 @@ export async function logDuration<T>(
   return result;
 }
 
+export function logSyncDuration<T>(
+  label: string,
+  logger: Console,
+  fn: () => T
+) {
+  const start = Date.now();
+  logger.log('start:time:' + label);
+  const result = fn();
+  logger.log('end:time:' + label + '', `(${Date.now() - start}ms)`);
+  return result;
+}
+
 // Attempts to slice off rarely significant digits for more legible logging.
 export function shortPostId(postId: string) {
   return postId.slice(14, 27);

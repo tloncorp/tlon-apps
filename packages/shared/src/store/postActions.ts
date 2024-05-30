@@ -8,14 +8,35 @@ export async function sendPost({
   authorId,
   content,
   metadata,
+  attachment,
 }: {
   channel: db.Channel;
   authorId: string;
   content: urbit.Story;
+  attachment?: api.UploadedFile | null;
   metadata?: db.PostMetadata;
 }) {
+  // replace content with attachment if empty
+  // TODO: what if we have both?
+  if (content.length === 0 && attachment && channel.type === 'gallery') {
+    content = [createVerseFromAttachment(attachment)];
+  }
+
+  // if first message of a pending group dm, we need to first create
+  // it on the backend
+  if (channel.type === 'groupDm' && channel.isPendingChannel) {
+    await api.createGroupDm({
+      id: channel.id,
+      members:
+        channel.members
+          ?.map((m) => m.contactId)
+          .filter((m) => m !== authorId) ?? [],
+    });
+    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+  }
+
   // optimistic update
-  const cachePost = api.buildCachePost({ authorId, channel, content });
+  const cachePost = db.buildPendingPost({ authorId, channel, content });
   await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
   try {
     await api.sendPost({
@@ -30,6 +51,19 @@ export async function sendPost({
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
   }
+}
+
+function createVerseFromAttachment(file: api.UploadedFile): urbit.Verse {
+  return {
+    block: {
+      image: {
+        src: file.url,
+        height: file.height ? file.height : 200,
+        width: file.width ? file.width : 200,
+        alt: 'image',
+      },
+    },
+  };
 }
 
 export async function editPost({
@@ -79,7 +113,7 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   // optimistic update
-  const cachePost = api.buildCachePost({
+  const cachePost = db.buildPendingPost({
     authorId,
     channel: channel,
     content,

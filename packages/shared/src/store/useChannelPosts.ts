@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -105,5 +105,36 @@ export const useChannelPosts = (
       };
     },
   });
-  return query;
+
+  const posts = useMemo<db.Post[] | null>(
+    () => query.data?.pages.flatMap((p) => p) ?? null,
+    [query.data]
+  );
+
+  const loadOlder = useCallback(() => {
+    if (!query.isPaused && query.hasNextPage && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [query]);
+
+  const loadNewer = useCallback(() => {
+    if (
+      !query.isPaused &&
+      query.hasPreviousPage &&
+      !query.isFetchingPreviousPage
+    ) {
+      query.fetchPreviousPage();
+    }
+  }, [query]);
+
+  const isLoading =
+    query.isPending ||
+    query.isPaused ||
+    query.isFetchingNextPage ||
+    query.isFetchingPreviousPage;
+
+  return useMemo(
+    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
+    [posts, query, loadOlder, loadNewer, isLoading]
+  );
 };
