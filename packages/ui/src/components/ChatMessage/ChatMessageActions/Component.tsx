@@ -154,6 +154,7 @@ export function ChatMessageActions({
           <MessageContainer post={post} currentUserId={currentUserId} />
           <MessageActions
             post={post}
+            currentUserId={currentUserId}
             channelType={channelType}
             dismiss={onDismiss}
             onReply={onReply}

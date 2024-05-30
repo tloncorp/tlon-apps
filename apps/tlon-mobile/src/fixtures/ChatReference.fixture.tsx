@@ -5,14 +5,11 @@ import { createFakePost, tlonLocalSupport } from './fakeData';
 
 const fakePost = createFakePost();
 
-const fakeContent = JSON.parse(fakePost.content as string);
-
 const ChatReferenceFixture = () => (
   <FixtureWrapper fillWidth>
     <ChatReference
       post={fakePost}
       channel={tlonLocalSupport}
-      content={fakeContent}
       onPress={() => ({})}
     />
   </FixtureWrapper>

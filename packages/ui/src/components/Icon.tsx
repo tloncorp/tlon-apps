@@ -44,7 +44,7 @@ const IconGraphic = styled(
 );
 
 const IconComponent = View.styleable<{
-  size?: '$s' | '$m' | '$l';
+  size?: '$s' | '$m' | '$l' | '$xl';
   color?: ColorTokens;
   type: IconType;
 }>(({ size = '$l', color = '$primaryText', type, ...props }, ref) => {
@@ -56,6 +56,8 @@ const IconComponent = View.styleable<{
         return ['$2xl', '$2xl'];
       case '$l':
         return ['$3xl', '$2xl'];
+      case '$xl':
+        return ['$4xl', '$3xl'];
     }
     // This shouldn't be necessary, but a bug with tamagui's optimizing
     // compiler caused this to error.

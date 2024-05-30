@@ -1,12 +1,11 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
+import AuthorRow from '../AuthorRow';
 import { Icon } from '../Icon';
 import { MessageInput } from '../MessageInput';
-import AuthorRow from './AuthorRow';
 import ChatContent from './ChatContent';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
@@ -20,14 +19,16 @@ const NoticeWrapper = ({
 }) => {
   if (isNotice) {
     return (
-      <XStack gap="$m">
-        <Icon
-          type="AddPerson"
-          color="$secondaryText"
-          size="$m"
-          backgroundColor={'$secondaryBackground'}
-        />
-        {children}
+      <XStack alignItems="center" padding="$l">
+        <View width={'$2xl'} flex={1} height={1} backgroundColor="$border" />
+        <View
+          paddingHorizontal="$m"
+          backgroundColor="$border"
+          borderRadius={'$2xl'}
+        >
+          {children}
+        </View>
+        <View flex={1} height={1} backgroundColor="$border" />
       </XStack>
     );
   }
@@ -62,11 +63,6 @@ const ChatMessage = ({
   if (isNotice) {
     showAuthor = false;
   }
-
-  const content = useMemo(
-    () => JSON.parse(post.content as string) as PostContent,
-    [post.content]
-  );
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -114,18 +110,18 @@ const ChatMessage = ({
             author={post.author}
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
+            type={post.type}
             // roles={roles}
           />
         </View>
       ) : null}
-      <View paddingLeft="$4xl">
+      <View paddingLeft={!isNotice && '$4xl'}>
         {editing ? (
           <MessageInput
             groupMembers={[]}
             storeDraft={() => {}}
             clearDraft={() => {}}
             getDraft={async () => ({})}
-            setImageAttachment={() => {}}
             shouldBlur={false}
             setShouldBlur={() => {}}
             send={() => {}}
@@ -141,7 +137,7 @@ const ChatMessage = ({
         ) : (
           <NoticeWrapper isNotice={isNotice}>
             <ChatContent
-              story={content}
+              post={post}
               isNotice={isNotice}
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}

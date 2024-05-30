@@ -16,6 +16,7 @@ export default (
       editingPost={undefined}
       negotiationMatch={true}
       setEditingPost={() => {}}
+      parentPost={null}
       currentUserId="~solfer-magfed"
       contacts={initialContacts}
       calmSettings={{
@@ -26,8 +27,9 @@ export default (
       uploadInfo={{
         imageAttachment: null,
         resetImageAttachment: () => {},
-        setImageAttachment: () => {},
+        setAttachments: () => {},
         canUpload: true,
+        uploading: false,
       }}
       channel={tlonLocalBulletinBoard}
       posts={posts}

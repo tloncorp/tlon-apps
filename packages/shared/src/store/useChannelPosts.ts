@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -8,8 +8,10 @@ import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
-type UseChanelPostsParams = db.GetChannelPostsOptions & {
-  anchorToNewest?: boolean;
+type UseChannelPostsPageParams = db.GetChannelPostsOptions;
+type UseChanelPostsParams = UseChannelPostsPageParams & {
+  enabled: boolean;
+  firstPageCount?: number;
 };
 
 export const useChannelPosts = (options: UseChanelPostsParams) => {
@@ -19,8 +21,23 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       postsLogger.log('unmount', options);
     };
   }, []);
-  return useInfiniteQuery({
-    initialPageParam: options,
+
+  useEffect(() => {
+    postsLogger.log('options', options);
+  }, [options]);
+
+  const mountTime = useMemo(() => {
+    return Date.now();
+  }, []);
+
+  const { enabled, firstPageCount, ...pageParam } = options;
+
+  const query = useInfiniteQuery({
+    enabled,
+    initialPageParam: {
+      ...pageParam,
+      count: firstPageCount,
+    } as UseChannelPostsPageParams,
     refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
@@ -28,10 +45,8 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         'loading posts',
         queryOptions.channelId,
         queryOptions.cursor,
-        queryOptions.direction,
-        queryOptions.date ? queryOptions.date.toISOString() : undefined,
-        queryOptions.count,
-        queryOptions.anchorToNewest
+        queryOptions.mode,
+        queryOptions.count
       );
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
@@ -50,25 +65,24 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       return secondResult ?? [];
     },
     queryKey: [
-      ['channels', options.channelId],
-      useKeyFromQueryDeps(db.getChannelPosts),
+      ['channelPosts', options.channelId, mountTime],
+      useKeyFromQueryDeps(db.getChannelPosts, options),
     ],
     getNextPageParam: (
       lastPage,
       _allPages,
       lastPageParam
-    ): UseChanelPostsParams | undefined => {
-      const reachedEnd = !lastPage[lastPage.length - 1]?.id;
-      if (reachedEnd) {
+    ): UseChannelPostsPageParams | undefined => {
+      const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
+      if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
         // same cursor to get older posts instead. This can happen when the
         // first cached page is empty.
-        if (lastPageParam?.direction === 'newer') {
+        if (lastPageParam?.mode === 'newer') {
           return {
             ...options,
-            direction: 'older',
+            mode: 'older',
             cursor: lastPageParam.cursor,
-            date: undefined,
           };
         } else {
           return undefined;
@@ -76,25 +90,54 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       }
       return {
         ...options,
-        direction: 'older',
+        mode: 'older',
         cursor: lastPage[lastPage.length - 1]?.id,
-        date: undefined,
       };
     },
     getPreviousPageParam: (
       firstPage,
       _allPages,
       firstPageParam
-    ): UseChanelPostsParams | undefined => {
-      const reachedEnd = firstPage[0]?.id;
-      const alreadyAtNewest = firstPageParam?.anchorToNewest;
-      if (reachedEnd || alreadyAtNewest) return undefined;
+    ): UseChannelPostsPageParams | undefined => {
+      const firstPageIsEmpty = !firstPage[0]?.id;
+      if (firstPageParam.mode === 'newest' || firstPageIsEmpty) {
+        return undefined;
+      }
       return {
         ...options,
-        direction: 'newer',
+        mode: 'newer',
         cursor: firstPage[0]?.id,
-        date: undefined,
       };
     },
   });
+
+  const posts = useMemo<db.Post[] | null>(
+    () => query.data?.pages.flatMap((p) => p) ?? null,
+    [query.data]
+  );
+
+  const loadOlder = useCallback(() => {
+    if (!query.hasNextPage) return;
+    if (!query.isPaused && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [query]);
+
+  const loadNewer = useCallback(() => {
+    if (!query.hasPreviousPage) return;
+    if (!query.isPaused && !query.isFetchingPreviousPage) {
+      query.fetchPreviousPage();
+    }
+  }, [query]);
+
+  const isLoading =
+    query.isPending ||
+    query.isPaused ||
+    query.isFetchingNextPage ||
+    query.isFetchingPreviousPage;
+
+  return useMemo(
+    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
+    [posts, query, loadOlder, loadNewer, isLoading]
+  );
 };

@@ -21,6 +21,9 @@ patchedDependencies:
   '@urbit/http-api@3.1.0-dev-2':
     hash: a4psibisxhh5q6cyjn3nbiaogm
     path: patches/@urbit__http-api@3.1.0-dev-2.patch
+  any-ascii@0.3.2:
+    hash: 5ofxtlxe6za2xqrbq5pqbz7wb4
+    path: patches/any-ascii@0.3.2.patch
   drizzle-orm@0.30.9:
     hash: cegrec33e6f7d6ltk7vff5r7w4
     path: patches/drizzle-orm@0.30.9.patch
@@ -120,7 +123,7 @@ importers:
         specifier: ^6.9.13
         version: 6.9.18(@react-navigation/native@6.1.10(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.8.2(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tanstack/react-query':
-        specifier: ^5.32.1
+        specifier: ~5.32.1
         version: 5.32.1(react@18.2.0)
       '@tloncorp/editor':
         specifier: workspace:*
@@ -168,7 +171,7 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-file-system:
-        specifier: ~16.0.8
+        specifier: ~16.0.9
         version: 16.0.9(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-haptics:
         specifier: ~12.8.1
@@ -182,6 +185,9 @@ importers:
       expo-image-picker:
         specifier: ~14.7.1
         version: 14.7.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-linear-gradient:
+        specifier: ^12.7.2
+        version: 12.7.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-localization:
         specifier: ~14.8.3
         version: 14.8.3(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
@@ -318,6 +324,9 @@ importers:
       dotenv:
         specifier: ^16.0.3
         version: 16.4.5
+      drizzle-kit:
+        specifier: ^0.21.1
+        version: 0.21.1
       ncp:
         specifier: ^2.0.0
         version: 2.0.0
@@ -401,13 +410,13 @@ importers:
         version: 1.93.2(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(typescript@5.4.5)
       '@tanstack/react-query':
         specifier: ^4.28.0
-        version: 4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        version: 4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tanstack/react-query-devtools':
         specifier: ^4.28.0
-        version: 4.29.0(@tanstack/react-query@4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 4.29.0(@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@tanstack/react-query-persist-client':
         specifier: ^4.28.0
-        version: 4.28.0(@tanstack/react-query@4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))
+        version: 4.28.0(@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))
       '@tanstack/react-virtual':
         specifier: ^3.0.0-beta.60
         version: 3.0.0-beta.65(react@18.2.0)
@@ -515,7 +524,7 @@ importers:
         version: 2.2.0
       any-ascii:
         specifier: ^0.3.1
-        version: 0.3.2
+        version: 0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4)
       big-integer:
         specifier: ^1.6.51
         version: 1.6.52
@@ -956,6 +965,9 @@ importers:
       '@urbit/api':
         specifier: ^2.2.0
         version: 2.2.0
+      any-ascii:
+        specifier: ^0.3.1
+        version: 0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4)
       big-integer:
         specifier: ^1.6.52
         version: 1.6.52
@@ -971,6 +983,9 @@ importers:
       sorted-btree:
         specifier: ^1.8.1
         version: 1.8.1
+      urbit-ob:
+        specifier: ^5.0.1
+        version: 5.0.1
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu':
         specifier: 4.9.5
@@ -1030,6 +1045,9 @@ importers:
       '@urbit/sigil-js':
         specifier: ^2.2.0
         version: 2.2.0
+      any-ascii:
+        specifier: ^0.3.1
+        version: 0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4)
       color2k:
         specifier: ^2.0.0
         version: 2.0.3
@@ -1042,6 +1060,9 @@ importers:
       expo-image:
         specifier: '*'
         version: 1.10.6(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-image-picker:
+        specifier: ~14.7.1
+        version: 14.7.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -1069,6 +1090,9 @@ importers:
       tamagui:
         specifier: 1.93.2
         version: 1.93.2(@types/react@18.2.55)(immer@9.0.21)(react-dom@18.2.0(react@18.2.0))(react-native-web@0.19.10(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      urbit-ob:
+        specifier: ^5.0.1
+        version: 5.0.1
     devDependencies:
       '@tamagui/build':
         specifier: 1.93.2
@@ -4733,6 +4757,9 @@ packages:
   '@tanstack/query-core@4.27.0':
     resolution: {integrity: sha512-sm+QncWaPmM73IPwFlmWSKPqjdTXZeFf/7aEmWh00z7yl2FjqophPt0dE1EHW9P1giMC5rMviv7OUbSDmWzXXA==}
 
+  '@tanstack/query-core@4.36.1':
+    resolution: {integrity: sha512-DJSilV5+ytBP1FbFcEJovv4rnnm/CokuVvrBEtW/Va9DvuJ3HksbXUJEpI0aV1KtuL4ZoO9AVE6PyNLzF7tLeA==}
+
   '@tanstack/query-core@5.32.1':
     resolution: {integrity: sha512-mCWa1wdGb1jiny4+qYegbSeadcFj+Nq65KFSs4A1DRveoIq7SrTwUhqu7hrB6d54cQH5x59DfJvxusn3w1Cj/g==}
 
@@ -4751,8 +4778,8 @@ packages:
     peerDependencies:
       '@tanstack/react-query': 4.28.0
 
-  '@tanstack/react-query@4.28.0':
-    resolution: {integrity: sha512-8cGBV5300RHlvYdS4ea+G1JcZIt5CIuprXYFnsWggkmGoC0b5JaqG0fIX3qwDL9PTNkKvG76NGThIWbpXivMrQ==}
+  '@tanstack/react-query@4.36.1':
+    resolution: {integrity: sha512-y7ySVHFyyQblPl3J3eQBWpXZkliroki3ARnBKsdJchlgt7yJLRDUcf4B8soufgiYt3pEQIkBWBx1N9/ZPIeUWw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
@@ -6786,6 +6813,10 @@ packages:
     resolution: {integrity: sha512-mLVDS4nXmO09wFVlzGrdshWnAL+U9eQGC5zRs6hTN6Q9arwQGWU2XnZ17I8BM8Quau8CQRx3Ms6VPgRWJFVp7Q==}
     hasBin: true
 
+  drizzle-kit@0.21.1:
+    resolution: {integrity: sha512-Sp7OnCdROiE2ebMuHsAfrnRoHVGYCvErQxUh7/0l6R1caHssZu9oZu/hW9rLU19xnTK4/y3iSe3sL0Cc530wCg==}
+    hasBin: true
+
   drizzle-orm@0.30.9:
     resolution: {integrity: sha512-VOiCFsexErmgqvNCOmbzmqDCZzZsHoz6SkWAjTFxsTr1AllKDbDJ2+GgedLXsXMDgpg/ljDG1zItIFeZtiO2LA==}
     peerDependencies:
@@ -7285,6 +7316,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-linear-gradient@12.7.2:
+    resolution: {integrity: sha512-Wwb2EF18ywgrlTodcXJ6Yt/UEcKitRMdXPNyP/IokmeKh4emoq9DxZJpZdkXm3HUTLlbRpi6/t32jrFVqXB9AQ==}
+    peerDependencies:
+      expo: '*'
+
   expo-localization@14.8.3:
     resolution: {integrity: sha512-leg1e+7ocUgfNWa7Men/g16waXtdSpBMR9tCdv3CG4wztmFU8C+87VAnnVkvHi4CCUkTLzhP3y0FcE6KIWTwdw==}
     peerDependencies:
@@ -7697,16 +7733,20 @@ packages:
 
   glob@6.0.4:
     resolution: {integrity: sha512-MKZeRNyYZAVVVG1oZeLaWie1uweH40m9AZwIwxyPbTSX4hHrVYSzLg0Ro5Z5R7XKkIX+Cc6oD1rqeDJnwsB8/A==}
+    deprecated: Glob versions prior to v9 are no longer supported
 
   glob@7.1.6:
     resolution: {integrity: sha512-LwaxwyZ72Lk7vZINtNNrywX0ZuLyStrdDtabefZKAY5ZGJhVtgdznluResxNmPitE0SAO+O26sWTHeKSI2wMBA==}
+    deprecated: Glob versions prior to v9 are no longer supported
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
+    deprecated: Glob versions prior to v9 are no longer supported
 
   glob@8.1.0:
     resolution: {integrity: sha512-r8hpEjiQEYlF2QU0df3dS+nxxSIreXQS1qRhMJM0Q5NDdR386C7jb7Hwwod8Fgiuex+k0GFjgft18yvxm5XoCQ==}
     engines: {node: '>=12'}
+    deprecated: Glob versions prior to v9 are no longer supported
 
   globals@11.12.0:
     resolution: {integrity: sha512-WOBp/EEGUiIsJSp7wcv/y6MO+lV9UoncWqxuFfm8eBwzWNgyfBd6Gz+IeKQ9jCmyhoH99g15M3T+QaVHFjizVA==}
@@ -7983,6 +8023,7 @@ packages:
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
+    deprecated: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
@@ -9620,6 +9661,7 @@ packages:
 
   posthog-js@1.68.2:
     resolution: {integrity: sha512-oh3MQonhbgVbBYNJ/cAx1L6fginAF5Msz3shexnXPhDNKj1DQGosepQC6TQpdeeUWp0H7R2cQG9eHJwmrEM1Lw==}
+    deprecated: This version of posthog-js is deprecated, please update posthog-js, and do not use this version! Check out our JS docs at https://posthog.com/docs/libraries/js
 
   posthog-react-native@2.11.3:
     resolution: {integrity: sha512-vYlTh1RFHMDxlIRaYidVPylbf3t+k34sDQ9r1u3l084e6K3NkrMUmEEG64ZhbmwK24Oo5HxoQHHmbqkEifd61w==}
@@ -17398,29 +17440,31 @@ snapshots:
 
   '@tanstack/query-core@4.27.0': {}
 
+  '@tanstack/query-core@4.36.1': {}
+
   '@tanstack/query-core@5.32.1': {}
 
   '@tanstack/query-persist-client-core@4.27.0':
     dependencies:
       '@tanstack/query-core': 4.27.0
 
-  '@tanstack/react-query-devtools@4.29.0(@tanstack/react-query@4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+  '@tanstack/react-query-devtools@4.29.0(@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tanstack/match-sorter-utils': 8.8.4
-      '@tanstack/react-query': 4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@tanstack/react-query': 4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       superjson: 1.12.2
       use-sync-external-store: 1.2.0(react@18.2.0)
 
-  '@tanstack/react-query-persist-client@4.28.0(@tanstack/react-query@4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))':
+  '@tanstack/react-query-persist-client@4.28.0(@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))':
     dependencies:
       '@tanstack/query-persist-client-core': 4.27.0
-      '@tanstack/react-query': 4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@tanstack/react-query': 4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
 
-  '@tanstack/react-query@4.28.0(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@tanstack/react-query@4.36.1(react-dom@18.2.0(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
-      '@tanstack/query-core': 4.27.0
+      '@tanstack/query-core': 4.36.1
       react: 18.2.0
       use-sync-external-store: 1.2.0(react@18.2.0)
     optionalDependencies:
@@ -18614,7 +18658,7 @@ snapshots:
 
   ansi-styles@6.2.1: {}
 
-  any-ascii@0.3.2: {}
+  any-ascii@0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4): {}
 
   any-promise@1.3.0: {}
 
@@ -19874,6 +19918,20 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  drizzle-kit@0.21.1:
+    dependencies:
+      '@esbuild-kit/esm-loader': 2.6.5
+      commander: 9.5.0
+      env-paths: 3.0.0
+      esbuild: 0.19.12
+      esbuild-register: 3.5.0(esbuild@0.19.12)
+      glob: 8.1.0
+      hanji: 0.0.5
+      json-diff: 0.9.0
+      zod: 3.22.5
+    transitivePeerDependencies:
+      - supports-color
+
   drizzle-orm@0.30.9(patch_hash=cegrec33e6f7d6ltk7vff5r7w4)(@op-engineering/op-sqlite@5.0.5(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(@opentelemetry/api@1.8.0)(@types/better-sqlite3@7.6.9)(@types/react@18.2.55)(better-sqlite3@9.5.0)(react@18.2.0):
     optionalDependencies:
       '@op-engineering/op-sqlite': 5.0.5(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -20587,6 +20645,10 @@ snapshots:
   expo-json-utils@0.12.3: {}
 
   expo-keep-awake@12.8.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  expo-linear-gradient@12.7.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
 

@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { ComponentProps, PropsWithChildren, useRef } from 'react';
 import {
+  Stack,
   StackProps,
   TamaguiElement,
+  XStack,
+  YStack,
   createSheet,
   styled,
+  useSheet,
   withStaticProperties,
 } from 'tamagui';
-import { Stack, Sheet as TamSheet, XStack, YStack } from 'tamagui';
 
 import { SizableText } from '../core';
 
@@ -68,11 +71,37 @@ const Handle = styled(HandleBase, {
 
 // Something weird going on with typing here? This works when sheet components
 // are styled YStacks, but when they're plain stacks it throws a type error.
-export const Sheet = createSheet({
+const baseSheet = createSheet({
   Frame,
   Handle,
   Overlay,
 });
+
+/**
+ * Identical to `Frame` except it only renders its children *after* the sheet is opened for the first time.
+ */
+function LazyFrame({
+  children,
+  ...props
+}: ComponentProps<typeof baseSheet.Frame>) {
+  const sheet = useSheet();
+  const hasOpened = useHasOpened(sheet.open);
+  return (
+    <baseSheet.Frame {...props}>{hasOpened ? children : null}</baseSheet.Frame>
+  );
+}
+
+export const Sheet = withStaticProperties(baseSheet, {
+  LazyFrame,
+});
+
+function useHasOpened(isOpen: boolean) {
+  const hasOpenedRef = useRef(isOpen);
+  if (isOpen) {
+    hasOpenedRef.current = true;
+  }
+  return hasOpenedRef.current;
+}
 
 const HeaderFrame = styled(XStack, {});
 

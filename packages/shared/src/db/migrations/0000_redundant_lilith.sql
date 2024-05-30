@@ -21,9 +21,11 @@ CREATE TABLE `channels` (
 	`first_unread_post_id` text,
 	`last_post_id` text,
 	`last_post_at` integer,
+	`is_cached_pending_channel` integer,
+	`is_dm_invite` integer,
 	`synced_at` integer,
 	`remote_updated_at` integer,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `chat_member_roles` (
@@ -31,7 +33,7 @@ CREATE TABLE `chat_member_roles` (
 	`contact_id` text NOT NULL,
 	`role_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`, `role_id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_members` (
@@ -39,6 +41,7 @@ CREATE TABLE `group_members` (
 	`chat_id` text,
 	`contact_id` text NOT NULL,
 	`joined_at` integer,
+	`status` text,
 	PRIMARY KEY(`chat_id`, `contact_id`)
 );
 --> statement-breakpoint
@@ -46,7 +49,7 @@ CREATE TABLE `contact_group_pins` (
 	`contact_id` text NOT NULL,
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`),
-	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -57,7 +60,34 @@ CREATE TABLE `contacts` (
 	`status` text,
 	`color` text,
 	`avatarImage` text,
-	`coverImage` text
+	`coverImage` text,
+	`blocked` integer
+);
+--> statement-breakpoint
+CREATE TABLE `group_flagged_posts` (
+	`group_id` text NOT NULL,
+	`post_id` text NOT NULL,
+	`channel_id` text NOT NULL,
+	`flagged_by_contact_id` text NOT NULL,
+	`flagged_at` integer,
+	PRIMARY KEY(`group_id`, `post_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `group_member_bans` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`banned_at` integer,
+	PRIMARY KEY(`contact_id`, `group_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `group_member_invites` (
+	`group_id` text NOT NULL,
+	`contact_id` text NOT NULL,
+	`invited_at` integer,
+	PRIMARY KEY(`contact_id`, `group_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_section_channels` (
@@ -79,7 +109,15 @@ CREATE TABLE `group_nav_sections` (
 	`title` text,
 	`description` text,
 	`index` integer,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `group_rank_bans` (
+	`group_id` text NOT NULL,
+	`rank_id` text NOT NULL,
+	`banned_at` integer,
+	PRIMARY KEY(`group_id`, `rank_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_roles` (
@@ -92,7 +130,7 @@ CREATE TABLE `group_roles` (
 	`title` text,
 	`description` text,
 	PRIMARY KEY(`group_id`, `id`),
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `groups` (
@@ -103,8 +141,12 @@ CREATE TABLE `groups` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
-	`is_secret` integer,
-	`is_joined` integer,
+	`privacy` text,
+	`have_invite` integer,
+	`have_requested_invite` integer,
+	`current_user_is_member` integer NOT NULL,
+	`is_new` integer,
+	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer
 );
@@ -131,6 +173,13 @@ CREATE TABLE `post_reactions` (
 	`value` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `post_id`),
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `post_windows` (
+	`channel_id` text NOT NULL,
+	`oldest_post_id` text NOT NULL,
+	`newest_post_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `newest_post_id`, `oldest_post_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `posts` (

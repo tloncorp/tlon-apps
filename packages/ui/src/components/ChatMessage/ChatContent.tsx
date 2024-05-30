@@ -1,14 +1,5 @@
-import { utils } from '@tloncorp/shared';
-import {
-  ContentReference as ContentReferenceType,
-  PostContent,
-} from '@tloncorp/shared/dist/api';
-import {
-  Block,
-  VerseBlock,
-  VerseInline,
-  isImage,
-} from '@tloncorp/shared/dist/urbit/channel';
+import { extractContentTypesFromPost, utils } from '@tloncorp/shared';
+import { Block, isImage } from '@tloncorp/shared/dist/urbit/channel';
 import {
   Inline,
   isBlockCode,
@@ -23,8 +14,15 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
-import { PostDeliveryStatus } from 'packages/shared/dist/db';
-import { ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
+import {
+  ComponentProps,
+  ReactElement,
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
 import { TouchableOpacity } from 'react-native';
 
 import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
@@ -33,85 +31,95 @@ import ContentReference from '../ContentReference';
 import ChatEmbedContent from './ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 
-function ShipMention({ ship }: { ship: string }) {
+function ShipMention(props: ComponentProps<typeof ContactName>) {
   return (
     <ContactName
       onPress={() => {}}
       fontWeight={'500'}
       color="$positiveActionText"
-      userId={ship}
       showNickname
+      {...props}
     />
   );
 }
 
 export function InlineContent({
-  story,
+  inline,
   color = '$primaryText',
+  viewMode = 'chat',
+  onPressImage,
+  onLongPress,
 }: {
-  story: Inline | null;
+  inline: Inline | null;
   color?: ColorTokens;
+  viewMode?: PostViewMode;
+  onPressImage?: (src: string) => void;
+  onLongPress?: () => void;
 }) {
-  if (story === null) {
+  if (inline === null) {
     return null;
   }
-  if (typeof story === 'string') {
-    if (utils.isSingleEmoji(story)) {
+  if (typeof inline === 'string') {
+    if (utils.isSingleEmoji(inline)) {
       return (
         <Text paddingTop="$xl" lineHeight="$m" fontSize="$xl">
-          {story}
+          {inline}
         </Text>
       );
     }
     return (
-      <Text color={color} lineHeight="$m" fontSize="$m">
-        {story}
+      <Text
+        color={color}
+        lineHeight="$m"
+        fontSize={viewMode === 'block' ? '$s' : '$m'}
+      >
+        {inline}
       </Text>
     );
   }
 
-  if (isBold(story)) {
+  if (isBold(inline)) {
     return (
       <>
-        {story.bold.map((s, k) => (
+        {inline.bold.map((s, k) => (
           <Text fontSize="$m" lineHeight="$m" fontWeight="bold" key={k}>
-            <InlineContent story={s} color={color} />
+            <InlineContent inline={s} color={color} />
           </Text>
         ))}
       </>
     );
   }
 
-  if (isItalics(story)) {
+  if (isItalics(inline)) {
     return (
       <>
-        {story.italics.map((s, k) => (
+        {inline.italics.map((s, k) => (
           <Text fontSize="$m" lineHeight="$m" fontStyle="italic" key={k}>
-            <InlineContent story={s} color={color} />
+            <InlineContent inline={s} color={color} />
           </Text>
         ))}
       </>
     );
   }
 
-  if (isStrikethrough(story)) {
+  if (isStrikethrough(inline)) {
     return (
       <>
-        {story.strike.map((s, k) => (
+        {inline.strike.map((s, k) => (
           <Text
             fontSize="$m"
             lineHeight="$m"
             textDecorationLine="line-through"
             key={k}
           >
-            <InlineContent story={s} color={color} />
+            <InlineContent inline={s} color={color} />
           </Text>
         ))}
       </>
     );
   }
 
-  if (isInlineCode(story)) {
+  if (isInlineCode(inline)) {
     return (
       <Text
         fontFamily="$mono"
@@ -121,12 +129,12 @@ export function InlineContent({
         borderRadius="$s"
         lineHeight="$m"
       >
-        {story['inline-code']}
+        {inline['inline-code']}
       </Text>
     );
   }
 
-  if (isBlockCode(story)) {
+  if (isBlockCode(inline)) {
     return (
       <View
         backgroundColor="$secondaryBackground"
@@ -142,25 +150,31 @@ export function InlineContent({
           backgroundColor="$secondaryBackground"
           lineHeight="$m"
         >
-          {story.code}
+          {inline.code}
         </Text>
       </View>
     );
   }
 
-  if (isLink(story)) {
+  if (isLink(inline)) {
     return (
-      <ChatEmbedContent url={story.link.href} content={story.link.content} />
+      <ChatEmbedContent
+        viewMode={viewMode}
+        url={inline.link.href}
+        content={inline.link.content}
+        onPressImage={onPressImage}
+        onLongPress={onLongPress}
+      />
     );
   }
 
-  if (isBreak(story)) {
+  if (isBreak(inline)) {
     return <Text height="$s" />;
   }
-  if (isShip(story)) {
-    return <ShipMention ship={story.ship} />;
+  if (isShip(inline)) {
+    return <ShipMention userId={inline.ship} />;
   }
-  console.error(`Unhandled message type: ${JSON.stringify(story)}`);
+  console.error(`Unhandled message type: ${JSON.stringify(inline)}`);
   return (
     <Text color="$primaryText" fontWeight="$l">
       This content cannot be rendered, unhandled message type.
@@ -169,17 +183,17 @@ export function InlineContent({
 }
 
 export function BlockContent({
-  story,
+  block,
   onPressImage,
   onLongPress,
 }: {
-  story: Block;
+  block: Block;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
 }) {
   const [aspect, setAspect] = useState<number | null>(() => {
-    return isImage(story) && story.image.height && story.image.width
-      ? story.image.width / story.image.height
+    return isImage(block) && block.image.height && block.image.width
+      ? block.image.width / block.image.height
       : null;
   });
 
@@ -187,28 +201,28 @@ export function BlockContent({
     setAspect(e.source.width / e.source.height);
   }, []);
 
-  if (isImage(story)) {
-    const isVideoFile = utils.VIDEO_REGEX.test(story.image.src);
+  if (isImage(block)) {
+    const isVideoFile = utils.VIDEO_REGEX.test(block.image.src);
 
     if (isVideoFile) {
       return (
-        <ChatEmbedContent url={story.image.src} content={story.image.src} />
+        <ChatEmbedContent url={block.image.src} content={block.image.src} />
       );
     }
 
     return (
       <TouchableOpacity
-        onPress={onPressImage ? () => onPressImage(story.image.src) : undefined}
+        onPress={onPressImage ? () => onPressImage(block.image.src) : undefined}
         onLongPress={onLongPress}
         activeOpacity={0.9}
       >
         <Image
           source={{
-            uri: story.image.src,
-            width: story.image.height,
-            height: story.image.width,
+            uri: block.image.src,
+            width: block.image.height,
+            height: block.image.width,
           }}
-          alt={story.image.alt}
+          alt={block.image.alt}
           borderRadius="$m"
           onLoad={handleImageLoaded}
           width={200}
@@ -218,7 +232,7 @@ export function BlockContent({
       </TouchableOpacity>
     );
   }
-  console.error(`Unhandled message type: ${JSON.stringify(story)}`);
+  console.error(`Unhandled message type: ${JSON.stringify(block)}`);
   return (
     <Text fontWeight="$l">
       This content cannot be rendered, unhandled message type.
@@ -228,18 +242,24 @@ export function BlockContent({
 
 const LineRenderer = memo(
   ({
-    storyInlines,
+    inlines,
+    onPressImage,
+    onLongPress,
     color = '$primaryText',
     isNotice = false,
+    viewMode = 'chat',
   }: {
-    storyInlines: Inline[];
+    inlines: Inline[];
+    onLongPress?: () => void;
+    onPressImage?: (src: string) => void;
     color?: ColorTokens;
     isNotice?: boolean;
+    viewMode?: PostViewMode;
   }) => {
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
 
-    storyInlines.forEach((inline, index) => {
+    inlines.forEach((inline, index) => {
       if (isBreak(inline)) {
         inlineElements.push(currentLine);
         currentLine = [];
@@ -258,9 +278,8 @@ const LineRenderer = memo(
           currentLine.push(
             <Text
               key={`string-${inline}-${index}`}
-              color={isNotice ? '$tertiaryText' : color}
-              fontSize="$m"
-              fontWeight={isNotice ? '500' : 'normal'}
+              color={isNotice ? '$secondaryText' : color}
+              fontSize={viewMode === 'block' || isNotice ? '$s' : '$m'}
               lineHeight="$m"
             >
               {inline}
@@ -277,12 +296,15 @@ const LineRenderer = memo(
           >
             {Array.isArray(inline.blockquote) ? (
               <LineRenderer
-                storyInlines={inline.blockquote}
+                inlines={inline.blockquote}
                 color="$secondaryText"
               />
             ) : (
               // not clear if this is necessary
-              <InlineContent story={inline.blockquote} color="$secondaryText" />
+              <InlineContent
+                inline={inline.blockquote}
+                color="$secondaryText"
+              />
             )}
           </YStack>
         );
@@ -290,11 +312,22 @@ const LineRenderer = memo(
         currentLine = [];
       } else if (isShip(inline)) {
         currentLine.push(
-          <ShipMention key={`ship-${index}`} ship={inline.ship} />
+          <ShipMention
+            key={`ship-${index}`}
+            userId={inline.ship}
+            fontSize={isNotice ? '$s' : 'unset'}
+          />
         );
       } else {
         currentLine.push(
-          <InlineContent key={`inline-${index}`} story={inline} color={color} />
+          <InlineContent
+            viewMode={viewMode}
+            key={`inline-${index}`}
+            inline={inline}
+            color={color}
+            onPressImage={onPressImage}
+            onLongPress={onLongPress}
+          />
         );
       }
     });
@@ -315,7 +348,12 @@ const LineRenderer = memo(
           }
 
           return (
-            <Text key={`line-${index}`} flexWrap="wrap" lineHeight="$m">
+            <Text
+              fontSize={viewMode === 'block' ? '$s' : '$m'}
+              key={`line-${index}`}
+              flexWrap="wrap"
+              lineHeight="$m"
+            >
               {line}
             </Text>
           );
@@ -327,44 +365,44 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
+export type PostViewMode = 'chat' | 'block' | 'note';
+
 export default function ChatContent({
-  story,
+  post,
   shortened = false,
   isNotice = false,
   deliveryStatus,
   onPressImage,
   onLongPress,
   isEdited = false,
+  viewMode = 'chat',
 }: {
-  story: PostContent;
+  post: Post;
   shortened?: boolean;
   isNotice?: boolean;
   deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   isEdited?: boolean;
+  viewMode?: PostViewMode;
 }) {
-  const storyInlines = useMemo(
-    () =>
-      story !== null
-        ? (story.filter((s) => 'inline' in s) as VerseInline[]).flatMap(
-            (i) => i.inline
-          )
-        : [],
-    [story]
+  const { inlines, blocks, references } = useMemo(
+    () => extractContentTypesFromPost(post),
+    [post]
   );
+
   const firstInlineIsMention = useMemo(
     () =>
-      storyInlines.length > 0 &&
-      typeof storyInlines[0] === 'object' &&
-      'ship' in storyInlines[0],
-    [storyInlines]
+      inlines.length > 0 &&
+      typeof inlines[0] === 'object' &&
+      'ship' in inlines[0],
+    [inlines]
   );
-  const shortenedStoryInlines = useMemo(
+  const shortenedInlines = useMemo(
     () =>
-      story !== null
+      inlines.length > 1
         ? firstInlineIsMention
-          ? storyInlines
+          ? inlines
               .map((i) =>
                 typeof i === 'string'
                   ? truncate(i, { length: 100, omission: '' })
@@ -372,7 +410,7 @@ export default function ChatContent({
               )
               .slice(0, 2)
               .concat('...')
-          : storyInlines
+          : inlines
               .map((i) =>
                 typeof i === 'string'
                   ? truncate(i, { length: 100, omission: '' })
@@ -381,32 +419,11 @@ export default function ChatContent({
               .slice(0, 1)
               .concat('...')
         : [],
-    [firstInlineIsMention, storyInlines, story]
-  );
-
-  const storyBlocks = useMemo(
-    () =>
-      story !== null ? (story.filter((s) => 'block' in s) as VerseBlock[]) : [],
-    [story]
-  );
-  const storyReferences = useMemo(
-    () =>
-      story !== null
-        ? (story.filter(
-            (s) => 'type' in s && s.type == 'reference'
-          ) as ContentReferenceType[])
-        : [],
-    [story]
-  );
-  const inlineLength = useMemo(() => storyInlines.length, [storyInlines]);
-  const blockLength = useMemo(() => storyBlocks.length, [storyBlocks]);
-  const referenceLength = useMemo(
-    () => storyReferences.length,
-    [storyReferences]
+    [firstInlineIsMention, inlines]
   );
   const blockContent = useMemo(
     () =>
-      storyBlocks.sort((a, b) => {
+      blocks.sort((a, b) => {
         // Sort images to the end
         if (isImage(a) && !isImage(b)) {
           return 1;
@@ -416,31 +433,31 @@ export default function ChatContent({
         }
         return 0;
       }),
-    [storyBlocks]
+    [blocks]
   );
 
-  if (blockLength === 0 && inlineLength === 0 && referenceLength === 0) {
+  if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
     return null;
   }
 
   return (
     <YStack width="100%">
-      {!shortened && referenceLength > 0 ? (
+      {!shortened && references.length > 0 ? (
         <YStack gap="$s" paddingBottom="$l">
-          {storyReferences.map((ref, key) => {
+          {references.map((ref, key) => {
             return <ContentReference key={key} reference={ref} />;
           })}
         </YStack>
       ) : null}
-      {!shortened && blockLength > 0 ? (
+      {!shortened && blocks.length > 0 ? (
         <YStack>
           {blockContent
             .filter((a) => !!a)
-            .map((storyItem, key) => {
+            .map((block, key) => {
               return (
                 <BlockContent
                   key={key}
-                  story={storyItem.block}
+                  block={block}
                   onPressImage={onPressImage}
                   onLongPress={onLongPress}
                 />
@@ -449,11 +466,14 @@ export default function ChatContent({
         </YStack>
       ) : null}
       <XStack justifyContent="space-between" alignItems="flex-start">
-        {inlineLength > 0 ? (
+        {inlines.length > 0 ? (
           <View flexGrow={1} flexShrink={1}>
             <LineRenderer
-              storyInlines={shortened ? shortenedStoryInlines : storyInlines}
+              inlines={shortened ? shortenedInlines : inlines}
               isNotice={isNotice}
+              onPressImage={onPressImage}
+              onLongPress={onLongPress}
+              viewMode={viewMode}
             />
           </View>
         ) : null}

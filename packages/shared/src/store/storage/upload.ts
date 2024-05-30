@@ -3,7 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { deSig, formatDa, unixToDa } from '@urbit/aura';
 import produce from 'immer';
 import _ from 'lodash';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
 import type {
@@ -16,7 +16,12 @@ import type {
 import * as api from '../../api';
 import { createDevLogger } from '../../debug';
 import { useStorage } from './storage';
-import { getShipInfo } from './utils';
+import {
+  getFinalMemexUrl,
+  getMemexUploadUrl,
+  getShipInfo,
+  hasCustomS3Creds,
+} from './utils';
 
 const logger = createDevLogger('upload state', true);
 
@@ -94,7 +99,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const uploader = get().getUploader(uploaderKey);
     return uploader ? uploader.uploadType : 'prompt';
   },
-  uploadFiles: async (uploader, files, config, imageSizer) => {
+  uploadFiles: async (
+    uploader,
+    files,
+    config,
+    getImageSize,
+    nativeUploader
+  ) => {
     if (!files) return;
 
     const shipInfo = await getShipInfo();
@@ -121,34 +132,78 @@ export const useFileStore = create<FileStore>((set, get) => ({
       draft.files = { ...draft.files, ...newFiles };
     });
 
-    fileList.forEach((f) => upload(uploader, f, config, imageSizer));
+    fileList.forEach((f) =>
+      upload(uploader, f, config, getImageSize, undefined, nativeUploader)
+    );
   },
-  upload: async (uploader, upload, config, imageSizer, compressor) => {
+  upload: async (
+    uploader,
+    upload,
+    config,
+    getImageSize,
+    compressor,
+    nativeUploader
+  ) => {
     const { client, updateStatus, updateFile } = get();
 
     const { key, file } = upload;
     updateStatus(uploader, key, 'loading');
+    const isHostedUpload =
+      config.service === 'presigned-url' && config.presignedUrl;
+    const isCustomUpload = client !== null;
 
-    // TODO: implement image compression for react-native
-    // const compressionOptions = {
-    // maxSizeMB: 1,
-    // useWebWorker: true,
-    // };
+    // TODO: implement image compression for react-native. Right now,
+    // we simply rely on the resize shrinking the file enough
 
-    // if compression fails for some reason, we'll just use the original file.
-    // let compressedFile: File = file;
+    // Native app uses its own uploader which gets passed in
+    if (nativeUploader) {
+      try {
+        if (isHostedUpload) {
+          // first hit memex to obtain a presigned URL
+          const presignedUrl = await getMemexUploadUrl(key);
+          await nativeUploader(presignedUrl, file);
+          // after the upload succeeds, we have to query memex again with the
+          // same key to obtain the final location of the object
+          const finalUrl = await getFinalMemexUrl(presignedUrl);
+          updateFile(uploader, key, {
+            url: finalUrl,
+            size: [file.height ?? 200, file.width ?? 200],
+          });
+          updateStatus(uploader, key, 'success');
+        }
 
-    // try {
-    // // TODO: fix upload compression for Safari and iOS webview
-    // if (isImageFile(file)) {
-    // compressedFile = await imageCompression(file, compressionOptions);
-    // }
-    // } catch (error) {
-    // console.log({ error });
-    // }
+        if (isCustomUpload) {
+          const command = new PutObjectCommand({
+            Bucket: config.currentBucket,
+            Key: key,
+            ContentType: file.type,
+            ContentLength: file.blob.size,
+            ACL: 'public-read',
+          });
+          const signedUrl = await getSignedUrl(client, command);
+          await nativeUploader(signedUrl, file, true);
+          // publicUrlBase is used for configs where the path for interacting with
+          // S3 differs from the path where objects are exposed
+          const finalUrl = config.publicUrlBase
+            ? new URL(key, config.publicUrlBase).toString()
+            : signedUrl.split('?')[0];
+          updateFile(uploader, key, {
+            url: finalUrl,
+            size: [file.height ?? 200, file.width ?? 200],
+          });
+          updateStatus(uploader, key, 'success');
+        }
+      } catch (e) {
+        console.error(`Filestore: upload failed for ${key}`, e);
+        updateStatus(uploader, key, 'error', 'Upload failed');
+      }
 
-    // Logic for uploading with Tlon Hosting storage.
-    if (config.service === 'presigned-url' && config.presignedUrl) {
+      return;
+    }
+
+    // Pre-existing web upload logic
+
+    if (isHostedUpload) {
       // The first step is to send the PUT request to the proxy, which will
       // respond with a redirect to a pre-signed url to the actual bucket. The
       // token is in the url, not a header, so that it disappears after the
@@ -196,7 +251,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
             });
             updateStatus(uploader, key, 'success');
             if (isImageFile(file.blob)) {
-              imageSizer(fileUrl)
+              getImageSize(fileUrl)
                 .then((s) =>
                   updateFile(uploader, key, {
                     size: s,
@@ -298,7 +353,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         .then(() => {
           updateStatus(uploader, key, 'success');
           if (isImageFile(file.blob)) {
-            imageSizer(url)
+            getImageSize(url)
               .then((s) =>
                 updateFile(uploader, key, {
                   size: s,
@@ -379,16 +434,25 @@ export const useFileStore = create<FileStore>((set, get) => ({
 const emptyUploader = (
   key: string,
   config: StorageConfiguration,
-  imageSizer: (url: string) => Promise<[number, number]>
+  getImageSize: (url: string) => Promise<[number, number]>,
+  nativeUploader?: api.NativeUploader
 ): Uploader => ({
   files: {},
   getMostRecent: () => useFileStore.getState().getMostRecent(key),
   uploadFiles: async (files) =>
-    useFileStore.getState().uploadFiles(key, files, config, imageSizer),
+    useFileStore
+      .getState()
+      .uploadFiles(key, files, config, getImageSize, nativeUploader),
   clear: () => useFileStore.getState().clear(key),
   removeByURL: (url) => useFileStore.getState().removeByURL(key, url),
   uploadType: 'prompt',
 });
+
+export type CustomStorageConfig = {
+  publicUrlBase?: string;
+  bucket: string;
+  client: S3Client;
+};
 
 function useClient() {
   const {
@@ -426,7 +490,8 @@ function useClient() {
 const selUploader = (key: string) => (s: FileStore) => s.uploaders[key];
 export function useUploader(
   key: string,
-  imageSizer: (url: string) => Promise<[number, number]>
+  getImageSize: (url: string) => Promise<[number, number]>,
+  nativeUploader?: api.NativeUploader
 ): Uploader | undefined {
   const {
     s3: { configuration },
@@ -441,11 +506,16 @@ export function useUploader(
     ) {
       useFileStore.setState(
         produce((draft) => {
-          draft.uploaders[key] = emptyUploader(key, configuration, imageSizer);
+          draft.uploaders[key] = emptyUploader(
+            key,
+            configuration,
+            getImageSize,
+            nativeUploader
+          );
         })
       );
     }
-  }, [client, configuration, key, imageSizer]);
+  }, [client, configuration, key, getImageSize, nativeUploader]);
 
   return uploader;
 }

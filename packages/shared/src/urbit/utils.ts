@@ -1,16 +1,31 @@
-import { formatUd, unixToDa } from '@urbit/aura';
+import { formatUd, formatUv, unixToDa } from '@urbit/aura';
 import { useMemo } from 'react';
 
+import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
+import * as ubg from './groups';
 
 type App = 'chat' | 'heap' | 'diary';
+const APP_PREFIXES = ['chat', 'heap', 'diary'];
 
-export function checkNest(nest: string) {
-  if (nest.split('/').length !== 3) {
+export function checkNest(nest: string): boolean {
+  const parts = nest.split('/');
+  if (parts.length !== 3) {
     console.error('Invalid nest:', nest);
+    return false;
   }
+
+  if (!APP_PREFIXES.includes(parts[0])) {
+    console.log(
+      `Custom channel type detected (${parts[0]}), pretending its chat.`,
+      nest
+    );
+    return false;
+  }
+
+  return true;
 }
 
 export function nestToFlag(nest: string): [App, string] {
@@ -153,7 +168,19 @@ export function stringToTa(string: string) {
   return `~~${out}`;
 }
 
+export function idIsNest(id: string) {
+  return id.split('/').length === 3;
+}
+
 export function getChannelType(channelId: string) {
+  if (!idIsNest(channelId)) {
+    if (whomIsDm(channelId)) {
+      return 'dm';
+    }
+    if (whomIsMultiDm(channelId)) {
+      return 'groupDm';
+    }
+  }
   const [app] = nestToFlag(channelId);
 
   if (app === 'chat') {
@@ -305,4 +332,49 @@ export function whomIsMultiDm(whom: string): boolean {
 
 export function useIsDmOrMultiDm(whom: string) {
   return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function createMultiDmId(seed = Date.now()) {
+  return formatUv(unixToDa(seed));
+}
+
+export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
+  if (gang.claim?.progress) {
+    if (gang.claim?.progress === 'adding') {
+      return 'joining';
+    }
+
+    // still consider the join in progress until the claim is removed
+    if (gang.claim?.progress === 'done') {
+      return 'joining';
+    }
+
+    if (gang.claim?.progress === 'error') {
+      return 'errored';
+    }
+  }
+
+  return null;
+}
+
+export function extractGroupPrivacy(
+  preview: ubg.GroupPreview | ubg.Group | null,
+  claim?: ubg.GroupClaim
+): GroupPrivacy {
+  if (!preview) {
+    if (claim?.progress === 'knocking') {
+      // sometimes gangs are missing the preview while joining,
+      // however we'll know it's private if the claim is 'knocking'
+      return 'private';
+    }
+
+    // conservative default if something is wrong and we don't otherwise know
+    return 'private';
+  }
+
+  return preview.secret
+    ? 'secret'
+    : preview.cordon && 'shut' in preview.cordon
+      ? 'private'
+      : 'public';
 }

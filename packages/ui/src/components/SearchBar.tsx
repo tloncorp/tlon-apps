@@ -1,6 +1,6 @@
 import { debounce } from 'lodash';
-import { useCallback, useState } from 'react';
-import { SizeTokens, View } from 'tamagui';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { Input as TInput, View } from 'tamagui';
 
 import { Circle } from '../core';
 import { Icon } from './Icon';
@@ -8,23 +8,24 @@ import { Input } from './Input';
 
 export function SearchBar({
   placeholder,
-  size,
   onChangeQuery,
+  debounceTime = 300,
+  areaProps,
+  ...rest
 }: {
   placeholder?: string;
-  size?: SizeTokens;
   onChangeQuery: (query: string) => void;
-}) {
+  debounceTime?: number;
+  areaProps?: ComponentProps<typeof TInput>;
+} & ComponentProps<typeof Input>) {
   const [value, setValue] = useState('');
-  const debouncedOnChangeQuery = useCallback(
-    debounce(
-      (text: string) => {
-        onChangeQuery(text);
-      },
-      300,
-      { leading: false, trailing: true }
-    ),
-    []
+  const debouncedOnChangeQuery = useMemo(
+    () =>
+      debounce(onChangeQuery, debounceTime, {
+        leading: false,
+        trailing: true,
+      }),
+    [debounceTime, onChangeQuery]
   );
 
   const onTextChange = useCallback((text: string) => {
@@ -36,12 +37,12 @@ export function SearchBar({
 
   return (
     <View
-      flex={1}
+      flexGrow={1}
       flexDirection="column"
       justifyContent="center"
       alignItems="center"
     >
-      <Input size="$m" search>
+      <Input size="$m" {...rest} search>
         <Input.Icon>
           <Icon type="Search" color="$secondaryText" />
         </Input.Icon>
@@ -50,6 +51,7 @@ export function SearchBar({
           placeholder={placeholder ?? 'Search...'}
           value={value}
           onChangeText={onTextChange}
+          {...areaProps}
         />
 
         <Input.Icon

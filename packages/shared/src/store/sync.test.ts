@@ -1,15 +1,22 @@
 import * as $ from 'drizzle-orm';
-import { beforeAll, beforeEach, expect, test, vi } from 'vitest';
+import { beforeAll, beforeEach, expect, test } from 'vitest';
 
 import { toClientGroup, toPagedPostsData } from '../api';
 import * as db from '../db';
+import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
 import rawChannelPostsData from '../test/channelPosts.json';
+import rawAfterNewestPostData from '../test/channelPostsAfterNewest.json';
 import rawContactsData from '../test/contacts.json';
 import rawGroupsData from '../test/groups.json';
 import rawGroupsInitData from '../test/groupsInit.json';
-import { getClient, resetDb, setupDb } from '../test/helpers';
-import { setScryOutput, setScryOutputs } from '../test/helpers';
+import {
+  getClient,
+  resetDb,
+  setScryOutput,
+  setScryOutputs,
+  setupDb,
+} from '../test/helpers';
 import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
 import { Group as UrbitGroup } from '../urbit/groups';
@@ -20,6 +27,7 @@ import {
   syncGroups,
   syncInitData,
   syncPinnedItems,
+  syncPosts,
   syncThreadPosts,
 } from './sync';
 
@@ -146,6 +154,8 @@ test('syncs dms', async () => {
     lastPostAt: null,
     syncedAt: null,
     remoteUpdatedAt: null,
+    isPendingChannel: null,
+    isDmInvite: false,
     members: [
       {
         chatId: '~solfer-magfed',
@@ -153,6 +163,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: null,
       },
     ],
   });
@@ -179,6 +190,8 @@ test('syncs dms', async () => {
     lastPostAt: null,
     syncedAt: null,
     remoteUpdatedAt: null,
+    isPendingChannel: null,
+    isDmInvite: false,
     members: [
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -186,6 +199,15 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
+      },
+      {
+        chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
+        contact: null,
+        contactId: '~latter-bolden',
+        joinedAt: null,
+        membershipType: 'channel',
+        status: 'invited',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -193,6 +215,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -200,6 +223,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -207,6 +231,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -214,6 +239,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -221,6 +247,7 @@ test('syncs dms', async () => {
         contact: null,
         joinedAt: null,
         membershipType: 'channel',
+        status: 'joined',
       },
     ],
   });
@@ -246,7 +273,7 @@ const testGroupData: db.Group = {
   channels: [{ id: channelId, groupId, type: 'chat' }],
 };
 
-test('sync posts', async () => {
+test('sync channel', async () => {
   await db.insertGroups([testGroupData]);
   const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
@@ -273,12 +300,35 @@ test('sync posts', async () => {
   expect(groups[0].lastPost?.textContent).toEqual(lastPost.textContent);
 });
 
+test('sync posts', async () => {
+  const channelId = 'chat/~solfer-magfed/test-channel';
+  setScryOutputs([rawNewestPostData, rawAfterNewestPostData]);
+  await syncPosts({
+    channelId,
+    count: 1,
+    cursor: 'x',
+    mode: 'older',
+  });
+  await syncPosts({
+    channelId,
+    count: 1,
+    cursor: 'x',
+    mode: 'older',
+  });
+  const posts = await db.getChannelPosts({
+    channelId,
+    count: 100,
+    mode: 'newest',
+  });
+  expect(posts.length).toEqual(11);
+});
+
 test('deletes removed posts', async () => {
   await db.insertGroups([testGroupData]);
   const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
   const deletedPosts = Object.fromEntries(
-    Object.entries(rawChannelPostsData.posts).map(([id, post]) => [id, null])
+    Object.entries(rawChannelPostsData.posts).map(([id, _post]) => [id, null])
   );
   const deleteResponse = { ...rawChannelPostsData, posts: deletedPosts };
   setScryOutput(deleteResponse as PagedPosts);
