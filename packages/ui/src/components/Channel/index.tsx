@@ -11,7 +11,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Add, ArrowUp } from '../../assets/icons';
 import {
   CalmProvider,
   CalmState,
@@ -28,6 +27,7 @@ import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
+import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
@@ -285,28 +285,27 @@ export function Channel({
                           <NegotionMismatchNotice />
                         )}
                         {!isChatChannel && canWrite && !showGalleryInput && (
-                          <View position="absolute" bottom="$l" right="$l">
-                            {uploadInfo.uploadedImage &&
-                            uploadInfo.uploading ? (
-                              <View alignItems="center" padding="$m">
-                                <Spinner />
-                              </View>
-                            ) : (
-                              <FloatingActionButton
-                                onPress={() =>
-                                  uploadInfo.uploadedImage
-                                    ? messageSender([], channel.id)
-                                    : setShowAddGalleryPost(true)
-                                }
-                                icon={
-                                  uploadInfo.uploadedImage ? (
-                                    <ArrowUp />
-                                  ) : (
-                                    <Add />
-                                  )
-                                }
-                              />
-                            )}
+                          <View
+                            position="absolute"
+                            bottom={bottom}
+                            flex={1}
+                            width="100%"
+                            alignItems="center"
+                          >
+                            {!uploadInfo.uploading &&
+                              !uploadInfo.uploadedImage && (
+                                <FloatingActionButton
+                                  onPress={() => setShowAddGalleryPost(true)}
+                                  label="New Post"
+                                  icon={
+                                    <Icon
+                                      type="Add"
+                                      size={'$s'}
+                                      marginRight={'$s'}
+                                    />
+                                  }
+                                />
+                              )}
                           </View>
                         )}
                         {channel.type === 'gallery' && canWrite && (
