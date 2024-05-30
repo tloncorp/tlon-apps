@@ -116,7 +116,7 @@ function getChannelIdFromSource(source: ub.Source): string {
 
 function getPostIdFromSource(source: ub.Source): string {
   if ('thread' in source) {
-    return getCanonicalPostId(source.thread.key.id);
+    return getCanonicalPostId(source.thread.key.time);
   }
 
   if ('dm-thread' in source) {

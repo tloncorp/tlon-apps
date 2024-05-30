@@ -164,174 +164,181 @@ export function Channel({
             useGroup={useGroup}
             useApp={useApp}
           >
-            <NavigationProvider
-              onPressRef={onPressRef}
-              onPressGroupRef={onPressGroupRef}
-            >
-              <ReferencesProvider>
-                <View
-                  paddingBottom={bottom}
-                  backgroundColor="$background"
-                  flex={1}
-                >
-                  <YStack
-                    justifyContent="space-between"
-                    width="100%"
-                    height="100%"
+            <ChannelProvider value={{ channel }}>
+              <NavigationProvider
+                onPressRef={onPressRef}
+                onPressGroupRef={onPressGroupRef}
+              >
+                <ReferencesProvider>
+                  <View
+                    paddingBottom={bottom}
+                    backgroundColor="$background"
+                    flex={1}
                   >
-                    <ChannelHeader
-                      title={title}
-                      goBack={goBack}
-                      goToChannels={goToChannels}
-                      goToSearch={goToSearch}
-                      showPickerButton={!!group}
-                      showSpinner={isLoadingPosts}
-                    />
-                    <KeyboardAvoidingView
-                      behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-                      style={{ flex: 1 }}
-                      contentContainerStyle={{ flex: 1 }}
+                    <YStack
+                      justifyContent="space-between"
+                      width="100%"
+                      height="100%"
                     >
-                      <YStack flex={1}>
-                        {showGalleryInput ? (
-                          <MessageInput
-                            shouldBlur={inputShouldBlur}
-                            setShouldBlur={setInputShouldBlur}
-                            send={messageSender}
-                            channelId={channel.id}
-                            groupMembers={group?.members ?? []}
-                            storeDraft={storeDraft}
-                            clearDraft={clearDraft}
-                            getDraft={getDraft}
-                            editingPost={editingPost}
-                            setEditingPost={setEditingPost}
-                            editPost={editPost}
-                            setShowGalleryInput={setShowGalleryInput}
-                            floatingActionButton
-                            showAttachmentButton={false}
-                            backgroundColor="$background"
-                          />
-                        ) : uploadInfo.imageAttachment ? (
-                          <UploadedImagePreview
-                            imageAttachment={uploadInfo.imageAttachment}
-                            resetImageAttachment={
-                              uploadInfo.resetImageAttachment
-                            }
-                          />
-                        ) : (
-                          <View flex={1} width={'100%'}>
-                            <View
-                              position="absolute"
-                              top={0}
-                              left={0}
-                              width="100%"
-                              height="100%"
-                              alignItems="center"
-                              justifyContent="center"
-                            >
-                              <LoadingSpinner />
-                            </View>
-                            {channel && posts && (
-                              <Scroller
-                                inverted={isChatChannel ? true : false}
-                                renderItem={renderItem}
-                                renderEmptyComponent={renderEmptyComponent}
-                                currentUserId={currentUserId}
-                                anchor={scrollerAnchor}
-                                posts={posts}
-                                hasNewerPosts={hasNewerPosts}
-                                hasOlderPosts={hasOlderPosts}
-                                editingPost={editingPost}
-                                setEditingPost={setEditingPost}
-                                editPost={editPost}
-                                channelType={channel.type}
-                                channelId={channel.id}
-                                firstUnreadId={
-                                  channel.unread?.countWithoutThreads ?? 0 > 0
-                                    ? channel.unread?.firstUnreadPostId
-                                    : null
-                                }
-                                unreadCount={
-                                  channel.unread?.countWithoutThreads ?? 0
-                                }
-                                onDividerSeen={markRead}
-                                onPressPost={goToPost}
-                                onPressReplies={goToPost}
-                                onPressImage={goToImageViewer}
-                                setInputShouldBlur={setInputShouldBlur}
-                                onEndReached={onScrollEndReached}
-                                onStartReached={onScrollStartReached}
-                              />
-                            )}
-                          </View>
-                        )}
-                        {negotiationMatch &&
-                          !editingPost &&
-                          !channel.isDmInvite &&
-                          (isChatChannel || uploadInfo?.uploadedImage) &&
-                          canWrite && (
+                      <ChannelHeader
+                        title={title}
+                        goBack={goBack}
+                        goToChannels={goToChannels}
+                        goToSearch={goToSearch}
+                        showPickerButton={!!group}
+                        showSpinner={isLoadingPosts}
+                      />
+                      <KeyboardAvoidingView
+                        behavior={
+                          Platform.OS === 'ios' ? 'padding' : 'position'
+                        }
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{ flex: 1 }}
+                      >
+                        <YStack flex={1}>
+                          {showGalleryInput ? (
                             <MessageInput
                               shouldBlur={inputShouldBlur}
                               setShouldBlur={setInputShouldBlur}
                               send={messageSender}
                               channelId={channel.id}
-                              uploadInfo={uploadInfo}
                               groupMembers={group?.members ?? []}
                               storeDraft={storeDraft}
                               clearDraft={clearDraft}
                               getDraft={getDraft}
+                              editingPost={editingPost}
+                              setEditingPost={setEditingPost}
+                              editPost={editPost}
+                              setShowGalleryInput={setShowGalleryInput}
+                              floatingActionButton
+                              showAttachmentButton={false}
+                              backgroundColor="$background"
                             />
-                          )}
-                        {channel.isDmInvite && (
-                          <DmInviteOptions channel={channel} goBack={goBack} />
-                        )}
-                        {!negotiationMatch && isChatChannel && canWrite && (
-                          <NegotionMismatchNotice />
-                        )}
-                        {!isChatChannel && canWrite && !showGalleryInput && (
-                          <View
-                            position="absolute"
-                            bottom={bottom}
-                            flex={1}
-                            width="100%"
-                            alignItems="center"
-                          >
-                            {!uploadInfo.uploading &&
-                              !uploadInfo.uploadedImage && (
-                                <FloatingActionButton
-                                  onPress={() => setShowAddGalleryPost(true)}
-                                  label="New Post"
-                                  icon={
-                                    <Icon
-                                      type="Add"
-                                      size={'$s'}
-                                      marginRight={'$s'}
-                                    />
+                          ) : uploadInfo.imageAttachment ? (
+                            <UploadedImagePreview
+                              imageAttachment={uploadInfo.imageAttachment}
+                              resetImageAttachment={
+                                uploadInfo.resetImageAttachment
+                              }
+                            />
+                          ) : (
+                            <View flex={1} width={'100%'}>
+                              <View
+                                position="absolute"
+                                top={0}
+                                left={0}
+                                width="100%"
+                                height="100%"
+                                alignItems="center"
+                                justifyContent="center"
+                              >
+                                <LoadingSpinner />
+                              </View>
+                              {channel && posts && (
+                                <Scroller
+                                  inverted={isChatChannel ? true : false}
+                                  renderItem={renderItem}
+                                  renderEmptyComponent={renderEmptyComponent}
+                                  currentUserId={currentUserId}
+                                  anchor={scrollerAnchor}
+                                  posts={posts}
+                                  hasNewerPosts={hasNewerPosts}
+                                  hasOlderPosts={hasOlderPosts}
+                                  editingPost={editingPost}
+                                  setEditingPost={setEditingPost}
+                                  editPost={editPost}
+                                  channelType={channel.type}
+                                  channelId={channel.id}
+                                  firstUnreadId={
+                                    channel.unread?.countWithoutThreads ?? 0 > 0
+                                      ? channel.unread?.firstUnreadPostId
+                                      : null
                                   }
+                                  unreadCount={
+                                    channel.unread?.countWithoutThreads ?? 0
+                                  }
+                                  onDividerSeen={markRead}
+                                  onPressPost={goToPost}
+                                  onPressReplies={goToPost}
+                                  onPressImage={goToImageViewer}
+                                  setInputShouldBlur={setInputShouldBlur}
+                                  onEndReached={onScrollEndReached}
+                                  onStartReached={onScrollStartReached}
                                 />
                               )}
-                          </View>
-                        )}
-                        {channel.type === 'gallery' && canWrite && (
-                          <AddGalleryPost
-                            showAddGalleryPost={showAddGalleryPost}
-                            setShowAddGalleryPost={setShowAddGalleryPost}
-                            setShowGalleryInput={setShowGalleryInput}
-                            setImage={uploadInfo.setAttachments}
-                          />
-                        )}
-                      </YStack>
-                    </KeyboardAvoidingView>
-                    <GroupPreviewSheet
-                      group={groupPreview ?? undefined}
-                      open={!!groupPreview}
-                      onOpenChange={() => setGroupPreview(null)}
-                      onActionComplete={handleGroupAction}
-                    />
-                  </YStack>
-                </View>
-              </ReferencesProvider>
-            </NavigationProvider>
+                            </View>
+                          )}
+                          {negotiationMatch &&
+                            !editingPost &&
+                            !channel.isDmInvite &&
+                            (isChatChannel || uploadInfo?.uploadedImage) &&
+                            canWrite && (
+                              <MessageInput
+                                shouldBlur={inputShouldBlur}
+                                setShouldBlur={setInputShouldBlur}
+                                send={messageSender}
+                                channelId={channel.id}
+                                uploadInfo={uploadInfo}
+                                groupMembers={group?.members ?? []}
+                                storeDraft={storeDraft}
+                                clearDraft={clearDraft}
+                                getDraft={getDraft}
+                              />
+                            )}
+                          {channel.isDmInvite && (
+                            <DmInviteOptions
+                              channel={channel}
+                              goBack={goBack}
+                            />
+                          )}
+                          {!negotiationMatch && isChatChannel && canWrite && (
+                            <NegotionMismatchNotice />
+                          )}
+                          {!isChatChannel && canWrite && !showGalleryInput && (
+                            <View
+                              position="absolute"
+                              bottom={bottom}
+                              flex={1}
+                              width="100%"
+                              alignItems="center"
+                            >
+                              {!uploadInfo.uploading &&
+                                !uploadInfo.uploadedImage && (
+                                  <FloatingActionButton
+                                    onPress={() => setShowAddGalleryPost(true)}
+                                    label="New Post"
+                                    icon={
+                                      <Icon
+                                        type="Add"
+                                        size={'$s'}
+                                        marginRight={'$s'}
+                                      />
+                                    }
+                                  />
+                                )}
+                            </View>
+                          )}
+                          {channel.type === 'gallery' && canWrite && (
+                            <AddGalleryPost
+                              showAddGalleryPost={showAddGalleryPost}
+                              setShowAddGalleryPost={setShowAddGalleryPost}
+                              setShowGalleryInput={setShowGalleryInput}
+                              setImage={uploadInfo.setAttachments}
+                            />
+                          )}
+                        </YStack>
+                      </KeyboardAvoidingView>
+                      <GroupPreviewSheet
+                        group={groupPreview ?? undefined}
+                        open={!!groupPreview}
+                        onOpenChange={() => setGroupPreview(null)}
+                        onActionComplete={handleGroupAction}
+                      />
+                    </YStack>
+                  </View>
+                </ReferencesProvider>
+              </NavigationProvider>
+            </ChannelProvider>
           </RequestsProvider>
         </ContactsProvider>
       </GroupsProvider>

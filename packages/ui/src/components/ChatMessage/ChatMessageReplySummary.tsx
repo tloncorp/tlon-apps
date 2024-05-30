@@ -1,22 +1,31 @@
+import * as store from '@tloncorp/shared/dist/store';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 
-import { useContactGetter, useContacts } from '../../contexts';
+import { useChannelContext, useContactGetter } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
 
 export const ChatMessageReplySummary = React.memo(
   function ChatMessageReplySummary({
+    postId,
     replyCount,
     replyTime,
     replyContactIds,
     onPress,
   }: {
+    postId: string;
     replyCount: number;
     replyTime: number;
     replyContactIds: string[];
     onPress?: () => void;
   }) {
+    const channel = useChannelContext();
+    const { data: activity } = store.useThreadActivity({
+      postId,
+      channelId: channel.id,
+    });
+
     const contactGetter = useContactGetter();
     const time = useMemo(() => {
       return formatDistanceToNow(replyTime);
@@ -24,6 +33,7 @@ export const ChatMessageReplySummary = React.memo(
 
     return replyCount && replyContactIds && replyTime ? (
       <XStack gap="$m" paddingLeft="$4xl" onPress={onPress}>
+        {activity?.count && <SizableText>UNREAD</SizableText>}
         <XStack alignItems="center">
           {replyContactIds?.map((c, i) => (
             <View

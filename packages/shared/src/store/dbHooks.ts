@@ -133,7 +133,10 @@ export const useThreadActivity = ({
   const key = useKeyFromQueryDeps(db.getThreadActivity);
   return useQuery({
     queryKey: ['threadActivity', key, { channelId, postId }],
-    queryFn: () => db.getThreadActivity({ channelId, postId }),
+    queryFn: async () => {
+      const activity = await db.getThreadActivity({ channelId, postId });
+      return activity ?? null;
+    },
   });
 };
 

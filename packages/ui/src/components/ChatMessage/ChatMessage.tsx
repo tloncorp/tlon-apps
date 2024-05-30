@@ -154,6 +154,7 @@ const ChatMessage = ({
       post.replyTime &&
       post.replyContactIds ? (
         <ChatMessageReplySummary
+          postId={post.id}
           onPress={handleRepliesPressed}
           replyCount={post.replyCount}
           replyTime={post.replyTime}
