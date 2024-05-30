@@ -89,7 +89,8 @@ export function BigInput({
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');
   const titleInputHeight = getToken('$4xl', 'space');
-  const keyboardVerticalOffset = top + titleInputHeight;
+  const keyboardVerticalOffset =
+    Platform.OS === 'ios' ? top + titleInputHeight : top;
 
   return (
     <YStack height="100%" width="100%">
@@ -176,6 +177,7 @@ export function BigInput({
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         scrollToOverflowEnabled
+        overScrollMode="always"
         contentContainerStyle={{
           paddingTop: channelType === 'notebook' ? 100 : 0,
         }}
@@ -217,7 +219,7 @@ export function BigInput({
             style={{
               width,
               position: 'absolute',
-              bottom: 0,
+              bottom: Platform.OS === 'ios' ? 0 : keyboardVerticalOffset,
               flex: 1,
             }}
           >

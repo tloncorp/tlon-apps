@@ -10,7 +10,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatePresence } from 'tamagui';
+import { AnimatePresence, getToken } from 'tamagui';
 
 import {
   CalmProvider,
@@ -321,7 +321,11 @@ export function Channel({
                         {!isChatChannel && canWrite && !showBigInput && (
                           <View
                             position="absolute"
-                            bottom={bottom}
+                            bottom={
+                              Platform.OS === 'ios'
+                                ? bottom
+                                : bottom + getToken('$m')
+                            }
                             flex={1}
                             width="100%"
                             alignItems="center"
