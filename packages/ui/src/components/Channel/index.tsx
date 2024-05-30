@@ -30,6 +30,7 @@ import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
+import { navHeight } from '../NavBar/NavBar';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -287,8 +288,10 @@ export function Channel({
                         {!isChatChannel && canWrite && !showGalleryInput && (
                           <View
                             position="absolute"
-                            bottom={bottom}
+                            bottom={navHeight}
                             flex={1}
+                            height={1}
+                            overflow="visible"
                             width="100%"
                             alignItems="center"
                           >
