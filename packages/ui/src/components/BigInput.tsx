@@ -121,7 +121,6 @@ export function BigInput({
             channelType === 'notebook'
               ? titleInputHeight + imageButtonHeight
               : 0,
-          flex: 1,
         }}
       >
         <MessageInput

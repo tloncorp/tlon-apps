@@ -214,7 +214,6 @@ export function Channel({
                               }}
                               y={0}
                               opacity={1}
-                              height="100%"
                               width="100%"
                             >
                               <BigInput

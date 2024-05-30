@@ -129,6 +129,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [containerHeight, setContainerHeight] = useState(
       DEFAULT_CONTAINER_HEIGHT
     );
+    const { bottom, top } = useSafeAreaInsets();
+    const { height } = useWindowDimensions();
+    const headerHeight = 48;
+    const titleInputHeight = 48;
+    const inputBasePadding = getToken('$s', 'space');
+    const imageInputButtonHeight = 50;
+    const basicOffset =
+      top + headerHeight + titleInputHeight + imageInputButtonHeight;
+    const bigInputHeightBasic =
+      height - basicOffset - bottom - inputBasePadding * 2;
+    const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
     const [editorIsEmpty, setEditorIsEmpty] = useState(true);
     const [showMentionPopup, setShowMentionPopup] = useState(false);
@@ -556,15 +567,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       [editor.bridgeExtensions]
     );
 
-    const { bottom, top } = useSafeAreaInsets();
-    const { height } = useWindowDimensions();
-    const headerHeight = 48;
-    const titleInputHeight = 48;
-    const inputBasePadding = getToken('$s', 'space');
-    const imageInputButtonHeight = 50;
-    const basicOffset =
-      top + headerHeight + titleInputHeight + imageInputButtonHeight;
-    const bigInputHeight = height - basicOffset - bottom - inputBasePadding * 2;
+    useEffect(() => {
+      if (bigInput) {
+        Keyboard.addListener('keyboardDidShow', () => {
+          // we should always have the keyboard height here but just in case
+          const keyboardHeight = Keyboard.metrics()?.height || 300;
+          setBigInputHeight(bigInputHeightBasic - keyboardHeight);
+        });
+
+        Keyboard.addListener('keyboardDidHide', () => {
+          setBigInputHeight(bigInputHeightBasic);
+        });
+      }
+    }, [bigInput, bigInputHeightBasic]);
 
     return (
       <MessageInputContainer
@@ -587,7 +602,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <XStack
           borderRadius="$xl"
           height={bigInput ? bigInputHeight : containerHeight}
-          width="100%"
           backgroundColor={backgroundColor}
           paddingHorizontal={paddingHorizontal}
           flex={1}
