@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -8,11 +8,13 @@ import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
-type UseChanelPostsParams = db.GetChannelPostsOptions;
+type UseChannelPostsPageParams = db.GetChannelPostsOptions;
+type UseChanelPostsParams = UseChannelPostsPageParams & {
+  enabled: boolean;
+  firstPageCount?: number;
+};
 
-export const useChannelPosts = (
-  options: UseChanelPostsParams & { enabled: boolean }
-) => {
+export const useChannelPosts = (options: UseChanelPostsParams) => {
   useEffect(() => {
     postsLogger.log('mount', options);
     return () => {
@@ -28,11 +30,14 @@ export const useChannelPosts = (
     return Date.now();
   }, []);
 
-  const { enabled, ...pageParam } = options;
+  const { enabled, firstPageCount, ...pageParam } = options;
 
   const query = useInfiniteQuery({
     enabled,
-    initialPageParam: pageParam,
+    initialPageParam: {
+      ...pageParam,
+      count: firstPageCount,
+    } as UseChannelPostsPageParams,
     refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
@@ -67,7 +72,7 @@ export const useChannelPosts = (
       lastPage,
       _allPages,
       lastPageParam
-    ): UseChanelPostsParams | undefined => {
+    ): UseChannelPostsPageParams | undefined => {
       const lastPageIsEmpty = !lastPage[lastPage.length - 1]?.id;
       if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
@@ -93,7 +98,7 @@ export const useChannelPosts = (
       firstPage,
       _allPages,
       firstPageParam
-    ): UseChanelPostsParams | undefined => {
+    ): UseChannelPostsPageParams | undefined => {
       const firstPageIsEmpty = !firstPage[0]?.id;
       if (firstPageParam.mode === 'newest' || firstPageIsEmpty) {
         return undefined;
@@ -105,5 +110,34 @@ export const useChannelPosts = (
       };
     },
   });
-  return query;
+
+  const posts = useMemo<db.Post[] | null>(
+    () => query.data?.pages.flatMap((p) => p) ?? null,
+    [query.data]
+  );
+
+  const loadOlder = useCallback(() => {
+    if (!query.hasNextPage) return;
+    if (!query.isPaused && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [query]);
+
+  const loadNewer = useCallback(() => {
+    if (!query.hasPreviousPage) return;
+    if (!query.isPaused && !query.isFetchingPreviousPage) {
+      query.fetchPreviousPage();
+    }
+  }, [query]);
+
+  const isLoading =
+    query.isPending ||
+    query.isPaused ||
+    query.isFetchingNextPage ||
+    query.isFetchingPreviousPage;
+
+  return useMemo(
+    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
+    [posts, query, loadOlder, loadNewer, isLoading]
+  );
 };

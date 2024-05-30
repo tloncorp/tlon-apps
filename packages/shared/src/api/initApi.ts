@@ -30,18 +30,15 @@ export const getInitData = async (): Promise<InitData> => {
   const channelsInit = toClientChannelsInit(response.channels);
   const groups = toClientGroups(response.groups, true);
   const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
-  // const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);
   const groupDmChannels = toClientGroupDms(response.chat.clubs);
   const invitedDms = toClientDms(response.chat.invited, true);
-  // const talkUnreads = toClientUnreads(response.chat.unreads, 'dm');
   const activity = toClientActivity(response.activity ?? {});
 
   return {
     pins,
     groups,
     unjoinedGroups,
-    // unreads: [...channelUnreads, ...talkUnreads],
     activity,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,

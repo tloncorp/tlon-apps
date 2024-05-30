@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ContactsProvider } from '../contexts';
 import { SizableText } from '../core';
@@ -13,7 +14,6 @@ interface Props {
   channels: db.Channel[];
   contacts: db.Contact[];
   onSelect: (channel: db.Channel) => void;
-  paddingBottom?: number;
 }
 
 export function ChannelSwitcherSheet({
@@ -23,9 +23,10 @@ export function ChannelSwitcherSheet({
   channels,
   onSelect,
   contacts,
-  paddingBottom,
 }: Props) {
   const [hasOpened, setHasOpened] = useState(open);
+  const { bottom } = useSafeAreaInsets();
+
   useEffect(() => {
     setHasOpened(open);
   }, [open]);
@@ -57,7 +58,7 @@ export function ChannelSwitcherSheet({
                 group={group}
                 channels={channels}
                 onSelect={onSelect}
-                paddingBottom={paddingBottom}
+                paddingBottom={bottom}
               />
             )}
           </Sheet.ScrollView>

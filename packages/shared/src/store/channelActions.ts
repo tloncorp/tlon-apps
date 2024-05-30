@@ -101,7 +101,7 @@ export async function upsertDmChannel({
 
   // if it doesn't exist, we create a new one but don't need to juggle
   // any pending state
-  const newDm = db.buildPendingSingleDmChannel(dmPartner, currentUserId);
+  const newDm = db.buildPendingSingleDmChannel(dmPartner);
   await db.insertChannels([newDm]);
   return newDm;
 }

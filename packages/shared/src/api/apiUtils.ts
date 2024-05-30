@@ -3,13 +3,16 @@ import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
 
 import type * as db from '../db/types';
 import type * as ub from '../urbit';
-import { isColor } from './groupsApi';
 import { BadResponseError } from './urbit';
 
 export function formatScryPath(
   ...segments: (string | number | null | undefined)[]
 ) {
   return '/' + segments.filter((s) => !!s).join('/');
+}
+
+export function isColor(value: string) {
+  return value[0] === '#';
 }
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {

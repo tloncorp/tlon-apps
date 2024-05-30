@@ -5,6 +5,7 @@ import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
@@ -45,7 +46,7 @@ export function PostScreenView({
   activity,
 }: {
   currentUserId: string;
-  calmSettings?: CalmState;
+  calmSettings?: CalmState | null;
   contacts: db.Contact[] | null;
   channel: db.Channel;
   group?: db.Group | null;
@@ -81,11 +82,13 @@ export function PostScreenView({
       ? parentPost.title
       : `Post: ${channel?.title ?? null}`;
 
+  const { bottom } = useSafeAreaInsets();
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
         <ReferencesProvider>
-          <ThreadProvider value={{ channel, group, post: parentPost }}>
+          <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
             <YStack flex={1} backgroundColor={'$background'}>
               <ChannelHeader
                 title={headerTitle}
@@ -214,7 +217,7 @@ export function PostScreenView({
                 )}
               </KeyboardAvoidingView>
             </YStack>
-          </ThreadProvider>
+          </View>
         </ReferencesProvider>
       </ContactsProvider>
     </CalmProvider>

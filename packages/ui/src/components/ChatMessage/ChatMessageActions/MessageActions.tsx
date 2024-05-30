@@ -14,27 +14,31 @@ export default function MessageActions({
   onReply,
   channelType,
   post,
+  currentUserId,
   onEdit,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   post: db.Post;
+  currentUserId: string;
   channelType: db.ChannelType;
 }) {
   const { setReferences } = useReferences();
   const postActions = useMemo(() => {
     return getPostActions(post, channelType).filter((action) => {
-      // if undelivered or already in a thread, don't show reply
-      if (
-        action.id === 'startThread' &&
-        (post.deliveryStatus || post.parentId)
-      ) {
-        return false;
+      switch (action.id) {
+        case 'startThread':
+          // if undelivered or already in a thread, don't show reply
+          return !post.deliveryStatus && !post.parentId;
+        case 'edit':
+          // only show edit for current user's posts
+          return post.authorId === currentUserId;
+        default:
+          return true;
       }
-      return true;
     });
-  }, [post, channelType]);
+  }, [post, channelType, currentUserId]);
 
   return (
     // arbitrary width that looks reasonable given labels

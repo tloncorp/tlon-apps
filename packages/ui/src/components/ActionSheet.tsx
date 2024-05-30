@@ -157,10 +157,10 @@ const ActionSheetFrameComponent = ({
       {...props}
     >
       <Sheet.Overlay animation="quick" />
-      <Sheet.Frame>
+      <Sheet.LazyFrame>
         <Sheet.Handle paddingTop="$xl" />
         <ActionSheetFrame>{children}</ActionSheetFrame>
-      </Sheet.Frame>
+      </Sheet.LazyFrame>
     </Sheet>
   );
 };

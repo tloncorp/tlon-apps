@@ -201,11 +201,6 @@
       (was-mentioned:ch-utils content.reply our.bowl)
     [time %dm-reply key parent whom content.reply mention]
   (welp writs replies)
-++  volume-type
-  $:  base=level:v
-      area=(map flag:g level:v)  ::  override per group
-      chan=(map nest:g level:v)  ::  override per channel
-  ==
 ++  set-volumes
   |=  =channels:c
   ::  set all existing channels to old default since new default is different
@@ -218,7 +213,7 @@
       %+  adjust  [%channel nest group.perm.channel]
       `(my [%post & |] ~)
     $(entries t.entries)
-  =+  .^(volume=volume-type %gx (welp groups-prefix /volume/all/noun))
+  =+  .^(=volume:v %gx (welp groups-prefix /volume/all/noun))
   ::  set any overrides from previous volume settings
   =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
   =.  cor
@@ -570,7 +565,11 @@
   =/  target  (~(gut by volume-settings) source *volume-map:a)
   =.  volume-settings
     (~(put by volume-settings) source (~(uni by target) u.volume-map))
-  cor
+  ::  recalculate activity summary with new settings
+  =.  activity
+    %+  ~(put by activity)  source
+    (summarize-unreads source (~(gut by indices) source *index:a))
+  (give-unreads source)
 ::
 ++  get-children
   |=  =source:a

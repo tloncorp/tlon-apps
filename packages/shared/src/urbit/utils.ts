@@ -12,10 +12,19 @@ const APP_PREFIXES = ['chat', 'heap', 'diary'];
 
 export function checkNest(nest: string): boolean {
   const parts = nest.split('/');
-  if (parts.length !== 3 || !APP_PREFIXES.includes(parts[0])) {
+  if (parts.length !== 3) {
     console.error('Invalid nest:', nest);
     return false;
   }
+
+  if (!APP_PREFIXES.includes(parts[0])) {
+    console.log(
+      `Custom channel type detected (${parts[0]}), pretending its chat.`,
+      nest
+    );
+    return false;
+  }
+
   return true;
 }
 

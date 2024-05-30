@@ -7,6 +7,7 @@ const posts = createFakePosts(100);
 
 export default (
   <FixtureWrapper fillWidth={true} verticalAlign="center">
+    <ChannelDivider post={posts[0]} unreadCount={0} />
     <ChatMessage
       showAuthor={true}
       showReplies={true}
