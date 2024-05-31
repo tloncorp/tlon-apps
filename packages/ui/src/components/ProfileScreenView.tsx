@@ -8,6 +8,7 @@ import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
+import { DebugInfo } from './DebugInfo';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { navHeight } from './NavBar/NavBar';
@@ -115,7 +116,9 @@ function ProfileRow({
       backgroundColor={dark ? '$secondaryBackground' : undefined}
       borderRadius={dark ? '$xl' : undefined}
     >
-      <Avatar size="$5xl" contactId={contactId} contact={contact} />
+      <DebugInfo>
+        <Avatar size="$5xl" contactId={contactId} contact={contact} />
+      </DebugInfo>
       <View marginLeft="$l">
         {contact?.nickname ? (
           <YStack>
