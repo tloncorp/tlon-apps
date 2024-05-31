@@ -243,7 +243,7 @@ export function Channel({
                               }
                             />
                           ) : (
-                            <View flex={1}>
+                            <View flex={1} width="100%">
                               <View
                                 position="absolute"
                                 top={0}
