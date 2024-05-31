@@ -19,9 +19,7 @@ export function MessageInput({
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}
-      editorIsEmpty={true}
       onPressSend={() => {}}
-      titleIsEmpty={true}
     >
       <TextArea
         flexGrow={1}

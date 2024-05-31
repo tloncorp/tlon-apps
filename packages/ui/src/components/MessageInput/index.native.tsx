@@ -581,6 +581,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       }
     }, [bigInput, bigInputHeightBasic]);
 
+    const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
+
     return (
       <MessageInputContainer
         onPressSend={handleSend}
@@ -593,11 +595,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         showMentionPopup={showMentionPopup}
         isEditing={!!editingPost}
         cancelEditing={() => setEditingPost?.(undefined)}
-        editorIsEmpty={editorIsEmpty}
-        titleIsEmpty={!title || title.length === 0}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
-        channelType={channelType}
+        disableSend={
+          editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
+        }
       >
         <XStack
           borderRadius="$xl"

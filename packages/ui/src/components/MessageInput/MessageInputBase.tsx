@@ -52,15 +52,13 @@ export const MessageInputContainer = ({
   showMentionPopup = false,
   showAttachmentButton = true,
   floatingActionButton = false,
+  disableSend = false,
   mentionText,
   groupMembers,
   onSelectMention,
   isEditing = false,
   cancelEditing,
   onPressEdit,
-  editorIsEmpty,
-  titleIsEmpty,
-  channelType,
 }: PropsWithChildren<{
   onPressSend: () => void;
   uploadInfo?: UploadInfo;
@@ -68,15 +66,13 @@ export const MessageInputContainer = ({
   showMentionPopup?: boolean;
   showAttachmentButton?: boolean;
   floatingActionButton?: boolean;
+  disableSend?: boolean;
   mentionText?: string;
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
   isEditing?: boolean;
   cancelEditing?: () => void;
   onPressEdit?: () => void;
-  editorIsEmpty: boolean;
-  titleIsEmpty: boolean;
-  channelType?: db.ChannelType;
 }>) => {
   const hasUploadedImage = useMemo(
     () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
@@ -121,11 +117,9 @@ export const MessageInputContainer = ({
         {children}
         {floatingActionButton ? (
           <View position="absolute" bottom="$l" right="$l">
-            {editorIsEmpty ||
-            (channelType === 'notebook' && titleIsEmpty) ? null : (
+            {disableSend ? null : (
               <FloatingActionButton
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                label={isEditing ? 'Save' : 'Send'}
                 icon={
                   isEditing ? (
                     <Icon type="Checkmark" />
@@ -138,7 +132,7 @@ export const MessageInputContainer = ({
           </View>
         ) : (
           <View paddingBottom="$m">
-            {editorIsEmpty ? null : (
+            {disableSend ? null : (
               <IconButton
                 color={sendIconColor}
                 disabled={uploadIsLoading}
