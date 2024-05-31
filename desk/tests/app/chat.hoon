@@ -42,8 +42,8 @@
     :~  (ex-poke /contacts/~zod [~dev %contacts] act:mar:contacts !>([%heed ~[~zod]]))
         (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
         (ex-poke /hark [~dev %hark] %hark-action-1 !>([%new-yarn new-yarn]))
-        (ex-fact ~[/dm/~zod] %writ-response !>(response))
-        (ex-fact ~[/dm/~zod/writs] %writ-response !>(response))
+        (ex-fact ~[/dm/~zod] %writ-response !>([[%ship ~zod] response]))
+        (ex-fact ~[/dm/~zod/writs] %writ-response !>([[%ship ~zod] response]))
     ==
   ;<  *  bind:m  (wait ~s1)
   ;<  bw=bowl  bind:m  get-bowl
