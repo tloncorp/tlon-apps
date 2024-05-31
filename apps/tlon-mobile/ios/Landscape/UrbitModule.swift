@@ -78,7 +78,7 @@ class UrbitModule: NSObject {
         UrbitModule.authCookie = authCookie
         Task {
             try? await UrbitAPI.shared.open(for: shipUrl)
-            try? await PocketUserAPI.fetchSettings()
+            // try? await PocketUserAPI.fetchSettings()
         }
     }
 
