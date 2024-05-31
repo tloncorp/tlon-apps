@@ -46,8 +46,7 @@ export default function ChatListScreen(
     };
   }, [chats]);
 
-  const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
-  useRefetchQueryOnFocus(refetch);
+  const { isFetching: isFetchingInitData } = store.useInitialSync();
 
   const goToDm = useCallback(
     async (participants: string[]) => {
