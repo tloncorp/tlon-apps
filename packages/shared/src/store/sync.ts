@@ -322,13 +322,13 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
             replyTime: update.post.sentAt,
           });
         }
-        // insert the reply
-        await db.insertChannelPosts({
-          channelId: update.post.channelId,
-          posts: [update.post],
-          older: channelCursors.get(update.post.channelId),
-        });
       }
+      // insert the reply
+      await db.insertChannelPosts({
+        channelId: update.post.channelId,
+        posts: [update.post],
+        older: channelCursors.get(update.post.channelId),
+      });
       channelCursors.set(update.post.channelId, update.post.id);
       break;
     case 'updateWriters':
