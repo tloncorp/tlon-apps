@@ -29,7 +29,12 @@ import { useChannel, useJoinMutation, usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
 import { useNegotiate } from '@/state/negotiation';
-import { Unread, useUnreads } from '@/state/unreads';
+import {
+  Unread,
+  UnreadsStore,
+  useUnreads,
+  useUnreadsStore,
+} from '@/state/unreads';
 
 import useRecentChannel from './useRecentChannel';
 import useSidebarSort, {
@@ -250,18 +255,21 @@ export function useChannelSections(groupFlag: string) {
   };
 }
 
+const getLoaded = (s: UnreadsStore) => s.loaded;
 export function useChannelIsJoined(nest: string) {
+  const loaded = useUnreadsStore(getLoaded);
   const unreads = useUnreads();
-  return isChannelJoined(nest, unreads);
+  return !loaded || isChannelJoined(nest, unreads);
 }
 
 export function useCheckChannelJoined() {
+  const loaded = useUnreadsStore(getLoaded);
   const unreads = useUnreads();
   return useCallback(
     (nest: string) => {
-      return isChannelJoined(nest, unreads);
+      return !loaded || isChannelJoined(nest, unreads);
     },
-    [unreads]
+    [unreads, loaded]
   );
 }
 

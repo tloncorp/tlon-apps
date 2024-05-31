@@ -29,7 +29,7 @@ import {
   useDeletePinMutation,
   usePinnedChats,
 } from '@/state/pins';
-import { useUnread } from '@/state/unreads';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import DmInviteDialog from './DmInviteDialog';
 
@@ -102,7 +102,7 @@ export default function DmOptions({
       markReadChannel();
     }
 
-    useChatStore.getState().read(whom);
+    useUnreadsStore.getState().read(getKey(whom));
   }, [whom, markReadChannel, markDmRead, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);

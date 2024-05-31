@@ -59,7 +59,7 @@ import {
   useMessageToggler,
   useTrackedMessageStatus,
 } from '@/state/chat';
-import { Unread, useUnread } from '@/state/unreads';
+import { Unread, useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import {
@@ -178,7 +178,8 @@ const ChatMessage = React.memo<
         ? seal.id
         : `${essay.author}/${formatUd(unixToDa(essay.sent))}`;
       const chatInfo = useChatInfo(whom);
-      const unread = useUnread(getKey(whom));
+      const unreadsKey = getKey(whom);
+      const unread = useUnread(unreadsKey);
       const threadUr = useUnread(getThreadKey(whom, unreadId));
       const unreadDisplay = useMemo(
         () => getUnreadDisplay(unread, unreadId, threadUr),
@@ -218,7 +219,7 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const { seen: markSeen, delayedRead } = useChatStore.getState();
+            const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -226,9 +227,14 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadDisplay === 'top' && unseen) {
-              markSeen(whom);
-              delayedRead(whom, () => {
+            if (
+              inView &&
+              (unreadDisplay === 'top' ||
+                unreadDisplay === 'top-with-thread') &&
+              unseen
+            ) {
+              markSeen(unreadsKey);
+              delayedRead(unreadsKey, () => {
                 if (isDMOrMultiDM) {
                   markDmRead();
                 } else {
@@ -240,7 +246,7 @@ const ChatMessage = React.memo<
           [
             unreadDisplay,
             unread,
-            whom,
+            unreadsKey,
             isDMOrMultiDM,
             markReadChannel,
             markDmRead,

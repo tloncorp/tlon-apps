@@ -9,7 +9,7 @@ import XIcon from '@/components/icons/XIcon';
 import { useMarkChannelRead } from '@/logic/channel';
 import { pluralize, whomIsFlag } from '@/logic/utils';
 import { useMarkDmReadMutation } from '@/state/chat';
-import { useUnread } from '@/state/unreads';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import { useChatStore } from './useChatStore';
 
@@ -28,10 +28,10 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
     } else {
       markDmRead();
     }
-    useChatStore.getState().read(whom);
+    useUnreadsStore.getState().read(getKey(whom));
   }, [whom, markReadChannel, markDmRead]);
 
-  if (!unread || unread.status === 'seen') {
+  if (!unread || unread.status !== 'unread') {
     return null;
   }
 

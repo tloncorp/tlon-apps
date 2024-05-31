@@ -17,7 +17,7 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChannelCompatibility, useMarkChannelRead } from '@/logic/channel';
 import { log } from '@/logic/utils';
 import { useInfinitePosts } from '@/state/channel/channel';
-import { useUnread } from '@/state/unreads';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 import UnreadAlerts from './UnreadAlerts';
@@ -64,8 +64,9 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   const fetchingNewest =
     isFetching && (!isFetchingNextPage || !isFetchingPreviousPage);
   const [showUnreadBanner, setShowUnreadBanner] = useState(false);
-  const readTimeout = useUnread(getKey(whom))?.readTimeout;
-  const clearOnNavRef = useRef({ readTimeout, nest, whom, markRead });
+  const unreadsKey = getKey(whom);
+  const readTimeout = useUnread(unreadsKey)?.readTimeout;
+  const clearOnNavRef = useRef({ readTimeout, nest, unreadsKey, markRead });
   const { compatible } = useChannelCompatibility(nest);
   const navigate = useNavigate();
   const latestMessageIndex = messages.length - 1;
@@ -127,14 +128,15 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   }, [whom]);
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(whom, () => markRead());
+    delayedRead(unreadsKey, () => markRead());
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [whom, markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
+  }, [unreadsKey, markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -169,14 +171,14 @@ const ChatWindow = React.memo(function ChatWindowRaw({
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { readTimeout, nest, whom, markRead };
-  }, [readTimeout, nest, whom, markRead]);
+    clearOnNavRef.current = { readTimeout, nest, unreadsKey, markRead };
+  }, [readTimeout, nest, unreadsKey, markRead]);
 
   useEffect(
     () => () => {
       const curr = clearOnNavRef.current;
       if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        useChatStore.getState().read(curr.whom);
+        useUnreadsStore.getState().read(curr.unreadsKey);
         curr.markRead();
       }
     },

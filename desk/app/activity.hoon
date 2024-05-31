@@ -603,7 +603,8 @@
   |-
   =;  unread-stream=stream:a
     =/  children  (get-children source)
-    (stream-to-unreads unread-stream floor.reads children)
+    =-  ~?  =(%group -.source)  -  -
+    (stream-to-unreads unread-stream floor.reads children source)
   %+  gas:on-event:a  *stream:a
   %+  murn
     (tap:on-event:a stream)
@@ -612,7 +613,7 @@
   ?:  child.event  ~
   `[time event]
 ++  stream-to-unreads
-  |=  [=stream:a floor=time children=(list source:a)]
+  |=  [=stream:a floor=time children=(list source:a) =source:a]
   ^-  activity-summary:a
   =/  cs=activity-summary:a
     %+  roll
@@ -626,6 +627,7 @@
       notify  &(notify.sum notify.as)
       newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
+  ~?  =(%group -.source)  ['children' children cs]
   =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
   =/  main  0

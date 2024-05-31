@@ -350,9 +350,9 @@ const GroupActions = React.memo(
             <div className="relative h-6 w-6">
               {(isMobile || !isOpen) &&
               activity &&
-              activity.status !== 'read' ? (
+              activity.combinedStatus !== 'read' ? (
                 <UnreadIndicator
-                  count={activity.count}
+                  count={activity.combinedCount}
                   notify={activity.notify}
                   className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                   aria-label="Has Activity"

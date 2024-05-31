@@ -145,7 +145,7 @@ export default function DmWindow({
     () => () => {
       const curr = clearOnNavRef.current;
       if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        useChatStore.getState().read(curr.unreadsKey);
+        useUnreadsStore.getState().read(curr.unreadsKey);
         curr.markDmRead();
       }
     },

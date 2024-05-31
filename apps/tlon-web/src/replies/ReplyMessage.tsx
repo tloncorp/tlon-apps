@@ -54,7 +54,7 @@ import {
   useTrackedMessageStatus,
   useWrit,
 } from '@/state/chat';
-import { useUnread } from '@/state/unreads';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';
@@ -165,7 +165,7 @@ const ReplyMessage = React.memo<
               return;
             }
 
-            const { seen: markSeen, delayedRead } = useChatStore.getState();
+            const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.

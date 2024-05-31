@@ -15,8 +15,10 @@ export type ReadStatus = 'read' | 'seen' | 'unread';
  */
 export interface Unread {
   status: ReadStatus;
+  combinedStatus: ReadStatus;
   notify: boolean;
   count: number;
+  combinedCount: number;
   recency: number;
   lastUnread?: {
     id: string;
@@ -28,6 +30,7 @@ export interface Unread {
 }
 
 export interface UnreadsStore {
+  loaded: boolean;
   sources: {
     [source: string]: Unread;
   };
@@ -38,13 +41,15 @@ export interface UnreadsStore {
   update: (unreads: Activity) => void;
 }
 
-export const unreadStoreLogger = createDevLogger('UnreadsStore', false);
+export const unreadStoreLogger = createDevLogger('UnreadsStore', true);
 
 export function isUnread(unread: ActivitySummary): boolean {
   return Boolean((unread.unread && unread.unread.count > 0) || unread.notify);
 }
 
-function calculateChildrenState() {}
+export function isCombinedUnread(unread: ActivitySummary): boolean {
+  return Boolean(unread.count > 0 || unread.notify);
+}
 
 export const emptyUnread = (): Unread => ({
   summary: {
@@ -56,16 +61,20 @@ export const emptyUnread = (): Unread => ({
   },
   recency: 0,
   status: 'read',
+  combinedStatus: 'read',
   notify: false,
   count: 0,
+  combinedCount: 0,
   readTimeout: 0,
   children: [],
 });
 export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
   sources: {},
+  loaded: false,
   update: (summaries) => {
     set(
       produce((draft: UnreadsStore) => {
+        draft.loaded = true;
         Object.entries(summaries).forEach(([key, summary]) => {
           const source = draft.sources[key];
           unreadStoreLogger.log('update', key, source, summary, draft.sources);
@@ -76,6 +85,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
             readTimeout: 0,
             notify: summary.notify,
             count: summary.unread?.count || 0,
+            combinedCount: summary.count || 0,
             lastUnread: !summary.unread
               ? undefined
               : {
@@ -83,6 +93,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
                   time: summary.unread.time,
                 },
             status: isUnread(summary) ? 'unread' : 'read',
+            combinedStatus: isCombinedUnread(summary) ? 'unread' : 'read',
             summary,
           };
           return;
@@ -146,7 +157,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
     set(
       produce((draft) => {
         const latest = draft.sources[key] || emptyUnread();
-        unreadStoreLogger.log('delayedRead', key, source, latest);
+        unreadStoreLogger.log('delayedRead', key, source, { ...latest });
         draft.sources[key] = {
           ...latest,
           readTimeout,
@@ -172,6 +183,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
           recency: summary.recency,
           notify: summary.notify,
           count: summary.unread?.count || 0,
+          combinedCount: summary.count || 0,
           lastUnread: !summary.unread
             ? undefined
             : {
@@ -179,6 +191,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
                 time: summary.unread.time,
               },
           status: isUnread(summary) ? 'unread' : 'read',
+          combinedStatus: isCombinedUnread(summary) ? 'unread' : 'read',
           summary,
         };
       })
