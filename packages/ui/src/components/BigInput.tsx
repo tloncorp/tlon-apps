@@ -145,7 +145,6 @@ export function BigInput({
           paddingHorizontal="$m"
           placeholder={placeholder}
           bigInput
-          showToolbar={channelType === 'notebook'}
           channelType={channelType}
           ref={editorRef}
         />
