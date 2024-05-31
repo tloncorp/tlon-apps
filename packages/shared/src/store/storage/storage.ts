@@ -92,7 +92,7 @@ export const useStorage = create<StorageState>((set, get) => ({
       logger.error(e);
     }
 
-    api.subscribe<StorageUpdate>(
+    return api.subscribe<StorageUpdate>(
       {
         app: 'storage',
         path: '/all',

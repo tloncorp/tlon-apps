@@ -38,8 +38,10 @@ export const useSettings = (options: { userId: string }) => {
 export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: async () => {
-      const channels = await db.getChats();
-      const pendingChats = await db.getPendingChats();
+      const [pendingChats, channels] = await Promise.all([
+        db.getPendingChats(),
+        db.getChats(),
+      ]);
       return { channels, pendingChats };
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
@@ -78,10 +80,10 @@ export const useContacts = () => {
   });
 };
 
-export const useAllUnreadsCounts = () => {
+export const useUnreadsCount = () => {
   return useQuery({
-    queryKey: ['allUnreadsCounts'],
-    queryFn: db.getAllUnreadsCounts,
+    queryKey: ['unreadsCount'],
+    queryFn: () => db.getUnreadsCount(),
   });
 };
 
