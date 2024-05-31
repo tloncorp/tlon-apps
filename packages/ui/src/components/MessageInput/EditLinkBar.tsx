@@ -1,8 +1,11 @@
 import { EditorTheme, Images } from '@10play/tentap-editor';
 import React from 'react';
-import { TextInput, TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from 'react-native';
+// TODO: replace with our own input component
+import { Input } from 'tamagui';
 
-import { Image, Text, View } from '../../core';
+import { Image, View } from '../../core';
+import { Button } from '../Button';
 
 interface EditLinkBarProps {
   theme: EditorTheme;
@@ -20,8 +23,10 @@ export const EditLinkBar = ({
   onBlur,
 }: EditLinkBarProps) => {
   const [link, setLink] = React.useState(initialLink || '');
+
   return (
     <View style={theme.toolbar.linkBarTheme.addLinkContainer}>
+      {/* TODO: replace with our own button component and styles */}
       <TouchableOpacity
         onPress={onLinkIconClick}
         style={[
@@ -39,24 +44,23 @@ export const EditLinkBar = ({
           />
         </View>
       </TouchableOpacity>
-      <TextInput
+      <Input
         value={link}
+        flex={1}
+        borderWidth={0}
         onBlur={onBlur}
         onChangeText={setLink}
         placeholder="Type your URL here..."
-        placeholderTextColor={theme.toolbar.linkBarTheme.placeholderTextColor}
         autoFocus
-        style={theme.toolbar.linkBarTheme.linkInput}
         autoCapitalize="none"
       />
-      <TouchableOpacity
-        style={theme.toolbar.linkBarTheme.doneButton}
+      <Button
         onPress={() => {
           onEditLink(link);
         }}
       >
-        <Text style={theme.toolbar.linkBarTheme.doneButtonText}>Insert</Text>
-      </TouchableOpacity>
+        <Button.Text>Insert</Button.Text>
+      </Button>
     </View>
   );
 };

@@ -7,7 +7,6 @@ export default function FloatingActionButton({
   label,
 }: {
   onPress: () => void;
-  inverted?: boolean;
   icon?: React.ReactNode;
   label?: string;
 }) {

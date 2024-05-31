@@ -2,28 +2,10 @@ import {
   BridgeState,
   EditorActionType,
   EditorBridge,
-  Images,
 } from '@10play/tentap-editor';
-import react from 'react';
 import { Platform } from 'react-native';
 
-import {
-  BlockQuote,
-  Bold,
-  BulletList,
-  Checkbox,
-  Code,
-  FontSize,
-  IndentDecrease,
-  IndentIncrease,
-  Italic,
-  Keyboard,
-  Link,
-  OrderedList,
-  Redo,
-  Strikethrough,
-  Undo,
-} from '../../assets/icons';
+import { IconType } from '../Icon';
 
 export enum ToolbarContext {
   Main,
@@ -53,8 +35,7 @@ export interface ToolbarItem {
   onPress: ({ editor, editorState }: ArgsToolbarCB) => () => void;
   active: ({ editor, editorState }: ArgsToolbarCB) => boolean;
   disabled: ({ editor, editorState }: ArgsToolbarCB) => boolean;
-  image?: ({ editor, editorState }: ArgsToolbarCB) => any;
-  icon?: () => React.ReactNode;
+  icon: IconType;
 }
 
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
@@ -65,7 +46,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleBold(),
     active: ({ editorState }) => editorState.isBoldActive,
     disabled: ({ editorState }) => !editorState.canToggleBold,
-    icon: () => react.createElement(Bold),
+    icon: 'Bold',
   },
   {
     onPress:
@@ -74,7 +55,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleItalic(),
     active: ({ editorState }) => editorState.isItalicActive,
     disabled: ({ editorState }) => !editorState.canToggleItalic,
-    icon: () => react.createElement(Italic),
+    icon: 'Italic',
   },
   {
     onPress:
@@ -94,7 +75,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     active: ({ editorState }) => editorState.isLinkActive,
     disabled: ({ editorState }) =>
       !editorState.isLinkActive && !editorState.canSetLink,
-    icon: () => react.createElement(Link),
+    icon: 'Link',
   },
   {
     onPress:
@@ -103,7 +84,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.blur(),
     active: ({ editorState }) => !editorState.isFocused,
     disabled: ({ editorState }) => false,
-    icon: () => react.createElement(Keyboard),
+    icon: 'Keyboard',
   },
   {
     onPress:
@@ -112,7 +93,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleTaskList(),
     active: ({ editorState }) => editorState.isTaskListActive,
     disabled: ({ editorState }) => !editorState.canToggleTaskList,
-    icon: () => react.createElement(Checkbox),
+    icon: 'Checkbox',
   },
   {
     onPress:
@@ -121,7 +102,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         setToolbarContext(ToolbarContext.Heading),
     active: () => false,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    icon: () => react.createElement(FontSize),
+    icon: 'Heading',
   },
   {
     onPress:
@@ -130,7 +111,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleCode(),
     active: ({ editorState }) => editorState.isCodeActive,
     disabled: ({ editorState }) => !editorState.canToggleCode,
-    icon: () => react.createElement(Code),
+    icon: 'Code',
   },
   {
     onPress:
@@ -139,7 +120,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleStrike(),
     active: ({ editorState }) => editorState.isStrikeActive,
     disabled: ({ editorState }) => !editorState.canToggleStrike,
-    icon: () => react.createElement(Strikethrough),
+    icon: 'Strikethrough',
   },
   {
     onPress:
@@ -148,7 +129,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleBlockquote(),
     active: ({ editorState }) => editorState.isBlockquoteActive,
     disabled: ({ editorState }) => !editorState.canToggleBlockquote,
-    icon: () => react.createElement(BlockQuote),
+    icon: 'BlockQuote',
   },
   {
     onPress:
@@ -157,7 +138,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleOrderedList(),
     active: ({ editorState }) => editorState.isOrderedListActive,
     disabled: ({ editorState }) => !editorState.canToggleOrderedList,
-    icon: () => react.createElement(OrderedList),
+    icon: 'OrderedList',
   },
   {
     onPress:
@@ -166,7 +147,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.toggleBulletList(),
     active: ({ editorState }) => editorState.isBulletListActive,
     disabled: ({ editorState }) => !editorState.canToggleBulletList,
-    icon: () => react.createElement(BulletList),
+    icon: 'BulletList',
   },
   {
     onPress:
@@ -175,7 +156,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.sink(),
     active: () => false,
     disabled: ({ editorState }) => !editorState.canSink,
-    icon: () => react.createElement(IndentIncrease),
+    icon: 'IndentIncrease',
   },
   {
     onPress:
@@ -184,7 +165,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.lift(),
     active: () => false,
     disabled: ({ editorState }) => !editorState.canLift,
-    icon: () => react.createElement(IndentDecrease),
+    icon: 'IndentDecrease',
   },
   {
     onPress:
@@ -193,7 +174,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.undo(),
     active: () => false,
     disabled: ({ editorState }) => !editorState.canUndo,
-    icon: () => react.createElement(Undo),
+    icon: 'Undo',
   },
   {
     onPress:
@@ -202,7 +183,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         editor.redo(),
     active: () => false,
     disabled: ({ editorState }) => !editorState.canRedo,
-    icon: () => react.createElement(Redo),
+    icon: 'Redo',
   },
 ];
 
@@ -214,7 +195,7 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         setToolbarContext(ToolbarContext.Main),
     active: () => false,
     disabled: () => false,
-    image: () => Images.close,
+    icon: 'Close',
   },
   {
     onPress:
@@ -223,7 +204,7 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         editor.toggleHeading(1),
     active: ({ editorState }) => editorState.headingLevel === 1,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    image: () => Images.h1,
+    icon: 'HeadingOne',
   },
   {
     onPress:
@@ -232,7 +213,7 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         editor.toggleHeading(2),
     active: ({ editorState }) => editorState.headingLevel === 2,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    image: () => Images.h2,
+    icon: 'HeadingTwo',
   },
   {
     onPress:
@@ -241,7 +222,7 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         editor.toggleHeading(3),
     active: ({ editorState }) => editorState.headingLevel === 3,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    image: () => Images.h3,
+    icon: 'HeadingThree',
   },
   {
     onPress:
@@ -250,7 +231,7 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         editor.toggleHeading(4),
     active: ({ editorState }) => editorState.headingLevel === 4,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    image: () => Images.h4,
+    icon: 'HeadingFour',
   },
   {
     onPress:
@@ -259,7 +240,7 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         editor.toggleHeading(5),
     active: ({ editorState }) => editorState.headingLevel === 5,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    image: () => Images.h5,
+    icon: 'HeadingFive',
   },
   {
     onPress:
@@ -268,6 +249,6 @@ export const HEADING_ITEMS: ToolbarItem[] = [
         editor.toggleHeading(6),
     active: ({ editorState }) => editorState.headingLevel === 6,
     disabled: ({ editorState }) => !editorState.canToggleHeading,
-    image: () => Images.h6,
+    icon: 'HeadingSix',
   },
 ];

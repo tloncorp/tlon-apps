@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// TODO: replace input with our own input component
 import { Image, Input, getToken } from 'tamagui';
 
 import { ScrollView, View, YStack } from '../core';

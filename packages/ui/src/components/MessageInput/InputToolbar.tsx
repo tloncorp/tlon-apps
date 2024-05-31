@@ -6,7 +6,8 @@ import {
 import React from 'react';
 import { FlatList, Platform, TouchableOpacity } from 'react-native';
 
-import { Image, View } from '../../core';
+import { View } from '../../core';
+import { Icon } from '../Icon';
 import { EditLinkBar } from './EditLinkBar';
 import {
   DEFAULT_TOOLBAR_ITEMS,
@@ -52,9 +53,7 @@ export function InputToolbar({
             editor.theme.toolbar.toolbarBody,
             hideToolbar ? editor.theme.toolbar.hidden : undefined,
           ]}
-          renderItem={({
-            item: { onPress, disabled, active, image, icon },
-          }) => {
+          renderItem={({ item: { onPress, disabled, active, icon } }) => {
             return (
               <TouchableOpacity
                 onPress={onPress(args)}
@@ -72,14 +71,7 @@ export function InputToolbar({
                       : undefined,
                   ]}
                 >
-                  {image ? (
-                    <Image
-                      source={image(args)}
-                      style={[editor.theme.toolbar.icon]}
-                      resizeMode="contain"
-                    />
-                  ) : null}
-                  {icon ? icon() : null}
+                  <Icon type={icon} />
                 </View>
               </TouchableOpacity>
             );
