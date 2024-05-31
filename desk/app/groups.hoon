@@ -22,13 +22,7 @@
   +$  current-state
     $:  %3
         groups=net-groups:g
-      ::
-        $=  volume
-        $:  base=level:v
-            area=(map flag:g level:v)  ::  override per group
-            chan=(map nest:g level:v)  ::  override per channel
-        ==
-      ::
+        =volume:v
         xeno=gangs:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
@@ -460,6 +454,9 @@
   ::
       [%x %volume ~]
     ``volume-value+!>(base.volume)
+  ::
+      [%x %volume %all ~]
+    ``noun+!>(volume)
   ::
       [%x %volume ship=@ name=@ ~]
     =/  ship  (slav %p ship.pole)

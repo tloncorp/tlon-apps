@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import {
   Activity,
   ActivityAction,
+  ActivityDeleteUpdate,
   ActivityReadUpdate,
   ActivitySummary,
   ActivityUpdate,
@@ -94,8 +95,12 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
 function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   return events.reduce((acc, event) => {
     const { source, volume } = event.adjust;
+    if (volume === null) {
+      return acc;
+    }
+
     // eslint-disable-next-line no-param-reassign
-    acc[sourceToString(source, true)] = volume;
+    acc[sourceToString(source)] = volume;
     return acc;
   }, {} as VolumeSettings);
 }
@@ -123,9 +128,25 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
   ) as ActivityVolumeUpdate[];
   if (adjustEvents.length > 0) {
     const volumes = activityVolumeUpdates(adjustEvents);
+    console.log('new volumes', volumes);
     queryClient.setQueryData<VolumeSettings>(volumeKey, (v) =>
-      v === undefined ? undefined : volumes
+      v === undefined ? undefined : { ...v, ...volumes }
     );
+  }
+
+  const delEvents = updates.filter((e) => 'del' in e) as ActivityDeleteUpdate[];
+  if (delEvents.length > 0) {
+    queryClient.setQueryData(unreadsKey, (unreads: Activity | undefined) => {
+      if (unreads === undefined) {
+        return undefined;
+      }
+
+      return delEvents.reduce((acc, event) => {
+        const source = sourceToString(event.del, true);
+        delete acc[source];
+        return acc;
+      }, unreads);
+    });
   }
 }
 
@@ -196,7 +217,7 @@ export function useUnreads(): Activity {
   const { data, ...rest } = useReactQueryScry<Activity>({
     queryKey: unreadsKey,
     app: 'activity',
-    path: '/unreads',
+    path: '/activity',
     onScry: stripPrefixes,
   });
 
@@ -213,6 +234,9 @@ export function useVolumeSettings() {
     queryKey: volumeKey,
     app: 'activity',
     path: '/volume-settings',
+    options: {
+      keepPreviousData: true,
+    },
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -245,12 +269,30 @@ export function useVolume(source?: Source) {
 
 export function useVolumeAdjustMutation() {
   return useMutation({
-    mutationFn: async (variables: { source: Source; volume: VolumeMap }) => {
+    mutationFn: async (variables: {
+      source: Source;
+      volume: VolumeMap | null;
+    }) => {
       return api.poke(
         activityAction({
           adjust: variables,
         })
       );
+    },
+    onMutate: async (variables) => {
+      const current = queryClient.getQueryData<VolumeSettings>(volumeKey);
+      queryClient.setQueryData<VolumeSettings>(volumeKey, (v) => {
+        if (v === undefined) {
+          return undefined;
+        }
+
+        return {
+          ...v,
+          [sourceToString(variables.source)]: variables.volume,
+        };
+      });
+
+      return current;
     },
     onSuccess: () => {
       queryClient.invalidateQueries(volumeKey);

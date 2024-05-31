@@ -612,9 +612,12 @@
     [%v0 +.pole]
   ?+    pole  [~ ~]
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
-      [%x %v2 %channels ~]  ``channels-2+!>((uv-channels-2:utils v-channels))
+    ::
+        [%x %v2 %channels full=?(~ [%full ~])]
+      ``channels-2+!>((uv-channels-2:utils v-channels !=(full ~)))
+    ::
       [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
-      [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels)])
+      [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels |)])
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x v=?(%v0 %v1) =kind:c ship=@ name=@ rest=*]
@@ -778,7 +781,7 @@
           ==
         (send ~[action])
       =/  vm=volume-map  [[%reply & &] ~ ~]
-      (send ~[[%adjust thread vm] action])
+      (send ~[[%adjust thread `vm] action])
     ++  send
       |=  actions=(list action)
       ^+  ca-core
@@ -801,6 +804,7 @@
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group.create
     =.  last-read.remark.channel  now.bowl
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init nest group.create]])
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld ca-area /create) %agent [our.bowl server] %poke cage)
   ::
@@ -2147,6 +2151,7 @@
   ++  ca-leave
     =.  ca-core  ca-simple-leave
     =.  ca-core  (ca-response %leave ~)
+    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.perm.channel] ~)
     =.  gone  &
     ca-core
   --

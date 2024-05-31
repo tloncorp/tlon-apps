@@ -28,17 +28,18 @@ export const getInitData = async () => {
   const channelsInit = toClientChannelsInit(response.channels);
   const groups = toClientGroups(response.groups, true);
   const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
-  const channelUnreads = toClientUnreads(response.unreads, 'channel');
+  // const channelUnreads = toClientUnreads(response.unreads, 'channel');
   const dmChannels = toClientDms(response.chat.dms);
   const groupDmChannels = toClientGroupDms(response.chat.clubs);
   const invitedDms = toClientDms(response.chat.invited, true);
-  const talkUnreads = toClientUnreads(response.chat.unreads, 'dm');
+  // const talkUnreads = toClientUnreads(response.chat.unreads, 'dm');
 
   return {
     pins,
     groups,
     unjoinedGroups,
-    unreads: [...channelUnreads, ...talkUnreads],
+    // unreads: [...channelUnreads, ...talkUnreads],
+    unreads: [],
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
   };

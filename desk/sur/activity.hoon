@@ -11,7 +11,7 @@
 ::  $activity: the current state of activity for each source
 +$  activity  (map source activity-summary)
 ::  $full-info: the full state of the activity stream
-+$  full-info  [=indices =activity]
++$  full-info  [=indices =activity =volume-settings]
 ::  $volume-map: how to badge and notify for each event type
 +$  volume-map
   $~  default-volumes
@@ -22,13 +22,15 @@
 ::    actions are only ever performed for and by our selves
 ::
 ::    $add: add an event to the stream
+::    $del: remove a source and all its activity
 ::    $read: mark an event as read
 ::    $adjust: adjust the volume of an source
 ::
 +$  action
   $%  [%add =incoming-event]
+      [%del =source]
       [%read =source =read-action]
-      [%adjust =source =volume-map]
+      [%adjust =source =(unit volume-map)]
   ==
 ::
 ::  $read-action: mark activity read
@@ -48,13 +50,15 @@
 ::  $update: what we hear after an action
 ::
 ::    $add: an event was added to the stream
+::    $del: a source and its activity were removed
 ::    $read: a source's activity state was updated
 ::    $adjust: the volume of a source was adjusted
 ::
 +$  update
   $%  [%add time-event]
+      [%del =source]
       [%read =source =activity-summary]
-      [%adjust =source =volume-map]
+      [%adjust =source volume-map=(unit volume-map)]
   ==
 ::
 +|  %basics
@@ -185,8 +189,8 @@
 +|  %constants
 ++  default-volumes
   ^~
-  %-  malt
-  ^-  (list [event-type volume])
+  ^-  (map event-type volume)
+  %-  my
   :~  [%post & &]
       [%reply & |]
       [%dm-reply & &]
@@ -203,5 +207,12 @@
       [%group-kick & |]
       [%group-join & |]
       [%group-role & |]
+  ==
+++  old-volumes
+  ^~
+  %-  my
+  :~  [%soft (~(put by default-volumes) %post [& |])]
+      [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
+      [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
   ==
 --

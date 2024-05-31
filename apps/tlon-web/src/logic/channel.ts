@@ -110,7 +110,11 @@ function channelUnread(
   const unread = chats[flag]?.unread;
 
   if (app === 'chat') {
-    return Boolean(unread && !unread.seen);
+    return Boolean(
+      unread &&
+        (unread.unread?.count || 0 > 0 || unread.unread?.notify) &&
+        !unread.seen
+    );
   }
 
   return (unreads[nest]?.count ?? 0) > 0;

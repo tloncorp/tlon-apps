@@ -25,7 +25,7 @@ export default function useGroupUnread() {
       }
 
       return {
-        unread: !!unread.unread,
+        unread: !!unread.unread || unread.notify,
         count: unread.count,
         notify: unread.notify,
       };
@@ -45,10 +45,11 @@ export function useCombinedGroupsUnread() {
 
   return Object.keys(groups).reduce((info, flag) => {
     const { unread, count, notify } = getGroupUnread(flag);
+    const newNotify = info.notify || notify;
     return {
-      unread: info.unread || unread,
+      unread: info.unread || unread || newNotify,
       count: info.count + count,
-      notify: info.notify || notify,
+      notify: newNotify,
     };
   }, defaultUnread);
 }

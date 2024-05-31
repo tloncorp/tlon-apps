@@ -1,6 +1,6 @@
 /-  u=ui
-/+  gj=groups-json, cj=chat-json, dj=channel-json
-|_  init=init-1:u
+/+  gj=groups-json, cj=chat-json, dj=channel-json, aj=activity-json
+|_  =init:u
 ++  grad  %noun
 ++  grow
   |%
@@ -12,7 +12,7 @@
     :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         channels/(channels-2:enjs:dj channels.init)
-        unreads/(unreads:enjs:dj unreads.init)
+        activity/(activity:enjs:aj activity.init)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init
       ::
@@ -20,7 +20,6 @@
         %-  pairs
         :~  clubs/(clubs:enjs:cj clubs.chat.init)
             dms/a/(turn ~(tap in dms.chat.init) ship:enjs:gj)
-            unreads/(unreads:enjs:cj unreads.chat.init)
             invited/a/(turn ~(tap in invited.chat.init) ship:enjs:gj)
         ==
     ==

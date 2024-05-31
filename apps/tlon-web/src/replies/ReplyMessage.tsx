@@ -344,7 +344,6 @@ const ReplyMessage = React.memo<
           {unread && isUnread ? (
             <DateDivider
               date={unix}
-              notify={unread.unread.notify}
               unreadCount={unread.unread.count}
               ref={viewRef}
             />
