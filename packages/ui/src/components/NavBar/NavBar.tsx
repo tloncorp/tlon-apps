@@ -1,5 +1,6 @@
 import { BlurView } from 'expo-blur';
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../core';
@@ -13,8 +14,6 @@ const NavBar = React.memo(function NavBar(props: {
 }) {
   const { bottom } = useSafeAreaInsets();
 
-  const theme = useTheme();
-
   return (
     <View
       position="absolute"
@@ -24,16 +23,29 @@ const NavBar = React.memo(function NavBar(props: {
       borderTopColor={'$border'}
       height={navHeight + bottom}
     >
+      <BlurOnIos>
+        <XStack justifyContent="space-around" alignItems="flex-start">
+          {props.children}
+        </XStack>
+      </BlurOnIos>
+    </View>
+  );
+});
+
+function BlurOnIos(props: PropsWithChildren) {
+  const theme = useTheme();
+  if (Platform.OS === 'ios') {
+    return (
       <BlurView
         intensity={100}
         tint={theme.isDark ? 'regular' : 'light'}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-      <XStack justifyContent="space-around" alignItems="flex-start">
+      >
         {props.children}
-      </XStack>
-    </View>
-  );
-});
+      </BlurView>
+    );
+  }
+  return <>{props.children}</>;
+}
 
 export default NavBar;
