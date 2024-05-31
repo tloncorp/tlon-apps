@@ -45,3 +45,13 @@ export const trackError = (
   { message }: { message: string },
   event = 'app_error'
 ) => capture(event, { message });
+
+export const identifyTlon = () => {
+  if (!posthog) {
+    console.debug('Identifying as Tlon before PostHog is initialized');
+    return;
+  }
+
+  const UUID = posthog.getDistinctId();
+  posthog.identify(UUID, { isTlon: true });
+};

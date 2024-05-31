@@ -36,6 +36,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
     enabledLoggers: process.env.ENABLED_LOGGERS,
     ignoreCosmos: process.env.IGNORE_COSMOS,
+    TlonGroup: process.env.TLON_GROUP,
   },
   ios: {
     runtimeVersion: '4.0.1',
