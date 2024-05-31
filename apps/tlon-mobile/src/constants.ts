@@ -34,3 +34,4 @@ export const DEFAULT_SHIP_LOGIN_ACCESS_CODE =
   extra.defaultShipLoginAccessCode ?? '';
 export const ENABLED_LOGGERS = extra.enabledLoggers?.split(',') ?? [];
 export const IGNORE_COSMOS = extra.ignoreCosmos === 'true';
+export const TLON_EMPLOYEE_GROUP = extra.TlonEmployeeGroup ?? '';

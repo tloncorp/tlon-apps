@@ -16,9 +16,11 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
+import { TLON_EMPLOYEE_GROUP } from '../constants';
 import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
+import { identifyTlonEmployee } from '../utils/posthog';
 
 type ChatListScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -113,6 +115,15 @@ export default function ChatListScreen(
     ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
     [goToChannel]
   );
+
+  const { pinned, unpinned } = resolvedChats;
+  const allChats = [...pinned, ...unpinned];
+  const isTlonEmployee = !!allChats.find(
+    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
+  );
+  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+    identifyTlonEmployee();
+  }
 
   return (
     <ContactsProvider contacts={contacts ?? []}>
