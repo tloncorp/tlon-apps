@@ -38,7 +38,7 @@
       pending  pending.channel
     ==
   ?.  full  base
-  %*  .  base
+  %_  base
     posts  (uv-posts posts.channel)
     net  net.channel
     remark  remark.channel
