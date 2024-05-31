@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { PropsWithChildren } from 'react';
-import { Dimensions, ImageBackground } from 'react-native';
+import { Alert, Dimensions, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, XStack, getTokens } from 'tamagui';
 
@@ -8,12 +8,14 @@ import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
+import { DebugInfo } from './DebugInfo';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { navHeight } from './NavBar/NavBar';
 
 interface Props {
   currentUserId: string;
+  handleLogout: () => void;
 }
 
 export function ProfileScreenView({
@@ -30,6 +32,19 @@ export function ProfileScreenView({
 export function Wrapped(props: Props) {
   const { top, bottom } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
+
+  const onLogoutPress = () => {
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Log out',
+        onPress: props.handleLogout,
+      },
+    ]);
+  };
 
   return (
     <ScrollView>
@@ -57,6 +72,12 @@ export function Wrapped(props: Props) {
           <ProfileAction title="Connected Accounts" icon="Face" />
           <ProfileAction title="Submit Feedback" icon="Mail" />
           <ProfileAction title="Contact Support" icon="Messages" />
+          <ProfileAction
+            title="Log Out"
+            icon="LogOut"
+            hideCaret
+            onPress={onLogoutPress}
+          />
         </View>
       </YStack>
     </ScrollView>
@@ -115,7 +136,9 @@ function ProfileRow({
       backgroundColor={dark ? '$secondaryBackground' : undefined}
       borderRadius={dark ? '$xl' : undefined}
     >
-      <Avatar size="$5xl" contactId={contactId} contact={contact} />
+      <DebugInfo>
+        <Avatar size="$5xl" contactId={contactId} contact={contact} />
+      </DebugInfo>
       <View marginLeft="$l">
         {contact?.nickname ? (
           <YStack>
@@ -143,10 +166,12 @@ function ProfileRow({
 function ProfileAction({
   icon,
   title,
+  hideCaret,
   onPress,
 }: {
   icon: IconType;
   title: string;
+  hideCaret?: boolean;
   onPress?: () => void;
 }) {
   return (
@@ -159,7 +184,7 @@ function ProfileAction({
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
       </ListItem.MainContent>
-      <ListItem.Icon icon="ChevronRight" />
+      {!hideCaret && <ListItem.Icon icon="ChevronRight" />}
     </ListItem>
   );
 }

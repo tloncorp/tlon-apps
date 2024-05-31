@@ -123,7 +123,18 @@ export function Channel({
       ? NotebookPost
       : GalleryPost;
   const renderEmptyComponent = useCallback(() => {
-    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
+    return (
+      <View
+        // hack to fix inverted Flatlist empty component being erroneously rotated on Android
+        style={
+          Platform.OS === 'android'
+            ? { transform: [{ rotateY: '180deg' }] }
+            : {}
+        }
+      >
+        <EmptyChannelNotice channel={channel} userId={currentUserId} />
+      </View>
+    );
   }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
