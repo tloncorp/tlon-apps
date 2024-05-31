@@ -1,6 +1,7 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
+import { getToken } from 'tamagui';
 
 import { SizableText, View, XStack } from '../core';
 import { Avatar } from './Avatar';
@@ -21,6 +22,8 @@ const RoleBadge = ({ role }: { role: string }) => {
     </View>
   );
 };
+
+export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = getToken('$4xl', 'size');
 
 export default function AuthorRow({
   author,
@@ -55,6 +58,7 @@ export default function AuthorRow({
           padding="$l"
           alignItems="center"
           gap="$s"
+          height={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}
           justifyContent="space-between"
         >
           <XStack maxWidth="80%" gap="$s" alignItems="center">

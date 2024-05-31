@@ -83,7 +83,6 @@ export default function NotebookPost({
               {dateDisplay}
             </Text>
           </YStack>
-          {/* TODO: build component for rendering notebook content */}
           <ContentRenderer post={post} />
         </YStack>
       </ScrollView>
