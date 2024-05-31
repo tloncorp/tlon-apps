@@ -81,7 +81,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
       : {
           mode: 'newest',
-          firstPageCount: 10,
+          firstPageCount: 50,
         }),
   });
 

@@ -124,15 +124,13 @@ export const ReserveShipScreen = ({
       clearLure();
 
       // Set the ship info in the main context to navigate to chat view
-      setShip(
-        {
-          ship,
-          shipUrl,
-        },
-        authCookie
-      );
+      setShip({
+        ship,
+        shipUrl,
+        authCookie,
+      });
     },
-    [user, signUpExtras, navigation, clearLure]
+    [user, signUpExtras, navigation, clearLure, setShip]
   );
 
   const reserveShip = useCallback(

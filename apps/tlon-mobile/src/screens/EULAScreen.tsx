@@ -31,13 +31,11 @@ export const EULAScreen = ({
             } else {
               // User is in login flow
               const { shipId, shipUrl, authCookie } = routeParams;
-              setShip(
-                {
-                  ship: shipId,
-                  shipUrl,
-                },
-                authCookie
-              );
+              setShip({
+                ship: shipId,
+                shipUrl,
+                authCookie,
+              });
             }
           }}
         />

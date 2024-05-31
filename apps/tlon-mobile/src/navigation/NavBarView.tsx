@@ -9,7 +9,7 @@ const NavBarView = (props: { navigation: any }) => {
   const isRouteActive = (routeName: string) => {
     return state.routes[state.index].name === routeName;
   };
-  const { data: unreadCount } = store.useAllUnreadsCounts();
+  const { data: unreadCount } = store.useUnreadsCount();
   const currentUserId = useCurrentUserId();
   const { data: contact, isLoading } = store.useContact({ id: currentUserId });
 
@@ -19,7 +19,7 @@ const NavBarView = (props: { navigation: any }) => {
         type="Home"
         activeType="HomeFilled"
         isActive={isRouteActive('ChatList')}
-        hasUnreads={(unreadCount?.channels ?? 0) > 0}
+        hasUnreads={(unreadCount ?? 0) > 0}
         onPress={() => props.navigation.navigate('ChatList')}
       />
       <NavIcon
