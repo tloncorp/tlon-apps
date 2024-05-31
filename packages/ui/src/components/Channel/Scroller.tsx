@@ -1,6 +1,9 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { isSameDay } from '@tloncorp/shared/dist/logic';
+import {
+  extractContentTypesFromPost,
+  isSameDay,
+} from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { MotiView } from 'moti';
 import React, {
@@ -109,6 +112,27 @@ export default function Scroller({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
+  const filteredPosts = useMemo(
+    () =>
+      posts?.filter((post) => {
+        const { blocks, inlines, references } =
+          extractContentTypesFromPost(post);
+
+        if (
+          blocks.length === 0 &&
+          inlines.length === 0 &&
+          references.length === 0 &&
+          post.title === '' &&
+          post.image === ''
+        ) {
+          return false;
+        }
+
+        return true;
+      }),
+    [posts]
+  );
+
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
 
@@ -176,7 +200,7 @@ export default function Scroller({
   }, [hasFoundAnchor, theme.background.val]);
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
-      const previousItem = posts?.[index + 1];
+      const previousItem = filteredPosts?.[index + 1];
       const isFirstPostOfDay = !isSameDay(
         item.receivedAt ?? 0,
         previousItem?.receivedAt ?? 0
@@ -226,7 +250,7 @@ export default function Scroller({
       );
     },
     [
-      posts,
+      filteredPosts,
       unreadCount,
       firstUnreadId,
       handleItemLayout,
@@ -333,13 +357,13 @@ export default function Scroller({
       {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
-      {posts && (
+      {filteredPosts && (
         <FlatList<db.Post>
           ref={flatListRef}
           // This is needed so that we can force a refresh of the list when
           // we need to switch from 1 to 2 columns or vice versa.
           key={channelType}
-          data={posts}
+          data={filteredPosts}
           renderItem={listRenderItem}
           ListEmptyComponent={renderEmptyComponent}
           keyExtractor={getPostId}

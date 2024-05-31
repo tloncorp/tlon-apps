@@ -32,6 +32,7 @@ import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
+import { navHeight } from '../NavBar/NavBar';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -322,7 +323,7 @@ export function Channel({
                             position="absolute"
                             bottom={
                               Platform.OS === 'ios'
-                                ? bottom
+                                ? navHeight
                                 : bottom + getToken('$m')
                             }
                             flex={1}

@@ -1204,10 +1204,10 @@
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
     ?~  response  cu-core
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
+      =/  =cage  writ-response+!>([[%club id] u.response])
       (emit %give %fact ~[/ cu-area] cage)
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
+      =/  =cage  writ-response+!>([[%club id] u.response])
       (emit %give %fact ~[/ cu-area-writs] cage)
     cu-core
   ::
@@ -1568,10 +1568,10 @@
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
     ?~  response  di-core
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
+      =/  =cage  writ-response+!>([[%ship ship] u.response])
       (emit %give %fact ~[/ di-area] cage)
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
+      =/  =cage  writ-response+!>([[%ship ship] u.response])
       (emit %give %fact ~[/ di-area-writs] cage)
     di-core
   ::
