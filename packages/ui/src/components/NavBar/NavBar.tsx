@@ -20,11 +20,15 @@ const NavBar = React.memo(function NavBar(props: {
       width={'100%'}
       bottom={0}
       paddingTop={'$m'}
-      borderTopColor={'$border'}
       height={navHeight + bottom}
+      backgroundColor={Platform.OS === 'ios' ? 'transparent' : '$background'}
     >
       <BlurOnIos>
-        <XStack justifyContent="space-around" alignItems="flex-start">
+        <XStack
+          justifyContent="space-around"
+          alignItems="flex-start"
+          paddingTop={'$m'}
+        >
           {props.children}
         </XStack>
       </BlurOnIos>

@@ -35,7 +35,7 @@ export function ChatList({
 
   const data = useMemo(() => {
     if (pinned.length === 0) {
-      return [{ title: '', data: [...pendingChats, ...unpinned] }];
+      return [{ title: 'All', data: [...pendingChats, ...unpinned] }];
     }
 
     return [
@@ -103,9 +103,7 @@ export function ChatList({
         minimumViewTime: 1000,
         itemVisiblePercentThreshold: 50,
       }}
-      renderSectionHeader={({ section }) =>
-        section.title !== '' ? renderSectionHeader({ section: data[0] }) : null
-      }
+      renderSectionHeader={renderSectionHeader}
     />
   );
 }
