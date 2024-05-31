@@ -47,7 +47,6 @@ interface AddGroupActions {
   }) => void;
   onScrollChange: (scrolling: boolean) => void;
   screenKey?: number;
-  contacts?: db.Contact[] | null;
 }
 const ActionContext = createContext<AddGroupActions>({} as AddGroupActions);
 
@@ -123,7 +122,6 @@ export default function AddGroupSheet({
                     onCreatedGroup,
                     onScrollChange: setScreenScrolling,
                     screenKey,
-                    contacts,
                   }}
                 >
                   <Stack.Navigator
@@ -177,7 +175,7 @@ function ScreenWrapper({
 }
 
 function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
-  const { onScrollChange, screenKey, contacts } = useContext(ActionContext);
+  const { onScrollChange, screenKey } = useContext(ActionContext);
   const insets = useSafeAreaInsets();
   const onSelect = useCallback(
     (contactId: string) => {
@@ -190,9 +188,6 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
 
   return (
     <ScreenWrapper withoutSafe>
-      {/* Unclear why we have to render another contacts provider here, but the screen context shows up empty */}
-      {/* on Android? */}
-      {/* <ContactsProvider contacts={contacts ?? null}> */}
       <YStack flex={1} gap="$xl">
         <ContactBook
           searchable
@@ -207,7 +202,6 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
           </Button>
         </View>
       </YStack>
-      {/* </ContactsProvider> */}
     </ScreenWrapper>
   );
 }
