@@ -1,7 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
-import { getToken } from 'tamagui';
 
 import { SizableText, View, XStack } from '../core';
 import { Avatar } from './Avatar';
@@ -23,7 +22,7 @@ const RoleBadge = ({ role }: { role: string }) => {
   );
 };
 
-export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = getToken('$4xl', 'size');
+export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = '$4xl';
 
 export default function AuthorRow({
   author,
