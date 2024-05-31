@@ -13,11 +13,11 @@ import {
   StartDmSheet,
   View,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
-import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
+import { useFocusNotifyOnChangeProps } from '../hooks/useFocusNotifyOnChangeProps';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
@@ -36,7 +36,10 @@ export default function ChatListScreen(
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const { data: chats } = store.useCurrentChats();
+  const notifyOnChangeProps = useFocusNotifyOnChangeProps();
+  const { data: chats } = store.useCurrentChats({
+    notifyOnChangeProps,
+  });
   const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {
     return {

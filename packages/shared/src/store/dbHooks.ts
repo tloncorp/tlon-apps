@@ -1,4 +1,8 @@
-import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import {
+  UseQueryOptions,
+  UseQueryResult,
+  useQuery,
+} from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import * as api from '../api';
@@ -16,26 +20,14 @@ export interface CurrentChats {
   pendingChats: (db.Group | db.Channel)[];
 }
 
-export const useCalmSettings = (options: { userId: string }) => {
-  return useQuery({
-    queryKey: ['calmSettings'],
-    queryFn: () =>
-      db.getSettings(options.userId).then((r) => ({
-        disableAvatars: r?.disableAvatars ?? false,
-        disableNicknames: r?.disableNicknames ?? false,
-        disableRemoteContent: r?.disableRemoteContent ?? false,
-      })),
-  });
-};
+export type CustomQueryConfig<T> = Pick<
+  UseQueryOptions<T, Error, T>,
+  'notifyOnChangeProps'
+>;
 
-export const useSettings = (options: { userId: string }) => {
-  return useQuery({
-    queryKey: ['settings'],
-    queryFn: () => db.getSettings(options.userId),
-  });
-};
-
-export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
+export const useCurrentChats = (
+  queryConfig?: CustomQueryConfig<CurrentChats>
+): UseQueryResult<CurrentChats | null> => {
   return useQuery({
     queryFn: async () => {
       const [pendingChats, channels] = await Promise.all([
@@ -61,6 +53,26 @@ export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
         pendingChats,
       };
     },
+    ...queryConfig,
+  });
+};
+
+export const useCalmSettings = (options: { userId: string }) => {
+  return useQuery({
+    queryKey: ['calmSettings'],
+    queryFn: () =>
+      db.getSettings(options.userId).then((r) => ({
+        disableAvatars: r?.disableAvatars ?? false,
+        disableNicknames: r?.disableNicknames ?? false,
+        disableRemoteContent: r?.disableRemoteContent ?? false,
+      })),
+  });
+};
+
+export const useSettings = (options: { userId: string }) => {
+  return useQuery({
+    queryKey: ['settings'],
+    queryFn: () => db.getSettings(options.userId),
   });
 };
 
