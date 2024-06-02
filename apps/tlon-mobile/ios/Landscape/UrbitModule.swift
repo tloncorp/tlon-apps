@@ -78,6 +78,9 @@ class UrbitModule: NSObject {
         UrbitModule.authCookie = authCookie
         Task {
             try? await UrbitAPI.shared.open(for: shipUrl)
+            // We don't appear to need these settings anymore, so I've disabled
+            // this in order to save a network request.
+            //
             // try? await PocketUserAPI.fetchSettings()
         }
     }
