@@ -279,10 +279,10 @@
   ::  /all: unified feed (equality of opportunity)
   ::
       [%x %all ~]
-    ``activity-stream+!>((tap:on-event:a stream:base))
+    ``activity-stream+!>((gas:on-event:a *stream:a (tap:on-event:a stream:base)))
   ::
       [%x %all start=@ count=@ ~]
-    =-  ``activity-stream+!>(-)
+    =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
   ::
   ::  /each: unified feed (equality of outcome)
@@ -292,7 +292,7 @@
   ::
       [%x %each start=@ count=@ ~]
     =;  =stream:a
-      ``activity-stream+!>((tap:on-event:a -))
+      ``activity-stream+!>(-)
     =/  start  (slav %da start.pole)
     =/  count  (slav %ud count.pole)
     %-  ~(rep by indices)
@@ -323,12 +323,13 @@
     ?~  dice=(~(get by indices) source)  [~ ~]
     ?+  rest  ~
         ~
-      ``activity-stream+!>((tap:on-event:a stream.u.dice))
+      ``activity-stream+!>(stream.u.dice)
     ::
         [start=@ count=@ ~]
       =/  start  (slav %da start.rest)
       =/  count  (slav %ud count.rest)
-      ``activity-stream+!>((tab:on-event:a stream.u.dice `start count))
+      =/  ls  (tab:on-event:a stream.u.dice `start count)
+      ``activity-stream+!>((gas:on-event:a *stream:a ls))
     ==
   ::  /event: individual events
   ::
@@ -603,7 +604,6 @@
   |-
   =;  unread-stream=stream:a
     =/  children  (get-children source)
-    =-  ~?  =(%group -.source)  -  -
     (stream-to-unreads unread-stream floor.reads children source)
   %+  gas:on-event:a  *stream:a
   %+  murn
@@ -627,7 +627,6 @@
       notify  &(notify.sum notify.as)
       newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
-  ~?  =(%group -.source)  ['children' children cs]
   =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
   =/  main  0
