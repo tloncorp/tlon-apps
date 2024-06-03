@@ -93,6 +93,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
                   time: summary.unread.time,
                 },
             status: isUnread(summary) ? 'unread' : 'read',
+            // todo account for children "seen"
             combinedStatus: isCombinedUnread(summary) ? 'unread' : 'read',
             summary,
           };

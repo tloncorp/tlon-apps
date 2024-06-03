@@ -14,6 +14,7 @@ import {
 import { daToUnix } from '@urbit/api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import cn from 'classnames';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import debounce from 'lodash/debounce';
@@ -174,15 +175,18 @@ const ChatMessage = React.memo<
       const isThreadOnMobile = isThread && isMobile;
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const isChannel = whomIsFlag(whom);
-      const unreadId = !isChannel
-        ? seal.id
-        : `${essay.author}/${formatUd(unixToDa(essay.sent))}`;
+      const unreadId = !isChannel ? seal.id : formatUd(bigInt(seal.id));
       const chatInfo = useChatInfo(whom);
       const unreadsKey = getKey(whom);
       const unread = useUnread(unreadsKey);
       const threadUr = useUnread(getThreadKey(whom, unreadId));
       const unreadDisplay = useMemo(
-        () => getUnreadDisplay(unread, unreadId, threadUr),
+        () =>
+          getUnreadDisplay(
+            unread,
+            !isChannel ? unreadId : `${essay.author}/${unreadId}`,
+            threadUr
+          ),
         [unread, threadUr, unreadId]
       );
       const topUnread =
@@ -220,7 +224,6 @@ const ChatMessage = React.memo<
             }
 
             const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
-
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
                we ensure that the brief matches and hasn't changed before
@@ -560,16 +563,19 @@ const ChatMessage = React.memo<
 
                         <span
                           className={cn(
+                            threadUnread &&
+                              threadUr?.status !== 'unread' &&
+                              'mr-2',
                             threadUnread
                               ? threadNotify
                                 ? 'text-blue'
-                                : 'text-gray-400'
+                                : ''
                               : 'mr-2'
                           )}
                         >
                           {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                         </span>
-                        {threadUnread ? (
+                        {threadUnread && threadUr?.status === 'unread' ? (
                           <UnreadIndicator
                             count={0}
                             notify={threadNotify}

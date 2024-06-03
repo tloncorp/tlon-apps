@@ -746,7 +746,7 @@
       ?:  =(author our.bowl)  ca-core
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  action
-        [%add %post [[author sent] id] nest group.perm.perm.channel content mention]
+        [%add %post [[author id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
@@ -760,10 +760,10 @@
           =(author.u.reply our.bowl)
       =/  =path  (scry-path %activity /volume-settings/noun)
       =+  .^(settings=volume-settings %gx path)
-      =/  parent-key=message-key  [[author sent]:parent id.parent]
+      =/  parent-key=message-key  [[author id]:parent id.parent]
       =/  =action
         :*  %add  %reply
-            [[author sent] id]
+            [[author id] id]
             parent-key
             nest
             group.perm.perm.channel

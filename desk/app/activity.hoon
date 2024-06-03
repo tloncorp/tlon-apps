@@ -119,7 +119,7 @@
     ?~  post  ~
     =/  key=message-key:a
       :_  time
-      [author.u.post sent.u.post]
+      [author.u.post time]
     =/  mention
       (was-mentioned:ch-utils content.u.post our.bowl)
     `[time %post key nest group content.u.post mention]
@@ -138,10 +138,10 @@
     |=  [=time =reply:c]
     =/  key=message-key:a
       :_  time
-      [author.reply sent.reply]
+      [author.reply time]
     =/  parent=message-key:a
       :_  id-post
-      [author.u.u.post sent.u.u.post]
+      [author.u.u.post id-post]
     =/  mention
       (was-mentioned:ch-utils content.reply our.bowl)
     [time %reply key parent nest group content.reply mention]
@@ -410,12 +410,12 @@
 ++  update-index
   |=  [=source:a new=index:a new-floor=?]
   =?  new  new-floor
-    (update-floor source new)
+    (update-floor new)
   =.  indices
     (~(put by indices) source new)
+  =/  summary  (summarize-unreads source new)
   =.  activity
-    %+  ~(put by activity)  source
-    (summarize-unreads source new)
+    (~(put by activity) source summary)
   (give-unreads source)
 ++  get-volumes
   |=  =source:a
@@ -465,14 +465,11 @@
   ==
 ::
 ++  find-floor
-  |=  =source:a
+  |=  [orig=stream:a =reads:a]
   ^-  (unit time)
-  ?.  (~(has by indices) source)  ~
   ::  starting at the last-known first-unread location (floor), walk towards
   ::  the present, to find the new first-unread location (new floor)
   ::
-  =/  [orig=stream:a =reads:a]
-    (~(got by indices) source)
   ::  slice off the earlier part of the stream, for efficiency
   ::
   =/  =stream:a  (lot:on-event:a orig `floor.reads ~)
@@ -495,9 +492,9 @@
   ==
 ::
 ++  update-floor
-  |=  [=source:a =index:a]
+  |=  =index:a
   ^-  index:a
-  =/  new-floor=(unit time)  (find-floor source)
+  =/  new-floor=(unit time)  (find-floor index)
   ?~  new-floor  index
   index(floor.reads u.new-floor)
 ::
@@ -558,7 +555,8 @@
 ++  give-unreads
   |=  =source:a
   ^+  cor
-  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (~(got by activity) source)]))
+  =/  summary  (~(got by activity) source)
+  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source summary]))
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
