@@ -607,13 +607,9 @@ export const setupSubscriptions = async () => {
     await Promise.all([
       api.subscribeUnreads(handleUnreadUpdate),
       api.subscribeGroups(handleGroupUpdate),
-    ]);
-    return Promise.all([
       api.subscribeToChannelsUpdates(handleChannelsUpdate),
       api.subscribeToChatUpdates(handleChatUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
     ]);
   });
 };
-
-export const start = async () => {};
