@@ -273,7 +273,6 @@ const Sidebar = React.memo(() => {
         mode="add"
         inviteIsOpen={broadcastIsOpen}
         setInviteIsOpen={setBroadcastIsOpen}
-        whom=""
         create={true}
       />
     </nav>

@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router';
 
 import Dialog from '../components/Dialog';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
-import { refetchCohort, useCohort, useCohorts } from '@/state/broadcasts';
+import { useCohort, useCohorts } from '@/state/broadcasts';
 import api from '@/api';
 import { stringToTa } from '@/logic/utils';
 
 interface BroadcastInviteDialogProps {
   inviteIsOpen: boolean;
   setInviteIsOpen: (open: boolean) => void;
-  whom: string;
+  whom?: string;
   mode: 'add' | 'del';
   create: boolean;
 }
@@ -24,7 +24,7 @@ export default function BroadcastInviteDialog({
 }: BroadcastInviteDialogProps) {
   const navigate = useNavigate();
   const [ships, setShips] = useState<ShipOption[]>([]);
-  const targets = useCohort(whom).targets;
+  const targets = useCohort(whom || '').targets; //NOTE '' stubs out
   const invalidShips = ships.filter((ship) => {
     if (!targets) {
       return false;
