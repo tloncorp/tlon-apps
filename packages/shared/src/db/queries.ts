@@ -1258,6 +1258,7 @@ export const getChannelPosts = createReadQuery(
     const relationConfig = {
       author: true,
       reactions: true,
+      threadActivity: true,
     } as const;
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
@@ -1352,7 +1353,7 @@ export const getChannelPosts = createReadQuery(
       throw new Error('invalid mode');
     }
   },
-  ['posts']
+  ['posts', 'threadUnreads']
 );
 
 export interface GetChannelPostsAroundOptions {
@@ -1814,11 +1815,12 @@ export const getPostWithRelations = createReadQuery(
         with: {
           author: true,
           reactions: true,
+          threadActivity: true,
         },
       })
       .then(returnNullIfUndefined);
   },
-  ['posts']
+  ['posts', 'threadUnreads']
 );
 
 export const getGroup = createReadQuery(

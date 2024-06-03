@@ -158,6 +158,7 @@ export const readThread = async ({
   parentPost: db.Post;
   channel: db.Channel;
 }) => {
+  logger.log('reading thread', channel.id, parentPost.id);
   let source: ub.Source;
   if (channel.type === 'dm') {
     source = {

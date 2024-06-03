@@ -42,6 +42,7 @@ export default function PostScreen(props: PostScreenProps) {
     authorId: postParam.authorId,
     channelId: postParam.channelId,
   });
+
   const posts = useMemo(() => {
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);

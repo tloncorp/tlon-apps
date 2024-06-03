@@ -624,6 +624,10 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     references: [posts.id],
     relationName: 'parent',
   }),
+  threadActivity: one(threadUnreads, {
+    fields: [posts.id],
+    references: [threadUnreads.threadId],
+  }),
   replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
 }));

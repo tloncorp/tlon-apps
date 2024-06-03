@@ -43,7 +43,6 @@ export function PostScreenView({
   setEditingPost,
   editPost,
   negotiationMatch,
-  activity,
 }: {
   currentUserId: string;
   calmSettings?: CalmState | null;
@@ -65,7 +64,6 @@ export function PostScreenView({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
   negotiationMatch: boolean;
-  activity?: db.ThreadUnreadState;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -141,8 +139,10 @@ export function PostScreenView({
                       showReplies={false}
                       onPressImage={handleGoToImage}
                       onDividerSeen={markRead}
-                      unreadCount={activity?.count}
-                      firstUnreadId={activity?.firstUnreadPostId}
+                      unreadCount={parentPost?.threadActivity?.count}
+                      firstUnreadId={
+                        parentPost?.threadActivity?.firstUnreadPostId
+                      }
                     />
                   )
                 )}
@@ -164,8 +164,8 @@ export function PostScreenView({
                     storeDraft={storeDraft}
                     clearDraft={clearDraft}
                     getDraft={getDraft}
-                    unreadCount={activity?.count}
-                    firstUnreadId={activity?.firstUnreadPostId}
+                    unreadCount={parentPost.threadActivity?.count}
+                    firstUnreadId={parentPost.threadActivity?.firstUnreadPostId}
                   />
                 )}
                 {negotiationMatch && !editingPost && channel && canWrite && (

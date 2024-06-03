@@ -7,7 +7,7 @@ import { createDevLogger } from '../debug';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 export const syncInitData = async () => {
   return syncQueue.add('init', async () => {
