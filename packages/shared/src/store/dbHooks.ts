@@ -1,4 +1,8 @@
-import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import {
+  UseQueryOptions,
+  UseQueryResult,
+  useQuery,
+} from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import * as api from '../api';
@@ -15,6 +19,43 @@ export interface CurrentChats {
   unpinned: db.Channel[];
   pendingChats: (db.Group | db.Channel)[];
 }
+
+export type CustomQueryConfig<T> = Pick<
+  UseQueryOptions<T, Error, T>,
+  'notifyOnChangeProps'
+>;
+
+export const useCurrentChats = (
+  queryConfig?: CustomQueryConfig<CurrentChats>
+): UseQueryResult<CurrentChats | null> => {
+  return useQuery({
+    queryFn: async () => {
+      const [pendingChats, channels] = await Promise.all([
+        db.getPendingChats(),
+        db.getChats(),
+      ]);
+      return { channels, pendingChats };
+    },
+    queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
+    select({ channels, pendingChats }) {
+      for (let i = 0; i < channels.length; ++i) {
+        if (!channels[i].pin) {
+          return {
+            pinned: channels.slice(0, i),
+            unpinned: channels.slice(i),
+            pendingChats,
+          };
+        }
+      }
+      return {
+        pinned: channels,
+        unpinned: [],
+        pendingChats,
+      };
+    },
+    ...queryConfig,
+  });
+};
 
 export const useCalmSettings = (options: { userId: string }) => {
   return useQuery({
@@ -35,33 +76,6 @@ export const useSettings = (options: { userId: string }) => {
   });
 };
 
-export const useCurrentChats = (): UseQueryResult<CurrentChats | null> => {
-  return useQuery({
-    queryFn: async () => {
-      const channels = await db.getChats();
-      const pendingChats = await db.getPendingChats();
-      return { channels, pendingChats };
-    },
-    queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
-    select({ channels, pendingChats }) {
-      for (let i = 0; i < channels.length; ++i) {
-        if (!channels[i].pin) {
-          return {
-            pinned: channels.slice(0, i),
-            unpinned: channels.slice(i),
-            pendingChats,
-          };
-        }
-      }
-      return {
-        pinned: channels,
-        unpinned: [],
-        pendingChats,
-      };
-    },
-  });
-};
-
 export const useContact = (options: { id: string }) => {
   const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
@@ -78,10 +92,10 @@ export const useContacts = () => {
   });
 };
 
-export const useAllUnreadsCounts = () => {
+export const useUnreadsCount = () => {
   return useQuery({
-    queryKey: ['allUnreadsCounts'],
-    queryFn: db.getAllUnreadsCounts,
+    queryKey: ['unreadsCount'],
+    queryFn: () => db.getUnreadsCount(),
   });
 };
 
