@@ -137,7 +137,6 @@ const InputToolbar = memo(
             removeClippedSubviews
             initialNumToRender={6}
             maxToRenderPerBatch={6}
-            windowSize={1}
             getItemLayout={(_, index) => ({
               length: 43,
               offset: 43 * index,
