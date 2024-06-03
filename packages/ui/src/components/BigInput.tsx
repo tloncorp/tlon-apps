@@ -14,6 +14,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
+import { TlonEditorBridge } from './MessageInput/toolbarActions';
 
 export function BigInput({
   channelType,
@@ -37,7 +38,7 @@ export function BigInput({
   const [title, setTitle] = useState('');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
-    editor: EditorBridge | null;
+    editor: TlonEditorBridge | null;
     setEditor: (editor: EditorBridge) => void;
   }>(null);
   const { top } = useSafeAreaInsets();
@@ -149,6 +150,7 @@ export function BigInput({
           ref={editorRef}
         />
       </ScrollView>
+      {console.log('editorRef', editorRef.current)}
       {channelType === 'notebook' &&
         editorRef.current &&
         editorRef.current.editor && (

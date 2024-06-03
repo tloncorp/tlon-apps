@@ -11,6 +11,7 @@ export { default as Redo } from './Redo.svg';
 export { default as Link } from './Link.svg';
 export { default as Checkbox } from './Checkbox.svg';
 export { default as Code } from './Code.svg';
+export { default as CodeBlock } from './CodeBlock.svg';
 export { default as Underline } from './Underline.svg';
 export { default as OrderedList } from './OrderedList.svg';
 export { default as IndentDecrease } from './IndentDecrease.svg';

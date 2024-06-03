@@ -10,7 +10,11 @@ import {
 } from '@10play/tentap-editor';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
+import {
+  CodeBlockBridge,
+  MentionsBridge,
+  ShortcutsBridge,
+} from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
 import { PostContent, toContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
@@ -148,6 +152,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       ...TenTapStartKit,
       MentionsBridge,
       ShortcutsBridge,
+      CodeBlockBridge,
     ];
 
     if (placeholder) {
@@ -502,8 +507,23 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [sendMessage, editingPost]);
 
     const handleAddNewLine = useCallback(() => {
+      if (editorState.isCodeBlockActive) {
+        editor.newLineInCode();
+        return;
+      }
+
+      if (editorState.isBulletListActive || editorState.isOrderedListActive) {
+        editor.splitListItem('listItem');
+        return;
+      }
+
+      if (editorState.isTaskListActive) {
+        editor.splitListItem('taskItem');
+        return;
+      }
+
       editor.splitBlock();
-    }, [editor]);
+    }, [editor, editorState]);
 
     const handleMessage = useCallback(
       async (event: WebViewMessageEvent) => {

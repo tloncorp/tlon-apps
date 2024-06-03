@@ -13,6 +13,15 @@ export enum ToolbarContext {
   Heading,
 }
 
+export type TlonEditorBridge = EditorBridge & {
+  toggleCodeBlock: () => void;
+};
+
+export type TlonBridgeState = BridgeState & {
+  isCodeBlockActive: boolean;
+  canToggleCodeBlock: boolean;
+};
+
 export const ToolbarItems = {
   ...EditorActionType,
   ToggleH1: 'toggle-h1',
@@ -24,8 +33,8 @@ export const ToolbarItems = {
 } as const;
 
 type ArgsToolbarCB = {
-  editor: EditorBridge;
-  editorState: BridgeState;
+  editor: TlonEditorBridge;
+  editorState: TlonBridgeState;
   setToolbarContext: (
     ToolbarContext: ToolbarContext | ((prev: ToolbarContext) => ToolbarContext)
   ) => void;
@@ -112,6 +121,15 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     active: ({ editorState }) => editorState.isCodeActive,
     disabled: ({ editorState }) => !editorState.canToggleCode,
     icon: 'Code',
+  },
+  {
+    onPress:
+      ({ editor }) =>
+      () =>
+        editor.toggleCodeBlock(),
+    active: ({ editorState }) => editorState.isCodeBlockActive,
+    disabled: ({ editorState }) => !editorState.canToggleCodeBlock,
+    icon: 'CodeBlock',
   },
   {
     onPress:

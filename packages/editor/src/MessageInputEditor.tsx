@@ -16,13 +16,12 @@ import {
   TaskListBridge,
   useTenTap,
 } from '@10play/tentap-editor';
-import CodeBlock from '@tiptap/extension-code-block';
 import { Slice } from '@tiptap/pm/model';
 import { EditorView } from '@tiptap/pm/view';
 import { EditorContent } from '@tiptap/react';
 import { useCallback } from 'react';
 
-import { MentionsBridge, ShortcutsBridge } from './bridges';
+import { CodeBlockBridge, MentionsBridge, ShortcutsBridge } from './bridges';
 import { useIsDark } from './useMedia';
 
 export const MessageInputEditor = () => {
@@ -55,6 +54,7 @@ export const MessageInputEditor = () => {
         newGroupDelay: 100,
       }),
       CodeBridge,
+      CodeBlockBridge,
       PlaceholderBridge,
       MentionsBridge,
       LinkBridge.configureExtension({
@@ -64,7 +64,6 @@ export const MessageInputEditor = () => {
       }),
     ],
     tiptapOptions: {
-      extensions: [CodeBlock],
       editorProps: {
         handlePaste,
       },
@@ -82,7 +81,7 @@ export const MessageInputEditor = () => {
         fontFamily:
           "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
       }}
-      // @ts-expect-error bad
+      //@ts-expect-error - not an actual type mismatch
       editor={editor}
     />
   );
