@@ -101,6 +101,7 @@ import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import UpdateNoticeSheet from './components/UpdateNotices';
+import BroadcastDm from './dms/BroadcastDm';
 import DMThread from './dms/DMThread';
 import MobileDmSearch from './dms/MobileDmSearch';
 import EyrieMenu from './eyrie/EyrieMenu';
@@ -113,7 +114,6 @@ import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ShareDMLure from './profiles/ShareDMLure';
 import { useChannelsFirehose } from './state/channel/channel';
-import BroadcastDm from './dms/BroadcastDm';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(

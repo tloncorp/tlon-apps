@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { stringToTa } from '@/logic/utils';
+import { modifyCohort, useCohort } from '@/state/broadcasts';
+
 import Dialog from '../components/Dialog';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
-import { modifyCohort, useCohort } from '@/state/broadcasts';
-import { stringToTa } from '@/logic/utils';
 
 interface BroadcastInviteDialogProps {
   inviteIsOpen: boolean;
@@ -52,7 +53,16 @@ export default function BroadcastInviteDialog({
       setShips([]);
     };
     modifyCohort(ta, create || mode === 'add', targets, after);
-  }, [nameValue, create, whom, showError, ships, navigate, mode, setInviteIsOpen]);
+  }, [
+    nameValue,
+    create,
+    whom,
+    showError,
+    ships,
+    navigate,
+    mode,
+    setInviteIsOpen,
+  ]);
 
   return (
     <Dialog
@@ -64,14 +74,16 @@ export default function BroadcastInviteDialog({
       <div className="card">
         <div className="mb-4 flex flex-col space-y-4">
           <h2 className="text-lg font-bold">Add to Broadcast</h2>
-          {create ? (<input
-            autoFocus
-            type="text"
-            placeholder="Cohort Name"
-            value={nameValue}
-            onChange={(e)=>setNameValue(e.target.value)}
-            className="input alt-highlight w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
-          />) : null}
+          {create ? (
+            <input
+              autoFocus
+              type="text"
+              placeholder="Cohort Name"
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              className="input alt-highlight w-full border-gray-200 bg-transparent text-lg font-semibold focus:bg-transparent"
+            />
+          ) : null}
           <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
           {showError && (
             <div className="text-red">
@@ -92,14 +104,18 @@ export default function BroadcastInviteDialog({
                   </>
                 );
               })}
-              {invalidShips.length > 1 ? 'are' : 'is'} {mode === 'add' ? 'already' : 'not'} in this chat.
+              {invalidShips.length > 1 ? 'are' : 'is'}{' '}
+              {mode === 'add' ? 'already' : 'not'} in this chat.
             </div>
           )}
         </div>
         <div className="flex justify-end space-x-2">
           <button
             className="secondary-button"
-            onClick={() => { setInviteIsOpen(false); setShips([]); }}
+            onClick={() => {
+              setInviteIsOpen(false);
+              setShips([]);
+            }}
           >
             Cancel
           </button>

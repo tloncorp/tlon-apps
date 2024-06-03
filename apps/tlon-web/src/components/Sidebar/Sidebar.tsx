@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 
 import GroupList from '@/components/Sidebar/GroupList';
+import BroadcastInviteDialog from '@/dms/BroadcastInviteDialog';
 import useGroupSort from '@/logic/useGroupSort';
 import {
   useGangsWithClaim,
@@ -18,6 +19,7 @@ import {
   usePendingGangsWithoutClaim,
   usePinnedGroups,
 } from '@/state/groups';
+import { filters, useMessagesFilter } from '@/state/settings';
 
 import AddIcon16 from '../icons/Add16Icon';
 import X16Icon from '../icons/X16Icon';
@@ -30,8 +32,6 @@ import SidebarItem from './SidebarItem';
 import SidebarSorter from './SidebarSorter';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
 import useActiveTab from './util';
-import { filters, useMessagesFilter } from '@/state/settings';
-import BroadcastInviteDialog from '@/dms/BroadcastInviteDialog';
 
 const Sidebar = React.memo(() => {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -156,7 +156,7 @@ const Sidebar = React.memo(() => {
         <SidebarItem
           className="group relative mx-2 mt-2 bg-blue text-white"
           icon={<AddIcon16 className="m-1 h-4 w-4" />}
-          onClick={()=>setBroadcastIsOpen(true)}
+          onClick={() => setBroadcastIsOpen(true)}
           highlight="transparent"
         >
           <span className="text-white">New Broadcast</span>

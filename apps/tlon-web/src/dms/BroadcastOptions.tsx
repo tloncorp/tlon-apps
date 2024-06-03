@@ -1,18 +1,14 @@
 import cn from 'classnames';
-import {
-  PropsWithChildren,
-  useEffect,
-  useState,
-} from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useIsMobile } from '@/logic/useMedia';
+import { modifyCohort } from '@/state/broadcasts';
 
 import BroadcastInviteDialog from './BroadcastInviteDialog';
-import { modifyCohort } from '@/state/broadcasts';
 
 type DMOptionsProps = PropsWithChildren<{
   open?: boolean;
@@ -52,21 +48,23 @@ export default function BroadcastOptions({
     setIsOpen(open);
   }, [open]);
 
-  const [inviteMode, setInviteMode] = useState('add' as ('add' | 'del'));
+  const [inviteMode, setInviteMode] = useState('add' as 'add' | 'del');
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const handleAdd = () => {
     setInviteMode('add');
     setInviteIsOpen(true);
-  }
+  };
   const handleDel = () => {
     setInviteMode('del');
     setInviteIsOpen(true);
-  }
+  };
 
   const [dialog, setDialog] = useState(false);
 
   const onDelete = async () => {
-    const after = () => { navigate('/messages') };
+    const after = () => {
+      navigate('/messages');
+    };
     modifyCohort(whom, false, [], after);
   };
   const closeDialog = () => {
@@ -125,9 +123,9 @@ export default function BroadcastOptions({
         <div className="flex flex-col">
           <h2 className="mb-4 text-lg font-bold">Delete Cohort</h2>
           <p className="mb-7 leading-5">
-            Are you sure you want to delete this broadcast? Deleting will
-            remove this collection of ships and its history, but will not
-            un-send previously broadcasted messages.
+            Are you sure you want to delete this broadcast? Deleting will remove
+            this collection of ships and its history, but will not un-send
+            previously broadcasted messages.
           </p>
           <div className="flex items-center justify-end space-x-2">
             <button onClick={closeDialog} className="button" type="button">

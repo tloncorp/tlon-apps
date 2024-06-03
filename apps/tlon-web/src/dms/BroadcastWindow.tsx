@@ -51,8 +51,12 @@ export default function BroadcastWindow({
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
           topLoadEndMarker={prefixedElement}
-          onAtTop={()=>{return;}}
-          onAtBottom={()=>{return;}}
+          onAtTop={() => {
+            return;
+          }}
+          onAtBottom={() => {
+            return;
+          }}
           hasLoadedOldest={true}
           hasLoadedNewest={true}
         />

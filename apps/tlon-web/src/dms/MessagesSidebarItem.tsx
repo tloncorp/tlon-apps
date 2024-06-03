@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import ClubName from '@/components/ClubName';
 import useLongPress from '@/logic/useLongPress';
+import { useCohort } from '@/state/broadcasts';
 
 import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
@@ -11,11 +12,10 @@ import useMedia, { useIsMobile } from '../logic/useMedia';
 import { whomIsBroadcast, whomIsDm, whomIsMultiDm } from '../logic/utils';
 import { useMultiDm } from '../state/chat';
 import { useGroup, useGroupChannel, useGroups } from '../state/groups/groups';
+import BroadcastOptions from './BroadcastOptions';
 import DmOptions from './DMOptions';
 import { useMessagesScrolling } from './MessagesScrollingContext';
 import MultiDmAvatar, { MultiDmAvatarSize } from './MultiDmAvatar';
-import { useCohort } from '@/state/broadcasts';
-import BroadcastOptions from './BroadcastOptions';
 
 interface MessagesSidebarItemProps {
   whom: string;

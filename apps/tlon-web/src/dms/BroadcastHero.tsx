@@ -3,11 +3,11 @@ import cn from 'classnames';
 import React from 'react';
 
 import ClubName from '@/components/ClubName';
+import { Cohort } from '@/state/broadcasts';
 
 import { pluralize } from '../logic/utils';
 import PendingIndicator from './MultiDMPendingIndicator';
 import MultiDmAvatar from './MultiDmAvatar';
-import { Cohort } from '@/state/broadcasts';
 
 interface MultiDMHeroProps {
   cohort: Cohort;

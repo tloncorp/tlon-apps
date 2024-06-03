@@ -10,12 +10,17 @@ import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSort from '@/logic/useMessageSort';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import {
+  CohortUnread,
+  Cohorts,
+  cohortToUnread,
+  useCohorts,
+} from '@/state/broadcasts';
 import { useChats, useUnreads } from '@/state/channel/channel';
 import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
-import { CohortUnread, Cohorts, cohortToUnread, useCohorts } from '@/state/broadcasts';
 
 import {
   useDmUnreads,
@@ -32,7 +37,10 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread | CohortUnread]) {
+function itemContent(
+  _i: number,
+  [whom, _unread]: [string, Unread | DMUnread | CohortUnread]
+) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -84,78 +92,92 @@ export default function MessagesList({
   };
 
   const messages = useMemo(() => {
-    const filteredMsgs = (filter === filters.broadcasts)
-      ? sortMessages(Object.fromEntries(Object.entries(broadcasts.data || {}).map((v): [string, CohortUnread] => {
-          return [v[0], cohortToUnread(v[1])]; //REVIEW hax
-        })))
-      : sortMessages(unreads).filter(([b]) => {
-      const chat = chats[b];
-      const groupFlag = chat?.perms.group;
-      const group = groups[groupFlag || ''];
-      const vessel = group?.fleet[window.our];
-      const channel = group?.channels[b];
+    const filteredMsgs =
+      filter === filters.broadcasts
+        ? sortMessages(
+            Object.fromEntries(
+              Object.entries(broadcasts.data || {}).map(
+                (v): [string, CohortUnread] => {
+                  return [v[0], cohortToUnread(v[1])]; //REVIEW hax
+                }
+              )
+            )
+          )
+        : sortMessages(unreads).filter(([b]) => {
+            const chat = chats[b];
+            const groupFlag = chat?.perms.group;
+            const group = groups[groupFlag || ''];
+            const vessel = group?.fleet[window.our];
+            const channel = group?.channels[b];
 
-      if (
-        chat &&
-        channel &&
-        vessel &&
-        !canReadChannel(channel, vessel, group?.bloc)
-      ) {
-        return false;
-      }
+            if (
+              chat &&
+              channel &&
+              vessel &&
+              !canReadChannel(channel, vessel, group?.bloc)
+            ) {
+              return false;
+            }
 
-      if (pinned.includes(b) && !searchQuery) {
-        return false;
-      }
+            if (pinned.includes(b) && !searchQuery) {
+              return false;
+            }
 
-      if (allPending.includes(b)) {
-        return false;
-      }
+            if (allPending.includes(b)) {
+              return false;
+            }
 
-      if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
-        return false;
-      }
+            if (
+              filter === filters.groups &&
+              (whomIsDm(b) || whomIsMultiDm(b))
+            ) {
+              return false;
+            }
 
-      if (filter === filters.dms && b.includes('/')) {
-        return false;
-      }
+            if (filter === filters.dms && b.includes('/')) {
+              return false;
+            }
 
-      if (b.includes('/') && !group) {
-        return false;
-      }
+            if (b.includes('/') && !group) {
+              return false;
+            }
 
-      if (searchQuery) {
-        if (b.includes('/')) {
-          const titleMatch = group.meta.title
-            .toLowerCase()
-            .startsWith(searchQuery.toLowerCase());
-          const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
-          return titleMatch || shipMatch;
-        }
+            if (searchQuery) {
+              if (b.includes('/')) {
+                const titleMatch = group.meta.title
+                  .toLowerCase()
+                  .startsWith(searchQuery.toLowerCase());
+                const shipMatch = deSig(b)?.startsWith(
+                  deSig(searchQuery) || ''
+                );
+                return titleMatch || shipMatch;
+              }
 
-        if (whomIsDm(b)) {
-          const contact = contacts[b];
-          const nicknameMatch = contact?.nickname
-            .toLowerCase()
-            .startsWith(searchQuery.toLowerCase());
-          const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
-          return nicknameMatch || shipMatch;
-        }
+              if (whomIsDm(b)) {
+                const contact = contacts[b];
+                const nicknameMatch = contact?.nickname
+                  .toLowerCase()
+                  .startsWith(searchQuery.toLowerCase());
+                const shipMatch = deSig(b)?.startsWith(
+                  deSig(searchQuery) || ''
+                );
+                return nicknameMatch || shipMatch;
+              }
 
-        if (whomIsMultiDm(b)) {
-          const club = clubs[b];
-          const titleMatch = club?.meta.title
-            ?.toLowerCase()
-            .startsWith(searchQuery.toLowerCase());
-          const shipsMatch = club?.hive?.some((ship) =>
-            deSig(ship)?.startsWith(deSig(searchQuery) || '')
-          );
-          return titleMatch || shipsMatch;
-        }
-      }
+              if (whomIsMultiDm(b)) {
+                const club = clubs[b];
+                const titleMatch = club?.meta.title
+                  ?.toLowerCase()
+                  .startsWith(searchQuery.toLowerCase());
+                const shipsMatch = club?.hive?.some((ship) =>
+                  deSig(ship)?.startsWith(deSig(searchQuery) || '')
+                );
+                return titleMatch || shipsMatch;
+              }
+            }
 
-      return true; // is all
-    });
+            return true; // is all
+          });
     return !searchQuery
       ? filteredMsgs
       : fuzzy

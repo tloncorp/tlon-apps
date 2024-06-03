@@ -1,11 +1,6 @@
 import cn from 'classnames';
 import { useRef } from 'react';
-import {
-  Outlet,
-  Route,
-  Routes,
-  useParams,
-} from 'react-router';
+import { Outlet, Route, Routes, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -14,15 +9,21 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { pluralize } from '@/logic/utils';
+import { Cohort, broadcast, useCohort } from '@/state/broadcasts';
 import { SendMessageVariables } from '@/state/chat';
 
-import MultiDmAvatar from './MultiDmAvatar';
 import BroadcastHero from './BroadcastHero';
-import { Cohort, broadcast, useCohort } from '@/state/broadcasts';
-import BroadcastWindow from './BroadcastWindow';
 import BroadcastOptions from './BroadcastOptions';
+import BroadcastWindow from './BroadcastWindow';
+import MultiDmAvatar from './MultiDmAvatar';
 
-function TitleButton({ cohort, isMobile }: { cohort: Cohort; isMobile: boolean }) {
+function TitleButton({
+  cohort,
+  isMobile,
+}: {
+  cohort: Cohort;
+  isMobile: boolean;
+}) {
   const count = cohort.targets.length;
   const BackButton = isMobile ? Link : 'div';
 
@@ -67,7 +68,7 @@ export default function BroadcastDm() {
   const sendMessage = (diff: SendMessageVariables) => {
     if (!('add' in diff.delta)) throw new Error('expected WritDeltaAdd');
     broadcast(key, diff.delta.add.memo.content);
-  }
+  };
 
   return (
     <>
@@ -76,28 +77,28 @@ export default function BroadcastDm() {
           paddingBottom,
         }}
         className="padding-bottom-transition flex-1"
-        header={(
+        header={
           <Routes>
             <Route
               path="*"
               element={
-                (
-                  <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
-                    <TitleButton cohort={cohort} isMobile={false} />
-                    <div className="flex shrink-0 flex-row items-center space-x-3">
-                      {<BroadcastOptions
+                <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
+                  <TitleButton cohort={cohort} isMobile={false} />
+                  <div className="flex shrink-0 flex-row items-center space-x-3">
+                    {
+                      <BroadcastOptions
                         whom={key}
                         pending={false}
                         isMulti
                         alwaysShowEllipsis
-                      />}
-                    </div>
+                      />
+                    }
                   </div>
-                )
+                </div>
               }
             />
           </Routes>
-        )}
+        }
         footer={
           <div
             className={cn(
