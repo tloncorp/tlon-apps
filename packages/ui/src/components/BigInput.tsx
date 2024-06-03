@@ -150,7 +150,6 @@ export function BigInput({
           ref={editorRef}
         />
       </ScrollView>
-      {console.log('editorRef', editorRef.current)}
       {channelType === 'notebook' &&
         editorRef.current &&
         editorRef.current.editor && (
