@@ -29,13 +29,19 @@
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
   ^-  channel:c
-  %*  .  *channel:c
-    posts  ?:(full (uv-posts posts.channel) *posts:c)
-    perm   +.perm.channel
-    view   +.view.channel
-    sort   +.sort.channel
-    order  +.order.channel
-    pending  pending.channel
+  =/  base
+    %*  .  *channel:c
+      perm   +.perm.channel
+      view   +.view.channel
+      sort   +.sort.channel
+      order  +.order.channel
+      pending  pending.channel
+    ==
+  ?.  full  base
+  %_  base
+    posts  (uv-posts posts.channel)
+    net  net.channel
+    remark  remark.channel
   ==
 ::
 ++  uv-posts

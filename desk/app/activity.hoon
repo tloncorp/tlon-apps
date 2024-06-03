@@ -129,7 +129,7 @@
       ~(tap by threads.unread)
     |=  [=id-post:c [id=id-reply:c count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  post=(unit (unit post:c))  (~(get by posts.u.channel) id-post)
+    =/  post=(unit (unit post:c))  (get:on-posts:c posts.u.channel id-post)
     ?~  post  ~
     ?~  u.post  ~
     %-  some
@@ -175,7 +175,6 @@
     ==
   =;  events=(list [time incoming-event:a])
     (weld events next)
-  :-  [*@da %dm-invite whom]
   =/  writs=(list [time incoming-event:a])
     ?~  unread.unread  ~
     %+  murn
@@ -191,7 +190,7 @@
       ~(tap by threads.unread)
     |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  writ=(unit writ:ch)  (~(get by wit.pact) time.parent)
+    =/  writ=(unit writ:ch)  (get:on:writs:ch wit.pact time.parent)
     ?~  writ  ~
     %-  some
     %+  turn
@@ -200,6 +199,10 @@
     =/  mention
       (was-mentioned:ch-utils content.reply our.bowl)
     [time %dm-reply key parent whom content.reply mention]
+  =/  init-time
+    ?:  &(=(writs ~) =(replies ~))  recency.unread
+    *@da
+  :-  [init-time %dm-invite whom]
   (welp writs replies)
 ++  set-volumes
   |=  =channels:c
@@ -641,9 +644,10 @@
   |-
   ?~  stream
     [newest total notified ?~(last ~ `[u.last main main-notified]) children]
-  =/  [[* =event:a] rest=stream:a]  (pop:on-event:a stream)
+  =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
   =?  notified  &(notify.volume notified.event)  &
+  =.  newest  time
   ?.  ?&  unreads.volume
           ::TODO  support other event types
           ?=(?(%dm-post %dm-reply %post %reply) -<.event)
@@ -652,7 +656,6 @@
   =.  total  +(total)
   =?  main  ?=(?(%post %dm-post) -<.event)  +(main)
   =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume notified.event)  &
-  =.  newest  time.key.event
   =.  last
     ?~  last  `key.event
     last
