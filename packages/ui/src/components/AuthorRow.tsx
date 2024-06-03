@@ -22,6 +22,8 @@ const RoleBadge = ({ role }: { role: string }) => {
   );
 };
 
+export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = '$4xl';
+
 export default function AuthorRow({
   author,
   authorId,
@@ -55,6 +57,7 @@ export default function AuthorRow({
           padding="$l"
           alignItems="center"
           gap="$s"
+          height={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}
           justifyContent="space-between"
         >
           <XStack maxWidth="80%" gap="$s" alignItems="center">
@@ -120,7 +123,7 @@ export default function AuthorRow({
     return (
       <XStack gap="$s" alignItems="center">
         <Avatar size="$2xl" contact={author} contactId={authorId} />
-        <ContactName showNickname userId={authorId} />
+        <ContactName width="50%" showNickname userId={authorId} />
         <SizableText color="$secondaryText" fontSize="$s">
           {timeDisplay}
         </SizableText>

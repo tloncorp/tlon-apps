@@ -4,8 +4,8 @@ import { Linking } from 'react-native';
 
 import { useCalm } from '../../contexts';
 import { Image, Text } from '../../core';
+import { PostViewMode } from '../ContentRenderer';
 import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
-import { PostViewMode } from './ChatContent';
 
 const trustedProviders = [
   {

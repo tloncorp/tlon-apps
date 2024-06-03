@@ -206,6 +206,8 @@ export default function Scroller({
         previousItem?.receivedAt ?? 0
       );
       const showAuthor =
+        item.type === 'note' ||
+        item.type === 'block' ||
         previousItem?.authorId !== item.authorId ||
         previousItem?.type === 'notice' ||
         (item.replyCount ?? 0) > 0 ||
