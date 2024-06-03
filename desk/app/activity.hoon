@@ -359,7 +359,7 @@
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
   =/  notify  &(should-notify notify:(get-volume inc))
-  =/  =event:a  [inc notify]
+  =/  =event:a  [inc notify |]
   =.  cor
     (give %fact ~[/] activity-update+!>([%add time-id event]))
   =?  cor  notify
@@ -372,24 +372,24 @@
       %chan-init
     =/  group-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
-    (add-to-index group-src time-id event)
+    (add-to-index group-src time-id event(child &))
   ::
       %dm-reply
     =/  parent-src  [%dm whom.event]
     =.  cor  (add-to-index source time-id event)
-    (add-to-index parent-src time-id event)
+    (add-to-index parent-src time-id event(child &))
   ::
       %post
     =/  parent-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
-    (add-to-index parent-src time-id event)
+    (add-to-index parent-src time-id event(child &))
   ::
       %reply
     =/  chan-src  [%channel channel.event group.event]
     =/  group-src  [%group group.event]
     =.  cor  (add-to-index source time-id event)
-    =.  cor  (add-to-index chan-src time-id event)
-    (add-to-index group-src time-id event)
+    =.  cor  (add-to-index chan-src time-id event(child &))
+    (add-to-index group-src time-id event(child &))
   ==
 ::
 ++  del
@@ -601,27 +601,20 @@
   ::  TODO: flip around and iterate over stream once, cleaning reads out
   ::        and segment replies for unread threads tracking
   |-
-  ?~  read-items
+  =;  unread-stream=stream:a
     =/  children  (get-children source)
-    (stream-to-unreads stream floor.reads children)
-  =/  [[=time *] rest=read-items:a]  (pop:on-read-items:a read-items)
-  %=  $
-      read-items  rest
-  ::
-      stream
-    =-  +.-
-    %^  (dip:on-event:a @)  stream
-      ~
-    |=  [@ key=@da =event:a]
-    ^-  [(unit event:a) ? @]
-    ?:  =(time key)
-      [~ | ~]
-    [`event | ~]
-  ==
+    =-  ~?  =(%group -.source)  -  -
+    (stream-to-unreads unread-stream floor.reads children source)
+  %+  gas:on-event:a  *stream:a
+  %+  murn
+    (tap:on-event:a stream)
+  |=  [=time =event:a]
+  ?:  (has:on-read-items:a items.reads time)  ~
+  ?:  child.event  ~
+  `[time event]
 ++  stream-to-unreads
-  |=  [=stream:a floor=time children=(list source:a)]
+  |=  [=stream:a floor=time children=(list source:a) =source:a]
   ^-  activity-summary:a
-  =/  newest=time  floor
   =/  cs=activity-summary:a
     %+  roll
       children
@@ -632,7 +625,10 @@
     %=  sum
       count  (^add count.sum count.as)
       notify  &(notify.sum notify.as)
+      newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
+  ~?  =(%group -.source)  ['children' children cs]
+  =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
   =/  main  0
   =/  notified=?  notify.cs
@@ -654,8 +650,8 @@
       ==
     $(stream rest)
   =.  total  +(total)
-  =?  main  ?=(?(%post %dm-post) -<.event)  +(main)
-  =?  main-notified  &(?=(?(%post %dm-post) -<.event) notify:volume notified.event)  &
+  =.  main   +(main)
+  =?  main-notified  &(notify:volume notified.event)  &
   =.  last
     ?~  last  `key.event
     last

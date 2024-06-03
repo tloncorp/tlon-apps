@@ -410,3 +410,5 @@ export function useCombinedChatUnreads() {
 export function useChatUnread(whom: string): ChatInfoUnread | undefined {
   return useChatStore(useCallback((s) => s.chats[whom]?.unread, [whom]));
 }
+
+window.chatstore = useChatStore;

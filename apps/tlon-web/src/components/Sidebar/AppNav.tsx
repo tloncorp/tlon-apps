@@ -3,18 +3,19 @@ import { useContext, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { useCombinedChatUnreads } from '@/chat/useChatStore';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
-import { useCombinedGroupsUnread } from '@/logic/useIsGroupUnread';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useHasUnreadMessages } from '@/state/chat';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
+import {
+  useCombinedChatUnreads,
+  useCombinedGroupUnreads,
+} from '@/state/unreads';
 
 import Avatar from '../Avatar';
 import useLeap from '../Leap/useLeap';
@@ -31,7 +32,7 @@ import useActiveTab, { ActiveTab } from './util';
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { groupsLocation } = useLocalState.getState();
-  const groupsUnread = useCombinedGroupsUnread();
+  const groupsUnread = useCombinedGroupUnreads();
   const isMobile = useIsMobile();
 
   const onSingleClick = () => {

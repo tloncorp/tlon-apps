@@ -1,3 +1,4 @@
+import { getThreadKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
@@ -43,9 +44,10 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
+import { chatStoreLogger, useChatStore } from '../useChatStore';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -83,7 +85,7 @@ export default function ChatThread() {
     id,
     time: formatUd(bigInt(idTime!)),
   };
-  const chatUnreadsKey = `${flag}/${id}`;
+  const chatUnreadsKey = getThreadKey(flag, id);
   const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
@@ -128,7 +130,7 @@ export default function ChatThread() {
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useChatInfo(chatUnreadsKey).unread?.readTimeout;
+  const readTimeout = useUnread(chatUnreadsKey)?.readTimeout;
   const clearOnNavRef = useRef({
     readTimeout,
     chatUnreadsKey,
@@ -153,10 +155,11 @@ export default function ChatThread() {
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(flag, markRead);
-  }, [flag, markRead]);
+    delayedRead(chatUnreadsKey, markRead);
+  }, [chatUnreadsKey, markRead]);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -182,7 +185,7 @@ export default function ChatThread() {
       const curr = clearOnNavRef.current;
       if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
         chatStoreLogger.log('unmount read from thread');
-        useChatStore.getState().read(curr.chatUnreadsKey);
+        useUnreadsStore.getState().read(curr.chatUnreadsKey);
         curr.markRead();
       }
     },

@@ -25,7 +25,6 @@ import {
   usePerms,
   usePost,
   usePostsOnHost,
-  useUnread,
 } from '@/state/channel/channel';
 import {
   useAmAdmin,
@@ -35,6 +34,7 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
+import { useUnread } from '@/state/unreads';
 import { useConnectivityCheck } from '@/state/vitals';
 
 import DiaryCommentField from './DiaryCommentField';
@@ -65,7 +65,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const unread = useUnread(nest);
+  const unread = useUnread(`channel/${nest}`);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = usePerms(nest);
   const { paddingBottom } = useBottomPadding();

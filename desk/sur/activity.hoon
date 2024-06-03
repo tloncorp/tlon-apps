@@ -63,7 +63,16 @@
 ::
 +|  %basics
 ::  $event: a single point of activity, from one of our sources
-+$  event  [incoming-event notified=?]
+::
+::    $incoming-event: the event that was sent to us
+::    $notified: if this event has been notified
+::    $child: if this event is from a child source
+::
++$  event
+  $:  incoming-event
+      notified=?
+      child=?
+  ==
 +$  incoming-event
   $%  [%post post-event]
       [%reply reply-event]

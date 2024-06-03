@@ -5,7 +5,6 @@ import ob from 'urbit-ob';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { ShipOption } from '@/components/ShipSelector';
-import { useUnreads } from '@/state/activity';
 import {
   SendMessageVariables,
   useCreateMultiDm,
@@ -16,6 +15,7 @@ import {
   useForceNegotiationUpdate,
   useNegotiateMulti,
 } from '@/state/negotiation';
+import { useUnreads } from '@/state/unreads';
 
 import { createStorageKey, newUv } from './utils';
 
@@ -52,9 +52,9 @@ export default function useMessageSelector() {
     }
 
     return (
-      Object.entries(unreads).find(([flag, _unread]) => {
+      Object.entries(unreads).find(([source, _unread]) => {
         const theShip = ships[0].value;
-        const sameDM = theShip === flag;
+        const sameDM = `ship/${theShip}` === source;
         return sameDM;
       })?.[0] ?? null
     );
@@ -74,8 +74,8 @@ export default function useMessageSelector() {
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
-      const unread = unreads[key];
-      const newUnread = unreads[k];
+      const unread = unreads[`club/${key}`];
+      const newUnread = unreads[`club/${k}`];
       const newer =
         !unread || (unread && newUnread && newUnread.recency > unread.recency);
       if (sameDM && newer) {
