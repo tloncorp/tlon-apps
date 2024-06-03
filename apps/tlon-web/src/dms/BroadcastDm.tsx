@@ -18,9 +18,8 @@ import { SendMessageVariables } from '@/state/chat';
 
 import MultiDmAvatar from './MultiDmAvatar';
 import BroadcastHero from './BroadcastHero';
-import { Cohort, useCohort, useCohorts } from '@/state/broadcasts';
+import { Cohort, broadcast, useCohort } from '@/state/broadcasts';
 import BroadcastWindow from './BroadcastWindow';
-import api from '@/api';
 import BroadcastOptions from './BroadcastOptions';
 
 function TitleButton({ cohort, isMobile }: { cohort: Cohort; isMobile: boolean }) {
@@ -54,7 +53,7 @@ function TitleButton({ cohort, isMobile }: { cohort: Cohort; isMobile: boolean }
   );
 }
 
-export default function MultiDm() {
+export default function BroadcastDm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const key = useParams<{ cohort: string }>().cohort!;
   const dropZoneId = `chat-dm-input-dropzone-${key}`;
@@ -64,17 +63,10 @@ export default function MultiDm() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
-  const { refetch: refetchCohorts } = useCohorts();
 
   const sendMessage = (diff: SendMessageVariables) => {
     if (!('add' in diff.delta)) throw new Error('expected WritDeltaAdd');
-    api.poke({ mark: 'broadcaster-action', app: 'broadcaster', json: {
-      broadcast: {
-        cohort: key,
-        story: diff.delta.add.memo.content
-      }
-    //TODO  refetch just this specific cohort
-    }, onSuccess: refetchCohorts, onError: refetchCohorts, })
+    broadcast(key, diff.delta.add.memo.content);
   }
 
   return (

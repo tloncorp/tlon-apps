@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router';
 
 import Dialog from '../components/Dialog';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
-import { useCohort, useCohorts } from '@/state/broadcasts';
-import api from '@/api';
+import { modifyCohort, useCohort } from '@/state/broadcasts';
 import { stringToTa } from '@/logic/utils';
 
 interface BroadcastInviteDialogProps {
@@ -37,65 +36,23 @@ export default function BroadcastInviteDialog({
   });
   const showError = invalidShips.length > 0;
   const [nameValue, setNameValue] = useState('');
-  const { refetch: refetchCohorts } = useCohorts();
 
   const onEnter = useCallback(async () => {
     navigate(`/dm/broadcasts/${whom}`);
   }, [navigate, whom]);
 
   const submitHandler = useCallback(async () => {
-    if (create && nameValue) {
-      const ta = stringToTa(nameValue);
-      const json = {
-        'add-cohort': {
-          cohort: ta,
-          targets: ships.map((so) => {
-            return so.value;
-          })
-        }
-      };
-      const after = () => {
-        refetchCohorts();
-        navigate(`/dm/broadcasts/${ta}`);
-        setInviteIsOpen(false);
-        setNameValue('');
-        setShips([]);
-      };
-      api.poke({
-        mark: 'broadcaster-action', app: 'broadcaster', json,
-        onSuccess: ()=>after(), onError: ()=>after()
-      });
-    } else
-    if (whom && !showError) {
-      let json;
-      if (mode === 'add') {
-        json = {
-          'add-cohort': {
-            cohort: whom,
-              targets: ships.map((so) => {
-                return so.value;
-              })
-          }
-        };
-      } else {
-        json = {
-          'del-cohort': {
-            cohort: whom,
-              targets: ships.map((so) => {
-                return so.value;
-              })
-          }
-        };
-      }
-      //TODO  refetch just this specific cohort
-      api.poke({
-        mark: 'broadcaster-action', app: 'broadcaster', json,
-        onSuccess: refetchCohorts, onError: refetchCohorts
-      });
+    if (showError) return;
+    const ta = whom ? whom : stringToTa(nameValue);
+    const targets = ships.map((so) => so.value);
+    const after = () => {
+      navigate(`/dm/broadcasts/${ta}`);
       setInviteIsOpen(false);
+      setNameValue('');
       setShips([]);
-    }
-  }, [nameValue, create, whom, showError, ships, refetchCohorts, navigate, mode, setInviteIsOpen]);
+    };
+    modifyCohort(ta, create || mode === 'add', targets, after);
+  }, [nameValue, create, whom, showError, ships, navigate, mode, setInviteIsOpen]);
 
   return (
     <Dialog

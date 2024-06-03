@@ -5,6 +5,7 @@ import { UseQueryResult } from '@tanstack/react-query';
 import { daToDate, unixToDa } from '@urbit/api';
 import { WritTuple } from 'packages/shared/dist/urbit/dms';
 import { Story, WritEssay, Inline } from 'packages/shared/dist/urbit';
+import api from '@/api';
 
 export const cohortsKey = () => ['broadcaster', 'cohorts'];
 
@@ -89,4 +90,46 @@ export function cohortLogToWrit(log: CohortLog): WritTuple {
     }
   }
   return [time, { seal, essay }];
+}
+
+export function modifyCohort(
+  cohort: CohortKey,
+  add: boolean,
+  targets: string[],
+  onSuccess?: () => void,
+  onError?: () => void,
+) {
+  let json: object = { cohort, targets };
+  if (add) {
+    json = { 'add-cohort': json };
+  } else {
+    json = { 'del-cohort': json };
+  }
+  api.poke({
+    mark: 'broadcaster-action', app: 'broadcaster', json,
+    onSuccess: () => {
+      //TODO refetch only the affected cohort
+      queryClient.refetchQueries(cohortsKey());
+      onSuccess?.();
+    },
+    onError: () => { onError?.() }
+  });
+}
+
+export function broadcast(
+  cohort: CohortKey,
+  story: Story,
+  onSuccess?: () => void,
+  onError?: () => void
+) {
+  const json = { broadcast: { cohort, story } };
+  api.poke({
+    mark: 'broadcaster-action', app: 'broadcaster', json,
+    onSuccess: () => {
+      //TODO refetch just the affected cohort
+      queryClient.refetchQueries(cohortsKey());
+      onSuccess?.();
+    },
+    onError: () => { onError?.() }
+  });
 }

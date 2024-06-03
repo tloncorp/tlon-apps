@@ -12,8 +12,7 @@ import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useIsMobile } from '@/logic/useMedia';
 
 import BroadcastInviteDialog from './BroadcastInviteDialog';
-import { useCohorts } from '@/state/broadcasts';
-import api from '@/api';
+import { modifyCohort } from '@/state/broadcasts';
 
 type DMOptionsProps = PropsWithChildren<{
   open?: boolean;
@@ -39,7 +38,6 @@ export default function BroadcastOptions({
 }: DMOptionsProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { refetch: refetchCohorts } = useCohorts();
 
   const [isOpen, setIsOpen] = useState(open);
   const handleOpenChange = (innerOpen: boolean) => {
@@ -68,10 +66,8 @@ export default function BroadcastOptions({
   const [dialog, setDialog] = useState(false);
 
   const onDelete = async () => {
-    api.poke({ mark: 'broadcaster-action', app: 'broadcaster', json: {
-      'del-cohort': { cohort: whom, targets: [] }
-    }, onSuccess: refetchCohorts, onError: refetchCohorts });
-    navigate('/messages');
+    const after = () => { navigate('/messages') };
+    modifyCohort(whom, false, [], after);
   };
   const closeDialog = () => {
     setDialog(false);
