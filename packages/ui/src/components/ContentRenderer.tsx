@@ -717,7 +717,7 @@ LineRenderer.displayName = 'LineRenderer';
 
 export type PostViewMode = 'chat' | 'block' | 'note';
 
-export default function ChatContent({
+export default function ContentRenderer({
   post,
   shortened = false,
   isNotice = false,
@@ -736,7 +736,7 @@ export default function ChatContent({
   isEdited?: boolean;
   viewMode?: PostViewMode;
 }) {
-  const { inlines, blocks, references } = useMemo(
+  const { inlines, blocks, references, story } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
   );
@@ -788,6 +788,37 @@ export default function ChatContent({
 
   if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
     return null;
+  }
+
+  if (post.type === 'note' && story) {
+    // Notes are always rendered with interleaved content
+
+    return (
+      <YStack width="100%">
+        {story.map((s, k) => {
+          if ('block' in s) {
+            return <BlockContent key={k} block={s.block} />;
+          }
+
+          if ('type' in s && s.type === 'reference') {
+            return <ContentReference key={k} reference={s} />;
+          }
+
+          if ('inline' in s) {
+            return (
+              <LineRenderer
+                key={k}
+                inlines={s.inline}
+                isNotice={isNotice}
+                onPressImage={onPressImage}
+                onLongPress={onLongPress}
+                viewMode={viewMode}
+              />
+            );
+          }
+        })}
+      </YStack>
+    );
   }
 
   return (
