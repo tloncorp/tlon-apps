@@ -50,16 +50,11 @@ export default function PostScreen(props: PostScreenProps) {
   const markRead = useCallback(
     (threadPost: db.Post) => {
       if (channel && post) {
-        // for now, trigger a simple delayed read when the unread divider is displayed
-        setTimeout(
-          () =>
-            store.markThreadRead({
-              channel,
-              parentPost: post,
-              post: threadPost,
-            }),
-          10_000
-        );
+        store.markThreadRead({
+          channel,
+          parentPost: post,
+          post: threadPost,
+        });
       }
     },
     [channel, post]

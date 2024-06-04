@@ -200,6 +200,7 @@ export const getPendingChats = createReadQuery(
 export const getChats = createReadQuery(
   'getChats',
   async (): Promise<Channel[]> => {
+    console.log('bl: FETCHING CURRENT CHATS');
     const partitionedGroupsQuery = client
       .select({
         ...getTableColumns($channels),
@@ -1354,7 +1355,7 @@ export const getChannelPosts = createReadQuery(
       throw new Error('invalid mode');
     }
   },
-  ['posts', 'threadUnreads']
+  ['posts', 'unreads', 'threadUnreads']
 );
 
 export interface GetChannelPostsAroundOptions {

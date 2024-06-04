@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "fb9695f3-feaf-47fc-8d18-9c9e893fc66f",
+  "id": "436363bb-0e9b-44a3-a211-a7c6fb04cfe9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "channel_writers": {
@@ -1347,6 +1347,13 @@
         },
         "delivery_status": {
           "name": "delivery_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "backend_time": {
+          "name": "backend_time",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

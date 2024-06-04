@@ -20,6 +20,7 @@ export function useStickyUnread<T extends UnreadInput>(unread: T): T {
         setUnreadState(unread);
         readTimeout.current = null;
       }, READ_DELAY);
+      return;
     }
 
     setUnreadState(unread);

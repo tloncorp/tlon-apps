@@ -599,6 +599,8 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+    // urbit side types we need for interacting with the api
+    backendTime: text('backend_time'),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),

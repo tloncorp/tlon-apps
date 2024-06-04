@@ -205,7 +205,8 @@ CREATE TABLE `posts` (
 	`has_image` integer,
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
-	`delivery_status` text
+	`delivery_status` text,
+	`backend_time` text
 );
 --> statement-breakpoint
 CREATE TABLE `settings` (

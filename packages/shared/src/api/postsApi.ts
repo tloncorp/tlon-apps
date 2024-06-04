@@ -614,11 +614,16 @@ export function toPostData(
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
   const id = getCanonicalPostId(post.seal.id);
+  const backendTime =
+    post.seal && 'time' in post.seal
+      ? getCanonicalPostId(post.seal.time.toString())
+      : null;
 
   return {
     id,
     channelId,
     type,
+    backendTime,
     // Kind data will override
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
@@ -668,6 +673,10 @@ export function toPostReplyData(
 ): db.Post {
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
+  const backendTime =
+    reply.seal && 'time' in reply.seal
+      ? getCanonicalPostId(reply.seal.time.toString())
+      : null;
   return {
     id,
     channelId,
@@ -679,6 +688,7 @@ export function toPostReplyData(
     content: JSON.stringify(content),
     textContent: getTextContent(reply.memo.content),
     sentAt: reply.memo.sent,
+    backendTime,
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
     images: getContentImages(id, reply.memo.content),

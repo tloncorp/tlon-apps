@@ -112,8 +112,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
   const handleMarkRead = useCallback(() => {
     if (channel) {
-      // for now, trigger a simple delayed read when the unread divider is displayed
-      setTimeout(() => store.markChannelRead(channel), 10_000);
+      store.markChannelRead(channel);
     }
   }, [channel]);
 

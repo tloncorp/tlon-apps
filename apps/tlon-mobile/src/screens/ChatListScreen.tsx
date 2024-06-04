@@ -36,10 +36,13 @@ export default function ChatListScreen(
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const notifyOnChangeProps = useFocusNotifyOnChangeProps();
+  // TODO: Dan this optimization is blocking re-renders when chat unreads
+  // have changed while not focused
+  // const notifyOnChangeProps = useFocusNotifyOnChangeProps();
   const { data: chats } = store.useCurrentChats({
-    notifyOnChangeProps,
+    // notifyOnChangeProps,
   });
+
   const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {
     return {

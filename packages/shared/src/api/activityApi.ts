@@ -158,20 +158,43 @@ export const readThread = async ({
   parentPost: db.Post;
   channel: db.Channel;
 }) => {
-  logger.log('reading thread', channel.id, parentPost.id);
+  logger.log(
+    'reading thread',
+    channel.id,
+    parentPost.id,
+    parentPost.backendTime
+  );
   let source: ub.Source;
   if (channel.type === 'dm') {
+    if (!parentPost.backendTime) {
+      throw new Error(
+        `Cannot read thread without post.backendTime for message key, ${parentPost.id}`
+      );
+    }
+
     source = {
       'dm-thread': {
         whom: { ship: channel.id },
-        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id }, // time on parent
+        key: {
+          id: `${parentPost.authorId}/${parentPost.id}`,
+          time: parentPost.backendTime,
+        },
       },
     };
   } else if (channel.type == 'groupDm') {
+    if (!parentPost.backendTime) {
+      throw new Error(
+        `Cannot read thread without post.backendTime for message key, ${parentPost.id}`
+      );
+    }
+
     source = {
       'dm-thread': {
         whom: { club: channel.id },
-        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id }, // time on parent
+        key: {
+          id: `${parentPost.authorId}/${parentPost.id}`,
+          time: parentPost.backendTime,
+        },
       },
     };
   } else {
