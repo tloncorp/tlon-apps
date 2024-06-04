@@ -1,3 +1,4 @@
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -8,11 +9,12 @@ import { VirtuosoHandle } from 'react-virtuoso';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import DMUnreadAlerts from '@/chat/UnreadAlerts';
-import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import { useChatStore } from '@/chat/useChatStore';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useIsScrolling } from '@/logic/scroll';
 import { getPatdaParts, log } from '@/logic/utils';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 interface DmWindowProps {
   whom: string;
@@ -38,11 +40,12 @@ export default function DmWindow({
     [searchParams, idTime]
   );
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const unreadsKey = getKey(whom);
+  const readTimeout = useUnread(unreadsKey)?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { markDmRead } = useMarkDmReadMutation(whom);
-  const clearOnNavRef = useRef({ readTimeout, whom, markDmRead });
+  const clearOnNavRef = useRef({ readTimeout, unreadsKey, markDmRead });
 
   const {
     writs,
@@ -80,14 +83,15 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(whom, markDmRead);
+    delayedRead(unreadsKey, markDmRead);
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetching, whom, markDmRead]);
+  }, [fetchPreviousPage, hasPreviousPage, isFetching, unreadsKey, markDmRead]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -134,14 +138,14 @@ export default function DmWindow({
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { readTimeout, whom, markDmRead };
-  }, [readTimeout, whom, markDmRead]);
+    clearOnNavRef.current = { readTimeout, unreadsKey, markDmRead };
+  }, [readTimeout, unreadsKey, markDmRead]);
 
   useEffect(
     () => () => {
       const curr = clearOnNavRef.current;
       if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        useChatStore.getState().read(curr.whom);
+        useUnreadsStore.getState().read(curr.unreadsKey);
         curr.markDmRead();
       }
     },

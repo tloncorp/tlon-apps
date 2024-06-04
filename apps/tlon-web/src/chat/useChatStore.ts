@@ -378,35 +378,3 @@ export function useChatFailedToLoadContent(
     },
   };
 }
-
-interface UnreadInfo {
-  unread: boolean;
-  count: number;
-  notify: boolean;
-}
-
-const defaultUnread = {
-  unread: false,
-  count: 0,
-  notify: false,
-};
-
-export function useCombinedChatUnreads() {
-  const chats = useChatStore(useCallback((s) => s.chats, []));
-  return Object.entries(chats).reduce((acc, [whom, chat]) => {
-    const unread = chat.unread?.unread;
-    if (!unread) {
-      return acc;
-    }
-
-    return {
-      unread: acc.unread || isUnread(unread),
-      count: acc.count + unread.count,
-      notify: acc.notify || unread.notify,
-    };
-  }, defaultUnread);
-}
-
-export function useChatUnread(whom: string): ChatInfoUnread | undefined {
-  return useChatStore(useCallback((s) => s.chats[whom]?.unread, [whom]));
-}

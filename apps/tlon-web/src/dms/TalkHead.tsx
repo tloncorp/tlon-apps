@@ -4,11 +4,11 @@ import { Helmet } from 'react-helmet';
 
 import { canReadChannel } from '@/logic/channel';
 import { whomIsMultiDm, whomIsNest } from '@/logic/utils';
-import { useUnreads } from '@/state/activity';
 import { useChannels } from '@/state/channel/channel';
 import { useMultiDms } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import { useMessagesFilter } from '@/state/settings';
+import { useUnreads } from '@/state/unreads';
 
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();
@@ -28,11 +28,12 @@ export default function TalkHead() {
     return channel && vessel && canReadChannel(channel, vessel, group.bloc);
   });
   const dms = Object.entries(unreads).filter(([k, v]) => {
-    if (whomIsNest(k)) {
+    const isClub = k.startsWith('club/');
+    if (!(k.startsWith('ship/') || isClub)) {
       return false;
     }
 
-    if (whomIsMultiDm(k)) {
+    if (isClub) {
       const club = multiDms[k];
       return club ? club.team.concat(club.hive).includes(window.our) : true;
     }

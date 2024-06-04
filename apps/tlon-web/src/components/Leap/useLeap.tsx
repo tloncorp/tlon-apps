@@ -313,7 +313,7 @@ export default function useLeap() {
 
       // so are unread groups, but just a little
       const groupUnread = getGroupUnread(groupFlag);
-      if (groupUnread.unread) {
+      if (groupUnread.status === 'unread') {
         newScore += 2;
       }
 
@@ -413,7 +413,7 @@ export default function useLeap() {
 
       // prefer unreads as well
       const groupUnread = getGroupUnread(groupFlag);
-      if (groupUnread.unread) {
+      if (groupUnread.status === 'unread') {
         newScore += 5;
       }
 

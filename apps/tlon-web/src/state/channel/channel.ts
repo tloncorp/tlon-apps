@@ -65,7 +65,8 @@ import {
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { unreadsKey, useUnreads } from '../activity';
+import { unreadsKey } from '../activity';
+import { useUnreads } from '../unreads';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 
@@ -1369,15 +1370,7 @@ export function useIsJoined(nest: Nest) {
   checkNest(nest);
   const unreads = useUnreads();
 
-  return Object.keys(unreads).includes(nest);
-}
-
-export function useUnread(nest: Nest) {
-  checkNest(nest);
-
-  const unreads = useUnreads();
-
-  return unreads[nest];
+  return Object.keys(unreads).includes(`channel/${nest}`);
 }
 
 export function useChats(): Channels {

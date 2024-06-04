@@ -1,5 +1,6 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Editor } from '@tiptap/react';
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   Cite,
@@ -70,6 +71,7 @@ import {
 } from '@/state/chat';
 import { useGroupFlag } from '@/state/groups';
 import { useFileStore, useUploader } from '@/state/storage';
+import { useUnreadsStore } from '@/state/unreads';
 
 interface ChatInputProps {
   whom: string;
@@ -392,7 +394,7 @@ export default function ChatInput({
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
         // TODO: chesterton's fence, but why execute a read here?
-        useChatStore.getState().read(whom);
+        useUnreadsStore.getState().read(getKey(whom));
         clearAttachments();
       }, 0);
     },

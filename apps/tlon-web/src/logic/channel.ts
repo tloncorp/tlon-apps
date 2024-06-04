@@ -14,7 +14,7 @@ import {
 } from '@tloncorp/shared/dist/urbit/groups';
 import _, { get, groupBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import { useNavWithinTab } from '@/components/Sidebar/util';
@@ -24,11 +24,17 @@ import {
   RECENT_SORT,
   SortMode,
 } from '@/constants';
-import { useMarkReadMutation, useUnreads } from '@/state/activity';
+import { useMarkReadMutation } from '@/state/activity';
 import { useChannel, useJoinMutation, usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
 import { useNegotiate } from '@/state/negotiation';
+import {
+  Unread,
+  UnreadsStore,
+  useUnreads,
+  useUnreadsStore,
+} from '@/state/unreads';
 
 import useRecentChannel from './useRecentChannel';
 import useSidebarSort, {
@@ -38,12 +44,12 @@ import useSidebarSort, {
 } from './useSidebarSort';
 import { getFirstInline, getFlagParts, getNestShip, nestToFlag } from './utils';
 
-export function isChannelJoined(nest: string, unreads: Activity) {
+export function isChannelJoined(nest: string, unreads: Record<string, Unread>) {
   const [flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
 
   const isChannelHost = window.our === ship;
-  return isChannelHost || (nest && nest in unreads);
+  return isChannelHost || (nest && `channel/${nest}` in unreads);
 }
 
 export function canReadChannel(
@@ -99,40 +105,22 @@ export function useChannelFlag() {
   );
 }
 
-const selChats = (s: ChatStore) => s.chats;
-
-function channelUnread(
-  nest: string,
-  unreads: Activity,
-  chats: ChatStore['chats']
-) {
-  const [app, flag] = nestToFlag(nest);
-  const unread = chats[flag]?.unread;
-
-  if (app === 'chat') {
-    return Boolean(
-      unread &&
-        (unread.unread?.count || 0 > 0 || unread.unread?.notify) &&
-        !unread.seen
-    );
+function channelUnread(nest: string, unreads: Record<string, Unread>) {
+  const unread = unreads[`channel/${nest}`];
+  if (!unread) {
+    return false;
   }
 
-  return (unreads[nest]?.count ?? 0) > 0;
+  return unread.status === 'unread';
 }
 
 export function useCheckChannelUnread() {
   const unreads = useUnreads();
-  const chats = useChatStore(selChats);
-
   const isChannelUnread = useCallback(
     (nest: string) => {
-      if (!unreads || !chats) {
-        return false;
-      }
-
-      return channelUnread(nest, unreads, chats);
+      return channelUnread(nest, unreads);
     },
-    [unreads, chats]
+    [unreads]
   );
 
   const getUnread = useCallback(
@@ -141,7 +129,7 @@ export function useCheckChannelUnread() {
         return null;
       }
 
-      return unreads[nest];
+      return unreads[`channel/${nest}`];
     },
     [unreads]
   );
@@ -154,9 +142,8 @@ export function useCheckChannelUnread() {
 
 export function useIsChannelUnread(nest: string) {
   const unreads = useUnreads();
-  const chats = useChatStore(selChats);
 
-  return channelUnread(nest, unreads, chats);
+  return channelUnread(nest, unreads);
 }
 
 export const useIsChannelHost = (flag: string) =>
@@ -265,18 +252,21 @@ export function useChannelSections(groupFlag: string) {
   };
 }
 
+const getLoaded = (s: UnreadsStore) => s.loaded;
 export function useChannelIsJoined(nest: string) {
+  const loaded = useUnreadsStore(getLoaded);
   const unreads = useUnreads();
-  return isChannelJoined(nest, unreads);
+  return !loaded || isChannelJoined(nest, unreads);
 }
 
 export function useCheckChannelJoined() {
+  const loaded = useUnreadsStore(getLoaded);
   const unreads = useUnreads();
   return useCallback(
     (nest: string) => {
-      return isChannelJoined(nest, unreads);
+      return !loaded || isChannelJoined(nest, unreads);
     },
-    [unreads]
+    [unreads, loaded]
   );
 }
 

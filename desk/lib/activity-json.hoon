@@ -25,7 +25,7 @@
     |=  k=message-key:a
     %-  pairs
     :~  id/s+(msg-id id.k)
-        time+(time time.k)
+        time+s+(scot %ud time.k)
     ==
   ::
   ++  msg-id
@@ -57,7 +57,7 @@
       :~  'thread/'
           (nest:enjs:gj channel.s)
           '/'
-          (msg-id id.key.s)
+          (scot %ud time.key.s)
       ==
     ::
         %dm-thread

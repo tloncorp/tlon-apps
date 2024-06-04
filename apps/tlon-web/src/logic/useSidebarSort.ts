@@ -2,12 +2,12 @@ import _ from 'lodash';
 import { useCallback, useMemo } from 'react';
 
 import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
-import { useUnreads } from '@/state/activity';
 import {
   useGroupSideBarSort,
   usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
+import { useUnreads } from '@/state/unreads';
 
 export interface Sorter {
   (a: string, b: string): number;

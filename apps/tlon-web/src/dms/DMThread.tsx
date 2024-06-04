@@ -1,4 +1,4 @@
-import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey, getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
@@ -39,6 +39,7 @@ import {
   useSendReplyMutation,
   useWrit,
 } from '@/state/chat';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 export default function DMThread() {
   const { ship, idTime, idShip } = useParams<{
@@ -67,10 +68,16 @@ export default function DMThread() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const unreadsKey = getKey(whom);
+  const readTimeout = useUnread(unreadsKey)?.readTimeout;
   const { markDmRead } = useMarkDmReadMutation(whom);
   const isSmall = useMedia('(max-width: 1023px)');
-  const clearOnNavRef = useRef({ isSmall, readTimeout, whom, markDmRead });
+  const clearOnNavRef = useRef({
+    isSmall,
+    readTimeout,
+    unreadsKey,
+    markDmRead,
+  });
   const msgKey: MessageKey = {
     id,
     time: formatUd(bigInt(time)),
@@ -118,17 +125,18 @@ export default function DMThread() {
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(whom, markDmRead);
-  }, [whom, markDmRead]);
+    delayedRead(unreadsKey, markDmRead);
+  }, [unreadsKey, markDmRead]);
 
   useEventListener('keydown', onEscape, threadRef);
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { isSmall, readTimeout, whom, markDmRead };
-  }, [readTimeout, whom, isSmall, markDmRead]);
+    clearOnNavRef.current = { isSmall, readTimeout, unreadsKey, markDmRead };
+  }, [readTimeout, unreadsKey, isSmall, markDmRead]);
 
   useEffect(
     () => () => {
@@ -139,7 +147,7 @@ export default function DMThread() {
         curr.readTimeout !== 0
       ) {
         chatStoreLogger.log('unmount read from thread');
-        useChatStore.getState().read(curr.whom);
+        useUnreadsStore.getState().read(curr.unreadsKey);
         curr.markDmRead();
       }
     },

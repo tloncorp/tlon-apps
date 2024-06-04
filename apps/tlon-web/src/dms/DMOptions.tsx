@@ -1,3 +1,4 @@
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import cn from 'classnames';
 import React, {
   PropsWithChildren,
@@ -8,7 +9,7 @@ import React, {
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { useChatStore, useChatUnread } from '@/chat/useChatStore';
+import { useChatStore } from '@/chat/useChatStore';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
@@ -28,6 +29,7 @@ import {
   useDeletePinMutation,
   usePinnedChats,
 } from '@/state/pins';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import DmInviteDialog from './DmInviteDialog';
 
@@ -61,12 +63,10 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinnedChats();
-  const chatUnread = useChatUnread(whom);
+  const chatUnread = useUnread(getKey(whom));
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
-  const hasNotify = !!chatUnread?.unread?.notify;
-  const hasActivity =
-    pending ||
-    (((chatUnread?.unread.count || 0) > 0 || hasNotify) && !chatUnread?.seen);
+  const hasNotify = !!chatUnread?.notify;
+  const hasActivity = pending || chatUnread?.status === 'unread';
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
@@ -102,7 +102,7 @@ export default function DmOptions({
       markReadChannel();
     }
 
-    useChatStore.getState().read(whom);
+    useUnreadsStore.getState().read(getKey(whom));
   }, [whom, markReadChannel, markDmRead, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);
@@ -157,7 +157,7 @@ export default function DmOptions({
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
       <UnreadIndicator
-        count={chatUnread?.unread.count || 0}
+        count={chatUnread?.count || 0}
         notify={hasNotify}
         className="group-focus-within:opacity-0 group-hover:opacity-0"
       />
@@ -241,7 +241,7 @@ export default function DmOptions({
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
-                count={chatUnread?.unread.count || 0}
+                count={chatUnread?.count || 0}
                 notify={hasNotify}
                 className="group-focus-within:opacity-0 group-hover:opacity-0"
               />

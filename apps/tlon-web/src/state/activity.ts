@@ -23,6 +23,8 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import { createDevLogger, nestToFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { useUnreadsStore } from './unreads';
+
 const actLogger = createDevLogger('activity', false);
 
 export const unreadsKey = ['activity', 'unreads'];
@@ -37,59 +39,18 @@ export function activityAction(action: ActivityAction) {
 }
 
 function activityReadUpdates(events: ActivityReadUpdate[]) {
-  const chat: Record<string, ActivitySummary> = {};
   const unreads: Record<string, ActivitySummary> = {};
 
   events.forEach((event) => {
     const { source, activity } = event.read;
-    if ('base' in source || 'group' in source) {
+    if ('base' in source) {
       return;
     }
 
-    if ('dm' in source) {
-      const whom = 'club' in source.dm ? source.dm.club : source.dm.ship;
-      chat[whom] = activity;
-      unreads[whom] = activity;
-      return;
-    }
-
-    if ('dm-thread' in source) {
-      const { key, whom } = source['dm-thread'];
-      const prefix = 'club' in whom ? whom.club : whom.ship;
-      const srcStr = `${prefix}/${key.id}`;
-
-      chat[srcStr] = activity;
-      unreads[srcStr] = activity;
-    }
-
-    if ('channel' in source) {
-      const { nest } = source.channel;
-      const [app, flag] = nestToFlag(nest);
-
-      if (app === 'chat') {
-        chat[flag] = activity;
-      }
-
-      unreads[nest] = activity;
-    }
-
-    if ('thread' in source) {
-      const { key, channel } = source.thread;
-      const [app, flag] = nestToFlag(channel);
-      const srcStr = `${flag}/${key.id}`;
-
-      if (app === 'chat') {
-        chat[srcStr] = activity;
-      }
-
-      unreads[`${app}/${srcStr}`] = activity;
-    }
+    unreads[sourceToString(source)] = activity;
   });
 
-  return {
-    chat,
-    unreads,
-  };
+  return unreads;
 }
 
 function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
@@ -109,8 +70,8 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
   const readEvents = updates.filter((e) => 'read' in e) as ActivityReadUpdate[];
   actLogger.log('checking read events', readEvents);
   if (readEvents.length > 0) {
-    const { chat, unreads } = activityReadUpdates(readEvents);
-    useChatStore.getState().update(chat);
+    const unreads = activityReadUpdates(readEvents);
+    useUnreadsStore.getState().update(unreads);
     queryClient.setQueryData(unreadsKey, (d: Activity | undefined) => {
       if (d === undefined) {
         return undefined;
@@ -207,7 +168,9 @@ export function useMarkReadMutation() {
   return useMutation({
     mutationFn,
     onSuccess: () => {
-      queryClient.invalidateQueries(unreadsKey);
+      queryClient.invalidateQueries(unreadsKey, undefined, {
+        cancelRefetch: true,
+      });
     },
   });
 }
