@@ -164,6 +164,7 @@ const ChatListItem = React.memo(function ChatListItemComponent({
             ...model.group,
             unreadCount: model.unread?.count,
             lastPost: model.lastPost,
+            lastChannel: model.title,
           }}
           borderRadius="$m"
           {...props}

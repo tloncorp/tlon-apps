@@ -1,7 +1,7 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { Text, XStack } from '../../core';
+import { XStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
@@ -32,9 +32,11 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        <ListItem.Subtitle marginVertical={'$xs'}>
-          {model.lastPost && model.lastPost.channelId}
-        </ListItem.Subtitle>
+        {model.lastPost && (
+          <ListItem.Subtitle marginVertical={'$xs'}>
+            {model.lastChannel}
+          </ListItem.Subtitle>
+        )}
         {!isPending && model.lastPost ? (
           <XStack gap="$s" alignItems="center">
             <Icon
