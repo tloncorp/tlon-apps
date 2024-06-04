@@ -105,8 +105,6 @@ export function useChannelFlag() {
   );
 }
 
-const selChats = (s: ChatStore) => s.chats;
-
 function channelUnread(nest: string, unreads: Record<string, Unread>) {
   const unread = unreads[`channel/${nest}`];
   if (!unread) {
