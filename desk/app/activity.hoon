@@ -279,7 +279,7 @@
   ::  /all: unified feed (equality of opportunity)
   ::
       [%x %all ~]
-    ``activity-stream+!>((gas:on-event:a *stream:a (tap:on-event:a stream:base)))
+    ``activity-stream+!>(stream:base)
   ::
       [%x %all start=@ count=@ ~]
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
