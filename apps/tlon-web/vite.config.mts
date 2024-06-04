@@ -175,6 +175,7 @@ export default ({ mode }: { mode: string }) => {
           } as BuildOptions),
     plugins: plugins(mode),
     resolve: {
+      dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
