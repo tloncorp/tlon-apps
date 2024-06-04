@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
-import { getLevelFromVolumeMap } from '../urbit';
+import { NotificationLevel, getLevelFromVolumeMap } from '../urbit';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -105,6 +105,17 @@ export const useChannelIsMuted = (channel: db.Channel): boolean => {
   }, [channel, volumeSettings]);
 
   return isMuted;
+};
+
+export const useDefaultNotificationLevel = (): NotificationLevel => {
+  const { data: volumeSettings } = useVolumeSettings();
+  if (volumeSettings) {
+    const volumeMap = volumeSettings.base;
+    if (volumeMap) {
+      return getLevelFromVolumeMap(volumeMap);
+    }
+  }
+  return 'loud';
 };
 
 export const useContact = (options: { id: string }) => {

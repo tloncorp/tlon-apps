@@ -164,14 +164,14 @@ export const readThread = async ({
     source = {
       'dm-thread': {
         whom: { ship: channel.id },
-        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id },
+        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id }, // time on parent
       },
     };
   } else if (channel.type == 'groupDm') {
     source = {
       'dm-thread': {
         whom: { club: channel.id },
-        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id },
+        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id }, // time on parent
       },
     };
   } else {

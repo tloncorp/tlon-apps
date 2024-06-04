@@ -1,5 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { PropsWithChildren, useState } from 'react';
+import * as store from '@tloncorp/shared/dist/store';
+import * as ub from '@tloncorp/shared/dist/urbit';
+import { NotificationLevel } from 'packages/shared/dist/urbit';
+import { PropsWithChildren, useCallback, useState } from 'react';
 import { Dimensions, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -20,6 +23,7 @@ import { Avatar } from './Avatar';
 import ContactName from './ContactName';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
+import { LoadingSpinner } from './LoadingSpinner';
 import { navHeight } from './NavBar/NavBar';
 
 interface Props {
@@ -40,6 +44,8 @@ export function ProfileScreenView({
 type NotificationState = { open: boolean; setting: 1 | 2 | 3 };
 
 export function Wrapped(props: Props) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const defaultNotificationLevel = store.useDefaultNotificationLevel();
   const { top, bottom } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
   const [notifState, setNotifState] = useState<NotificationState>({
@@ -47,6 +53,49 @@ export function Wrapped(props: Props) {
     setting: 1,
   });
 
+  const setLevel = useCallback(
+    async (level: ub.NotificationLevel) => {
+      if (level === defaultNotificationLevel) return;
+      setLoading(level);
+      await store.setDefaultNotificationLevel(level);
+      setLoading(null);
+    },
+    [defaultNotificationLevel]
+  );
+
+  const LevelIndicator = useCallback(
+    (props: { level: ub.NotificationLevel }) => {
+      if (loading === props.level) {
+        return <LoadingSpinner />;
+      }
+
+      if (defaultNotificationLevel === props.level) {
+        return (
+          <View
+            height="$2xl"
+            width="$2xl"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Icon type="Checkmark" />
+          </View>
+        );
+      }
+
+      return (
+        <View
+          borderRadius="$4xl"
+          borderWidth={1}
+          borderColor="$secondaryBorder"
+          height="$2xl"
+          width="$2xl"
+        />
+      );
+    },
+    [defaultNotificationLevel, loading]
+  );
+
+  // TODO: implement real UI once designs are ready
   return (
     <ScrollView>
       <YStack
@@ -102,26 +151,13 @@ export function Wrapped(props: Props) {
             </SizableText>
 
             <YStack marginLeft="$m" marginTop="$3xl">
-              <XStack>
-                <View
-                  borderRadius="$4xl"
-                  borderWidth={1}
-                  borderColor="$secondaryBorder"
-                  height="$2xl"
-                  width="$2xl"
-                />
+              <XStack onPress={() => setLevel('loud')}>
+                <LevelIndicator level="loud" />
                 <SizableText marginLeft="$l">All messages</SizableText>
               </XStack>
 
-              <XStack marginTop="$xl">
-                <View
-                  height="$2xl"
-                  width="$2xl"
-                  justifyContent="center"
-                  alignItems="center"
-                >
-                  <Icon type="Checkmark" />
-                </View>
+              <XStack marginTop="$xl" onPress={() => setLevel('medium')}>
+                <LevelIndicator level="medium" />
                 <YStack marginLeft="$l">
                   <SizableText>Only mentions and replies</SizableText>
                   <SizableText
@@ -135,14 +171,8 @@ export function Wrapped(props: Props) {
                 </YStack>
               </XStack>
 
-              <XStack marginTop="$xl">
-                <View
-                  borderRadius="$4xl"
-                  borderWidth={1}
-                  borderColor="$secondaryBorder"
-                  height="$2xl"
-                  width="$2xl"
-                />
+              <XStack marginTop="$xl" onPress={() => setLevel('soft')}>
+                <LevelIndicator level="soft" />
                 <SizableText marginLeft="$l">Nothing</SizableText>
               </XStack>
             </YStack>

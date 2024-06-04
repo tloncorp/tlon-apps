@@ -13,7 +13,7 @@ export async function muteChat(channel: db.Channel) {
   db.mergeVolumeSettings([{ sourceId, volume }]);
 
   try {
-    // await api.adjustVolumeSetting(source, volume);
+    await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.log(`failed to mute group ${channel.id}`, e);
     // revert the optimistic update
@@ -29,7 +29,7 @@ export async function unmuteChat(channel: db.Channel) {
   db.mergeVolumeSettings([{ sourceId, volume: null }]);
 
   try {
-    // await api.adjustVolumeSetting(source, null);
+    await api.adjustVolumeSetting(source, null);
   } catch (e) {
     logger.log(`failed to unmute chat ${channel.id}`, e);
     // revert the optimistic update
@@ -131,6 +131,26 @@ export async function unmuteThread({
     // revert the optimistic update
     db.mergeVolumeSettings([
       { sourceId, volume: existingSettings[sourceId] ?? null },
+    ]);
+  }
+}
+
+export async function setDefaultNotificationLevel(level: ub.NotificationLevel) {
+  const existingSettings = await db.getVolumeSettings();
+  const source: ub.Source = { base: null };
+  const sourceId = 'base';
+  const volumeMap = ub.getVolumeMap(level, true);
+
+  // optimistic update
+  db.mergeVolumeSettings([{ sourceId, volume: ub.getVolumeMap(level, true) }]);
+
+  try {
+    await api.adjustVolumeSetting(source, volumeMap);
+  } catch (e) {
+    logger.log(`failed to set default notification level`, e);
+    // revert the optimistic update
+    db.mergeVolumeSettings([
+      { sourceId, volume: existingSettings.base ?? null },
     ]);
   }
 }
