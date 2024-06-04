@@ -27,7 +27,7 @@ import {
 import { ChannelInit } from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
-import { Rank, desig, extractGroupPrivacy } from '../urbit';
+import { Rank, desig } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -64,6 +64,7 @@ import {
   Pin,
   PinType,
   Post,
+  PostWindow,
   Reaction,
   Settings,
   TableName,
@@ -848,7 +849,7 @@ export const removeChatMembers = createWriteQuery(
 
 export const getUnreadsCount = createReadQuery(
   'getUnreadsCount',
-  async ({ type }: { type?: Unread['type'] }) => {
+  async ({ type }: { type?: Unread['type'] } = {}) => {
     const result = await client
       .select({ count: count() })
       .from($unreads)
@@ -1497,7 +1498,10 @@ async function insertPosts(
     });
   await setPostGroups(tx);
   await setLastPosts(tx);
-  await clearMatchedPendingPosts(posts, tx);
+  await clearMatchedPendingPosts(
+    posts.filter((p) => p.deliveryStatus !== 'pending'),
+    tx
+  );
 }
 
 function setPostGroups(tx: AnySqliteTransaction | AnySqliteDatabase = client) {
@@ -1563,15 +1567,22 @@ async function clearMatchedPendingPosts(
   posts: Post[],
   tx: AnySqliteTransaction | AnySqliteDatabase = client
 ) {
-  await tx.delete($posts).where(
-    and(
-      eq($posts.deliveryStatus, 'pending'),
-      inArray(
-        $posts.sentAt,
-        posts.map((p) => p.sentAt)
+  const deliveredPosts = posts.filter((p) => p.deliveryStatus !== 'pending');
+  if (!deliveredPosts.length) {
+    return;
+  }
+  return await tx
+    .delete($posts)
+    .where(
+      and(
+        eq($posts.deliveryStatus, 'pending'),
+        inArray(
+          $posts.sentAt,
+          deliveredPosts.map((p) => p.sentAt)
+        )
       )
     )
-  );
+    .returning({ id: $posts.id });
 }
 
 async function updatePostWindows(
@@ -1595,52 +1606,49 @@ async function updatePostWindows(
     oldestPostId: newPosts[0].id,
   };
 
+  const referenceWindow = {
+    channelId,
+    newestPostId: newer || window.newestPostId,
+    oldestPostId: older || window.oldestPostId,
+  };
+
   // Calculate min and max post id of windows that overlap with this one
-  const { startId, endId } = (
+  const { oldestId, newestId } = (
     await tx
       .select({
-        startId: min($postWindows.oldestPostId),
-        endId: max($postWindows.newestPostId),
+        oldestId: min($postWindows.oldestPostId),
+        newestId: max($postWindows.newestPostId),
       })
       .from($postWindows)
-      .where(
-        and(
-          eq($postWindows.channelId, window.channelId),
-          lte($postWindows.oldestPostId, newer ?? window.newestPostId),
-          gte($postWindows.newestPostId, older ?? window.oldestPostId)
-        )
-      )
+      .where(overlapsWindow(referenceWindow))
   )[0];
+
+  // Delete intersecting windows.
+  await tx.delete($postWindows).where(overlapsWindow(referenceWindow));
 
   // Calculate final range of merged windows by intersecting existing min and
   // max with candidate window.
   const resolvedStart =
-    startId && startId < window.oldestPostId ? startId : window.oldestPostId;
+    oldestId && oldestId < window.oldestPostId ? oldestId : window.oldestPostId;
   const resolvedEnd =
-    endId && endId > window.newestPostId ? endId : window.newestPostId;
+    newestId && newestId > window.newestPostId ? newestId : window.newestPostId;
 
-  // Delete intersecting windows.
-  await tx
-    .delete($postWindows)
-    .where(
-      and(
-        eq($postWindows.channelId, window.channelId),
-        lte($postWindows.oldestPostId, endId ?? window.newestPostId),
-        gte($postWindows.newestPostId, startId ?? window.oldestPostId)
-      )
-    )
-    .returning({
-      channelId: $postWindows.channelId,
-      oldestPostId: $postWindows.oldestPostId,
-      newestPostId: $postWindows.newestPostId,
-    });
-
-  // Insert final window.
-  await tx.insert($postWindows).values({
+  const finalWindow = {
     channelId: window.channelId,
     oldestPostId: resolvedStart,
     newestPostId: resolvedEnd,
-  });
+  };
+
+  // Insert final window.
+  await tx.insert($postWindows).values(finalWindow);
+}
+
+function overlapsWindow(window: PostWindow) {
+  return and(
+    eq($postWindows.channelId, window.channelId),
+    lte($postWindows.oldestPostId, window.newestPostId),
+    gte($postWindows.newestPostId, window.oldestPostId)
+  );
 }
 
 export const updatePost = createWriteQuery(

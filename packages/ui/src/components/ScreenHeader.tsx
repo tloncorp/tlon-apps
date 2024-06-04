@@ -13,17 +13,13 @@ export const ScreenHeaderComponent = ({
   leftControls,
   rightControls,
 }: PropsWithChildren<{
-  title?: string;
+  title?: string | ReactNode;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
 }>) => {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      paddingTop={insets.top}
-      borderBottomWidth={1}
-      borderBottomColor={'$border'}
-    >
+    <View paddingTop={insets.top}>
       <XStack
         height="$4xl"
         paddingVertical="$m"
@@ -31,7 +27,7 @@ export const ScreenHeaderComponent = ({
         alignItems="center"
       >
         <HeaderControls side="left">{leftControls}</HeaderControls>
-        <HeaderTitle>{title}</HeaderTitle>
+        {typeof title === 'string' ? <HeaderTitle>{title}</HeaderTitle> : title}
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}
       </XStack>

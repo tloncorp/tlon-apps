@@ -2,8 +2,13 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import { configureApi } from '@tloncorp/shared/dist/api';
 import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
-import { useContext, useEffect, useState } from 'react';
-import { createContext } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { NativeModules } from 'react-native';
 
 import storage from '../lib/storage';
@@ -14,6 +19,7 @@ const { UrbitModule } = NativeModules;
 export type ShipInfo = {
   ship: string | undefined;
   shipUrl: string | undefined;
+  authCookie: string | undefined;
 };
 
 type State = ShipInfo & {
@@ -39,21 +45,24 @@ export const useShip = () => {
   return context;
 };
 
+const emptyShip: ShipInfo = {
+  ship: undefined,
+  shipUrl: undefined,
+  authCookie: undefined,
+};
+
 export const ShipProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [{ ship, shipUrl }, setShipInfo] = useState<ShipInfo>({
-    ship: undefined,
-    shipUrl: undefined,
-  });
+  const [shipInfo, setShipInfo] = useState(emptyShip);
 
-  const setShip = ({ ship, shipUrl }: ShipInfo, authCookie?: string) => {
+  const setShip = useCallback(({ ship, shipUrl, authCookie }: ShipInfo) => {
     // Clear all saved ship info if either required field is empty
     if (!ship || !shipUrl) {
       // Remove from React Native storage
-      storage.remove({ key: 'store' });
+      clearShipInfo();
 
       // Clear context state
-      setShipInfo({ ship: undefined, shipUrl: undefined });
+      setShipInfo(emptyShip);
 
       // Clear native storage
       UrbitModule.clearUrbit();
@@ -62,12 +71,13 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
 
     // The passed shipUrl should already be normalized, but defensively ensure it is
     const normalizedShipUrl = transformShipURL(shipUrl);
+    const nextShipInfo = { ship, shipUrl: normalizedShipUrl, authCookie };
 
     // Save to React Native stoage
-    storage.save({ key: 'store', data: { ship, shipUrl: normalizedShipUrl } });
+    saveShipInfo(nextShipInfo);
 
     // Save context state
-    setShipInfo({ ship, shipUrl: normalizedShipUrl });
+    setShipInfo(nextShipInfo);
 
     // Configure API
     configureApi(ship, normalizedShipUrl);
@@ -79,6 +89,8 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // If cookie was passed in, use it, otherwise fetch from ship
+    // TODO: This may not be necessary, as I *believe* auth cookie will always
+    // be stored on successful login.
     if (authCookie) {
       // Save to native storage
       UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
@@ -91,6 +103,8 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         });
         const fetchedAuthCookie = response.headers.get('set-cookie');
         if (fetchedAuthCookie) {
+          setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
+          saveShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
           // Save to native storage
           UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
         }
@@ -98,16 +112,14 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     const loadConnection = async () => {
       try {
-        const shipInfo = (await storage.load({ key: 'store' })) as
-          | ShipInfo
-          | undefined;
-        if (shipInfo) {
-          setShip(shipInfo);
+        const storedShipInfo = await loadShipInfo();
+        if (storedShipInfo) {
+          setShip(storedShipInfo);
         } else {
           setIsLoading(false);
         }
@@ -115,31 +127,43 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         if (err instanceof Error && err.name !== 'NotFoundError') {
           console.error('Error reading ship connection from storage', err);
         }
-
         setIsLoading(false);
       }
     };
 
     loadConnection();
+  }, [setShip]);
+
+  const clearShip = useCallback(() => {
+    setShipInfo(emptyShip);
   }, []);
 
   return (
     <Context.Provider
       value={{
         isLoading,
-        isAuthenticated: !!ship && !!shipUrl,
-        ship,
-        shipUrl,
-        contactId: ship ? preSig(ship) : undefined,
+        isAuthenticated: !!shipInfo.ship && !!shipInfo.shipUrl,
+        contactId: shipInfo.ship ? preSig(shipInfo.ship) : undefined,
         setShip,
-        clearShip: () =>
-          setShip({
-            ship: undefined,
-            shipUrl: undefined,
-          }),
+        clearShip,
+        ...shipInfo,
       }}
     >
       {children}
     </Context.Provider>
   );
+};
+
+const shipInfoKey = 'store';
+
+export const saveShipInfo = (shipInfo: ShipInfo) => {
+  return storage.save({ key: shipInfoKey, data: shipInfo });
+};
+
+export const loadShipInfo = () => {
+  return storage.load<ShipInfo | undefined>({ key: shipInfoKey });
+};
+
+export const clearShipInfo = () => {
+  return storage.remove({ key: shipInfoKey });
 };

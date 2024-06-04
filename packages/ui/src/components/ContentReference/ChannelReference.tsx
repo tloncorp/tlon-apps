@@ -1,6 +1,6 @@
 import { getChannelType } from '@tloncorp/shared/dist/urbit';
 
-import { PostViewMode } from '../ChatMessage/ChatContent';
+import { PostViewMode } from '../ContentRenderer';
 import ChatReferenceWrapper from './ChatReferenceWrapper';
 import ReferenceSkeleton from './ReferenceSkeleton';
 

@@ -12,7 +12,7 @@ import { ReferencesProvider } from '../contexts/references';
 import { ThreadProvider } from '../contexts/thread';
 import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
-import AuthorRow from './AuthorRow';
+import AuthorRow, { AUTHOR_ROW_HEIGHT_DETAIL_VIEW } from './AuthorRow';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
@@ -101,18 +101,22 @@ export function PostScreenView({
                 style={{ flex: 1 }}
               >
                 {parentPost && channel.type === 'gallery' && (
-                  <GalleryPost
-                    post={parentPost}
-                    detailView
-                    onPressImage={handleGoToImage}
-                  />
+                  <View paddingBottom={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}>
+                    <GalleryPost
+                      post={parentPost}
+                      detailView
+                      onPressImage={handleGoToImage}
+                    />
+                  </View>
                 )}
                 {parentPost && channel.type === 'notebook' && (
-                  <NotebookPost
-                    post={parentPost}
-                    detailView
-                    onPressImage={handleGoToImage}
-                  />
+                  <View paddingBottom={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}>
+                    <NotebookPost
+                      post={parentPost}
+                      detailView
+                      onPressImage={handleGoToImage}
+                    />
+                  </View>
                 )}
                 {uploadInfo.imageAttachment ? (
                   <UploadedImagePreview

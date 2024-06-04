@@ -1,16 +1,28 @@
 import { extractContentTypesFromPost, utils } from '@tloncorp/shared';
-import { Block, isImage } from '@tloncorp/shared/dist/urbit/channel';
+import {
+  Block,
+  Code,
+  Header,
+  HeaderLevel,
+  Listing,
+  isImage,
+} from '@tloncorp/shared/dist/urbit/channel';
 import {
   Inline,
   isBlockCode,
   isBlockquote,
   isBold,
   isBreak,
+  isCode,
+  isHeader,
   isInlineCode,
   isItalics,
   isLink,
+  isListItem,
+  isListing,
   isShip,
   isStrikethrough,
+  isTask,
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
@@ -18,18 +30,31 @@ import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
 import {
   ComponentProps,
   ReactElement,
+  ReactNode,
   memo,
   useCallback,
   useMemo,
   useState,
 } from 'react';
-import { TouchableOpacity } from 'react-native';
+import { StyleSheet, TextStyle, TouchableOpacity } from 'react-native';
+import hoon from 'refractor/lang/hoon';
+import { refractor } from 'refractor/lib/common.js';
 
-import { ColorTokens, Image, Text, View, XStack, YStack } from '../../core';
-import ContactName from '../ContactName';
-import ContentReference from '../ContentReference';
-import ChatEmbedContent from './ChatEmbedContent';
-import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
+import {
+  ColorTokens,
+  Image,
+  ScrollView,
+  Text,
+  View,
+  XStack,
+  YStack,
+} from '../core';
+import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
+import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
+import ContactName from './ContactName';
+import ContentReference from './ContentReference';
+
+refractor.register(hoon);
 
 function ShipMention(props: ComponentProps<typeof ContactName>) {
   return (
@@ -40,6 +65,299 @@ function ShipMention(props: ComponentProps<typeof ContactName>) {
       showNickname
       {...props}
     />
+  );
+}
+
+function ListingContent({ content }: { content: Listing }) {
+  if (isListItem(content)) {
+    return (
+      <View>
+        {content.item.map((item, i) => (
+          <InlineContent key={`${i}-${item}`} inline={item} />
+        ))}
+      </View>
+    );
+  }
+
+  if (content.list.type === 'tasklist') {
+    return (
+      <View>
+        {content.list.contents.map((item, i) => (
+          <XStack key={i}>
+            <InlineContent key={`${i}-${item}`} inline={item} />
+          </XStack>
+        ))}
+        <View style={{ listStyleType: 'none' }}>
+          {content.list.items.map((con, i) => (
+            <ListingContent key={i} content={con} />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  const isOrderedList = content.list.type === 'ordered';
+
+  return (
+    <View>
+      {content.list.contents.map((item, i) => (
+        <XStack key={i}>
+          <InlineContent key={`${i}-${item}`} inline={item} />
+        </XStack>
+      ))}
+      <View>
+        {content.list.items.map((con, i) => (
+          <XStack key={i} alignItems="flex-start">
+            <View marginRight="$m">
+              {isOrderedList ? (
+                <InlineContent inline={`${i + 1}.`} />
+              ) : (
+                <InlineContent inline="•" />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <ListingContent key={i} content={con} />
+            </View>
+          </XStack>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const headerStyles = StyleSheet.create({
+  h1: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  h2: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  h3: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  h4: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  h5: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  h6: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+});
+
+function getHeaderStyle(tag: HeaderLevel) {
+  switch (tag) {
+    case 'h1':
+      return headerStyles.h1;
+    case 'h2':
+      return headerStyles.h2;
+    case 'h3':
+      return headerStyles.h3;
+    case 'h4':
+      return headerStyles.h4;
+    case 'h5':
+      return headerStyles.h5;
+    case 'h6':
+      return headerStyles.h6;
+    default:
+      return headerStyles.h1;
+  }
+}
+
+function HeaderText({ header }: Header) {
+  const { tag, content } = header;
+  const style = getHeaderStyle(tag);
+
+  return (
+    <Text style={style}>
+      {content.map((con, i) => (
+        <InlineContent key={`${con}-${i}`} inline={con} />
+      ))}
+    </Text>
+  );
+}
+
+function getStyles(className: string[] | undefined) {
+  if (!className) {
+    return null;
+  }
+
+  const styles = StyleSheet.create({
+    'token comment': {
+      color: '#999',
+    },
+    'token block-comment': {
+      color: '#999',
+    },
+    'token prolog': {
+      color: '#999',
+    },
+    'token doctype': {
+      color: '#999',
+    },
+    'token cdata': {
+      color: '#999',
+    },
+    'token punctuation': {
+      color: '#ccc',
+    },
+    'token tag': {
+      color: '#e2777a',
+    },
+    'token attr-name': {
+      color: '#e2777a',
+    },
+    'token namespace': {
+      color: '#e2777a',
+    },
+    'token deleted': {
+      color: '#e2777a',
+    },
+    'token function-name': {
+      color: '#6196cc',
+    },
+    'token boolean': {
+      color: '#f08d49',
+    },
+    'token number': {
+      color: '#f08d49',
+    },
+    'token function': {
+      color: '#f08d49',
+    },
+    'token property': {
+      color: '#f8c555',
+    },
+    'token class-name': {
+      color: '#f8c555',
+    },
+    'token constant': {
+      color: '#f8c555',
+    },
+    'token symbol': {
+      color: '#f8c555',
+    },
+    'token selector': {
+      color: '#cc99cd',
+    },
+    'token important': {
+      color: '#cc99cd',
+      fontWeight: 'bold',
+    },
+    'token atrule': {
+      color: '#cc99cd',
+    },
+    'token keyword': {
+      color: '#cc99cd',
+    },
+    'token builtin': {
+      color: '#cc99cd',
+    },
+    'token string': {
+      color: '#7ec699',
+    },
+    'token char': {
+      color: '#7ec699',
+    },
+    'token attr-value': {
+      color: '#7ec699',
+    },
+    'token regex': {
+      color: '#7ec699',
+    },
+    'token variable': {
+      color: '#7ec699',
+    },
+    'token operator': {
+      color: '#67cdcc',
+    },
+    'token entity': {
+      color: '#67cdcc',
+      // cursor: 'help',
+    },
+    'token url': {
+      color: '#67cdcc',
+    },
+    'token bold': {
+      fontWeight: 'bold',
+    },
+    'token italic': {
+      fontStyle: 'italic',
+    },
+    'token inserted': {
+      color: 'green',
+    },
+  });
+
+  const combinedClassNames = className.join(' ');
+
+  return styles[combinedClassNames as keyof typeof styles] as TextStyle;
+}
+
+type TreeNodeType = 'text' | 'element' | 'root';
+type TreeNode = {
+  type: TreeNodeType;
+  value: string;
+  tagName: string;
+  children: TreeNode[];
+  properties: { className: string[] };
+};
+
+function hastToReactNative(tree: TreeNode, index?: number): ReactNode {
+  if ('type' in tree && tree.type === 'text') {
+    return tree.value;
+  }
+
+  if ('type' in tree && tree.type === 'element') {
+    const children = (tree.children || []).map((child: TreeNode) =>
+      hastToReactNative(child)
+    );
+
+    const classNames = tree.properties.className
+      ? tree.properties.className.join(' ')
+      : tree.tagName;
+    const key = index ? `${classNames}-${index}` : classNames;
+
+    return (
+      <Text key={key} style={getStyles(tree.properties.className)}>
+        {children}
+      </Text>
+    );
+  }
+
+  if ('type' in tree && tree.type === 'root') {
+    return tree.children.map((child: TreeNode, i: number) =>
+      hastToReactNative(child, i)
+    );
+  }
+
+  return null;
+}
+
+function CodeContent({ code }: Code) {
+  const { lang, code: content } = code;
+  const tree = refractor.highlight(content, lang) as TreeNode;
+  const element = hastToReactNative(tree);
+
+  return (
+    <ScrollView horizontal>
+      <View
+        backgroundColor="$secondaryBackground"
+        borderRadius="$s"
+        padding="$s"
+      >
+        <Text fontFamily="$mono" color="$primaryText" lineHeight="$m">
+          {element}
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -171,10 +489,25 @@ export function InlineContent({
   if (isBreak(inline)) {
     return <Text height="$s" />;
   }
+
   if (isShip(inline)) {
     return <ShipMention userId={inline.ship} />;
   }
-  console.error(`Unhandled message type: ${JSON.stringify(inline)}`);
+
+  if (isTask(inline)) {
+    return (
+      <XStack>
+        <Text color={color} fontSize="$m" lineHeight="$m" marginRight="$m">
+          {inline.task.checked ? '☑' : '☐'}
+        </Text>
+        {inline.task.content.map((s, k) => (
+          <InlineContent key={k} inline={s} color={color} />
+        ))}
+      </XStack>
+    );
+  }
+
+  console.error('Unhandled message type:', { inline });
   return (
     <Text color="$primaryText" fontWeight="$l">
       This content cannot be rendered, unhandled message type.
@@ -232,7 +565,24 @@ export function BlockContent({
       </TouchableOpacity>
     );
   }
-  console.error(`Unhandled message type: ${JSON.stringify(block)}`);
+
+  if (isListing(block)) {
+    return <ListingContent content={block.listing} />;
+  }
+
+  if (isHeader(block)) {
+    return <HeaderText header={block.header} />;
+  }
+
+  if (isCode(block)) {
+    return <CodeContent code={block.code} />;
+  }
+
+  if ('rule' in block) {
+    return <View borderBottomWidth={1} borderColor="$border" />;
+  }
+
+  console.error('Unhandled message type:', { block });
   return (
     <Text fontWeight="$l">
       This content cannot be rendered, unhandled message type.
@@ -367,7 +717,7 @@ LineRenderer.displayName = 'LineRenderer';
 
 export type PostViewMode = 'chat' | 'block' | 'note';
 
-export default function ChatContent({
+export default function ContentRenderer({
   post,
   shortened = false,
   isNotice = false,
@@ -386,7 +736,7 @@ export default function ChatContent({
   isEdited?: boolean;
   viewMode?: PostViewMode;
 }) {
-  const { inlines, blocks, references } = useMemo(
+  const { inlines, blocks, references, story } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
   );
@@ -438,6 +788,37 @@ export default function ChatContent({
 
   if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
     return null;
+  }
+
+  if (post.type === 'note' && story) {
+    // Notes are always rendered with interleaved content
+
+    return (
+      <YStack width="100%">
+        {story.map((s, k) => {
+          if ('block' in s) {
+            return <BlockContent key={k} block={s.block} />;
+          }
+
+          if ('type' in s && s.type === 'reference') {
+            return <ContentReference key={k} reference={s} />;
+          }
+
+          if ('inline' in s) {
+            return (
+              <LineRenderer
+                key={k}
+                inlines={s.inline}
+                isNotice={isNotice}
+                onPressImage={onPressImage}
+                onLongPress={onLongPress}
+                viewMode={viewMode}
+              />
+            );
+          }
+        })}
+      </YStack>
+    );
   }
 
   return (

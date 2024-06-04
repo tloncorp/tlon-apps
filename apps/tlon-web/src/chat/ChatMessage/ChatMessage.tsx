@@ -28,7 +28,7 @@ import { useInView } from 'react-intersection-observer';
 import { NavLink, useParams, useSearchParams } from 'react-router-dom';
 import { useEventListener } from 'usehooks-ts';
 
-import ChatContent from '@/chat/ChatContent/ChatContent';
+import ContentRenderer from '@/chat/ChatContent/ChatContent';
 import Author from '@/chat/ChatMessage/Author';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
@@ -502,13 +502,13 @@ const ChatMessage = React.memo<
                   )}
                 >
                   {isHidden ? (
-                    <ChatContent
+                    <ContentRenderer
                       story={hiddenMessage}
                       isScrolling={isScrolling}
                       writId={seal.id}
                     />
                   ) : essay.content ? (
-                    <ChatContent
+                    <ContentRenderer
                       story={essay.content}
                       isScrolling={isScrolling}
                       writId={seal.id}

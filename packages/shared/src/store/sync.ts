@@ -9,15 +9,24 @@ import { syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', true);
 
+// Used to track latest post we've seen for each channel.
+// Updated when:
+// - We load channel heads
+// - We create a new post locally
+// - We receive a new post from a subscription
+export const channelCursors = new Map<string, string>();
+
 export const syncInitData = async () => {
   return syncQueue.add('init', async () => {
     const initData = await api.getInitData();
-    await db.insertPinnedItems(initData.pins);
-    await db.insertGroups(initData.groups);
-    await db.insertUnjoinedGroups(initData.unjoinedGroups);
-    await db.insertChannels(initData.channels);
-    await resetActivity(initData.activity);
-    await db.insertChannelPerms(initData.channelPerms);
+    await Promise.all([
+      db.insertPinnedItems(initData.pins),
+      db.insertGroups(initData.groups),
+      db.insertUnjoinedGroups(initData.unjoinedGroups),
+      db.insertChannels(initData.channels),
+      resetActivity(initData.activity),
+      db.insertChannelPerms(initData.channelPerms),
+    ]);
   });
 };
 
@@ -27,7 +36,11 @@ export const syncLatestPosts = async () => {
       api.getLatestPosts({ type: 'channels' }),
       api.getLatestPosts({ type: 'chats' }),
     ]);
-    await db.insertStandalonePosts(result.flat().map((p) => p.latestPost));
+    const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
+    for (const post of allPosts) {
+      channelCursors.set(post.channelId, post.id);
+    }
+    await db.insertStandalonePosts(allPosts);
   });
 };
 
@@ -65,8 +78,10 @@ export const syncPinnedItems = async () => {
 };
 
 export const syncGroups = async () => {
-  const groups = await api.getGroups({ includeMembers: false });
-  await db.insertGroups(groups);
+  return syncQueue.add('groups', async () => {
+    const groups = await api.getGroups({ includeMembers: false });
+    await db.insertGroups(groups);
+  });
 };
 
 export const syncDms = async () => {
@@ -341,6 +356,11 @@ const handleActivityUpdate = (queueDebounce: number = 500) => {
   };
 };
 
+// async function handleUnreadUpdate(unread: db.Unread) {
+//   logger.log('event: unread update', unread);
+//   await db.insertUnreads([unread]);
+// }
+
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
     case 'add':
@@ -370,23 +390,14 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
             replyTime: update.post.sentAt,
           });
         }
-        // insert the reply
-        await db.insertChannelPosts({
-          channelId: update.post.channelId,
-          posts: [update.post],
-        });
       }
-      // For non-replies, we skip inserting and sync from the api instead.
-      // This is significantly slower, but ensures that windowing stays correct. Better solutions would be:
-      // 1. Have the server send the previous post id so that we can match this up with an older window if it exists
-      // 2. Return "non-windowed" posts with first window -- would mostly work but could cause missing posts at times.
-      // TODO: Implement one of those solutions.
-      await syncPosts({
+      // insert the reply
+      await db.insertChannelPosts({
         channelId: update.post.channelId,
-        cursor: update.post.id,
-        mode: 'around',
-        count: 3,
+        posts: [update.post],
+        older: channelCursors.get(update.post.channelId),
       });
+      channelCursors.set(update.post.channelId, update.post.id);
       break;
     case 'updateWriters':
       await db.updateChannel({
@@ -653,12 +664,21 @@ export const clearSyncQueue = () => {
   syncQueue.clear();
 };
 
-export const start = async () => {
-  // api.subscribeUnreads(handleUnreadUpdate);
-  api.subscribeToActivity(handleActivityUpdate());
-  api.subscribeGroups(handleGroupUpdate);
-  api.subscribeToChannelsUpdates(handleChannelsUpdate);
-  api.subscribeToChatUpdates(handleChatUpdate);
-  api.subscribeToContactUpdates(handleContactUpdate);
-  useStorage.getState().start();
+export const initializeStorage = () => {
+  return syncQueue.add('initialize storage', async () => {
+    return useStorage.getState().start();
+  });
+};
+
+export const setupSubscriptions = async () => {
+  return syncQueue.add('setup subscriptions', async () => {
+    await Promise.all([
+      // api.subscribeUnreads(handleUnreadUpdate),
+      api.subscribeToActivity(handleActivityUpdate()),
+      api.subscribeGroups(handleGroupUpdate),
+      api.subscribeToChannelsUpdates(handleChannelsUpdate),
+      api.subscribeToChatUpdates(handleChatUpdate),
+      api.subscribeToContactUpdates(handleContactUpdate),
+    ]);
+  });
 };

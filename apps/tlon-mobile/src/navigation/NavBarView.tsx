@@ -9,7 +9,7 @@ const NavBarView = (props: { navigation: any }) => {
   const isRouteActive = (routeName: string) => {
     return state.routes[state.index].name === routeName;
   };
-  const { data: unreadCount } = store.useAllUnreadsCounts();
+  const { data: unreadCount } = store.useUnreadsCount();
   const currentUserId = useCurrentUserId();
   const { data: contact, isLoading } = store.useContact({ id: currentUserId });
 
