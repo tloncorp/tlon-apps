@@ -1619,11 +1619,6 @@ export function useDeleteDMReplyReactMutation() {
   });
 }
 
-export function useIsDmUnread(whom: string) {
-  const unread = useUnread(getKey(whom));
-  return Boolean(unread && unread.status !== 'read');
-}
-
 const selChats = (s: ChatStore) => s.chats;
 export function useCheckDmUnread() {
   const chats = useChatStore(selChats);

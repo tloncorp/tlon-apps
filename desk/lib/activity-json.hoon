@@ -57,7 +57,7 @@
       :~  'thread/'
           (nest:enjs:gj channel.s)
           '/'
-          (msg-id id.key.s)
+          (scot %ud time.key.s)
       ==
     ::
         %dm-thread

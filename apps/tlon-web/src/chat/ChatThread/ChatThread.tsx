@@ -78,14 +78,13 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
-  const id = note
-    ? `${note.essay.author}/${formatUd(unixToDa(note.essay.sent))}`
-    : '';
+  const time = formatUd(bigInt(idTime!));
+  const id = note ? `${note.essay.author}/${time}` : '';
   const msgKey = {
     id,
     time: formatUd(bigInt(idTime!)),
   };
-  const chatUnreadsKey = getThreadKey(flag, id);
+  const chatUnreadsKey = getThreadKey(flag, time);
   const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));

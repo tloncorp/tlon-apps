@@ -9,7 +9,7 @@ import {
 } from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
 import { formatUd, unixToDa } from '@urbit/aura';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
 import debounce from 'lodash/debounce';
@@ -128,8 +128,11 @@ const ReplyMessage = React.memo<
       const isThreadOnMobile = isMobile;
       const id = !whomIsFlag(whom)
         ? seal.id
-        : `${memo.author}/${formatUd(unixToDa(memo.sent))}`;
-      const threadKey = getThreadKey(whom, parent.id);
+        : `${memo.author}/${formatUd(bigInt(seal.id))}`;
+      const threadKey = getThreadKey(
+        whom,
+        !whomIsFlag(whom) ? seal.id : parent.time
+      );
       const chatInfo = useChatInfo(`${whom}/${parent.id}`);
       const unread = useUnread(threadKey);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);

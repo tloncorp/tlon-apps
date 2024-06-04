@@ -66,7 +66,7 @@ export default function DmOptions({
   const chatUnread = useUnread(getKey(whom));
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const hasNotify = !!chatUnread?.notify;
-  const hasActivity = pending || chatUnread?.status !== 'read';
+  const hasActivity = pending || chatUnread?.status === 'unread';
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();

@@ -119,7 +119,7 @@
     ?~  post  ~
     =/  key=message-key:a
       :_  time
-      [author.u.post sent.u.post]
+      [author.u.post time]
     =/  mention
       (was-mentioned:ch-utils content.u.post our.bowl)
     `[time %post key nest group content.u.post mention]
@@ -138,10 +138,10 @@
     |=  [=time =reply:c]
     =/  key=message-key:a
       :_  time
-      [author.reply sent.reply]
+      [author.reply time]
     =/  parent=message-key:a
       :_  id-post
-      [author.u.u.post sent.u.u.post]
+      [author.u.u.post id-post]
     =/  mention
       (was-mentioned:ch-utils content.reply our.bowl)
     [time %reply key parent nest group content.reply mention]
@@ -279,10 +279,10 @@
   ::  /all: unified feed (equality of opportunity)
   ::
       [%x %all ~]
-    ``activity-stream+!>((tap:on-event:a stream:base))
+    ``activity-stream+!>((gas:on-event:a *stream:a (tap:on-event:a stream:base)))
   ::
       [%x %all start=@ count=@ ~]
-    =-  ``activity-stream+!>(-)
+    =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
   ::
   ::  /each: unified feed (equality of outcome)
@@ -292,7 +292,7 @@
   ::
       [%x %each start=@ count=@ ~]
     =;  =stream:a
-      ``activity-stream+!>((tap:on-event:a -))
+      ``activity-stream+!>(-)
     =/  start  (slav %da start.pole)
     =/  count  (slav %ud count.pole)
     %-  ~(rep by indices)
@@ -323,12 +323,13 @@
     ?~  dice=(~(get by indices) source)  [~ ~]
     ?+  rest  ~
         ~
-      ``activity-stream+!>((tap:on-event:a stream.u.dice))
+      ``activity-stream+!>(stream.u.dice)
     ::
         [start=@ count=@ ~]
       =/  start  (slav %da start.rest)
       =/  count  (slav %ud count.rest)
-      ``activity-stream+!>((tab:on-event:a stream.u.dice `start count))
+      =/  ls  (tab:on-event:a stream.u.dice `start count)
+      ``activity-stream+!>((gas:on-event:a *stream:a ls))
     ==
   ::  /event: individual events
   ::
@@ -409,12 +410,12 @@
 ++  update-index
   |=  [=source:a new=index:a new-floor=?]
   =?  new  new-floor
-    (update-floor source new)
+    (update-floor new)
   =.  indices
     (~(put by indices) source new)
+  =/  summary  (summarize-unreads source new)
   =.  activity
-    %+  ~(put by activity)  source
-    (summarize-unreads source new)
+    (~(put by activity) source summary)
   (give-unreads source)
 ++  get-volumes
   |=  =source:a
@@ -464,14 +465,11 @@
   ==
 ::
 ++  find-floor
-  |=  =source:a
+  |=  [orig=stream:a =reads:a]
   ^-  (unit time)
-  ?.  (~(has by indices) source)  ~
   ::  starting at the last-known first-unread location (floor), walk towards
   ::  the present, to find the new first-unread location (new floor)
   ::
-  =/  [orig=stream:a =reads:a]
-    (~(got by indices) source)
   ::  slice off the earlier part of the stream, for efficiency
   ::
   =/  =stream:a  (lot:on-event:a orig `floor.reads ~)
@@ -494,9 +492,9 @@
   ==
 ::
 ++  update-floor
-  |=  [=source:a =index:a]
+  |=  =index:a
   ^-  index:a
-  =/  new-floor=(unit time)  (find-floor source)
+  =/  new-floor=(unit time)  (find-floor index)
   ?~  new-floor  index
   index(floor.reads u.new-floor)
 ::
@@ -557,7 +555,8 @@
 ++  give-unreads
   |=  =source:a
   ^+  cor
-  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source (~(got by activity) source)]))
+  =/  summary  (~(got by activity) source)
+  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source summary]))
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
@@ -603,7 +602,6 @@
   |-
   =;  unread-stream=stream:a
     =/  children  (get-children source)
-    =-  ~?  =(%group -.source)  -  -
     (stream-to-unreads unread-stream floor.reads children source)
   %+  gas:on-event:a  *stream:a
   %+  murn
@@ -627,7 +625,6 @@
       notify  &(notify.sum notify.as)
       newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
-  ~?  =(%group -.source)  ['children' children cs]
   =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
   =/  main  0

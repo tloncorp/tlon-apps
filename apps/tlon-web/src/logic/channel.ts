@@ -113,12 +113,11 @@ function channelUnread(nest: string, unreads: Record<string, Unread>) {
     return false;
   }
 
-  return unread.status !== 'read';
+  return unread.status === 'unread';
 }
 
 export function useCheckChannelUnread() {
   const unreads = useUnreads();
-
   const isChannelUnread = useCallback(
     (nest: string) => {
       return channelUnread(nest, unreads);
