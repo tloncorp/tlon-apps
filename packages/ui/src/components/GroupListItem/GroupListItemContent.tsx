@@ -1,9 +1,11 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 
 import { SizableText, Stack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
+import { Icon } from '../Icon';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function GroupListItemContent({
@@ -12,6 +14,7 @@ export default function GroupListItemContent({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) {
+  const isMuted = store.useGroupIsMuted(model);
   const { isPending, statusDisplay, isErrored } = useMemo(
     () => getDisplayInfo(model),
     [model]
@@ -30,7 +33,10 @@ export default function GroupListItemContent({
         imageUrl={model.iconImage ?? undefined}
       />
       <ListItem.MainContent>
-        <ListItem.Title>{model.title}</ListItem.Title>
+        <ListItem.Title>
+          {model.title}{' '}
+          {isMuted ? <Icon type="Notifications" size="$m" /> : null}
+        </ListItem.Title>
         {!isPending && model.lastPost ? (
           <ListItem.Subtitle>
             <ContactName
@@ -54,7 +60,7 @@ export default function GroupListItemContent({
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
           {model.unreadCount && model.unreadCount > 0 ? (
-            <ListItem.Count>{model.unreadCount}</ListItem.Count>
+            <ListItem.Count muted={isMuted}>{model.unreadCount}</ListItem.Count>
           ) : null}
         </ListItem.EndContent>
       )}

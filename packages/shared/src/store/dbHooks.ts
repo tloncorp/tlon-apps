@@ -107,6 +107,24 @@ export const useChannelIsMuted = (channel: db.Channel): boolean => {
   return isMuted;
 };
 
+export const useGroupIsMuted = (group: db.Group): boolean => {
+  const { data: volumeSettings } = useVolumeSettings();
+
+  const isMuted = useMemo(() => {
+    const sourceId = `group/${group.id}`;
+    if (volumeSettings) {
+      const volumeMap = volumeSettings[sourceId];
+      if (volumeMap) {
+        return getLevelFromVolumeMap(volumeMap) === 'soft';
+      }
+    }
+
+    return false;
+  }, [group, volumeSettings]);
+
+  return isMuted;
+};
+
 export const useDefaultNotificationLevel = (): NotificationLevel => {
   const { data: volumeSettings } = useVolumeSettings();
   if (volumeSettings) {
