@@ -1,5 +1,5 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { ColorProp, XStack } from 'tamagui';
+import { ColorProp, View, XStack } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
@@ -28,25 +28,20 @@ export default function ChannelListItem({
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
         {model.lastPost && (
-          <XStack gap="$s" alignItems="center">
-            {model.type === 'dm' && (
-              <Icon type={'ChannelTalk'} color="$secondaryText" size="$s" />
-            )}
-            <ListItem.Subtitle>
-              {model.type !== 'dm' ? (
-                <>
-                  <ContactName
-                    showNickname
-                    userId={model.lastPost.authorId}
-                    size="$s"
-                    color="$secondaryText"
-                  />
-                  :{' '}
-                </>
-              ) : null}
-              {model.lastPost.textContent ?? ''}
-            </ListItem.Subtitle>
-          </XStack>
+          <ListItem.Subtitle>
+            {model.type !== 'dm' ? (
+              <>
+                <ContactName
+                  showNickname
+                  userId={model.lastPost.authorId}
+                  size="$s"
+                  color="$secondaryText"
+                />
+                :{' '}
+              </>
+            ) : null}
+            {model.lastPost.textContent ?? ''}
+          </ListItem.Subtitle>
         )}
       </ListItem.MainContent>
       {model.isDmInvite ? (
@@ -83,11 +78,12 @@ function ChannelListItemIcon({
     );
   } else if (model.type === 'dm') {
     return (
-      <ListItem.AvatarIcon
-        backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId ?? model.id}
-        contact={model.members?.[0]?.contact}
-      />
+      <View borderRadius="$2xl" overflow="hidden">
+        <ListItem.AvatarIcon
+          contactId={model.members?.[0]?.contactId ?? model.id}
+          contact={model.members?.[0]?.contact}
+        />
+      </View>
     );
   } else {
     if (model.iconImage) {
