@@ -279,7 +279,7 @@
   ::  /all: unified feed (equality of opportunity)
   ::
       [%x %all ~]
-    ``activity-stream+!>((gas:on-event:a *stream:a (tap:on-event:a stream:base)))
+    ``activity-stream+!>(stream:base)
   ::
       [%x %all start=@ count=@ ~]
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
@@ -413,7 +413,10 @@
     (update-floor new)
   =.  indices
     (~(put by indices) source new)
-  =/  summary  (summarize-unreads source new)
+  (refresh-summary source)
+++  refresh-summary
+  |=  =source:a
+  =/  summary  (summarize-unreads source (get-index source))
   =.  activity
     (~(put by activity) source summary)
   (give-unreads source)
@@ -531,27 +534,22 @@
     index(reads [?~(latest now.bowl time.u.latest) ~])
   ==
 ::
+++  get-index
+  |=  =source:a
+  (~(gut by indices) source *index:a)
 ++  update-reads
   |=  [=source:a updater=$-(index:a index:a)]
   ^+  cor
-  =/  sources=(list source:a)
-    %+  welp  ~[source]
-    ?+  -.source  ~
-      %channel    ~[[%group group.source]]
-      %dm-thread  ~[[%dm whom.source]]
-    ::
-        %thread
-      :~  [%group group.source]
-          [%channel channel.source group.source]
-      ==
-    ==
-  |-
-  ?~  sources  cor
-  =/  [src=source:a rest=(list source:a)]  sources
-  =/  indy  (~(gut by indices) src *index:a)
-  =/  new  (updater indy)
-  =.  cor  (update-index src new &)
-  $(sources rest)
+  =/  new  (updater (get-index source))
+  =.  cor  (update-index source new &)
+  ?+  -.source  cor
+    %channel  (refresh-summary [%group group.source])
+    %dm-thread  (refresh-summary [%dm whom.source])
+  ::
+      %thread
+    =.  cor  (refresh-summary [%channel channel.source group.source])
+    (refresh-summary [%group group.source])
+  ==
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -622,7 +620,7 @@
       (~(gut by activity) source (summarize-unreads source index))
     %=  sum
       count  (^add count.sum count.as)
-      notify  &(notify.sum notify.as)
+      notify  |(notify.sum notify.as)
       newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
   =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)

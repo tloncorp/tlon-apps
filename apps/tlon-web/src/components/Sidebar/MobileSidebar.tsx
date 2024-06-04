@@ -6,13 +6,13 @@ import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
-import { useCombinedGroupsUnread } from '@/logic/useIsGroupUnread';
 import { useIsDark } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useHasUnreadMessages } from '@/state/chat';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
+import { useCombinedGroupUnreads } from '@/state/unreads';
 
 import Avatar from '../Avatar';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
@@ -23,7 +23,7 @@ import MessagesIcon from '../icons/MessagesIcon';
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { groupsLocation } = useLocalState.getState();
-  const groupsUnread = useCombinedGroupsUnread();
+  const groupsUnread = useCombinedGroupUnreads();
 
   const onSingleClick = () => {
     if (isNativeApp()) {

@@ -60,7 +60,6 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   } = useInfinitePosts(nest, scrollToId);
   const { markRead } = useMarkChannelRead(nest);
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const whomRef = useRef(whom);
   const fetchingNewest =
     isFetching && (!isFetchingNextPage || !isFetchingPreviousPage);
   const [showUnreadBanner, setShowUnreadBanner] = useState(false);
@@ -151,15 +150,10 @@ const ChatWindow = React.memo(function ChatWindowRaw({
    * we saw the unread marker
    */
   useEffect(() => {
-    if (whomRef.current === whom) {
-      return;
-    }
-
     let timeout = 0;
     setShowUnreadBanner(false);
     if (!fetchingNewest) {
       timeout = setTimeout(() => {
-        whomRef.current = whom;
         setShowUnreadBanner(true);
       }, 250) as unknown as number;
     }
@@ -167,7 +161,7 @@ const ChatWindow = React.memo(function ChatWindowRaw({
     return () => {
       clearTimeout(timeout);
     };
-  }, [whom, fetchingNewest]);
+  }, [fetchingNewest]);
 
   // read the messages once navigated away
   useEffect(() => {

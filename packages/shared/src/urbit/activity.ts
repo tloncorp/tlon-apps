@@ -258,7 +258,7 @@ export function sourceToString(source: Source, stripPrefix = false): string {
   }
 
   if ('thread' in source) {
-    const key = `${source.thread.channel}/${source.thread.key.id}`;
+    const key = `${source.thread.channel}/${source.thread.key.time}`;
     return stripPrefix ? key : `thread/${key}`;
   }
 

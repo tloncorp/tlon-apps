@@ -43,7 +43,7 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
 
   events.forEach((event) => {
     const { source, activity } = event.read;
-    if ('base' in source || 'group' in source) {
+    if ('base' in source) {
       return;
     }
 
