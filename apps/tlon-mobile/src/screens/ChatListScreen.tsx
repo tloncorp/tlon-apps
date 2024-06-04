@@ -7,9 +7,8 @@ import {
   ChatOptionsSheet,
   ContactsProvider,
   GroupPreviewSheet,
-  Icon,
-  ScreenHeader,
-  Spinner,
+  ScreenLoader,
+  ScreenMask,
   StartDmSheet,
   View,
 } from '@tloncorp/ui';
@@ -130,16 +129,8 @@ export default function ChatListScreen(
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
-        <ScreenHeader
-          title={<Icon type="TBlock" size="$m" flex={1} rotate="-6deg" />}
-          rightControls={
-            <>
-              {isFetchingInitData && <Spinner />}
-              <Icon type="Add" onPress={() => setAddGroupOpen(true)} />
-              <Icon type="Messages" onPress={() => setStartDmOpen(true)} />
-            </>
-          }
-        />
+        <ScreenMask />
+        {isFetchingInitData && <ScreenLoader />}
         {chats && (chats.unpinned.length || !isFetchingInitData) ? (
           <ChatList
             pinned={resolvedChats.pinned}

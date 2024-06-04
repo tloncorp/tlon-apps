@@ -26,7 +26,7 @@ export function ScreenLoader() {
         alignItems="center"
       >
         <SizableText size={'$s'} color={'$primaryText'}>
-          Loading...
+          Loading…
         </SizableText>
       </View>
     </Animated.View>

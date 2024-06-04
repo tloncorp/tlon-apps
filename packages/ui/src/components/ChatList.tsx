@@ -48,7 +48,7 @@ export function ChatList({
     {
       gap: '$s',
       paddingHorizontal: '$l',
-      paddingTop: top + 66,
+      paddingTop: top,
       paddingBottom: navHeight + bottom,
     },
     { resolveValues: 'value' }
