@@ -17,6 +17,7 @@
 =|  state-1
 =*  state  -
 ::
+:: =/  logs-enabled  &
 %-  agent:dbug
 %+  verb  |
 ^-  agent:gall
@@ -68,6 +69,7 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  from-self  =(our src):bowl
+:: ++  log   |=(=tang ?:(logs-enabled (slog tang) same))
 ::
 ++  init
   ^+  cor
@@ -406,6 +408,7 @@
   =/  =index:a  (~(gut by indices) source *index:a)
   =/  new=_stream.index
     (put:on-event:a stream.index time-id event)
+  :: %-  (log 'adding to' >source< ~)
   (update-index source index(stream new) |)
 ++  update-index
   |=  [=source:a new=index:a new-floor=?]
@@ -413,7 +416,11 @@
     (update-floor new)
   =.  indices
     (~(put by indices) source new)
-  =/  summary  (summarize-unreads source new)
+  (refresh-summary source)
+++  refresh-summary
+  |=  =source:a
+  :: %-  (log 'refreshing' >source< ~)
+  =/  summary  (summarize-unreads source (get-index source))
   =.  activity
     (~(put by activity) source summary)
   (give-unreads source)
@@ -531,27 +538,24 @@
     index(reads [?~(latest now.bowl time.u.latest) ~])
   ==
 ::
+++  get-index
+  |=  =source:a
+  (~(gut by indices) source *index:a)
 ++  update-reads
   |=  [=source:a updater=$-(index:a index:a)]
   ^+  cor
-  =/  sources=(list source:a)
-    %+  welp  ~[source]
-    ?+  -.source  ~
-      %channel    ~[[%group group.source]]
-      %dm-thread  ~[[%dm whom.source]]
-    ::
-        %thread
-      :~  [%group group.source]
-          [%channel channel.source group.source]
-      ==
-    ==
-  |-
-  ?~  sources  cor
-  =/  [src=source:a rest=(list source:a)]  sources
-  =/  indy  (~(gut by indices) src *index:a)
-  =/  new  (updater indy)
-  =.  cor  (update-index src new &)
-  $(sources rest)
+  =/  new  (updater (get-index source))
+  :: %-  (log >['updating reads for' source]< ~)
+  =.  cor  (update-index source new &)
+  :: %-  (log 'refreshing children' ~)
+  ?+  -.source  cor
+    %channel  (refresh-summary [%group group.source])
+    %dm-thread  (refresh-summary [%dm whom.source])
+  ::
+      %thread
+    =.  cor  (refresh-summary [%channel channel.source group.source])
+    (refresh-summary [%group group.source])
+  ==
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -622,9 +626,10 @@
       (~(gut by activity) source (summarize-unreads source index))
     %=  sum
       count  (^add count.sum count.as)
-      notify  &(notify.sum notify.as)
+      notify  |(notify.sum notify.as)
       newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
     ==
+  :: %-  (log >['children summary' source cs]< ~)
   =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
   =/  main  0
@@ -636,6 +641,7 @@
   ::  if reply, update thread state
   |-
   ?~  stream
+    :: =-  %-  (log >['source summary' source -]<)  -
     [newest total notified ?~(last ~ `[u.last main main-notified]) children]
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
