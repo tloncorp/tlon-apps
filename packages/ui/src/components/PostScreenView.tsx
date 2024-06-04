@@ -143,9 +143,9 @@ export function PostScreenView({
                       showReplies={false}
                       onPressImage={handleGoToImage}
                       onDividerSeen={markRead}
-                      unreadCount={parentPost?.threadActivity?.count}
+                      unreadCount={parentPost?.threadUnread?.count}
                       firstUnreadId={
-                        parentPost?.threadActivity?.firstUnreadPostId
+                        parentPost?.threadUnread?.firstUnreadPostId
                       }
                     />
                   )
@@ -168,8 +168,8 @@ export function PostScreenView({
                     storeDraft={storeDraft}
                     clearDraft={clearDraft}
                     getDraft={getDraft}
-                    unreadCount={parentPost.threadActivity?.count}
-                    firstUnreadId={parentPost.threadActivity?.firstUnreadPostId}
+                    unreadCount={parentPost.threadUnread?.count}
+                    firstUnreadId={parentPost.threadUnread?.firstUnreadPostId}
                   />
                 )}
                 {negotiationMatch && !editingPost && channel && canWrite && (

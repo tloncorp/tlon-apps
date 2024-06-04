@@ -137,7 +137,7 @@ export const useUnreads = (options: db.GetUnreadsOptions) => {
   });
 };
 
-export const useThreadActivity = ({
+export const useThreadUnread = ({
   channelId,
   postId,
 }: {

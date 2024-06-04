@@ -275,6 +275,7 @@ export function Channel({
                                     editingPost={editingPost}
                                     setEditingPost={setEditingPost}
                                     editPost={editPost}
+                                    onDividerSeen={markRead}
                                     channelType={channel.type}
                                     channelId={channel.id}
                                     firstUnreadId={

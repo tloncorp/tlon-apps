@@ -1259,7 +1259,7 @@ export const getChannelPosts = createReadQuery(
     const relationConfig = {
       author: true,
       reactions: true,
-      threadActivity: true,
+      threadUnread: true,
     } as const;
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
@@ -1823,7 +1823,7 @@ export const getPostWithRelations = createReadQuery(
         with: {
           author: true,
           reactions: true,
-          threadActivity: true,
+          threadUnread: true,
         },
       })
       .then(returnNullIfUndefined);

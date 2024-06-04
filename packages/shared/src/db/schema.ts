@@ -624,7 +624,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     references: [posts.id],
     relationName: 'parent',
   }),
-  threadActivity: one(threadUnreads, {
+  threadUnread: one(threadUnreads, {
     fields: [posts.id],
     references: [threadUnreads.threadId],
   }),

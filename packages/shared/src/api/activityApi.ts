@@ -179,7 +179,10 @@ export const readThread = async ({
       thread: {
         channel: channel.id,
         group: channel.groupId!,
-        key: { id: `${parentPost.authorId}/${parentPost.id}`, time: post.id },
+        key: {
+          id: `${parentPost.authorId}/${parentPost.id}`,
+          time: parentPost.id,
+        },
       },
     };
   }
@@ -244,7 +247,7 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
 
     if (activityId === 'thread' || activityId === 'dm-thread') {
       const channelId = rest.slice(0, -2).join('/');
-      const threadId = rest.slice(-2).join('/');
+      const threadId = rest[rest.length - 1];
       threadActivity.push(
         toThreadActivity(
           channelId,
