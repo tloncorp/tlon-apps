@@ -24,7 +24,7 @@ export const useInitialSync = () => {
         Promise.all([initializeStorage(), syncSettings()]);
       } catch (e) {
         if (!(e instanceof QueueClearedError)) {
-          console.log('SYNC ERROR', e);
+          console.error('SYNC ERROR', e);
         }
       }
       return true;

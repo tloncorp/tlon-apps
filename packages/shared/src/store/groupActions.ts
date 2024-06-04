@@ -66,7 +66,7 @@ export async function rejectGroupInvitation(group: db.Group) {
   } catch (e) {
     console.error('Failed to reject group invitation', e);
     // rollback optimistic update
-    await db.insertGroups([group]);
+    await db.insertGroups({ groups: [group] });
   }
 }
 

@@ -28,8 +28,12 @@ import { ChannelInit } from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { Rank, desig } from '../urbit';
-import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
-import { createReadQuery, createWriteQuery } from './query';
+import {
+  QueryCtx,
+  createReadQuery,
+  createWriteQuery,
+  withTransactionCtx,
+} from './query';
 import {
   channelWriters as $channelWriters,
   channels as $channels,
@@ -91,8 +95,8 @@ export interface GetGroupsOptions {
 
 export const insertSettings = createWriteQuery(
   'insertSettings',
-  async (settings: Settings) => {
-    return client
+  async (settings: Settings, ctx: QueryCtx) => {
+    return ctx.db
       .insert($settings)
       .values(settings)
       .onConflictDoUpdate({
@@ -105,8 +109,8 @@ export const insertSettings = createWriteQuery(
 
 export const getSettings = createReadQuery(
   'getSettings',
-  async (userId: string) => {
-    return client.query.settings.findFirst({
+  async (userId: string, ctx: QueryCtx) => {
+    return ctx.db.query.settings.findFirst({
       where(fields) {
         return eq(fields.userId, desig(userId));
       },
@@ -117,8 +121,8 @@ export const getSettings = createReadQuery(
 
 export const getGroupPreviews = createReadQuery(
   'getGroupPreviews',
-  async (groupIds: string[]) => {
-    return client.query.groups.findMany({
+  async (groupIds: string[], ctx: QueryCtx) => {
+    return ctx.db.query.groups.findMany({
       where: inArray($groups.id, groupIds),
     });
   },
@@ -127,12 +131,11 @@ export const getGroupPreviews = createReadQuery(
 
 export const getGroups = createReadQuery(
   'getGroups',
-  async ({
-    includeUnjoined,
-    includeLastPost,
-    includeUnreads,
-  }: GetGroupsOptions = {}): Promise<Group[]> => {
-    const unreadCounts = client
+  async (
+    { includeUnjoined, includeLastPost, includeUnreads }: GetGroupsOptions,
+    ctx: QueryCtx
+  ): Promise<Group[]> => {
+    const unreadCounts = ctx.db
       .select({
         groupId: $channels.groupId,
         count: count().as('count'),
@@ -142,7 +145,7 @@ export const getGroups = createReadQuery(
       .groupBy($channels.groupId)
       .having(gt($unreads.count, 0))
       .as('unreadCounts');
-    const query = client
+    const query = ctx.db
       .select({
         ...getTableColumns($groups),
         ...(includeUnreads ? { unreadCount: unreadCounts.count } : undefined),
@@ -171,8 +174,8 @@ export const getGroups = createReadQuery(
 
 export const getPendingChats = createReadQuery(
   'getPendingChats',
-  async () => {
-    const pendingGroups = await client.query.groups.findMany({
+  async (ctx: QueryCtx) => {
+    const pendingGroups = await ctx.db.query.groups.findMany({
       where: or(
         eq($groups.haveInvite, true),
         isNotNull($groups.joinStatus),
@@ -180,7 +183,7 @@ export const getPendingChats = createReadQuery(
       ),
     });
 
-    const pendingChannels = await client.query.channels.findMany({
+    const pendingChannels = await ctx.db.query.channels.findMany({
       where: eq($channels.isDmInvite, true),
       with: {
         members: {
@@ -198,8 +201,8 @@ export const getPendingChats = createReadQuery(
 
 export const getChats = createReadQuery(
   'getChats',
-  async (): Promise<Channel[]> => {
-    const partitionedGroupsQuery = client
+  async (ctx: QueryCtx): Promise<Channel[]> => {
+    const partitionedGroupsQuery = ctx.db
       .select({
         ...getTableColumns($channels),
         rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY ${$channels.lastPostAt} DESC)`.as(
@@ -210,12 +213,12 @@ export const getChats = createReadQuery(
       .where(and(isNotNull($channels.groupId)))
       .as('q');
 
-    const groupChannels = client
+    const groupChannels = ctx.db
       .select()
       .from(partitionedGroupsQuery)
       .where(eq(partitionedGroupsQuery.rn, 1));
 
-    const allChannels = client
+    const allChannels = ctx.db
       .select({
         ...getTableColumns($channels),
         rn: sql`0`.as('rn'),
@@ -225,7 +228,7 @@ export const getChats = createReadQuery(
       .union(groupChannels)
       .as('ac');
 
-    const result = await client
+    const result = await ctx.db
       .select({
         ...allQueryColumns(allChannels),
         group: getTableColumns($groups),
@@ -290,11 +293,14 @@ export const getChats = createReadQuery(
 
 export const insertGroups = createWriteQuery(
   'insertGroups',
-  async (groupData: Group[], overWrite: boolean = true) => {
-    await client.transaction(async (tx) => {
-      for (const group of groupData) {
+  async (
+    { groups, overWrite = true }: { groups: Group[]; overWrite?: boolean },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      for (const group of groups) {
         if (overWrite) {
-          await tx
+          await txCtx.db
             .insert($groups)
             .values(group)
             .onConflictDoUpdate({
@@ -311,10 +317,10 @@ export const insertGroups = createWriteQuery(
               ),
             });
         } else {
-          await tx.insert($groups).values(group).onConflictDoNothing();
+          await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
         if (group.channels?.length) {
-          await tx
+          await txCtx.db
             .insert($channels)
             .values(group.channels)
             .onConflictDoUpdate({
@@ -331,13 +337,13 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.flaggedPosts?.length) {
-          await tx
+          await txCtx.db
             .insert($groupFlaggedPosts)
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
         if (group.navSections) {
-          await tx
+          await txCtx.db
             .insert($groupNavSections)
             .values(
               group.navSections.map((s) => ({
@@ -362,7 +368,7 @@ export const insertGroups = createWriteQuery(
             (s) => s.channels
           );
           if (navSectionChannels.length) {
-            await tx
+            await txCtx.db
               .insert($groupNavSectionChannels)
               .values(
                 navSectionChannels.map((s) => ({
@@ -375,7 +381,7 @@ export const insertGroups = createWriteQuery(
           }
         }
         if (group.roles) {
-          await tx
+          await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
             .onConflictDoUpdate({
@@ -390,7 +396,7 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.members) {
-          await tx
+          await txCtx.db
             .insert($chatMembers)
             .values(group.members)
             .onConflictDoNothing();
@@ -412,14 +418,14 @@ export const insertGroups = createWriteQuery(
             });
           });
           if (memberRoles.length) {
-            await tx
+            await txCtx.db
               .insert($chatMemberGroupRoles)
               .values(memberRoles)
               .onConflictDoNothing();
           }
         }
       }
-      await setLastPosts(tx);
+      await setLastPosts(txCtx);
     });
   },
   [
@@ -435,30 +441,30 @@ export const insertGroups = createWriteQuery(
 
 export const updateGroup = createWriteQuery(
   'updateGroup',
-  async (group: Partial<Group> & { id: string }) => {
-    return client.update($groups).set(group).where(eq($groups.id, group.id));
+  async (group: Partial<Group> & { id: string }, ctx: QueryCtx) => {
+    return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
   ['groups']
 );
 
 export const deleteGroup = createWriteQuery(
   'deleteGroup',
-  async (groupId: string) => {
-    return client.delete($groups).where(eq($groups.id, groupId));
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.delete($groups).where(eq($groups.id, groupId));
   },
   ['groups', 'channels']
 );
 
 export const insertUnjoinedGroups = createWriteQuery(
   'insertUnjoinedGroups',
-  async (groups: Group[]) => {
-    return client.transaction(async (tx) => {
+  async (groups: Group[], ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
       // ensure we never delete metadata if we get a partial for some reason
       // during the join process
-      const existingUnjoined = await getUnjoinedGroupMeta(tx);
+      const existingUnjoined = await getUnjoinedGroupMeta(txCtx);
       const compositeUnjoined = getCompositeGroups(groups, existingUnjoined);
 
-      await tx
+      await txCtx.db
         .insert($groups)
         .values(compositeUnjoined)
         .onConflictDoUpdate({
@@ -473,8 +479,8 @@ export const insertUnjoinedGroups = createWriteQuery(
 
 export const getUnjoinedGroupMeta = createReadQuery(
   'getUnjoinedGroupMeta',
-  async (tx: AnySqliteTransaction | AnySqliteDatabase) => {
-    return tx.query.groups.findMany({
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.groups.findMany({
       where: eq($groups.currentUserIsMember, false),
       columns: GROUP_META_COLUMNS,
     });
@@ -484,8 +490,8 @@ export const getUnjoinedGroupMeta = createReadQuery(
 
 export const getUnjoinedGroups = createReadQuery(
   'getUnjoinedGroups',
-  async () => {
-    return client.query.groups.findMany({
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.groups.findMany({
       where: eq($groups.currentUserIsMember, false),
     });
   },
@@ -500,9 +506,10 @@ export const insertFlaggedPosts = createWriteQuery(
       postId: string;
       channelId: string;
       flaggedByContactId: string;
-    }[]
+    }[],
+    ctx: QueryCtx
   ) => {
-    return client
+    return ctx.db
       .insert($groupFlaggedPosts)
       .values(content)
       .onConflictDoNothing();
@@ -512,8 +519,8 @@ export const insertFlaggedPosts = createWriteQuery(
 
 export const getFlaggedPosts = createReadQuery(
   'getFlaggedPosts',
-  async (groupId: string) => {
-    return client.query.groupFlaggedPosts.findMany({
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.groupFlaggedPosts.findMany({
       where: eq($groupFlaggedPosts.groupId, groupId),
     });
   },
@@ -522,14 +529,14 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  (channelsInit: ChannelInit[]) => {
+  (channelsInit: ChannelInit[], ctx: QueryCtx) => {
     const writers = channelsInit.flatMap((chanInit) =>
       chanInit.writers.map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
-    return client
+    return ctx.db
       .insert($channelWriters)
       .values(writers)
       .onConflictDoUpdate({
@@ -542,8 +549,8 @@ export const insertChannelPerms = createWriteQuery(
 
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
-  ({ parentId }: { parentId: string }) => {
-    return client.query.posts.findMany({
+  ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
       where: eq($posts.parentId, parentId),
       with: {
         author: true,
@@ -557,8 +564,8 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  ({ parentId }: { parentId: string }) => {
-    return client.query.threadUnreads.findFirst({
+  ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.threadUnreads.findFirst({
       where: eq($threadUnreads.threadId, parentId),
     });
   },
@@ -567,16 +574,19 @@ export const getThreadUnreadState = createReadQuery(
 
 export const getGroupRoles = createReadQuery(
   'getGroupRoles',
-  async () => {
-    return client.query.groupRoles.findMany();
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.groupRoles.findMany();
   },
   ['groupRoles']
 );
 
 export const getChatMember = createReadQuery(
   'getChatMember',
-  async ({ chatId, contactId }: { chatId: string; contactId: string }) => {
-    return client.query.chatMembers
+  async (
+    { chatId, contactId }: { chatId: string; contactId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.chatMembers
       .findFirst({
         where: and(
           eq($chatMembers.chatId, chatId),
@@ -593,16 +603,19 @@ export const getChatMember = createReadQuery(
 
 export const addChatMembers = createWriteQuery(
   'addChatMembers',
-  async ({
-    chatId,
-    contactIds,
-    type,
-  }: {
-    chatId: string;
-    contactIds: string[];
-    type: 'group' | 'channel';
-  }) => {
-    return client.transaction(async (tx) => {
+  async (
+    {
+      chatId,
+      contactIds,
+      type,
+    }: {
+      chatId: string;
+      contactIds: string[];
+      type: 'group' | 'channel';
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.transaction(async (tx) => {
       await tx
         .insert($chatMembers)
         .values(
@@ -620,8 +633,8 @@ export const addChatMembers = createWriteQuery(
 
 export const addGroupInvites = createWriteQuery(
   'addGroupInvites',
-  async (invites: { groupId: string; contactIds: string[] }) => {
-    return client
+  async (invites: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db
       .insert($groupMemberInvites)
       .values(
         invites.contactIds.map((contactId) => ({
@@ -636,8 +649,8 @@ export const addGroupInvites = createWriteQuery(
 
 export const getGroupInvites = createReadQuery(
   'getGroupInvites',
-  async (groupId: string) => {
-    return client.query.groupMemberInvites.findMany({
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.groupMemberInvites.findMany({
       where: eq($groupMemberInvites.groupId, groupId),
     });
   },
@@ -646,8 +659,8 @@ export const getGroupInvites = createReadQuery(
 
 export const deleteGroupInvites = createWriteQuery(
   'deleteGroupInvites',
-  async (invites: { groupId: string; contactIds: string[] }) => {
-    return client
+  async (invites: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db
       .delete($groupMemberInvites)
       .where(
         and(
@@ -661,8 +674,8 @@ export const deleteGroupInvites = createWriteQuery(
 
 export const addGroupMemberBans = createWriteQuery(
   'addGroupMemberBans',
-  async (bans: { groupId: string; contactIds: string[] }) => {
-    return client
+  async (bans: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db
       .insert($groupMemberBans)
       .values(
         bans.contactIds.map((contactId) => ({
@@ -677,8 +690,8 @@ export const addGroupMemberBans = createWriteQuery(
 
 export const getGroupMemberBans = createReadQuery(
   'getGroupMemberBans',
-  async (groupId: string) => {
-    return client.query.groupMemberBans.findMany({
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.groupMemberBans.findMany({
       where: eq($groupMemberBans.groupId, groupId),
     });
   },
@@ -687,8 +700,8 @@ export const getGroupMemberBans = createReadQuery(
 
 export const deleteGroupMemberBans = createWriteQuery(
   'deleteGroupMemberBans',
-  async (bans: { groupId: string; contactIds: string[] }) => {
-    return client
+  async (bans: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db
       .delete($groupMemberBans)
       .where(
         and(
@@ -702,8 +715,8 @@ export const deleteGroupMemberBans = createWriteQuery(
 
 export const addGroupRankBans = createWriteQuery(
   'addGroupRankBans',
-  async (bans: { groupId: string; ranks: Rank[] }) => {
-    return client
+  async (bans: { groupId: string; ranks: Rank[] }, ctx: QueryCtx) => {
+    return ctx.db
       .insert($groupRankBans)
       .values(
         bans.ranks.map((rank) => ({
@@ -718,8 +731,8 @@ export const addGroupRankBans = createWriteQuery(
 
 export const getGroupRankBans = createReadQuery(
   'getGroupRankBans',
-  async (groupId: string) => {
-    return client.query.groupRankBans.findMany({
+  async (groupId: string, ctx: QueryCtx) => {
+    return ctx.db.query.groupRankBans.findMany({
       where: eq($groupRankBans.groupId, groupId),
     });
   },
@@ -728,8 +741,8 @@ export const getGroupRankBans = createReadQuery(
 
 export const deleteGroupRankBans = createWriteQuery(
   'deleteGroupRankBans',
-  async (bans: { groupId: string; ranks: Rank[] }) => {
-    return client
+  async (bans: { groupId: string; ranks: Rank[] }, ctx: QueryCtx) => {
+    return ctx.db
       .delete($groupRankBans)
       .where(
         and(
@@ -743,8 +756,8 @@ export const deleteGroupRankBans = createWriteQuery(
 
 export const addRole = createWriteQuery(
   'addRole',
-  async (role: GroupRole) => {
-    return client
+  async (role: GroupRole, ctx: QueryCtx) => {
+    return ctx.db
       .insert($groupRoles)
       .values(role)
       .onConflictDoUpdate({
@@ -757,8 +770,11 @@ export const addRole = createWriteQuery(
 
 export const deleteRole = createWriteQuery(
   'deleteRole',
-  async (roleId: string, groupId: string) => {
-    return client
+  async (
+    { roleId, groupId }: { roleId: string; groupId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .delete($groupRoles)
       .where(and(eq($groupRoles.id, roleId), eq($groupRoles.groupId, groupId)));
   },
@@ -767,8 +783,11 @@ export const deleteRole = createWriteQuery(
 
 export const updateRole = createWriteQuery(
   'updateRole',
-  async (role: Partial<GroupRole> & { id: string; groupId: string }) => {
-    return client
+  async (
+    role: Partial<GroupRole> & { id: string; groupId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .update($groupRoles)
       .set(role)
       .where(
@@ -780,16 +799,19 @@ export const updateRole = createWriteQuery(
 
 export const addChatMembersToRoles = createWriteQuery(
   'addChatMembersToRoles',
-  async ({
-    groupId,
-    contactIds,
-    roleIds,
-  }: {
-    groupId: string;
-    contactIds: string[];
-    roleIds: string[];
-  }) => {
-    return client.insert($chatMemberGroupRoles).values(
+  async (
+    {
+      groupId,
+      contactIds,
+      roleIds,
+    }: {
+      groupId: string;
+      contactIds: string[];
+      roleIds: string[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.insert($chatMemberGroupRoles).values(
       contactIds.flatMap((contactId) =>
         roleIds.map((roleId) => ({
           groupId,
@@ -804,16 +826,19 @@ export const addChatMembersToRoles = createWriteQuery(
 
 export const removeChatMembersFromRoles = createWriteQuery(
   'removeChatMembersFromRoles',
-  async ({
-    groupId,
-    contactIds,
-    roleIds,
-  }: {
-    groupId: string;
-    contactIds: string[];
-    roleIds: string[];
-  }) => {
-    return client
+  async (
+    {
+      groupId,
+      contactIds,
+      roleIds,
+    }: {
+      groupId: string;
+      contactIds: string[];
+      roleIds: string[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .delete($chatMemberGroupRoles)
       .where(
         and(
@@ -828,8 +853,11 @@ export const removeChatMembersFromRoles = createWriteQuery(
 
 export const removeChatMembers = createWriteQuery(
   'removeChatMembers',
-  async ({ chatId, contactIds }: { chatId: string; contactIds: string[] }) => {
-    return client
+  async (
+    { chatId, contactIds }: { chatId: string; contactIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .delete($chatMembers)
       .where(
         and(
@@ -843,8 +871,8 @@ export const removeChatMembers = createWriteQuery(
 
 export const getUnreadsCount = createReadQuery(
   'getUnreadsCount',
-  async ({ type }: { type?: Unread['type'] } = {}) => {
-    const result = await client
+  async ({ type }: { type?: Unread['type'] }, ctx: QueryCtx) => {
+    const result = await ctx.db
       .select({ count: count() })
       .from($unreads)
       .where(() =>
@@ -863,12 +891,11 @@ export interface GetUnreadsOptions {
 
 export const getUnreads = createReadQuery(
   'getUnreads',
-  async ({
-    orderBy = 'updatedAt',
-    includeFullyRead = true,
-    type,
-  }: GetUnreadsOptions = {}) => {
-    return client.query.unreads.findMany({
+  async (
+    { orderBy = 'updatedAt', includeFullyRead = true, type }: GetUnreadsOptions,
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.unreads.findMany({
       where: and(
         type ? eq($unreads.type, type) : undefined,
         includeFullyRead ? undefined : gt($unreads.count, 0)
@@ -881,8 +908,11 @@ export const getUnreads = createReadQuery(
 
 export const getChannel = createReadQuery(
   'getChannel',
-  async ({ id, includeMembers }: { id: string; includeMembers?: boolean }) => {
-    return client.query.channels
+  async (
+    { id, includeMembers }: { id: string; includeMembers?: boolean },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.channels
       .findFirst({
         where: eq($channels.id, id),
         with: {
@@ -896,8 +926,8 @@ export const getChannel = createReadQuery(
 
 export const getAllMultiDms = createReadQuery(
   'getAllMultiDms',
-  async () => {
-    return client.query.channels.findMany({
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.channels.findMany({
       where: eq($channels.type, 'groupDm'),
       with: {
         members: true,
@@ -909,8 +939,8 @@ export const getAllMultiDms = createReadQuery(
 
 export const getAllSingleDms = createReadQuery(
   'getAllSingleDms',
-  async () => {
-    return client.query.channels.findMany({
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.channels.findMany({
       where: eq($channels.type, 'dm'),
       with: {
         members: true,
@@ -926,10 +956,11 @@ export interface GetChannelWithLastPostAndMembersOptions {
 
 export const getChannelWithLastPostAndMembers = createReadQuery(
   'getChannelWithLastPostAndMembers',
-  async ({
-    id,
-  }: GetChannelWithLastPostAndMembersOptions): Promise<Channel | undefined> => {
-    return await client.query.channels.findFirst({
+  async (
+    { id }: GetChannelWithLastPostAndMembersOptions,
+    ctx: QueryCtx
+  ): Promise<Channel | undefined> => {
+    return await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
         lastPost: true,
@@ -952,8 +983,8 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
 
 export const getStaleChannels = createReadQuery(
   'getStaleChannels',
-  async () => {
-    return client
+  async (ctx: QueryCtx) => {
+    return ctx.db
       .select({
         ...getTableColumns($channels),
         unread: getTableColumns($unreads),
@@ -977,7 +1008,7 @@ export const getStaleChannels = createReadQuery(
 
 export const insertChannels = createWriteQuery(
   'insertChannels',
-  async (channels: Channel[]) => {
+  async (channels: Channel[], ctx: QueryCtx) => {
     if (channels.length === 0) {
       return;
     }
@@ -988,8 +1019,8 @@ export const insertChannels = createWriteQuery(
       channels.map((c) => c.id)
     );
 
-    return client.transaction(async (tx) => {
-      await tx
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
         .insert($channels)
         .values(channels)
         .onConflictDoUpdate({
@@ -999,16 +1030,16 @@ export const insertChannels = createWriteQuery(
 
       for (const channel of channels) {
         if (channel.members && channel.members.length > 0) {
-          await tx
+          await txCtx.db
             .delete($chatMembers)
             .where(eq($chatMembers.chatId, channel.id));
-          await tx
+          await txCtx.db
             .insert($chatMembers)
             .values(channel.members)
             .onConflictDoNothing();
         }
       }
-      await setLastPosts(tx);
+      await setLastPosts(txCtx);
     });
   },
   ['channels']
@@ -1016,9 +1047,9 @@ export const insertChannels = createWriteQuery(
 
 export const updateChannel = createWriteQuery(
   'updateChannel',
-  (update: Partial<Channel> & { id: string }) => {
+  (update: Partial<Channel> & { id: string }, ctx: QueryCtx) => {
     logger.log('updateChannel', update.id, update);
-    return client
+    return ctx.db
       .update($channels)
       .set(update)
       .where(eq($channels.id, update.id));
@@ -1028,11 +1059,11 @@ export const updateChannel = createWriteQuery(
 
 export const deleteChannel = createWriteQuery(
   'deleteChannel',
-  async (channelId: string) => {
+  async (channelId: string, ctx: QueryCtx) => {
     logger.log(`deleteChannel`, channelId);
-    await client.delete($posts).where(eq($posts.channelId, channelId));
-    await client.delete($chatMembers).where(eq($chatMembers.chatId, channelId));
-    await client.delete($channels).where(eq($channels.id, channelId));
+    await ctx.db.delete($posts).where(eq($posts.channelId, channelId));
+    await ctx.db.delete($chatMembers).where(eq($chatMembers.chatId, channelId));
+    await ctx.db.delete($channels).where(eq($channels.id, channelId));
     return;
   },
   ['channels']
@@ -1040,16 +1071,19 @@ export const deleteChannel = createWriteQuery(
 
 export const addNavSectionToGroup = createWriteQuery(
   'addNavSectionToGroup',
-  async ({
-    id,
-    groupId,
-    meta,
-  }: {
-    id: string;
-    groupId: string;
-    meta: ClientMeta;
-  }) => {
-    return client
+  async (
+    {
+      id,
+      groupId,
+      meta,
+    }: {
+      id: string;
+      groupId: string;
+      meta: ClientMeta;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .insert($groupNavSections)
       .values({
         id,
@@ -1071,8 +1105,11 @@ export const addNavSectionToGroup = createWriteQuery(
 
 export const updateNavSection = createWriteQuery(
   'updateNavSection',
-  async (navSection: Partial<GroupNavSection> & { id: string }) => {
-    return client
+  async (
+    navSection: Partial<GroupNavSection> & { id: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .update($groupNavSections)
       .set(navSection)
       .where(eq($groupNavSections.id, navSection.id));
@@ -1082,8 +1119,8 @@ export const updateNavSection = createWriteQuery(
 
 export const deleteNavSection = createWriteQuery(
   'deleteNavSection',
-  async (navSectionId: string) => {
-    return client
+  async (navSectionId: string, ctx: QueryCtx) => {
+    return ctx.db
       .delete($groupNavSections)
       .where(eq($groupNavSections.id, navSectionId));
   },
@@ -1092,16 +1129,19 @@ export const deleteNavSection = createWriteQuery(
 
 export const addChannelToNavSection = createWriteQuery(
   'addChannelToNavSection',
-  async ({
-    channelId,
-    groupNavSectionId,
-    index,
-  }: {
-    channelId: string;
-    groupNavSectionId: string;
-    index: number;
-  }) => {
-    return client
+  async (
+    {
+      channelId,
+      groupNavSectionId,
+      index,
+    }: {
+      channelId: string;
+      groupNavSectionId: string;
+      index: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .insert($groupNavSectionChannels)
       .values({
         channelId,
@@ -1115,14 +1155,17 @@ export const addChannelToNavSection = createWriteQuery(
 
 export const deleteChannelFromNavSection = createWriteQuery(
   'deleteChannelFromNavSection',
-  async ({
-    channelId,
-    groupNavSectionId,
-  }: {
-    channelId: string;
-    groupNavSectionId: string;
-  }) => {
-    return client
+  async (
+    {
+      channelId,
+      groupNavSectionId,
+    }: {
+      channelId: string;
+      groupNavSectionId: string;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .delete($groupNavSectionChannels)
       .where(
         and(
@@ -1136,8 +1179,8 @@ export const deleteChannelFromNavSection = createWriteQuery(
 
 export const getChannelNavSection = createReadQuery(
   'getChannelNavSection',
-  async ({ channelId }: { channelId: string }) => {
-    return client.query.groupNavSectionChannels
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.groupNavSectionChannels
       .findFirst({
         where: eq($groupNavSectionChannels.channelId, channelId),
         with: {
@@ -1151,8 +1194,8 @@ export const getChannelNavSection = createReadQuery(
 
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }) => {
-    return await client
+  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+    return await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: inArray($channels.id, channelIds),
@@ -1164,8 +1207,8 @@ export const setJoinedGroupChannels = createWriteQuery(
 
 export const setLeftGroupChannels = createWriteQuery(
   'setLeftGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }) => {
-    return await client
+  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+    return await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: not(inArray($channels.id, channelIds)),
@@ -1178,28 +1221,19 @@ export const setLeftGroupChannels = createWriteQuery(
 export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
-} & (
-  | {
-      mode: 'newest';
-      cursor?: never;
-    }
-  | {
-      mode: 'older' | 'newer' | 'around';
-      cursor: string;
-    }
-);
+  mode: 'newest' | 'older' | 'newer' | 'around';
+  cursor?: string;
+};
 
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
-  async ({
-    channelId,
-    cursor,
-    mode,
-    count = 50,
-  }: GetChannelPostsOptions): Promise<Post[]> => {
+  async (
+    { channelId, cursor, mode, count = 50 }: GetChannelPostsOptions,
+    ctx: QueryCtx
+  ): Promise<Post[]> => {
     // Find the window (set of contiguous posts) that this cursor belongs to.
     // These are the posts that we can return safely without gaps and without hitting the api.
-    const window = await client.query.postWindows.findFirst({
+    const window = await ctx.db.query.postWindows.findFirst({
       where: and(
         // For this channel
         eq($postWindows.channelId, channelId),
@@ -1226,7 +1260,7 @@ export const getChannelPosts = createReadQuery(
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
       // Simple case: just grab a set of posts from either side of the cursor.
-      const posts = await client.query.posts.findMany({
+      const posts = await ctx.db.query.posts.findMany({
         where: and(
           // From this channel
           eq($posts.channelId, channelId),
@@ -1237,8 +1271,8 @@ export const getChannelPosts = createReadQuery(
           lte($posts.id, window.newestPostId),
           // Depending on mode, either older or newer than cursor. If mode is
           // `newest`, we don't need to filter by cursor.
-          mode === 'older' ? lt($posts.id, cursor) : undefined,
-          mode === 'newer' ? gt($posts.id, cursor) : undefined
+          cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
+          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
         ),
         with: relationConfig,
         // If newer, we have to ensure that these are the newer posts directly following the cursor
@@ -1251,6 +1285,10 @@ export const getChannelPosts = createReadQuery(
       }
       return posts;
     } else if (mode === 'around') {
+      if (!cursor) {
+        throw new Error('missing cursor');
+      }
+
       // It's a bit more complicated to get posts around a cursor. Basic process is:
       // - Start with a query for all posts in the window, selecting
       //   row_number() to track their position within the window.
@@ -1260,7 +1298,7 @@ export const getChannelPosts = createReadQuery(
       // - Grab post ids from the window query where row number is between min and max.
 
       // Get all posts in the window
-      const $windowQuery = client
+      const $windowQuery = ctx.db
         .select({
           id: $posts.id,
           rowNumber: sql`row_number() OVER (ORDER BY ${$posts.id})`
@@ -1278,7 +1316,7 @@ export const getChannelPosts = createReadQuery(
         .as('posts');
 
       // Get the row number of the cursor post
-      const cursorRow = await client
+      const cursorRow = await ctx.db
         .select({
           id: $windowQuery.id,
           rowNumber: $windowQuery.rowNumber,
@@ -1293,10 +1331,10 @@ export const getChannelPosts = createReadQuery(
       const endRow = cursorRow[0].rowNumber + itemsAfter;
 
       // Actually grab posts
-      return await client.query.posts.findMany({
+      return await ctx.db.query.posts.findMany({
         where: inArray(
           $posts.id,
-          client
+          ctx.db
             .select({
               id: $windowQuery.id,
             })
@@ -1326,11 +1364,14 @@ export interface GetChannelPostsAroundOptions {
 
 export const getChannelPostsAround = createReadQuery(
   'getChannelPosts',
-  async ({ channelId, postId }: { channelId: string; postId: string }) => {
+  async (
+    { channelId, postId }: { channelId: string; postId: string },
+    ctx: QueryCtx
+  ) => {
     if (!postId) return [];
 
     // Get desired post
-    const referencePost = await client.query.posts.findFirst({
+    const referencePost = await ctx.db.query.posts.findFirst({
       where: eq($posts.id, postId),
       with: {
         author: true,
@@ -1345,7 +1386,7 @@ export const getChannelPostsAround = createReadQuery(
     const sentAt = referencePost.sentAt;
 
     // Get before posts
-    const beforePosts = await client.query.posts.findMany({
+    const beforePosts = await ctx.db.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
       orderBy: [desc($posts.receivedAt)],
       limit: 25,
@@ -1356,7 +1397,7 @@ export const getChannelPostsAround = createReadQuery(
     });
 
     // Get after posts
-    const afterPosts = await client.query.posts.findMany({
+    const afterPosts = await ctx.db.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
       orderBy: [asc($posts.receivedAt)],
       limit: 25,
@@ -1374,9 +1415,12 @@ export const getChannelPostsAround = createReadQuery(
 
 export const getChannelSearchResults = createReadQuery(
   'getChannelSearchResults',
-  async (channelId: string, postIds: string[]) => {
+  async (
+    { channelId, postIds }: { channelId: string; postIds: string[] },
+    ctx: QueryCtx
+  ) => {
     if (postIds.length === 0) return [];
-    return client.query.posts.findMany({
+    return ctx.db.query.posts.findMany({
       where: and(eq($posts.channelId, channelId), inArray($posts.id, postIds)),
       orderBy: [desc($posts.receivedAt)],
       with: {
@@ -1390,22 +1434,25 @@ export const getChannelSearchResults = createReadQuery(
 
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
-  async ({
-    channelId,
-    posts,
-    newer,
-    older,
-  }: {
-    channelId: string;
-    posts: Post[];
-    newer?: string | null;
-    older?: string | null;
-  }) => {
+  async (
+    {
+      channelId,
+      posts,
+      newer,
+      older,
+    }: {
+      channelId: string;
+      posts: Post[];
+      newer?: string | null;
+      older?: string | null;
+    },
+    ctx: QueryCtx
+  ) => {
     if (!posts.length) {
       return;
     }
-    return client.transaction(async (tx) => {
-      await insertPosts(posts, tx);
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await insertPosts(posts, txCtx);
       // If these are non-reply posts, update group + channel last post as well as post windows.
       const topLevelPosts = posts.filter((p) => p.type !== 'reply');
       if (topLevelPosts.length) {
@@ -1416,7 +1463,7 @@ export const insertChannelPosts = createWriteQuery(
             newer,
             older,
           },
-          tx
+          txCtx
         );
       }
     });
@@ -1426,16 +1473,16 @@ export const insertChannelPosts = createWriteQuery(
 
 export const insertStandalonePosts = createWriteQuery(
   'insertStandalonePosts',
-  async (posts: Post[]) => {
-    return client.transaction(async (tx) => {
-      await insertPosts(posts, tx);
+  async (posts: Post[], ctx: QueryCtx) => {
+    withTransactionCtx(ctx, async (txCtx) => {
+      await insertPosts(posts, txCtx);
       for (const post of posts) {
         await updatePostWindows(
           {
             channelId: post.channelId,
             newPosts: [post],
           },
-          tx
+          txCtx
         );
       }
     });
@@ -1443,11 +1490,8 @@ export const insertStandalonePosts = createWriteQuery(
   ['posts']
 );
 
-async function insertPosts(
-  posts: Post[],
-  tx: AnySqliteTransaction | AnySqliteDatabase
-) {
-  await tx
+async function insertPosts(posts: Post[], ctx: QueryCtx) {
+  await ctx.db
     .insert($posts)
     .values(posts.map((p) => ({ ...p })))
     .onConflictDoUpdate({
@@ -1458,19 +1502,19 @@ async function insertPosts(
       target: [$posts.authorId, $posts.sentAt],
       set: conflictUpdateSetAll($posts),
     });
-  await setPostGroups(tx);
-  await setLastPosts(tx);
+  await setPostGroups(ctx);
+  await setLastPosts(ctx);
   await clearMatchedPendingPosts(
     posts.filter((p) => p.deliveryStatus !== 'pending'),
-    tx
+    ctx
   );
 }
 
-function setPostGroups(tx: AnySqliteTransaction | AnySqliteDatabase = client) {
-  return tx
+function setPostGroups(ctx: QueryCtx) {
+  return ctx.db
     .update($posts)
     .set({
-      groupId: sql`${tx
+      groupId: sql`${ctx.db
         .select({ groupId: $channels.groupId })
         .from($channels)
         .where(eq($channels.id, $posts.channelId))}`,
@@ -1478,13 +1522,11 @@ function setPostGroups(tx: AnySqliteTransaction | AnySqliteDatabase = client) {
     .where(isNull($posts.groupId));
 }
 
-async function setLastPosts(
-  tx: AnySqliteTransaction | AnySqliteDatabase = client
-) {
-  const $lastPost = tx
+async function setLastPosts(ctx: QueryCtx) {
+  const $lastPost = ctx.db
     .$with('lastPost')
     .as(
-      tx
+      ctx.db
         .select({ id: $posts.id, receivedAt: $posts.receivedAt })
         .from($posts)
         .where(eq($posts.channelId, $channels.id))
@@ -1492,7 +1534,7 @@ async function setLastPosts(
         .limit(1)
     );
 
-  await tx
+  await ctx.db
     .with($lastPost)
     .update($channels)
     .set({
@@ -1500,8 +1542,8 @@ async function setLastPosts(
       lastPostAt: sql`(select ${$lastPost.receivedAt} from ${$lastPost})`,
     });
 
-  const $groupLastPost = tx.$with('groupLastPost').as(
-    tx
+  const $groupLastPost = ctx.db.$with('groupLastPost').as(
+    ctx.db
       .select({
         groupId: $channels.groupId,
         lastPostId: max($channels.lastPostId).as('lastPostId'),
@@ -1514,7 +1556,7 @@ async function setLastPosts(
       .limit(1)
   );
 
-  await tx
+  await ctx.db
     .with($groupLastPost)
     .update($groups)
     .set({
@@ -1525,15 +1567,12 @@ async function setLastPosts(
 
 // Delete any pending posts whose sentAt matches the incoming sentAt.
 // We do this manually as pending post ids do not correspond to server-side post ids.
-async function clearMatchedPendingPosts(
-  posts: Post[],
-  tx: AnySqliteTransaction | AnySqliteDatabase = client
-) {
+async function clearMatchedPendingPosts(posts: Post[], ctx: QueryCtx) {
   const deliveredPosts = posts.filter((p) => p.deliveryStatus !== 'pending');
   if (!deliveredPosts.length) {
     return;
   }
-  return await tx
+  return await ctx.db
     .delete($posts)
     .where(
       and(
@@ -1559,7 +1598,7 @@ async function updatePostWindows(
     newer?: string | null;
     older?: string | null;
   },
-  tx: AnySqliteDatabase | AnySqliteTransaction
+  ctx: QueryCtx
 ) {
   // Create candidate window based on input
   const window = {
@@ -1576,7 +1615,7 @@ async function updatePostWindows(
 
   // Calculate min and max post id of windows that overlap with this one
   const { oldestId, newestId } = (
-    await tx
+    await ctx.db
       .select({
         oldestId: min($postWindows.oldestPostId),
         newestId: max($postWindows.newestPostId),
@@ -1586,7 +1625,7 @@ async function updatePostWindows(
   )[0];
 
   // Delete intersecting windows.
-  await tx.delete($postWindows).where(overlapsWindow(referenceWindow));
+  await ctx.db.delete($postWindows).where(overlapsWindow(referenceWindow));
 
   // Calculate final range of merged windows by intersecting existing min and
   // max with candidate window.
@@ -1602,7 +1641,7 @@ async function updatePostWindows(
   };
 
   // Insert final window.
-  await tx.insert($postWindows).values(finalWindow);
+  await ctx.db.insert($postWindows).values(finalWindow);
 }
 
 function overlapsWindow(window: PostWindow) {
@@ -1615,24 +1654,27 @@ function overlapsWindow(window: PostWindow) {
 
 export const updatePost = createWriteQuery(
   'updateChannelPost',
-  async (post: Partial<Post> & { id: string }) => {
-    return client.update($posts).set(post).where(eq($posts.id, post.id));
+  async (post: Partial<Post> & { id: string }, ctx: QueryCtx) => {
+    return ctx.db.update($posts).set(post).where(eq($posts.id, post.id));
   },
   ['posts']
 );
 
 export const deletePost = createWriteQuery(
   'deleteChannelPost',
-  async (postId: string) => {
-    return client.delete($posts).where(eq($posts.id, postId));
+  async (postId: string, ctx: QueryCtx) => {
+    return ctx.db.delete($posts).where(eq($posts.id, postId));
   },
   ['posts']
 );
 
 export const getPostReaction = createReadQuery(
   'getPostReaction',
-  async ({ postId, contactId }: { postId: string; contactId: string }) => {
-    return client.query.postReactions
+  async (
+    { postId, contactId }: { postId: string; contactId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.postReactions
       .findFirst({
         where: and(
           eq($postReactions.postId, postId),
@@ -1646,8 +1688,8 @@ export const getPostReaction = createReadQuery(
 
 export const insertPostReactions = createWriteQuery(
   'insertPostReactions',
-  async ({ reactions }: { reactions: Reaction[] }) => {
-    return client
+  async ({ reactions }: { reactions: Reaction[] }, ctx: QueryCtx) => {
+    return ctx.db
       .insert($postReactions)
       .values(reactions)
       .onConflictDoUpdate({
@@ -1660,8 +1702,11 @@ export const insertPostReactions = createWriteQuery(
 
 export const replacePostReactions = createWriteQuery(
   'setPostReactions',
-  async ({ postId, reactions }: { postId: string; reactions: Reaction[] }) => {
-    return client.transaction(async (tx) => {
+  async (
+    { postId, reactions }: { postId: string; reactions: Reaction[] },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.transaction(async (tx) => {
       await tx.delete($postReactions).where(eq($postReactions.postId, postId));
       if (reactions.length === 0) return;
       await tx.insert($postReactions).values(reactions);
@@ -1672,8 +1717,11 @@ export const replacePostReactions = createWriteQuery(
 
 export const deletePostReaction = createWriteQuery(
   'deletePostReaction',
-  async ({ postId, contactId }: { postId: string; contactId: string }) => {
-    return client
+  async (
+    { postId, contactId }: { postId: string; contactId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
       .delete($postReactions)
       .where(
         and(
@@ -1687,24 +1735,24 @@ export const deletePostReaction = createWriteQuery(
 
 export const deletePosts = createWriteQuery(
   'deletePosts',
-  async ({ ids }: { ids: string[] }) => {
-    return client.delete($posts).where(inArray($posts.id, ids));
+  async ({ ids }: { ids: string[] }, ctx: QueryCtx) => {
+    return ctx.db.delete($posts).where(inArray($posts.id, ids));
   },
   ['posts']
 );
 
 export const getPosts = createReadQuery(
   'getPosts',
-  () => {
-    return client.select().from($posts);
+  (ctx: QueryCtx) => {
+    return ctx.db.select().from($posts);
   },
   ['posts']
 );
 
 export const getPost = createReadQuery(
   'getPost',
-  async ({ postId }) => {
-    const postData = await client
+  async ({ postId }: { postId: string }, ctx: QueryCtx) => {
+    const postData = await ctx.db
       .select()
       .from($posts)
       .where(eq($posts.id, postId));
@@ -1716,8 +1764,11 @@ export const getPost = createReadQuery(
 
 export const getPostByCacheId = createReadQuery(
   'getPostByCacheId',
-  async ({ sentAt, authorId }: { sentAt: number; authorId: string }) => {
-    const postData = await client
+  async (
+    { sentAt, authorId }: { sentAt: number; authorId: string },
+    ctx: QueryCtx
+  ) => {
+    const postData = await ctx.db
       .select()
       .from($posts)
       .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
@@ -1729,16 +1780,19 @@ export const getPostByCacheId = createReadQuery(
 
 export const addReplyToPost = createWriteQuery(
   'addReplyToPost',
-  ({
-    parentId,
-    replyAuthor,
-    replyTime,
-  }: {
-    parentId: string;
-    replyAuthor: string;
-    replyTime: number;
-  }) => {
-    return client.transaction(async (tx) => {
+  (
+    {
+      parentId,
+      replyAuthor,
+      replyTime,
+    }: {
+      parentId: string;
+      replyAuthor: string;
+      replyTime: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.transaction(async (tx) => {
       const parentData = await tx
         .select()
         .from($posts)
@@ -1765,8 +1819,8 @@ export const addReplyToPost = createWriteQuery(
 
 export const getPendingPosts = createReadQuery(
   'getPendingPosts',
-  (channelId: string) => {
-    return client.query.posts.findMany({
+  (channelId: string, ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
       where: and(
         eq($posts.channelId, channelId),
         isNotNull($posts.deliveryStatus)
@@ -1778,8 +1832,8 @@ export const getPendingPosts = createReadQuery(
 
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
-  async ({ id }: { id: string }) => {
-    return client.query.posts
+  async ({ id }: { id: string }, ctx: QueryCtx) => {
+    return ctx.db.query.posts
       .findFirst({
         where: eq($posts.id, id),
         with: {
@@ -1794,8 +1848,8 @@ export const getPostWithRelations = createReadQuery(
 
 export const getGroup = createReadQuery(
   'getGroup',
-  async ({ id }: { id: string }) => {
-    return client.query.groups
+  async ({ id }: { id: string }, ctx: QueryCtx) => {
+    return ctx.db.query.groups
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
         with: {
@@ -1826,14 +1880,14 @@ export const getGroup = createReadQuery(
 
 export const getGroupByChannel = createReadQuery(
   'getGroupByChannel',
-  async (channelId: string) => {
-    const channel = await client.query.channels.findFirst({
+  async (channelId: string, ctx: QueryCtx) => {
+    const channel = await ctx.db.query.channels.findFirst({
       where: (channels, { eq }) => eq(channels.id, channelId),
     });
 
     if (!channel || !channel.groupId) return null;
 
-    return client.query.groups
+    return ctx.db.query.groups
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, channel.groupId!),
         with: {
@@ -1849,8 +1903,8 @@ export const getGroupByChannel = createReadQuery(
 
 export const getContacts = createReadQuery(
   'getContacts',
-  async () => {
-    return client.query.contacts.findMany({
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
       with: {
         pinnedGroups: {
           with: {
@@ -1865,8 +1919,8 @@ export const getContacts = createReadQuery(
 
 export const getContactsBatch = createReadQuery(
   'getContactsBatch',
-  async ({ contactIds }: { contactIds: string[] }) => {
-    return client.query.contacts.findMany({
+  async ({ contactIds }: { contactIds: string[] }, ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
       where: (contacts, { inArray }) => inArray(contacts.id, contactIds),
     });
   },
@@ -1875,8 +1929,8 @@ export const getContactsBatch = createReadQuery(
 
 export const getContactsCount = createReadQuery(
   'getContactsCount',
-  async () => {
-    const result = await client.select({ count: count() }).from($contacts);
+  async (ctx: QueryCtx) => {
+    const result = await ctx.db.select({ count: count() }).from($contacts);
     return result[0].count;
   },
   ['contacts']
@@ -1884,8 +1938,8 @@ export const getContactsCount = createReadQuery(
 
 export const getContact = createReadQuery(
   'getContact',
-  async ({ id }: { id: string }) => {
-    return client.query.contacts
+  async ({ id }: { id: string }, ctx: QueryCtx) => {
+    return ctx.db.query.contacts
       .findFirst({
         where: (contacts, { eq }) => eq(contacts.id, id),
       })
@@ -1896,8 +1950,8 @@ export const getContact = createReadQuery(
 
 export const updateContact = createWriteQuery(
   'updateContact',
-  async (contact: Partial<Contact> & { id: string }) => {
-    return client
+  async (contact: Partial<Contact> & { id: string }, ctx: QueryCtx) => {
+    return ctx.db
       .update($contacts)
       .set(contact)
       .where(eq($contacts.id, contact.id));
@@ -1907,8 +1961,8 @@ export const updateContact = createWriteQuery(
 
 export const insertContact = createWriteQuery(
   'insertContact',
-  async (contact: Contact) => {
-    return client
+  async (contact: Contact, ctx: QueryCtx) => {
+    return ctx.db
       .insert($contacts)
       .values(contact)
       .onConflictDoUpdate({
@@ -1921,7 +1975,7 @@ export const insertContact = createWriteQuery(
 
 export const insertContacts = createWriteQuery(
   'insertContacts',
-  async (contactsData: Contact[]) => {
+  async (contactsData: Contact[], ctx: QueryCtx) => {
     if (contactsData.length === 0) {
       return;
     }
@@ -1938,7 +1992,7 @@ export const insertContacts = createWriteQuery(
       })
     );
 
-    await client
+    await ctx.db
       .insert($contacts)
       .values(contactsData)
       .onConflictDoUpdate({
@@ -1947,10 +2001,10 @@ export const insertContacts = createWriteQuery(
       });
 
     if (targetGroups.length) {
-      await client.insert($groups).values(targetGroups).onConflictDoNothing();
+      await ctx.db.insert($groups).values(targetGroups).onConflictDoNothing();
     }
     // TODO: Remove stale pinned groups
-    await client
+    await ctx.db
       .insert($contactGroups)
       .values(contactGroups)
       .onConflictDoNothing();
@@ -1960,16 +2014,16 @@ export const insertContacts = createWriteQuery(
 
 export const deleteContact = createWriteQuery(
   'deleteContact',
-  async (contactId: string) => {
-    return client.delete($contacts).where(eq($contacts.id, contactId));
+  async (contactId: string, ctx: QueryCtx) => {
+    return ctx.db.delete($contacts).where(eq($contacts.id, contactId));
   },
   ['contacts']
 );
 
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
-  async (unreads: Unread[]) => {
-    return client.transaction(async (tx) => {
+  async (unreads: Unread[], ctx: QueryCtx) => {
+    return ctx.db.transaction(async (tx) => {
       await tx
         .insert($unreads)
         .values(unreads)
@@ -1996,8 +2050,8 @@ export const insertUnreads = createWriteQuery(
 
 export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
-  async (pinnedItems: Pin[]) => {
-    return client.transaction(async (tx) => {
+  async (pinnedItems: Pin[], ctx: QueryCtx) => {
+    return ctx.db.transaction(async (tx) => {
       await tx.delete($pins);
       // users may not have pinned items
       if (!pinnedItems.length) return;
@@ -2009,16 +2063,19 @@ export const insertPinnedItems = createWriteQuery(
 
 export const insertPinnedItem = createWriteQuery(
   'insertPinnedItem',
-  async ({
-    itemId,
-    type,
-    index,
-  }: {
-    itemId: string;
-    type: PinType;
-    index?: number;
-  }) => {
-    return client.transaction(async (tx) => {
+  async (
+    {
+      itemId,
+      type,
+      index,
+    }: {
+      itemId: string;
+      type: PinType;
+      index?: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.transaction(async (tx) => {
       const maxResult = await tx
         .select({ value: max($pins.index) })
         .from($pins);
@@ -2033,16 +2090,16 @@ export const insertPinnedItem = createWriteQuery(
 
 export const deletePinnedItem = createWriteQuery(
   'deletePinnedItem',
-  async ({ itemId }: { itemId: string }) => {
-    return client.delete($pins).where(eq($pins.itemId, itemId));
+  async ({ itemId }: { itemId: string }, ctx: QueryCtx) => {
+    return ctx.db.delete($pins).where(eq($pins.itemId, itemId));
   },
   ['pins', 'groups', 'channels']
 );
 
 export const getPinnedItems = createReadQuery(
   'getPinnedItems',
-  async () => {
-    return client.query.pins.findMany({});
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.pins.findMany({});
   },
   ['pins']
 );
