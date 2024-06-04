@@ -135,7 +135,7 @@ export function toPostEssay({
   metadata?: db.PostMetadata;
 }): ub.PostEssay {
   const kindData = (): ub.KindData => {
-    if (!metadata) {
+    if (!metadata || Object.keys(metadata).length === 0) {
       switch (channelType) {
         case 'chat':
           return { chat: null };

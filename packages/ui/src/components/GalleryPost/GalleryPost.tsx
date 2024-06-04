@@ -20,8 +20,8 @@ import { getTokenValue } from 'tamagui';
 
 import { LinearGradient, Text, View, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ChatContent from '../ChatMessage/ChatContent';
 import ContentReference from '../ContentReference';
+import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
 
 export default function GalleryPost({
@@ -82,7 +82,18 @@ export default function GalleryPost({
   );
 
   if (!postIsJustImage && !postIsJustText && !postIsJustReference) {
-    return null;
+    // This should never happen, but if it does, we should log it
+    const content = JSON.parse(post.content as string);
+    console.log('Unsupported post type', {
+      post,
+      content,
+    });
+
+    return (
+      <View padding="$m" key={post.id} position="relative" alignItems="center">
+        <Text>Unsupported post type</Text>
+      </View>
+    );
   }
 
   return (
@@ -157,7 +168,7 @@ export default function GalleryPost({
               paddingBottom="$xs"
               position="relative"
             >
-              <ChatContent
+              <ContentRenderer
                 viewMode={detailView ? undefined : 'block'}
                 post={post}
               />

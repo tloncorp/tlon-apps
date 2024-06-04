@@ -1,6 +1,6 @@
 import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
-import { PostViewMode } from '../ChatMessage/ChatContent';
+import { PostViewMode } from '../ContentRenderer';
 import ChatReference from './ChatReference';
 import ReferenceSkeleton from './ReferenceSkeleton';
 

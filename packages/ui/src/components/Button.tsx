@@ -98,6 +98,8 @@ export const ButtonFrame = styled(Stack, {
   },
 });
 
+export type ButtonProps = React.ComponentProps<typeof ButtonFrame>;
+
 export const ButtonFrameImpl = ButtonFrame.styleable((props, ref) => {
   // adding group to the styled component itself seems to break typing for variants
   return <ButtonFrame group="button" {...props} ref={ref} />;

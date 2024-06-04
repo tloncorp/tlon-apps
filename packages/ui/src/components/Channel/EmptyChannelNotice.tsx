@@ -15,16 +15,18 @@ export function EmptyChannelNotice({
   const noticeText = useMemo(() => getNoticeText(isGroupAdmin), [isGroupAdmin]);
 
   return (
-    <View backgroundColor="$blueSoft" borderRadius="$xl" padding="$xl">
-      <SizableText>{noticeText}</SizableText>
+    <View alignItems="center" paddingHorizontal="$2xl">
+      <SizableText textAlign="center" color="$secondaryText">
+        {noticeText}
+      </SizableText>
     </View>
   );
 }
 
 function getNoticeText(isAdmin: boolean) {
   if (isAdmin) {
-    return 'This is a general discussion channel for your group. People you invite can post, react, and comment.';
+    return 'This is your group’s default welcome channel. Feel free to rename it or create additional channels.';
   }
 
-  return 'There are no messages...yet.';
+  return 'There are no messages... yet.';
 }

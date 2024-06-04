@@ -10,6 +10,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnimatePresence, getToken } from 'tamagui';
 
 import {
   CalmProvider,
@@ -20,9 +21,10 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
-import { SizableText, Spinner, View, YStack } from '../../core';
+import { SizableText, View, YStack } from '../../core';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
+import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
 import FloatingActionButton from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
@@ -30,6 +32,7 @@ import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
+import { navHeight } from '../NavBar/NavBar';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -106,7 +109,7 @@ export function Channel({
   hasOlderPosts?: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
-  const [showGalleryInput, setShowGalleryInput] = useState(false);
+  const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const title = channel ? utils.getChannelTitle(channel) : '';
@@ -149,6 +152,11 @@ export function Channel({
     return null;
   }, [selectedPostId, channel]);
 
+  const bigInputGoBack = () => {
+    setShowBigInput(false);
+    uploadInfo.resetImageAttachment();
+  };
+
   const { bottom } = useSafeAreaInsets();
 
   return (
@@ -178,7 +186,9 @@ export function Channel({
                   >
                     <ChannelHeader
                       title={title}
-                      goBack={goBack}
+                      goBack={() =>
+                        showBigInput ? bigInputGoBack() : goBack()
+                      }
                       goToChannels={goToChannels}
                       goToSearch={goToSearch}
                       showPickerButton={!!group}
@@ -189,130 +199,172 @@ export function Channel({
                       style={{ flex: 1 }}
                       contentContainerStyle={{ flex: 1 }}
                     >
-                      <YStack flex={1}>
-                        {showGalleryInput ? (
-                          <MessageInput
-                            shouldBlur={inputShouldBlur}
-                            setShouldBlur={setInputShouldBlur}
-                            send={messageSender}
-                            channelId={channel.id}
-                            groupMembers={group?.members ?? []}
-                            storeDraft={storeDraft}
-                            clearDraft={clearDraft}
-                            getDraft={getDraft}
-                            editingPost={editingPost}
-                            setEditingPost={setEditingPost}
-                            editPost={editPost}
-                            setShowGalleryInput={setShowGalleryInput}
-                            floatingActionButton
-                            showAttachmentButton={false}
-                            backgroundColor="$background"
-                          />
-                        ) : uploadInfo.imageAttachment ? (
-                          <UploadedImagePreview
-                            imageAttachment={uploadInfo.imageAttachment}
-                            resetImageAttachment={
-                              uploadInfo.resetImageAttachment
-                            }
-                          />
-                        ) : (
-                          <View flex={1} width={'100%'}>
+                      <YStack alignItems="center" flex={1}>
+                        <AnimatePresence>
+                          {showBigInput ? (
                             <View
-                              position="absolute"
-                              top={0}
-                              left={0}
+                              key="big-input"
+                              animation="simple"
+                              enterStyle={{
+                                y: 100,
+                                opacity: 0,
+                              }}
+                              exitStyle={{
+                                y: 100,
+                                opacity: 0,
+                              }}
+                              y={0}
+                              opacity={1}
                               width="100%"
-                              height="100%"
-                              alignItems="center"
-                              justifyContent="center"
                             >
-                              <LoadingSpinner />
-                            </View>
-                            {channel && posts && (
-                              <Scroller
-                                inverted={isChatChannel ? true : false}
-                                renderItem={renderItem}
-                                renderEmptyComponent={renderEmptyComponent}
-                                currentUserId={currentUserId}
-                                anchor={scrollerAnchor}
-                                posts={posts}
-                                hasNewerPosts={hasNewerPosts}
-                                hasOlderPosts={hasOlderPosts}
+                              <BigInput
+                                channelType={channel.type}
+                                channelId={channel.id}
+                                groupMembers={group?.members ?? []}
+                                shouldBlur={inputShouldBlur}
+                                setShouldBlur={setInputShouldBlur}
+                                send={messageSender}
+                                storeDraft={storeDraft}
+                                clearDraft={clearDraft}
+                                getDraft={getDraft}
                                 editingPost={editingPost}
                                 setEditingPost={setEditingPost}
                                 editPost={editPost}
-                                channelType={channel.type}
-                                channelId={channel.id}
-                                firstUnreadId={
-                                  channel.unread?.countWithoutThreads ?? 0 > 0
-                                    ? channel.unread?.firstUnreadPostId
-                                    : null
-                                }
-                                unreadCount={
-                                  channel.unread?.countWithoutThreads ?? 0
-                                }
-                                onPressPost={goToPost}
-                                onPressReplies={goToPost}
-                                onPressImage={goToImageViewer}
-                                setInputShouldBlur={setInputShouldBlur}
-                                onEndReached={onScrollEndReached}
-                                onStartReached={onScrollStartReached}
+                                setShowBigInput={setShowBigInput}
+                                placeholder=""
+                                uploadInfo={uploadInfo}
                               />
-                            )}
-                          </View>
-                        )}
+                            </View>
+                          ) : uploadInfo.imageAttachment &&
+                            channel.type !== 'notebook' ? (
+                            <UploadedImagePreview
+                              imageAttachment={uploadInfo.imageAttachment}
+                              resetImageAttachment={
+                                uploadInfo.resetImageAttachment
+                              }
+                            />
+                          ) : (
+                            <View flex={1} width="100%">
+                              <View
+                                position="absolute"
+                                top={0}
+                                left={0}
+                                width="100%"
+                                height="100%"
+                                alignItems="center"
+                                justifyContent="center"
+                              >
+                                <LoadingSpinner />
+                              </View>
+                              {channel && posts && (
+                                <Scroller
+                                  inverted={isChatChannel ? true : false}
+                                  renderItem={renderItem}
+                                  renderEmptyComponent={renderEmptyComponent}
+                                  currentUserId={currentUserId}
+                                  anchor={scrollerAnchor}
+                                  posts={posts}
+                                  hasNewerPosts={hasNewerPosts}
+                                  hasOlderPosts={hasOlderPosts}
+                                  editingPost={editingPost}
+                                  setEditingPost={setEditingPost}
+                                  editPost={editPost}
+                                  channelType={channel.type}
+                                  channelId={channel.id}
+                                  firstUnreadId={
+                                    channel.unread?.countWithoutThreads ?? 0 > 0
+                                      ? channel.unread?.firstUnreadPostId
+                                      : null
+                                  }
+                                  unreadCount={
+                                    channel.unread?.countWithoutThreads ?? 0
+                                  }
+                                  onPressPost={goToPost}
+                                  onPressReplies={goToPost}
+                                  onPressImage={goToImageViewer}
+                                  setInputShouldBlur={setInputShouldBlur}
+                                  onEndReached={onScrollEndReached}
+                                  onStartReached={onScrollStartReached}
+                                />
+                              )}
+                            </View>
+                          )}
+                        </AnimatePresence>
                         {negotiationMatch &&
                           !editingPost &&
-                          !channel.isDmInvite &&
-                          (isChatChannel || uploadInfo?.uploadedImage) &&
+                          (isChatChannel ||
+                            (channel.type === 'gallery' &&
+                              uploadInfo?.uploadedImage)) &&
                           canWrite && (
                             <MessageInput
                               shouldBlur={inputShouldBlur}
                               setShouldBlur={setInputShouldBlur}
                               send={messageSender}
                               channelId={channel.id}
-                              uploadInfo={uploadInfo}
+                              uploadInfo={
+                                channel.type === 'notebook'
+                                  ? undefined
+                                  : uploadInfo
+                              }
                               groupMembers={group?.members ?? []}
                               storeDraft={storeDraft}
                               clearDraft={clearDraft}
                               getDraft={getDraft}
+                              editingPost={editingPost}
+                              setEditingPost={setEditingPost}
+                              editPost={editPost}
+                              floatingActionButton={channel.type === 'gallery'}
+                              showAttachmentButton={channel.type !== 'gallery'}
+                              backgroundColor="$secondaryBackground"
                             />
                           )}
+                        {!isChatChannel && canWrite && !showBigInput && (
+                          <View
+                            position="absolute"
+                            bottom={
+                              Platform.OS === 'ios'
+                                ? navHeight
+                                : bottom + getToken('$m')
+                            }
+                            flex={1}
+                            width="100%"
+                            alignItems="center"
+                          >
+                            {(channel.type === 'gallery' &&
+                              showAddGalleryPost) ||
+                            uploadInfo.imageAttachment ? null : (
+                              <FloatingActionButton
+                                onPress={() =>
+                                  channel.type === 'gallery'
+                                    ? setShowAddGalleryPost(true)
+                                    : setShowBigInput(true)
+                                }
+                                label="New Post"
+                                icon={
+                                  <Icon
+                                    type="Add"
+                                    size={'$s'}
+                                    marginRight={'$s'}
+                                  />
+                                }
+                              />
+                            )}
+                          </View>
+                        )}
+                        {!negotiationMatch && isChatChannel && canWrite && (
+                          <NegotionMismatchNotice />
+                        )}
                         {channel.isDmInvite && (
                           <DmInviteOptions channel={channel} goBack={goBack} />
                         )}
                         {!negotiationMatch && isChatChannel && canWrite && (
                           <NegotionMismatchNotice />
                         )}
-                        {!isChatChannel && canWrite && !showGalleryInput && (
-                          <View
-                            position="absolute"
-                            bottom={bottom}
-                            flex={1}
-                            width="100%"
-                            alignItems="center"
-                          >
-                            {!uploadInfo.uploading &&
-                              !uploadInfo.uploadedImage && (
-                                <FloatingActionButton
-                                  onPress={() => setShowAddGalleryPost(true)}
-                                  label="New Post"
-                                  icon={
-                                    <Icon
-                                      type="Add"
-                                      size={'$s'}
-                                      marginRight={'$s'}
-                                    />
-                                  }
-                                />
-                              )}
-                          </View>
-                        )}
                         {channel.type === 'gallery' && canWrite && (
                           <AddGalleryPost
                             showAddGalleryPost={showAddGalleryPost}
                             setShowAddGalleryPost={setShowAddGalleryPost}
-                            setShowGalleryInput={setShowGalleryInput}
+                            setShowGalleryInput={setShowBigInput}
                             setImage={uploadInfo.setAttachments}
                           />
                         )}

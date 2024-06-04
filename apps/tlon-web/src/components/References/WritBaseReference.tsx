@@ -4,7 +4,7 @@ import cn from 'classnames';
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import ChatContent from '@/chat/ChatContent/ChatContent';
+import ContentRenderer from '@/chat/ChatContent/ChatContent';
 import useGroupJoin from '@/groups/useGroupJoin';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useChannelFlag } from '@/logic/channel';
@@ -136,7 +136,7 @@ function WritBaseReference({
           content.filter((c) => 'block' in c).length > 0 ? (
             <span>Nested content references</span>
           ) : (
-            <ChatContent
+            <ContentRenderer
               className="line-clamp-1"
               story={content}
               isScrolling={false}
@@ -159,7 +159,7 @@ function WritBaseReference({
     return (
       <div className="cursor-pointer rounded-lg border-2 border-gray-50 text-base">
         <ReferenceInHeap type="text" contextApp={contextApp}>
-          <ChatContent
+          <ContentRenderer
             className="line-clamp-1 p-2"
             story={content}
             isScrolling={false}
@@ -188,7 +188,7 @@ function WritBaseReference({
       })}
     >
       <div className={'cursor-pointer p-2 group-hover:bg-gray-50'}>
-        <ChatContent
+        <ContentRenderer
           className="p-2"
           story={content}
           isScrolling={false}

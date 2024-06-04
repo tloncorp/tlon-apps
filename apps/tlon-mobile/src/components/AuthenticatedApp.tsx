@@ -25,19 +25,11 @@ function AuthenticatedApp({
   useDeepLinkListener();
 
   useEffect(() => {
-    const start = () => {
-      sync.start().catch((e) => {
-        console.warn('Sync failed', e);
-      });
-    };
-
     configureClient({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
-      onReset: () => start(),
+      onReset: () => sync.setupSubscriptions(),
     });
-
-    start();
   }, [currentUserId, ship, shipUrl]);
 
   return (
