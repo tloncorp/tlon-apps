@@ -372,32 +372,46 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   }
 };
 
+export const handleChatUpdate = async (update: api.ChatEvent) => {
+  switch (update.type) {
+    case 'addPost':
+      await handleAddPost(update.post);
+      break;
+    case 'deletePost':
+      await db.deletePosts({ ids: [update.postId] });
+      break;
+    case 'addReaction':
+      db.insertPostReactions({
+        reactions: [
+          {
+            postId: update.postId,
+            contactId: update.userId,
+            value: update.react,
+          },
+        ],
+      });
+      break;
+    case 'deleteReaction':
+      db.deletePostReaction({
+        postId: update.postId,
+        contactId: update.userId,
+      });
+      break;
+    case 'addDmInvites':
+      db.insertChannels(update.channels);
+      break;
+
+    case 'groupDmsUpdate':
+      syncDms();
+      break;
+  }
+};
+
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
-      // first check if it's a reply. If it is and we haven't already cached
-      // it, we need to add it to the parent post
-      if (update.post.parentId) {
-        const cachedReply = await db.getPostByCacheId({
-          sentAt: update.post.sentAt,
-          authorId: update.post.authorId,
-        });
-        if (!cachedReply) {
-          await db.addReplyToPost({
-            parentId: update.post.parentId,
-            replyAuthor: update.post.authorId,
-            replyTime: update.post.sentAt,
-          });
-        }
-      }
-      // insert the reply
-      await db.insertChannelPosts({
-        channelId: update.post.channelId,
-        posts: [update.post],
-        older: channelCursors.get(update.post.channelId),
-      });
-      channelCursors.set(update.post.channelId, update.post.id);
+      await handleAddPost(update.post);
       break;
     case 'updateWriters':
       await db.updateChannel({
@@ -432,18 +446,30 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   }
 };
 
-export const handleChatUpdate = async (event: api.ChatEvent) => {
-  switch (event.type) {
-    case 'addDmInvites':
-      // insert the new DMs
-      db.insertChannels(event.channels);
-      break;
-
-    case 'groupDmsUpdate':
-      syncDms();
-      break;
+async function handleAddPost(post: db.Post) {
+  // first check if it's a reply. If it is and we haven't already cached
+  // it, we need to add it to the parent post
+  if (post.parentId) {
+    const cachedReply = await db.getPostByCacheId({
+      sentAt: post.sentAt,
+      authorId: post.authorId,
+    });
+    if (!cachedReply) {
+      await db.addReplyToPost({
+        parentId: post.parentId,
+        replyAuthor: post.authorId,
+        replyTime: post.sentAt,
+      });
+    }
   }
-};
+  // insert the reply
+  await db.insertChannelPosts({
+    channelId: post.channelId,
+    posts: [post],
+    older: channelCursors.get(post.channelId),
+  });
+  channelCursors.set(post.channelId, post.id);
+}
 
 export async function syncPosts(options: api.GetChannelPostsOptions) {
   logger.log(

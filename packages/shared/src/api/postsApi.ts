@@ -562,7 +562,7 @@ export function toPagedPostsData(
 
 export function toPostsData(
   channelId: string,
-  posts: ub.Posts | Record<string, ub.Reply>
+  posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
 ) {
   const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
     [string[], db.Post[]]
@@ -587,7 +587,7 @@ export function toPostsData(
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.PostDataResponse
+  post: ub.Post | ub.Writ | ub.PostDataResponse
 ): db.Post {
   const getPostType = (
     channelId: string,
@@ -623,7 +623,7 @@ export function toPostData(
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     authorId: post.essay.author,
-    isEdited: !!post.revision && post.revision !== '0',
+    isEdited: 'revision' in post && post.revision !== '0',
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
@@ -664,7 +664,7 @@ function getReplyData(
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply
+  reply: ub.Reply | ub.WritReply
 ): db.Post {
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);

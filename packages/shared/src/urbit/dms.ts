@@ -72,25 +72,25 @@ interface WritDeltaDelReact {
   'del-react': string;
 }
 
-interface ReplyDeltaAdd {
+export interface ReplyDeltaAdd {
   add: {
     memo: WritMemo;
     time: string | null;
   };
 }
 
-interface ReplyDeltaDel {
+export interface ReplyDeltaDel {
   del: null;
 }
 
-interface ReplyDeltaAddReact {
+export interface ReplyDeltaAddReact {
   'add-react': {
     ship: string;
     react: string;
   };
 }
 
-interface ReplyDeltaDelReact {
+export interface ReplyDeltaDelReact {
   'del-react': string;
 }
 

@@ -1,8 +1,14 @@
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
-import { getCanonicalPostId, toClientMeta } from './apiUtils';
-import { toPostData } from './postsApi';
+import {
+  deriveFullWrit,
+  deriveFullWritReply,
+  getCanonicalPostId,
+  toClientMeta,
+} from './apiUtils';
+import { ChannelsUpdate } from './channelsApi';
+import { toPostData, toPostReplyData } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('chatApi', true);
@@ -63,56 +69,46 @@ export const respondToDMInvite = ({
 export type ChatEvent =
   | { type: 'addDmInvites'; channels: db.Channel[] }
   | { type: 'groupDmsUpdate' }
+  | { type: 'addPost'; post: db.Post }
+  | { type: 'deletePost'; postId: string }
+  | { type: 'addReaction'; postId: string; userId: string; react: string }
+  | { type: 'deleteReaction'; postId: string; userId: string }
   | { type: 'unknown' };
 export function subscribeToChatUpdates(
   eventHandler: (event: ChatEvent) => void
 ) {
-  const currentUserId = getCurrentUserId();
-
-  // subscribe(
-  //   {
-  //     app: 'chat',
-  //     path: '/dm/invited',
-  //   },
-  //   (data) => {
-  //     logger.log('subscribeToChatUpdates', data);
-  //     eventHandler(
-  //       {
-  //         type: 'addDmInvites',
-  //         channels: toClientDms(data as string[], true),
-  //       },
-  //       currentUserId
-  //     );
-  //   }
-  // );
-
-  // subscribe(
-  //   {
-  //     app: 'chat',
-  //     path: '/clubs',
-  //   },
-  //   (data) => {
-  //     logger.log('subscribeToChatUpdates', data);
-  //     eventHandler(
-  //       {
-  //         type: 'groupDmsUpdate',
-  //       },
-  //       currentUserId
-  //     );
-  //   }
-  // );
-
   subscribe(
     {
       app: 'chat',
       path: '/',
     },
-    (event: ub.WritResponse | { unknown: 'placeholder' }) => {
+    (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);
 
+      // check for DM invites
+      if (Array.isArray(event)) {
+        // dm invites
+        return eventHandler({
+          type: 'addDmInvites',
+          channels: toClientDms(event, true),
+        });
+      }
+
+      // and club events
+      if ('diff' in event) {
+        const diff = event.diff;
+        if ('uid' in diff && 'delta' in diff) {
+          logger.log('club event');
+          return eventHandler({
+            type: 'groupDmsUpdate',
+          });
+        }
+      }
+
+      // otherwise, handle as if it's a writ response
       if (!('response' in event)) {
         logger.log('unknown event type');
-        return;
+        return eventHandler({ type: 'unknown' });
       }
 
       const channelId = event.whom;
@@ -121,43 +117,78 @@ export function subscribeToChatUpdates(
 
       if ('add' in delta) {
         logger.log('add dm', id, delta);
+        const writ = deriveFullWrit(id, delta);
+        const post = toPostData(channelId, writ);
+        return eventHandler({ type: 'addPost', post });
       }
 
       if ('del' in delta) {
         logger.log('del dm', id, delta);
+        return eventHandler({ type: 'deletePost', postId: id });
       }
 
       if ('add-react' in delta) {
         logger.log('add react', id, delta);
+        const addReact = delta['add-react'];
+        return eventHandler({
+          type: 'addReaction',
+          postId: id,
+          userId: addReact.ship,
+          react: addReact.react,
+        });
       }
 
       if ('del-react' in delta) {
         logger.log('del react', id, delta);
+        const userId = delta['del-react'];
+        return eventHandler({
+          type: 'deleteReaction',
+          postId: id,
+          userId,
+        });
       }
 
       if ('reply' in delta) {
         const replyId = getCanonicalPostId(delta.reply.id);
         const replyDelta = delta.reply.delta;
-        const replyMeta = delta.reply.meta;
 
         if ('add' in replyDelta) {
           logger.log('add dm reply', id, delta);
+          const writReply = deriveFullWritReply({
+            id: replyId,
+            parentId: id,
+            delta: replyDelta,
+          });
+          const post = toPostReplyData(channelId, id, writReply);
+          return eventHandler({ type: 'addPost', post });
         }
 
         if ('del' in replyDelta) {
           logger.log('del dm reply', id, delta);
+          return eventHandler({ type: 'deletePost', postId: replyId });
         }
 
-        if ('add-react' in delta) {
+        if ('add-react' in replyDelta) {
           logger.log('add react reply', id, delta);
+          const addReact = replyDelta['add-react'];
+          return eventHandler({
+            type: 'addReaction',
+            postId: replyId,
+            userId: addReact.ship,
+            react: addReact.react,
+          });
         }
 
         if ('del-react' in replyDelta) {
           logger.log('del react reply', id, delta);
+          const userId = replyDelta['del-react'];
+          return eventHandler({
+            type: 'deleteReaction',
+            postId: replyId,
+            userId,
+          });
         }
       }
-
-      eventHandler({ type: 'unknown' });
     }
   );
 }
