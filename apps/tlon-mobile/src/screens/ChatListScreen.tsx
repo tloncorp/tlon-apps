@@ -6,13 +6,18 @@ import {
   ChatList,
   ChatOptionsSheet,
   ContactsProvider,
+  FloatingActionButton,
   GroupPreviewSheet,
+  Icon,
   ScreenLoader,
   ScreenMask,
   StartDmSheet,
   View,
+  navHeight,
 } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
+import ContextMenu from 'react-native-context-menu-view';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
@@ -47,6 +52,8 @@ export default function ChatListScreen(
       pendingChats: chats?.pendingChats ?? [],
     };
   }, [chats]);
+
+  const { bottom } = useSafeAreaInsets();
 
   const { isFetching: isFetchingInitData } = store.useInitialSync();
 
@@ -140,6 +147,38 @@ export default function ChatListScreen(
             onPressItem={onPressChat}
           />
         ) : null}
+        <View
+          zIndex={50}
+          position="absolute"
+          paddingBottom="$s"
+          bottom={bottom + navHeight}
+          alignItems="center"
+          width={'100%'}
+          pointerEvents="box-none"
+        >
+          <ContextMenu
+            dropdownMenuMode={true}
+            actions={[
+              { title: 'Create or join a group' },
+              { title: 'Start a direct message' },
+            ]}
+            onPress={(event) => {
+              const { index } = event.nativeEvent;
+              if (index === 0) {
+                setAddGroupOpen(true);
+              }
+              if (index === 1) {
+                setStartDmOpen(true);
+              }
+            }}
+          >
+            <FloatingActionButton
+              icon={<Icon type="Add" size="$s" marginRight="$s" />}
+              label={'Add'}
+              onPress={() => {}}
+            />
+          </ContextMenu>
+        </View>
         <ChatOptionsSheet
           open={longPressedItem !== null}
           onOpenChange={handleChatOptionsOpenChange}
