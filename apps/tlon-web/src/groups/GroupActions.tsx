@@ -350,10 +350,10 @@ const GroupActions = React.memo(
             <div className="relative h-6 w-6">
               {(isMobile || !isOpen) &&
               activity &&
-              activity.combinedStatus !== 'read' ? (
+              activity.combined.status !== 'read' ? (
                 <UnreadIndicator
-                  count={activity.combinedCount}
-                  notify={activity.notify}
+                  count={activity.combined.count}
+                  notify={activity.combined.notify}
                   className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                   aria-label="Has Activity"
                 />
@@ -362,8 +362,8 @@ const GroupActions = React.memo(
                 <button
                   className={cn(
                     'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 sm:hover:opacity-100 sm:group-hover:opacity-100',
-                    activity && activity.status !== 'read'
-                      ? activity.notify
+                    activity && activity.combined.status !== 'read'
+                      ? activity.combined.notify
                         ? 'text-blue'
                         : 'text-gray-400'
                       : '',

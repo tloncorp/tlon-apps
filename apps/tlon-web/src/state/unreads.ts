@@ -15,10 +15,13 @@ export type ReadStatus = 'read' | 'seen' | 'unread';
  */
 export interface Unread {
   status: ReadStatus;
-  combinedStatus: ReadStatus;
   notify: boolean;
   count: number;
-  combinedCount: number;
+  combined: {
+    status: ReadStatus;
+    count: number;
+    notify: boolean;
+  };
   recency: number;
   lastUnread?: {
     id: string;
@@ -29,11 +32,13 @@ export interface Unread {
   summary: ActivitySummary; // lags behind actual unread, only gets update if unread
 }
 
+export interface Unreads {
+  [source: string]: Unread;
+}
+
 export interface UnreadsStore {
   loaded: boolean;
-  sources: {
-    [source: string]: Unread;
-  };
+  sources: Unreads;
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
@@ -43,12 +48,47 @@ export interface UnreadsStore {
 
 export const unreadStoreLogger = createDevLogger('UnreadsStore', true);
 
-export function isUnread(unread: ActivitySummary): boolean {
-  return Boolean((unread.unread && unread.unread.count > 0) || unread.notify);
+export function isUnread(count: number, notify: boolean): boolean {
+  return Boolean(count > 0 || notify);
 }
 
-export function isCombinedUnread(unread: ActivitySummary): boolean {
-  return Boolean(unread.count > 0 || unread.notify);
+function sumChildren(source: string, unreads: Unreads): number {
+  const children = unreads[source]?.children || [];
+  return children.reduce((acc, child) => acc + (unreads[child]?.count || 0), 0);
+}
+
+function getUnread(
+  source: string,
+  summary: ActivitySummary,
+  unreads: Unreads
+): Unread {
+  const topNotify = summary.unread?.notify || false;
+  const topCount = summary.unread?.count || 0;
+  const combinedCount = source.startsWith('group/')
+    ? sumChildren(source, unreads)
+    : summary.count || 0;
+  const combinedNotify = summary.notify;
+  return {
+    children: summary.children,
+    recency: summary.recency,
+    readTimeout: 0,
+    notify: topNotify,
+    count: topCount,
+    status: isUnread(topCount, topNotify) ? 'unread' : 'read',
+    combined: {
+      count: combinedCount,
+      notify: combinedNotify,
+      status: isUnread(combinedCount, combinedNotify) ? 'unread' : 'read',
+    },
+    lastUnread: !summary.unread
+      ? undefined
+      : {
+          id: summary.unread.id,
+          time: summary.unread.time,
+        },
+    // todo account for children "seen"
+    summary,
+  };
 }
 
 export const emptyUnread = (): Unread => ({
@@ -61,10 +101,13 @@ export const emptyUnread = (): Unread => ({
   },
   recency: 0,
   status: 'read',
-  combinedStatus: 'read',
   notify: false,
   count: 0,
-  combinedCount: 0,
+  combined: {
+    status: 'read',
+    count: 0,
+    notify: false,
+  },
   readTimeout: 0,
   children: [],
 });
@@ -78,27 +121,17 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         Object.entries(summaries).forEach(([key, summary]) => {
           const source = draft.sources[key];
           unreadStoreLogger.log('update', key, source, summary, draft.sources);
-
-          draft.sources[key] = {
-            ...(source || emptyUnread()),
-            recency: summary.recency,
-            readTimeout: 0,
-            notify: summary.notify,
-            count: summary.unread?.count || 0,
-            combinedCount: summary.count || 0,
-            lastUnread: !summary.unread
-              ? undefined
-              : {
-                  id: summary.unread.id,
-                  time: summary.unread.time,
-                },
-            status: isUnread(summary) ? 'unread' : 'read',
-            // todo account for children "seen"
-            combinedStatus: isCombinedUnread(summary) ? 'unread' : 'read',
-            summary,
-          };
-          return;
+          draft.sources[key] = getUnread(key, summary, draft.sources);
         });
+      })
+    );
+  },
+  handleUnread: (key, summary) => {
+    set(
+      produce((draft: UnreadsStore) => {
+        const source = draft.sources[key] || emptyUnread();
+        unreadStoreLogger.log('unread', key, source, summary);
+        draft.sources[key] = getUnread(key, summary, draft.sources);
       })
     );
   },
@@ -166,38 +199,6 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
       })
     );
   },
-  handleUnread: (key, summary) => {
-    set(
-      produce((draft: UnreadsStore) => {
-        const source = draft.sources[key] || emptyUnread();
-
-        /* TODO: there was initially logic here to mark read when we're on the chat and
-            at the bottom of the scroll. This was very rarely firing since the scroller
-            doesn't actually call that event very often and if it did, would clear thread
-            unreads before they're seen. We should revisit once we have more granular control
-            over what we mark read.
-          */
-        unreadStoreLogger.log('unread', key, source, summary);
-        draft.sources[key] = {
-          ...source,
-          readTimeout: 0,
-          recency: summary.recency,
-          notify: summary.notify,
-          count: summary.unread?.count || 0,
-          combinedCount: summary.count || 0,
-          lastUnread: !summary.unread
-            ? undefined
-            : {
-                id: summary.unread.id,
-                time: summary.unread.time,
-              },
-          status: isUnread(summary) ? 'unread' : 'read',
-          combinedStatus: isCombinedUnread(summary) ? 'unread' : 'read',
-          summary,
-        };
-      })
-    );
-  },
 }));
 
 const defaultUnread = {
@@ -228,9 +229,9 @@ export function useCombinedGroupUnreads() {
     }
 
     return {
-      unread: acc.unread || source.status === 'unread',
-      count: acc.count + source.count,
-      notify: acc.notify || source.notify,
+      unread: acc.unread || source.combined.status === 'unread',
+      count: acc.count + source.combined.count,
+      notify: acc.notify || source.combined.notify,
     };
   }, defaultUnread);
 }
