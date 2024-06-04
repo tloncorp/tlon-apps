@@ -90,6 +90,7 @@ export const syncUnreads = async () => {
 };
 
 const resetUnreads = async (unreads: db.Unread[]) => {
+  if (!unreads.length) return;
   await db.insertUnreads(unreads);
   await db.setJoinedGroupChannels({
     channelIds: unreads

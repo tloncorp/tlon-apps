@@ -1,3 +1,4 @@
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { Post, Reply } from '@tloncorp/shared/dist/urbit/channel';
 import { Writ } from '@tloncorp/shared/dist/urbit/dms';
 import { daToUnix } from '@urbit/api';
@@ -79,7 +80,7 @@ const emptyWrit = {
   },
 };
 
-export type ChatMessageListItemData = {
+export type MessageListItemData = {
   writ: Writ | Post | Reply;
   type: 'message';
   time: bigInt.BigInteger;
@@ -89,13 +90,16 @@ export type ChatMessageListItemData = {
   isLast: boolean;
   isLinked: boolean;
   hideReplies: boolean;
+  parent?: MessageKey;
 };
 
 function useMessageItems({
   messages,
+  parent,
 }: {
   scrollTo?: bigInt.BigInteger;
   messages: WritArray;
+  parent?: MessageKey;
 }): [
   bigInt.BigInteger[],
   {
@@ -138,6 +142,7 @@ function useMessageItems({
           time: key,
           newAuthor,
           newDay,
+          parent,
         };
       }
 
@@ -163,28 +168,34 @@ function useMessageItems({
 export function useMessageData({
   whom,
   scrollTo,
+  parent,
   messages,
   replying,
 }: {
   whom: string;
+  parent?: MessageKey;
   scrollTo?: bigInt.BigInteger;
   messages: WritArray;
   replying: boolean;
 }) {
   const [activeMessageKeys, messageEntries, activeMessages] = useMessageItems({
     messages,
+    parent,
   });
 
-  const activeMessageEntries: ChatMessageListItemData[] = useMemo(
+  const activeMessageEntries: MessageListItemData[] = useMemo(
     () =>
-      messageEntries.map((props, index) => ({
-        type: 'message',
-        whom,
-        isLast: index === messageEntries.length - 1,
-        isLinked: !!scrollTo && (props.time?.eq(scrollTo) ?? false),
-        hideReplies: replying,
-        ...props,
-      })),
+      messageEntries.map(
+        (props, index) =>
+          ({
+            type: 'message',
+            whom,
+            isLast: index === messageEntries.length - 1,
+            isLinked: !!scrollTo && (props.time?.eq(scrollTo) ?? false),
+            hideReplies: replying,
+            ...props,
+          }) as MessageListItemData
+      ),
     [whom, scrollTo, messageEntries, replying]
   );
 

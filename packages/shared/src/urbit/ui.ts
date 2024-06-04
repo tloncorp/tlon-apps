@@ -1,4 +1,5 @@
-import { Channels, Unreads } from './channel';
+import { Activity } from './activity';
+import { Channels } from './channel';
 import { DMInit } from './dms';
 import { Gangs, Groups } from './groups';
 
@@ -6,7 +7,7 @@ export interface GroupsInit {
   groups: Groups;
   gangs: Gangs;
   channels: Channels;
-  unreads: Unreads;
+  activity: Activity;
   pins: string[];
   chat: DMInit;
 }

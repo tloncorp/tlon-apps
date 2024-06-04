@@ -94,6 +94,7 @@ import {
 } from '@/state/settings';
 
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
+import ThreadVolumeDialog from './channels/ThreadVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import DevLog from './components/DevLog/DevLog';
 import DevLogsView from './components/DevLog/DevLogView';
@@ -112,6 +113,7 @@ import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ShareDMLure from './profiles/ShareDMLure';
+import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
@@ -329,17 +331,11 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                   element={<ChatChannel title={` • ${groupsTitle}`} />}
                 >
                   {isSmall ? null : (
-                    <Route
-                      path="message/:idTime/:idReplyTime?"
-                      element={<ChatThread />}
-                    />
+                    <Route path="message/:idTime/" element={<ChatThread />} />
                   )}
                 </Route>
                 {isSmall ? (
-                  <Route
-                    path="message/:idTime/:idReplyTime?"
-                    element={<ChatThread />}
-                  />
+                  <Route path="message/:idTime" element={<ChatThread />} />
                 ) : null}
                 {isMobile && (
                   <Route path="search/:query?" element={<MobileChatSearch />} />
@@ -354,7 +350,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                   element={<HeapChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="curio/:idTime/:idReplyTime?"
+                  path="curio/:idTime"
                   element={<HeapDetail title={` • ${groupsTitle}`} />}
                 />
               </Route>
@@ -367,7 +363,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                   element={<DiaryChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="note/:noteId/:idReplyTime?"
+                  path="note/:noteId"
                   element={<DiaryNote title={` • ${groupsTitle}`} />}
                 />
                 <Route path="edit">
@@ -509,6 +505,10 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route
+            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/message/:idTime/volume"
+            element={<ThreadVolumeDialog title={`• ${groupsTitle}`} />}
+          />
+          <Route
             path="/groups/:ship/:name/leave"
             element={<GroupLeaveDialog />}
           />
@@ -543,7 +543,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                 element={<EmojiPicker />}
               />
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/:idReplyTime/picker/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
@@ -619,6 +619,7 @@ const App = React.memo(() => {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
 
+  useActivityFirehose();
   useChannelsFirehose();
   useEffect(() => {
     if (isNativeApp()) {
