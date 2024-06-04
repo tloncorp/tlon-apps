@@ -22,6 +22,8 @@ const NavBar = React.memo(function NavBar(props: {
       paddingTop={'$m'}
       height={navHeight + bottom}
       backgroundColor={Platform.OS === 'ios' ? 'transparent' : '$background'}
+      borderTopColor={'$border'}
+      borderTopWidth={1}
     >
       <BlurOnIos>
         <XStack
@@ -41,7 +43,7 @@ function BlurOnIos(props: PropsWithChildren) {
   if (Platform.OS === 'ios') {
     return (
       <BlurView
-        intensity={100}
+        intensity={75}
         tint={theme.isDark ? 'regular' : 'light'}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       >

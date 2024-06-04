@@ -31,7 +31,7 @@ export function ChatList({
   onPressItem?: (chat: ListItem) => void;
   onLongPressItem?: (chat: ListItem) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
 
   const data = useMemo(() => {
     if (pinned.length === 0) {
@@ -47,8 +47,8 @@ export function ChatList({
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
-      paddingTop: '$l',
       paddingHorizontal: '$l',
+      paddingTop: top + 66,
       paddingBottom: navHeight + bottom,
     },
     { resolveValues: 'value' }

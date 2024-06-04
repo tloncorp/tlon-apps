@@ -1,7 +1,8 @@
+import { BlurView } from 'expo-blur';
 import { PropsWithChildren, ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styled, withStaticProperties } from 'tamagui';
+import { styled, useTheme, withStaticProperties } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { SizableText, View, XStack } from '../core';
@@ -17,20 +18,31 @@ export const ScreenHeaderComponent = ({
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
 }>) => {
-  const insets = useSafeAreaInsets();
   return (
-    <View paddingTop={insets.top}>
-      <XStack
-        height="$4xl"
-        paddingVertical="$m"
-        paddingHorizontal="$xl"
-        alignItems="center"
-      >
-        <HeaderControls side="left">{leftControls}</HeaderControls>
-        {typeof title === 'string' ? <HeaderTitle>{title}</HeaderTitle> : title}
-        <HeaderControls side="right">{rightControls}</HeaderControls>
-        {children}
-      </XStack>
+    <View
+      position="absolute"
+      width={'100%'}
+      zIndex={50}
+      borderBottomColor={'$border'}
+      borderBottomWidth={1}
+    >
+      <BlurOnIos>
+        <XStack
+          height="$4xl"
+          paddingVertical="$m"
+          paddingHorizontal="$xl"
+          alignItems="center"
+        >
+          <HeaderControls side="left">{leftControls}</HeaderControls>
+          {typeof title === 'string' ? (
+            <HeaderTitle>{title}</HeaderTitle>
+          ) : (
+            title
+          )}
+          <HeaderControls side="right">{rightControls}</HeaderControls>
+          {children}
+        </XStack>
+      </BlurOnIos>
     </View>
   );
 };
@@ -76,3 +88,24 @@ export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Title: HeaderTitle,
   BackButton: HeaderBackButton,
 });
+
+function BlurOnIos(props: PropsWithChildren) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  if (Platform.OS === 'ios') {
+    return (
+      <BlurView
+        style={{ paddingTop: insets.top }}
+        intensity={75}
+        tint={theme.isDark ? 'dark' : 'light'}
+      >
+        {props.children}
+      </BlurView>
+    );
+  }
+  return (
+    <View backgroundColor="$background" paddingTop={insets.top}>
+      {props.children}
+    </View>
+  );
+}
