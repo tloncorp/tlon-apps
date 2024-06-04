@@ -1,9 +1,10 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { SizableText, Stack } from '../../core';
+import { XStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
+import { Icon } from '../Icon';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function GroupListItemContent({
@@ -32,15 +33,22 @@ export default function GroupListItemContent({
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
         {!isPending && model.lastPost ? (
-          <ListItem.Subtitle>
-            <ContactName
-              userId={model.lastPost.authorId}
-              showNickname
+          <XStack gap="$s" alignItems="center">
+            <Icon
+              type={getLastMessageIcon(model.lastPost.type)}
               color={'$secondaryText'}
               size={'$s'}
             />
-            : {model.lastPost?.textContent ?? ''}
-          </ListItem.Subtitle>
+            <ListItem.Subtitle>
+              <ContactName
+                userId={model.lastPost.authorId}
+                showNickname
+                color={'$secondaryText'}
+                size={'$s'}
+              />
+              : {model.lastPost?.textContent ?? ''}
+            </ListItem.Subtitle>
+          </XStack>
         ) : null}
       </ListItem.MainContent>
       {statusDisplay ? (
@@ -60,6 +68,19 @@ export default function GroupListItemContent({
       )}
     </ListItem>
   );
+}
+
+function getLastMessageIcon(type: db.Post['type']) {
+  switch (type) {
+    case 'chat':
+      return 'ChannelTalk';
+    case 'block':
+      return 'ChannelGalleries';
+    case 'note':
+      return 'ChannelNotebooks';
+    default:
+      return 'Channel';
+  }
 }
 
 type DisplayInfo = {

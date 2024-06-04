@@ -1,9 +1,10 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { ColorProp } from 'tamagui';
+import { ColorProp, XStack } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
+import { Icon } from '../Icon';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ChannelListItem({
@@ -27,20 +28,25 @@ export default function ChannelListItem({
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
         {model.lastPost && (
-          <ListItem.Subtitle>
-            {model.type !== 'dm' ? (
-              <>
-                <ContactName
-                  showNickname
-                  userId={model.lastPost.authorId}
-                  size="$s"
-                  color="$secondaryText"
-                />
-                :{' '}
-              </>
-            ) : null}
-            {model.lastPost.textContent ?? ''}
-          </ListItem.Subtitle>
+          <XStack gap="$s" alignItems="center">
+            {model.type === 'dm' && (
+              <Icon type={'ChannelTalk'} color="$secondaryText" size="$s" />
+            )}
+            <ListItem.Subtitle>
+              {model.type !== 'dm' ? (
+                <>
+                  <ContactName
+                    showNickname
+                    userId={model.lastPost.authorId}
+                    size="$s"
+                    color="$secondaryText"
+                  />
+                  :{' '}
+                </>
+              ) : null}
+              {model.lastPost.textContent ?? ''}
+            </ListItem.Subtitle>
+          </XStack>
         )}
       </ListItem.MainContent>
       {model.isDmInvite ? (
