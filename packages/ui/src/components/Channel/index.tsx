@@ -23,6 +23,7 @@ import {
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
 import { SizableText, View, YStack } from '../../core';
+import { useStickyUnread } from '../../hooks/useStickyUnread';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
@@ -120,6 +121,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
+  const channelUnread = useStickyUnread(channel.unread);
   const renderItem = isChatChannel
     ? ChatMessage
     : channel.type === 'notebook'
@@ -147,13 +149,13 @@ export function Channel({
     } else if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
     } else if (
-      channel.unread?.countWithoutThreads &&
-      channel.unread.firstUnreadPostId
+      channelUnread?.countWithoutThreads &&
+      channelUnread.firstUnreadPostId
     ) {
-      return { type: 'unread', postId: channel.unread.firstUnreadPostId };
+      return { type: 'unread', postId: channelUnread.firstUnreadPostId };
     }
     return null;
-  }, [selectedPostId, channel]);
+  }, [channel.type, selectedPostId, channelUnread]);
 
   const bigInputGoBack = () => {
     setShowBigInput(false);
@@ -279,13 +281,13 @@ export function Channel({
                                     channelType={channel.type}
                                     channelId={channel.id}
                                     firstUnreadId={
-                                      channel.unread?.countWithoutThreads ??
+                                      channelUnread?.countWithoutThreads ??
                                       0 > 0
-                                        ? channel.unread?.firstUnreadPostId
+                                        ? channelUnread?.firstUnreadPostId
                                         : null
                                     }
                                     unreadCount={
-                                      channel.unread?.countWithoutThreads ?? 0
+                                      channelUnread?.countWithoutThreads ?? 0
                                     }
                                     onPressPost={goToPost}
                                     onPressReplies={goToPost}

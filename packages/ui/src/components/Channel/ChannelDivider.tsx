@@ -1,6 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isToday, makePrettyDay } from '@tloncorp/shared/dist/logic';
-import { useCallback, useMemo } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { SizableText, View, XStack } from '../../core';
 

@@ -9,8 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
-import { ThreadProvider } from '../contexts/thread';
 import { Text, View, YStack } from '../core';
+import { useStickyUnread } from '../hooks/useStickyUnread';
 import * as utils from '../utils';
 import AuthorRow, { AUTHOR_ROW_HEIGHT_DETAIL_VIEW } from './AuthorRow';
 import { ChannelHeader } from './Channel/ChannelHeader';
@@ -69,6 +69,7 @@ export function PostScreenView({
   const [showComments, setShowComments] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
+  const threadUnread = useStickyUnread(parentPost?.threadUnread);
   const postsWithoutParent = useMemo(
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]
@@ -143,10 +144,8 @@ export function PostScreenView({
                       showReplies={false}
                       onPressImage={handleGoToImage}
                       onDividerSeen={markRead}
-                      unreadCount={parentPost?.threadUnread?.count}
-                      firstUnreadId={
-                        parentPost?.threadUnread?.firstUnreadPostId
-                      }
+                      unreadCount={threadUnread?.count}
+                      firstUnreadId={threadUnread?.firstUnreadPostId}
                     />
                   )
                 )}
@@ -168,8 +167,8 @@ export function PostScreenView({
                     storeDraft={storeDraft}
                     clearDraft={clearDraft}
                     getDraft={getDraft}
-                    unreadCount={parentPost.threadUnread?.count}
-                    firstUnreadId={parentPost.threadUnread?.firstUnreadPostId}
+                    unreadCount={threadUnread?.count}
+                    firstUnreadId={threadUnread?.firstUnreadPostId}
                   />
                 )}
                 {negotiationMatch && !editingPost && channel && canWrite && (

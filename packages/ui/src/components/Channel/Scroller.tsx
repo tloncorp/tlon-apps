@@ -262,7 +262,6 @@ export default function Scroller({
       unreadCount,
       firstUnreadId,
       renderItem,
-      unreadCount,
       onDividerSeen,
       activeMessage?.id,
       currentUserId,
