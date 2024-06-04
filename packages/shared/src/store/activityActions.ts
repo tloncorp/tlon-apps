@@ -46,7 +46,6 @@ export async function muteThread({
   channel: db.Channel;
   thread: db.Post;
 }) {
-  // TODO: check with hunter on message keys
   let source: ub.Source;
   if (channel.type === 'dm' || channel.type === 'groupDm') {
     source = {
