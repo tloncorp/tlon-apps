@@ -32,14 +32,9 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {/* 
-          Commenting the third line of the GroupListItem out
-          until we solidify a design that accomodates it
-
-          {model.lastPost && (
-            <ListItem.Subtitle>{model.lastChannel}</ListItem.Subtitle>
-          )}
-        */}
+        {model.lastPost && (
+          <ListItem.Subtitle>{model.lastChannel}</ListItem.Subtitle>
+        )}
         {!isPending && model.lastPost ? (
           <XStack gap="$xs" alignItems="center">
             <Icon
