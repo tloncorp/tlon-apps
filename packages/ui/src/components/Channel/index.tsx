@@ -321,11 +321,7 @@ export function Channel({
                         {!isChatChannel && canWrite && !showBigInput && (
                           <View
                             position="absolute"
-                            bottom={
-                              Platform.OS === 'ios'
-                                ? navHeight
-                                : bottom + getToken('$m')
-                            }
+                            bottom="$s"
                             flex={1}
                             width="100%"
                             alignItems="center"

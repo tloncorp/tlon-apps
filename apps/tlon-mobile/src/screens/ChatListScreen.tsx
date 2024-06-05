@@ -145,8 +145,7 @@ export default function ChatListScreen(
         <View
           zIndex={50}
           position="absolute"
-          paddingBottom="$s"
-          bottom={0}
+          bottom="$s"
           alignItems="center"
           width={'100%'}
           pointerEvents="box-none"
