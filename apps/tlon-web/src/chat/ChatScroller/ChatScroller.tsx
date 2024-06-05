@@ -50,11 +50,11 @@ const ChatScrollerItem = React.memo(
   ({
     item,
     isScrolling,
-    hideOptions,
+    isBroadcast,
   }: {
     item: ChatMessageListItemData | CustomScrollItemData;
     isScrolling: boolean;
-    hideOptions?: boolean;
+    isBroadcast?: boolean;
   }) => {
     if (item.type === 'custom') {
       return item.component;
@@ -85,7 +85,7 @@ const ChatScrollerItem = React.memo(
         isScrolling={isScrolling}
         writ={writ}
         time={time}
-        hideOptions={hideOptions}
+        isBroadcast={isBroadcast}
         {...rest}
       />
     );
@@ -172,7 +172,7 @@ const loaderPadding = {
 export interface ChatScrollerProps {
   whom: string;
   messages: PostTuple[] | WritTuple[] | ReplyTuple[];
-  hideOptions?: boolean;
+  isBroadcast?: boolean;
   onAtTop?: () => void;
   onAtBottom?: () => void;
   isLoadingOlder: boolean;
@@ -194,7 +194,7 @@ export interface ChatScrollerProps {
 export default function ChatScroller({
   whom,
   messages,
-  hideOptions,
+  isBroadcast,
   onAtTop,
   onAtBottom,
   isLoadingOlder,
@@ -573,7 +573,7 @@ export default function ChatScroller({
                 <ChatScrollerItem
                   item={item}
                   isScrolling={isScrolling}
-                  hideOptions={hideOptions}
+                  isBroadcast={isBroadcast}
                 />
               </div>
             );

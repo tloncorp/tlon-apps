@@ -42,7 +42,7 @@ export default function BroadcastWindow({
            */
           key={whom}
           messages={writs}
-          hideOptions={true}
+          isBroadcast={true}
           isLoadingOlder={false}
           isLoadingNewer={false}
           whom={whom}

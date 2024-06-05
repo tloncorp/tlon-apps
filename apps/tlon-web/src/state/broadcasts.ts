@@ -153,3 +153,25 @@ export function broadcast(
     },
   });
 }
+
+export function deleteBroadcast(
+  cohort: CohortKey,
+  timeId: string,
+  onSuccess?: () => void,
+  onError?: () => void
+) {
+  const json = { delete: { cohort, 'time-id': timeId } };
+  api.poke({
+    mark: 'broadcaster-action',
+    app: 'broadcaster',
+    json,
+    onSuccess: () => {
+      //TODO refetch just the affected cohort
+      queryClient.refetchQueries(cohortsKey());
+      onSuccess?.();
+    },
+    onError: () => {
+      onError?.();
+    },
+  });
+}

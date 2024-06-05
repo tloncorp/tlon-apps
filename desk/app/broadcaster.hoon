@@ -28,6 +28,7 @@
   $%  [%add-cohort cohort=@t targets=(set ship)]
       [%del-cohort cohort=@t targets=(set ship)]  ::  ~ for full deletion
       [%broadcast cohort=@t =story:d:c]
+      [%delete cohort=@t time-id=@da]
   ==
 ::
 ++  update
@@ -119,12 +120,30 @@
     =/  =action:dm:c
       [who [our now]:bowl %add [story.action our.bowl now.bowl] ~ ~]
     [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
+  ::
+      %delete
+    =/  =cohort
+      (~(got by cohorts) cohort.action)
+    =^  log  logging.cohort
+      %+  skid  logging.cohort
+      |=(relive =(time-id.action wen))
+    ?>  ?=([* ~] log)
+    :_  this(cohorts (~(put by cohorts) cohort.action cohort))
+    %+  turn
+      ~(tap in targets.cohort)
+    |=  who=ship
+    ^-  card
+    =/  =wire
+      /delete/(scot %t cohort.action)/(scot %da time-id.action)/(scot %p who)
+    =/  =id:c         [our.bowl time-id.action]
+    =/  =action:dm:c  [who id %del ~]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
   ==
 ::
 ++  on-agent
   |=  [=wire sign=sign:agent:gall]
   ^-  (quip card _this)
-  ?>  ?=([%broadcast cohort=@ msg=@ ship=@ ~] wire)
+  ?>  ?=([?(%broadcast %delete) cohort=@ msg=@ ship=@ ~] wire)
   ::TODO  handle nacks
   [~ this]
 ::

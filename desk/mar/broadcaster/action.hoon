@@ -25,6 +25,7 @@
     :~  add-cohort+(ot 'cohort'^(se %t) 'targets'^(cu sy (ar (se %p))) ~)
         del-cohort+(ot 'cohort'^(se %t) 'targets'^(cu sy (ar (se %p))) ~)
         broadcast+(ot 'cohort'^(se %t) 'story'^story:dejs:cj ~)
+        delete+(ot 'cohort'^(se %t) 'time-id'^(se %da) ~)
     ==
   --
 --
