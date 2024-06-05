@@ -21,6 +21,7 @@ import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
+import { DebugInfo } from './DebugInfo';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -28,6 +29,7 @@ import { navHeight } from './NavBar/NavBar';
 
 interface Props {
   currentUserId: string;
+  debugMessage: string;
 }
 
 export function ProfileScreenView({
@@ -109,12 +111,17 @@ export function Wrapped(props: Props) {
             <View marginTop="$l">
               {contact ? (
                 <ProfileDisplayWidget
+                  debugMessage={props.debugMessage}
                   contact={contact}
                   contactId={props.currentUserId}
                 />
               ) : (
                 <View backgroundColor="$secondaryBackground" borderRadius="$m">
-                  <ProfileRow dark contactId={props.currentUserId} />
+                  <ProfileRow
+                    debugMessage={props.debugMessage}
+                    dark
+                    contactId={props.currentUserId}
+                  />
                 </View>
               )}
             </View>
@@ -186,9 +193,11 @@ export function Wrapped(props: Props) {
 export function ProfileDisplayWidget({
   contact,
   contactId,
+  debugMessage,
 }: {
   contact: db.Contact;
   contactId: string;
+  debugMessage: string;
 }) {
   const coverSize =
     Dimensions.get('window').width - getTokens().space.$xl.val * 2;
@@ -196,13 +205,24 @@ export function ProfileDisplayWidget({
     return (
       <ProfileCover uri={contact.coverImage}>
         <YStack height={coverSize} width={coverSize} justifyContent="flex-end">
-          <ProfileRow contactId={contactId} contact={contact} />
+          <ProfileRow
+            debugMessage={debugMessage}
+            contactId={contactId}
+            contact={contact}
+          />
         </YStack>
       </ProfileCover>
     );
   }
 
-  return <ProfileRow dark contactId={contactId} contact={contact} />;
+  return (
+    <ProfileRow
+      debugMessage={debugMessage}
+      dark
+      contactId={contactId}
+      contact={contact}
+    />
+  );
 }
 
 function ProfileCover({ uri, children }: PropsWithChildren<{ uri: string }>) {
@@ -222,10 +242,12 @@ function ProfileRow({
   contactId,
   contact,
   dark,
+  debugMessage,
 }: {
   contactId: string;
   contact?: db.Contact;
   dark?: boolean;
+  debugMessage: string;
 }) {
   const color = dark ? '$primaryText' : '$white';
   return (
@@ -235,7 +257,9 @@ function ProfileRow({
       backgroundColor={dark ? '$secondaryBackground' : undefined}
       borderRadius={dark ? '$xl' : undefined}
     >
-      <Avatar size="$5xl" contactId={contactId} contact={contact} />
+      <DebugInfo debugMessage={debugMessage}>
+        <Avatar size="$5xl" contactId={contactId} contact={contact} />
+      </DebugInfo>
       <View marginLeft="$l">
         {contact?.nickname ? (
           <YStack>
