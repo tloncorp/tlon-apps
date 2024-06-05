@@ -16,9 +16,6 @@ export default function FloatingActionButton({
       paddingVertical="$s"
       alignItems="center"
       onPress={onPress}
-      shadowColor={'$primaryText'}
-      shadowOpacity={0.125}
-      shadowRadius={'$m'}
     >
       {icon}
       {label && (
