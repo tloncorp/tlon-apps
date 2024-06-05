@@ -31,12 +31,9 @@ export function ChannelHeader({
       <XStack
         justifyContent="space-between"
         alignItems="center"
-        paddingVertical="$m"
         paddingHorizontal="$xl"
         gap="$m"
-        borderBottomWidth={1}
-        borderBottomColor="$border"
-        height="$4xl"
+        height="$3xl"
       >
         <XStack alignItems="center" gap="$m" flex={1}>
           <IconButton onPress={goBack}>
@@ -49,11 +46,10 @@ export function ChannelHeader({
             size="$m"
             fontWeight="500"
           >
-            {title}
+            {showSpinner ? 'Loading…' : title}
           </SizableText>
         </XStack>
         <XStack gap="$m" alignItems="center">
-          {showSpinner && <Spinner />}
           {showSearchButton && (
             <IconButton onPress={goToSearch}>
               <Search />

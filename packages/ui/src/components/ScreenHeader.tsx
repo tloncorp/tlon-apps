@@ -18,31 +18,15 @@ export const ScreenHeaderComponent = ({
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
 }>) => {
+  const { top } = useSafeAreaInsets();
   return (
-    <View
-      position="absolute"
-      width={'100%'}
-      zIndex={50}
-      borderBottomColor={'$border'}
-      borderBottomWidth={1}
-    >
-      <BlurOnIos>
-        <XStack
-          height="$4xl"
-          paddingVertical="$m"
-          paddingHorizontal="$xl"
-          alignItems="center"
-        >
-          <HeaderControls side="left">{leftControls}</HeaderControls>
-          {typeof title === 'string' ? (
-            <HeaderTitle>{title}</HeaderTitle>
-          ) : (
-            title
-          )}
-          <HeaderControls side="right">{rightControls}</HeaderControls>
-          {children}
-        </XStack>
-      </BlurOnIos>
+    <View paddingTop={top} zIndex={50} backgroundColor="$background">
+      <XStack height="$3xl" paddingHorizontal="$2xl" alignItems="center">
+        {typeof title === 'string' ? <HeaderTitle>{title}</HeaderTitle> : title}
+        <HeaderControls side="left">{leftControls}</HeaderControls>
+        <HeaderControls side="right">{rightControls}</HeaderControls>
+        {children}
+      </XStack>
     </View>
   );
 };
@@ -56,8 +40,8 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
 };
 
 const HeaderTitle = styled(SizableText, {
-  size: '$l',
-  textAlign: 'center',
+  size: '$m',
+  textAlign: 'left',
   fontWeight: '500',
   flex: 1,
 });
