@@ -90,12 +90,15 @@ export const syncDms = async () => {
 };
 
 export const syncUnreads = async () => {
-  // const [channelUnreads, dmUnreads] = await Promise.all([
-  //   api.getChannelUnreads(),
-  //   api.getDMUnreads(),
-  // ]);
-  // const unreads = [...channelUnreads, ...dmUnreads];
-  // await resetUnreads(unreads);
+  const { channelActivity, threadActivity } = await api.getUnreads();
+  await db.insertUnreads(channelActivity);
+  await db.insertThreadActivity(threadActivity);
+
+  await db.setJoinedGroupChannels({
+    channelIds: channelActivity
+      .filter((u) => u.type === 'channel')
+      .map((u) => u.channelId),
+  });
 };
 
 const resetActivity = async (activity: api.ActivityInit) => {
