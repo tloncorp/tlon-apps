@@ -344,7 +344,8 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
     }
 
     if (activityId === 'thread' || activityId === 'dm-thread') {
-      const channelId = rest.slice(0, -2).join('/');
+      const channelId =
+        activityId === 'dm-thread' ? rest[0] : rest.slice(0, 3).join('/');
       const threadId = rest[rest.length - 1];
       threadActivity.push(
         toThreadActivity(

@@ -31,6 +31,7 @@ export default function AuthorRow({
   roles,
   type,
   parentPost,
+  unreadCount,
   setShowComments,
   width,
 }: {
@@ -41,6 +42,7 @@ export default function AuthorRow({
   deliveryStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
   parentPost?: db.Post;
+  unreadCount?: number | null;
   setShowComments?: (show: boolean) => void;
   width?: number;
 }) {
@@ -77,7 +79,9 @@ export default function AuthorRow({
             <SizableText color="$primaryText" size="$xs">
               {timeDisplay}
             </SizableText>
-            <ListItem.Count>{parentPost.replyCount ?? 0}</ListItem.Count>
+            <ListItem.Count notUnread={!unreadCount}>
+              {(unreadCount || parentPost.replyCount) ?? 0}
+            </ListItem.Count>
           </XStack>
         </XStack>
       </Pressable>

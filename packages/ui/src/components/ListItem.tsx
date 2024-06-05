@@ -290,12 +290,19 @@ const ListItemTime = ListItemTimeText.styleable<{
 const ListItemCount = ({
   children,
   muted,
-}: PropsWithChildren<{ muted?: boolean }>) => {
+  notUnread,
+}: PropsWithChildren<{ muted?: boolean; notUnread?: boolean }>) => {
   return (
     <Stack
       padding="$2xs"
       paddingHorizontal={'$m'}
-      backgroundColor={muted ? '$secondaryBackground' : '$positiveBackground'}
+      backgroundColor={
+        notUnread
+          ? undefined
+          : muted
+            ? '$secondaryBackground'
+            : '$positiveBackground'
+      }
       borderRadius="$l"
       // Tiny tweak to try to align with the baseline of the title
       position="relative"
@@ -304,7 +311,7 @@ const ListItemCount = ({
       <SizableText
         size="$s"
         lineHeight={Platform.OS === 'ios' ? 0 : 17}
-        color={muted ? '$secondaryText' : '$positiveActionText'}
+        color={notUnread || muted ? '$secondaryText' : '$positiveActionText'}
         textAlign="center"
       >
         {children}
