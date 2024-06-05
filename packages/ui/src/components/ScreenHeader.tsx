@@ -1,8 +1,6 @@
-import { BlurView } from 'expo-blur';
 import { PropsWithChildren, ReactNode } from 'react';
-import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styled, useTheme, withStaticProperties } from 'tamagui';
+import { styled, withStaticProperties } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { SizableText, View, XStack } from '../core';
@@ -72,24 +70,3 @@ export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Title: HeaderTitle,
   BackButton: HeaderBackButton,
 });
-
-function BlurOnIos(props: PropsWithChildren) {
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
-  if (Platform.OS === 'ios') {
-    return (
-      <BlurView
-        style={{ paddingTop: insets.top }}
-        intensity={75}
-        tint={theme.isDark ? 'dark' : 'light'}
-      >
-        {props.children}
-      </BlurView>
-    );
-  }
-  return (
-    <View backgroundColor="$background" paddingTop={insets.top}>
-      {props.children}
-    </View>
-  );
-}
