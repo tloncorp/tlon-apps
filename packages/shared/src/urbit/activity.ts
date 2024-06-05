@@ -114,7 +114,9 @@ export interface ReplyEvent {
   };
 }
 
-export type ActivityEvent =
+export type ActivityEvent = {
+  notified: boolean;
+} & (
   | DmInviteEvent
   | GroupKickEvent
   | GroupJoinEvent
@@ -122,7 +124,8 @@ export type ActivityEvent =
   | DmPostEvent
   | DmReplyEvent
   | PostEvent
-  | ReplyEvent;
+  | ReplyEvent
+);
 
 export interface PostRead {
   seen: boolean;
