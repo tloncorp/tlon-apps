@@ -1,4 +1,5 @@
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useEffect } from 'react';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styled, withStaticProperties } from 'tamagui';
 
@@ -17,10 +18,27 @@ export const ScreenHeaderComponent = ({
   rightControls?: ReactNode | null;
 }>) => {
   const { top } = useSafeAreaInsets();
+
   return (
     <View paddingTop={top} zIndex={50} backgroundColor="$background">
-      <XStack height="$3xl" paddingHorizontal="$2xl" alignItems="center">
-        {typeof title === 'string' ? <HeaderTitle>{title}</HeaderTitle> : title}
+      <XStack
+        height="$3xl"
+        paddingHorizontal="$2xl"
+        alignItems="center"
+        paddingBottom="$m"
+      >
+        {typeof title === 'string' ? (
+          <Animated.View
+            key={title}
+            entering={FadeInDown}
+            exiting={FadeOutUp}
+            style={{ flex: 1 }}
+          >
+            <HeaderTitle>{title}</HeaderTitle>
+          </Animated.View>
+        ) : (
+          title
+        )}
         <HeaderControls side="left">{leftControls}</HeaderControls>
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}

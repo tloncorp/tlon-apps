@@ -1,3 +1,4 @@
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -5,7 +6,7 @@ import {
   ChevronLeft,
   Search,
 } from '../../assets/icons';
-import { SizableText, Spinner, View, XStack } from '../../core';
+import { SizableText, View, XStack } from '../../core';
 import { IconButton } from '../IconButton';
 
 export function ChannelHeader({
@@ -34,20 +35,28 @@ export function ChannelHeader({
         paddingHorizontal="$xl"
         gap="$m"
         height="$3xl"
+        paddingBottom="$m"
       >
         <XStack alignItems="center" gap="$m" flex={1}>
           <IconButton onPress={goBack}>
             <ChevronLeft />
           </IconButton>
-          <SizableText
-            flexShrink={1}
-            numberOfLines={1}
-            color="$primaryText"
-            size="$m"
-            fontWeight="500"
+          <Animated.View
+            key={showSpinner?.toString()}
+            entering={FadeInDown}
+            exiting={FadeOutUp}
+            style={{ flex: 1 }}
           >
-            {showSpinner ? 'Loading…' : title}
-          </SizableText>
+            <SizableText
+              flexShrink={1}
+              numberOfLines={1}
+              color="$primaryText"
+              size="$m"
+              fontWeight="500"
+            >
+              {showSpinner ? 'Loading…' : title}
+            </SizableText>
+          </Animated.View>
         </XStack>
         <XStack gap="$m" alignItems="center">
           {showSearchButton && (

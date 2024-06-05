@@ -15,7 +15,6 @@ import {
 } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import ContextMenu from 'react-native-context-menu-view';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
