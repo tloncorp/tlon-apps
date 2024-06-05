@@ -1013,19 +1013,13 @@ export const insertChannels = createWriteQuery(
       return;
     }
 
-    logger.log(
-      'insertChannels',
-      channels.length,
-      channels.map((c) => c.id)
-    );
-
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
         .insert($channels)
         .values(channels)
         .onConflictDoUpdate({
           target: $channels.id,
-          set: conflictUpdateSetAll($channels),
+          set: conflictUpdateSetAll($channels, ['lastPostId', 'lastPostAt']),
         });
 
       for (const channel of channels) {
@@ -2112,9 +2106,13 @@ function allQueryColumns<T extends Subquery>(
   return subquery._.selectedFields;
 }
 
-function conflictUpdateSetAll(table: Table) {
+function conflictUpdateSetAll(table: Table, exclude?: string[]) {
   const columns = getTableColumns(table);
-  return conflictUpdateSet(...Object.values(columns));
+  return conflictUpdateSet(
+    ...Object.entries(columns)
+      .filter(([k]) => !exclude?.includes(k))
+      .map(([_, v]) => v)
+  );
 }
 
 function conflictUpdateSet(...columns: Column[]) {
