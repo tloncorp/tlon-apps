@@ -3,7 +3,7 @@ import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -170,6 +170,7 @@ export function PostScreenView({
                       sendReply={sendReply}
                       uploadInfo={uploadInfo}
                       groupMembers={groupMembers}
+                      onDividerSeen={markRead}
                       storeDraft={storeDraft}
                       clearDraft={clearDraft}
                       getDraft={getDraft}
@@ -203,6 +204,7 @@ export function PostScreenView({
                           authorId={parentPost.authorId}
                           author={parentPost.author}
                           sent={parentPost.sentAt}
+                          unreadCount={threadUnread?.count}
                         />
                       ) : null}
                     </View>

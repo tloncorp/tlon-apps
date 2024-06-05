@@ -28,6 +28,7 @@ export default function CommentsScrollerSheet({
   storeDraft,
   clearDraft,
   getDraft,
+  onDividerSeen,
   onPressImage,
   firstUnreadId,
   unreadCount,
@@ -47,6 +48,7 @@ export default function CommentsScrollerSheet({
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
+  onDividerSeen: (post: db.Post) => void;
   onPressImage?: (post: db.Post, uri?: string) => void;
   firstUnreadId?: string | null;
   unreadCount?: number | null;
@@ -68,6 +70,7 @@ export default function CommentsScrollerSheet({
           authorId={parentPost.authorId}
           author={parentPost.author}
           sent={parentPost.sentAt}
+          unreadCount={unreadCount}
         />
         <Scroller
           setInputShouldBlur={setInputShouldBlur}
@@ -81,6 +84,7 @@ export default function CommentsScrollerSheet({
           editPost={editPost}
           posts={posts}
           showReplies={false}
+          onDividerSeen={onDividerSeen}
           onPressImage={onPressImage}
           unreadCount={unreadCount}
           firstUnreadId={firstUnreadId}
