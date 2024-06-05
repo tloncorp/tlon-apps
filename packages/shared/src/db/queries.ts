@@ -454,6 +454,7 @@ export const deleteGroup = createWriteQuery(
 export const insertUnjoinedGroups = createWriteQuery(
   'insertUnjoinedGroups',
   async (groups: Group[]) => {
+    if (groups.length === 0) return;
     return client.transaction(async (tx) => {
       // ensure we never delete metadata if we get a partial for some reason
       // during the join process
@@ -1188,6 +1189,7 @@ export const getChannelNavSection = createReadQuery(
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
   async ({ channelIds }: { channelIds: string[] }) => {
+    if (channelIds.length === 0) return;
     return await client
       .update($channels)
       .set({
