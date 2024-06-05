@@ -8,7 +8,7 @@ import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', true);
 
-export async function getActivity() {
+export async function getUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
     path: '/activity',
