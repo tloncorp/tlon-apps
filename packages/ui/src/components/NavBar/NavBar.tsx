@@ -16,24 +16,17 @@ const NavBar = React.memo(function NavBar(props: {
 
   return (
     <View
-      position="absolute"
       width={'100%'}
-      bottom={0}
-      paddingTop={'$m'}
       height={navHeight + bottom}
-      backgroundColor={Platform.OS === 'ios' ? 'transparent' : '$background'}
-      borderTopColor={'$border'}
-      borderTopWidth={1}
+      backgroundColor={'$background'}
     >
-      <BlurOnIos>
-        <XStack
-          justifyContent="space-around"
-          alignItems="flex-start"
-          paddingTop={'$m'}
-        >
-          {props.children}
-        </XStack>
-      </BlurOnIos>
+      <XStack
+        justifyContent="space-around"
+        alignItems="flex-start"
+        paddingTop={'$m'}
+      >
+        {props.children}
+      </XStack>
     </View>
   );
 });

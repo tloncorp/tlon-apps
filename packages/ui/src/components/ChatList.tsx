@@ -48,8 +48,6 @@ export function ChatList({
     {
       gap: '$s',
       paddingHorizontal: '$l',
-      paddingTop: top,
-      paddingBottom: navHeight + bottom,
     },
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;

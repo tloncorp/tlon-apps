@@ -9,11 +9,9 @@ import {
   FloatingActionButton,
   GroupPreviewSheet,
   Icon,
-  ScreenLoader,
-  ScreenMask,
+  ScreenHeader,
   StartDmSheet,
   View,
-  navHeight,
 } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import ContextMenu from 'react-native-context-menu-view';
@@ -52,8 +50,6 @@ export default function ChatListScreen(
       pendingChats: chats?.pendingChats ?? [],
     };
   }, [chats]);
-
-  const { bottom } = useSafeAreaInsets();
 
   const { isFetching: isFetchingInitData } = store.useInitialSync();
 
@@ -136,8 +132,7 @@ export default function ChatListScreen(
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
-        <ScreenMask />
-        {isFetchingInitData && <ScreenLoader />}
+        <ScreenHeader title={isFetchingInitData ? 'Loading…' : 'Channels'} />
         {chats && (chats.unpinned.length || !isFetchingInitData) ? (
           <ChatList
             pinned={resolvedChats.pinned}
@@ -151,7 +146,7 @@ export default function ChatListScreen(
           zIndex={50}
           position="absolute"
           paddingBottom="$s"
-          bottom={bottom + navHeight}
+          bottom={0}
           alignItems="center"
           width={'100%'}
           pointerEvents="box-none"
