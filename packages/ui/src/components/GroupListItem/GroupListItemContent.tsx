@@ -1,7 +1,7 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { XStack } from '../../core';
+import { View, XStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
@@ -32,13 +32,16 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
-        {model.lastPost && (
-          <ListItem.Subtitle marginVertical={'$xs'}>
-            {model.lastChannel}
-          </ListItem.Subtitle>
-        )}
+        {/* 
+          Commenting the third line of the GroupListItem out
+          until we solidify a design that accomodates it
+
+          {model.lastPost && (
+            <ListItem.Subtitle>{model.lastChannel}</ListItem.Subtitle>
+          )}
+        */}
         {!isPending && model.lastPost ? (
-          <XStack gap="$s" alignItems="center">
+          <XStack gap="$xs" alignItems="center">
             <Icon
               type={getLastMessageIcon(model.lastPost.type)}
               color={'$secondaryText'}
@@ -57,7 +60,7 @@ export default function GroupListItemContent({
         ) : null}
       </ListItem.MainContent>
       {statusDisplay ? (
-        <ListItem.EndContent justifyContent="center">
+        <ListItem.EndContent>
           <Badge
             text={statusDisplay}
             type={isErrored ? 'warning' : 'positive'}
@@ -68,7 +71,10 @@ export default function GroupListItemContent({
           <ListItem.Time time={model.lastPostAt} />
           {model.unreadCount && model.unreadCount > 0 ? (
             <ListItem.Count>{model.unreadCount}</ListItem.Count>
-          ) : null}
+          ) : (
+            // Add a spacer to keep the layout consistent
+            <View height={23} />
+          )}
         </ListItem.EndContent>
       )}
     </ListItem>

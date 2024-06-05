@@ -1,10 +1,9 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { ColorProp, View, XStack } from 'tamagui';
+import { ColorProp, View } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
-import { Icon } from '../Icon';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function ChannelListItem({
@@ -53,7 +52,10 @@ export default function ChannelListItem({
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
           {model.unread?.count && model.unread.count > 0 ? (
             <ListItem.Count>{model.unread.count}</ListItem.Count>
-          ) : null}
+          ) : (
+            // Add a spacer to keep the layout consistent
+            <View height={23} />
+          )}
         </ListItem.EndContent>
       )}
     </ListItem>

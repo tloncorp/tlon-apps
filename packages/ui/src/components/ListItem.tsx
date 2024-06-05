@@ -6,7 +6,6 @@ import {
   ReactElement,
   useMemo,
 } from 'react';
-import { Platform } from 'react-native';
 import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
@@ -214,7 +213,6 @@ const ListItemMainContent = styled(YStack, {
 });
 
 const ListItemTitle = styled(SizableText, {
-  alignItems: 'baseline',
   color: '$primaryText',
   numberOfLines: 1,
 
@@ -258,9 +256,7 @@ const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
   color: '$secondaryText',
   size: '$s',
-  // Tiny tweak to try to align with the baseline of the title
-  position: 'relative',
-  top: 1,
+  lineHeight: '$xs',
 });
 
 const ListItemTime = ListItemTimeText.styleable<{
@@ -290,20 +286,11 @@ const ListItemTime = ListItemTimeText.styleable<{
 const ListItemCount = ({ children }: PropsWithChildren) => {
   return (
     <Stack
-      padding="$2xs"
       paddingHorizontal={'$m'}
-      backgroundColor="$secondaryBackground"
       borderRadius="$l"
-      // Tiny tweak to try to align with the baseline of the title
-      position="relative"
-      top={-2}
+      backgroundColor="$secondaryBackground"
     >
-      <SizableText
-        size="$s"
-        lineHeight={Platform.OS === 'ios' ? 0 : 17}
-        color="$secondaryText"
-        textAlign="center"
-      >
+      <SizableText size="$s" color="$secondaryText" textAlign="center">
         {children}
       </SizableText>
     </Stack>
@@ -339,8 +326,9 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  gap: '$s',
-  justifyContent: 'space-between',
+  paddingTop: '$xs',
+  gap: '$2xs',
+  justifyContent: 'center',
   alignItems: 'flex-end',
 });
 
