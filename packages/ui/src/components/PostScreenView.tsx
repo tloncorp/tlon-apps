@@ -11,15 +11,13 @@ import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
-import AuthorRow, { AUTHOR_ROW_HEIGHT_DETAIL_VIEW } from './AuthorRow';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
 import { ChatMessage } from './ChatMessage';
-import CommentsScrollerSheet from './CommentsScrollerSheet';
-import { GalleryPost } from './GalleryPost';
+import { NotebookDetailView } from './DetailView';
+import GalleryDetailView from './DetailView/GalleryDetailView';
 import { MessageInput } from './MessageInput';
-import { NotebookPost } from './NotebookPost';
 
 export function PostScreenView({
   currentUserId,
@@ -61,7 +59,6 @@ export function PostScreenView({
   negotiationMatch: boolean;
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
-  const [showComments, setShowComments] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const postsWithoutParent = useMemo(
@@ -69,49 +66,69 @@ export function PostScreenView({
     [posts, parentPost]
   );
 
+  const { bottom } = useSafeAreaInsets();
+
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
-    : parentPost?.title
-      ? parentPost.title
-      : `Post: ${channel?.title ?? null}`;
-
-  const { bottom } = useSafeAreaInsets();
+    : 'Post';
 
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
         <ReferencesProvider>
-          <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+          <View backgroundColor="$background" flex={1}>
             <YStack flex={1} backgroundColor={'$background'}>
               <ChannelHeader
                 title={headerTitle}
-                goBack={goBack}
                 showPickerButton={false}
                 showSearchButton={false}
+                goBack={isChatChannel ? goBack : undefined}
+                showMenuButton={!isChatChannel}
+                post={parentPost ?? undefined}
+                channelType={channel.type}
+                currentUserId={currentUserId}
               />
               <KeyboardAvoidingView
                 //TODO: Standardize this component, account for tab bar in a better way
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={70}
+                // keyboardVerticalOffset={70}
                 style={{ flex: 1 }}
               >
                 {parentPost && channel.type === 'gallery' && (
-                  <View paddingBottom={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}>
-                    <GalleryPost
-                      post={parentPost}
-                      detailView
-                      onPressImage={handleGoToImage}
-                    />
-                  </View>
+                  <GalleryDetailView
+                    post={parentPost}
+                    onPressImage={handleGoToImage}
+                    currentUserId={currentUserId}
+                    editingPost={editingPost}
+                    setEditingPost={setEditingPost}
+                    editPost={editPost}
+                    posts={postsWithoutParent}
+                    sendReply={sendReply}
+                    groupMembers={groupMembers}
+                    uploadInfo={uploadInfo}
+                    storeDraft={storeDraft}
+                    clearDraft={clearDraft}
+                    getDraft={getDraft}
+                    goBack={goBack}
+                  />
                 )}
                 {parentPost && channel.type === 'notebook' && (
-                  <View paddingBottom={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}>
-                    <NotebookPost
-                      post={parentPost}
-                      detailView
-                      onPressImage={handleGoToImage}
-                    />
-                  </View>
+                  <NotebookDetailView
+                    post={parentPost}
+                    onPressImage={handleGoToImage}
+                    currentUserId={currentUserId}
+                    editingPost={editingPost}
+                    setEditingPost={setEditingPost}
+                    editPost={editPost}
+                    posts={postsWithoutParent}
+                    sendReply={sendReply}
+                    groupMembers={groupMembers}
+                    uploadInfo={uploadInfo}
+                    storeDraft={storeDraft}
+                    clearDraft={clearDraft}
+                    getDraft={getDraft}
+                    goBack={goBack}
+                  />
                 )}
                 {uploadInfo.imageAttachment ? (
                   <UploadedImagePreview
@@ -124,47 +141,29 @@ export function PostScreenView({
                   posts.length > 1 &&
                   channel &&
                   isChatChannel && (
-                    <Scroller
-                      setInputShouldBlur={setInputShouldBlur}
-                      inverted
-                      renderItem={ChatMessage}
-                      channelType="chat"
-                      channelId={channel.id}
-                      currentUserId={currentUserId}
-                      editingPost={editingPost}
-                      setEditingPost={setEditingPost}
-                      editPost={editPost}
-                      posts={posts}
-                      showReplies={false}
-                      onPressImage={handleGoToImage}
-                    />
+                    <View paddingBottom={bottom} flex={1}>
+                      <Scroller
+                        setInputShouldBlur={setInputShouldBlur}
+                        inverted
+                        renderItem={ChatMessage}
+                        channelType="chat"
+                        channelId={channel.id}
+                        currentUserId={currentUserId}
+                        editingPost={editingPost}
+                        setEditingPost={setEditingPost}
+                        editPost={editPost}
+                        posts={posts}
+                        showReplies={false}
+                        onPressImage={handleGoToImage}
+                      />
+                    </View>
                   )
-                )}
-                {parentPost && (
-                  <CommentsScrollerSheet
-                    open={showComments}
-                    setOpen={setShowComments}
-                    channelId={channel.id}
-                    currentUserId={currentUserId}
-                    editingPost={editingPost}
-                    setEditingPost={setEditingPost}
-                    editPost={editPost}
-                    posts={postsWithoutParent}
-                    parentPost={parentPost}
-                    onPressImage={handleGoToImage}
-                    sendReply={sendReply}
-                    uploadInfo={uploadInfo}
-                    groupMembers={groupMembers}
-                    storeDraft={storeDraft}
-                    clearDraft={clearDraft}
-                    getDraft={getDraft}
-                  />
                 )}
                 {negotiationMatch && !editingPost && channel && canWrite && (
                   <View
                     position={isChatChannel ? undefined : 'absolute'}
                     backgroundColor="$background"
-                    bottom={0}
+                    bottom={bottom}
                     width="100%"
                   >
                     {isChatChannel ? (
@@ -178,14 +177,6 @@ export function PostScreenView({
                         storeDraft={storeDraft}
                         clearDraft={clearDraft}
                         getDraft={getDraft}
-                      />
-                    ) : parentPost ? (
-                      <AuthorRow
-                        parentPost={parentPost}
-                        setShowComments={setShowComments}
-                        authorId={parentPost.authorId}
-                        author={parentPost.author}
-                        sent={parentPost.sentAt}
                       />
                     ) : null}
                   </View>

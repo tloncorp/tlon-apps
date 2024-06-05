@@ -367,12 +367,14 @@ export function InlineContent({
   viewMode = 'chat',
   onPressImage,
   onLongPress,
+  serif = false,
 }: {
   inline: Inline | null;
   color?: ColorTokens;
   viewMode?: PostViewMode;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
+  serif?: boolean;
 }) {
   if (inline === null) {
     return null;
@@ -390,6 +392,7 @@ export function InlineContent({
         color={color}
         lineHeight="$m"
         fontSize={viewMode === 'block' ? '$s' : '$m'}
+        fontFamily={serif ? '$serif' : '$body'}
       >
         {inline}
       </Text>
@@ -400,7 +403,13 @@ export function InlineContent({
     return (
       <>
         {inline.bold.map((s, k) => (
-          <Text fontSize="$m" lineHeight="$m" fontWeight="bold" key={k}>
+          <Text
+            fontFamily={serif ? '$serif' : '$body'}
+            fontSize="$m"
+            lineHeight="$m"
+            fontWeight="bold"
+            key={k}
+          >
             <InlineContent inline={s} color={color} />
           </Text>
         ))}
@@ -412,7 +421,13 @@ export function InlineContent({
     return (
       <>
         {inline.italics.map((s, k) => (
-          <Text fontSize="$m" lineHeight="$m" fontStyle="italic" key={k}>
+          <Text
+            fontSize="$m"
+            fontFamily={serif ? '$serif' : '$body'}
+            lineHeight="$m"
+            fontStyle="italic"
+            key={k}
+          >
             <InlineContent inline={s} color={color} />
           </Text>
         ))}
@@ -426,6 +441,7 @@ export function InlineContent({
         {inline.strike.map((s, k) => (
           <Text
             fontSize="$m"
+            fontFamily={serif ? '$serif' : '$body'}
             lineHeight="$m"
             textDecorationLine="line-through"
             key={k}
@@ -491,13 +507,24 @@ export function InlineContent({
   }
 
   if (isShip(inline)) {
-    return <ShipMention userId={inline.ship} />;
+    return (
+      <ShipMention
+        fontFamily={serif ? '$serif' : '$body'}
+        userId={inline.ship}
+      />
+    );
   }
 
   if (isTask(inline)) {
     return (
       <XStack>
-        <Text color={color} fontSize="$m" lineHeight="$m" marginRight="$m">
+        <Text
+          color={color}
+          fontFamily={serif ? '$serif' : '$body'}
+          fontSize="$m"
+          lineHeight="$m"
+          marginRight="$m"
+        >
           {inline.task.checked ? '☑' : '☐'}
         </Text>
         {inline.task.content.map((s, k) => (
@@ -598,6 +625,7 @@ const LineRenderer = memo(
     color = '$primaryText',
     isNotice = false,
     viewMode = 'chat',
+    serif = false,
   }: {
     inlines: Inline[];
     onLongPress?: () => void;
@@ -605,6 +633,7 @@ const LineRenderer = memo(
     color?: ColorTokens;
     isNotice?: boolean;
     viewMode?: PostViewMode;
+    serif?: boolean;
   }) => {
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
@@ -631,6 +660,7 @@ const LineRenderer = memo(
               color={isNotice ? '$secondaryText' : color}
               fontSize={viewMode === 'block' || isNotice ? '$s' : '$m'}
               lineHeight="$m"
+              fontFamily={serif ? '$serif' : '$body'}
             >
               {inline}
             </Text>
@@ -654,6 +684,7 @@ const LineRenderer = memo(
               <InlineContent
                 inline={inline.blockquote}
                 color="$secondaryText"
+                serif={serif}
               />
             )}
           </YStack>
@@ -666,6 +697,7 @@ const LineRenderer = memo(
             key={`ship-${index}`}
             userId={inline.ship}
             fontSize={isNotice ? '$s' : 'unset'}
+            fontFamily={serif ? '$serif' : '$body'}
           />
         );
       } else {
@@ -677,6 +709,7 @@ const LineRenderer = memo(
             color={color}
             onPressImage={onPressImage}
             onLongPress={onLongPress}
+            serif={serif}
           />
         );
       }
@@ -703,6 +736,7 @@ const LineRenderer = memo(
               key={`line-${index}`}
               flexWrap="wrap"
               lineHeight="$m"
+              fontFamily={serif ? '$serif' : '$body'}
             >
               {line}
             </Text>
@@ -813,6 +847,7 @@ export default function ContentRenderer({
                 onPressImage={onPressImage}
                 onLongPress={onLongPress}
                 viewMode={viewMode}
+                serif
               />
             );
           }

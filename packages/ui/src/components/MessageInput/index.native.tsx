@@ -85,7 +85,7 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
 
 // 52 accounts for the 16px padding around the text within the input
 // and the 20px line height of the text. 16 + 20 + 16 = 52
-const DEFAULT_CONTAINER_HEIGHT = 52;
+export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
   editor: EditorBridge | null;
@@ -111,12 +111,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       showAttachmentButton = true,
       floatingActionButton = false,
       backgroundColor = '$secondaryBackground',
-      paddingHorizontal = '$l',
+      paddingHorizontal,
+      initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
       bigInput = false,
       title,
       image,
       channelType,
+      setHeight,
+      goBack,
     },
     ref
   ) => {
@@ -130,9 +133,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }));
 
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-    const [containerHeight, setContainerHeight] = useState(
-      DEFAULT_CONTAINER_HEIGHT
-    );
+    const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
@@ -349,7 +350,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(newJson);
-              // editor.setSelection(initialSelection.from, initialSelection.to);
             }
           }
         }
@@ -567,6 +567,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         if (type === 'contentHeight') {
           setContainerHeight(payload);
+          setHeight?.(payload);
           return;
         }
 
@@ -579,7 +580,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
         });
       },
-      [editor, handleAddNewLine, handlePaste]
+      [editor, handleAddNewLine, handlePaste, setHeight, webviewRef]
     );
 
     const tentapInjectedJs = useMemo(
@@ -620,6 +621,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         disableSend={
           editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
         }
+        goBack={goBack}
       >
         <XStack
           borderRadius="$xl"

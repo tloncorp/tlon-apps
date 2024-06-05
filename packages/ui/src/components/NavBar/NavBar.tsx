@@ -9,7 +9,11 @@ import { View } from '../View';
 
 export const navHeight = 50;
 
-const NavBar = React.memo(function NavBar(props: {
+const NavBar = React.memo(function NavBar({
+  height = navHeight,
+  children,
+}: {
+  height?: number;
   children: React.ReactNode | React.ReactNode[] | null | undefined;
 }) {
   const { bottom } = useSafeAreaInsets();
@@ -20,7 +24,7 @@ const NavBar = React.memo(function NavBar(props: {
       width={'100%'}
       bottom={0}
       paddingTop={'$m'}
-      height={navHeight + bottom}
+      height={height + bottom}
       backgroundColor={Platform.OS === 'ios' ? 'transparent' : '$background'}
     >
       <BlurOnIos>
@@ -29,7 +33,7 @@ const NavBar = React.memo(function NavBar(props: {
           alignItems="flex-start"
           paddingTop={'$m'}
         >
-          {props.children}
+          {children}
         </XStack>
       </BlurOnIos>
     </View>

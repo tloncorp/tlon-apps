@@ -98,6 +98,7 @@ export const themes = {
     background: '#1A1818',
     transparentBackground: 'rgba(24, 24, 24, 0)',
     secondaryBackground: '#322E2E',
+    shadow: 'rgba(0, 0, 0, 0.08)',
     tertiaryText: '#808080',
     border: '#333333',
     secondaryBorder: '#4C4C4C',
@@ -119,6 +120,7 @@ export const themes = {
     background: '#FFFFFF',
     transparentBackground: 'rgba(255, 255, 255, 0)',
     secondaryBackground: '#F5F5F5',
+    shadow: 'rgba(24, 24, 24, 0.08)',
     tertiaryText: '#999999',
     border: '#E5E5E5',
     secondaryBorder: '#CCCCCC',
@@ -139,6 +141,7 @@ export const themes = {
     secondaryText: '#75C4D3',
     background: '#005073',
     secondaryBackground: '#0076A3',
+    shadow: 'rgba(0, 0, 0, 0.08)',
     tertiaryText: '#58C9E8',
     border: '#0076A3',
     secondaryBorder: '#4C4C4C',
@@ -159,6 +162,7 @@ export const themes = {
     secondaryText: '#9C9588',
     background: '#E6D5B8',
     secondaryBackground: '#F0E5CF',
+    shadow: 'rgba(0, 0, 0, 0.08)',
     tertiaryText: '#A89F91',
     border: '#F0E5CF',
     secondaryBorder: '#4C4C4C',
@@ -179,6 +183,7 @@ export const themes = {
     secondaryText: '#849E8B',
     background: '#2F4F2F',
     secondaryBackground: '#567856',
+    shadow: 'rgba(0, 0, 0, 0.08)',
     tertiaryText: '#738C70',
     border: '#567856',
     secondaryBorder: '#4C4C4C',
@@ -199,6 +204,7 @@ export const themes = {
     secondaryText: '#B3ADA4',
     background: '#3E423A',
     secondaryBackground: '#767C74',
+    shadow: 'rgba(0, 0, 0, 0.08)',
     tertiaryText: '#91988F',
     border: '#767C74',
     secondaryBorder: '#4C4C4C',
@@ -226,6 +232,7 @@ export const systemFont = createFont({
     l: 17,
     // xl is used for emoji-only messages
     xl: 36,
+    '2xl': 44,
   },
   lineHeight: {
     s: 22,
@@ -243,6 +250,33 @@ export const systemFont = createFont({
   },
 });
 
+export const serifFont = createFont({
+  family: 'Georgia',
+  size: {
+    xs: 12,
+    s: 14,
+    m: 16,
+    true: 16,
+    l: 17,
+    xl: 32,
+    '2xl': 44,
+  },
+  lineHeight: {
+    s: 22,
+    m: 24,
+    true: 24,
+  },
+  weight: {
+    s: '400',
+    m: 'regular',
+    true: 'regular',
+    l: 'medium',
+  },
+  letterSpacing: {
+    l: 0,
+  },
+});
+
 export const monoFont = createFont({
   family: 'Menlo-Regular',
   size: {
@@ -251,6 +285,7 @@ export const monoFont = createFont({
     true: 15,
     l: 15,
     xl: 15,
+    '2xl': 15,
   },
   lineHeight: {
     l: 19,
@@ -268,6 +303,7 @@ export const fonts = {
   heading: systemFont,
   body: systemFont,
   mono: monoFont,
+  serif: serifFont,
   // ===
 };
 

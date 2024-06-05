@@ -5,20 +5,15 @@ import {
   isReferencePost,
   isTextPost,
   textPostIsLinkedImage,
-  tiptap,
+  textPostIsReference,
 } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { Link } from 'packages/shared/dist/urbit';
-import { useCallback, useMemo } from 'react';
-import {
-  Dimensions,
-  Image,
-  ImageBackground,
-  TouchableOpacity,
-} from 'react-native';
+import { Link } from '@tloncorp/shared/dist/urbit';
+import { useMemo } from 'react';
+import { Dimensions, ImageBackground } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
-import { LinearGradient, Text, View, YStack } from '../../core';
+import { LinearGradient, Text, View } from '../../core';
 import AuthorRow from '../AuthorRow';
 import ContentReference from '../ContentReference';
 import ContentRenderer from '../ContentRenderer';
@@ -28,14 +23,10 @@ export default function GalleryPost({
   post,
   onPress,
   onLongPress,
-  onPressImage,
-  detailView = false,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
-  detailView?: boolean;
 }) {
   // We want to show two posts per row in the gallery view, each with a margin of 16
   // and padding of 16 on all sides. This means that the width of each post should be
@@ -44,10 +35,6 @@ export default function GalleryPost({
   const postMargin = getTokenValue('$l');
   const HEIGHT_AND_WIDTH =
     (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
-  // We want the content of the detail view to take up 70% of the screen height
-  const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.7;
-  // We want the content of the detail view to take up 100% of the screen width
-  const WIDTH_DETAIL_VIEW_CONTENT = Dimensions.get('window').width;
 
   const { inlines, references, blocks } = useMemo(
     () => extractContentTypesFromPost(post),
@@ -68,25 +55,32 @@ export default function GalleryPost({
     [post]
   );
 
+  const textPostIsJustReference = useMemo(
+    () => textPostIsReference(post),
+    [post]
+  );
+
   const linkedImage = useMemo(
     () =>
       textPostIsJustLinkedImage ? (inlines[0] as Link).link.href : undefined,
     [inlines, textPostIsJustLinkedImage]
   );
 
-  const handleImagePressed = useCallback(
-    (uri: string) => {
-      onPressImage?.(post, uri);
-    },
-    [onPressImage, post]
-  );
-
-  if (!postIsJustImage && !postIsJustText && !postIsJustReference) {
+  if (
+    !postIsJustImage &&
+    !postIsJustText &&
+    !postIsJustReference &&
+    !textPostIsJustReference
+  ) {
     // This should never happen, but if it does, we should log it
     const content = JSON.parse(post.content as string);
     console.log('Unsupported post type', {
       post,
       content,
+      postIsJustText,
+      postIsJustImage,
+      postIsJustReference,
+      textPostIsJustReference,
     });
 
     return (
@@ -102,77 +96,46 @@ export default function GalleryPost({
       onLongPress={() => onLongPress?.(post)}
     >
       <View padding="$m" key={post.id} position="relative" alignItems="center">
-        {(postIsJustImage || textPostIsJustLinkedImage) &&
-          (detailView ? (
-            <TouchableOpacity
-              onPress={() =>
-                handleImagePressed(postIsJustImage ? image!.src : linkedImage!)
-              }
-            >
-              <YStack gap="$s">
-                <Image
-                  source={{
-                    uri: postIsJustImage ? image!.src : linkedImage,
-                  }}
-                  resizeMode="contain"
-                  width={WIDTH_DETAIL_VIEW_CONTENT}
-                  height={HEIGHT_DETAIL_VIEW_CONTENT}
-                />
-                {inlines.length > 0 && !textPostIsJustLinkedImage && (
-                  <View paddingHorizontal="$m">
-                    <Text>{tiptap.inlineToString(inlines[0])}</Text>
-                  </View>
-                )}
-              </YStack>
-            </TouchableOpacity>
-          ) : (
-            <ImageBackground
-              source={{ uri: postIsJustImage ? image!.src : linkedImage }}
-              style={{
-                width: HEIGHT_AND_WIDTH,
-                height: HEIGHT_AND_WIDTH,
-              }}
-              imageStyle={{
-                borderRadius: 12,
-              }}
-            >
-              {!detailView && (
-                <View position="absolute" bottom="$l">
-                  <AuthorRow
-                    author={post.author}
-                    authorId={post.authorId}
-                    sent={post.sentAt}
-                    type={post.type}
-                    width={HEIGHT_AND_WIDTH}
-                  />
-                </View>
-              )}
-            </ImageBackground>
-          ))}
-        {postIsJustText && !textPostIsJustLinkedImage && (
-          <View
-            backgroundColor={
-              !detailView ? '$secondaryBackground' : '$background'
-            }
-            borderRadius="$l"
-            padding="$l"
-            width={detailView ? WIDTH_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
-            height={detailView ? HEIGHT_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
+        {(postIsJustImage || textPostIsJustLinkedImage) && (
+          <ImageBackground
+            source={{ uri: postIsJustImage ? image!.src : linkedImage }}
+            style={{
+              width: HEIGHT_AND_WIDTH,
+              height: HEIGHT_AND_WIDTH,
+            }}
+            imageStyle={{
+              borderRadius: 12,
+            }}
           >
-            <View
-              height={
-                detailView ? '100%' : HEIGHT_AND_WIDTH - getTokenValue('$2xl')
-              }
-              width="100%"
-              overflow="hidden"
-              paddingBottom="$xs"
-              position="relative"
-            >
-              <ContentRenderer
-                viewMode={detailView ? undefined : 'block'}
-                post={post}
+            <View position="absolute" bottom="$l">
+              <AuthorRow
+                author={post.author}
+                authorId={post.authorId}
+                sent={post.sentAt}
+                type={post.type}
+                width={HEIGHT_AND_WIDTH}
               />
-              {!detailView && (
+            </View>
+          </ImageBackground>
+        )}
+        {postIsJustText &&
+          !textPostIsJustLinkedImage &&
+          !textPostIsJustReference && (
+            <View
+              backgroundColor="$secondaryBackground"
+              borderRadius="$l"
+              padding="$l"
+              width={HEIGHT_AND_WIDTH}
+              height={HEIGHT_AND_WIDTH}
+            >
+              <View
+                height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
+                width="100%"
+                overflow="hidden"
+                paddingBottom="$xs"
+                position="relative"
+              >
+                <ContentRenderer viewMode="block" post={post} />
                 <LinearGradient
                   colors={['$transparentBackground', '$secondaryBackground']}
                   start={{ x: 0, y: 0.4 }}
@@ -185,9 +148,7 @@ export default function GalleryPost({
                     height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
                   }}
                 />
-              )}
-            </View>
-            {!detailView && (
+              </View>
               <View position="absolute" bottom="$l">
                 <AuthorRow
                   author={post.author}
@@ -197,44 +158,24 @@ export default function GalleryPost({
                   width={HEIGHT_AND_WIDTH}
                 />
               </View>
-            )}
-          </View>
-        )}
-        {postIsJustReference && (
+            </View>
+          )}
+        {(postIsJustReference || textPostIsJustReference) && (
           <View
-            width={detailView ? WIDTH_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
-            height={detailView ? HEIGHT_DETAIL_VIEW_CONTENT : HEIGHT_AND_WIDTH}
+            width={HEIGHT_AND_WIDTH}
+            height={HEIGHT_AND_WIDTH}
             borderRadius="$l"
             padding="$m"
             overflow="hidden"
           >
             <View
-              height={
-                detailView ? '100%' : HEIGHT_AND_WIDTH - getTokenValue('$2xl')
-              }
+              height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
               width="100%"
               overflow="hidden"
               paddingBottom="$xs"
               position="relative"
             >
-              <ContentReference
-                viewMode={detailView ? undefined : 'block'}
-                reference={references[0]}
-              />
-              {!detailView && (
-                <LinearGradient
-                  colors={['$transparentBackground', '$background']}
-                  start={{ x: 0, y: 0.4 }}
-                  end={{ x: 0, y: 1 }}
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: HEIGHT_AND_WIDTH - 24,
-                  }}
-                />
-              )}
+              <ContentReference viewMode="block" reference={references[0]} />
               <LinearGradient
                 colors={['$transparentBackground', '$background']}
                 start={{ x: 0, y: 0.4 }}

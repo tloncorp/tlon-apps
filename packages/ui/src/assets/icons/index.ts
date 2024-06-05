@@ -2,6 +2,7 @@ export { default as Bold } from './Bold.svg';
 export { default as BlockQuote } from './BlockQuote.svg';
 export { default as BulletList } from './BulletList.svg';
 export { default as FontSize } from './FontSize.svg';
+export { default as Dots } from './Dots.svg';
 export { default as Italic } from './Italic.svg';
 export { default as Keyboard } from './Keyboard.svg';
 export { default as Strikethrough } from './Strikethrough.svg';

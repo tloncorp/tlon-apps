@@ -75,7 +75,11 @@ export const MessageInputEditor = () => {
       style={{
         overflow: 'auto',
         height: 'auto',
-        // making this explicit
+        paddingTop: 2,
+        paddingBottom: 2,
+        paddingLeft: 12,
+        paddingRight: 12,
+        minHeight: 32,
         fontSize: 16,
         color: useIsDark() ? 'white' : 'black',
         fontFamily:

@@ -1,13 +1,9 @@
 import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { ScrollView } from 'moti';
 import { useCallback, useMemo } from 'react';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import { getTokenValue } from 'tamagui';
 
-import { Image, Text, View, XStack, YStack } from '../../core';
+import { Image, Text, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
 
 const IMAGE_HEIGHT = 268;
@@ -16,8 +12,6 @@ export default function NotebookPost({
   post,
   onPress,
   onLongPress,
-  onPressImage,
-  detailView = false,
   showReplies = true,
   showAuthor = true,
   smallImage = false,
@@ -43,50 +37,8 @@ export default function NotebookPost({
     onLongPress?.(post);
   }, [post, onLongPress]);
 
-  const handleImagePressed = useCallback(() => {
-    if (post.image) {
-      onPressImage?.(post, post.image);
-    }
-  }, [post, onPressImage]);
-
   if (!post) {
     return null;
-  }
-
-  if (detailView) {
-    return (
-      <ScrollView>
-        <YStack key={post.id} gap="$2xl" paddingHorizontal="$xl">
-          {post.image && (
-            <TouchableOpacity onPress={handleImagePressed} activeOpacity={0.9}>
-              <View
-                marginHorizontal={-getTokenValue('$2xl')}
-                alignItems="center"
-              >
-                <Image
-                  source={{
-                    uri: post.image,
-                  }}
-                  width="100%"
-                  height={IMAGE_HEIGHT}
-                />
-              </View>
-            </TouchableOpacity>
-          )}
-          <YStack gap="$xl">
-            {post.title && (
-              <Text color="$primaryText" fontSize="$xl">
-                {post.title}
-              </Text>
-            )}
-            <Text color="$tertiaryText" fontSize="$l">
-              {dateDisplay}
-            </Text>
-          </YStack>
-          <ContentRenderer post={post} />
-        </YStack>
-      </ScrollView>
-    );
   }
 
   return (
@@ -95,7 +47,16 @@ export default function NotebookPost({
       onLongPress={handleLongPress}
       delayLongPress={250}
     >
-      <YStack key={post.id} gap="$2xl" padding="$m">
+      <YStack
+        key={post.id}
+        gap="$l"
+        paddingVertical="$3xl"
+        paddingHorizontal="$2xl"
+        borderWidth={1}
+        borderRadius="$xl"
+        borderColor="$shadow"
+        marginVertical="$xl"
+      >
         {post.image && (
           <Image
             source={{
@@ -106,40 +67,36 @@ export default function NotebookPost({
             borderRadius="$m"
           />
         )}
-        <YStack gap="$xl">
-          {post.title && (
-            <Text color="$primaryText" fontSize={smallTitle ? '$l' : '$xl'}>
-              {post.title}
-            </Text>
-          )}
-          <Text color="$tertiaryText" fontSize={smallTitle ? '$s' : '$l'}>
-            {dateDisplay}
+        {post.title && (
+          <Text
+            color="$primaryText"
+            fontFamily="$serif"
+            fontWeight="$s"
+            fontSize={smallTitle ? '$l' : '$xl'}
+          >
+            {post.title}
           </Text>
-        </YStack>
-        <XStack gap="$l" alignItems="center" justifyContent="space-between">
-          {showAuthor && (
-            <AuthorRow
-              authorId={post.authorId}
-              author={post.author}
-              sent={post.sentAt}
-              type={post.type}
-            />
-          )}
-          {showReplies && (
-            <XStack
-              gap="$s"
-              alignItems="center"
-              borderRadius="$l"
-              borderWidth={1}
-              paddingVertical="$m"
-              paddingHorizontal="$l"
-            >
-              <Text color="$primaryText" fontSize="$s">
-                {post.replyCount} comments
-              </Text>
-            </XStack>
-          )}
-        </XStack>
+        )}
+        {showAuthor && (
+          <AuthorRow
+            authorId={post.authorId}
+            author={post.author}
+            sent={post.sentAt}
+            type={post.type}
+          />
+        )}
+        <Text
+          color="$tertiaryText"
+          fontWeight="$s"
+          fontSize={smallTitle ? '$s' : '$l'}
+        >
+          {dateDisplay}
+        </Text>
+        {showReplies && (
+          <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+            {post.replyCount} replies
+          </Text>
+        )}
       </YStack>
     </Pressable>
   );

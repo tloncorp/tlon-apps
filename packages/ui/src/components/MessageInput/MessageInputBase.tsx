@@ -5,7 +5,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo } from 'react';
 import { SpaceTokens } from 'tamagui';
 
-import { ArrowUp, Checkmark, Close } from '../../assets/icons';
+import { ArrowUp, Checkmark, ChevronLeft, Close } from '../../assets/icons';
 import { ThemeTokens, View, XStack, YStack } from '../../core';
 import FloatingActionButton from '../FloatingActionButton';
 import { Icon } from '../Icon';
@@ -38,6 +38,10 @@ export interface MessageInputProps {
   image?: UploadedFile;
   showToolbar?: boolean;
   channelType?: db.ChannelType;
+  initialHeight?: number;
+  // for external access to height
+  setHeight?: (height: number) => void;
+  goBack?: () => void;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
     setEditor: (editor: EditorBridge) => void;
@@ -59,6 +63,7 @@ export const MessageInputContainer = ({
   isEditing = false,
   cancelEditing,
   onPressEdit,
+  goBack,
 }: PropsWithChildren<{
   onPressSend: () => void;
   uploadInfo?: UploadInfo;
@@ -73,6 +78,7 @@ export const MessageInputContainer = ({
   isEditing?: boolean;
   cancelEditing?: () => void;
   onPressEdit?: () => void;
+  goBack?: () => void;
 }>) => {
   const hasUploadedImage = useMemo(
     () => !!(uploadInfo?.uploadedImage && uploadInfo.uploadedImage.url !== ''),
@@ -101,16 +107,23 @@ export const MessageInputContainer = ({
         alignItems="flex-end"
         justifyContent="space-between"
       >
+        {goBack ? (
+          <View paddingBottom="$xs">
+            <IconButton backgroundColor="unset" onPress={goBack}>
+              <ChevronLeft />
+            </IconButton>
+          </View>
+        ) : null}
         {isEditing ? (
-          <View paddingBottom="$m">
-            <IconButton onPress={cancelEditing}>
+          <View paddingBottom="$xs">
+            <IconButton backgroundColor="unset" onPress={cancelEditing}>
               <Close />
             </IconButton>
           </View>
         ) : null}
         {hasUploadedImage ? null : uploadInfo?.canUpload &&
           showAttachmentButton ? (
-          <View paddingBottom="$m">
+          <View paddingBottom="$xs">
             <AttachmentButton uploadInfo={uploadInfo} />
           </View>
         ) : null}
@@ -131,12 +144,13 @@ export const MessageInputContainer = ({
             )}
           </View>
         ) : (
-          <View paddingBottom="$m">
+          <View paddingBottom="$xs">
             {disableSend ? null : (
               <IconButton
                 color={sendIconColor}
                 disabled={uploadIsLoading}
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+                backgroundColor="unset"
               >
                 {isEditing ? <Checkmark /> : <ArrowUp />}
               </IconButton>
