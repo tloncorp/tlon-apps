@@ -15,7 +15,6 @@ import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
-import { navHeight } from './NavBar/NavBar';
 import { SectionListHeader } from './SectionList';
 import { SwipableChatRow } from './SwipableChatListItem';
 
