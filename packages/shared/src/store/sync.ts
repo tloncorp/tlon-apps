@@ -65,6 +65,13 @@ export const syncVolumeSettings = async () => {
   });
 };
 
+export const syncActivityEvents = async () => {
+  return syncQueue.add('activity', async () => {
+    const events = await api.getActivityEvents();
+    await db.insertActivityEvents(events);
+  });
+};
+
 export const syncContacts = async () => {
   return syncQueue.add('contacts', async () => {
     const contacts = await api.getContacts();

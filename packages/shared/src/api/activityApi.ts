@@ -25,6 +25,69 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   return settings;
 }
 
+export async function getActivityEvents() {
+  const activity = await scry<ub.Stream>({
+    app: 'activity',
+    path: '/all',
+  });
+
+  return toActivityEvents(activity);
+}
+
+function toActivityEvents(stream: ub.Stream): db.ActivityEvent[] {
+  return Object.entries(stream)
+    .map(([id, event]) => toActivityEvent(id, event))
+    .filter(Boolean) as db.ActivityEvent[];
+}
+
+function toActivityEvent(
+  id: string,
+  event: ub.ActivityEvent
+): db.ActivityEvent | null {
+  const timestamp = udToDate(id);
+  const baseFields = { id, timestamp };
+
+  if ('post' in event) {
+    const postEvent = event.post;
+    const { authorId, postId } = getInfoFromMessageKey(postEvent.key);
+    return {
+      ...baseFields,
+      type: 'post',
+      postId,
+      authorId,
+      channelId: postEvent.channel,
+      groupId: postEvent.group,
+      content: postEvent.content,
+      isMention: postEvent.mention,
+    };
+  }
+
+  if ('reply' in event) {
+    const replyEvent = event.reply;
+    const { authorId, postId } = getInfoFromMessageKey(replyEvent.key);
+    const { postId: parentId } = getInfoFromMessageKey(replyEvent.parent);
+    return {
+      ...baseFields,
+      type: 'reply',
+      postId,
+      parentId,
+      authorId,
+      channelId: replyEvent.channel,
+      groupId: replyEvent.group,
+      content: replyEvent.content,
+      isMention: replyEvent.mention,
+    };
+  }
+
+  return null;
+}
+
+function getInfoFromMessageKey(key: { id: string; time: string }) {
+  const authorId = key.id.split('/')[0];
+  const postId = getCanonicalPostId(key.time);
+  return { authorId, postId };
+}
+
 export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {

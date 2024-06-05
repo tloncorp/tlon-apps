@@ -208,6 +208,14 @@ export const useThreadUnread = ({
   });
 };
 
+export const useActivityEvents = () => {
+  const tablesKey = useKeyFromQueryDeps(db.getActivityEvents);
+  return useQuery({
+    queryKey: ['activityEvents', tablesKey],
+    queryFn: () => db.getActivityEvents(),
+  });
+};
+
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups'],

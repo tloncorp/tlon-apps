@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   initializeStorage,
   setupSubscriptions,
+  syncActivityEvents,
   syncContacts,
   syncInitData,
   syncLatestPosts,
@@ -17,7 +18,12 @@ export const useInitialSync = () => {
     queryFn: async () => {
       try {
         // First sync the key bits in parallel.
-        await Promise.all([syncLatestPosts(), syncInitData(), syncContacts()]);
+        await Promise.all([
+          syncLatestPosts(),
+          syncInitData(),
+          syncContacts(),
+          syncActivityEvents(),
+        ]);
         // Kick the rest off asynchronously so that it's not triggering the
         // initial sync spinner.
         setupSubscriptions();

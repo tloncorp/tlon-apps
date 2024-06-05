@@ -31,6 +31,7 @@ import { Rank, desig } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
+  activityEvents as $activityEvents,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
@@ -54,6 +55,7 @@ import {
   unreads as $unreads,
 } from './schema';
 import {
+  ActivityEvent,
   Channel,
   ChatMember,
   ClientMeta,
@@ -2090,6 +2092,28 @@ export const clearThreadUnread = createWriteQuery(
       );
   },
   ['threadUnreads']
+);
+
+export const insertActivityEvents = createWriteQuery(
+  'insertActivityEvents',
+  async (events: ActivityEvent[]) => {
+    return client
+      .insert($activityEvents)
+      .values(events)
+      .onConflictDoUpdate({
+        target: $activityEvents.id,
+        set: conflictUpdateSetAll($activityEvents),
+      });
+  },
+  ['activityEvents']
+);
+
+export const getActivityEvents = createReadQuery(
+  'getActivityEvents',
+  async () => {
+    return client.query.activityEvents.findMany();
+  },
+  ['activityEvents']
 );
 
 export const insertPinnedItems = createWriteQuery(

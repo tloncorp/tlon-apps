@@ -7,7 +7,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { Rank } from '../urbit';
+import { ExtendedEventType, Rank } from '../urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -138,6 +138,42 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   channelUnread: one(unreads, {
     fields: [threadUnreads.channelId],
     references: [unreads.channelId],
+  }),
+}));
+
+export const activityEvents = sqliteTable('activity_events', {
+  id: text('id').primaryKey(),
+  type: text('type').$type<ExtendedEventType>().notNull(),
+  timestamp: timestamp('timestamp').notNull(),
+  postId: text('post_id'),
+  parentId: text('parent_id'),
+  authorId: text('author_id'),
+  channelId: text('channel_id'),
+  groupId: text('group_id'),
+  isMention: boolean('is_mention'),
+  content: text('content', { mode: 'json' }),
+});
+
+export const activityRelations = relations(activityEvents, ({ one, many }) => ({
+  post: one(posts, {
+    fields: [activityEvents.postId],
+    references: [posts.id],
+  }),
+  parent: one(posts, {
+    fields: [activityEvents.parentId],
+    references: [posts.id],
+  }),
+  channel: one(channels, {
+    fields: [activityEvents.channelId],
+    references: [channels.id],
+  }),
+  group: one(groups, {
+    fields: [activityEvents.groupId],
+    references: [groups.id],
+  }),
+  author: one(contacts, {
+    fields: [activityEvents.authorId],
+    references: [contacts.id],
   }),
 }));
 

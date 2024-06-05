@@ -1,3 +1,16 @@
+CREATE TABLE `activity_events` (
+	`id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
+	`timestamp` integer NOT NULL,
+	`post_id` text,
+	`parent_id` text,
+	`author_id` text,
+	`channel_id` text,
+	`group_id` text,
+	`is_mention` integer,
+	`content` text
+);
+--> statement-breakpoint
 CREATE TABLE `channel_writers` (
 	`channel_id` text NOT NULL,
 	`role_id` text NOT NULL,
