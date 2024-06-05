@@ -300,18 +300,6 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-// async function handleUnreadUpdate(unread: db.Unread) {
-//   logger.log('event: unread update', unread);
-//   await db.insertUnreads([unread]);
-//   const channelExists = await db.getChannel({ id: unread.channelId });
-//   if (!channelExists) {
-//     logger.log('channel does not exist, skipping sync');
-//     return;
-//   }
-//   logger.log('syncing channel', unread.channelId);
-//   await syncChannel(unread.channelId, unread.updatedAt);
-// }
-
 const handleActivityUpdate = (queueDebounce: number = 500) => {
   const queue: api.ActivityUpdateQueue = {
     channelActivity: [],
@@ -355,11 +343,6 @@ const handleActivityUpdate = (queueDebounce: number = 500) => {
     processQueue();
   };
 };
-
-// async function handleUnreadUpdate(unread: db.Unread) {
-//   logger.log('event: unread update', unread);
-//   await db.insertUnreads([unread]);
-// }
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
@@ -699,7 +682,6 @@ export const initializeStorage = () => {
 export const setupSubscriptions = async () => {
   return syncQueue.add('setup subscriptions', async () => {
     await Promise.all([
-      // api.subscribeUnreads(handleUnreadUpdate),
       api.subscribeToActivity(handleActivityUpdate()),
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToChannelsUpdates(handleChannelsUpdate),

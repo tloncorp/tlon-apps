@@ -222,12 +222,10 @@ export default function Scroller({
         <View onLayout={() => handleItemLayout(item, index)}>
           {isFirstUnread ? (
             <ChannelDivider
-              // timestamp={item.receivedAt}
               post={item}
               unreadCount={unreadCount ?? 0}
               isFirstPostOfDay={isFirstPostOfDay}
               onSeen={onDividerSeen}
-              // channelInfo={{ id: channelId, type: channelType }}
             />
           ) : isFirstPostOfDay && item.type === 'chat' ? (
             <ChannelDivider

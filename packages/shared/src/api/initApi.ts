@@ -1,6 +1,5 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
-// import { toClientUnreads } from './unreadsApi';
 import { ActivityInit, toClientActivity } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';

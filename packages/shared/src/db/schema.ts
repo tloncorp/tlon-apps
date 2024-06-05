@@ -141,26 +141,6 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   }),
 }));
 
-//TODO: remove once key value solution validated
-// export const activityVolumeSettings = sqliteTable(
-//   'activity_volume_settings',
-//   {
-//     sourceId: text('id').notNull(),
-//     eventType: text('event_type').$type<ExtendedEventType>().notNull(),
-//     groupId: text('group_id'),
-//     channelId: text('channel_id'),
-//     threadId: text('thread_id'),
-//     isBase: boolean('is_base'),
-//     notify: boolean('notify').notNull(),
-//     unreads: boolean('unreads').notNull(),
-//   },
-//   (table) => {
-//     return {
-//       pk: primaryKey({ columns: [table.sourceId, table.eventType] }),
-//     };
-//   }
-// );
-
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
 export const pins = sqliteTable(
   'pins',

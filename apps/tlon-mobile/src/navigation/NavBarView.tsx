@@ -30,15 +30,6 @@ const NavBarView = (props: { navigation: any }) => {
         isActive={isRouteActive('Activity')}
         onPress={() => props.navigation.navigate('Activity')}
       />
-      {/* {contact && (
-        <AvatarNavIcon
-          id={currentUserId}
-          contact={contact}
-          isLoading={isLoading}
-          focused={isRouteActive('Profile')}
-          onPress={() => props.navigation.navigate('Profile')}
-        />
-      )} */}
       <AvatarNavIcon
         id={currentUserId}
         contact={contact ?? null}
