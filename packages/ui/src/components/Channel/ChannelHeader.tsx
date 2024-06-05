@@ -30,12 +30,12 @@ export function ChannelHeader({
   return (
     <View paddingTop={insets.top}>
       <XStack
-        justifyContent="space-between"
         alignItems="center"
-        paddingHorizontal="$xl"
         gap="$m"
-        height="$3xl"
-        paddingBottom="$m"
+        height="$4xl"
+        justifyContent="space-between"
+        paddingHorizontal="$xl"
+        paddingVertical="$m"
       >
         <XStack alignItems="center" gap="$m" flex={1}>
           <IconButton onPress={goBack}>
