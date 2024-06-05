@@ -9,9 +9,8 @@ import {
   tiptap,
 } from '@tloncorp/shared/dist';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Dimensions } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 
 import { Image, Text, View, YStack } from '../../core';
 import ContentReference from '../ContentReference';
@@ -71,13 +70,6 @@ export default function GalleryDetailView({
     [inlines, textPostIsJustLinkedImage]
   );
 
-  const handleImagePressed = useCallback(
-    (uri: string) => {
-      onPressImage?.(post, uri);
-    },
-    [onPressImage, post]
-  );
-
   if (
     !postIsJustImage &&
     !postIsJustText &&
@@ -118,27 +110,21 @@ export default function GalleryDetailView({
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         <View paddingHorizontal="$xl" key={post.id} alignItems="center">
           {(postIsJustImage || textPostIsJustLinkedImage) && (
-            <TouchableOpacity
-              onPress={() =>
-                handleImagePressed(postIsJustImage ? image!.src : linkedImage!)
-              }
-            >
-              <YStack gap="$s">
-                <Image
-                  source={{
-                    uri: postIsJustImage ? image!.src : linkedImage,
-                  }}
-                  contentFit="contain"
-                  width={WIDTH_DETAIL_VIEW_CONTENT}
-                  height={HEIGHT_DETAIL_VIEW_CONTENT}
-                />
-                {inlines.length > 0 && !textPostIsJustLinkedImage && (
-                  <View paddingHorizontal="$m">
-                    <Text>{tiptap.inlineToString(inlines[0])}</Text>
-                  </View>
-                )}
-              </YStack>
-            </TouchableOpacity>
+            <YStack gap="$s">
+              <Image
+                source={{
+                  uri: postIsJustImage ? image!.src : linkedImage,
+                }}
+                contentFit="contain"
+                width={WIDTH_DETAIL_VIEW_CONTENT}
+                height={HEIGHT_DETAIL_VIEW_CONTENT}
+              />
+              {inlines.length > 0 && !textPostIsJustLinkedImage && (
+                <View paddingHorizontal="$m">
+                  <Text>{tiptap.inlineToString(inlines[0])}</Text>
+                </View>
+              )}
+            </YStack>
           )}
           {postIsJustText &&
             !textPostIsJustLinkedImage &&
