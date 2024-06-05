@@ -135,7 +135,6 @@ const ChatListItem = React.memo(function ChatListItemComponent({
         model={{
           ...model,
         }}
-        borderRadius="$m"
         {...props}
       />
     );
@@ -166,7 +165,6 @@ const ChatListItem = React.memo(function ChatListItemComponent({
             lastPost: model.lastPost,
             lastChannel: model.title,
           }}
-          borderRadius="$m"
           {...props}
         />
       );
