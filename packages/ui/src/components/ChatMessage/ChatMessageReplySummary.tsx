@@ -1,10 +1,12 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 
-import { useContactGetter } from '../../contexts';
+import { useChannelContext, useContactGetter } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
+import { Icon } from '../Icon';
 import { UnreadDot } from '../UnreadDot';
 
 export const ChatMessageReplySummary = React.memo(
@@ -16,6 +18,8 @@ export const ChatMessageReplySummary = React.memo(
     onPress?: () => void;
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
+    const channel = useChannelContext();
+    const threadIsMuted = store.useThreadIsMuted({ channel, post });
 
     const contactGetter = useContactGetter();
     const time = useMemo(() => {
@@ -50,7 +54,10 @@ export const ChatMessageReplySummary = React.memo(
           >
             {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
           </SizableText>
-          {threadUnread?.count ? <UnreadDot marginLeft="$m" /> : null}
+          <ThreadStatus
+            unreadCount={threadUnread?.count ?? 0}
+            isMuted={threadIsMuted}
+          />
         </XStack>
         <SizableText size="$s" color="$tertiaryText">
           {time} ago
@@ -59,3 +66,21 @@ export const ChatMessageReplySummary = React.memo(
     ) : null;
   }
 );
+
+function ThreadStatus({
+  unreadCount,
+  isMuted,
+}: {
+  unreadCount: number;
+  isMuted: boolean;
+}) {
+  if (isMuted) {
+    return <Icon type="Notifications" size="$s" marginLeft="$m" />;
+  }
+
+  if (unreadCount) {
+    return <UnreadDot marginLeft="$m" />;
+  }
+
+  return null;
+}

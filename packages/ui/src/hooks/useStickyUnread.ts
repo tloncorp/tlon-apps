@@ -14,12 +14,15 @@ export function useStickyUnread<T extends UnreadInput>(unread: T): T {
 
   useEffect(() => {
     const wasRead = wasNewlyRead(unread, unreadState);
-
-    if (wasRead && !readTimeout.current) {
-      readTimeout.current = setTimeout(() => {
-        setUnreadState(unread);
-        readTimeout.current = null;
-      }, READ_DELAY);
+    // if it was read, we need to clear it on a delay if not already waiting
+    if (wasRead) {
+      if (!readTimeout.current) {
+        readTimeout.current = setTimeout(() => {
+          setUnreadState(unread);
+          readTimeout.current = null;
+        }, READ_DELAY);
+      }
+      // and always return early to avoid setting the state prematurely
       return;
     }
 

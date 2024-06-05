@@ -46,31 +46,7 @@ export async function muteThread({
   channel: db.Channel;
   thread: db.Post;
 }) {
-  let source: ub.Source;
-  if (channel.type === 'dm' || channel.type === 'groupDm') {
-    source = {
-      'dm-thread': {
-        whom:
-          channel.type === 'dm' ? { ship: channel.id } : { club: channel.id },
-        key: {
-          id: `${thread.authorId}/${thread.id}`,
-          time: thread.sentAt.toString(),
-        },
-      },
-    };
-  } else {
-    source = {
-      thread: {
-        channel: channel.id,
-        group: channel.groupId!,
-        key: {
-          id: `${thread.authorId}/${thread.id}`,
-          time: thread.sentAt.toString(),
-        },
-      },
-    };
-  }
-  const sourceId = ub.sourceToString(source);
+  const { source, sourceId } = api.getThreadSource({ channel, post: thread });
   const volume = ub.getVolumeMap('soft', true);
 
   // optimistic update
@@ -93,32 +69,7 @@ export async function unmuteThread({
   thread: db.Post;
 }) {
   const existingSettings = await db.getVolumeSettings();
-
-  let source: ub.Source;
-  if (channel.type === 'dm' || channel.type === 'groupDm') {
-    source = {
-      'dm-thread': {
-        whom:
-          channel.type === 'dm' ? { ship: channel.id } : { club: channel.id },
-        key: {
-          id: `${thread.authorId}/${thread.id}`,
-          time: thread.sentAt.toString(),
-        },
-      },
-    };
-  } else {
-    source = {
-      thread: {
-        channel: channel.id,
-        group: channel.groupId!,
-        key: {
-          id: `${thread.authorId}/${thread.id}`,
-          time: thread.sentAt.toString(),
-        },
-      },
-    };
-  }
-  const sourceId = ub.sourceToString(source);
+  const { source, sourceId } = api.getThreadSource({ channel, post: thread });
 
   // optimistic update
   db.mergeVolumeSettings([{ sourceId, volume: null }]);

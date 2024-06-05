@@ -84,11 +84,36 @@ export const useVolumeSettings = () => {
   });
 };
 
+export const useThreadIsMuted = ({
+  channel,
+  post,
+}: {
+  channel: db.Channel | undefined | null;
+  post: db.Post;
+}): boolean => {
+  const { data: volumeSettings } = useVolumeSettings();
+
+  const isMuted = useMemo(() => {
+    if (!channel || post.parentId) return false;
+
+    const { sourceId } = api.getThreadSource({ channel, post });
+    if (volumeSettings) {
+      const volumeMap = volumeSettings[sourceId];
+      if (volumeMap) {
+        return getLevelFromVolumeMap(volumeMap) === 'soft';
+      }
+    }
+
+    return false;
+  }, [channel, post, volumeSettings]);
+
+  return isMuted;
+};
+
 export const useChannelIsMuted = (channel: db.Channel): boolean => {
   const { data: volumeSettings } = useVolumeSettings();
 
   const isMuted = useMemo(() => {
-    console.log(`checking is muted ${channel.id}`);
     const { sourceId } = api.getRootSourceFromChannel(channel);
     if (volumeSettings) {
       const volumeMap = volumeSettings[sourceId];
@@ -296,8 +321,9 @@ export const useChannel = (options: { id: string }) => {
 };
 
 export const usePostWithRelations = (options: { id: string }) => {
+  const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
-    queryKey: [['post', options]],
+    queryKey: [['post', options], tableDeps],
     queryFn: () => db.getPostWithRelations(options),
   });
 };

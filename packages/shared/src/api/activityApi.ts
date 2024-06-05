@@ -1,3 +1,5 @@
+import { backOff } from 'exponential-backoff';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
@@ -146,11 +148,16 @@ export const readChannel = async (channel: db.Channel) => {
 
   const action = activityAction({ read: { source, action: { all: null } } });
   logger.log(`reading channel ${channel.id}`, action);
-  return poke(action);
+
+  // simple retry logic to avoid failed read leading to lingering unread state
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000, // 4 seconds
+    numOfAttempts: 4,
+  });
 };
 
 export const readThread = async ({
-  post,
   parentPost,
   channel,
 }: {
@@ -211,8 +218,76 @@ export const readThread = async ({
   }
 
   const action = activityAction({ read: { source, action: { all: null } } });
-  return poke(action);
+
+  // simple retry logic to avoid failed read leading to lingering unread state
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000, // 4 seconds
+    numOfAttempts: 4,
+  });
 };
+
+export function getMessageKey(
+  channel: db.Channel,
+  post: db.Post
+): { id: string; time: string } {
+  if (channel.type === 'dm' || channel.type === 'groupDm') {
+    if (!post.backendTime) {
+      throw Error(
+        `Cannot get message key without post.backendTime, ${post.id}`
+      );
+    }
+    return {
+      id: `${post.authorId}/${post.id}`,
+      time: post.backendTime,
+    };
+  }
+
+  return {
+    id: `${post.authorId}/${post.id}`,
+    time: post.id,
+  };
+}
+
+export function getThreadSource({
+  channel,
+  post,
+}: {
+  channel: db.Channel;
+  post: db.Post;
+}): {
+  source: ub.Source;
+  sourceId: string;
+} {
+  let source: ub.Source;
+  if (channel.type === 'dm') {
+    source = {
+      'dm-thread': {
+        whom: { ship: channel.id },
+        key: getMessageKey(channel, post),
+      },
+    };
+  } else if (channel.type === 'groupDm') {
+    source = {
+      'dm-thread': {
+        whom: { club: channel.id },
+        key: getMessageKey(channel, post),
+      },
+    };
+  } else {
+    source = {
+      thread: {
+        channel: channel.id,
+        group: channel.groupId!,
+        key: getMessageKey(channel, post),
+      },
+    };
+  }
+
+  const sourceId = ub.sourceToString(source);
+
+  return { source, sourceId };
+}
 
 export function getRootSourceFromChannel(channel: db.Channel): {
   source: ub.Source;

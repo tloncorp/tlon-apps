@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
+import { useChannelContext } from 'packages/ui/src/contexts';
 import { useMemo } from 'react';
 
 import { useReferences } from '../../../contexts/references';
@@ -25,12 +26,19 @@ export default function MessageActions({
   channelType: db.ChannelType;
 }) {
   const { setReferences } = useReferences();
+  const channel = useChannelContext();
+  const isMuted = store.useThreadIsMuted({ channel, post }); // always false if the post is a reply
   const postActions = useMemo(() => {
-    return getPostActions(post, channelType).filter((action) => {
+    return getPostActions({ post, channelType, isMuted }).filter((action) => {
       switch (action.id) {
         case 'startThread':
-          // if undelivered or already in a thread, don't show reply
-          return !post.deliveryStatus && !post.parentId;
+          // only show start thread if
+          // 1. the message is delivered
+          // 2. the message isn't a reply
+          // 3. an existing thread for that message doesn't already exist
+          return (
+            !post.deliveryStatus && !post.parentId && post.replyCount === 0
+          );
         case 'edit':
           // only show edit for current user's posts
           return post.authorId === currentUserId;
@@ -38,7 +46,7 @@ export default function MessageActions({
           return true;
       }
     });
-  }, [post, channelType, currentUserId]);
+  }, [post, channelType, isMuted, currentUserId]);
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -49,6 +57,8 @@ export default function MessageActions({
             handleAction({
               id: action.id,
               post,
+              channel,
+              isMuted,
               dismiss,
               onReply,
               onEdit,
@@ -71,14 +81,20 @@ interface ChannelAction {
   label: string;
   actionType?: 'destructive';
 }
-function getPostActions(
-  post: db.Post,
-  channelType: db.ChannelType
-): ChannelAction[] {
+function getPostActions({
+  post,
+  channelType,
+  isMuted,
+}: {
+  post: db.Post;
+  channelType: db.ChannelType;
+  isMuted?: boolean;
+}): ChannelAction[] {
   switch (channelType) {
     case 'gallery':
       return [
         { id: 'startThread', label: 'Comment on post' },
+        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: 'Hide' },
@@ -87,6 +103,7 @@ function getPostActions(
     case 'notebook':
       return [
         { id: 'startThread', label: 'Comment on post' },
+        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'pin', label: 'Pin post' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
@@ -98,7 +115,7 @@ function getPostActions(
       return [
         // { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
-        { id: 'muteThread', label: 'Mute thread' },
+        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'visibility', label: 'Hide' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
@@ -108,7 +125,7 @@ function getPostActions(
       return [
         { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
-        { id: 'muteThread', label: 'Mute thread' },
+        { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },
@@ -121,6 +138,8 @@ function getPostActions(
 async function handleAction({
   id,
   post,
+  channel,
+  isMuted,
   dismiss,
   onReply,
   onEdit,
@@ -128,6 +147,8 @@ async function handleAction({
 }: {
   id: string;
   post: db.Post;
+  channel: db.Channel;
+  isMuted?: boolean;
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
@@ -139,6 +160,11 @@ async function handleAction({
     case 'startThread':
       // give the actions time to fade out before navigating
       setTimeout(() => onReply?.(post), 50);
+      break;
+    case 'muteThread':
+      isMuted
+        ? store.unmuteThread({ channel, thread: post })
+        : store.muteThread({ channel, thread: post });
       break;
     case 'quote':
       setReferences({ [path]: reference });

@@ -30,12 +30,21 @@ export async function unpinItem(pin: db.Pin) {
 }
 
 export async function markChannelRead(channel: db.Channel) {
-  // if (channel.type === 'dm' || channel.type === 'groupDm') {
-  //   await api.markChatRead(channel.id);
-  // } else {
-  //   await api.markChannelRead(channel.id);
-  // }
-  await api.readChannel(channel);
+  // optimistic update
+  const existingUnread = await db.getChannelUnread({ channelId: channel.id });
+  if (existingUnread) {
+    await db.clearChannelUnread(channel.id);
+  }
+
+  try {
+    await api.readChannel(channel);
+  } catch (e) {
+    console.error('Failed to read channel', e);
+    // rollback optimistic update
+    if (existingUnread) {
+      await db.insertUnreads([existingUnread]);
+    }
+  }
 }
 
 export async function markThreadRead({
@@ -47,7 +56,27 @@ export async function markThreadRead({
   parentPost: db.Post;
   channel: db.Channel;
 }) {
-  await api.readThread({ parentPost, post, channel });
+  // optimistic update
+  const existingUnread = await db.getThreadActivity({
+    channelId: channel.id,
+    postId: parentPost.id,
+  });
+  if (existingUnread) {
+    await db.clearThreadUnread({
+      channelId: channel.id,
+      threadId: parentPost.id,
+    });
+  }
+
+  try {
+    await api.readThread({ parentPost, post, channel });
+  } catch (e) {
+    console.error('Failed to read thread', e);
+    // rollback optimistic update
+    if (existingUnread) {
+      await db.insertThreadActivity([existingUnread]);
+    }
+  }
 }
 
 export async function upsertDmChannel({

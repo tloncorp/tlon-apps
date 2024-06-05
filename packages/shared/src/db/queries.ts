@@ -200,7 +200,6 @@ export const getPendingChats = createReadQuery(
 export const getChats = createReadQuery(
   'getChats',
   async (): Promise<Channel[]> => {
-    console.log('bl: FETCHING CURRENT CHATS');
     const partitionedGroupsQuery = client
       .select({
         ...getTableColumns($channels),
@@ -899,6 +898,16 @@ export const getAllUnreadsCounts = createReadQuery(
       dms: dmUnreadCount ?? 0,
       total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
     };
+  },
+  ['unreads']
+);
+
+export const getChannelUnread = createReadQuery(
+  'getChannelUnread',
+  async ({ channelId }: { channelId: string }) => {
+    return client.query.unreads.findFirst({
+      where: and(eq($unreads.channelId, channelId)),
+    });
   },
   ['unreads']
 );
@@ -1863,7 +1872,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups']
+  ['groups', 'unreads']
 );
 
 export const getGroupByChannel = createReadQuery(
@@ -2041,6 +2050,17 @@ export const insertUnreads = createWriteQuery(
   ['unreads']
 );
 
+export const clearChannelUnread = createWriteQuery(
+  'clearChannelUnread',
+  async (channelId: string) => {
+    return client
+      .update($unreads)
+      .set({ countWithoutThreads: 0, firstUnreadPostId: null })
+      .where(eq($unreads.channelId, channelId));
+  },
+  ['unreads']
+);
+
 export const insertThreadActivity = createWriteQuery(
   'insertThreadActivity',
   async (threadActivity: ThreadUnreadState[]) => {
@@ -2054,6 +2074,22 @@ export const insertThreadActivity = createWriteQuery(
       });
   },
   ['threadUnreads', 'unreads']
+);
+
+export const clearThreadUnread = createWriteQuery(
+  'clearThreadUnread',
+  async ({ channelId, threadId }: { channelId: string; threadId: string }) => {
+    return client
+      .update($threadUnreads)
+      .set({ count: 0, firstUnreadPostId: null })
+      .where(
+        and(
+          eq($threadUnreads.channelId, channelId),
+          eq($threadUnreads.threadId, threadId)
+        )
+      );
+  },
+  ['threadUnreads']
 );
 
 export const insertPinnedItems = createWriteQuery(
