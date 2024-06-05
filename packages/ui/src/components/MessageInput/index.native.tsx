@@ -39,7 +39,12 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { getToken, useWindowDimensions } from 'tamagui';
+import {
+  getToken,
+  getTokenValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
@@ -110,7 +115,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       setShowBigInput,
       showAttachmentButton = true,
       floatingActionButton = false,
-      backgroundColor = '$secondaryBackground',
+      backgroundColor = '$background',
       paddingHorizontal,
       initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
@@ -633,6 +638,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           <RichText
             style={{
               backgroundColor: 'transparent',
+              borderRadius: getTokenValue('$xl', 'radius'),
+              borderColor: useTheme().shadow.val,
+              borderWidth: 1,
             }}
             editor={editor}
             onMessage={handleMessage}
