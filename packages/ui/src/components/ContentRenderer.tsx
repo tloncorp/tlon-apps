@@ -26,6 +26,7 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
+import { PostContent } from 'packages/shared/dist/api';
 import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
 import {
   ComponentProps,
@@ -727,7 +728,7 @@ export default function ContentRenderer({
   isEdited = false,
   viewMode = 'chat',
 }: {
-  post: Post;
+  post: Post | { type: 'chat' | 'diary' | 'gallery'; id: string; content: any };
   shortened?: boolean;
   isNotice?: boolean;
   deliveryStatus?: PostDeliveryStatus | null;

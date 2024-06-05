@@ -270,7 +270,13 @@ export const extractContentTypes = (
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
-  const story = JSON.parse(content as string) as api.PostContent;
+  let story: api.PostContent;
+  try {
+    story = JSON.parse(content as string) as api.PostContent;
+  } catch (e) {
+    console.error(`bl: error parsing content`, e);
+    return { inlines: [], references: [], blocks: [], story: [] };
+  }
   const inlines = extractInlinesFromContent(story);
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);
@@ -279,13 +285,14 @@ export const extractContentTypes = (
 };
 
 export const extractContentTypesFromPost = (
-  post: db.Post
+  post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
+  console.log(`bl: about to extract`, post.content);
   const { inlines, references, blocks, story } = extractContentTypes(
     post.content as string
   );
