@@ -1,6 +1,6 @@
 import type { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
-import { createDevLogger } from '@tloncorp/shared';
+import { createDevLogger, escapeLog } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/dist/db';
 import { schema, setClient } from '@tloncorp/shared/dist/db';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
@@ -12,7 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 let connection: OPSQLiteConnection | null = null;
 let client: OPSQLiteDatabase<Schema> | null = null;
 
-const logger = createDevLogger('db', false);
+const enableLogger = false;
+const logger = createDevLogger('db', enableLogger);
 
 export function setupDb() {
   if (connection || client) {
@@ -29,11 +30,13 @@ export function setupDb() {
 
   client = drizzle(connection, {
     schema,
-    logger: {
-      logQuery(query, params) {
-        logger.log(query, params);
-      },
-    },
+    logger: enableLogger
+      ? {
+          logQuery(query, params) {
+            logger.log(escapeLog(query), params);
+          },
+        }
+      : undefined,
   });
   setClient(client);
   logger.log('SQLite database opened at', connection.getDbPath());
