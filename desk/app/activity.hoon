@@ -217,14 +217,27 @@
 ++  set-volumes
   |=  =channels:c
   ::  set all existing channels to old default since new default is different
+  =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
   =.  cor
     =/  entries  ~(tap by channels)
     |-
     ?~  entries  cor
     =/  [=nest:c =channel:c]  i.entries
+    =*  group  group.perm.channel
+    =/  can-read
+      ?^  gate=(~(get by checkers) group)  u.gate
+      =/  =path
+        %+  scry-path  %groups
+        /groups/(scot %p p.group)/[q.group]/can-read/noun
+      =/  test=$-([ship nest:g] ?)
+        =>  [path=path nest=nest:g ..zuse]  ~+
+        .^($-([ship nest] ?) %gx path)
+      =.  checkers  (~(put by checkers) group test)
+      test
     =.  cor
-      %+  adjust  [%channel nest group.perm.channel]
-      `(my [%post & |] ~)
+      %+  adjust  [%channel nest group]
+      ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
+      `mute:a
     $(entries t.entries)
   =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set any overrides from previous volume settings
@@ -234,13 +247,17 @@
     |-
     ?~  entries  cor
     =/  [=nest:g =level:v]  i.entries
-    ?.  ?=(?(%chat %diary %heap) -.nest)  $(entries t.entries)
+    =*  next  $(entries t.entries)
+    ?.  ?=(?(%chat %diary %heap) -.nest)  next
     =/  channel  (~(get by channels) nest)
-    ?~  channel  $(entries t.entries)
+    ?~  channel  next
+    ?~  can-read=(~(get by checkers) group.perm.u.channel)  next
+    ::  don't override previously set mute from channel migration
+    ?.  (u.can-read our.bowl nest)  next
     =.  cor
       %+  adjust  [%channel nest group.perm.u.channel]
       `(~(got by old-volumes:a) level)
-    $(entries t.entries)
+    next
   =/  entries  ~(tap by area.volume)
   |-
   ?~  entries  cor
@@ -263,10 +280,10 @@
       %activity-action
     =+  !<(=action:a vase)
     ?-  -.action
-      %add     (add +.action)
-      %del     (del +.action)
-      %read    (read +.action)
-      %adjust  (adjust +.action)
+      %add      (add +.action)
+      %del      (del +.action)
+      %read     (read +.action)
+      %adjust   (adjust +.action)
     ==
   ==
 ::
@@ -439,6 +456,17 @@
   =.  activity
     (~(put by activity) source summary)
   (give-unreads source)
+::
+++  refresh-parent-summaries
+  |=  =source:a
+  ?+  -.source  cor
+    %channel  (refresh-summary [%group group.source])
+    %dm-thread  (refresh-summary [%dm whom.source])
+  ::
+      %thread
+    =.  cor  (refresh-summary [%channel channel.source group.source])
+    (refresh-summary [%group group.source])
+  ==
 ++  get-volumes
   |=  =source:a
   ^-  volume-map:a
@@ -561,14 +589,7 @@
   ^+  cor
   =/  new  (updater (get-index source))
   =.  cor  (update-index source new &)
-  ?+  -.source  cor
-    %channel  (refresh-summary [%group group.source])
-    %dm-thread  (refresh-summary [%dm whom.source])
-  ::
-      %thread
-    =.  cor  (refresh-summary [%channel channel.source group.source])
-    (refresh-summary [%group group.source])
-  ==
+  (refresh-parent-summaries source)
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -585,10 +606,8 @@
   =.  volume-settings
     (~(put by volume-settings) source (~(uni by target) u.volume-map))
   ::  recalculate activity summary with new settings
-  =.  activity
-    %+  ~(put by activity)  source
-    (summarize-unreads source (~(gut by indices) source *index:a))
-  (give-unreads source)
+  =.  cor  (refresh-summary source)
+  (refresh-parent-summaries source)
 ::
 ++  get-children
   |=  =source:a

@@ -225,4 +225,7 @@
       [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
       [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
   ==
+++  mute
+  ^~
+  (~(run by default-volumes) |=(* [| |]))
 --

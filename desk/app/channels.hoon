@@ -2132,10 +2132,19 @@
       /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
     =+  .^(group=group-ui:g %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
-    ::  if our read permissions restored, re-subscribe
+    ::  toggle the volume based on permissions
+    =/  =source:activity  [%channel nest flag]
     ?.  (can-read:ca-perms our.bowl)
-      (send:ca-activity [%del %channel nest flag] ~)
-    =.  ca-core  (send:ca-activity ~[[%add %chan-init nest flag]])
+      (send:ca-activity [%adjust source ~] ~)
+    =+  .^(=volume-settings:activity %gx (scry-path %activity /volume-settings/noun))
+    =.  ca-core
+      ::  if we don't have a setting, no-op
+      ?~  setting=(~(get by volume-settings) source)  ca-core
+      ::  if they have a setting that's not mute, retain it otherwise
+      ::  delete setting if it's mute so it defaults
+      ?.  =(setting mute:activity)  ca-core
+      (send:ca-activity ~[[%adjust source ~]])
+    ::  if our read permissions restored, re-subscribe
     (ca-safe-sub |)
   ::
   ::  assorted helpers
