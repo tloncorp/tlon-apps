@@ -20,7 +20,7 @@ export const useChannelContext = () => {
 
   if (!context) {
     throw new Error(
-      'Must call `useThread` within an `ThreadProvider` component.'
+      'Must call `useChannelContext` within a `ChannelProvider` component.'
     );
   }
 

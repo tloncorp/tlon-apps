@@ -20,6 +20,7 @@ const NavBarView = (props: { navigation: any }) => {
         activeType="HomeFilled"
         isActive={isRouteActive('ChatList')}
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
+        // intentionally leave undotted for now
         hasUnreads={false}
         onPress={() => props.navigation.navigate('ChatList')}
       />
