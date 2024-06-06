@@ -166,7 +166,7 @@ export interface ActivitySummary {
   count: number;
   notify: boolean;
   unread: UnreadPoint | null;
-  children: string[];
+  children: Activity | null;
 }
 
 export type Activity = Record<string, ActivitySummary>;

@@ -16,7 +16,12 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useMarkChannelRead } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
-import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import {
+  useIsDmOrMultiDm,
+  whomIsDm,
+  whomIsFlag,
+  whomIsMultiDm,
+} from '@/logic/utils';
 import { useLeaveMutation } from '@/state/channel/channel';
 import {
   useArchiveDm,
@@ -65,8 +70,13 @@ export default function DmOptions({
   const pinned = usePinnedChats();
   const chatUnread = useUnread(getKey(whom));
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
-  const hasNotify = !!chatUnread?.notify;
-  const hasActivity = pending || chatUnread?.status === 'unread';
+  const unread = !chatUnread
+    ? { status: 'read', count: 0, notify: false }
+    : whomIsFlag(whom)
+      ? chatUnread
+      : chatUnread.combined;
+  const hasNotify = !!unread.notify;
+  const hasActivity = pending || unread.status === 'unread';
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
@@ -157,7 +167,7 @@ export default function DmOptions({
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
       <UnreadIndicator
-        count={chatUnread?.count || 0}
+        count={unread.count}
         notify={hasNotify}
         className="group-focus-within:opacity-0 group-hover:opacity-0"
       />
@@ -241,7 +251,7 @@ export default function DmOptions({
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
-                count={chatUnread?.count || 0}
+                count={unread.count}
                 notify={hasNotify}
                 className="group-focus-within:opacity-0 group-hover:opacity-0"
               />

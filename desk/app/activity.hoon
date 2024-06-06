@@ -82,7 +82,7 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
   =.  cor  set-chat-reads
-  =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
+  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
   =.  cor  refresh-all-summaries
@@ -97,12 +97,15 @@
   =.  state  old
   cor
 ::
-++  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-++  channels-prefix  /(scot %p our.bowl)/channels/(scot %da now.bowl)
+++  scry-path
+  |=  [=dude:gall =path]
+  %+  welp
+  /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
+  path
 ++  set-channel-reads
   |=  =channels:c
   ^+  cor
-  =+  .^(=unreads:c %gx (welp channels-prefix /v1/unreads/noun))
+  =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
   =/  entries  ~(tap by unreads)
   =;  events=(list [time incoming-event:a])
     |-
@@ -158,12 +161,11 @@
     *@da
   :-  [init-time %chan-init nest group]
   (welp posts replies)
-++  chat-prefix  /(scot %p our.bowl)/chat/(scot %da now.bowl)
 ++  set-chat-reads
   ^+  cor
-  =+  .^(=unreads:ch %gx (welp chat-prefix /unreads/noun))
+  =+  .^(=unreads:ch %gx (scry-path %chat /unreads/noun))
   =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
-      %gx  (welp chat-prefix /full/noun)
+      %gx  (scry-path %chat /full/noun)
     ==
   =/  entries  ~(tap by unreads)
   =;  events=(list [time incoming-event:a])
@@ -224,7 +226,7 @@
       %+  adjust  [%channel nest group.perm.channel]
       `(my [%post & |] ~)
     $(entries t.entries)
-  =+  .^(=volume:v %gx (welp groups-prefix /volume/all/noun))
+  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set any overrides from previous volume settings
   =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
   =.  cor
@@ -628,13 +630,19 @@
 ++  stream-to-unreads
   |=  [=stream:a floor=time children=(list source:a) =source:a]
   ^-  activity-summary:a
-  =/  cs=activity-summary:a
+  =/  child-map
     %+  roll
       children
-    |=  [=source:a sum=activity-summary:a]
+    |=  [=source:a acc=(map source:a activity-summary:a)]
     =/  =index:a  (~(gut by indices) source *index:a)
-    =/  as=activity-summary:a
-      (~(gut by activity) source (summarize-unreads source index))
+    %+  ~(put by acc)  source
+    ?~  as=(~(get by activity) source)
+      =>  (summarize-unreads source index)
+      .(children ~)
+    u.as(children ~)
+  =/  cs=activity-summary:a
+    %-  ~(rep by child-map)
+    |=  [[=source:a as=activity-summary:a] sum=activity-summary:a]
     %=  sum
       count  (^add count.sum count.as)
       notify  |(notify.sum notify.as)
@@ -651,15 +659,17 @@
   ::  if reply, update thread state
   |-
   ?~  stream
-    [newest total notified ?~(last ~ `[u.last main main-notified]) children]
+    [newest total notified ?~(last ~ `[u.last main main-notified]) `child-map]
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
+  ::TODO  support other event types
+  =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
+  =*  supported
+    |(is-msg ?=(?(%dm-invite %chan-init) -<.event))
+  ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
   =.  newest  time
-  ?.  ?&  unreads.volume
-          ::TODO  support other event types
-          ?=(?(%dm-post %dm-reply %post %reply) -<.event)
-      ==
+  ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
     $(stream rest)
   =.  total  +(total)
   =.  main   +(main)

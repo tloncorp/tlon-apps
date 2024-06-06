@@ -3,10 +3,12 @@ import {
   ActivitySummary,
 } from '@tloncorp/shared/dist/urbit/activity';
 import produce from 'immer';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
+
+import { SidebarFilter, useMessagesFilter } from './settings';
 
 export type ReadStatus = 'read' | 'seen' | 'unread';
 
@@ -27,7 +29,8 @@ export interface Unread {
     id: string;
     time: string;
   };
-  children: string[];
+  children: Activity | null;
+  parents: string[];
   readTimeout: number;
   summary: ActivitySummary; // lags behind actual unread, only gets update if unread
 }
@@ -42,7 +45,6 @@ export interface UnreadsStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  handleUnread: (whom: string, unread: ActivitySummary) => void;
   update: (unreads: Activity) => void;
 }
 
@@ -52,9 +54,41 @@ export function isUnread(count: number, notify: boolean): boolean {
   return Boolean(count > 0 || notify);
 }
 
-function sumChildren(source: string, unreads: Unreads): number {
-  const children = unreads[source]?.children || [];
-  return children.reduce((acc, child) => acc + (unreads[child]?.count || 0), 0);
+export interface ShortSummary {
+  status: ReadStatus;
+  count: number;
+  notify: boolean;
+}
+
+function sumChildren(
+  children: Activity,
+  unreads: Unreads,
+  top: ShortSummary,
+  refresh = false
+): ShortSummary {
+  const { count, notify, status } = Object.entries(
+    children
+  ).reduce<ShortSummary>((acc, [key, child]) => {
+    let status = acc.status;
+    const childStatus = unreads[key]?.status;
+    if (childStatus === 'unread') {
+      status = 'unread';
+    } else if (childStatus === 'seen' && status === 'read') {
+      status = 'seen';
+    }
+
+    return {
+      count: acc.count + (child.unread?.count || 0),
+      notify: acc.notify || Boolean(child.unread?.notify),
+      status,
+    };
+  }, top);
+
+  return {
+    count,
+    notify,
+    status: refresh ? status : isUnread(count, notify) ? 'unread' : 'read',
+  };
 }
 
 function getUnread(
@@ -64,30 +98,32 @@ function getUnread(
 ): Unread {
   const topNotify = summary.unread?.notify || false;
   const topCount = summary.unread?.count || 0;
-  const combinedCount = source.startsWith('group/')
-    ? sumChildren(source, unreads)
-    : summary.count || 0;
-  const combinedNotify = summary.notify;
+  const top: ShortSummary = {
+    count: topCount,
+    notify: topNotify,
+    status: isUnread(topCount, topNotify) ? 'unread' : 'read',
+  };
+
   return {
+    ...top,
+    parents: [],
     children: summary.children,
     recency: summary.recency,
     readTimeout: 0,
-    notify: topNotify,
-    count: topCount,
-    status: isUnread(topCount, topNotify) ? 'unread' : 'read',
-    combined: {
-      count: combinedCount,
-      notify: combinedNotify,
-      status: isUnread(combinedCount, combinedNotify) ? 'unread' : 'read',
-    },
+    summary,
+    combined: shouldBeCombined(source)
+      ? sumChildren(summary.children || {}, unreads, top)
+      : {
+          count: summary.count,
+          notify: summary.notify,
+          status: isUnread(summary.count, summary.notify) ? 'unread' : 'read',
+        },
     lastUnread: !summary.unread
       ? undefined
       : {
           id: summary.unread.id,
           time: summary.unread.time,
         },
-    // todo account for children "seen"
-    summary,
   };
 }
 
@@ -97,7 +133,7 @@ export const emptyUnread = (): Unread => ({
     count: 0,
     notify: false,
     unread: null,
-    children: [],
+    children: {},
   },
   recency: 0,
   status: 'read',
@@ -109,8 +145,52 @@ export const emptyUnread = (): Unread => ({
     notify: false,
   },
   readTimeout: 0,
-  children: [],
+  children: {},
+  parents: [],
 });
+
+const sortOrder = {
+  thread: 6,
+  'dm-thread': 5,
+  channel: 4,
+  club: 3,
+  ship: 2,
+  group: 1,
+  base: 0,
+};
+
+function shouldBeCombined(source: string): boolean {
+  return (
+    source.startsWith('group/') ||
+    source.startsWith('ship/') ||
+    source.startsWith('club/')
+  );
+}
+
+function updateParents(parents: string[], draft: UnreadsStore) {
+  parents.forEach((parent) => {
+    const parentSrc = draft.sources[parent];
+    const shouldUpdate = shouldBeCombined(parent);
+    if (!parentSrc || !shouldUpdate) {
+      return;
+    }
+
+    const combined = sumChildren(
+      parentSrc.children || {},
+      draft.sources,
+      parentSrc,
+      true
+    );
+    unreadStoreLogger.log('updating parent', parent, combined);
+    draft.sources[parent] = {
+      ...parentSrc,
+      combined,
+    };
+  });
+
+  return draft;
+}
+
 export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
   sources: {},
   loaded: false,
@@ -118,20 +198,42 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
     set(
       produce((draft: UnreadsStore) => {
         draft.loaded = true;
-        Object.entries(summaries).forEach(([key, summary]) => {
-          const source = draft.sources[key];
-          unreadStoreLogger.log('update', key, source, summary, draft.sources);
-          draft.sources[key] = getUnread(key, summary, draft.sources);
-        });
-      })
-    );
-  },
-  handleUnread: (key, summary) => {
-    set(
-      produce((draft: UnreadsStore) => {
-        const source = draft.sources[key] || emptyUnread();
-        unreadStoreLogger.log('unread', key, source, summary);
-        draft.sources[key] = getUnread(key, summary, draft.sources);
+        Object.entries(summaries)
+          .sort(([a], [b]) => {
+            const aKey = a.split('/')[0];
+            const bKey = b.split('/')[0];
+
+            return (
+              sortOrder[bKey as keyof typeof sortOrder] -
+              sortOrder[aKey as keyof typeof sortOrder]
+            );
+          })
+          .forEach(([key, summary]) => {
+            const source = draft.sources[key];
+            unreadStoreLogger.log(
+              'update',
+              key,
+              source,
+              summary,
+              draft.sources
+            );
+            const unread = getUnread(key, summary, draft.sources);
+            draft.sources[key] = unread;
+
+            Object.keys(unread.children || {}).forEach((child) => {
+              const childSrc = draft.sources[child];
+              if (!childSrc) {
+                return;
+              }
+
+              draft.sources[child] = {
+                ...childSrc,
+                parents: childSrc.parents.includes(key)
+                  ? childSrc.parents
+                  : [...childSrc.parents, key],
+              };
+            });
+          });
       })
     );
   },
@@ -148,7 +250,21 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         draft.sources[key] = {
           ...source,
           status: 'seen',
+          combined: !shouldBeCombined(key)
+            ? source.combined
+            : sumChildren(
+                source.children || {},
+                draft.sources,
+                {
+                  count: source.count,
+                  notify: source.notify,
+                  status: 'seen',
+                },
+                true
+              ),
         };
+
+        updateParents(source.parents, draft);
       })
     );
   },
@@ -169,9 +285,22 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         draft.sources[key] = {
           ...source,
           status: 'read',
+          combined: !shouldBeCombined(key)
+            ? source.combined
+            : sumChildren(
+                source.children || {},
+                draft.sources,
+                {
+                  count: source.count,
+                  notify: source.notify,
+                  status: 'read',
+                },
+                true
+              ),
           readTimeout: 0,
         };
         unreadStoreLogger.log('post read', JSON.stringify(draft.sources[key]));
+        updateParents(source.parents, draft);
       })
     );
   },
@@ -206,19 +335,32 @@ const defaultUnread = {
   count: 0,
   notify: false,
 };
-export function useCombinedChatUnreads() {
+export function useCombinedChatUnreads(messagesFilter: SidebarFilter) {
   const sources = useUnreadsStore(useCallback((s) => s.sources, []));
-  return Object.entries(sources).reduce((acc, [key, source]) => {
-    if (key === 'base' || key.startsWith('group')) {
-      return acc;
-    }
+  return useMemo(
+    () =>
+      Object.entries(sources).reduce((acc, [key, source]) => {
+        const isDm = key.startsWith('ship/') || key.startsWith('club/');
+        const isChat = key.startsWith('channel/chat');
+        const dms = messagesFilter === 'Direct Messages' && isDm;
+        const chats = messagesFilter === 'Group Channels' && isChat;
+        const all = messagesFilter === 'All Messages' && (isDm || isChat);
 
-    return {
-      unread: acc.unread || source.status === 'unread',
-      count: acc.count + source.count,
-      notify: acc.notify || source.notify,
-    };
-  }, defaultUnread);
+        if (!(dms || chats || all)) {
+          return acc;
+        }
+
+        const isUnread = isDm
+          ? source.combined.status === 'unread'
+          : source.status === 'unread';
+        return {
+          unread: acc.unread || isUnread,
+          count: acc.count + source.count,
+          notify: acc.notify || source.notify,
+        };
+      }, defaultUnread),
+    [sources, messagesFilter]
+  );
 }
 
 export function useCombinedGroupUnreads() {
@@ -243,3 +385,5 @@ export function useUnreads() {
 export function useUnread(key: string): Unread | undefined {
   return useUnreadsStore(useCallback((s) => s.sources[key], [key]));
 }
+
+window.unread = useUnreadsStore;

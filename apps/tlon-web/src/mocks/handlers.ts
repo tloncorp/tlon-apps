@@ -431,7 +431,7 @@ const dms: Handler[] = [
           count: 1,
           notify: false,
           unread: null,
-          children: [],
+          children: {},
         };
         dmList[req.json.ship] = unread;
 

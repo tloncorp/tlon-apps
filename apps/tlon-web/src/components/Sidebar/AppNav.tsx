@@ -12,6 +12,7 @@ import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
+import { useMessagesFilter } from '@/state/settings';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
@@ -109,8 +110,11 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { messagesLocation } = useLocalState.getState();
-  const unreads = useCombinedChatUnreads();
   const isMobile = useIsMobile();
+  const messagesFilter = useMessagesFilter();
+  const unreads = useCombinedChatUnreads(
+    isMobile ? 'Direct Messages' : messagesFilter
+  );
 
   const onSingleClick = () => {
     if (props.isInactive) {

@@ -154,11 +154,12 @@
 ::    $children: the sources nested under this source
 ::
 +$  activity-summary
+  $~  [*@da 0 | ~ ~]
   $:  newest=time
       count=@ud
       notify=_|
       unread=(unit unread-point)
-      children=(list source)
+      children=(unit (map source activity-summary))
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]

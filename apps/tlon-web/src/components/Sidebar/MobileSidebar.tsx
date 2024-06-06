@@ -9,10 +9,12 @@ import { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useHasUnreadMessages } from '@/state/chat';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
-import { useCombinedGroupUnreads } from '@/state/unreads';
+import {
+  useCombinedChatUnreads,
+  useCombinedGroupUnreads,
+} from '@/state/unreads';
 
 import Avatar from '../Avatar';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
@@ -68,7 +70,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { messagesLocation } = useLocalState.getState();
-  const hasUnreads = useHasUnreadMessages();
+  const unreads = useCombinedChatUnreads('Direct Messages');
 
   const onSingleClick = () => {
     if (isNativeApp()) {
@@ -98,7 +100,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         <div
           className={cn(
             'mb-0.5 h-1.5 w-1.5 rounded-full',
-            hasUnreads && 'bg-blue'
+            unreads.unread ? (unreads.notify ? 'bg-blue' : 'bg-gray-400') : ''
           )}
         />
       </div>

@@ -2133,8 +2133,10 @@
     =+  .^(group=group-ui:g %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  if our read permissions restored, re-subscribe
-    ?:  (can-read:ca-perms our.bowl)  (ca-safe-sub |)
-    ca-core
+    ?.  (can-read:ca-perms our.bowl)
+      (send:ca-activity [%del %channel nest flag] ~)
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init nest flag]])
+    (ca-safe-sub |)
   ::
   ::  assorted helpers
   ::
