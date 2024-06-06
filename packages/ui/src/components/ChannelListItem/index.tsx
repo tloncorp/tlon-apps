@@ -1,5 +1,5 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { ColorProp, View } from 'tamagui';
+import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
@@ -50,12 +50,9 @@ export default function ChannelListItem({
       ) : (
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-          {model.unread?.count && model.unread.count > 0 ? (
-            <ListItem.Count>{model.unread.count}</ListItem.Count>
-          ) : (
-            // Add a spacer to keep the layout consistent
-            <View height={23} />
-          )}
+          <ListItem.Count opacity={model.unread?.count ? 1 : 0}>
+            {model.unread?.count ?? 0}
+          </ListItem.Count>
         </ListItem.EndContent>
       )}
     </ListItem>
@@ -80,12 +77,12 @@ function ChannelListItemIcon({
     );
   } else if (model.type === 'dm') {
     return (
-      <View borderRadius="$2xl" overflow="hidden">
-        <ListItem.AvatarIcon
-          contactId={model.members?.[0]?.contactId ?? model.id}
-          contact={model.members?.[0]?.contact}
-        />
-      </View>
+      <ListItem.AvatarIcon
+        backgroundColor={'$transparent'}
+        contact={model.members?.[0]?.contact}
+        contactId={model.members?.[0]?.contactId ?? model.id}
+        rounded
+      />
     );
   } else {
     if (model.iconImage) {

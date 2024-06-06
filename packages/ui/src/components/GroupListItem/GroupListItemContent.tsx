@@ -33,7 +33,9 @@ export default function GroupListItemContent({
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
         {model.lastPost && (
-          <ListItem.Subtitle>{model.lastChannel}</ListItem.Subtitle>
+          <ListItem.Subtitle color={'$tertiaryText'}>
+            {model.lastChannel}
+          </ListItem.Subtitle>
         )}
         {!isPending && model.lastPost ? (
           <XStack gap="$xs" alignItems="center">
@@ -64,12 +66,9 @@ export default function GroupListItemContent({
       ) : (
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
-          {model.unreadCount && model.unreadCount > 0 ? (
-            <ListItem.Count>{model.unreadCount}</ListItem.Count>
-          ) : (
-            // Add a spacer to keep the layout consistent
-            <View height={23} />
-          )}
+          <ListItem.Count opacity={model.unreadCount ? 1 : 0}>
+            {model.unreadCount ?? 0}
+          </ListItem.Count>
         </ListItem.EndContent>
       )}
     </ListItem>

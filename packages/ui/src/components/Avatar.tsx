@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useMemo } from 'react';
-import { SizeTokens, Token, getTokenValue, styled } from 'tamagui';
+import { getTokenValue, styled } from 'tamagui';
 
 import { useCalm } from '../contexts';
 import { Image, View } from '../core';
@@ -50,6 +50,11 @@ const AvatarFrame = styled(View, {
   alignItems: 'center',
   justifyContent: 'center',
   variants: {
+    rounded: {
+      true: {
+        borderRadius: '$4xl',
+      },
+    },
     size: {
       $xl: {
         height: '$xl',

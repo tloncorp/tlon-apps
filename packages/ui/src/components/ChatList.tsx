@@ -30,8 +30,6 @@ export function ChatList({
   onPressItem?: (chat: ListItem) => void;
   onLongPressItem?: (chat: ListItem) => void;
 }) {
-  const { top, bottom } = useSafeAreaInsets();
-
   const data = useMemo(() => {
     if (pinned.length === 0) {
       return [{ title: 'All', data: [...pendingChats, ...unpinned] }];

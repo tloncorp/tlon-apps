@@ -142,20 +142,27 @@ const ListItemTextIcon = ({
 };
 
 const ListItemAvatarIcon = ({
-  contactId,
-  contact,
   backgroundColor,
+  contact,
+  contactId,
+  rounded = false,
   size = '$4xl',
   ...props
 }: {
-  contactId: string;
-  contact?: db.Contact | null;
   backgroundColor?: ColorProp;
+  contact?: db.Contact | null;
+  contactId: string;
+  rounded?: boolean;
   size?: AvatarSize;
 } & ComponentProps<typeof ListItemIconContainer>) => {
   return (
     <ListItemIconContainer {...props} backgroundColor={backgroundColor}>
-      <Avatar size={size} contactId={contactId} contact={contact} />
+      <Avatar
+        rounded={rounded}
+        size={size}
+        contactId={contactId}
+        contact={contact}
+      />
     </ListItemIconContainer>
   );
 };
@@ -283,12 +290,13 @@ const ListItemTime = ListItemTimeText.styleable<{
   );
 });
 
-const ListItemCount = ({ children }: PropsWithChildren) => {
+const ListItemCount = ({ children, ...rest }: React.PropsWithChildren<any>) => {
   return (
     <Stack
       paddingHorizontal={'$m'}
       borderRadius="$l"
       backgroundColor="$secondaryBackground"
+      {...rest}
     >
       <SizableText size="$s" color="$secondaryText" textAlign="center">
         {children}
