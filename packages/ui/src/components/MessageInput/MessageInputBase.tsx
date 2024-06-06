@@ -7,7 +7,7 @@ import { SpaceTokens } from 'tamagui';
 
 import { ArrowUp, Checkmark, Close } from '../../assets/icons';
 import { ThemeTokens, View, XStack, YStack } from '../../core';
-import FloatingActionButton from '../FloatingActionButton';
+import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
 import AttachmentButton from './AttachmentButton';

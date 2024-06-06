@@ -10,7 +10,7 @@ import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatePresence, getToken } from 'tamagui';
+import { AnimatePresence } from 'tamagui';
 
 import {
   CalmProvider,
@@ -26,7 +26,7 @@ import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
-import FloatingActionButton from '../FloatingActionButton';
+import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
