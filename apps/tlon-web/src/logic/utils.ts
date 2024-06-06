@@ -1,8 +1,10 @@
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   ChatStory,
   Cite,
   Listing,
+  Post,
   Story,
   Verse,
   VerseBlock,
@@ -32,9 +34,8 @@ import {
   DocketHref,
   Treaty,
   udToDec,
-  unixToDa,
 } from '@urbit/api';
-import { formatUv } from '@urbit/aura';
+import { formatUd, formatUv, unixToDa } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
@@ -103,7 +104,7 @@ export function useObjectChangeLogging(
   const lastValues = useRef(o);
   Object.entries(o).forEach(([k, v]) => {
     if (v !== lastValues.current[k]) {
-      logger.log('[change]', k);
+      logger.log('[change]', k, 'old:', lastValues.current[k], 'new:', v);
       lastValues.current[k] = v;
     }
   });
@@ -1298,5 +1299,12 @@ export function cacheIdFromString(str: string): CacheId {
   return {
     author,
     sent: parseInt(udToDec(sentStr), 10),
+  };
+}
+
+export function getMessageKey(post: Post): MessageKey {
+  return {
+    id: `${post.essay.author}/${formatUd(unixToDa(post.essay.sent))}`,
+    time: formatUd(bigInt(post.seal.id)),
   };
 }

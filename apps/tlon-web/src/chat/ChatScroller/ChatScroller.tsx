@@ -1,4 +1,5 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { PostTuple, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { BigInteger } from 'big-integer';
@@ -29,7 +30,7 @@ import {
 } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import {
-  ChatMessageListItemData,
+  MessageListItemData,
   useMessageData,
 } from '@/logic/useScrollerMessages';
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
@@ -52,7 +53,7 @@ const ChatScrollerItem = React.memo(
     isScrolling,
     isBroadcast,
   }: {
-    item: ChatMessageListItemData | CustomScrollItemData;
+    item: MessageListItemData | CustomScrollItemData;
     isScrolling: boolean;
     isBroadcast?: boolean;
   }) => {
@@ -63,12 +64,17 @@ const ChatScrollerItem = React.memo(
     const { writ, time, ...rest } = item;
 
     if ('memo' in writ) {
+      if (!rest.parent) {
+        return;
+      }
+
       return (
         <ReplyMessage
+          {...rest}
           key={writ.seal.id}
           reply={writ}
           time={time}
-          {...rest}
+          parent={rest.parent}
           showReply
         />
       );
@@ -171,6 +177,7 @@ const loaderPadding = {
 
 export interface ChatScrollerProps {
   whom: string;
+  parent?: MessageKey;
   messages: PostTuple[] | WritTuple[] | ReplyTuple[];
   isBroadcast?: boolean;
   onAtTop?: () => void;
@@ -193,6 +200,7 @@ export interface ChatScrollerProps {
 
 export default function ChatScroller({
   whom,
+  parent,
   messages,
   isBroadcast,
   onAtTop,
@@ -236,6 +244,7 @@ export default function ChatScroller({
     scrollTo,
     messages,
     replying,
+    parent,
   });
 
   const topItem: CustomScrollItemData | null = useMemo(

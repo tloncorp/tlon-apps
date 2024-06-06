@@ -1,4 +1,4 @@
-import { formatUd, formatUv, unixToDa } from '@urbit/aura';
+import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 import { useMemo } from 'react';
 
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
@@ -328,6 +328,20 @@ export function whomIsDm(whom: string): boolean {
 
 export function whomIsMultiDm(whom: string): boolean {
   return whom.startsWith(`0v`);
+}
+
+// ship + term, term being a @tas: lower-case letters, numbers, and hyphens
+export function whomIsFlag(whom: string): boolean {
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && isValidPatp(whom.split('/')[0])
+  );
+}
+
+export function whomIsNest(whom: string): boolean {
+  return (
+    /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
+    isValidPatp(whom.split('/')[1])
+  );
 }
 
 export function useIsDmOrMultiDm(whom: string) {

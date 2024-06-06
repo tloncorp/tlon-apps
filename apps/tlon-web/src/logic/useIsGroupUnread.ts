@@ -1,40 +1,19 @@
 import { useCallback } from 'react';
 
-import { useGroups } from '@/state/groups';
+import { Unread, emptyUnread, useUnreads } from '@/state/unreads';
 
-import { useCheckChannelUnread } from './channel';
+const defaultUnread = emptyUnread();
 
-export default function useIsGroupUnread() {
-  const groups = useGroups();
-  const isChannelUnread = useCheckChannelUnread();
-
-  /**
-   * A Group is unread if
-   * - any of it's Channels have new items in their corresponding unreads
-   * - any of its Channels are unread (bin is unread, rope channel matches
-   *   chFlag)
-   */
-  const isGroupUnread = useCallback(
-    (flag: string) => {
-      const group = groups[flag];
-      const chNests = group ? Object.keys(group.channels) : [];
-
-      return chNests.reduce(
-        (memo, nest) => memo || isChannelUnread(nest),
-        false
-      );
+export default function useGroupUnread() {
+  const unreads = useUnreads();
+  const getGroupUnread = useCallback(
+    (flag: string): Unread => {
+      return unreads?.[`group/${flag}`] || defaultUnread;
     },
-    [groups, isChannelUnread]
+    [unreads]
   );
 
   return {
-    isGroupUnread,
+    getGroupUnread,
   };
-}
-
-export function useIsAnyGroupUnread() {
-  const groups = useGroups();
-  const { isGroupUnread } = useIsGroupUnread();
-  if (!groups) return undefined;
-  return Object.keys(groups).some((flag) => isGroupUnread(flag));
 }

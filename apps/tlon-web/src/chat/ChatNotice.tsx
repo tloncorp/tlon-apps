@@ -3,7 +3,7 @@ import React from 'react';
 
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
 
-import ChatContent from './ChatContent/ChatContent';
+import ContentRenderer from './ChatContent/ChatContent';
 import DateDivider from './ChatMessage/DateDivider';
 
 interface ChatNoticeProps {
@@ -36,7 +36,7 @@ export default function ChatNotice({ writ, newDay }: ChatNoticeProps) {
           <AddPersonIcon className="h-6 w-6 text-gray-600" />
         </div>
         <p className="font-semibold text-gray-400">
-          <ChatContent story={writ.essay.content} />
+          <ContentRenderer story={writ.essay.content} />
         </p>
       </div>
     </div>

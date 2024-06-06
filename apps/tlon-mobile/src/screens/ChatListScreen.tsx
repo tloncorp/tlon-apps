@@ -13,12 +13,14 @@ import {
   StartDmSheet,
   View,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
-import { useRefetchQueryOnFocus } from '../hooks/useRefetchQueryOnFocus';
+import { TLON_EMPLOYEE_GROUP } from '../constants';
+import { useFocusNotifyOnChangeProps } from '../hooks/useFocusNotifyOnChangeProps';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
+import { identifyTlonEmployee } from '../utils/posthog';
 
 type ChatListScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -34,7 +36,10 @@ export default function ChatListScreen(
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const { data: chats } = store.useCurrentChats();
+  const notifyOnChangeProps = useFocusNotifyOnChangeProps();
+  const { data: chats } = store.useCurrentChats({
+    notifyOnChangeProps,
+  });
   const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {
     return {
@@ -44,8 +49,7 @@ export default function ChatListScreen(
     };
   }, [chats]);
 
-  const { isFetching: isFetchingInitData, refetch } = store.useInitialSync();
-  useRefetchQueryOnFocus(refetch);
+  const { isFetching: isFetchingInitData } = store.useInitialSync();
 
   const goToDm = useCallback(
     async (participants: string[]) => {
@@ -114,11 +118,20 @@ export default function ChatListScreen(
     [goToChannel]
   );
 
+  const { pinned, unpinned } = resolvedChats;
+  const allChats = [...pinned, ...unpinned];
+  const isTlonEmployee = !!allChats.find(
+    (obj) => obj.groupId === TLON_EMPLOYEE_GROUP
+  );
+  if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
+    identifyTlonEmployee();
+  }
+
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
         <ScreenHeader
-          title="Tlon"
+          title={<Icon type="TBlock" size="$m" flex={1} rotate="-6deg" />}
           rightControls={
             <>
               {isFetchingInitData && <Spinner />}

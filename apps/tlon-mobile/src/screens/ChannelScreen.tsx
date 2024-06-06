@@ -81,12 +81,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         }
       : {
           mode: 'newest',
-          firstPageCount: 10,
+          firstPageCount: 50,
         }),
   });
 
   const sendPost = useCallback(
-    async (content: Story, _channelId: string) => {
+    async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
       if (!channel) {
         throw new Error('Tried to send message before channel loaded');
       }
@@ -94,7 +94,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         channel: channel,
         authorId: currentUserId,
         content,
-        attachment: uploadInfo.uploadedImage,
+        metadata,
       });
       uploadInfo.resetImageAttachment();
     },

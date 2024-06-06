@@ -192,7 +192,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           )}
         </Action>
         {actions ? (
-          <div className={cn('absolute right-2')}>
+          <div className={cn('absolute right-1')}>
             {typeof actions === 'function' ? actions({ hover }) : actions}
           </div>
         ) : null}

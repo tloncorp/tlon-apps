@@ -268,13 +268,14 @@ export const extractContentTypes = (
   inlines: ub.Inline[];
   references: api.ContentReference[];
   blocks: ub.Block[];
+  story: api.PostContent;
 } => {
   const story = JSON.parse(content as string) as api.PostContent;
   const inlines = extractInlinesFromContent(story);
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);
 
-  return { inlines, references, blocks };
+  return { inlines, references, blocks, story };
 };
 
 export const extractContentTypesFromPost = (
@@ -283,12 +284,13 @@ export const extractContentTypesFromPost = (
   inlines: ub.Inline[];
   references: api.ContentReference[];
   blocks: ub.Block[];
+  story: api.PostContent;
 } => {
-  const { inlines, references, blocks } = extractContentTypes(
+  const { inlines, references, blocks, story } = extractContentTypes(
     post.content as string
   );
 
-  return { inlines, references, blocks };
+  return { inlines, references, blocks, story };
 };
 
 export const isTextPost = (post: db.Post) => {

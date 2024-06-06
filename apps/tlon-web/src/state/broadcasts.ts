@@ -6,6 +6,7 @@ import { WritTuple } from 'packages/shared/dist/urbit/dms';
 import api from '@/api';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import queryClient from '@/queryClient';
+import { Unread } from './unreads';
 
 export const cohortsKey = () => ['broadcaster', 'cohorts'];
 
@@ -33,13 +34,6 @@ interface CohortLogErr {
 }
 export type Cohorts = { [x: CohortKey]: Cohort };
 
-export type CohortUnread = {
-  recency: number;
-  count: number;
-  unread: null;
-  threads: null;
-};
-
 export function bootstrapCohorts(cohorts: Cohorts) {
   queryClient.setQueryData(cohortsKey(), cohorts);
 }
@@ -56,15 +50,19 @@ export function useCohort(k: CohortKey): Cohort {
   return (useCohorts().data || {})[k] || { logging: [], targets: [] };
 }
 
-export function cohortToUnread(cohort: Cohort): CohortUnread {
+export function cohortToUnread(cohort: Cohort): Unread {
+  const recency = cohort.logging.length === 0
+    ? 0
+    : daToDate(cohort.logging[0].wen).getTime();
   return {
-    recency:
-      cohort.logging.length === 0
-        ? 0
-        : daToDate(cohort.logging[0].wen).getTime(),
+    status: 'read',
+    notify: false,
     count: 0,
-    unread: null,
-    threads: null,
+    combined: { status: 'read', count: 0, notify: false },
+    recency,
+    children: [],
+    readTimeout: 0,
+    summary: { recency, count: 0, notify: false, unread: null, children: [] }
   };
 }
 

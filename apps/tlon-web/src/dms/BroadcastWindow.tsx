@@ -3,7 +3,6 @@ import { ReactElement, useMemo, useRef } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
-import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import { useIsScrolling } from '@/logic/scroll';
 import { cohortLogToWrit, useCohort } from '@/state/broadcasts';
 
@@ -29,7 +28,6 @@ export default function BroadcastWindow({
 
   return (
     <div className="relative h-full">
-      <DMUnreadAlerts whom={whom} root={root} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**

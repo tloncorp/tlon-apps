@@ -1,3 +1,4 @@
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import cn from 'classnames';
 import React, {
   PropsWithChildren,
@@ -11,16 +12,15 @@ import { Link } from 'react-router-dom';
 import { useChatStore } from '@/chat/useChatStore';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
-import BulletIcon from '@/components/icons/BulletIcon';
+import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useCheckChannelUnread } from '@/logic/channel';
+import { useMarkChannelRead } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useLeaveMutation, useMarkReadMutation } from '@/state/channel/channel';
+import { useLeaveMutation } from '@/state/channel/channel';
 import {
   useArchiveDm,
   useDmRsvpMutation,
-  useIsDmUnread,
   useMarkDmReadMutation,
   useMutliDmRsvpMutation,
 } from '@/state/chat';
@@ -29,6 +29,7 @@ import {
   useDeletePinMutation,
   usePinnedChats,
 } from '@/state/pins';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import DmInviteDialog from './DmInviteDialog';
 
@@ -62,17 +63,16 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinnedChats();
-  const isUnread = useIsDmUnread(whom);
-  const isChannelUnread = useCheckChannelUnread();
+  const chatUnread = useUnread(getKey(whom));
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
-  const hasActivity =
-    isUnread || pending || (!isDMorMultiDm && isChannelUnread(whom));
+  const hasNotify = !!chatUnread?.notify;
+  const hasActivity = pending || chatUnread?.status === 'unread';
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
-  const { mutate: markDmRead } = useMarkDmReadMutation();
-  const { mutate: markChannelRead } = useMarkReadMutation();
+  const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
+  const { markDmRead } = useMarkDmReadMutation(whom);
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
 
@@ -97,13 +97,13 @@ export default function DmOptions({
 
   const markRead = useCallback(async () => {
     if (isDMorMultiDm) {
-      markDmRead({ whom });
+      markDmRead();
     } else {
-      markChannelRead({ nest: whom });
+      markReadChannel();
     }
 
-    useChatStore.getState().read(whom);
-  }, [whom, markDmRead, markChannelRead, isDMorMultiDm]);
+    useUnreadsStore.getState().read(getKey(whom));
+  }, [whom, markReadChannel, markDmRead, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);
 
@@ -156,12 +156,11 @@ export default function DmOptions({
 
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
-      <button className={cn('relative h-6 w-6 appearance-none', className)}>
-        <BulletIcon
-          className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-          aria-label="Has Activity"
-        />
-      </button>
+      <UnreadIndicator
+        count={chatUnread?.count || 0}
+        notify={hasNotify}
+        className="group-focus-within:opacity-0 group-hover:opacity-0"
+      />
     ) : null;
   }
 
@@ -241,16 +240,17 @@ export default function DmOptions({
         ) : (
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
-              <BulletIcon
-                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-                aria-label="Has Activity"
+              <UnreadIndicator
+                count={chatUnread?.count || 0}
+                notify={hasNotify}
+                className="group-focus-within:opacity-0 group-hover:opacity-0"
               />
             ) : null}
             {!isMobile && (
               <button
                 className={cn(
                   'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                  hasActivity && 'text-blue',
+                  hasNotify && 'text-blue',
                   isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
                 )}
                 aria-label="Open Message Options"

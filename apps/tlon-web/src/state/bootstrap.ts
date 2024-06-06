@@ -3,10 +3,10 @@ import Urbit from '@urbit/http-api';
 import _ from 'lodash';
 
 import api from '@/api';
-import { useChatStore } from '@/chat/useChatStore';
 import { asyncWithDefault } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { unreadsKey } from './activity';
 import { initializeChat } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -17,29 +17,29 @@ import usePalsState from './pals';
 import { pinsKey } from './pins';
 import useSchedulerStore from './scheduler';
 import { useStorage } from './storage';
+import { useUnreadsStore } from './unreads';
 
 const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
   channels: {},
-  unreads: {},
+  activity: {},
   pins: [],
   chat: {
     dms: [],
     clubs: {},
-    unreads: {},
     invited: [],
   },
 };
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { channels, unreads, groups, gangs, pins, chat } =
+  const { channels, groups, gangs, pins, chat, activity } =
     await asyncWithDefault(
       () =>
         api.scry<GroupsInit>({
           app: 'groups-ui',
-          path: '/v1/init',
+          path: '/v2/init',
         }),
       emptyGroupsInit
     );
@@ -47,17 +47,11 @@ async function startGroups() {
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['channels'], channels);
-  queryClient.setQueryData(['unreads'], unreads);
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
 
-  // make sure we remove the app part from the nest before handing it over
-  useChatStore.getState().update(
-    _.mapKeys(
-      _.pickBy(unreads, (v, k) => k.startsWith('chat')),
-      (v, k) => k.replace(/\w*\//, '')
-    )
-  );
+  useUnreadsStore.getState().update(activity);
+  queryClient.setQueryData(unreadsKey, activity);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
