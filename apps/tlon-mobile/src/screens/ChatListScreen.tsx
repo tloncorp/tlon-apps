@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -17,7 +18,6 @@ import { useCallback, useMemo, useState } from 'react';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
-import { useFocusNotifyOnChangeProps } from '../hooks/useFocusNotifyOnChangeProps';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
@@ -36,9 +36,9 @@ export default function ChatListScreen(
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
-  const notifyOnChangeProps = useFocusNotifyOnChangeProps();
+  const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
-    notifyOnChangeProps,
+    enabled: isFocused,
   });
   const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {

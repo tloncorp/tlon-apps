@@ -274,7 +274,7 @@ const testGroupData: db.Group = {
 };
 
 test('sync channel', async () => {
-  await db.insertGroups([testGroupData]);
+  await db.insertGroups({ groups: [testGroupData] });
   const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
   setScryOutput(rawChannelPostsData);
@@ -324,7 +324,7 @@ test('sync posts', async () => {
 });
 
 test('deletes removed posts', async () => {
-  await db.insertGroups([testGroupData]);
+  await db.insertGroups({ groups: [testGroupData] });
   const insertedChannel = await db.getChannel({ id: channelId });
   expect(insertedChannel).toBeTruthy();
   const deletedPosts = Object.fromEntries(

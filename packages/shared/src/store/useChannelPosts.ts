@@ -1,5 +1,5 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { replaceEqualDeep, useInfiniteQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -111,24 +111,50 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     },
   });
 
-  const posts = useMemo<db.Post[] | null>(
+  const rawPosts = useMemo<db.Post[] | null>(
     () => query.data?.pages.flatMap((p) => p) ?? null,
     [query.data]
   );
+  const posts = useOptimizedQueryResults(rawPosts);
+
+  // Using a ref here looks kind of stupid, but short circuits a bunch of
+  // renders. Maybe there's a better way?
+  const queryRef = useRef(query);
+  queryRef.current = query;
+
+  const olderPageLoadingPendingRef = useRef(false);
+  const newerPageLoadingPendingRef = useRef(false);
 
   const loadOlder = useCallback(() => {
-    if (!query.hasNextPage) return;
-    if (!query.isPaused && !query.isFetchingNextPage) {
-      query.fetchNextPage();
+    if (!queryRef.current.isFetching) {
+      queryRef.current.fetchNextPage();
+    } else {
+      olderPageLoadingPendingRef.current = true;
     }
-  }, [query]);
+  }, []);
 
   const loadNewer = useCallback(() => {
-    if (!query.hasPreviousPage) return;
-    if (!query.isPaused && !query.isFetchingPreviousPage) {
-      query.fetchPreviousPage();
+    if (!queryRef.current.isFetching) {
+      queryRef.current.fetchPreviousPage();
+    } else {
+      newerPageLoadingPendingRef.current = true;
     }
-  }, [query]);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !query.isFetching &&
+      (olderPageLoadingPendingRef.current || newerPageLoadingPendingRef.current)
+    ) {
+      if (olderPageLoadingPendingRef.current) {
+        olderPageLoadingPendingRef.current = false;
+        loadOlder();
+      } else {
+        newerPageLoadingPendingRef.current = false;
+        loadNewer();
+      }
+    }
+  }, [query.isFetching, loadOlder, loadNewer]);
 
   const isLoading =
     query.isPending ||
@@ -141,3 +167,27 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     [posts, query, loadOlder, loadNewer, isLoading]
   );
 };
+
+/**
+ * Minimizes churn for queries that return similar results repeatedly. Uses
+ * react-query's `replaceEqualDeep` to ensure that we only return new objects
+ * when the data belonging to those objects has changed.
+ */
+function useOptimizedQueryResults<T extends { id: string }>(
+  value: T[] | null | undefined
+) {
+  const lastValueRef = useRef(value);
+  return useMemo(() => {
+    const lastPostsMap: Record<string, T> =
+      lastValueRef.current?.reduce<Record<string, T>>((memo, p) => {
+        memo[p.id] = p;
+        return memo;
+      }, {}) ?? {};
+    lastValueRef.current = value;
+    return (
+      value?.map((p) =>
+        lastPostsMap[p.id] ? replaceEqualDeep(lastPostsMap[p.id], p) : p
+      ) ?? null
+    );
+  }, [value]);
+}
