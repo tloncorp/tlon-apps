@@ -2,6 +2,7 @@ import { backOff } from 'exponential-backoff';
 
 import * as api from '../api';
 import * as db from '../db';
+import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
@@ -17,14 +18,16 @@ const logger = createDevLogger('sync', false);
 export const syncInitData = async () => {
   return syncQueue.add('init', async () => {
     const initData = await api.getInitData();
-    await Promise.all([
-      db.insertPinnedItems(initData.pins),
-      db.insertGroups(initData.groups),
-      db.insertUnjoinedGroups(initData.unjoinedGroups),
-      db.insertChannels(initData.channels),
-      resetUnreads(initData.unreads),
-      db.insertChannelPerms(initData.channelPerms),
-    ]);
+    return batchEffects('init sync', async (ctx) => {
+      return await Promise.all([
+        db.insertPinnedItems(initData.pins, ctx),
+        db.insertGroups({ groups: initData.groups }, ctx),
+        db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
+        db.insertChannels(initData.channels, ctx),
+        resetUnreads(initData.unreads, ctx),
+        db.insertChannelPerms(initData.channelPerms, ctx),
+      ]);
+    });
   });
 };
 
@@ -36,9 +39,14 @@ export const syncLatestPosts = async () => {
     ]);
     const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
     for (const post of allPosts) {
-      channelCursors.set(post.channelId, post.id);
+      if (
+        !channelCursors.has(post.channelId) ||
+        post.id > channelCursors.get(post.channelId)!
+      ) {
+        channelCursors.set(post.channelId, post.id);
+      }
     }
-    await db.insertStandalonePosts(allPosts);
+    await db.insertLatestPosts(allPosts);
   });
 };
 
@@ -71,7 +79,7 @@ export const syncPinnedItems = async () => {
 export const syncGroups = async () => {
   return syncQueue.add('groups', async () => {
     const groups = await api.getGroups({ includeMembers: false });
-    await db.insertGroups(groups);
+    await db.insertGroups({ groups: groups });
   });
 };
 
@@ -89,14 +97,18 @@ export const syncUnreads = async () => {
   await resetUnreads(unreads);
 };
 
-const resetUnreads = async (unreads: db.Unread[]) => {
+const resetUnreads = async (unreads: db.Unread[], ctx?: QueryCtx) => {
   if (!unreads.length) return;
+
   await db.insertUnreads(unreads);
-  await db.setJoinedGroupChannels({
-    channelIds: unreads
-      .filter((u) => u.type === 'channel')
-      .map((u) => u.channelId),
-  });
+  await db.setJoinedGroupChannels(
+    {
+      channelIds: unreads
+        .filter((u) => u.type === 'channel')
+        .map((u) => u.channelId),
+    },
+    ctx
+  );
 };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
@@ -106,7 +118,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 
   switch (update.type) {
     case 'addGroup':
-      await db.insertGroups([update.group]);
+      await db.insertGroups({ groups: [update.group] });
       break;
     case 'editGroup':
       await db.updateGroup({ id: update.groupId, ...update.meta });
@@ -200,7 +212,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       });
       break;
     case 'deleteRole':
-      await db.deleteRole(update.roleId, update.groupId);
+      await db.deleteRole({ roleId: update.roleId, groupId: update.groupId });
       break;
     case 'addGroupMembersToRole':
       await db.addChatMembersToRoles({
@@ -324,7 +336,6 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
           });
         }
       }
-      // insert the reply
       await db.insertChannelPosts({
         channelId: update.post.channelId,
         posts: [update.post],
@@ -473,12 +484,12 @@ export async function syncGroup(id: string) {
     throw new Error('no local group for' + id);
   }
   const response = await api.getGroup(id);
-  await db.insertGroups([response]);
+  await db.insertGroups({ groups: [response] });
 }
 
 export async function syncNewGroup(id: string) {
   const response = await api.getGroup(id);
-  await db.insertGroups([response]);
+  await db.insertGroups({ groups: [response] });
 }
 
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
@@ -511,36 +522,31 @@ export async function syncChannelWithBackoff({
 }: {
   channelId: string;
 }): Promise<boolean> {
+  async function isStillPending() {
+    return (await db.getPendingPosts(channelId)).length > 0;
+  }
+
   const checkDelivered = async () => {
-    const hasPendingBefore = (await db.getPendingPosts(channelId)).length > 0;
-    if (!hasPendingBefore) {
+    if (!(await isStillPending())) {
       return true;
     }
 
     logger.log(`still have undelivered messages, syncing...`);
     await syncChannel(channelId, Date.now());
 
-    const hasPendingAfter = (await db.getPendingPosts(channelId)).length > 0;
-    if (hasPendingAfter) {
+    if (await isStillPending()) {
       throw new Error('Keep going');
     }
 
     return true;
   };
 
-  try {
-    // try checking delivery status immediately
-    await checkDelivered();
-    return true;
-  } catch (e) {
-    // thereafter, try checking with exponential backoff. Config values
-    // are arbitrary reasonable sounding defaults
-    return backOff(checkDelivered, {
-      startingDelay: 2000, // 2 seconds
-      maxDelay: 3 * 60 * 1000, // 3 minutes
-      numOfAttempts: 20,
-    });
-  }
+  return backOff(checkDelivered, {
+    delayFirstAttempt: true,
+    startingDelay: 3000, // 3 seconds
+    maxDelay: 3 * 60 * 1000, // 3 minutes
+    numOfAttempts: 20,
+  });
 }
 
 export async function syncThreadPosts({

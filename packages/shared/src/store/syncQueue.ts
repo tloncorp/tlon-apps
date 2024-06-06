@@ -12,7 +12,7 @@ interface SyncOperation {
 export class QueueClearedError extends Error {}
 
 class SyncQueue {
-  concurrency = 2;
+  concurrency = 3;
   queue: SyncOperation[];
   isSyncing: boolean;
   activeThreads = 0;
