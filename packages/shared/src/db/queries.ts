@@ -615,8 +615,8 @@ export const addChatMembers = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return withTransactionCtx(ctx, () => {
-      return ctx.db
+    return withTransactionCtx(ctx, (txCtx) => {
+      return txCtx.db
         .insert($chatMembers)
         .values(
           contactIds.map((contactId) => ({
@@ -1012,6 +1012,12 @@ export const insertChannels = createWriteQuery(
     if (channels.length === 0) {
       return;
     }
+
+    logger.log(
+      'insertChannels',
+      channels.length,
+      channels.map((c) => c.id)
+    );
 
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
@@ -1465,8 +1471,8 @@ export const insertChannelPosts = createWriteQuery(
   ['posts', 'channels', 'groups', 'postWindows']
 );
 
-export const insertStandalonePosts = createWriteQuery(
-  'insertStandalonePosts',
+export const insertLatestPosts = createWriteQuery(
+  'insertLatestPosts',
   async (posts: Post[], ctx: QueryCtx) => {
     withTransactionCtx(ctx, async (txCtx) => {
       await insertPosts(posts, txCtx);

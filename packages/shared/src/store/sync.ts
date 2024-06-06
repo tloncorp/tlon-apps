@@ -46,7 +46,7 @@ export const syncLatestPosts = async () => {
         channelCursors.set(post.channelId, post.id);
       }
     }
-    await db.insertStandalonePosts(allPosts);
+    await db.insertLatestPosts(allPosts);
   });
 };
 
@@ -523,10 +523,7 @@ export async function syncChannelWithBackoff({
   channelId: string;
 }): Promise<boolean> {
   async function isStillPending() {
-    return (
-      currentPendingMessageSyncs.has(channelId) &&
-      (await db.getPendingPosts(channelId)).length > 0
-    );
+    return (await db.getPendingPosts(channelId)).length > 0;
   }
 
   const checkDelivered = async () => {
@@ -537,7 +534,7 @@ export async function syncChannelWithBackoff({
     logger.log(`still have undelivered messages, syncing...`);
     await syncChannel(channelId, Date.now());
 
-    if (!(await isStillPending())) {
+    if (await isStillPending()) {
       throw new Error('Keep going');
     }
 
