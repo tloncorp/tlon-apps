@@ -209,10 +209,10 @@ export const useThreadUnread = ({
 };
 
 export const useActivityEvents = () => {
-  const tablesKey = useKeyFromQueryDeps(db.getActivityEvents);
+  const tablesKey = useKeyFromQueryDeps(db.getBucketedActivity);
   return useQuery({
     queryKey: ['activityEvents', tablesKey],
-    queryFn: () => db.getActivityEvents(),
+    queryFn: () => db.getBucketedActivity(),
   });
 };
 

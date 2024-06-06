@@ -62,6 +62,7 @@ export type Channel = BaseModel<'channels'>;
 export type ChannelType = schema.ChannelType;
 export type ThreadUnreadState = BaseModel<'threadUnreads'>;
 export type Post = BaseModel<'posts'>;
+export type PseudoPost = { id: string; authorId: string; channelId: string };
 export type PostType = Post['type'];
 export type PostFlags = Pick<
   Post,

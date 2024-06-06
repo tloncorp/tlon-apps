@@ -27,7 +27,7 @@ import {
 import { ChannelInit } from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
-import { Rank, desig } from '../urbit';
+import { ExtendedEventType, Rank, desig } from '../urbit';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { createReadQuery, createWriteQuery } from './query';
 import {
@@ -2108,10 +2108,74 @@ export const insertActivityEvents = createWriteQuery(
   ['activityEvents']
 );
 
-export const getActivityEvents = createReadQuery(
+export type BucketedActivity = {
+  all: ActivityEvent[];
+  threads: ActivityEvent[];
+  mentions: ActivityEvent[];
+};
+
+export interface SourceActivityEvents {
+  type: ExtendedEventType;
+  newest: ActivityEvent;
+  all: ActivityEvent[];
+}
+
+export type BucketedSourceActivity = {
+  all: SourceActivityEvents[];
+  threads: SourceActivityEvents[];
+  mentions: SourceActivityEvents[];
+};
+
+export const getBucketedActivity = createReadQuery(
   'getActivityEvents',
-  async () => {
-    return client.query.activityEvents.findMany();
+  async (): Promise<BucketedActivity> => {
+    // TODO: optimize, hustling but I imagine you could go way harder with
+    // the SQL here
+    const allQuery = client.query.activityEvents.findMany({
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        channel: true,
+        post: true,
+        author: true,
+        parent: true,
+      },
+    });
+
+    const threadsQuery = client.query.activityEvents.findMany({
+      where: eq($activityEvents.type, 'reply'),
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        channel: true,
+        post: true,
+        author: true,
+        parent: true,
+      },
+    });
+
+    const mentionsQuery = client.query.activityEvents.findMany({
+      where: eq($activityEvents.isMention, true),
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        channel: true,
+        post: {
+          with: {
+            threadUnread: true,
+          },
+        },
+        author: true,
+        parent: true,
+      },
+    });
+
+    const [all, threads, mentions] = await Promise.all([
+      allQuery,
+      threadsQuery,
+      mentionsQuery,
+    ]);
+    return { all, threads, mentions };
   },
   ['activityEvents']
 );

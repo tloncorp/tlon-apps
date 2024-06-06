@@ -3,7 +3,7 @@ export * from './utils';
 export * from './components/PostScreenView';
 export * from './components/ImageViewerScreenView';
 export * from './components/ProfileScreenView';
-export * from './components/ActivityScreenView';
+export * from './components/Activity/ActivityScreenView';
 export * from './components/Avatar';
 export * from './components/Channel';
 export * from './components/MessageInput';

@@ -79,12 +79,46 @@ function toActivityEvent(
     };
   }
 
+  if ('dm-post' in event) {
+    const dmEvent = event['dm-post'];
+    const { authorId, postId } = getInfoFromMessageKey(dmEvent.key, true);
+    return {
+      ...baseFields,
+      type: 'post',
+      postId,
+      authorId,
+      channelId: 'ship' in dmEvent.whom ? dmEvent.whom.ship : dmEvent.whom.club,
+      content: dmEvent.content,
+      isMention: dmEvent.mention,
+    };
+  }
+
+  if ('dm-reply' in event) {
+    const replyEvent = event['dm-reply'];
+    const { authorId, postId } = getInfoFromMessageKey(replyEvent.key, true);
+    const { postId: parentId } = getInfoFromMessageKey(replyEvent.parent);
+    return {
+      ...baseFields,
+      type: 'reply',
+      authorId,
+      postId,
+      parentId,
+      channelId:
+        'ship' in replyEvent.whom ? replyEvent.whom.ship : replyEvent.whom.club,
+      content: replyEvent.content,
+      isMention: replyEvent.mention,
+    };
+  }
+
   return null;
 }
 
-function getInfoFromMessageKey(key: { id: string; time: string }) {
+function getInfoFromMessageKey(
+  key: { id: string; time: string },
+  isDm?: boolean
+) {
   const authorId = key.id.split('/')[0];
-  const postId = getCanonicalPostId(key.time);
+  const postId = getCanonicalPostId(isDm ? key.id : key.time);
   return { authorId, postId };
 }
 

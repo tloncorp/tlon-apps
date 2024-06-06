@@ -610,6 +610,8 @@ const LineRenderer = memo(
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
 
+    // return <View height={40} width={200} backgroundColor="orange" />;
+
     inlines.forEach((inline, index) => {
       if (isBreak(inline)) {
         inlineElements.push(currentLine);
@@ -742,6 +744,8 @@ export default function ContentRenderer({
     [post]
   );
 
+  // console.log(`ContentRenderer: ${post.id} inlines`, inlines);
+
   const firstInlineIsMention = useMemo(
     () =>
       inlines.length > 0 &&
@@ -788,6 +792,7 @@ export default function ContentRenderer({
   );
 
   if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
+    console.log(`bl: ContentRenderer: ${post.id} we got nothin, ${inlines}`);
     return null;
   }
 
@@ -821,6 +826,8 @@ export default function ContentRenderer({
       </YStack>
     );
   }
+
+  console.log('bl: made it here?');
 
   return (
     <YStack width="100%">

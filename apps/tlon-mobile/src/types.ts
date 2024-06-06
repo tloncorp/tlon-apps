@@ -28,7 +28,7 @@ export type HomeStackParamList = {
     channel: db.Channel;
   };
   Post: {
-    post: db.Post;
+    post: db.Post | db.PseudoPost;
   };
 };
 
