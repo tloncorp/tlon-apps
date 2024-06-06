@@ -25,8 +25,7 @@ export function setupDb() {
   // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
   connection.execute('PRAGMA mmap_size=268435456');
   connection.execute('PRAGMA journal_mode=MEMORY');
-  // TODO: may be more performant to run this periodically in background
-  connection.execute('PRAGMA optimize');
+  connection.execute('PRAGMA synchronous=OFF');
 
   client = drizzle(connection, {
     schema,

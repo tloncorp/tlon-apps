@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -37,7 +38,9 @@ export default function ChatListScreen(
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const notifyOnChangeProps = useFocusNotifyOnChangeProps();
+  const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
+    enabled: isFocused,
     notifyOnChangeProps,
   });
   const { data: contacts } = store.useContacts();

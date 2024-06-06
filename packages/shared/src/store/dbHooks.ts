@@ -22,7 +22,7 @@ export interface CurrentChats {
 
 export type CustomQueryConfig<T> = Pick<
   UseQueryOptions<T, Error, T>,
-  'notifyOnChangeProps'
+  'notifyOnChangeProps' | 'enabled'
 >;
 
 export const useCurrentChats = (
