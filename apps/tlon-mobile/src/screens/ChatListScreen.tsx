@@ -7,14 +7,15 @@ import {
   ChatList,
   ChatOptionsSheet,
   ContactsProvider,
+  FloatingActionButton,
   GroupPreviewSheet,
   Icon,
   ScreenHeader,
-  Spinner,
   StartDmSheet,
   View,
 } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
+import ContextMenu from 'react-native-context-menu-view';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
@@ -130,16 +131,7 @@ export default function ChatListScreen(
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
-        <ScreenHeader
-          title={<Icon type="TBlock" size="$m" flex={1} rotate="-6deg" />}
-          rightControls={
-            <>
-              {isFetchingInitData && <Spinner />}
-              <Icon type="Add" onPress={() => setAddGroupOpen(true)} />
-              <Icon type="Messages" onPress={() => setStartDmOpen(true)} />
-            </>
-          }
-        />
+        <ScreenHeader title={isFetchingInitData ? 'Loading…' : 'Channels'} />
         {chats && (chats.unpinned.length || !isFetchingInitData) ? (
           <ChatList
             pinned={resolvedChats.pinned}
@@ -149,6 +141,37 @@ export default function ChatListScreen(
             onPressItem={onPressChat}
           />
         ) : null}
+        <View
+          zIndex={50}
+          position="absolute"
+          bottom="$s"
+          alignItems="center"
+          width={'100%'}
+          pointerEvents="box-none"
+        >
+          <ContextMenu
+            dropdownMenuMode={true}
+            actions={[
+              { title: 'Create or join a group' },
+              { title: 'Start a direct message' },
+            ]}
+            onPress={(event) => {
+              const { index } = event.nativeEvent;
+              if (index === 0) {
+                setAddGroupOpen(true);
+              }
+              if (index === 1) {
+                setStartDmOpen(true);
+              }
+            }}
+          >
+            <FloatingActionButton
+              icon={<Icon type="Add" size="$s" marginRight="$s" />}
+              label={'Add'}
+              onPress={() => {}}
+            />
+          </ContextMenu>
+        </View>
         <ChatOptionsSheet
           open={longPressedItem !== null}
           onOpenChange={handleChatOptionsOpenChange}

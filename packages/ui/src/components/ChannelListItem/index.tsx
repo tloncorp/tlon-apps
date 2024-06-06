@@ -50,9 +50,9 @@ export default function ChannelListItem({
       ) : (
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-          {model.unread?.count && model.unread.count > 0 ? (
-            <ListItem.Count>{model.unread.count}</ListItem.Count>
-          ) : null}
+          <ListItem.Count opacity={model.unread?.count ? 1 : 0}>
+            {model.unread?.count ?? 0}
+          </ListItem.Count>
         </ListItem.EndContent>
       )}
     </ListItem>
@@ -78,9 +78,10 @@ function ChannelListItemIcon({
   } else if (model.type === 'dm') {
     return (
       <ListItem.AvatarIcon
-        backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId ?? model.id}
+        backgroundColor={'$transparent'}
         contact={model.members?.[0]?.contact}
+        contactId={model.members?.[0]?.contactId ?? model.id}
+        rounded
       />
     );
   } else {

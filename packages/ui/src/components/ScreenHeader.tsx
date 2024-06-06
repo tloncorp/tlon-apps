@@ -1,5 +1,5 @@
 import { PropsWithChildren, ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styled, withStaticProperties } from 'tamagui';
 
@@ -17,17 +17,29 @@ export const ScreenHeaderComponent = ({
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
 }>) => {
-  const insets = useSafeAreaInsets();
+  const { top } = useSafeAreaInsets();
+
   return (
-    <View paddingTop={insets.top}>
+    <View paddingTop={top} zIndex={50} backgroundColor="$background">
       <XStack
-        height="$4xl"
-        paddingVertical="$m"
-        paddingHorizontal="$xl"
         alignItems="center"
+        height="$4xl"
+        paddingHorizontal="$2xl"
+        paddingVertical="$l"
       >
+        {typeof title === 'string' ? (
+          <Animated.View
+            key={title}
+            entering={FadeInDown}
+            exiting={FadeOutUp}
+            style={{ flex: 1 }}
+          >
+            <HeaderTitle>{title}</HeaderTitle>
+          </Animated.View>
+        ) : (
+          title
+        )}
         <HeaderControls side="left">{leftControls}</HeaderControls>
-        {typeof title === 'string' ? <HeaderTitle>{title}</HeaderTitle> : title}
         <HeaderControls side="right">{rightControls}</HeaderControls>
         {children}
       </XStack>
@@ -44,8 +56,8 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
 };
 
 const HeaderTitle = styled(SizableText, {
-  size: '$l',
-  textAlign: 'center',
+  size: '$m',
+  textAlign: 'left',
   fontWeight: '500',
   flex: 1,
 });

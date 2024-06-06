@@ -1,9 +1,10 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { SizableText, Stack } from '../../core';
+import { View, XStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
+import { Icon } from '../Icon';
 import { ListItem, type ListItemProps } from '../ListItem';
 
 export default function GroupListItemContent({
@@ -31,20 +32,32 @@ export default function GroupListItemContent({
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
+        {model.lastPost && (
+          <ListItem.Subtitle color={'$tertiaryText'}>
+            {model.lastChannel}
+          </ListItem.Subtitle>
+        )}
         {!isPending && model.lastPost ? (
-          <ListItem.Subtitle>
-            <ContactName
-              userId={model.lastPost.authorId}
-              showNickname
+          <XStack gap="$xs" alignItems="center">
+            <Icon
+              type={getLastMessageIcon(model.lastPost.type)}
               color={'$secondaryText'}
               size={'$s'}
             />
-            : {model.lastPost?.textContent ?? ''}
-          </ListItem.Subtitle>
+            <ListItem.Subtitle>
+              <ContactName
+                userId={model.lastPost.authorId}
+                showNickname
+                color={'$secondaryText'}
+                size={'$s'}
+              />
+              : {model.lastPost?.textContent ?? ''}
+            </ListItem.Subtitle>
+          </XStack>
         ) : null}
       </ListItem.MainContent>
       {statusDisplay ? (
-        <ListItem.EndContent justifyContent="center">
+        <ListItem.EndContent>
           <Badge
             text={statusDisplay}
             type={isErrored ? 'warning' : 'positive'}
@@ -53,13 +66,26 @@ export default function GroupListItemContent({
       ) : (
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
-          {model.unreadCount && model.unreadCount > 0 ? (
-            <ListItem.Count>{model.unreadCount}</ListItem.Count>
-          ) : null}
+          <ListItem.Count opacity={model.unreadCount ? 1 : 0}>
+            {model.unreadCount ?? 0}
+          </ListItem.Count>
         </ListItem.EndContent>
       )}
     </ListItem>
   );
+}
+
+function getLastMessageIcon(type: db.Post['type']) {
+  switch (type) {
+    case 'chat':
+      return 'ChannelTalk';
+    case 'block':
+      return 'ChannelGalleries';
+    case 'note':
+      return 'ChannelNotebooks';
+    default:
+      return 'Channel';
+  }
 }
 
 type DisplayInfo = {

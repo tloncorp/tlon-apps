@@ -15,7 +15,6 @@ import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
-import { navHeight } from './NavBar/NavBar';
 import { SectionListHeader } from './SectionList';
 import { SwipableChatRow } from './SwipableChatListItem';
 
@@ -31,8 +30,6 @@ export function ChatList({
   onPressItem?: (chat: ListItem) => void;
   onLongPressItem?: (chat: ListItem) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
-
   const data = useMemo(() => {
     if (pinned.length === 0) {
       return [{ title: 'All', data: [...pendingChats, ...unpinned] }];
@@ -47,9 +44,7 @@ export function ChatList({
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
-      paddingTop: '$l',
       paddingHorizontal: '$l',
-      paddingBottom: navHeight + bottom,
     },
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;
@@ -135,7 +130,6 @@ const ChatListItem = React.memo(function ChatListItemComponent({
         model={{
           ...model,
         }}
-        borderRadius="$m"
         {...props}
       />
     );
@@ -164,8 +158,8 @@ const ChatListItem = React.memo(function ChatListItemComponent({
             ...model.group,
             unreadCount: model.unread?.count,
             lastPost: model.lastPost,
+            lastChannel: model.title,
           }}
-          borderRadius="$m"
           {...props}
         />
       );

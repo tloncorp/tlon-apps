@@ -228,6 +228,7 @@ export const systemFont = createFont({
     xl: 36,
   },
   lineHeight: {
+    xs: 16,
     s: 22,
     m: 24,
     true: 24,
