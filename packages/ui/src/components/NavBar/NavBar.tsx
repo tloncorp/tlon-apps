@@ -16,7 +16,7 @@ const NavBar = React.memo(function NavBar(props: {
       paddingTop="$s"
       paddingBottom={bottom}
     >
-      <XStack justifyContent="space-between" alignItems="flex-start">
+      <XStack justifyContent="space-around" alignItems="flex-start">
         {props.children}
       </XStack>
     </View>
