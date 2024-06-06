@@ -634,13 +634,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           backgroundColor={backgroundColor}
           paddingHorizontal={paddingHorizontal}
           flex={1}
+          borderColor="$shadow"
+          borderWidth={1}
         >
           <RichText
             style={{
               backgroundColor: 'transparent',
-              borderRadius: getTokenValue('$xl', 'radius'),
-              borderColor: useTheme().shadow.val,
-              borderWidth: 1,
             }}
             editor={editor}
             onMessage={handleMessage}

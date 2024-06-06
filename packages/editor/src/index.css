@@ -17,6 +17,6 @@ p {
   display: block;
   margin-block-start: 12px;
   margin-block-end: 12px;
-  margin-inline-start: 0px;
+  margin-inline-start: 12px;
   margin-inline-end: 0px;
 }
