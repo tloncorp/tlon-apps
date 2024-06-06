@@ -217,23 +217,22 @@
 ++  set-volumes
   |=  =channels:c
   ::  set all existing channels to old default since new default is different
-  =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
-  =.  cor
+  =^  checkers  cor
+    =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
     =/  entries  ~(tap by channels)
     |-
-    ?~  entries  cor
+    ?~  entries  [checkers cor]
     =/  [=nest:c =channel:c]  i.entries
     =*  group  group.perm.channel
-    =/  can-read
-      ?^  gate=(~(get by checkers) group)  u.gate
+    =^  can-read  checkers
+      ?^  gate=(~(get by checkers) group)  [u.gate checkers]
       =/  =path
         %+  scry-path  %groups
         /groups/(scot %p p.group)/[q.group]/can-read/noun
       =/  test=$-([ship nest:g] ?)
         =>  [path=path nest=nest:g ..zuse]  ~+
         .^($-([ship nest] ?) %gx path)
-      =.  checkers  (~(put by checkers) group test)
-      test
+      [test (~(put by checkers) group test)]
     =.  cor
       %+  adjust  [%channel nest group]
       ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
@@ -448,6 +447,7 @@
   |-
   ?~  sources  cor
   =.  cor  (refresh-summary i.sources)
+  =.  cor  (refresh-parent-summaries i.sources)
   $(sources t.sources)
 ::
 ++  refresh-summary
