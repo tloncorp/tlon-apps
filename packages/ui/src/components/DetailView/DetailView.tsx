@@ -13,7 +13,6 @@ import Scroller from '../Channel/Scroller';
 import { ChatMessage } from '../ChatMessage';
 import { MessageInput } from '../MessageInput';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput/index.native';
-import { NavBar } from '../NavBar';
 
 export interface DetailViewProps {
   post: db.Post;
@@ -114,7 +113,9 @@ const DetailViewFrameComponent = ({
   children,
   goBack,
 }: DetailViewProps) => {
-  const [navHeight, setNavHeight] = useState(DEFAULT_MESSAGE_INPUT_HEIGHT);
+  const [messageInputHeight, setMessageInputHeight] = useState(
+    DEFAULT_MESSAGE_INPUT_HEIGHT
+  );
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
   return (
@@ -123,7 +124,7 @@ const DetailViewFrameComponent = ({
         data={[post]}
         ListHeaderComponent={children}
         contentContainerStyle={{
-          paddingBottom: navHeight + bottom + getTokenValue('$2xl'),
+          paddingBottom: messageInputHeight + bottom + getTokenValue('$2xl'),
         }}
         renderItem={() => (
           <View paddingTop="$m" paddingHorizontal="$xs">
@@ -144,7 +145,14 @@ const DetailViewFrameComponent = ({
           </View>
         )}
       />
-      <NavBar height={navHeight + getTokenValue('$2xl')}>
+      <View
+        height={messageInputHeight + getTokenValue('$2xl') + bottom}
+        position="absolute"
+        width={'100%'}
+        bottom={0}
+        paddingTop={'$m'}
+        backgroundColor="$background"
+      >
         <MessageInput
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
@@ -158,10 +166,11 @@ const DetailViewFrameComponent = ({
           backgroundColor="$background"
           showAttachmentButton={false}
           placeholder="Reply to post"
-          setHeight={setNavHeight}
-          goBack={goBack}
+          setHeight={setMessageInputHeight}
+          // TODO: add back in when we switch to bottom nav
+          // goBack={goBack}
         />
-      </NavBar>
+      </View>
     </View>
   );
 };
