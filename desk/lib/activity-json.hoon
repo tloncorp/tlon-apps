@@ -147,80 +147,79 @@
   ++  event
     |=  e=event:a
     %-  pairs
-    :~  notified+b+notified.e
+    :_  [notified+b+notified.e]~
       :-  -<.e
-      ?-  -<.e
-        %dm-invite  (whom whom.e)
-      ::
-          %chan-init
-        %-  pairs
-        :~  channel/s+(nest:enjs:gj channel.e)
-            group/s+(flag:enjs:gj group.e)
-        ==
-      ::
-          ?(%group-kick %group-join %group-ask %group-invite)
-        %-  pairs
-        :~  group+s+(flag:enjs:gj group.e)
-            ship+(ship ship.e)
-        ==
-      ::
-          %flag-post
-        %-  pairs
-        :~  key+(msg-key key.e)
-            channel/s+(nest:enjs:gj channel.e)
-            group/s+(flag:enjs:gj group.e)
-        ==
-      ::
-          %flag-reply
-        %-  pairs
-        :~  parent+(msg-key parent.e)
-            key+(msg-key key.e)
-            channel/s+(nest:enjs:gj channel.e)
-            group/s+(flag:enjs:gj group.e)
-        ==
-      ::
-          %dm-post
-        %-  pairs
-        :~  key+(msg-key key.e)
-            whom+(whom whom.e)
-            content+(story:enjs:cj content.e)
-            mention/b+mention.e
-        ==
-      ::
-          %dm-reply
-        %-  pairs
-        :~  parent+(msg-key parent.e)
-            key+(msg-key key.e)
-            whom+(whom whom.e)
-            content+(story:enjs:cj content.e)
-            mention/b+mention.e
-        ==
-      ::
-          %post
-        %-  pairs
-        :~  key+(msg-key key.e)
-            channel/s+(nest:enjs:gj channel.e)
-            group/s+(flag:enjs:gj group.e)
-            content+(story:enjs:cj content.e)
-            mention/b+mention.e
-        ==
-      ::
-          %reply
-        %-  pairs
-        :~  parent+(msg-key parent.e)
-            key+(msg-key key.e)
-            channel/s+(nest:enjs:gj channel.e)
-            group/s+(flag:enjs:gj group.e)
-            content+(story:enjs:cj content.e)
-            mention/b+mention.e
-        ==
-      ::
-          %group-role
-        %-  pairs
-        :~  group/s+(flag:enjs:gj group.e)
-            ship+(ship ship.e)
-            roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
-        ==
+    ?-  -<.e
+      %dm-invite  (whom whom.e)
+    ::
+        %chan-init
+      %-  pairs
+      :~  channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+      ==
+    ::
+        ?(%group-kick %group-join %group-ask %group-invite)
+      %-  pairs
+      :~  group+s+(flag:enjs:gj group.e)
+          ship+(ship ship.e)
+      ==
+    ::
+        %flag-post
+      %-  pairs
+      :~  key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+      ==
+    ::
+        %flag-reply
+      %-  pairs
+      :~  parent+(msg-key parent.e)
+          key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+      ==
+    ::
+        %dm-post
+      %-  pairs
+      :~  key+(msg-key key.e)
+          whom+(whom whom.e)
+          content+(story:enjs:cj content.e)
+          mention/b+mention.e
+      ==
+    ::
+        %dm-reply
+      %-  pairs
+      :~  parent+(msg-key parent.e)
+          key+(msg-key key.e)
+          whom+(whom whom.e)
+          content+(story:enjs:cj content.e)
+          mention/b+mention.e
+      ==
+    ::
+        %post
+      %-  pairs
+      :~  key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+          content+(story:enjs:cj content.e)
+          mention/b+mention.e
+      ==
+    ::
+        %reply
+      %-  pairs
+      :~  parent+(msg-key parent.e)
+          key+(msg-key key.e)
+          channel/s+(nest:enjs:gj channel.e)
+          group/s+(flag:enjs:gj group.e)
+          content+(story:enjs:cj content.e)
+          mention/b+mention.e
+      ==
+    ::
+        %group-role
+      %-  pairs
+      :~  group/s+(flag:enjs:gj group.e)
+          ship+(ship ship.e)
+          roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
       ==
     ==
   ::
