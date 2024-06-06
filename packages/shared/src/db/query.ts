@@ -1,5 +1,4 @@
-import { is } from 'drizzle-orm';
-import { SQLiteTransaction } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
 
 import { queryClient } from '../api';
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
@@ -27,6 +26,7 @@ export interface QueryMeta<TOptions> {
 export interface QueryCtx {
   db: AnySqliteTransaction | AnySqliteDatabase;
   pendingEffects: Set<TableName>;
+  meta: QueryMeta<any>;
 }
 
 export type WrappedQuery<TOptions, TReturn> = (TOptions extends QueryCtx
@@ -99,26 +99,22 @@ export const createQuery = <TOptions, TReturn>(
         ];
     // Run the query, ensuring that we have a context set.
     // Will kick off a transaction if this is a write query + there's no existing context.
-    return withCtxOrDefault(
-      meta.label ?? 'unknown',
-      ctxArg,
-      async (resolvedCtx) => {
-        const result = await runQuery(resolvedCtx);
-        logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
-        // Pass pending table effects to query context
-        if (meta?.tableEffects) {
-          const effects =
-            typeof meta.tableEffects === 'function'
-              ? meta.tableEffects(options!)
-              : meta.tableEffects;
-          if (effects.length) {
-            logger.log(`${meta.label}:pending:[${effects.join(' ')}]`);
-            effects.forEach((e) => resolvedCtx.pendingEffects.add(e));
-          }
+    return withCtxOrDefault(meta, ctxArg, async (resolvedCtx) => {
+      const result = await runQuery(resolvedCtx);
+      logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
+      // Pass pending table effects to query context
+      if (meta?.tableEffects) {
+        const effects =
+          typeof meta.tableEffects === 'function'
+            ? meta.tableEffects(options!)
+            : meta.tableEffects;
+        if (effects.length) {
+          logger.log(`${meta.label}:pending:[${effects.join(' ')}]`);
+          effects.forEach((e) => resolvedCtx.pendingEffects.add(e));
         }
-        return result;
       }
-    );
+      return result;
+    });
   }
   return Object.assign(wrappedQuery, {
     meta,
@@ -138,7 +134,11 @@ export async function batchEffects<T>(
   label: string,
   queryFn: (ctx: QueryCtx) => Promise<T>
 ) {
-  return withCtxOrDefault(label, null, queryFn);
+  return withCtxOrDefault(
+    { label, tableDependencies: [], tableEffects: [] },
+    null,
+    queryFn
+  );
 }
 
 /**
@@ -146,7 +146,7 @@ export async function batchEffects<T>(
  * create one if missing.
  */
 export async function withCtxOrDefault<T>(
-  label: string,
+  meta: QueryMeta<any>,
   ctx: QueryCtx | null | undefined,
   queryFn: (ctx: QueryCtx) => T
 ) {
@@ -157,7 +157,7 @@ export async function withCtxOrDefault<T>(
 
   // Run query, passing pendingEffects with context to collect effects.
   const pendingEffects = new Set<TableName>();
-  const result = await queryFn({ pendingEffects, db: client });
+  const result = await queryFn({ meta, pendingEffects, db: client });
 
   // Invalidate queries based on affected tables. We run in the next tick to
   // prevent possible loops.
@@ -165,14 +165,14 @@ export async function withCtxOrDefault<T>(
     if (!pendingEffects.size) {
       return;
     }
-    logger.log(`${label}:trigger:${listDebugLabel(pendingEffects)}`);
+    logger.log(`${meta.label}:trigger:${listDebugLabel(pendingEffects)}`);
     queryClient.invalidateQueries({
       predicate: (query) => {
         const tableKey = query.queryKey[1];
         const shouldInvalidate =
           tableKey instanceof Set && setsOverlap(tableKey, pendingEffects);
         if (shouldInvalidate) {
-          logger.log(`${label}:invalidate:${escapeLog(query.queryHash)}`);
+          logger.log(`${meta.label}:invalidate:${escapeLog(query.queryHash)}`);
         }
         return shouldInvalidate;
       },
@@ -181,20 +181,51 @@ export async function withCtxOrDefault<T>(
   return result;
 }
 
+const pendingTransactions: (() => Promise<any>)[] = [];
+let isRunning = false;
+
+const enqueueTransaction = async (fn: () => Promise<any>) => {
+  pendingTransactions.push(fn);
+  if (!isRunning) {
+    isRunning = true;
+    while (pendingTransactions.length) {
+      const next = pendingTransactions.shift();
+      if (!next) break;
+      await next();
+    }
+    isRunning = false;
+  }
+};
+
 /**
  * Creates a new context that will run operations against a transaction.
  * Executes the handler directly if already in a transaction.
  */
-export function withTransactionCtx<T>(
+export async function withTransactionCtx<T>(
   ctx: QueryCtx,
   handler: (ctx: QueryCtx) => Promise<T>
-) {
-  if (is(ctx.db, SQLiteTransaction)) {
-    return handler(ctx);
-  }
-  return ctx.db.transaction((tx) => {
-    return handler({ ...ctx, db: tx });
-  });
+): Promise<T> {
+  return new Promise((resolve, reject) =>
+    enqueueTransaction(async () => {
+      logger.log(ctx.meta.label, 'tx:handler');
+      try {
+        await ctx.db.run(sql`BEGIN`);
+        logger.log(ctx.meta.label, 'tx:begin');
+
+        const result = await handler(ctx);
+        logger.log(ctx.meta.label, 'tx:run');
+
+        await ctx.db.run(sql`COMMIT`);
+        resolve(result);
+        logger.log(ctx.meta.label, 'tx:commit');
+        return result;
+      } catch (e) {
+        logger.log('tx:error', e);
+        reject(e);
+        await ctx.db.run(sql`ROLLBACK`);
+      }
+    })
+  );
 }
 
 function setsOverlap(setA: Set<unknown>, setB: Set<unknown>) {

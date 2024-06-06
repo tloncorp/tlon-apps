@@ -39,9 +39,14 @@ export const syncLatestPosts = async () => {
     ]);
     const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
     for (const post of allPosts) {
-      channelCursors.set(post.channelId, post.id);
+      if (
+        !channelCursors.has(post.channelId) ||
+        post.id > channelCursors.get(post.channelId)!
+      ) {
+        channelCursors.set(post.channelId, post.id);
+      }
     }
-    await db.insertStandalonePosts(allPosts);
+    await db.insertLatestPosts(allPosts);
   });
 };
 
@@ -331,7 +336,6 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
           });
         }
       }
-      // insert the reply
       await db.insertChannelPosts({
         channelId: update.post.channelId,
         posts: [update.post],
@@ -518,36 +522,31 @@ export async function syncChannelWithBackoff({
 }: {
   channelId: string;
 }): Promise<boolean> {
+  async function isStillPending() {
+    return (await db.getPendingPosts(channelId)).length > 0;
+  }
+
   const checkDelivered = async () => {
-    const hasPendingBefore = (await db.getPendingPosts(channelId)).length > 0;
-    if (!hasPendingBefore) {
+    if (!(await isStillPending())) {
       return true;
     }
 
     logger.log(`still have undelivered messages, syncing...`);
     await syncChannel(channelId, Date.now());
 
-    const hasPendingAfter = (await db.getPendingPosts(channelId)).length > 0;
-    if (hasPendingAfter) {
+    if (await isStillPending()) {
       throw new Error('Keep going');
     }
 
     return true;
   };
 
-  try {
-    // try checking delivery status immediately
-    await checkDelivered();
-    return true;
-  } catch (e) {
-    // thereafter, try checking with exponential backoff. Config values
-    // are arbitrary reasonable sounding defaults
-    return backOff(checkDelivered, {
-      startingDelay: 2000, // 2 seconds
-      maxDelay: 3 * 60 * 1000, // 3 minutes
-      numOfAttempts: 20,
-    });
-  }
+  return backOff(checkDelivered, {
+    delayFirstAttempt: true,
+    startingDelay: 3000, // 3 seconds
+    maxDelay: 3 * 60 * 1000, // 3 minutes
+    numOfAttempts: 20,
+  });
 }
 
 export async function syncThreadPosts({

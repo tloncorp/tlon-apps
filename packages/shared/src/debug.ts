@@ -13,7 +13,10 @@ export function createDevLogger(tag: string, enabled: boolean) {
           process.env.NODE_ENV !== 'production'
         ) {
           const val = Reflect.get(target, prop, receiver);
-          val(`[${tag}]`, ...args);
+          val(
+            `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`,
+            ...args
+          );
         }
       };
     },
@@ -76,3 +79,24 @@ export const escapeLog = runIfDev((value: string) =>
 export const listDebugLabel = runIfDev((list: Iterable<string | number>) => {
   return '[' + Array.from(list).join(' ') + ']';
 });
+
+const sessionStartTime = Date.now();
+
+const LOG_SESSION_TIME = false;
+const LOG_DELTA = false;
+
+function sessionTimeLabel() {
+  return LOG_SESSION_TIME ? `${Date.now() - sessionStartTime}` : null;
+}
+
+let lastTime = sessionStartTime;
+
+function deltaLabel() {
+  if (!LOG_DELTA) {
+    return null;
+  }
+  const nextTime = Date.now();
+  const delta = nextTime - lastTime;
+  lastTime = nextTime;
+  return delta;
+}

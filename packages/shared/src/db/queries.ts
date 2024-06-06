@@ -288,7 +288,7 @@ export const getChats = createReadQuery(
       };
     });
   },
-  ['groups', 'channels']
+  ['groups', 'channels', 'posts']
 );
 
 export const insertGroups = createWriteQuery(
@@ -615,8 +615,8 @@ export const addChatMembers = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return ctx.db.transaction(async (tx) => {
-      await tx
+    return withTransactionCtx(ctx, (txCtx) => {
+      return txCtx.db
         .insert($chatMembers)
         .values(
           contactIds.map((contactId) => ({
@@ -1025,7 +1025,7 @@ export const insertChannels = createWriteQuery(
         .values(channels)
         .onConflictDoUpdate({
           target: $channels.id,
-          set: conflictUpdateSetAll($channels),
+          set: conflictUpdateSetAll($channels, ['lastPostId', 'lastPostAt']),
         });
 
       for (const channel of channels) {
@@ -1471,20 +1471,11 @@ export const insertChannelPosts = createWriteQuery(
   ['posts', 'channels', 'groups', 'postWindows']
 );
 
-export const insertStandalonePosts = createWriteQuery(
-  'insertStandalonePosts',
+export const insertLatestPosts = createWriteQuery(
+  'insertLatestPosts',
   async (posts: Post[], ctx: QueryCtx) => {
     withTransactionCtx(ctx, async (txCtx) => {
       await insertPosts(posts, txCtx);
-      for (const post of posts) {
-        await updatePostWindows(
-          {
-            channelId: post.channelId,
-            newPosts: [post],
-          },
-          txCtx
-        );
-      }
     });
   },
   ['posts']
@@ -1655,7 +1646,9 @@ function overlapsWindow(window: PostWindow) {
 export const updatePost = createWriteQuery(
   'updateChannelPost',
   async (post: Partial<Post> & { id: string }, ctx: QueryCtx) => {
-    return ctx.db.update($posts).set(post).where(eq($posts.id, post.id));
+    return withTransactionCtx(ctx, async (txCtx) => {
+      return txCtx.db.update($posts).set(post).where(eq($posts.id, post.id));
+    });
   },
   ['posts']
 );
@@ -1706,10 +1699,12 @@ export const replacePostReactions = createWriteQuery(
     { postId, reactions }: { postId: string; reactions: Reaction[] },
     ctx: QueryCtx
   ) => {
-    return ctx.db.transaction(async (tx) => {
-      await tx.delete($postReactions).where(eq($postReactions.postId, postId));
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($postReactions)
+        .where(eq($postReactions.postId, postId));
       if (reactions.length === 0) return;
-      await tx.insert($postReactions).values(reactions);
+      await txCtx.db.insert($postReactions).values(reactions);
     });
   },
   ['posts', 'postReactions']
@@ -1780,7 +1775,7 @@ export const getPostByCacheId = createReadQuery(
 
 export const addReplyToPost = createWriteQuery(
   'addReplyToPost',
-  (
+  async (
     {
       parentId,
       replyAuthor,
@@ -1792,8 +1787,8 @@ export const addReplyToPost = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return ctx.db.transaction(async (tx) => {
-      const parentData = await tx
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const parentData = await ctx.db
         .select()
         .from($posts)
         .where(eq($posts.id, parentId));
@@ -1803,7 +1798,7 @@ export const addReplyToPost = createWriteQuery(
           parentPost.replyContactIds ?? [],
           replyAuthor
         );
-        await tx
+        return txCtx.db
           .update($posts)
           .set({
             replyCount: (parentPost.replyCount ?? 0) + 1,
@@ -1992,22 +1987,27 @@ export const insertContacts = createWriteQuery(
       })
     );
 
-    await ctx.db
-      .insert($contacts)
-      .values(contactsData)
-      .onConflictDoUpdate({
-        target: $contacts.id,
-        set: conflictUpdateSetAll($contacts),
-      });
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($contacts)
+        .values(contactsData)
+        .onConflictDoUpdate({
+          target: $contacts.id,
+          set: conflictUpdateSetAll($contacts),
+        });
 
-    if (targetGroups.length) {
-      await ctx.db.insert($groups).values(targetGroups).onConflictDoNothing();
-    }
-    // TODO: Remove stale pinned groups
-    await ctx.db
-      .insert($contactGroups)
-      .values(contactGroups)
-      .onConflictDoNothing();
+      if (targetGroups.length) {
+        await txCtx.db
+          .insert($groups)
+          .values(targetGroups)
+          .onConflictDoNothing();
+      }
+      // TODO: Remove stale pinned groups
+      await txCtx.db
+        .insert($contactGroups)
+        .values(contactGroups)
+        .onConflictDoNothing();
+    });
   },
   ['contacts', 'groups', 'contactGroups']
 );
@@ -2023,8 +2023,8 @@ export const deleteContact = createWriteQuery(
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
   async (unreads: Unread[], ctx: QueryCtx) => {
-    return ctx.db.transaction(async (tx) => {
-      await tx
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
         .insert($unreads)
         .values(unreads)
         .onConflictDoUpdate({
@@ -2035,7 +2035,7 @@ export const insertUnreads = createWriteQuery(
         return u.threadUnreads ?? [];
       });
       if (threadUnreads.length) {
-        await tx
+        await txCtx.db
           .insert($threadUnreads)
           .values(threadUnreads)
           .onConflictDoUpdate({
@@ -2051,11 +2051,11 @@ export const insertUnreads = createWriteQuery(
 export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
   async (pinnedItems: Pin[], ctx: QueryCtx) => {
-    return ctx.db.transaction(async (tx) => {
-      await tx.delete($pins);
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db.delete($pins);
       // users may not have pinned items
       if (!pinnedItems.length) return;
-      await tx.insert($pins).values(pinnedItems);
+      await txCtx.db.insert($pins).values(pinnedItems);
     });
   },
   ['pins', 'groups']
@@ -2075,12 +2075,12 @@ export const insertPinnedItem = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return ctx.db.transaction(async (tx) => {
-      const maxResult = await tx
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const maxResult = await txCtx.db
         .select({ value: max($pins.index) })
         .from($pins);
       const maxIndex = maxResult[0]?.value ?? 0;
-      await tx
+      await txCtx.db
         .insert($pins)
         .values({ itemId, type, index: index ?? maxIndex + 1 });
     });
@@ -2112,9 +2112,13 @@ function allQueryColumns<T extends Subquery>(
   return subquery._.selectedFields;
 }
 
-function conflictUpdateSetAll(table: Table) {
+function conflictUpdateSetAll(table: Table, exclude?: string[]) {
   const columns = getTableColumns(table);
-  return conflictUpdateSet(...Object.values(columns));
+  return conflictUpdateSet(
+    ...Object.entries(columns)
+      .filter(([k]) => !exclude?.includes(k))
+      .map(([_, v]) => v)
+  );
 }
 
 function conflictUpdateSet(...columns: Column[]) {
