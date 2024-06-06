@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Dots } from '../../assets/icons';
@@ -8,7 +9,7 @@ import {
   ChevronLeft,
   Search,
 } from '../../assets/icons';
-import { SizableText, Spinner, View, XStack } from '../../core';
+import { SizableText, View, XStack } from '../../core';
 import { ActionSheet } from '../ActionSheet';
 import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
 import { IconButton } from '../IconButton';
@@ -61,14 +62,12 @@ export function ChannelHeader({
   return (
     <View paddingTop={insets.top}>
       <XStack
-        justifyContent="space-between"
         alignItems="center"
-        paddingVertical="$m"
-        paddingHorizontal="$xl"
         gap="$m"
-        borderBottomWidth={1}
-        borderBottomColor="$border"
         height="$4xl"
+        justifyContent="space-between"
+        paddingHorizontal="$xl"
+        paddingVertical="$m"
       >
         <XStack
           alignItems="center"
@@ -81,18 +80,24 @@ export function ChannelHeader({
               <ChevronLeft />
             </IconButton>
           )}
-          <SizableText
-            flexShrink={1}
-            numberOfLines={1}
-            color="$primaryText"
-            size="$m"
-            fontWeight="500"
+          <Animated.View
+            key={showSpinner?.toString()}
+            entering={FadeInDown}
+            exiting={FadeOutUp}
+            style={{ flex: 1 }}
           >
-            {title}
-          </SizableText>
+            <SizableText
+              flexShrink={1}
+              numberOfLines={1}
+              color="$primaryText"
+              size="$m"
+              fontWeight="500"
+            >
+              {showSpinner ? 'Loading…' : title}
+            </SizableText>
+          </Animated.View>
         </XStack>
         <XStack gap="$m" alignItems="center">
-          {showSpinner && <Spinner />}
           {showSearchButton && (
             <IconButton onPress={goToSearch}>
               <Search />

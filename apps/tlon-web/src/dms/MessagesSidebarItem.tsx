@@ -8,7 +8,7 @@ import ShipName from '../components/ShipName';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import GroupAvatar from '../groups/GroupAvatar';
 import useMedia, { useIsMobile } from '../logic/useMedia';
-import { whomIsDm, whomIsMultiDm } from '../logic/utils';
+import { nestToFlag, whomIsDm, whomIsMultiDm } from '../logic/utils';
 import { useMultiDm } from '../state/chat';
 import { useGroup, useGroupChannel, useGroups } from '../state/groups/groups';
 import DmOptions from './DMOptions';
@@ -35,6 +35,7 @@ function ChannelSidebarItem({
   const isMobile = useIsMobile();
   const groups = useGroups();
   const nest = whom;
+  const [, flag] = nestToFlag(nest);
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => nest in v.channels
   )?.[0];
@@ -63,7 +64,7 @@ function ChannelSidebarItem({
         <DmOptions
           open={optionsOpen}
           onOpenChange={onOptionsOpenChange}
-          whom={nest}
+          whom={flag}
           pending={!!pending}
           isHovered={hover}
           triggerDisabled={isMobile}

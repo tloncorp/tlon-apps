@@ -16,7 +16,7 @@ import {
 import getKindDataFromEssay from '@/logic/getKindData';
 import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
-import { getFlagParts, pluralize } from '@/logic/utils';
+import { getFlagParts, getMessageKey, pluralize } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
 import {
@@ -25,7 +25,6 @@ import {
   usePerms,
   usePost,
   usePostsOnHost,
-  useUnread,
 } from '@/state/channel/channel';
 import {
   useAmAdmin,
@@ -35,6 +34,7 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
+import { useUnread } from '@/state/unreads';
 import { useConnectivityCheck } from '@/state/vitals';
 
 import DiaryCommentField from './DiaryCommentField';
@@ -65,7 +65,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const unread = useUnread(nest);
+  const unread = useUnread(`channel/${nest}`);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = usePerms(nest);
   const { paddingBottom } = useBottomPadding();
@@ -161,8 +161,9 @@ export default function DiaryNote({ title }: ViewProps) {
     : [];
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
+  const msgKey = getMessageKey(note);
   const groupedReplies = setNewDaysForReplies(
-    groupReplies(noteId, replyArray, unread).sort(([a], [b]) => {
+    groupReplies(msgKey, replyArray, unread).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }

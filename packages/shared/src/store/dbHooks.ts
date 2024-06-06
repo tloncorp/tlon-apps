@@ -22,7 +22,7 @@ export interface CurrentChats {
 
 export type CustomQueryConfig<T> = Pick<
   UseQueryOptions<T, Error, T>,
-  'notifyOnChangeProps'
+  'enabled'
 >;
 
 export const useCurrentChats = (
@@ -95,7 +95,7 @@ export const useContacts = () => {
 export const useUnreadsCount = () => {
   return useQuery({
     queryKey: ['unreadsCount'],
-    queryFn: () => db.getUnreadsCount(),
+    queryFn: () => db.getUnreadsCount({}),
   });
 };
 
@@ -176,7 +176,7 @@ export const useGroupsHostedBy = (userId: string) => {
 
       const clientGroups = api.toClientGroupsFromPreview(groups);
       // insert any we didn't already have
-      await db.insertGroups(clientGroups, false);
+      await db.insertGroups({ groups: clientGroups, overWrite: false });
 
       const groupIds = clientGroups.map((g) => g.id);
       const groupPreviews = await db.getGroupPreviews(groupIds);
@@ -194,7 +194,7 @@ export const useChannelSearchResults = (
 ) => {
   return useQuery({
     queryKey: [['channelSearchResults', channelId, postIds]],
-    queryFn: () => db.getChannelSearchResults(channelId, postIds),
+    queryFn: () => db.getChannelSearchResults({ channelId, postIds }),
   });
 };
 

@@ -13,7 +13,7 @@ import { SizableText } from '../core';
 
 const SectionListHeaderFrame = styled(View, {
   paddingHorizontal: '$l',
-  paddingVertical: '$xl',
+  paddingVertical: '$m',
 });
 
 const SectionListHeaderText = styled(SizableText, {

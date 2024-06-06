@@ -13,7 +13,10 @@ export function createDevLogger(tag: string, enabled: boolean) {
           process.env.NODE_ENV !== 'production'
         ) {
           const val = Reflect.get(target, prop, receiver);
-          val(`[${tag}]`, ...args);
+          val(
+            `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`,
+            ...args
+          );
         }
       };
     },
@@ -47,4 +50,53 @@ export function logSyncDuration<T>(
 // Attempts to slice off rarely significant digits for more legible logging.
 export function shortPostId(postId: string) {
   return postId.slice(14, 27);
+}
+
+/**
+ * Execute a function only in development mode. Currently using for more
+ * expensive log operations -- logs themselves are disabled in  prod, but their
+ * contents string still gets constructed.
+ */
+export const runIfDev =
+  <T extends any[], TReturn>(fn: (...args: T) => TReturn) =>
+  (...args: T): TReturn | undefined => {
+    if (__DEV__) {
+      return fn(...args);
+    }
+  };
+
+/**
+ * Escapes double quotes in strings.
+ * Needed because sometimes values with " literals fail to fully log in the debug console. This is probably related to the missing bundler logs issue.
+ */
+export const escapeLog = runIfDev((value: string) =>
+  value.replace(/"/g, '\\"')
+);
+
+/**
+ * String representation of a list of values.
+ */
+export const listDebugLabel = runIfDev((list: Iterable<string | number>) => {
+  return '[' + Array.from(list).join(' ') + ']';
+});
+
+const sessionStartTime = Date.now();
+
+const LOG_SESSION_TIME = false;
+const LOG_DELTA = false;
+
+function sessionTimeLabel() {
+  return LOG_SESSION_TIME ? `${Date.now() - sessionStartTime}` : null;
+}
+
+let lastTime = sessionStartTime;
+
+function deltaLabel() {
+  if (!LOG_DELTA) {
+    return null;
+  }
+  const nextTime = Date.now();
+  const delta = nextTime - lastTime;
+  lastTime = nextTime;
+  return delta;
 }

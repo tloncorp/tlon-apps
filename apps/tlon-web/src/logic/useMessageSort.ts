@@ -1,7 +1,5 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
-
 import { RECENT_SORT } from '@/constants';
+import { Unread } from '@/state/unreads';
 
 import useSidebarSort, { Sorter, useRecentSort } from './useSidebarSort';
 
@@ -15,12 +13,9 @@ export default function useMessageSort() {
     sortOptions,
   });
 
-  function sortMessages(unreads: Record<string, Unread | DMUnread>) {
-    const accessors: Record<
-      string,
-      (k: string, v: Unread | DMUnread) => string
-    > = {
-      [RECENT_SORT]: (flag: string, _unread: Unread | DMUnread) => flag,
+  function sortMessages(unreads: Record<string, Unread>) {
+    const accessors: Record<string, (k: string, v: Unread) => string> = {
+      [RECENT_SORT]: (flag: string, _unread: Unread) => flag,
     };
 
     return sortRecordsBy(

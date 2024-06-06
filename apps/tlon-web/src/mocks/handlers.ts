@@ -429,8 +429,9 @@ const dms: Handler[] = [
         const unread = {
           recency: 1652302200000,
           count: 1,
+          notify: false,
           unread: null,
-          threads: {},
+          children: [],
         };
         dmList[req.json.ship] = unread;
 

@@ -13,7 +13,7 @@ import {
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
 import { useCheckChannelUnread } from '@/logic/channel';
-import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import useGroupUnread from '@/logic/useIsGroupUnread';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useCheckDmUnread, useDms, useMultiDms } from '@/state/chat';
 import { emptyContact, useContacts } from '@/state/contact';
@@ -92,8 +92,8 @@ export default function useLeap() {
   const navigate = useNavigate();
   const groups = useGroups();
   const currentGroupFlag = useGroupFlag();
-  const { isGroupUnread } = useIsGroupUnread();
-  const isChannelUnread = useCheckChannelUnread();
+  const { getGroupUnread } = useGroupUnread();
+  const { isChannelUnread } = useCheckChannelUnread();
   const isDMUnread = useCheckDmUnread();
   const pinnedGroups = usePinnedGroups();
   const multiDms = useMultiDms();
@@ -312,8 +312,8 @@ export default function useLeap() {
       }
 
       // so are unread groups, but just a little
-      const isUnreadGroup = isGroupUnread(groupFlag);
-      if (isUnreadGroup) {
+      const groupUnread = getGroupUnread(groupFlag);
+      if (groupUnread.status === 'unread') {
         newScore += 2;
       }
 
@@ -382,7 +382,7 @@ export default function useLeap() {
     groups,
     inputValue,
     isChannelUnread,
-    isGroupUnread,
+    getGroupUnread,
     navigate,
     pinnedChannels,
     pinnedGroups,
@@ -412,8 +412,8 @@ export default function useLeap() {
       }
 
       // prefer unreads as well
-      const isUnread = isGroupUnread(groupFlag);
-      if (isUnread) {
+      const groupUnread = getGroupUnread(groupFlag);
+      if (groupUnread.status === 'unread') {
         newScore += 5;
       }
 
@@ -470,7 +470,7 @@ export default function useLeap() {
     channelResults.length,
     groups,
     inputValue,
-    isGroupUnread,
+    getGroupUnread,
     navigate,
     pinnedGroups,
     shipResults.length,
