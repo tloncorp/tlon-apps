@@ -34,8 +34,8 @@ const NavBarView = (props: { navigation: any }) => {
           id={currentUserId}
           contact={contact}
           isLoading={isLoading}
-          focused={isRouteActive('Profile')}
-          onPress={() => props.navigation.navigate('Profile')}
+          focused={isRouteActive('Settings')}
+          onPress={() => props.navigation.navigate('Settings')}
         />
       )}
     </NavBar>
