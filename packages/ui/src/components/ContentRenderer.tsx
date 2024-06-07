@@ -390,7 +390,7 @@ export function InlineContent({
       <Text
         color={color}
         lineHeight="$m"
-        fontSize={viewMode === 'block' ? '$s' : '$m'}
+        fontSize={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
       >
         {inline}
       </Text>
@@ -492,7 +492,12 @@ export function InlineContent({
   }
 
   if (isShip(inline)) {
-    return <ShipMention userId={inline.ship} />;
+    return (
+      <ShipMention
+        userId={inline.ship}
+        fontSize={viewMode === 'activity' ? '$s' : undefined}
+      />
+    );
   }
 
   if (isTask(inline)) {
@@ -632,7 +637,11 @@ const LineRenderer = memo(
             <Text
               key={`string-${inline}-${index}`}
               color={isNotice ? '$secondaryText' : color}
-              fontSize={viewMode === 'block' || isNotice ? '$s' : '$m'}
+              fontSize={
+                viewMode === 'block' || viewMode === 'activity' || isNotice
+                  ? '$s'
+                  : '$m'
+              }
               lineHeight="$m"
             >
               {inline}
@@ -668,7 +677,7 @@ const LineRenderer = memo(
           <ShipMention
             key={`ship-${index}`}
             userId={inline.ship}
-            fontSize={isNotice ? '$s' : 'unset'}
+            fontSize={isNotice || viewMode === 'activity' ? '$s' : 'unset'}
           />
         );
       } else {
@@ -702,7 +711,9 @@ const LineRenderer = memo(
 
           return (
             <Text
-              fontSize={viewMode === 'block' ? '$s' : '$m'}
+              fontSize={
+                viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'
+              }
               key={`line-${index}`}
               flexWrap="wrap"
               lineHeight="$m"
@@ -718,7 +729,7 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
-export type PostViewMode = 'chat' | 'block' | 'note';
+export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
 
 export default function ContentRenderer({
   post,
@@ -743,8 +754,6 @@ export default function ContentRenderer({
     () => extractContentTypesFromPost(post),
     [post]
   );
-
-  // console.log(`ContentRenderer: ${post.id} inlines`, inlines);
 
   const firstInlineIsMention = useMemo(
     () =>
@@ -792,7 +801,6 @@ export default function ContentRenderer({
   );
 
   if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
-    console.log(`bl: ContentRenderer: ${post.id} we got nothin, ${inlines}`);
     return null;
   }
 
@@ -826,8 +834,6 @@ export default function ContentRenderer({
       </YStack>
     );
   }
-
-  console.log('bl: made it here?');
 
   return (
     <YStack width="100%">

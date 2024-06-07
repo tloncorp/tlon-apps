@@ -15,6 +15,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -24,7 +25,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { ChannelInit } from '../api';
+import { ChannelInit, getCurrentUserId } from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { ExtendedEventType, Rank, desig } from '../urbit';
@@ -2183,11 +2184,132 @@ export type BucketedSourceActivity = {
   mentions: SourceActivityEvents[];
 };
 
+// YOUR ACTIVITY
+// gets all acivity events related to the current user. This includes:
+
+// posts you're mentioned in
+const isMention = eq($activityEvents.isMention, true);
+
+// threads you're involved in
+const isInvolvedThread = and(
+  eq($activityEvents.type, 'reply'),
+  eq($activityEvents.shouldNotify, true)
+);
+
+// comments on your blocks & notes
+const isUserBlockOrNoteComment = (currentUserId: string) =>
+  and(
+    eq($activityEvents.type, 'reply'),
+    // or(eq($channels.type, 'gallery'), eq($channels.type, 'notebook')), // TODO: isInvolvedThread not finding? confirm how notify being set dynamically for threads
+    not(eq($activityEvents.authorId, currentUserId)),
+    eq($activityEvents.parentAuthorId, currentUserId)
+  );
+
+// new messages in your DMs and groupchats
+const isDmOrGroupchat = or(
+  eq($channels.type, 'dm'),
+  eq($channels.type, 'groupDm')
+);
+
+// posts (you didn't author) in channels you host
+const isNewPostInYourChannel = (currentUserId: string) =>
+  and(
+    eq($activityEvents.type, 'post'),
+    like($channels.id, `%/${currentUserId}/%`),
+    not(eq($activityEvents.authorId, currentUserId))
+  );
+
+export const getYourActivity = createReadQuery(
+  'getYourActivity',
+  async (ctx: QueryCtx): Promise<BucketedActivity> => {
+    const currentUserId = getCurrentUserId();
+
+    // TODO: optimize, hustling but I imagine we could go way harder with
+    // the SQL aggregation and subqueries here
+    const yourActivity = await ctx.db
+      .select({ event: $activityEvents })
+      .from($activityEvents)
+      .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
+      .where(
+        and(
+          or(
+            eq($activityEvents.type, 'reply'),
+            eq($activityEvents.type, 'post')
+          ),
+          or(
+            isMention,
+            isInvolvedThread,
+            isUserBlockOrNoteComment(currentUserId),
+            isDmOrGroupchat,
+            isNewPostInYourChannel(currentUserId)
+          )
+        )
+      );
+
+    const allQuery = ctx.db.query.activityEvents.findMany({
+      where: inArray(
+        $activityEvents.id,
+        yourActivity.map((e) => e.event.id)
+      ),
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        channel: true,
+        post: true,
+        author: true,
+        parent: true,
+      },
+    });
+
+    const threadsQuery = ctx.db.query.activityEvents.findMany({
+      where: eq($activityEvents.type, 'reply'),
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        channel: true,
+        post: true,
+        author: true,
+        parent: true,
+      },
+    });
+
+    const mentionsQuery = ctx.db.query.activityEvents.findMany({
+      where: eq($activityEvents.isMention, true),
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        channel: true,
+        post: {
+          with: {
+            threadUnread: true,
+          },
+        },
+        author: true,
+        parent: true,
+      },
+    });
+
+    const [all, allThreads, mentions] = await Promise.all([
+      allQuery,
+      threadsQuery,
+      mentionsQuery,
+    ]);
+
+    const allIds = new Set();
+    all.forEach((e) => allIds.add(e.id));
+
+    return {
+      all,
+      threads: allThreads.filter((e) => allIds.has(e.id)),
+      mentions,
+    };
+  },
+  ['activityEvents']
+);
+
 export const getBucketedActivity = createReadQuery(
   'getActivityEvents',
   async (ctx: QueryCtx): Promise<BucketedActivity> => {
-    // TODO: optimize, hustling but I imagine you could go way harder with
-    // the SQL here
     const allQuery = ctx.db.query.activityEvents.findMany({
       orderBy: desc($activityEvents.timestamp),
       with: {

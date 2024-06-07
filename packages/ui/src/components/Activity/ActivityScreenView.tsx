@@ -1,28 +1,52 @@
 import { toPostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import React from 'react';
 import { FlatList } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SizableText, View, XStack } from '../../core';
+import { SizableText, View } from '../../core';
 import AuthorRow from '../AuthorRow';
 import ContentRenderer from '../ContentRenderer';
-import Pressable from '../Pressable';
 import { ActivityHeader, ActivityTab } from './ActivityHeader';
 import { ChannelActivitySummary } from './ChannelActivitySummary';
 
 export function ActivityScreenView({
   bucketedActivity,
+  isFocused,
   goToChannel,
   goToThread,
 }: {
   bucketedActivity: db.BucketedSourceActivity;
+  isFocused: boolean;
   goToChannel: (channel: db.Channel) => void;
   goToThread: (post: db.PseudoPost) => void;
 }) {
+  const { data: activitySeenMarker } = store.useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<ActivityTab>('all');
+
+  // keep track of the newest timestamp. If focused and newest timestamp is
+  // greater than the seen marker, advance the seen marker
+  const newestTimestamp = useMemo(() => {
+    return bucketedActivity.all[0]?.newest.timestamp ?? activitySeenMarker;
+  }, [activitySeenMarker, bucketedActivity.all]);
+  const moveSeenMarker = useCallback(() => {
+    setTimeout(() => {
+      store.advanceActivitySeenMarker(newestTimestamp);
+    }, 1000);
+  }, [newestTimestamp]);
+
+  useEffect(() => {
+    if (
+      isFocused &&
+      activitySeenMarker !== null &&
+      activitySeenMarker !== undefined &&
+      newestTimestamp > activitySeenMarker
+    ) {
+      moveSeenMarker();
+    }
+  }, [moveSeenMarker, newestTimestamp, isFocused, activitySeenMarker]);
 
   const handlePressEvent = useCallback(
     (event: db.ActivityEvent) => {
@@ -60,11 +84,12 @@ export function ActivityScreenView({
           <SourceActivityDisplay
             sourceActivity={item}
             onPress={handlePressEvent}
+            seenMarker={activitySeenMarker ?? Date.now()}
           />
         </View>
       );
     },
-    [handlePressEvent]
+    [activitySeenMarker, handlePressEvent]
   );
 
   const events = useMemo(
@@ -96,8 +121,10 @@ export function ActivityScreenView({
 
 function ActivityEventRaw({
   sourceActivity,
+  seenMarker,
   onPress,
 }: {
+  seenMarker: number;
   sourceActivity: db.SourceActivityEvents;
   onPress: (event: db.ActivityEvent) => void;
 }) {
@@ -105,7 +132,10 @@ function ActivityEventRaw({
   if (event.type === 'post') {
     return (
       <View onPress={() => onPress(event)}>
-        <ChannelActivitySummary summary={sourceActivity} />
+        <ChannelActivitySummary
+          summary={sourceActivity}
+          seenMarker={seenMarker}
+        />
       </View>
     );
   }
@@ -113,7 +143,10 @@ function ActivityEventRaw({
   if (event.type === 'reply') {
     return (
       <View onPress={() => onPress(event)}>
-        <ChannelActivitySummary summary={sourceActivity} />
+        <ChannelActivitySummary
+          summary={sourceActivity}
+          seenMarker={seenMarker}
+        />
       </View>
     );
   }

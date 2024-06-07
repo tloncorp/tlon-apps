@@ -1,37 +1,59 @@
 import { toPostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
+import { PropsWithChildren } from 'react';
 
 import { useContact } from '../../contexts';
-import { Image, SizableText, Text, View, XStack } from '../../core';
+import { Image, SizableText, Text, View, XStack, YStack } from '../../core';
+import { getChannelTitle } from '../../utils';
 import AuthorRow from '../AuthorRow';
 import { Avatar } from '../Avatar';
 import ContactName from '../ContactName';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { ListItem } from '../ListItem';
+import { ActivityEventContent } from './ActivityEventContent';
 
 export function ChannelActivitySummary({
   summary,
+  seenMarker,
 }: {
   summary: db.SourceActivityEvents;
+  seenMarker: number;
 }) {
   console.log(`bl: rendering activity summary for `, summary);
   const newestPost = summary.newest;
+  const newestPostContact = useContact(newestPost.authorId ?? '');
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
   return (
     <View
       padding="$l"
       marginBottom="$l"
-      backgroundColor="$gray50"
+      backgroundColor={
+        newestPost.timestamp > seenMarker ? '$positiveBackground' : 'unset'
+      }
       borderRadius="$l"
     >
-      {channel && <ChannelIndicator channel={channel} group={group} />}
-      <View marginTop="$s">
-        <ActivityMessage summary={summary} />
-      </View>
-      <EventContent event={newestPost} />
+      <XStack>
+        <Avatar
+          contactId={newestPost.authorId ?? ''}
+          contact={newestPostContact}
+          borderRadius="$2xl"
+          size="$3xl"
+          explicitSigilSize={14}
+        />
+        <YStack marginLeft="$m">
+          {channel && <ChannelIndicator channel={channel} group={group} />}
+          <View>
+            <SummaryMessage
+              summary={summary}
+              newestPostContact={newestPostContact}
+            />
+          </View>
+          <ActivityEventContent event={newestPost} />
+        </YStack>
+      </XStack>
     </View>
   );
 }
@@ -46,19 +68,37 @@ export function ChannelIndicator({
   return (
     <XStack alignItems="center">
       <ChannelIcon channel={channel} group={group} />
-      <SizableText marginLeft="$m" fontSize="$s" fontWeight="500">
-        {channel.type === 'dm' ? channel.id : channel.title ?? channel.id}
+      <SizableText marginLeft="$m" fontSize="$s" color="$secondaryText">
+        {getChannelTitle(channel)}
       </SizableText>
     </XStack>
   );
 }
 
-export function ActivityMessage({
+export function SummaryMessage({
   summary,
+  newestPostContact,
 }: {
   summary: db.SourceActivityEvents;
+  newestPostContact: db.Contact | null;
 }) {
   const newest = summary.newest;
+
+  // if it's a mention, life is easy and we just say what it is
+  if (newest.isMention) {
+    return (
+      <SummaryMessageWrapper>
+        <ContactName
+          fontSize="$s"
+          userId={newest.authorId ?? ''}
+          showNickname
+        />
+        {` mentioned you in a ${postName(newest)}`}
+      </SummaryMessageWrapper>
+    );
+  }
+
+  // if the activity source is unread, we use that total count
   const count =
     newest.type === 'reply'
       ? newest.post?.threadUnread?.count ?? summary.all.length
@@ -91,6 +131,14 @@ export function ActivityMessage({
       {`${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
     </SizableText>;
   }
+}
+
+function SummaryMessageWrapper({ children }: PropsWithChildren) {
+  return (
+    <SizableText color="$secondaryText" size="$s">
+      {children}
+    </SizableText>
+  );
 }
 
 function postName(event: db.ActivityEvent, plural?: boolean) {
@@ -129,8 +177,8 @@ export function ChannelIcon({
   channel: db.Channel;
   group?: db.Group;
 }) {
-  const SIZE = '$3xl';
-  const BORDER_RADIUS = '$s';
+  const SIZE = 14;
+  const BORDER_RADIUS = 2;
   const dmContact = useContact(channel.id);
 
   if (channel.iconImage) {
@@ -149,7 +197,8 @@ export function ChannelIcon({
   }
 
   if (channel.type === 'dm') {
-    return <Avatar contact={dmContact} contactId={channel.id} size="$3xl" />;
+    return null;
+    // return <Avatar contact={dmContact} contactId={channel.id} size="$xl" />;
   }
 
   if (channel.type === 'groupDm') {

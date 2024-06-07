@@ -7,6 +7,10 @@ import * as ub from '../urbit';
 const logger = createDevLogger('keyValueStore', true);
 
 export const VOLUME_SETTINGS_QUERY_KEY = ['activity', 'volumeSettings'];
+export const ACTIVITY_SEEN_MARKER_QUERY_KEY = [
+  'activity',
+  'activitySeenMarker',
+];
 
 export async function storeVolumeSettings(volumeSettings: ub.VolumeSettings) {
   await AsyncStorage.setItem('volumeSettings', JSON.stringify(volumeSettings));
@@ -31,4 +35,15 @@ export async function mergeVolumeSettings(
   await storeVolumeSettings(merged);
   logger.log('merged volume settings', merged);
   return merged;
+}
+
+export async function getActivitySeenMarker() {
+  const marker = await AsyncStorage.getItem('activitySeenMarker');
+  return Number(marker) ?? 1;
+}
+
+export async function storeActivitySeenMarker(timestamp: number) {
+  await AsyncStorage.setItem('activitySeenMarker', String(timestamp));
+  queryClient.invalidateQueries({ queryKey: ACTIVITY_SEEN_MARKER_QUERY_KEY });
+  logger.log('stored activity seen marker', timestamp);
 }

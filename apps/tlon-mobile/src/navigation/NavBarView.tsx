@@ -10,6 +10,7 @@ const NavBarView = (props: { navigation: any }) => {
     return state.routes[state.index].name === routeName;
   };
   const { data: unreadCount } = store.useUnreadsCount();
+  const haveUnseenActivity = store.useHaveUnseenActivity();
   const currentUserId = useCurrentUserId();
   const { data: contact, isLoading } = store.useContact({ id: currentUserId });
 
@@ -27,7 +28,7 @@ const NavBarView = (props: { navigation: any }) => {
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
-        hasUnreads={false}
+        hasUnreads={haveUnseenActivity}
         isActive={isRouteActive('Activity')}
         onPress={() => props.navigation.navigate('Activity')}
       />

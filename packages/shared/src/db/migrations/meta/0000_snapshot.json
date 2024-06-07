@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "dad3a14f-5058-49c6-8e82-0a1595fc108a",
+  "id": "65c1782e-4502-4ae3-b618-448c9a90047c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -35,6 +35,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "parent_id": {
           "name": "parent_id",
           "type": "text",
@@ -42,8 +49,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "author_id": {
-          "name": "author_id",
+        "parent_author_id": {
+          "name": "parent_author_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -65,6 +72,13 @@
         },
         "is_mention": {
           "name": "is_mention",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "should_notify": {
+          "name": "should_notify",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

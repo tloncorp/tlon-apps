@@ -3,11 +3,13 @@ CREATE TABLE `activity_events` (
 	`type` text NOT NULL,
 	`timestamp` integer NOT NULL,
 	`post_id` text,
-	`parent_id` text,
 	`author_id` text,
+	`parent_id` text,
+	`parent_author_id` text,
 	`channel_id` text,
 	`group_id` text,
 	`is_mention` integer,
+	`should_notify` integer,
 	`content` text
 );
 --> statement-breakpoint

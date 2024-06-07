@@ -1,4 +1,5 @@
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { useIsFocused } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { ActivityScreenView, ContactsProvider, View } from '@tloncorp/ui';
@@ -11,14 +12,16 @@ type Props = BottomTabScreenProps<TabParamList, 'Activity'>;
 
 export function ActivityScreen(props: Props) {
   const { data: contacts } = store.useContacts();
-  const { data: bucketedActivity } = store.useActivityEvents();
+  const isFocused = useIsFocused();
+  // const { data: bucketedActivity } = store.useActivityEvents();
+  const { data: bucketedActivity } = store.useYourActivity();
 
   const rolledBuckets = useMemo(() => {
     if (!bucketedActivity) return { all: [], threads: [], mentions: [] };
     return {
-      all: rollupActivityEvents(bucketedActivity?.all ?? []),
-      threads: rollupActivityEvents(bucketedActivity?.threads ?? []),
-      mentions: rollupActivityEvents(bucketedActivity?.mentions ?? []),
+      all: toSourceActivity(bucketedActivity?.all ?? []),
+      threads: toSourceActivity(bucketedActivity?.threads ?? []),
+      mentions: toSourceActivity(bucketedActivity?.mentions ?? [], true),
     };
   }, [bucketedActivity]);
 
@@ -45,6 +48,7 @@ export function ActivityScreen(props: Props) {
       <View backgroundColor="$background" flex={1}>
         <ActivityScreenView
           bucketedActivity={rolledBuckets}
+          isFocused={isFocused}
           goToChannel={handleGoToChannel}
           goToThread={handleGoToThread}
         />
@@ -54,14 +58,15 @@ export function ActivityScreen(props: Props) {
   );
 }
 
-function rollupActivityEvents(
-  events: db.ActivityEvent[]
+function toSourceActivity(
+  events: db.ActivityEvent[],
+  noRollup?: boolean
 ): db.SourceActivityEvents[] {
   const eventMap = new Map<string, db.SourceActivityEvents>();
   const eventsList: db.SourceActivityEvents[] = [];
 
   events.forEach((event) => {
-    const key = getEventKey(event);
+    const key = noRollup ? event.id : getRollupKey(event);
     if (eventMap.has(key)) {
       const existing = eventMap.get(key);
       if (existing) {
@@ -80,7 +85,7 @@ function rollupActivityEvents(
   return eventsList;
 }
 
-function getEventKey(event: db.ActivityEvent): string {
+function getRollupKey(event: db.ActivityEvent): string {
   const timeBlock = Math.floor(event.timestamp / (6 * 60 * 60 * 1000)); // bundle unreads into 4 hour blocks
 
   if (event.type === 'post' && event.channelId) {

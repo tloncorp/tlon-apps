@@ -11,11 +11,13 @@ export function Avatar({
   contact,
   contactId,
   size = '$2xl',
+  explicitSigilSize,
   ...props
 }: {
   contact?: db.Contact | null;
   contactId: string;
   size?: AvatarFrameProps['size'];
+  explicitSigilSize?: number;
 } & AvatarFrameProps) {
   const colors = useSigilColors(contact?.color);
   const { disableAvatars } = useCalm();
@@ -38,7 +40,11 @@ export function Avatar({
           contentFit="cover"
         />
       ) : !isNaN(sigilSize) ? (
-        <UrbitSigil colors={colors} size={sigilSize} contactId={contactId} />
+        <UrbitSigil
+          colors={colors}
+          size={explicitSigilSize ?? sigilSize}
+          contactId={contactId}
+        />
       ) : null}
     </AvatarFrame>
   );

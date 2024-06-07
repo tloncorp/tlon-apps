@@ -146,11 +146,13 @@ export const activityEvents = sqliteTable('activity_events', {
   type: text('type').$type<ExtendedEventType>().notNull(),
   timestamp: timestamp('timestamp').notNull(),
   postId: text('post_id'),
-  parentId: text('parent_id'),
   authorId: text('author_id'),
+  parentId: text('parent_id'),
+  parentAuthorId: text('parent_author_id'),
   channelId: text('channel_id'),
   groupId: text('group_id'),
   isMention: boolean('is_mention'),
+  shouldNotify: boolean('should_notify'),
   content: text('content', { mode: 'json' }),
 });
 
@@ -173,6 +175,10 @@ export const activityRelations = relations(activityEvents, ({ one, many }) => ({
   }),
   author: one(contacts, {
     fields: [activityEvents.authorId],
+    references: [contacts.id],
+  }),
+  parentAuthor: one(contacts, {
+    fields: [activityEvents.parentAuthorId],
     references: [contacts.id],
   }),
 }));

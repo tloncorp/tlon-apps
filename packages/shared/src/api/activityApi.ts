@@ -4,7 +4,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { getCanonicalPostId, udToDate } from './apiUtils';
-import { poke, scry, subscribe } from './urbit';
+import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', true);
 
@@ -41,11 +41,12 @@ function toActivityEvents(stream: ub.Stream): db.ActivityEvent[] {
 }
 
 function toActivityEvent(
-  id: string,
+  id: string | number,
   event: ub.ActivityEvent
 ): db.ActivityEvent | null {
-  const timestamp = udToDate(id);
-  const baseFields = { id, timestamp };
+  const timestamp = typeof id === 'number' ? id : udToDate(id);
+  const shouldNotify = event.notified;
+  const baseFields = { id: id.toString(), timestamp, shouldNotify };
 
   if ('post' in event) {
     const postEvent = event.post;
@@ -65,13 +66,15 @@ function toActivityEvent(
   if ('reply' in event) {
     const replyEvent = event.reply;
     const { authorId, postId } = getInfoFromMessageKey(replyEvent.key);
-    const { postId: parentId } = getInfoFromMessageKey(replyEvent.parent);
+    const { postId: parentId, authorId: parentAuthorId } =
+      getInfoFromMessageKey(replyEvent.parent);
     return {
       ...baseFields,
       type: 'reply',
       postId,
       parentId,
       authorId,
+      parentAuthorId,
       channelId: replyEvent.channel,
       groupId: replyEvent.group,
       content: replyEvent.content,
@@ -96,13 +99,15 @@ function toActivityEvent(
   if ('dm-reply' in event) {
     const replyEvent = event['dm-reply'];
     const { authorId, postId } = getInfoFromMessageKey(replyEvent.key, true);
-    const { postId: parentId } = getInfoFromMessageKey(replyEvent.parent);
+    const { postId: parentId, authorId: parentAuthorId } =
+      getInfoFromMessageKey(replyEvent.parent);
     return {
       ...baseFields,
       type: 'reply',
       authorId,
       postId,
       parentId,
+      parentAuthorId,
       channelId:
         'ship' in replyEvent.whom ? replyEvent.whom.ship : replyEvent.whom.club,
       content: replyEvent.content,
@@ -132,7 +137,8 @@ export type ActivityEvent =
   | {
       type: 'updateVolumeSetting';
       update: VolumeUpdate;
-    };
+    }
+  | { type: 'addActivityEvent'; event: db.ActivityEvent };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
@@ -182,8 +188,13 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         });
       }
 
-      // add
-      // TODO: we have the resource but not a summary here
+      if ('add' in update) {
+        const rawEvent = update.add.event;
+        const activityEvent = toActivityEvent(update.add.time, rawEvent);
+        if (activityEvent) {
+          return handler({ type: 'addActivityEvent', event: activityEvent });
+        }
+      }
 
       // delete
       // TODO: straightforward
@@ -416,6 +427,7 @@ export type ActivityUpdateQueue = {
   channelActivity: db.Unread[];
   threadActivity: db.ThreadUnreadState[];
   volumeSettings: VolumeUpdate[];
+  activityEvents: db.ActivityEvent[];
 };
 
 export type ActivityInit = {

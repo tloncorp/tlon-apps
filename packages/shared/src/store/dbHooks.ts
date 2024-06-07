@@ -84,6 +84,13 @@ export const useVolumeSettings = () => {
   });
 };
 
+export const useActivitySeenMarker = () => {
+  return useQuery({
+    queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
+    queryFn: db.getActivitySeenMarker,
+  });
+};
+
 export const useThreadIsMuted = ({
   channel,
   post,
@@ -214,6 +221,23 @@ export const useActivityEvents = () => {
     queryKey: ['activityEvents', tablesKey],
     queryFn: () => db.getBucketedActivity(),
   });
+};
+
+export const useYourActivity = () => {
+  const tablesKey = useKeyFromQueryDeps(db.getYourActivity);
+  return useQuery({
+    queryKey: ['yourActivity', tablesKey],
+    queryFn: () => db.getYourActivity(),
+  });
+};
+
+export const useHaveUnseenActivity = () => {
+  const { data: seenMarker } = useActivitySeenMarker();
+  const { data: activity } = useYourActivity();
+  if (!activity || seenMarker === null || seenMarker === undefined)
+    return false;
+
+  return activity.all[0]?.timestamp > seenMarker;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {

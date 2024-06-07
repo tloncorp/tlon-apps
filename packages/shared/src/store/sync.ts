@@ -319,11 +319,12 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-const handleActivityUpdate = (queueDebounce: number = 500) => {
+const handleActivityUpdate = (queueDebounce: number = 5000) => {
   const queue: api.ActivityUpdateQueue = {
     channelActivity: [],
     threadActivity: [],
     volumeSettings: [],
+    activityEvents: [],
   };
   const processQueue = _.debounce(
     async () => {
@@ -331,16 +332,19 @@ const handleActivityUpdate = (queueDebounce: number = 500) => {
       queue.channelActivity = [];
       queue.threadActivity = [];
       queue.volumeSettings = [];
+      queue.activityEvents = [];
 
       logger.log(
         `processing activity queue`,
         activitySnapshot.channelActivity.length,
         activitySnapshot.threadActivity.length,
-        activitySnapshot.volumeSettings.length
+        activitySnapshot.volumeSettings.length,
+        activitySnapshot.activityEvents.length
       );
       await db.insertUnreads(activitySnapshot.channelActivity);
       await db.insertThreadActivity(activitySnapshot.threadActivity);
       await db.mergeVolumeSettings(activitySnapshot.volumeSettings);
+      await db.insertActivityEvents(activitySnapshot.activityEvents);
     },
     queueDebounce,
     { leading: true, trailing: true }
@@ -357,6 +361,9 @@ const handleActivityUpdate = (queueDebounce: number = 500) => {
         break;
       case 'updateVolumeSetting':
         queue.volumeSettings.push(event.update);
+        break;
+      case 'addActivityEvent':
+        queue.activityEvents.push(event.event);
         break;
     }
     processQueue();

@@ -104,3 +104,10 @@ export async function setDefaultNotificationLevel(level: ub.NotificationLevel) {
     ]);
   }
 }
+
+export async function advanceActivitySeenMarker(timestamp: number) {
+  const existingMarker = await db.getActivitySeenMarker();
+  if (timestamp > existingMarker) {
+    db.storeActivitySeenMarker(timestamp);
+  }
+}
