@@ -77,7 +77,12 @@ export default function ChatListScreen(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
         setSelectedGroup(item);
-      } else if (item.group && !featureFlags.isEnabled('channelSwitcher')) {
+      } else if (
+        item.group &&
+        !featureFlags.isEnabled('channelSwitcher') &&
+        // Should navigate to channel if it's pinned as a channel
+        (!item.pin || item.pin.type === 'group')
+      ) {
         props.navigation.navigate('GroupChannels', { group: item.group });
       } else {
         props.navigation.navigate('Channel', { channel: item });
