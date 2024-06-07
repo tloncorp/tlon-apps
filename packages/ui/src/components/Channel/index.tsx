@@ -198,6 +198,7 @@ export function Channel({
                         }
                         goToSearch={goToSearch}
                         showSpinner={isLoadingPosts}
+                        showMenuButton={!isChatChannel}
                       />
                       <KeyboardAvoidingView
                         behavior={
@@ -327,7 +328,6 @@ export function Channel({
                                 showAttachmentButton={
                                   channel.type !== 'gallery'
                                 }
-                                backgroundColor="$secondaryBackground"
                               />
                             )}
                           {!isChatChannel && canWrite && !showBigInput && (

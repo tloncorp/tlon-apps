@@ -71,7 +71,7 @@ interface ChannelAction {
   label: string;
   actionType?: 'destructive';
 }
-function getPostActions(
+export function getPostActions(
   post: db.Post,
   channelType: db.ChannelType
 ): ChannelAction[] {
