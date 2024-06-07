@@ -85,7 +85,10 @@ export default function ChatListScreen(
       ) {
         props.navigation.navigate('GroupChannels', { group: item.group });
       } else {
-        props.navigation.navigate('Channel', { channel: item });
+        props.navigation.navigate('Channel', {
+          channel: item,
+          selectedPostId: item.firstUnreadPostId,
+        });
       }
     },
     [props.navigation]

@@ -57,7 +57,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     uploaderKey: `${currentChannelId}`,
   });
 
-  const selectedPostId = props.route.params.selectedPost?.id;
+  const selectedPostId = props.route.params.selectedPostId;
   const unread = channel?.unread;
   const firstUnreadId =
     unread &&

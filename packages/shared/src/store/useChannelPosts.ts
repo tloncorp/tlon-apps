@@ -65,7 +65,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       return secondResult ?? [];
     },
     queryKey: [
-      ['channelPosts', options.channelId, mountTime],
+      ['channelPosts', options.channelId, options.cursor, mountTime],
       useKeyFromQueryDeps(db.getChannelPosts, options),
     ],
     getNextPageParam: (
@@ -110,6 +110,12 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       };
     },
   });
+
+  useEffect(() => {
+    if (query.error) {
+      console.error('useChannelPosts error:', query.error);
+    }
+  }, [query.error]);
 
   const rawPosts = useMemo<db.Post[] | null>(
     () => query.data?.pages.flatMap((p) => p) ?? null,

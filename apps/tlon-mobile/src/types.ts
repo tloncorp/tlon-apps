@@ -22,7 +22,7 @@ export type HomeStackParamList = {
   ChatList: undefined;
   Channel: {
     channel: db.Channel;
-    selectedPost?: db.Post;
+    selectedPostId?: string | null;
   };
   GroupChannels: {
     group: db.Group;
