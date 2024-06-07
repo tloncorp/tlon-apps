@@ -1,7 +1,6 @@
 /-  u=ui
 /+  gj=groups-json, cj=chat-json, dj=channel-json
-::  group flag + channel flag
-|_  =init:u
+|_  init=init-1:u
 ++  grad  %noun
 ++  grow
   |%

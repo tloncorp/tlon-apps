@@ -13,6 +13,7 @@ type ShortcutsEditorInstance = {
   newLineInCode: () => void;
   liftEmptyBlock: () => void;
   splitBlock: () => void;
+  splitListItem: (type: listItemType) => void;
 };
 
 declare module '@10play/tentap-editor' {
@@ -22,14 +23,17 @@ declare module '@10play/tentap-editor' {
 
 export enum ShortcutsActionType {
   createParagraphNear = 'create-paragraph-near',
+  splitListItem = 'split-list-item',
   newLineInCode = 'new-line-in-code',
   liftEmptyBlock = 'toggle-lift-empty-block',
   splitBlock = 'split-block',
 }
 
+type listItemType = 'listItem' | 'taskItem';
+
 type ShortcutsMessage = {
   type: ShortcutsActionType;
-  payload?: undefined;
+  payload?: undefined | { type: listItemType };
 };
 
 function Shortcuts(bindings: { [keyCode: string]: KeyboardShortcutCommand }) {
@@ -45,7 +49,7 @@ export const ShortcutsBridge = new BridgeExtension<
   ShortcutsEditorInstance,
   ShortcutsMessage
 >({
-  //@ts-expect-error version mismatch between tiptap and tentap
+  //@ts-expect-error - not an actual type mismatch
   tiptapExtension: Shortcuts({
     // this is necessary to override the default behavior of the editor
     // which is to insert a new paragraph when the user presses enter.
@@ -56,10 +60,15 @@ export const ShortcutsBridge = new BridgeExtension<
     switch (message.type) {
       // we used all of these actions to create a new paragraph
       // in the tiptap editor on the web.
-      // for now it looks likwe we just need splitBlock, but we'll
+      // for now it looks like we just need splitBlock, but we'll
       // keep the rest of the actions here for reference/possible future use.
       case ShortcutsActionType.createParagraphNear:
         editor.chain().focus().createParagraphNear().run();
+        break;
+      case ShortcutsActionType.splitListItem:
+        if (message.payload) {
+          editor.chain().focus().splitListItem(message.payload.type).run();
+        }
         break;
       case ShortcutsActionType.newLineInCode:
         editor.chain().focus().newlineInCode().run();
@@ -84,6 +93,11 @@ export const ShortcutsBridge = new BridgeExtension<
         sendBridgeMessage({ type: ShortcutsActionType.newLineInCode }),
       liftEmptyBlock: () =>
         sendBridgeMessage({ type: ShortcutsActionType.liftEmptyBlock }),
+      splitListItem: (type) =>
+        sendBridgeMessage({
+          type: ShortcutsActionType.splitListItem,
+          payload: { type },
+        }),
       splitBlock: () =>
         sendBridgeMessage({ type: ShortcutsActionType.splitBlock }),
     };
@@ -94,6 +108,8 @@ export const ShortcutsBridge = new BridgeExtension<
       canNewLineInCode: editor.can().newlineInCode(),
       canLiftEmptyBlock: editor.can().liftEmptyBlock(),
       canSplitBlock: editor.can().splitBlock(),
+      canSplitListItem: (type: listItemType) =>
+        editor.can().splitListItem(type),
     };
   },
 });

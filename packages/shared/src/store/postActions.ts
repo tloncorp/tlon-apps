@@ -7,26 +7,79 @@ export async function sendPost({
   channel,
   authorId,
   content,
+  metadata,
 }: {
   channel: db.Channel;
   authorId: string;
   content: urbit.Story;
+  metadata?: db.PostMetadata;
 }) {
-  // optimistic update
-  const cachePost = api.buildCachePost({ authorId, channel, content });
-  await db.insertChannelPosts(channel.id, [cachePost]);
+  // if first message of a pending group dm, we need to first create
+  // it on the backend
+  if (channel.type === 'groupDm' && channel.isPendingChannel) {
+    await api.createGroupDm({
+      id: channel.id,
+      members:
+        channel.members
+          ?.map((m) => m.contactId)
+          .filter((m) => m !== authorId) ?? [],
+    });
+    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+  }
 
+  // optimistic update
+  const cachePost = db.buildPendingPost({ authorId, channel, content });
+  await db.insertChannelPosts({
+    channelId: channel.id,
+    posts: [cachePost],
+    older: sync.channelCursors.get(channel.id),
+  });
+  sync.channelCursors.set(channel.id, cachePost.id);
   try {
     await api.sendPost({
       channelId: channel.id,
       authorId,
       content,
+      metadata: metadata,
       sentAt: cachePost.sentAt,
     });
-    sync.syncChannelMessageDelivery({ channelId: channel.id });
+    await sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+  }
+}
+
+export async function editPost({
+  post,
+  content,
+  parentId,
+  metadata,
+}: {
+  post: db.Post;
+  content: urbit.Story;
+  parentId?: string;
+  metadata?: db.PostMetadata;
+}) {
+  // optimistic update
+  await db.updatePost({ id: post.id, content: JSON.stringify(content) });
+
+  try {
+    await api.editPost({
+      channelId: post.channelId,
+      postId: post.id,
+      authorId: post.authorId,
+      sentAt: post.sentAt,
+      content,
+      metadata,
+      parentId,
+    });
+    sync.syncChannelMessageDelivery({ channelId: post.channelId });
+  } catch (e) {
+    console.error('Failed to edit post', e);
+
+    // rollback optimistic update
+    await db.updatePost({ id: post.id, content: post.content });
   }
 }
 
@@ -44,13 +97,13 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   // optimistic update
-  const cachePost = api.buildCachePost({
+  const cachePost = db.buildPendingPost({
     authorId,
     channel: channel,
     content,
     parentId,
   });
-  await db.insertChannelPosts(channel.id, [cachePost]);
+  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
   await db.addReplyToPost({
     parentId,
     replyAuthor: cachePost.authorId,
@@ -111,7 +164,7 @@ export async function deletePost({ post }: { post: db.Post }) {
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
-    await db.insertChannelPosts(post.channelId, [post]);
+    await db.insertChannelPosts({ channelId: post.channelId, posts: [post] });
   }
 }
 

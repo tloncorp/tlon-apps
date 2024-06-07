@@ -552,7 +552,7 @@ export const group: db.Group = {
   coverImageColor: '#000000',
   iconImage: null,
   iconImageColor: '#FFFFFF',
-  isJoined: true,
+  currentUserIsMember: true,
   lastPostAt: null,
   lastPostId: null,
   description: 'Tlon Local',
@@ -588,7 +588,7 @@ export const group: db.Group = {
       membershipType: 'group',
     },
   ],
-  isSecret: false,
+  privacy: 'public',
 };
 
 export const fakeStrings: string[] = [
@@ -646,7 +646,8 @@ const getRandomFakeContact = () => {
 
 export const createFakePost = (
   type?: db.PostType,
-  content?: string
+  content?: string,
+  image?: string
 ): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
@@ -658,6 +659,7 @@ export const createFakePost = (
 
   const fakeRandomContent = getRandomFakeContent() as unknown as string;
   const contentOrFake = content ?? fakeRandomContent;
+  const fakeImage = image ? createImageContent(image) : null;
 
   const textContent = getTextContent(JSON.parse(contentOrFake)) ?? null;
 
@@ -665,7 +667,7 @@ export const createFakePost = (
     id: `${ship}-${id}`,
     authorId: ship,
     author: fakeContact,
-    content: contentOrFake,
+    content: image ? fakeImage : contentOrFake,
     sentAt: randomSentAtSameDay,
     ...createFakeReplyMeta(),
     type: type ?? 'chat',
@@ -757,14 +759,14 @@ const dates = {
 export const groupWithColorAndNoImage: db.Group = {
   id: '1',
   title: 'Test Group',
-  isSecret: false,
+  privacy: 'private',
   unreadCount: 1,
   iconImage: null,
   iconImageColor: '#FF00FF',
   coverImage: null,
   coverImageColor: null,
   description: 'A test group',
-  isJoined: true,
+  currentUserIsMember: true,
   lastPostId: 'test-post',
   lastPostAt: dates.now,
   lastPost: { ...createFakePost() },

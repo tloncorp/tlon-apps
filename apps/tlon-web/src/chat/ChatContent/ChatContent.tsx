@@ -55,7 +55,7 @@ interface ShipMentionProps {
   ship: string;
 }
 
-function ShipMention({ ship }: ShipMentionProps) {
+export function ShipMention({ ship }: ShipMentionProps) {
   const location = useLocation();
 
   return (
@@ -215,7 +215,7 @@ export function BlockContent({
   );
 }
 
-function ChatContent({
+function ContentRenderer({
   story,
   isScrolling = false,
   className = '',
@@ -346,4 +346,4 @@ function ChatContent({
   );
 }
 
-export default React.memo(ChatContent);
+export default React.memo(ContentRenderer);

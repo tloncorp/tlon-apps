@@ -1,16 +1,15 @@
-import {
-  Kind,
-  Reply,
-  ReplyTuple,
-  Unread,
-} from '@tloncorp/shared/dist/urbit/channel';
-import { daToUnix } from '@urbit/aura';
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
+import { Kind, Reply, ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { daToUnix, parseUd } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';
+
+import { Unread } from '@/state/unreads';
 
 export interface ReplyProps {
   han: Kind;
   noteId: string;
+  parent: MessageKey;
   time: BigInteger;
   reply: Reply;
   newAuthor: boolean;
@@ -43,9 +42,9 @@ export function setNewDaysForReplies(
 }
 
 export function groupReplies(
-  noteId: string,
+  parent: MessageKey,
   replies: ReplyTuple[],
-  unread: Unread
+  unread?: Unread
 ) {
   const grouped: Record<string, ReplyProps[]> = {};
   let currentTime: string;
@@ -61,7 +60,7 @@ export function groupReplies(
     const newAuthor =
       prev && prev[1] !== null ? author !== prev[1].memo.author : true;
     const unreadUnread =
-      unread && unread.unread?.id === q.seal.id ? unread : undefined;
+      unread && unread.lastUnread?.id === q.seal.id ? unread : undefined;
 
     if (newAuthor) {
       currentTime = time;
@@ -74,11 +73,12 @@ export function groupReplies(
     grouped[currentTime].push({
       han: 'diary',
       time: t,
+      parent,
       reply: q,
       newAuthor,
-      noteId,
+      noteId: parseUd(parent.time).toString(),
       newDay: false,
-      unreadCount: unreadUnread && unread.count,
+      unreadCount: (unreadUnread && unread?.count) || 0,
     });
   });
 

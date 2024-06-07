@@ -1,11 +1,12 @@
-import { PostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { memo, useCallback, useMemo } from 'react';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
+import AuthorRow from '../AuthorRow';
+import ChatContent from '../ContentRenderer';
 import { Icon } from '../Icon';
-import AuthorRow from './AuthorRow';
-import ChatContent from './ChatContent';
+import { MessageInput } from '../MessageInput';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
@@ -18,14 +19,16 @@ const NoticeWrapper = ({
 }) => {
   if (isNotice) {
     return (
-      <XStack gap="$m">
-        <Icon
-          type="AddPerson"
-          color="$secondaryText"
-          size="$m"
-          backgroundColor={'$secondaryBackground'}
-        />
-        {children}
+      <XStack alignItems="center" padding="$l">
+        <View width={'$2xl'} flex={1} height={1} backgroundColor="$border" />
+        <View
+          paddingHorizontal="$m"
+          backgroundColor="$border"
+          borderRadius={'$2xl'}
+        >
+          {children}
+        </View>
+        <View flex={1} height={1} backgroundColor="$border" />
       </XStack>
     );
   }
@@ -40,6 +43,9 @@ const ChatMessage = ({
   onLongPress,
   showReplies,
   currentUserId,
+  editing,
+  editPost,
+  setEditingPost,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -48,17 +54,15 @@ const ChatMessage = ({
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
+  editing?: boolean;
+  editPost?: (post: db.Post, content: Story) => void;
+  setEditingPost?: (post: db.Post | undefined) => void;
 }) => {
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
     showAuthor = false;
   }
-
-  const content = useMemo(
-    () => JSON.parse(post.content as string) as PostContent,
-    [post.content]
-  );
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -106,23 +110,39 @@ const ChatMessage = ({
             author={post.author}
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
+            type={post.type}
             // roles={roles}
           />
         </View>
       ) : null}
-      <View paddingLeft="$4xl">
-        {post.hidden ? (
+      <View paddingLeft={!isNotice && '$4xl'}>
+        {editing ? (
+          <MessageInput
+            groupMembers={[]}
+            storeDraft={() => {}}
+            clearDraft={() => {}}
+            getDraft={async () => ({})}
+            shouldBlur={false}
+            setShouldBlur={() => {}}
+            send={() => {}}
+            channelId={post.channelId}
+            editingPost={post}
+            editPost={editPost}
+            setEditingPost={setEditingPost}
+          />
+        ) : post.hidden ? (
           <SizableText color="$secondaryText">
             You have hidden or flagged this message.
           </SizableText>
         ) : (
           <NoticeWrapper isNotice={isNotice}>
             <ChatContent
-              story={content}
+              post={post}
               isNotice={isNotice}
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}
               deliveryStatus={post.deliveryStatus}
+              isEdited={post.isEdited ?? false}
             />
           </NoticeWrapper>
         )}

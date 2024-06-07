@@ -9,8 +9,10 @@ interface SyncOperation {
   reject: (err: unknown) => void;
 }
 
+export class QueueClearedError extends Error {}
+
 class SyncQueue {
-  concurrency = 2;
+  concurrency = 3;
   queue: SyncOperation[];
   isSyncing: boolean;
   activeThreads = 0;
@@ -31,7 +33,7 @@ class SyncQueue {
   clear() {
     const oldQueue = this.queue;
     this.queue = [];
-    oldQueue.forEach((p) => p.reject(new Error('Queue cleared')));
+    oldQueue.forEach((p) => p.reject(new QueueClearedError('Queue cleared')));
   }
 
   async syncNext() {

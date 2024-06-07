@@ -8,7 +8,6 @@ import { ShipOption } from '@/components/ShipSelector';
 import {
   SendMessageVariables,
   useCreateMultiDm,
-  useDmUnreads,
   useMultiDms,
   useSendMessage,
 } from '@/state/chat';
@@ -16,6 +15,7 @@ import {
   useForceNegotiationUpdate,
   useNegotiateMulti,
 } from '@/state/negotiation';
+import { useUnreads } from '@/state/unreads';
 
 import { createStorageKey, newUv } from './utils';
 
@@ -30,7 +30,7 @@ export default function useMessageSelector() {
   const isMultiDm = ships.length > 1;
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
-  const { data: unreads } = useDmUnreads();
+  const unreads = useUnreads();
   const { mutate: sendMessage } = useSendMessage();
   const { mutateAsync: createMultiDm } = useCreateMultiDm();
 
@@ -52,9 +52,9 @@ export default function useMessageSelector() {
     }
 
     return (
-      Object.entries(unreads).find(([flag, _unread]) => {
+      Object.entries(unreads).find(([source, _unread]) => {
         const theShip = ships[0].value;
-        const sameDM = theShip === flag;
+        const sameDM = `ship/${theShip}` === source;
         return sameDM;
       })?.[0] ?? null
     );
@@ -74,8 +74,8 @@ export default function useMessageSelector() {
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
-      const unread = unreads[key];
-      const newUnread = unreads[k];
+      const unread = unreads[`club/${key}`];
+      const newUnread = unreads[`club/${k}`];
       const newer =
         !unread || (unread && newUnread && newUnread.recency > unread.recency);
       if (sameDM && newer) {

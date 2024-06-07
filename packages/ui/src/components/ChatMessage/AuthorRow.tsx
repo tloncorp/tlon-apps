@@ -2,23 +2,10 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { SizableText, View, XStack } from '../../core';
+import { SizableText, XStack } from '../../core';
 import { Avatar } from '../Avatar';
+import { Badge } from '../Badge';
 import ContactName from '../ContactName';
-
-const RoleBadge = ({ role }: { role: string }) => {
-  return (
-    <View
-      borderRadius="$l"
-      backgroundColor="$secondaryBackground"
-      paddingHorizontal="$s"
-    >
-      <SizableText color="$secondaryText" size="$s">
-        {role}
-      </SizableText>
-    </View>
-  );
-};
 
 export default function AuthorRow({
   author,
@@ -45,7 +32,7 @@ export default function AuthorRow({
       <SizableText color="$secondaryText" size="$s" position="relative" top={1}>
         {timeDisplay}
       </SizableText>
-      {firstRole && <RoleBadge role={firstRole} />}
+      {firstRole && <Badge text={firstRole} type="neutral" />}
     </XStack>
   );
 }

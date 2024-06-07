@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark
+/-  c=channels, g=groups, ha=hark, activity
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate
 /+  utils=channel-utils, volume, s=subscriber
@@ -527,6 +527,13 @@
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
+  ::
+      [%activity %submit ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"{<dap.bowl>} failed to submit activity" u.p.sign)
+    cor
+  ::
       [%contacts @ ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -605,9 +612,12 @@
     [%v0 +.pole]
   ?+    pole  [~ ~]
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
-      [%x %v2 %channels ~]  ``channels-2+!>((uv-channels-2:utils v-channels))
+    ::
+        [%x %v2 %channels full=?(~ [%full ~])]
+      ``channels-2+!>((uv-channels-2:utils v-channels ?=(^ full.pole)))
+    ::
       [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
-      [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels)])
+      [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels |)])
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x v=?(%v0 %v1) =kind:c ship=@ name=@ rest=*]
@@ -695,6 +705,10 @@
 ::
 ++  from-self  =(our src):bowl
 ::
+++  scry-path
+  |=  [agent=term =path]
+  ^-  ^path
+  (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   ++  ca-core  .
@@ -722,7 +736,63 @@
   ++  ca-sub-wire  (weld ca-area /updates)
   ++  ca-give-unread
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
-::
+  ::
+  ++  ca-activity
+    =,  activity
+    |%
+    ++  on-post
+      |=  v-post:c
+      ^+  ca-core
+      ?:  =(author our.bowl)  ca-core
+      =/  mention=?  (was-mentioned:utils content our.bowl)
+      =/  action
+        [%add %post [[author id] id] nest group.perm.perm.channel content mention]
+      (send ~[action])
+    ++  on-reply
+      |=  [parent=v-post:c v-reply:c]
+      ^+  ca-core
+      ?:  =(author our.bowl)  ca-core
+      =/  mention=?  (was-mentioned:utils content our.bowl)
+      =/  in-replies
+          %+  lien  (tap:on-v-replies:c replies.parent)
+          |=  [=time reply=(unit v-reply:c)]
+          ?~  reply  |
+          =(author.u.reply our.bowl)
+      =/  =path  (scry-path %activity /volume-settings/noun)
+      =+  .^(settings=volume-settings %gx path)
+      =/  parent-key=message-key  [[author id]:parent id.parent]
+      =/  =action
+        :*  %add  %reply
+            [[author id] id]
+            parent-key
+            nest
+            group.perm.perm.channel
+            content
+            mention
+        ==
+      ::  only follow thread if we haven't adjusted settings already
+      ::  and if we're the author of the post, mentioned, or in the replies
+      =/  thread=source  [%thread parent-key nest group.perm.perm.channel]
+      ?.  ?&  !(~(has by settings) thread)
+              ?|  mention
+                  in-replies
+                  =(author.parent our.bowl)
+              ==
+          ==
+        (send ~[action])
+      =/  vm=volume-map  [[%reply & &] ~ ~]
+      (send ~[[%adjust thread `vm] action])
+    ++  send
+      |=  actions=(list action)
+      ^+  ca-core
+      ?.  .^(? %gu (scry-path %activity /$))
+        ca-core
+      %-  emil
+      %+  turn  actions
+      |=  =action
+      =/  =cage  activity-action+!>(action)
+      [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+    --
   ::
   ::  handle creating a channel
   ::
@@ -734,6 +804,7 @@
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group.create
     =.  last-read.remark.channel  now.bowl
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init nest group.create]])
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld ca-area /create) %agent [our.bowl server] %poke cage)
   ::
@@ -749,6 +820,7 @@
     =.  last-read.remark.channel  now.bowl
     =.  ca-core  ca-give-unread
     =.  ca-core  (ca-response %join group)
+    =.  ca-core  (send:ca-activity ~[[%add %chan-init n group]])
     (ca-safe-sub |)
   ::
   ::  handle an action from the client
@@ -772,7 +844,7 @@
     =?  ca-core  =(%read -.a-remark)
       %-  emil
       =/  last-read  last-read.remark.channel
-      =+  .^(=carpet:ha %gx /(scot %p our.bowl)/hark/(scot %da now.bowl)/desk/groups/latest/noun)
+      =+  .^(=carpet:ha %gx (scry-path %hark /desk/groups/latest/noun))
       %+  murn
         ~(tap by cable.carpet)
       |=  [=rope:ha =thread:ha]
@@ -808,6 +880,7 @@
         ==
       ==
     =.  ca-core  ca-give-unread
+    ::TODO  %read activity-action?
     (ca-response a-remark)
   ::
   ::  proxy command to host
@@ -1132,6 +1205,12 @@
     ?:  ?=(%set -.u-post)
       =?  recency.remark.channel  ?=(^ post.u-post)
         (max recency.remark.channel id-post)
+      =?  ca-core  ?&  ?=(^ post.u-post)
+                       |(?=(~ post) (gth rev.u.post.u-post rev.u.u.post))
+                   ==
+        ::REVIEW  this might re-submit on edits. is that what we want?
+        ::        it looks like %activity inserts even if it's a duplicate.
+        (on-post:ca-activity u.post.u-post)
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
@@ -1203,6 +1282,8 @@
           `(uv-reply:utils id-post u.reply.u-reply)
         =?  ca-core  ?=(^ reply.u-reply)
           (on-reply:ca-hark id-post post u.reply.u-reply)
+        =?  ca-core  ?=(^ reply.u-reply)
+          (on-reply:ca-activity post u.reply.u-reply)
         =?  pending.channel  ?=(^ reply.u-reply)
           =/  memo  +.+.u.reply.u-reply
           =/  client-id  [author sent]:memo
@@ -2042,19 +2123,29 @@
   ++  ca-recheck
     |=  sects=(set sect:g)
     =/  =flag:g  group.perm.perm.channel
-    =/  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    =/  exists-path  (weld groups-prefix /exists/(scot %p p.flag)/[q.flag])
+    =/  exists-path
+      (scry-path %groups /exists/(scot %p p.flag)/[q.flag])
     =+  .^(exists=? %gx exists-path)
     ?.  exists  ca-core
     =/  =path
-      %+  weld
-        groups-prefix
+      %+  scry-path  %groups
       /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
     =+  .^(group=group-ui:g %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
+    ::  toggle the volume based on permissions
+    =/  =source:activity  [%channel nest flag]
+    ?.  (can-read:ca-perms our.bowl)
+      (send:ca-activity [%adjust source ~] ~)
+    =+  .^(=volume-settings:activity %gx (scry-path %activity /volume-settings/noun))
+    =.  ca-core
+      ::  if we don't have a setting, no-op
+      ?~  setting=(~(get by volume-settings) source)  ca-core
+      ::  if they have a setting that's not mute, retain it otherwise
+      ::  delete setting if it's mute so it defaults
+      ?.  =(setting mute:activity)  ca-core
+      (send:ca-activity ~[[%adjust source ~]])
     ::  if our read permissions restored, re-subscribe
-    ?:  (can-read:ca-perms our.bowl)  (ca-safe-sub |)
-    ca-core
+    (ca-safe-sub |)
   ::
   ::  assorted helpers
   ::
@@ -2071,6 +2162,7 @@
   ++  ca-leave
     =.  ca-core  ca-simple-leave
     =.  ca-core  (ca-response %leave ~)
+    =.  ca-core  (send:ca-activity [%del %channel nest group.perm.perm.channel] ~)
     =.  gone  &
     ca-core
   --

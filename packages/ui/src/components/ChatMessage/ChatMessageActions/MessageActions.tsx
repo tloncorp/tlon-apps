@@ -14,25 +14,31 @@ export default function MessageActions({
   onReply,
   channelType,
   post,
+  currentUserId,
+  onEdit,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
   post: db.Post;
+  currentUserId: string;
   channelType: db.ChannelType;
 }) {
   const { setReferences } = useReferences();
   const postActions = useMemo(() => {
     return getPostActions(post, channelType).filter((action) => {
-      // if undelivered or already in a thread, don't show reply
-      if (
-        action.id === 'startThread' &&
-        (post.deliveryStatus || post.parentId)
-      ) {
-        return false;
+      switch (action.id) {
+        case 'startThread':
+          // if undelivered or already in a thread, don't show reply
+          return !post.deliveryStatus && !post.parentId;
+        case 'edit':
+          // only show edit for current user's posts
+          return post.authorId === currentUserId;
+        default:
+          return true;
       }
-      return true;
     });
-  }, [post, channelType]);
+  }, [post, channelType, currentUserId]);
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -45,6 +51,7 @@ export default function MessageActions({
               post,
               dismiss,
               onReply,
+              onEdit,
               setReferences,
             })
           }
@@ -64,7 +71,7 @@ interface ChannelAction {
   label: string;
   actionType?: 'destructive';
 }
-function getPostActions(
+export function getPostActions(
   post: db.Post,
   channelType: db.ChannelType
 ): ChannelAction[] {
@@ -92,7 +99,6 @@ function getPostActions(
         // { id: 'quote', label: 'Quote' },
         { id: 'startThread', label: 'Start thread' },
         { id: 'copyText', label: 'Copy message text' },
-        { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: 'Hide' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
@@ -115,12 +121,14 @@ async function handleAction({
   post,
   dismiss,
   onReply,
+  onEdit,
   setReferences,
 }: {
   id: string;
   post: db.Post;
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
   setReferences: (references: Record<string, ContentReference | null>) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
@@ -133,7 +141,9 @@ async function handleAction({
     case 'quote':
       setReferences({ [path]: reference });
       break;
-
+    case 'edit':
+      onEdit?.();
+      break;
     case 'copyRef':
       Clipboard.setString(logic.getPostReferencePath(post));
       break;

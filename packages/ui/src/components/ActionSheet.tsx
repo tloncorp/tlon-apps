@@ -44,6 +44,7 @@ const ActionSheetActionFrame = styled(Stack, {
   context: ActionSheetActionContext,
   padding: '$l',
   borderWidth: 1,
+  gap: '$s',
   borderRadius: '$l',
   pressStyle: {
     backgroundColor: '$positiveBackground',
@@ -52,7 +53,7 @@ const ActionSheetActionFrame = styled(Stack, {
     default: {
       true: {
         backgroundColor: '$background',
-        borderColor: '$tertiaryText',
+        borderColor: '$shadow',
       },
     },
     success: {
@@ -157,10 +158,10 @@ const ActionSheetFrameComponent = ({
       {...props}
     >
       <Sheet.Overlay animation="quick" />
-      <Sheet.Frame>
+      <Sheet.LazyFrame>
         <Sheet.Handle paddingTop="$xl" />
         <ActionSheetFrame>{children}</ActionSheetFrame>
-      </Sheet.Frame>
+      </Sheet.LazyFrame>
     </Sheet>
   );
 };

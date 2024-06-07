@@ -1,3 +1,4 @@
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
@@ -8,20 +9,21 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
-import { usePerms, useUnread } from '@/state/channel/channel';
+import { usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
+import { useUnread } from '@/state/unreads';
 
 import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {
-  time: string;
+  parent: MessageKey;
   comments: ReplyTuple[] | null;
   loading: boolean;
 }
 
 export default function HeapDetailComments({
-  time,
+  parent,
   comments,
   loading,
 }: HeapDetailCommentsProps) {
@@ -38,7 +40,7 @@ export default function HeapDetailComments({
   const sort = useDiaryCommentSortMode(chFlag ?? '');
   const vessel = useVessel(groupFlag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const unread = useUnread(nest);
+  const unread = useUnread(`thread/${nest}/${parent.id}`);
   const sortedComments =
     comments?.sort(([a], [b]) => {
       if (sort === 'asc') {
@@ -49,7 +51,7 @@ export default function HeapDetailComments({
   const groupedReplies = !comments
     ? []
     : setNewDaysForReplies(
-        groupReplies(time, sortedComments, unread).sort(([a], [b]) => {
+        groupReplies(parent, sortedComments, unread).sort(([a], [b]) => {
           if (sort === 'asc') {
             return a.localeCompare(b);
           }

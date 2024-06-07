@@ -14,11 +14,11 @@ import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useFullChannel } from '@/logic/channel';
+import { useFullChannel, useMarkChannelRead } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { useIsMobile } from '@/logic/useMedia';
-import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
+import { useInfinitePosts } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
 import { useHeapDisplayMode, useHeapSortMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
@@ -48,7 +48,7 @@ function HeapChannel({ title }: ViewProps) {
   const sortMode = useHeapSortMode(chFlag);
   const { posts, fetchNextPage, hasNextPage, isLoading } =
     useInfinitePosts(nest);
-  const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
+  const { markRead, isLoading: isMarking } = useMarkChannelRead(nest);
 
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const { isDragging, isOver, droppedFiles, setDroppedFiles } =
@@ -63,7 +63,7 @@ function HeapChannel({ title }: ViewProps) {
 
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(() => markRead({ nest }), [markRead, nest]),
+    markRead,
     isMarking,
   });
 

@@ -1,31 +1,39 @@
+import { getThreadKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useParams } from 'react-router';
 import { Link, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import ActionMenu from '@/components/ActionMenu';
 import useLeap from '@/components/Leap/useLeap';
 import MobileHeader from '@/components/MobileHeader';
-import useActiveTab from '@/components/Sidebar/util';
+import useActiveTab, { useNavWithinTab } from '@/components/Sidebar/util';
+import VolumeSetting from '@/components/VolumeSetting';
 import BranchIcon from '@/components/icons/BranchIcon';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import {
+  useChannelCompatibility,
+  useChannelFlag,
+  useMarkChannelRead,
+} from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
+import { firstInlineSummary } from '@/logic/tiptap';
 import useIsEditingMessage from '@/logic/useIsEditingMessage';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   useAddReplyMutation,
-  useMarkReadMutation,
   useMyLastReply,
   usePerms,
   usePost,
@@ -36,9 +44,10 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
+import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
+import { chatStoreLogger, useChatStore } from '../useChatStore';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -49,7 +58,6 @@ export default function ChatThread() {
     idTime: string;
   }>();
   const isMobile = useIsMobile();
-  const { isChatInputFocused } = useChatInputFocus();
   const isEditing = useIsEditingMessage();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
@@ -58,8 +66,8 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const scrollTo = new URLSearchParams(location.search).get('reply');
-  const { mutate: markRead } = useMarkReadMutation();
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
   const replyId = useMemo(() => searchParams.get('replyTo'), [searchParams]);
@@ -70,6 +78,14 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
+  const time = formatUd(bigInt(idTime!));
+  const id = note ? `${note.essay.author}/${time}` : '';
+  const msgKey = {
+    id,
+    time: formatUd(bigInt(idTime!)),
+  };
+  const chatUnreadsKey = getThreadKey(flag, time);
+  const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
   if (note && replies !== null && idTimeIsNumber) {
@@ -101,7 +117,7 @@ export default function ChatThread() {
       }),
     [replies]
   );
-  const navigate = useNavigate();
+  const { navigate } = useNavWithinTab();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
@@ -113,9 +129,12 @@ export default function ChatThread() {
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useChatInfo(flag).unread?.readTimeout;
-  const isSmall = useMedia('(max-width: 1023px)');
-  const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
+  const readTimeout = useUnread(chatUnreadsKey)?.readTimeout;
+  const clearOnNavRef = useRef({
+    readTimeout,
+    chatUnreadsKey,
+    markRead,
+  });
   const activeTab = useActiveTab();
 
   const returnURL = useCallback(
@@ -135,10 +154,11 @@ export default function ChatThread() {
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(flag, () => markRead({ nest }));
-  }, [nest, flag, markRead]);
+    delayedRead(chatUnreadsKey, markRead);
+  }, [chatUnreadsKey, markRead]);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -152,20 +172,20 @@ export default function ChatThread() {
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { isSmall, readTimeout, nest, flag, markRead };
-  }, [readTimeout, nest, flag, isSmall, markRead]);
+    clearOnNavRef.current = {
+      readTimeout,
+      chatUnreadsKey,
+      markRead,
+    };
+  }, [readTimeout, chatUnreadsKey, markRead]);
 
   useEffect(
     () => () => {
       const curr = clearOnNavRef.current;
-      if (
-        curr.isSmall &&
-        curr.readTimeout !== undefined &&
-        curr.readTimeout !== 0
-      ) {
+      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
         chatStoreLogger.log('unmount read from thread');
-        useChatStore.getState().read(curr.flag);
-        curr.markRead({ nest: curr.nest });
+        useUnreadsStore.getState().read(curr.chatUnreadsKey);
+        curr.markRead();
       }
     },
     []
@@ -178,6 +198,8 @@ export default function ChatThread() {
   }, [replies, idTimeIsNumber, navigate, returnURLWithoutMsg]);
 
   const BackButton = isMobile ? Link : 'div';
+  const line = note ? firstInlineSummary(note.essay.content) : 'Thread';
+  const shortenedLine = line.length > 50 ? `${line.slice(0, 50)}...` : line;
 
   return (
     <div
@@ -199,6 +221,53 @@ export default function ChatThread() {
             </div>
           }
           pathBack={returnURL()}
+          action={
+            <div className="flex h-12 flex-row items-center justify-end space-x-2">
+              <ActionMenu
+                open={isMenuOpen}
+                onOpenChange={setIsMenuOpen}
+                actions={[
+                  {
+                    key: 'volume',
+                    content: (
+                      <div className="-mx-2 flex flex-col space-y-6">
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-lg text-gray-800">
+                            Notification Settings
+                          </span>
+                          <span className="text-[17px] font-normal text-gray-400">
+                            {`Thread: ${shortenedLine}`}
+                          </span>
+                        </div>
+                        <VolumeSetting
+                          source={{
+                            thread: {
+                              key: msgKey,
+                              channel: nest,
+                              group: groupFlag,
+                            },
+                          }}
+                        />
+                      </div>
+                    ),
+                    keepOpenOnClick: true,
+                  },
+                ]}
+              >
+                <button
+                  className={cn(
+                    'default-focus flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
+                  )}
+                  aria-label="Thread Options"
+                  onClick={() => {
+                    setIsMenuOpen(true);
+                  }}
+                >
+                  <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
+                </button>
+              </ActionMenu>
+            </div>
+          }
         />
       ) : (
         <header className={'header z-40'}>
@@ -231,13 +300,29 @@ export default function ChatThread() {
               </div>
             </BackButton>
 
-            <Link
-              to={returnURL()}
-              aria-label="Close"
-              className="icon-button h-6 w-6 bg-transparent"
-            >
-              <X16Icon className="h-4 w-4 text-gray-600" />
-            </Link>
+            <div className="flex space-x-2">
+              <button
+                className={cn(
+                  'default-focus flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
+                )}
+                aria-label="Thread Options"
+                onClick={() => {
+                  navigate(
+                    `/groups/${groupFlag}/channels/${nest}/message/${idTime}/volume`,
+                    true
+                  );
+                }}
+              >
+                <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
+              </button>
+              <Link
+                to={returnURL()}
+                aria-label="Close"
+                className="icon-button h-6 w-6 bg-transparent"
+              >
+                <X16Icon className="h-4 w-4 text-gray-600" />
+              </Link>
+            </div>
           </div>
         </header>
       )}
@@ -249,6 +334,7 @@ export default function ChatThread() {
             key={idTime}
             messages={orderedReplies || []}
             whom={flag}
+            parent={msgKey}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}

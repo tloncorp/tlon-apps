@@ -1,23 +1,42 @@
 import { useQuery } from '@tanstack/react-query';
 
 import {
+  initializeStorage,
+  setupSubscriptions,
   syncContacts,
   syncInitData,
+  syncLatestPosts,
   syncSettings,
   syncStaleChannels,
 } from './sync';
+import { QueueClearedError } from './syncQueue';
 
 export const useInitialSync = () => {
   return useQuery({
+    queryKey: ['init'],
     queryFn: async () => {
       try {
-        await Promise.all([syncInitData(), syncContacts(), syncSettings()]);
-        await syncStaleChannels();
+        // First sync the key bits in parallel.
+        await Promise.all([syncLatestPosts(), syncInitData(), syncContacts()]);
       } catch (e) {
-        console.log('SYNC ERROR', e);
+        handleSyncError(e);
       }
+      // Kick the rest off asynchronously so that it's not triggering the
+      // initial sync spinner.
+      Promise.all([
+        setupSubscriptions(),
+        initializeStorage(),
+        syncSettings(),
+      ]).catch((e) => {
+        handleSyncError(e);
+      });
       return true;
     },
-    queryKey: ['init'],
   });
 };
+
+function handleSyncError(e: Error) {
+  if (!(e instanceof QueueClearedError)) {
+    console.error('SYNC ERROR', e);
+  }
+}

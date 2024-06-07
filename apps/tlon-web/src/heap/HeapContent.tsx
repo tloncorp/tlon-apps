@@ -12,9 +12,11 @@ import {
   isInlineCode,
   isItalics,
   isLink,
+  isShip,
   isStrikethrough,
 } from '@tloncorp/shared/dist/urbit/content';
 
+import { ShipMention } from '@/chat/ChatContent/ChatContent';
 import ContentReference from '@/components/References/ContentReference';
 
 interface HeapContentProps {
@@ -108,11 +110,21 @@ export function InlineContent({ inline }: InlineContentProps) {
     );
   }
 
+  if (isShip(inline)) {
+    return <ShipMention ship={inline.ship} />;
+  }
+
   if (isBreak(inline)) {
     return <br />;
   }
 
-  throw new Error(`Unhandled message type: ${JSON.stringify(inline)}`);
+  console.log(`Unhandled message type: ${JSON.stringify(inline)}`);
+
+  return (
+    <span className="font-bold">
+      This content cannot be rendered, unhandled message type.
+    </span>
+  );
 }
 
 export default function HeapContent({

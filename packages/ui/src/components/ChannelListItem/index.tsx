@@ -2,6 +2,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
+import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { ListItem, type ListItemProps } from '../ListItem';
 
@@ -42,12 +43,18 @@ export default function ChannelListItem({
           </ListItem.Subtitle>
         )}
       </ListItem.MainContent>
-      <ListItem.EndContent position="relative" top={3}>
-        {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-        {model.unread?.count && model.unread.count > 0 ? (
-          <ListItem.Count>{model.unread.count}</ListItem.Count>
-        ) : null}
-      </ListItem.EndContent>
+      {model.isDmInvite ? (
+        <ListItem.EndContent justifyContent="center">
+          <Badge text="Invite" />
+        </ListItem.EndContent>
+      ) : (
+        <ListItem.EndContent>
+          {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
+          <ListItem.Count opacity={model.unread?.count ? 1 : 0}>
+            {model.unread?.count ?? 0}
+          </ListItem.Count>
+        </ListItem.EndContent>
+      )}
     </ListItem>
   );
 }
@@ -68,12 +75,13 @@ function ChannelListItemIcon({
         backgroundColor={'$secondaryBackground'}
       />
     );
-  } else if (model.type === 'dm' && model.members?.[0]?.contactId) {
+  } else if (model.type === 'dm') {
     return (
       <ListItem.AvatarIcon
-        backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId}
+        backgroundColor={'$transparent'}
         contact={model.members?.[0]?.contact}
+        contactId={model.members?.[0]?.contactId ?? model.id}
+        rounded
       />
     );
   } else {
@@ -95,7 +103,7 @@ function ChannelListItemIcon({
       return (
         <ListItem.TextIcon
           fallbackText={utils.getChannelTitle(model)}
-          backgroundColor={backgroundColor}
+          backgroundColor={backgroundColor ?? '$secondaryBackground'}
         />
       );
     }

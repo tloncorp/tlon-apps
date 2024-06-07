@@ -27,7 +27,7 @@ function DateDividerComponent(
       <span
         className={cn(
           'whitespace-nowrap px-3 font-semibold',
-          unreadCount ? 'text-blue' : 'text-gray-400'
+          unreadCount && 'text-blue'
         )}
       >
         {prettyDay}

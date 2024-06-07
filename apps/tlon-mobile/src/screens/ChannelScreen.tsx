@@ -1,164 +1,110 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { sync } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useChannel, usePostWithRelations } from '@tloncorp/shared/dist/store';
-import type { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useChannel,
+  useGroupPreview,
+  usePostWithRelations,
+} from '@tloncorp/shared/dist/store';
+import { Story } from '@tloncorp/shared/dist/urbit';
+import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
+import React, { useCallback } from 'react';
 
-import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { useImageUpload } from '../hooks/useImageUpload';
-import storage from '../lib/storage';
 import type { HomeStackParamList } from '../types';
+import { useChannelContext } from './useChannelContext';
 
 type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
-  useLayoutEffect(() => {
-    if (props.navigation.isFocused()) {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: 'none',
-        },
-      });
-    }
-
-    return () => {
-      props.navigation.getParent()?.setOptions({
-        tabBarStyle: {
-          display: undefined,
-        },
-      });
-    };
-  }, [props.navigation]);
-
   useFocusEffect(
     useCallback(() => {
       store.clearSyncQueue();
-    }, [])
+      if (props.route.params.channel.group?.isNew) {
+        store.markGroupVisited(props.route.params.channel.group);
+      }
+    }, [props.route.params.channel.group])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
   );
-  const calmSettingsQuery = store.useCalmSettings({
-    userId: useCurrentUserId(),
-  });
-  const channelQuery = store.useChannelWithLastPostAndMembers({
-    id: currentChannelId,
-  });
-  const groupQuery = store.useGroup({
-    id: channelQuery.data?.groupId ?? '',
-  });
-  const selectedPost = props.route.params.selectedPost;
-  const hasSelectedPost = !!selectedPost;
 
-  const uploadInfo = useImageUpload({
-    uploaderKey: `${props.route.params.channel.id}`,
-  });
-
-  const postsQuery = store.useChannelPosts({
+  const {
+    negotiationStatus,
+    getDraft,
+    storeDraft,
+    clearDraft,
+    editingPost,
+    setEditingPost,
+    editPost,
+    contacts,
+    channel,
+    group,
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    calmSettings,
+    uploadInfo,
+    currentUserId,
+    performGroupAction,
+    headerMode,
+  } = useChannelContext({
     channelId: currentChannelId,
-    ...(hasSelectedPost
+    draftKey: currentChannelId,
+    uploaderKey: `${currentChannelId}`,
+  });
+
+  const selectedPostId = props.route.params.selectedPostId;
+  const unread = channel?.unread;
+  const firstUnreadId =
+    unread &&
+    (unread.countWithoutThreads ?? 0) > 0 &&
+    unread?.firstUnreadPostId;
+  const cursor = selectedPostId || firstUnreadId;
+  const {
+    posts,
+    query: postsQuery,
+    loadNewer,
+    loadOlder,
+    isLoading: isLoadingPosts,
+  } = store.useChannelPosts({
+    enabled: !!channel,
+    channelId: currentChannelId,
+    count: 50,
+    ...(cursor
       ? {
-          direction: 'around',
-          cursor: selectedPost.id,
+          mode: 'around',
+          cursor,
+          firstPageCount: 10,
         }
       : {
-          anchorToNewest: true,
+          mode: 'newest',
+          firstPageCount: 50,
         }),
-    count: 50,
   });
 
-  const posts = useMemo<db.Post[]>(
-    () => postsQuery.data?.pages.flatMap((p) => p) ?? [],
-    [postsQuery.data]
-  );
-
-  const contactsQuery = store.useContacts();
-
-  const { bottom } = useSafeAreaInsets();
-  const currentUserId = useCurrentUserId();
-
-  const messageSender = useCallback(
-    async (content: Story, channelId: string) => {
-      if (!currentUserId || !channelQuery.data) {
-        return;
+  const sendPost = useCallback(
+    async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
+      if (!channel) {
+        throw new Error('Tried to send message before channel loaded');
       }
       store.sendPost({
-        channel: channelQuery.data,
+        channel: channel,
         authorId: currentUserId,
         content,
+        metadata,
       });
-      uploadInfo.resetImageAttachment();
+      // prevents state update + render from blocking optimistic post insertion.
+      // may be better ways to handle...
+      setTimeout(() => {
+        uploadInfo.resetImageAttachment();
+      }, 20);
     },
-    [currentUserId, channelQuery.data, uploadInfo]
+    [currentUserId, channel, uploadInfo]
   );
-
-  useEffect(() => {
-    if (channelQuery.data?.groupId) {
-      sync.syncGroup(channelQuery.data?.groupId);
-    }
-  }, [channelQuery.data?.groupId]);
-
-  useEffect(() => {
-    if (groupQuery.error) {
-      console.error(groupQuery.error);
-    }
-  }, [groupQuery.error]);
-
-  // TODO: Removed sync-on-enter behavior while figuring out data flow.
-
-  const handleScrollEndReached = useCallback(() => {
-    if (postsQuery.hasNextPage && !postsQuery.isFetchingNextPage) {
-      postsQuery.fetchNextPage();
-    }
-  }, [postsQuery]);
-
-  const handleScrollStartReached = useCallback(() => {
-    if (postsQuery.hasPreviousPage && !postsQuery.isFetchingPreviousPage) {
-      postsQuery.fetchPreviousPage();
-    }
-  }, [postsQuery]);
-
-  const handleGoToPost = useCallback(
-    (post: db.Post) => {
-      props.navigation.push('Post', { post });
-    },
-    [props.navigation]
-  );
-
-  const handleGoToRef = useCallback(
-    (channel: db.Channel, post: db.Post) => {
-      if (channel.id === currentChannelId) {
-        props.navigation.navigate('Channel', { channel, selectedPost: post });
-      } else {
-        props.navigation.replace('Channel', { channel, selectedPost: post });
-      }
-    },
-    [props.navigation, currentChannelId]
-  );
-
-  const handleGoToImage = useCallback(
-    (post: db.Post, uri?: string) => {
-      // @ts-expect-error TODO: fix typing for nested stack navigation
-      props.navigation.navigate('ImageViewer', { post, uri });
-    },
-    [props.navigation]
-  );
-
-  const handleGoToSearch = useCallback(() => {
-    if (!channelQuery.data) {
-      return;
-    }
-    props.navigation.push('ChannelSearch', {
-      channel: channelQuery.data ?? null,
-    });
-  }, [props.navigation, channelQuery.data]);
 
   const handleChannelNavButtonPressed = useCallback(() => {
     setChannelNavOpen(true);
@@ -169,81 +115,56 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
-  const getDraft = useCallback(async () => {
-    try {
-      const draft = await storage.load({ key: `draft-${currentChannelId}` });
-
-      return draft;
-    } catch (e) {
-      return null;
-    }
-  }, [currentChannelId]);
-
-  const storeDraft = useCallback(
-    async (draft: JSONContent) => {
-      try {
-        await storage.save({ key: `draft-${currentChannelId}`, data: draft });
-      } catch (e) {
-        return;
-      }
-    },
-    [currentChannelId]
-  );
-
-  const clearDraft = useCallback(async () => {
-    try {
-      await storage.remove({ key: `draft-${currentChannelId}` });
-    } catch (e) {
-      return;
-    }
-  }, [currentChannelId]);
-
-  if (!channelQuery.data) {
+  if (!channel) {
     return null;
   }
 
   return (
-    <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
+    <>
       <Channel
-        channel={channelQuery.data}
+        headerMode={headerMode}
+        channel={channel}
         currentUserId={currentUserId}
-        calmSettings={calmSettingsQuery.data}
-        isLoadingPosts={
-          postsQuery.isFetchingNextPage || postsQuery.isFetchingPreviousPage
-        }
-        group={groupQuery.data ?? null}
-        contacts={contactsQuery.data ?? null}
+        calmSettings={calmSettings}
+        isLoadingPosts={isLoadingPosts}
+        hasNewerPosts={postsQuery.hasPreviousPage}
+        hasOlderPosts={postsQuery.hasNextPage}
+        group={group}
+        contacts={contacts}
         posts={posts}
-        selectedPost={
-          hasSelectedPost && posts?.length ? selectedPost?.id : undefined
-        }
+        selectedPostId={selectedPostId}
         goBack={props.navigation.goBack}
-        messageSender={messageSender}
-        goToPost={handleGoToPost}
-        goToImageViewer={handleGoToImage}
+        messageSender={sendPost}
+        goToPost={navigateToPost}
+        goToImageViewer={navigateToImage}
         goToChannels={handleChannelNavButtonPressed}
-        goToSearch={handleGoToSearch}
+        goToSearch={navigateToSearch}
         uploadInfo={uploadInfo}
-        onScrollEndReached={handleScrollEndReached}
-        onScrollStartReached={handleScrollStartReached}
-        onPressRef={handleGoToRef}
+        onScrollEndReached={loadOlder}
+        onScrollStartReached={loadNewer}
+        onPressRef={navigateToRef}
         usePost={usePostWithRelations}
+        useGroup={useGroupPreview}
+        onGroupAction={performGroupAction}
         useChannel={useChannel}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+        negotiationMatch={negotiationStatus.matchedOrPending}
       />
-      {groupQuery.data && (
+      {group && (
         <ChannelSwitcherSheet
           open={channelNavOpen}
           onOpenChange={(open) => setChannelNavOpen(open)}
-          group={groupQuery.data}
-          channels={groupQuery.data.channels || []}
-          contacts={contactsQuery.data ?? []}
-          paddingBottom={bottom}
+          group={group}
+          channels={group?.channels || []}
+          contacts={contacts ?? []}
           onSelect={handleChannelSelected}
         />
       )}
-    </View>
+    </>
   );
 }

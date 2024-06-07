@@ -1,4 +1,5 @@
 /-  a=activity
+/+  aj=activity-json
 |_  =action:a
 ++  grad  %noun
 ++  grow
@@ -8,5 +9,6 @@
 ++  grab
   |%
   ++  noun  action:a
+  ++  json  action:dejs:aj
   --
 --

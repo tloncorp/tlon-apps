@@ -1,12 +1,14 @@
 /-  a=activity
-|_  events=(list time-event:a)
+/+  aj=activity-json
+|_  =stream:a
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  events
+  ++  noun  stream
+  ++  json  (stream:enjs:aj stream)
   --
 ++  grab
   |%
-  ++  noun  (list event:a)
+  ++  noun  stream:a
   --
 --

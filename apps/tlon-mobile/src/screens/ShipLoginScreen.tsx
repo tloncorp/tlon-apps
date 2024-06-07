@@ -56,13 +56,11 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
       if (authCookie) {
         const shipId = getShipFromCookie(authCookie);
         if (await isEulaAgreed()) {
-          setShip(
-            {
-              ship: shipId,
-              shipUrl,
-            },
-            authCookie
-          );
+          setShip({
+            ship: shipId,
+            shipUrl,
+            authCookie,
+          });
         } else {
           navigation.navigate('EULA', { shipId, shipUrl, authCookie });
         }
@@ -87,7 +85,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           <HeaderButton title="Connect" onPress={onSubmit} isSubmit />
         ),
     });
-  }, [navigation, isSubmitting]);
+  }, [navigation, isSubmitting, tailwind, onSubmit]);
 
   useEffect(() => {
     if (errors.shipUrl && formattedShipUrl) {

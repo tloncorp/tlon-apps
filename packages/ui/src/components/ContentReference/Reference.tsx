@@ -12,8 +12,10 @@ export type ReferenceProps = {
 
 export const ReferenceContext = createStyledContext<{
   asAttachment?: boolean;
+  viewMode?: 'block' | 'chat' | 'note';
 }>({
   asAttachment: false,
+  viewMode: 'chat',
 });
 
 const ReferenceFrame = styled(YStack, {
@@ -29,6 +31,17 @@ const ReferenceFrame = styled(YStack, {
     asAttachment: {
       true: {
         width: Dimensions.get('window').width - 30,
+      },
+    },
+    viewMode: {
+      block: {
+        marginLeft: '$m',
+      },
+      chat: {
+        marginLeft: 0,
+      },
+      note: {
+        marginLeft: 0,
       },
     },
   } as const,
@@ -64,6 +77,17 @@ const ReferenceIcon = styled(Icon, {
     asAttachment: {
       true: {
         display: 'none',
+      },
+    },
+    viewMode: {
+      block: {
+        display: 'none',
+      },
+      chat: {
+        display: 'flex',
+      },
+      note: {
+        display: 'flex',
       },
     },
   } as const,

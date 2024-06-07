@@ -1,5 +1,10 @@
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
+  MessageKey,
+  Source,
+  getKey,
+} from '@tloncorp/shared/dist/urbit/activity';
+import {
   CacheId,
   ChannelsAction,
   Replies,
@@ -14,7 +19,6 @@ import {
   ClubDelta,
   Clubs,
   DMInit,
-  DMUnreadUpdate,
   DMUnreads,
   DmAction,
   HiddenMessages,
@@ -30,7 +34,6 @@ import {
   WritResponse,
   WritResponseDelta,
   WritSeal,
-  WritTuple,
   Writs,
   newWritTupleArray,
 } from '@tloncorp/shared/dist/urbit/dms';
@@ -44,7 +47,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
 import api from '@/api';
-import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
+import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import {
   LARGE_MESSAGE_FETCH_PAGE_SIZE,
   STANDARD_MESSAGE_FETCH_PAGE_SIZE,
@@ -52,10 +55,12 @@ import {
 import { isNativeApp } from '@/logic/native';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { whomIsDm } from '@/logic/utils';
+import { whomIsDm, whomIsNest } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { unreadsKey, useMarkReadMutation } from '../activity';
 import { PostStatus, TrackedPost } from '../channel/channel';
+import { useUnread, useUnreads } from '../unreads';
 import ChatKeys from './keys';
 import emptyMultiDm, {
   appendWritToLastPage,
@@ -176,13 +181,10 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
   };
 }
 
-export function initializeChat({ dms, clubs, invited, unreads }: DMInit) {
+export function initializeChat({ dms, clubs, invited }: DMInit) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
-  queryClient.setQueryData(ChatKeys.unreads(), () => unreads || {});
-
-  useChatStore.getState().update(unreads);
 }
 
 interface PageParam {
@@ -664,96 +666,22 @@ export function useDmIsPending(ship: string) {
   return pending.includes(ship);
 }
 
-export function useMarkDmReadMutation() {
-  const mutationFn = async (variables: { whom: string }) => {
-    const { whom } = variables;
-    await api.poke({
-      app: 'chat',
-      mark: 'chat-remark-action',
-      json: {
-        whom,
-        diff: { read: null },
-      },
+export function useMarkDmReadMutation(whom: string, thread?: MessageKey) {
+  const { mutateAsync, ...rest } = useMarkReadMutation();
+  const markDmRead = useCallback(() => {
+    const whomObj = whomIsDm(whom) ? { ship: whom } : { club: whom };
+    const source: Source = thread
+      ? { 'dm-thread': { whom: whomObj, key: thread } }
+      : { dm: whomObj };
+    return mutateAsync({
+      source,
     });
-  };
-
-  return useMutation({
-    mutationFn,
-  });
-}
-
-export function useDmUnreads() {
-  const dmUnreadsKey = ChatKeys.unreads();
-  const { mutate: markDmRead } = useMarkDmReadMutation();
-  const { pending } = usePendingDms();
-  const pendingRef = useRef(pending);
-  pendingRef.current = pending;
-
-  const invalidate = useRef(
-    _.debounce(
-      () => {
-        queryClient.invalidateQueries({
-          queryKey: dmUnreadsKey,
-          refetchType: 'none',
-        });
-      },
-      300,
-      { leading: true, trailing: true }
-    )
-  );
-
-  const eventHandler = (event: DMUnreadUpdate) => {
-    invalidate.current();
-    const { whom, unread } = event;
-
-    // we don't get an update on the pending subscription when rsvps are accepted
-    // but we do get an unread notification, so we use it here for invalidation
-    if (pendingRef.current.includes(whom)) {
-      queryClient.invalidateQueries(ChatKeys.pending());
-    }
-
-    if (unread !== null) {
-      useChatStore
-        .getState()
-        .handleUnread(whom, unread, () => markDmRead({ whom }));
-    }
-
-    queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
-      if (d === undefined) {
-        return undefined;
-      }
-
-      const newUnreads = { ...d };
-      newUnreads[event.whom] = unread;
-
-      return newUnreads;
-    });
-  };
-
-  const { data, ...query } = useReactQuerySubscription<
-    DMUnreads,
-    DMUnreadUpdate
-  >({
-    queryKey: dmUnreadsKey,
-    app: 'chat',
-    path: '/unreads',
-    scry: '/unreads',
-    onEvent: eventHandler,
-    options: {
-      retryOnMount: true,
-      refetchOnMount: true,
-    },
-  });
+  }, [whom, thread, mutateAsync]);
 
   return {
-    data: data || {},
-    ...query,
+    ...rest,
+    markDmRead,
   };
-}
-
-export function useDmUnread(whom: string) {
-  const unreads = useDmUnreads();
-  return unreads.data[whom];
 }
 
 export function useArchiveDm() {
@@ -808,6 +736,7 @@ export function useUnarchiveDm() {
 }
 
 export function useDmRsvpMutation() {
+  const { mutateAsync: markRead } = useMarkReadMutation();
   const mutationFn = async ({
     ship,
     accept,
@@ -815,7 +744,16 @@ export function useDmRsvpMutation() {
     ship: string;
     accept: boolean;
   }) => {
-    await api.poke({
+    markRead({
+      source: { dm: { ship } },
+      action: {
+        event: {
+          'dm-invite': { ship },
+        },
+      },
+    });
+
+    return api.poke({
       app: 'chat',
       mark: 'chat-dm-rsvp',
       json: {
@@ -838,7 +776,7 @@ export function useDmRsvpMutation() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries(ChatKeys.unreads());
+      queryClient.invalidateQueries(unreadsKey);
       queryClient.invalidateQueries(ChatKeys.pending());
       queryClient.invalidateQueries(['dms', 'dms']);
       queryClient.invalidateQueries(['dms', variables.ship]);
@@ -968,6 +906,7 @@ export function useRemoveFromMultiDm() {
 }
 
 export function useMutliDmRsvpMutation() {
+  const { mutateAsync: markRead } = useMarkReadMutation();
   const mutationFn = async ({
     id,
     accept,
@@ -978,7 +917,16 @@ export function useMutliDmRsvpMutation() {
     const action = multiDmAction(id, {
       team: { ship: window.our, ok: accept },
     });
-    await api.poke(action);
+
+    markRead({
+      source: { dm: { club: id } },
+      action: {
+        event: {
+          'dm-invite': { club: id },
+        },
+      },
+    });
+    return api.poke(action);
   };
 
   return useMutation({
@@ -1278,7 +1226,7 @@ export const infiniteDMsQueryFn =
   };
 
 export function useInfiniteDMs(whom: string, initialTime?: string) {
-  const unread = useDmUnread(whom);
+  const unread = useUnread(getKey(whom));
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
@@ -1366,20 +1314,14 @@ export function useTrackedMessageStatus(cacheId: CacheId) {
   );
 }
 
-export function useHasUnreadMessages() {
-  const chats = useChatStore((s) => s.chats);
-  const dms = useDms();
-  const clubs = useMultiDms();
-
-  return dms.concat(Object.keys(clubs)).some((k) => {
-    const chat = chats[k];
-    if (!chat) {
-      return false;
-    }
-
-    const { unread } = chat;
-    return Boolean(unread && !unread.seen);
-  });
+export function useCheckDmUnread() {
+  const unreads = useUnreads();
+  return useCallback(
+    (whom: string) => {
+      return unreads[whom].combined.status === 'unread';
+    },
+    [unreads]
+  );
 }
 
 export function useWrit(whom: string, writId: string, disabled = false) {
@@ -1671,47 +1613,8 @@ export function useDeleteDMReplyReactMutation() {
   });
 }
 
-export function useIsDmUnread(whom: string) {
-  const chatInfo = useChatInfo(whom);
-  const unread = chatInfo?.unread;
-  return Boolean(unread && !unread.seen);
-}
-
-const selChats = (s: ChatStore) => s.chats;
-export function useCheckDmUnread() {
-  const chats = useChatStore(selChats);
-
-  return useCallback(
-    (whom: string) => {
-      const chatInfo = chats[whom];
-      const unread = chatInfo?.unread;
-      return Boolean(unread && !unread.seen);
-    },
-    [chats]
-  );
-}
-
-export function useChatStoreDmUnreads(): string[] {
-  const chats = useChatStore(selChats);
-
-  return useMemo(
-    () =>
-      Object.entries(chats).reduce((acc, [k, v]) => {
-        if (whomIsDm(k)) {
-          const { unread } = v;
-          if (unread && !unread.seen) {
-            acc.push(k);
-          }
-        }
-
-        return acc;
-      }, [] as string[]),
-    [chats]
-  );
-}
-
 export function useMultiDmIsPending(id: string): boolean {
-  const unread = useDmUnread(id);
+  const unread = useUnread(getKey(id));
   const chat = useMultiDm(id);
 
   const isPending = chat && chat.hive.includes(window.our);

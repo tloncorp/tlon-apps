@@ -1,31 +1,50 @@
 import { PropsWithChildren } from 'react';
 
-import { Button } from '../components/Button';
-import { ColorTokens, SizeTokens, ThemeTokens, useTheme } from '../core';
+import { Button, ButtonProps } from '../components/Button';
+import {
+  ColorTokens,
+  RadiusTokens,
+  SizeTokens,
+  ThemeTokens,
+  useTheme,
+} from '../core';
 
 export function IconButton({
   children,
   onPress,
   size = '$s',
   color = '$primaryText',
+  backgroundColor = '$background',
+  backgroundColorOnPress = '$secondaryBackground',
   disabled = false,
-}: PropsWithChildren<{
-  onPress?: () => void;
-  size?: SizeTokens;
-  color?: ThemeTokens | ColorTokens;
-  disabled?: boolean;
-}>) {
+  radius = '$l',
+  ...rest
+}: PropsWithChildren<
+  {
+    onPress?: () => void;
+    size?: SizeTokens;
+    color?: ThemeTokens | ColorTokens;
+    backgroundColor?: ThemeTokens | ColorTokens | 'unset';
+    backgroundColorOnPress?: ThemeTokens | ColorTokens;
+    radius?: RadiusTokens;
+    disabled?: boolean;
+  } & ButtonProps
+>) {
   const theme = useTheme();
   return (
     <Button
       size={size}
-      width="$3xl"
-      height="$3xl"
       onPress={onPress}
       disabled={disabled}
+      borderRadius={radius}
+      pressStyle={{
+        backgroundColor: theme[backgroundColorOnPress]?.get(),
+      }}
+      backgroundColor={theme[backgroundColor]?.get()}
       // borderWidth="unset" because otherwise it would be set to 1px
       // and we don't want that for an icon button
       borderWidth="unset"
+      {...rest}
     >
       <Button.Icon color={theme[color]?.get()}>{children}</Button.Icon>
     </Button>
