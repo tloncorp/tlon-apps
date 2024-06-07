@@ -1,15 +1,4 @@
-import {
-  extractContentTypesFromPost,
-  findFirstImageBlock,
-  isImagePost,
-  isReferencePost,
-  isTextPost,
-  textPostIsLinkedImage,
-  textPostIsReference,
-  tiptap,
-} from '@tloncorp/shared/dist';
-import * as urbit from '@tloncorp/shared/dist/urbit';
-import { useMemo } from 'react';
+import { tiptap, usePostMeta } from '@tloncorp/shared/dist';
 import { Dimensions } from 'react-native';
 
 import { Image, Text, View, YStack } from '../../core';
@@ -38,44 +27,19 @@ export default function GalleryDetailView({
   // We want the content of the detail view to take up 100% of the screen width
   const WIDTH_DETAIL_VIEW_CONTENT = Dimensions.get('window').width;
 
-  const { inlines, references, blocks } = useMemo(
-    () => extractContentTypesFromPost(post),
-    [post]
-  );
+  const {
+    inlines,
+    references,
+    isText,
+    isImage,
+    isReference,
+    isLinkedImage,
+    isRefInText,
+    image,
+    linkedImage,
+  } = usePostMeta(post);
 
-  const postIsJustImage = useMemo(() => isImagePost(post), [post]);
-  const postIsJustText = useMemo(() => isTextPost(post), [post]);
-  const postIsJustReference = useMemo(() => isReferencePost(post), [post]);
-
-  const image = useMemo(
-    () => (postIsJustImage ? findFirstImageBlock(blocks)?.image : null),
-    [blocks, postIsJustImage]
-  );
-
-  const textPostIsJustLinkedImage = useMemo(
-    () => textPostIsLinkedImage(post),
-    [post]
-  );
-
-  const textPostIsJustReference = useMemo(
-    () => textPostIsReference(post),
-    [post]
-  );
-
-  const linkedImage = useMemo(
-    () =>
-      textPostIsJustLinkedImage
-        ? (inlines[0] as urbit.Link).link.href
-        : undefined,
-    [inlines, textPostIsJustLinkedImage]
-  );
-
-  if (
-    !postIsJustImage &&
-    !postIsJustText &&
-    !postIsJustReference &&
-    !textPostIsJustReference
-  ) {
+  if (!isImage && !isText && !isReference && !isRefInText) {
     // This should never happen, but if it does, we should log it
     const content = JSON.parse(post.content as string);
     console.log('Unsupported post type', {
@@ -109,45 +73,43 @@ export default function GalleryDetailView({
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         <View paddingHorizontal="$xl" key={post.id} alignItems="center">
-          {(postIsJustImage || textPostIsJustLinkedImage) && (
+          {(isImage || isLinkedImage) && (
             <YStack gap="$s">
               <Image
                 source={{
-                  uri: postIsJustImage ? image!.src : linkedImage,
+                  uri: isImage ? image!.src : linkedImage,
                 }}
                 contentFit="contain"
                 width={WIDTH_DETAIL_VIEW_CONTENT}
                 height={HEIGHT_DETAIL_VIEW_CONTENT}
               />
-              {inlines.length > 0 && !textPostIsJustLinkedImage && (
+              {inlines.length > 0 && !isLinkedImage && (
                 <View paddingHorizontal="$m">
                   <Text>{tiptap.inlineToString(inlines[0])}</Text>
                 </View>
               )}
             </YStack>
           )}
-          {postIsJustText &&
-            !textPostIsJustLinkedImage &&
-            !textPostIsJustReference && (
+          {isText && !isLinkedImage && !isRefInText && (
+            <View
+              backgroundColor="$background"
+              borderRadius="$l"
+              padding="$l"
+              width={WIDTH_DETAIL_VIEW_CONTENT}
+              height={HEIGHT_DETAIL_VIEW_CONTENT}
+            >
               <View
-                backgroundColor="$background"
-                borderRadius="$l"
-                padding="$l"
-                width={WIDTH_DETAIL_VIEW_CONTENT}
-                height={HEIGHT_DETAIL_VIEW_CONTENT}
+                height="100%"
+                width="100%"
+                overflow="hidden"
+                paddingBottom="$xs"
+                position="relative"
               >
-                <View
-                  height="100%"
-                  width="100%"
-                  overflow="hidden"
-                  paddingBottom="$xs"
-                  position="relative"
-                >
-                  <ContentRenderer post={post} />
-                </View>
+                <ContentRenderer post={post} />
               </View>
-            )}
-          {(postIsJustReference || textPostIsJustReference) && (
+            </View>
+          )}
+          {(isReference || isRefInText) && (
             <View
               width={WIDTH_DETAIL_VIEW_CONTENT}
               height={HEIGHT_DETAIL_VIEW_CONTENT}

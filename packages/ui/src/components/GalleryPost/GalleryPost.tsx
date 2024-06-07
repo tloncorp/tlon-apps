@@ -1,15 +1,5 @@
-import {
-  extractContentTypesFromPost,
-  findFirstImageBlock,
-  isImagePost,
-  isReferencePost,
-  isTextPost,
-  textPostIsLinkedImage,
-  textPostIsReference,
-} from '@tloncorp/shared/dist';
+import { usePostMeta } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { Link } from '@tloncorp/shared/dist/urbit';
-import { useMemo } from 'react';
 import { Dimensions, ImageBackground } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
@@ -36,51 +26,27 @@ export default function GalleryPost({
   const HEIGHT_AND_WIDTH =
     (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
 
-  const { inlines, references, blocks } = useMemo(
-    () => extractContentTypesFromPost(post),
-    [post]
-  );
+  const {
+    references,
+    isText,
+    isImage,
+    isReference,
+    isLinkedImage,
+    isRefInText,
+    image,
+    linkedImage,
+  } = usePostMeta(post);
 
-  const postIsJustImage = useMemo(() => isImagePost(post), [post]);
-  const postIsJustText = useMemo(() => isTextPost(post), [post]);
-  const postIsJustReference = useMemo(() => isReferencePost(post), [post]);
-
-  const image = useMemo(
-    () => (postIsJustImage ? findFirstImageBlock(blocks)?.image : null),
-    [blocks, postIsJustImage]
-  );
-
-  const textPostIsJustLinkedImage = useMemo(
-    () => textPostIsLinkedImage(post),
-    [post]
-  );
-
-  const textPostIsJustReference = useMemo(
-    () => textPostIsReference(post),
-    [post]
-  );
-
-  const linkedImage = useMemo(
-    () =>
-      textPostIsJustLinkedImage ? (inlines[0] as Link).link.href : undefined,
-    [inlines, textPostIsJustLinkedImage]
-  );
-
-  if (
-    !postIsJustImage &&
-    !postIsJustText &&
-    !postIsJustReference &&
-    !textPostIsJustReference
-  ) {
+  if (!isImage && !isText && !isReference && !isRefInText) {
     // This should never happen, but if it does, we should log it
     const content = JSON.parse(post.content as string);
     console.log('Unsupported post type', {
       post,
       content,
-      postIsJustText,
-      postIsJustImage,
-      postIsJustReference,
-      textPostIsJustReference,
+      postIsJustText: isText,
+      postIsJustImage: isImage,
+      postIsJustReference: isReference,
+      textPostIsJustReference: isRefInText,
     });
 
     return (
@@ -96,9 +62,9 @@ export default function GalleryPost({
       onLongPress={() => onLongPress?.(post)}
     >
       <View padding="$m" key={post.id} position="relative" alignItems="center">
-        {(postIsJustImage || textPostIsJustLinkedImage) && (
+        {(isImage || isLinkedImage) && (
           <ImageBackground
-            source={{ uri: postIsJustImage ? image!.src : linkedImage }}
+            source={{ uri: isImage ? image!.src : linkedImage }}
             style={{
               width: HEIGHT_AND_WIDTH,
               height: HEIGHT_AND_WIDTH,
@@ -118,49 +84,47 @@ export default function GalleryPost({
             </View>
           </ImageBackground>
         )}
-        {postIsJustText &&
-          !textPostIsJustLinkedImage &&
-          !textPostIsJustReference && (
+        {isText && !isLinkedImage && !isRefInText && (
+          <View
+            backgroundColor="$secondaryBackground"
+            borderRadius="$l"
+            padding="$l"
+            width={HEIGHT_AND_WIDTH}
+            height={HEIGHT_AND_WIDTH}
+          >
             <View
-              backgroundColor="$secondaryBackground"
-              borderRadius="$l"
-              padding="$l"
-              width={HEIGHT_AND_WIDTH}
-              height={HEIGHT_AND_WIDTH}
+              height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
+              width="100%"
+              overflow="hidden"
+              paddingBottom="$xs"
+              position="relative"
             >
-              <View
-                height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
-                width="100%"
-                overflow="hidden"
-                paddingBottom="$xs"
-                position="relative"
-              >
-                <ContentRenderer viewMode="block" post={post} />
-                <LinearGradient
-                  colors={['$transparentBackground', '$secondaryBackground']}
-                  start={{ x: 0, y: 0.4 }}
-                  end={{ x: 0, y: 1 }}
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
-                  }}
-                />
-              </View>
-              <View position="absolute" bottom="$l">
-                <AuthorRow
-                  author={post.author}
-                  authorId={post.authorId}
-                  sent={post.sentAt}
-                  type={post.type}
-                  width={HEIGHT_AND_WIDTH}
-                />
-              </View>
+              <ContentRenderer viewMode="block" post={post} />
+              <LinearGradient
+                colors={['$transparentBackground', '$secondaryBackground']}
+                start={{ x: 0, y: 0.4 }}
+                end={{ x: 0, y: 1 }}
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
+                }}
+              />
             </View>
-          )}
-        {(postIsJustReference || textPostIsJustReference) && (
+            <View position="absolute" bottom="$l">
+              <AuthorRow
+                author={post.author}
+                authorId={post.authorId}
+                sent={post.sentAt}
+                type={post.type}
+                width={HEIGHT_AND_WIDTH}
+              />
+            </View>
+          </View>
+        )}
+        {(isReference || isRefInText) && (
           <View
             width={HEIGHT_AND_WIDTH}
             height={HEIGHT_AND_WIDTH}

@@ -6,6 +6,7 @@ import {
   format,
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
+import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
@@ -359,6 +360,39 @@ export const textPostIsReference = (post: db.Post): boolean => {
   }
 
   return false;
+};
+
+export const usePostMeta = (post: db.Post) => {
+  const { inlines, references, blocks } = useMemo(
+    () => extractContentTypesFromPost(post),
+    [post]
+  );
+  const isText = useMemo(() => isTextPost(post), [post]);
+  const isImage = useMemo(() => isImagePost(post), [post]);
+  const isReference = useMemo(() => isReferencePost(post), [post]);
+  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
+  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
+  const image = useMemo(
+    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
+    [blocks, isImage]
+  );
+  const linkedImage = useMemo(
+    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
+    [inlines, isLinkedImage]
+  );
+
+  return {
+    isText,
+    isImage,
+    isReference,
+    isLinkedImage,
+    isRefInText,
+    inlines,
+    references,
+    blocks,
+    image,
+    linkedImage,
+  };
 };
 
 export const getCompositeGroups = (

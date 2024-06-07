@@ -88,8 +88,8 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
   return injectJS;
 };
 
-// 52 accounts for the 16px padding around the text within the input
-// and the 20px line height of the text. 16 + 20 + 16 = 52
+// 44 accounts for the 12px padding around the text within the input
+// and the 20px line height of the text. 12 + 20 + 12 = 52
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
