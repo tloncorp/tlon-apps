@@ -27,7 +27,7 @@ export default function ChannelSearch({
     (post: db.Post) => {
       navigation.navigate('Channel', {
         channel,
-        selectedPost: post,
+        selectedPostId: post.id,
       });
     },
     [channel, navigation]

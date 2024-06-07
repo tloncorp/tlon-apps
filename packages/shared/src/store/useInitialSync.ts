@@ -25,7 +25,6 @@ export const useInitialSync = () => {
       // initial sync spinner.
       Promise.all([
         setupSubscriptions(),
-        syncStaleChannels(),
         initializeStorage(),
         syncSettings(),
       ]).catch((e) => {

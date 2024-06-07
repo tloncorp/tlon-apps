@@ -1,4 +1,4 @@
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -51,6 +51,13 @@ export default function ChatListScreen(
     };
   }, [chats]);
 
+  useFocusEffect(
+    useCallback(() => {
+      store.syncStaleChannels();
+      return () => store.clearSyncQueue();
+    }, [])
+  );
+
   const { isFetching: isFetchingInitData } = store.useInitialSync();
 
   const goToDm = useCallback(
@@ -85,7 +92,10 @@ export default function ChatListScreen(
       ) {
         props.navigation.navigate('GroupChannels', { group: item.group });
       } else {
-        props.navigation.navigate('Channel', { channel: item });
+        props.navigation.navigate('Channel', {
+          channel: item,
+          selectedPostId: item.firstUnreadPostId,
+        });
       }
     },
     [props.navigation]

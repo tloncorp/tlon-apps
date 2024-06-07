@@ -80,7 +80,7 @@ export function Channel({
 }: {
   channel: db.Channel;
   currentUserId: string;
-  selectedPostId?: string;
+  selectedPostId?: string | null;
   headerMode?: 'default' | 'next';
   posts: db.Post[] | null;
   contacts: db.Contact[] | null;
