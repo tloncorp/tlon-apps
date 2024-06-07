@@ -11,7 +11,7 @@ const NavBarView = (props: { navigation: any }) => {
   };
   const { data: unreadCount } = store.useUnreadsCount();
   const currentUserId = useCurrentUserId();
-  const { data: contact, isLoading } = store.useContact({ id: currentUserId });
+  const { data: contact } = store.useContact({ id: currentUserId });
 
   return (
     <NavBar>
@@ -29,15 +29,12 @@ const NavBarView = (props: { navigation: any }) => {
         isActive={isRouteActive('Activity')}
         onPress={() => props.navigation.navigate('Activity')}
       />
-      {contact && (
-        <AvatarNavIcon
-          id={currentUserId}
-          contact={contact}
-          isLoading={isLoading}
-          focused={isRouteActive('Settings')}
-          onPress={() => props.navigation.navigate('Settings')}
-        />
-      )}
+      <AvatarNavIcon
+        id={currentUserId}
+        contact={contact}
+        focused={isRouteActive('Settings')}
+        onPress={() => props.navigation.navigate('Settings')}
+      />
     </NavBar>
   );
 };
