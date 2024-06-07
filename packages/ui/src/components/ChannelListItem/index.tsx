@@ -1,12 +1,17 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { ComponentProps } from 'react';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
-import { ListItem, type ListItemProps } from '../ListItem';
+import {
+  ListItem,
+  ListItemIconContainer,
+  type ListItemProps,
+} from '../ListItem';
 
 export default function ChannelListItem({
   model,
@@ -26,10 +31,14 @@ export default function ChannelListItem({
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
-      <ChannelListItemIcon model={model} useTypeIcon={useTypeIcon} />
+      <ChannelListItemIcon
+        model={model}
+        useTypeIcon={useTypeIcon}
+        opacity={isMuted ? 0.2 : 1}
+      />
       <ListItem.MainContent>
-        <ListItem.Title>
-          {title} {isMuted ? <Icon type="Notifications" size="$m" /> : null}
+        <ListItem.Title color={isMuted ? '$tertiaryText' : undefined}>
+          {title}
         </ListItem.Title>
         {model.lastPost && (
           <ListItem.Subtitle>
@@ -55,11 +64,12 @@ export default function ChannelListItem({
       ) : (
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-          {model.unread?.count && model.unread.count > 0 ? (
-            <ListItem.Count muted={isMuted}>
-              {model.unread.count}
-            </ListItem.Count>
-          ) : null}
+          <ListItem.Count
+            opacity={model.unread?.count || isMuted ? 1 : 0}
+            muted={isMuted}
+          >
+            {model.unread?.count ?? 0}
+          </ListItem.Count>
         </ListItem.EndContent>
       )}
     </ListItem>
@@ -69,10 +79,11 @@ export default function ChannelListItem({
 function ChannelListItemIcon({
   model,
   useTypeIcon,
+  ...props
 }: {
   model: db.Channel;
   useTypeIcon?: boolean;
-}) {
+} & ComponentProps<typeof ListItemIconContainer>) {
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
@@ -80,14 +91,17 @@ function ChannelListItemIcon({
       <ListItem.SystemIcon
         icon={icon}
         backgroundColor={'$secondaryBackground'}
+        {...props}
       />
     );
   } else if (model.type === 'dm') {
     return (
       <ListItem.AvatarIcon
-        backgroundColor={'red'}
-        contactId={model.members?.[0]?.contactId ?? model.id}
+        backgroundColor={'$transparent'}
         contact={model.members?.[0]?.contact}
+        contactId={model.members?.[0]?.contactId ?? model.id}
+        rounded
+        {...props}
       />
     );
   } else {
@@ -96,6 +110,7 @@ function ChannelListItemIcon({
         <ListItem.ImageIcon
           imageUrl={model.iconImage}
           backgroundColor={backgroundColor}
+          {...props}
         />
       );
     } else if (hasGroup(model) && model.group.iconImage) {
@@ -103,6 +118,7 @@ function ChannelListItemIcon({
         <ListItem.ImageIcon
           imageUrl={model.group.iconImage}
           backgroundColor={backgroundColor}
+          {...props}
         />
       );
     } else {
@@ -110,6 +126,7 @@ function ChannelListItemIcon({
         <ListItem.TextIcon
           fallbackText={utils.getChannelTitle(model)}
           backgroundColor={backgroundColor}
+          {...props}
         />
       );
     }

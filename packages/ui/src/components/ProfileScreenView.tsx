@@ -25,7 +25,6 @@ import { DebugInfo } from './DebugInfo';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
-import { navHeight } from './NavBar/NavBar';
 
 interface Props {
   currentUserId: string;
@@ -104,7 +103,7 @@ export function Wrapped(props: Props) {
         flex={1}
         paddingHorizontal="$xl"
         paddingTop={top}
-        paddingBottom={navHeight + bottom}
+        // paddingBottom={navHeight + bottom}
       >
         {!notifState.open && (
           <>

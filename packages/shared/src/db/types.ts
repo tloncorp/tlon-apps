@@ -39,7 +39,10 @@ export type Unread = BaseModel<'unreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
 // TODO: We need to include unread count here because it's  returned by the chat
 // list query, but doesn't feel great.
-export type Group = BaseModel<'groups'> & { unreadCount?: number | null };
+export type Group = BaseModel<'groups'> & {
+  unreadCount?: number | null;
+  lastChannel?: string | null;
+};
 export type ClientMeta = Pick<
   Group,
   | 'title'

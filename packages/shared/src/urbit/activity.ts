@@ -114,7 +114,7 @@ export interface ReplyEvent {
   };
 }
 
-export type ActivityEvent =
+export type ActivityIncomingEvent =
   | DmInviteEvent
   | GroupKickEvent
   | GroupJoinEvent
@@ -123,6 +123,10 @@ export type ActivityEvent =
   | DmReplyEvent
   | PostEvent
   | ReplyEvent;
+
+export type ActivityEvent = {
+  notified: boolean;
+} & ActivityIncomingEvent;
 
 export interface PostRead {
   seen: boolean;
@@ -178,7 +182,7 @@ export type Stream = Record<string, ActivityEvent>;
 export type VolumeMap = Partial<Record<ExtendedEventType, Volume>>;
 
 export type ReadAction =
-  | { event: ActivityEvent }
+  | { event: ActivityIncomingEvent }
   | { item: string }
   | { all: null };
 
@@ -193,7 +197,7 @@ export interface ActivityVolumeAction {
 }
 
 export type ActivityAction =
-  | { add: ActivityEvent }
+  | { add: ActivityIncomingEvent }
   | { del: Source }
   | { read: ActivityReadAction }
   | { adjust: ActivityVolumeAction };

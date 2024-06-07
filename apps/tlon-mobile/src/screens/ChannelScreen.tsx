@@ -96,7 +96,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         content,
         metadata,
       });
-      uploadInfo.resetImageAttachment();
+      // prevents state update + render from blocking optimistic post insertion.
+      // may be better ways to handle...
+      setTimeout(() => {
+        uploadInfo.resetImageAttachment();
+      }, 20);
     },
     [currentUserId, channel, uploadInfo]
   );

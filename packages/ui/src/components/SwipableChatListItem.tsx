@@ -1,7 +1,14 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { ComponentProps, PropsWithChildren, useCallback, useRef } from 'react';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Animated, TouchableOpacity } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { ColorTokens, Stack } from 'tamagui';
@@ -14,6 +21,16 @@ export function SwipableChatRow(
 ) {
   const swipeableRef = useRef<Swipeable | null>(null);
   const isMuted = store.useChannelIsMuted(props.model);
+  // prevent color flicker when unmuting
+  const [mutedState, setMutedState] = useState(isMuted);
+  useEffect(() => {
+    if (mutedState === false && isMuted === true) {
+      setTimeout(() => setMutedState(isMuted), 500);
+    } else {
+      setMutedState(isMuted);
+    }
+  }, [isMuted, mutedState]);
+
   const handleAction = useCallback(
     async (actionId: 'pin' | 'mute') => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -24,7 +41,6 @@ export function SwipableChatRow(
             : store.pinItem(props.model);
           break;
         case 'mute':
-          console.log('GOT MUTE ACTION');
           isMuted ? store.unmuteChat(props.model) : store.muteChat(props.model);
           break;
         default:
@@ -49,7 +65,7 @@ export function SwipableChatRow(
           drag={drag}
           model={props.model}
           handleAction={handleAction}
-          isMuted={isMuted}
+          isMuted={mutedState}
           // jailBroken={props.jailBroken ?? false}
         />
       )}
@@ -137,8 +153,8 @@ function RightActions({
     >
       <Action
         side="right"
-        backgroundColor={model.pin ? '$yellowSoft' : '$yellow'}
-        color="$black"
+        backgroundColor="$blueSoft"
+        color="$gray800"
         iconType="Pin"
         xOffset={160}
         progress={progress}
@@ -147,9 +163,9 @@ function RightActions({
       />
       <Action
         side="right"
-        backgroundColor="$indigo"
-        color="$white"
-        iconType={isMuted ? 'NotificationsFilled' : 'Notifications'}
+        backgroundColor={isMuted ? '$gray800' : '$secondaryBackground'}
+        color={isMuted ? '$secondaryBackground' : '$gray800'}
+        iconType={isMuted ? 'Notifications' : 'Mute'}
         xOffset={80}
         progress={progress}
         drag={drag}

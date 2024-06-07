@@ -2,7 +2,7 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 
-import { SizableText, Stack } from '../../core';
+import { View, XStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
@@ -27,30 +27,43 @@ export default function GroupListItemContent({
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
-      <ListItem.Icon
-        fallbackText={model.title?.[0]}
-        backgroundColor={model.iconImageColor ?? undefined}
-        imageUrl={model.iconImage ?? undefined}
-      />
+      <View opacity={isMuted ? 0.2 : 1}>
+        <ListItem.Icon
+          fallbackText={model.title?.[0]}
+          backgroundColor={model.iconImageColor ?? undefined}
+          imageUrl={model.iconImage ?? undefined}
+        />
+      </View>
       <ListItem.MainContent>
-        <ListItem.Title>
-          {model.title}{' '}
-          {isMuted ? <Icon type="Notifications" size="$m" /> : null}
+        <ListItem.Title color={isMuted ? '$tertiaryText' : undefined}>
+          {model.title}
         </ListItem.Title>
+        {model.lastPost && (
+          <ListItem.Subtitle color={'$tertiaryText'}>
+            {model.lastChannel}
+          </ListItem.Subtitle>
+        )}
         {!isPending && model.lastPost ? (
-          <ListItem.Subtitle>
-            <ContactName
-              userId={model.lastPost.authorId}
-              showNickname
+          <XStack gap="$xs" alignItems="center">
+            <Icon
+              type={getLastMessageIcon(model.lastPost.type)}
               color={'$secondaryText'}
               size={'$s'}
             />
-            : {model.lastPost?.textContent ?? ''}
-          </ListItem.Subtitle>
+            <ListItem.Subtitle>
+              <ContactName
+                userId={model.lastPost.authorId}
+                showNickname
+                color={'$secondaryText'}
+                size={'$s'}
+              />
+              : {model.lastPost?.textContent ?? ''}
+            </ListItem.Subtitle>
+          </XStack>
         ) : null}
       </ListItem.MainContent>
       {statusDisplay ? (
-        <ListItem.EndContent justifyContent="center">
+        <ListItem.EndContent>
           <Badge
             text={statusDisplay}
             type={isErrored ? 'warning' : 'positive'}
@@ -59,13 +72,29 @@ export default function GroupListItemContent({
       ) : (
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
-          {model.unreadCount && model.unreadCount > 0 ? (
-            <ListItem.Count muted={isMuted}>{model.unreadCount}</ListItem.Count>
-          ) : null}
+          <ListItem.Count
+            opacity={model.unreadCount || isMuted ? 1 : 0}
+            muted={isMuted}
+          >
+            {model.unreadCount ?? 0}
+          </ListItem.Count>
         </ListItem.EndContent>
       )}
     </ListItem>
   );
+}
+
+function getLastMessageIcon(type: db.Post['type']) {
+  switch (type) {
+    case 'chat':
+      return 'ChannelTalk';
+    case 'block':
+      return 'ChannelGalleries';
+    case 'note':
+      return 'ChannelNotebooks';
+    default:
+      return 'Channel';
+  }
 }
 
 type DisplayInfo = {

@@ -17,6 +17,11 @@
 =|  state-1
 =*  state  -
 ::
+::NOTE  setting this to true causes some parts of state & update management to
+::      take shortcuts, which we want to do during initial migration/import.
+::      shouldn't be set to true outside of calls to +migrate.
+=/  importing=?  |
+::
 %-  agent:dbug
 %+  verb  |
 ^-  agent:gall
@@ -74,11 +79,14 @@
   (emit %pass /migrate %agent [our.bowl dap.bowl] %poke noun+!>(%migrate))
 ::
 ++  migrate
+  =.  importing  &
   =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
   =.  cor  set-chat-reads
   =+  .^(=channels:c %gx (welp channels-prefix /v2/channels/full/noun))
   =.  cor  (set-volumes channels)
-  (set-channel-reads channels)
+  =.  cor  (set-channel-reads channels)
+  =.  cor  refresh-all-summaries
+  cor(importing |)
 ::
 ++  load
   |=  =vase
@@ -99,7 +107,7 @@
   =;  events=(list [time incoming-event:a])
     |-
     ?~  events  cor
-    =.  cor  (%*(. add should-notify |, start-time -.i.events) +.i.events)
+    =.  cor  (%*(. add start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
   ?~  entries  ~
@@ -161,7 +169,7 @@
   =;  events=(list [time incoming-event:a])
     |-
     ?~  events  cor
-    =.  cor  (%*(. add should-notify |, start-time -.i.events) +.i.events)
+    =.  cor  (%*(. add start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
   ?~  entries  ~
@@ -350,7 +358,6 @@
   ^-  index:a
   (~(got by indices) [%base ~])
 ++  add
-  =/  should-notify=?  &
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
   ^+  cor
@@ -359,9 +366,9 @@
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
-  =/  notify  &(should-notify notify:(get-volume inc))
+  =/  notify  &(!importing notify:(get-volume inc))
   =/  =event:a  [inc notify |]
-  =.  cor
+  =?  cor  !importing
     (give %fact ~[/] activity-update+!>([%add time-id event]))
   =?  cor  notify
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
@@ -413,7 +420,17 @@
     (update-floor new)
   =.  indices
     (~(put by indices) source new)
+  ?:  importing  cor  ::NOTE  deferred until end of migration
   (refresh-summary source)
+::
+++  refresh-all-summaries
+  ^+  cor
+  =/  sources  ~(tap in ~(key by indices))
+  |-
+  ?~  sources  cor
+  =.  cor  (refresh-summary i.sources)
+  $(sources t.sources)
+::
 ++  refresh-summary
   |=  =source:a
   =/  summary  (summarize-unreads source (get-index source))
