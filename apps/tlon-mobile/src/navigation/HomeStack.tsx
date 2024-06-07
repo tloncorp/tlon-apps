@@ -5,6 +5,7 @@ import { useScreenOptions } from '../hooks/useScreenOptions';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import PostScreen from '../screens/PostScreen';
 import type { HomeStackParamList, TabParamList } from '../types';
 
@@ -24,6 +25,7 @@ export const HomeStack = ({ navigation }: Props) => {
       <Stack.Screen name="Channel" component={ChannelScreen} />
       <Stack.Screen name="ChannelSearch" component={ChannelSearch} />
       <Stack.Screen name="Post" component={PostScreen} />
+      <Stack.Screen name="GroupChannels" component={GroupChannelsScreen} />
     </Stack.Navigator>
   );
 };

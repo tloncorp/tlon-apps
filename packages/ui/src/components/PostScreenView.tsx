@@ -11,6 +11,7 @@ import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
 import * as utils from '../utils';
+import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
 import Scroller from './Channel/Scroller';
 import UploadedImagePreview from './Channel/UploadedImagePreview';
@@ -38,6 +39,7 @@ export function PostScreenView({
   setEditingPost,
   editPost,
   negotiationMatch,
+  headerMode,
 }: {
   currentUserId: string;
   calmSettings?: CalmState | null;
@@ -57,6 +59,7 @@ export function PostScreenView({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
   negotiationMatch: boolean;
+  headerMode?: 'default' | 'next';
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -79,14 +82,16 @@ export function PostScreenView({
           <View backgroundColor="$background" flex={1}>
             <YStack flex={1} backgroundColor={'$background'}>
               <ChannelHeader
+                channel={channel}
+                group={channel.group}
                 title={headerTitle}
-                showPickerButton={false}
-                showSearchButton={false}
                 goBack={goBack}
+                showSearchButton={false}
                 showMenuButton={!isChatChannel}
                 post={parentPost ?? undefined}
                 channelType={channel.type}
                 currentUserId={currentUserId}
+                mode={headerMode}
               />
               <KeyboardAvoidingView
                 //TODO: Standardize this component, account for tab bar in a better way
@@ -197,6 +202,13 @@ export function PostScreenView({
                       match the channel host.
                     </Text>
                   </View>
+                )}
+                {headerMode === 'next' && (
+                  <ChannelFooter
+                    showSearchButton={false}
+                    title={'Thread: ' + channel.title}
+                    goBack={goBack}
+                  />
                 )}
               </KeyboardAvoidingView>
             </YStack>

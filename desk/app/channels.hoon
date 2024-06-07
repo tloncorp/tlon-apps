@@ -614,7 +614,7 @@
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
     ::
         [%x %v2 %channels full=?(~ [%full ~])]
-      ``channels-2+!>((uv-channels-2:utils v-channels !=(full ~)))
+      ``channels-2+!>((uv-channels-2:utils v-channels ?=(^ full.pole)))
     ::
       [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
       [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels |)])
