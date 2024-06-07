@@ -1,4 +1,4 @@
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
@@ -50,6 +50,13 @@ export default function ChatListScreen(
       pendingChats: chats?.pendingChats ?? [],
     };
   }, [chats]);
+
+  useFocusEffect(
+    useCallback(() => {
+      store.syncStaleChannels();
+      return () => store.clearSyncQueue();
+    }, [])
+  );
 
   const { isFetching: isFetchingInitData } = store.useInitialSync();
 
