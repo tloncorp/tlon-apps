@@ -27,6 +27,7 @@ export default function PostScreen(props: PostScreenProps) {
     navigateToImage,
     calmSettings,
     uploadInfo,
+    headerMode,
   } = useChannelContext({
     channelId: postParam.channelId,
     draftKey: postParam.id,
@@ -79,6 +80,7 @@ export default function PostScreen(props: PostScreenProps) {
       setEditingPost={setEditingPost}
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
+      headerMode={headerMode}
     />
   ) : null;
 }

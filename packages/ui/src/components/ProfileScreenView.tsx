@@ -13,6 +13,7 @@ import { ListItem } from './ListItem';
 
 interface Props {
   currentUserId: string;
+  onAppSettingsPressed?: () => void;
 }
 
 export function ProfileScreenView({
@@ -47,7 +48,11 @@ export function Wrapped(props: Props) {
         </View>
         <View marginTop="$xl">
           <ProfileAction title="Edit profile" icon="Draw" />
-          <ProfileAction title="App Settings" icon="Settings" />
+          <ProfileAction
+            title="App Settings"
+            icon="Settings"
+            onPress={props.onAppSettingsPressed}
+          />
           <ProfileAction title="Connected Accounts" icon="Face" />
           <ProfileAction title="Submit Feedback" icon="Mail" />
           <ProfileAction title="Contact Support" icon="Messages" />

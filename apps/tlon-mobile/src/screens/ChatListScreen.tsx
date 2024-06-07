@@ -19,6 +19,7 @@ import ContextMenu from 'react-native-context-menu-view';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
+import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
@@ -76,6 +77,13 @@ export default function ChatListScreen(
     (item: db.Channel | db.Group) => {
       if (logic.isGroup(item)) {
         setSelectedGroup(item);
+      } else if (
+        item.group &&
+        !featureFlags.isEnabled('channelSwitcher') &&
+        // Should navigate to channel if it's pinned as a channel
+        (!item.pin || item.pin.type === 'group')
+      ) {
+        props.navigation.navigate('GroupChannels', { group: item.group });
       } else {
         props.navigation.navigate('Channel', { channel: item });
       }

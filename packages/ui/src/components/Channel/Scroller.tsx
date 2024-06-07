@@ -25,8 +25,10 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useStyle, useTheme } from 'tamagui';
 
+import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -352,13 +354,15 @@ export default function Scroller({
     };
   }, [hasNewerPosts]);
 
+  const handleScroll = useScrollDirectionTracker();
+
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
       {filteredPosts && (
-        <FlatList<db.Post>
+        <Animated.FlatList<db.Post>
           ref={flatListRef}
           // This is needed so that we can force a refresh of the list when
           // we need to switch from 1 to 2 columns or vice versa.
@@ -380,6 +384,7 @@ export default function Scroller({
           onEndReachedThreshold={2}
           onStartReached={handleStartReached}
           onStartReachedThreshold={2}
+          onScroll={handleScroll}
         />
       )}
       <Modal

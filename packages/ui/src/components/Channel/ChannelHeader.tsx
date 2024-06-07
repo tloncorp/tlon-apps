@@ -1,30 +1,23 @@
+import type * as db from '@tloncorp/shared/dist/db';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  Channel as ChannelIcon,
-  ChevronLeft,
-  Search,
-} from '../../assets/icons';
+import { ChevronLeft, Search } from '../../assets/icons';
 import { SizableText, View, XStack } from '../../core';
 import { IconButton } from '../IconButton';
+import { BaubleHeader } from './BaubleHeader';
 
-export function ChannelHeader({
+// TODO: break this out, use for all headers.
+export function GenericHeader({
   title,
   goBack,
-  goToChannels,
-  goToSearch,
-  showPickerButton,
   showSpinner,
-  showSearchButton = true,
+  rightContent,
 }: {
-  title: string;
+  title?: string;
   goBack?: () => void;
-  goToChannels?: () => void;
-  goToSearch?: () => void;
-  showPickerButton?: boolean;
   showSpinner?: boolean;
-  showSearchButton?: boolean;
+  rightContent?: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -59,18 +52,49 @@ export function ChannelHeader({
           </Animated.View>
         </XStack>
         <XStack gap="$m" alignItems="center">
+          {rightContent}
+        </XStack>
+      </XStack>
+    </View>
+  );
+}
+
+export function ChannelHeader({
+  title,
+  mode = 'default',
+  channel,
+  group,
+  goBack,
+  goToSearch,
+  showSpinner,
+  showSearchButton = true,
+}: {
+  title: string;
+  mode?: 'default' | 'next';
+  channel: db.Channel;
+  group?: db.Group | null;
+  goBack?: () => void;
+  goToSearch?: () => void;
+  showSpinner?: boolean;
+  showSearchButton?: boolean;
+}) {
+  if (mode === 'next') {
+    return <BaubleHeader channel={channel} group={group} />;
+  }
+  return (
+    <GenericHeader
+      title={title}
+      goBack={goBack}
+      showSpinner={showSpinner}
+      rightContent={
+        <>
           {showSearchButton && (
             <IconButton onPress={goToSearch}>
               <Search />
             </IconButton>
           )}
-          {showPickerButton && (
-            <IconButton onPress={goToChannels}>
-              <ChannelIcon />
-            </IconButton>
-          )}
-        </XStack>
-      </XStack>
-    </View>
+        </>
+      }
+    />
   );
 }

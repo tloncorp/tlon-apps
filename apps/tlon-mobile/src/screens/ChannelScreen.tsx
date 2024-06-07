@@ -50,6 +50,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     uploadInfo,
     currentUserId,
     performGroupAction,
+    headerMode,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
@@ -121,6 +122,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   return (
     <>
       <Channel
+        headerMode={headerMode}
         channel={channel}
         currentUserId={currentUserId}
         calmSettings={calmSettings}

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useImageUpload } from '../hooks/useImageUpload';
+import * as featureFlags from '../lib/featureFlags';
 import storage from '../lib/storage';
 import { HomeStackParamList } from '../types';
 
@@ -189,5 +190,6 @@ export const useChannelContext = ({
     uploadInfo,
     currentUserId,
     performGroupAction,
-  };
+    headerMode: featureFlags.isEnabled('channelSwitcher') ? 'next' : 'default',
+  } as const;
 };
