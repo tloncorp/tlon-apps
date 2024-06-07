@@ -384,11 +384,11 @@
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t +(t))
-  =/  notify  &(!importing notify:(get-volume inc))
+  =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
   =?  cor  !importing
     (give %fact ~[/] activity-update+!>([%add time-id event]))
-  =?  cor  notify
+  =?  cor  &(!importing notify)
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
@@ -439,15 +439,14 @@
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
-  (refresh-summary source)
+  (refresh source)
 ::
 ++  refresh-all-summaries
   ^+  cor
   =/  sources  ~(tap in ~(key by indices))
   |-
   ?~  sources  cor
-  =.  cor  (refresh-summary i.sources)
-  =.  cor  (refresh-parent-summaries i.sources)
+  =.  cor  (refresh i.sources)
   $(sources t.sources)
 ::
 ++  refresh-summary
@@ -457,8 +456,9 @@
     (~(put by activity) source summary)
   (give-unreads source)
 ::
-++  refresh-parent-summaries
+++  refresh
   |=  =source:a
+  =.  cor  (refresh-summary source)
   ?+  -.source  cor
     %channel  (refresh-summary [%group group.source])
     %dm-thread  (refresh-summary [%dm whom.source])
@@ -588,8 +588,7 @@
   |=  [=source:a updater=$-(index:a index:a)]
   ^+  cor
   =/  new  (updater (get-index source))
-  =.  cor  (update-index source new &)
-  (refresh-parent-summaries source)
+  (update-index source new &)
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -606,8 +605,7 @@
   =.  volume-settings
     (~(put by volume-settings) source (~(uni by target) u.volume-map))
   ::  recalculate activity summary with new settings
-  =.  cor  (refresh-summary source)
-  (refresh-parent-summaries source)
+  (refresh source)
 ::
 ++  get-children
   |=  =source:a
