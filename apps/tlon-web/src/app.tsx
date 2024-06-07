@@ -612,6 +612,12 @@ function Scheduler() {
   return null;
 }
 
+function Firehose() {
+  useActivityFirehose();
+  useChannelsFirehose();
+  return null;
+}
+
 const App = React.memo(() => {
   useNativeBridge();
   const navigate = useNavigate();
@@ -619,8 +625,6 @@ const App = React.memo(() => {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
 
-  useActivityFirehose();
-  useChannelsFirehose();
   useEffect(() => {
     if (isNativeApp()) {
       postActionToNativeApp('appLoaded');
@@ -643,6 +647,7 @@ const App = React.memo(() => {
   return (
     <div className="flex h-full w-full flex-col">
       <DisconnectNotice />
+      <Firehose />
       <LeapProvider>
         <ChatInputFocusProvider>
           <DragAndDropProvider>

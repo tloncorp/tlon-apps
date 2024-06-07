@@ -60,7 +60,7 @@ import queryClient from '@/queryClient';
 
 import { unreadsKey, useMarkReadMutation } from '../activity';
 import { PostStatus, TrackedPost } from '../channel/channel';
-import { useUnread } from '../unreads';
+import { useUnread, useUnreads } from '../unreads';
 import ChatKeys from './keys';
 import emptyMultiDm, {
   appendWritToLastPage,
@@ -1314,20 +1314,14 @@ export function useTrackedMessageStatus(cacheId: CacheId) {
   );
 }
 
-export function useHasUnreadMessages() {
-  const chats = useChatStore((s) => s.chats);
-  const dms = useDms();
-  const clubs = useMultiDms();
-
-  return dms.concat(Object.keys(clubs)).some((k) => {
-    const chat = chats[k];
-    if (!chat) {
-      return false;
-    }
-
-    const { unread } = chat;
-    return Boolean(unread && !unread.seen);
-  });
+export function useCheckDmUnread() {
+  const unreads = useUnreads();
+  return useCallback(
+    (whom: string) => {
+      return unreads[whom].combined.status === 'unread';
+    },
+    [unreads]
+  );
 }
 
 export function useWrit(whom: string, writId: string, disabled = false) {
@@ -1617,39 +1611,6 @@ export function useDeleteDMReplyReactMutation() {
       queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
     },
   });
-}
-
-const selChats = (s: ChatStore) => s.chats;
-export function useCheckDmUnread() {
-  const chats = useChatStore(selChats);
-
-  return useCallback(
-    (whom: string) => {
-      const chatInfo = chats[whom];
-      const unread = chatInfo?.unread;
-      return Boolean(unread && !unread.seen);
-    },
-    [chats]
-  );
-}
-
-export function useChatStoreDmUnreads(): string[] {
-  const chats = useChatStore(selChats);
-
-  return useMemo(
-    () =>
-      Object.entries(chats).reduce((acc, [k, v]) => {
-        if (whomIsDm(k)) {
-          const { unread } = v;
-          if (unread && !unread.seen) {
-            acc.push(k);
-          }
-        }
-
-        return acc;
-      }, [] as string[]),
-    [chats]
-  );
 }
 
 export function useMultiDmIsPending(id: string): boolean {

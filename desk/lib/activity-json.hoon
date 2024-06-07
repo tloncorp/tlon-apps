@@ -141,7 +141,7 @@
         count+(numb count.sum)
         notify+b+notify.sum
         unread/?~(unread.sum ~ (unread-point u.unread.sum))
-        children+a+(turn children.sum |=(s=source:a s/(string-source s)))
+        children+?~(children.sum ~ (activity u.children.sum))
     ==
   ::
   ++  event

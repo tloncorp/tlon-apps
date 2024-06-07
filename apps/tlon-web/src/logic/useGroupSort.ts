@@ -4,7 +4,6 @@ import { useCallback, useMemo } from 'react';
 
 import { ALPHABETICAL_SORT, RECENT_SORT } from '@/constants';
 
-import { useChannelSort } from './channel';
 import useSidebarSort, {
   Sorter,
   sortAlphabetical,
@@ -25,7 +24,6 @@ export default function useGroupSort() {
     flag: '~',
     defaultSort: RECENT_SORT,
   });
-  const { sortChannels } = useChannelSort(RECENT_SORT);
 
   const sortGroups = useCallback(
     (groups?: Groups) => {
@@ -41,7 +39,7 @@ export default function useGroupSort() {
         sortFn === RECENT_SORT
       );
     },
-    [sortChannels, sortFn, sortRecordsBy]
+    [sortFn, sortRecordsBy]
   );
 
   return {

@@ -1,7 +1,4 @@
-import {
-  Activity,
-  ActivitySummary,
-} from '@tloncorp/shared/dist/urbit/activity';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
 import { Block } from '@tloncorp/shared/dist/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
@@ -9,16 +6,9 @@ import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
 
-export interface ChatInfoUnread {
-  readTimeout: number;
-  seen: boolean;
-  unread: ActivitySummary; // lags behind actual unread, only gets update if unread
-}
-
 export interface ChatInfo {
   replying: string | null;
   blocks: Block[];
-  unread?: ChatInfoUnread;
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
   failedToLoadContent: Record<string, Record<number, boolean>>;
@@ -44,13 +34,8 @@ export interface ChatStore {
     failureState: boolean
   ) => void;
   setHovering: (whom: string, writId: string, hovering: boolean) => void;
-  seen: (whom: string) => void;
-  read: (whom: string) => void;
-  delayedRead: (whom: string, callback: () => void) => void;
-  handleUnread: (whom: string, unread: ActivitySummary) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (unreads: Activity) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -72,34 +57,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
   current: '',
   atBottom: false,
-  update: (unreads) => {
-    set(
-      produce((draft: ChatStore) => {
-        Object.entries(unreads).forEach(([whom, unread]) => {
-          const chat = draft.chats[whom];
-          chatStoreLogger.log('update', whom, chat, unread, draft.chats);
-
-          if (isUnread(unread)) {
-            draft.chats[whom] = {
-              ...(chat || emptyInfo()),
-              unread: {
-                seen: false,
-                readTimeout: 0,
-                unread,
-              },
-            };
-            return;
-          }
-
-          if (!chat) {
-            return;
-          }
-
-          delete chat.unread;
-        });
-      })
-    );
-  },
   setBlocks: (whom, blocks) => {
     set(
       produce((draft) => {
@@ -170,111 +127,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         draft.chats[whom].replying = msgId;
       })
     );
-  },
-  seen: (whom) => {
-    set(
-      produce((draft: ChatStore) => {
-        if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo();
-        }
-
-        const chat = draft.chats[whom];
-        const unread = chat.unread || {
-          unread: {
-            recency: 0,
-            count: 0,
-            notify: false,
-            unread: null,
-            children: [],
-          },
-          readTimeout: 0,
-        };
-
-        chatStoreLogger.log('seen', whom);
-        draft.chats[whom].unread = {
-          ...unread,
-          seen: true,
-        };
-      })
-    );
-  },
-  read: (whom) => {
-    set(
-      produce((draft: ChatStore) => {
-        const chat = draft.chats[whom];
-        if (!chat) {
-          return;
-        }
-
-        if (chat.unread && chat.unread.readTimeout) {
-          chatStoreLogger.log('clear delayedRead', whom);
-          clearTimeout(chat.unread.readTimeout);
-        }
-
-        chatStoreLogger.log('read', whom, JSON.stringify(chat));
-        chat.unread = undefined;
-        chatStoreLogger.log('post read', JSON.stringify(draft.chats[whom]));
-      })
-    );
-  },
-  delayedRead: (whom, cb) => {
-    const { chats, read } = get();
-    const chat = chats[whom] || emptyInfo();
-
-    if (!chat.unread) {
-      return;
-    }
-
-    if (chat.unread.readTimeout) {
-      clearTimeout(chat.unread.readTimeout);
-    }
-
-    const readTimeout = setTimeout(() => {
-      read(whom);
-      cb();
-    }, 15 * 1000); // 15 seconds
-
-    set(
-      produce((draft) => {
-        const latest = draft.chats[whom] || emptyInfo();
-        chatStoreLogger.log('delayedRead', whom, chat, latest);
-        draft.chats[whom] = {
-          ...latest,
-          unread: {
-            ...latest.unread,
-            readTimeout,
-          },
-        };
-      })
-    );
-  },
-  handleUnread: (whom, unread) => {
-    const hasUnreads = isUnread(unread);
-    if (hasUnreads) {
-      set(
-        produce((draft: ChatStore) => {
-          const chat = draft.chats[whom] || emptyInfo();
-
-          /* TODO: there was initially logic here to mark read when we're on the chat and
-            at the bottom of the scroll. This was very rarely firing since the scroller
-            doesn't actually call that event very often and if it did, would clear thread
-            unreads before they're seen. We should revisit once we have more granular control
-            over what we mark read.
-          */
-          chatStoreLogger.log('unread', whom, chat, unread);
-          draft.chats[whom] = {
-            ...chat,
-            unread: {
-              seen: false,
-              readTimeout: 0,
-              unread,
-            },
-          };
-        })
-      );
-    } else {
-      get().read(whom);
-    }
   },
   setCurrent: (current) => {
     set(
