@@ -70,7 +70,7 @@ export default function GalleryPost({
               height: HEIGHT_AND_WIDTH,
             }}
             imageStyle={{
-              borderRadius: 12,
+              borderRadius: getTokenValue('$l', 'radius'),
             }}
           >
             <View position="absolute" bottom="$l">
