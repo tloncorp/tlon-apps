@@ -45,6 +45,7 @@ import {
   ColorTokens,
   Image,
   ScrollView,
+  SizableText,
   Text,
   View,
   XStack,

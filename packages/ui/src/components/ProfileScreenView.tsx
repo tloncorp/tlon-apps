@@ -128,7 +128,7 @@ export function Wrapped(props: Props) {
               <ProfileAction title="Edit profile" icon="Draw" />
               <ProfileAction title="App Settings" icon="Settings" />
               <ProfileAction
-                title="Notifications"
+                title="Push Notifications"
                 icon="Notifications"
                 onPress={() =>
                   setNotifState((prev) => ({ ...prev, open: true }))
@@ -148,31 +148,31 @@ export function Wrapped(props: Props) {
                 onPress={() => setNotifState({ open: false, setting: 1 })}
               />
               <SizableText size="$l" fontWeight="500">
-                Notification Settings
+                Push Notification Settings
               </SizableText>
             </XStack>
 
             <SizableText marginLeft="$m" marginTop="$xl" size="$m">
-              Configure what kinds of activity will send you notifications.
+              Configure what kinds of messages will send you notifications.
             </SizableText>
 
             <YStack marginLeft="$m" marginTop="$3xl">
               <XStack onPress={() => setLevel('loud')}>
                 <LevelIndicator level="loud" />
-                <SizableText marginLeft="$l">All messages</SizableText>
+                <SizableText marginLeft="$l">All group activity</SizableText>
               </XStack>
 
               <XStack marginTop="$xl" onPress={() => setLevel('medium')}>
                 <LevelIndicator level="medium" />
                 <YStack marginLeft="$l">
-                  <SizableText>Only mentions and replies</SizableText>
+                  <SizableText>Mentions and replies only</SizableText>
                   <SizableText
                     width="80%"
                     marginTop="$m"
                     size="$s"
                     color="$secondaryText"
                   >
-                    Direct messages will always notify unless you mute them.
+                    Direct messages will still notify unless you mute them.
                   </SizableText>
                 </YStack>
               </XStack>

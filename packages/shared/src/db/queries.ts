@@ -2262,7 +2262,10 @@ export const getYourActivity = createReadQuery(
     });
 
     const threadsQuery = ctx.db.query.activityEvents.findMany({
-      where: eq($activityEvents.type, 'reply'),
+      where: and(
+        eq($activityEvents.type, 'reply'),
+        like($activityEvents.channelId, '%chat/%')
+      ),
       orderBy: desc($activityEvents.timestamp),
       with: {
         group: true,

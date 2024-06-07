@@ -86,7 +86,7 @@ function toSourceActivity(
 }
 
 function getRollupKey(event: db.ActivityEvent): string {
-  const timeBlock = Math.floor(event.timestamp / (6 * 60 * 60 * 1000)); // bundle unreads into 4 hour blocks
+  const timeBlock = Math.floor(event.timestamp / (6 * 60 * 60 * 1000)); // bundle unreads into 6 hour blocks
 
   if (event.type === 'post' && event.channelId) {
     return `${event.channelId}/${timeBlock}`;

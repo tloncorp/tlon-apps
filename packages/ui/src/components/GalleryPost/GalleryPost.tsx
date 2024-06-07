@@ -30,12 +30,14 @@ export default function GalleryPost({
   onLongPress,
   onPressImage,
   detailView = false,
+  viewMode = 'activity',
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   detailView?: boolean;
+  viewMode?: 'activity';
 }) {
   // We want to show two posts per row in the gallery view, each with a margin of 16
   // and padding of 16 on all sides. This means that the width of each post should be
@@ -43,7 +45,9 @@ export default function GalleryPost({
   const postPadding = getTokenValue('$l');
   const postMargin = getTokenValue('$l');
   const HEIGHT_AND_WIDTH =
-    (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
+    viewMode === 'activity'
+      ? 100
+      : (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
   // We want the content of the detail view to take up 70% of the screen height
   const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.7;
   // We want the content of the detail view to take up 100% of the screen width
@@ -100,14 +104,21 @@ export default function GalleryPost({
     <Pressable
       onPress={() => onPress?.(post)}
       onLongPress={() => onLongPress?.(post)}
+      disabled={viewMode === 'activity'}
     >
-      <View padding="$m" key={post.id} position="relative" alignItems="center">
+      <View
+        padding={viewMode === 'activity' ? 'unset' : '$m'}
+        key={post.id}
+        position="relative"
+        alignItems={viewMode === 'activity' ? 'unset' : 'center'}
+      >
         {(postIsJustImage || textPostIsJustLinkedImage) &&
           (detailView ? (
             <TouchableOpacity
               onPress={() =>
                 handleImagePressed(postIsJustImage ? image!.src : linkedImage!)
               }
+              disabled={viewMode === 'activity'}
             >
               <YStack gap="$s">
                 <Image
@@ -136,7 +147,7 @@ export default function GalleryPost({
                 borderRadius: 12,
               }}
             >
-              {!detailView && (
+              {!detailView && viewMode !== 'activity' && (
                 <View position="absolute" bottom="$l">
                   <AuthorRow
                     author={post.author}
