@@ -70,3 +70,4 @@ export { default as Send } from './Send.svg';
 export { default as Settings } from './Settings.svg';
 export { default as Stop } from './Stop.svg';
 export { default as TBlock } from './TBlock.svg';
+export { default as Mute } from './Mute.svg';

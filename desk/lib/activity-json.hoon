@@ -146,7 +146,9 @@
   ::
   ++  event
     |=  e=event:a
-    %+  frond  -<.e
+    %-  pairs
+    :_  [notified+b+notified.e]~
+      :-  -<.e
     ?-  -<.e
       %dm-invite  (whom whom.e)
     ::

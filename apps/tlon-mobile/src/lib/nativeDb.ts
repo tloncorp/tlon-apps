@@ -1,6 +1,6 @@
 import type { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
-import { createDevLogger } from '@tloncorp/shared';
+import { createDevLogger, escapeLog } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/dist/db';
 import { schema, setClient } from '@tloncorp/shared/dist/db';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
@@ -12,7 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 let connection: OPSQLiteConnection | null = null;
 let client: OPSQLiteDatabase<Schema> | null = null;
 
-const logger = createDevLogger('db', false);
+const enableLogger = false;
+const logger = createDevLogger('db', enableLogger);
 
 export function setupDb() {
   if (connection || client) {
@@ -24,16 +25,17 @@ export function setupDb() {
   // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
   connection.execute('PRAGMA mmap_size=268435456');
   connection.execute('PRAGMA journal_mode=MEMORY');
-  // TODO: may be more performant to run this periodically in background
-  connection.execute('PRAGMA optimize');
+  connection.execute('PRAGMA synchronous=OFF');
 
   client = drizzle(connection, {
     schema,
-    logger: {
-      logQuery(query, params) {
-        logger.log(query, params);
-      },
-    },
+    logger: enableLogger
+      ? {
+          logQuery(query, params) {
+            logger.log(escapeLog(query), params);
+          },
+        }
+      : undefined,
   });
   setClient(client);
   logger.log('SQLite database opened at', connection.getDbPath());

@@ -6,7 +6,6 @@ import {
   ReactElement,
   useMemo,
 } from 'react';
-import { Platform } from 'react-native';
 import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
@@ -143,20 +142,27 @@ const ListItemTextIcon = ({
 };
 
 const ListItemAvatarIcon = ({
-  contactId,
-  contact,
   backgroundColor,
+  contact,
+  contactId,
+  rounded = false,
   size = '$4xl',
   ...props
 }: {
-  contactId: string;
-  contact?: db.Contact | null;
   backgroundColor?: ColorProp;
+  contact?: db.Contact | null;
+  contactId: string;
+  rounded?: boolean;
   size?: AvatarSize;
 } & ComponentProps<typeof ListItemIconContainer>) => {
   return (
     <ListItemIconContainer {...props} backgroundColor={backgroundColor}>
-      <Avatar size={size} contactId={contactId} contact={contact} />
+      <Avatar
+        rounded={rounded}
+        size={size}
+        contactId={contactId}
+        contact={contact}
+      />
     </ListItemIconContainer>
   );
 };
@@ -180,18 +186,20 @@ const ListItemTypeIcon = ({
   );
 };
 
-const ListItemIconContainer = ({
+export const ListItemIconContainer = ({
   backgroundColor = '$secondaryBackground',
   rounded,
   width = '$4xl',
   height = '$4xl',
   children,
+  ...rest
 }: PropsWithChildren<{
   backgroundColor?: ColorProp;
   width?: SizeTokens;
   height?: SizeTokens;
   rounded?: boolean;
-}>) => {
+}> &
+  Omit<ComponentProps<typeof View>, 'backgroundColor'>) => {
   return (
     <View
       width={width}
@@ -199,8 +207,8 @@ const ListItemIconContainer = ({
       borderRadius={rounded ? '$2xl' : '$s'}
       overflow="hidden"
       flex={0}
-      // @ts-expect-error user-supplied color
-      backgroundColor={backgroundColor}
+      backgroundColor={backgroundColor as any}
+      {...rest}
     >
       {children}
     </View>
@@ -214,7 +222,6 @@ const ListItemMainContent = styled(YStack, {
 });
 
 const ListItemTitle = styled(SizableText, {
-  alignItems: 'baseline',
   color: '$primaryText',
   numberOfLines: 1,
 
@@ -258,9 +265,7 @@ const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
   color: '$secondaryText',
   size: '$s',
-  // Tiny tweak to try to align with the baseline of the title
-  position: 'relative',
-  top: 1,
+  lineHeight: '$xs',
 });
 
 const ListItemTime = ListItemTimeText.styleable<{
@@ -291,31 +296,26 @@ const ListItemCount = ({
   children,
   muted,
   notUnread,
-}: PropsWithChildren<{ muted?: boolean; notUnread?: boolean }>) => {
+  ...rest
+}: PropsWithChildren<{ muted?: boolean; notUnread?: boolean }> &
+  ComponentProps<typeof Stack>) => {
   return (
     <Stack
-      padding="$2xs"
       paddingHorizontal={'$m'}
       backgroundColor={
-        notUnread
-          ? undefined
-          : muted
-            ? '$secondaryBackground'
-            : '$positiveBackground'
+        notUnread ? undefined : muted ? undefined : '$secondaryBackground'
       }
       borderRadius="$l"
-      // Tiny tweak to try to align with the baseline of the title
-      position="relative"
-      top={-2}
+      // backgroundColor="$secondaryBackground"
+      {...rest}
     >
-      <SizableText
-        size="$s"
-        lineHeight={Platform.OS === 'ios' ? 0 : 17}
-        color={notUnread || muted ? '$secondaryText' : '$positiveActionText'}
-        textAlign="center"
-      >
-        {children}
-      </SizableText>
+      {muted ? (
+        <Icon type="Mute" customSize={[18, 18]} color="$tertiaryText" />
+      ) : (
+        <SizableText size="$s" textAlign="center" color="$secondaryText">
+          {children}
+        </SizableText>
+      )}
     </Stack>
   );
 };
@@ -349,8 +349,9 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  gap: '$s',
-  justifyContent: 'space-between',
+  paddingTop: '$xs',
+  gap: '$2xs',
+  justifyContent: 'center',
   alignItems: 'flex-end',
 });
 

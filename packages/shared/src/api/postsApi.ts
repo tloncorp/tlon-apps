@@ -273,10 +273,9 @@ export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
   includeReplies?: boolean;
-} & (
-  | { cursor: Cursor; mode: 'older' | 'newer' | 'around' }
-  | { cursor?: never; mode: 'newest' }
-);
+  mode: 'older' | 'newer' | 'around' | 'newest';
+  cursor?: Cursor;
+};
 
 export interface GetChannelPostsResponse {
   older?: string | null;

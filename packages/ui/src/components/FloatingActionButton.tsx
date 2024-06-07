@@ -1,7 +1,7 @@
 import { Button } from '../core/Button';
 import { SizableText } from '../core/Text';
 
-export default function FloatingActionButton({
+export function FloatingActionButton({
   onPress,
   icon,
   label,

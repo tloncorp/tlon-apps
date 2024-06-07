@@ -45,43 +45,53 @@ const IconGraphic = styled(
 
 const IconComponent = View.styleable<{
   size?: '$s' | '$m' | '$l' | '$xl';
+  customSize?: [number, number];
   color?: ColorTokens;
   type: IconType;
-}>(({ size = '$l', color = '$primaryText', type, ...props }, ref) => {
-  const [frameSize, iconSize]: [SizeTokens, SizeTokens] = useMemo(() => {
-    switch (size) {
-      case '$s':
-        return ['$l', '$l'];
-      case '$m':
-        return ['$2xl', '$2xl'];
-      case '$l':
-        return ['$3xl', '$2xl'];
-      case '$xl':
-        return ['$4xl', '$3xl'];
-    }
-    // This shouldn't be necessary, but a bug with tamagui's optimizing
-    // compiler caused this to error.
-    return ['$m', '$m'];
-  }, [size]);
+}>(
+  (
+    { size = '$l', color = '$primaryText', type, customSize, ...props },
+    ref
+  ) => {
+    const [frameSize, iconSize]: [SizeTokens, SizeTokens] = useMemo(() => {
+      if (customSize) {
+        return customSize;
+      }
 
-  return (
-    <View
-      ref={ref}
-      width={frameSize}
-      height={frameSize}
-      alignItems="center"
-      justifyContent="center"
-      {...props}
-    >
-      <IconGraphic
-        type={type}
-        color={color}
-        width={iconSize}
-        height={iconSize}
-      />
-    </View>
-  );
-});
+      switch (size) {
+        case '$s':
+          return ['$l', '$l'];
+        case '$m':
+          return ['$2xl', '$2xl'];
+        case '$l':
+          return ['$3xl', '$2xl'];
+        case '$xl':
+          return ['$4xl', '$3xl'];
+      }
+      // This shouldn't be necessary, but a bug with tamagui's optimizing
+      // compiler caused this to error.
+      return ['$m', '$m'];
+    }, [customSize, size]);
+
+    return (
+      <View
+        ref={ref}
+        width={frameSize}
+        height={frameSize}
+        alignItems="center"
+        justifyContent="center"
+        {...props}
+      >
+        <IconGraphic
+          type={type}
+          color={color}
+          width={iconSize}
+          height={iconSize}
+        />
+      </View>
+    );
+  }
+);
 
 export const Icon = withStaticProperties(React.memo(IconComponent), {
   Graphic: IconGraphic,
