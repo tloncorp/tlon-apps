@@ -61,7 +61,7 @@ export function PostScreenView({
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => void;
   negotiationMatch: boolean;
-  headerMode: 'default' | 'next';
+  headerMode?: 'default' | 'next';
 }) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showComments, setShowComments] = useState(false);
