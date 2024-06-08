@@ -462,6 +462,7 @@ export const deleteGroup = createWriteQuery(
 export const insertUnjoinedGroups = createWriteQuery(
   'insertUnjoinedGroups',
   async (groups: Group[], ctx: QueryCtx) => {
+    if (groups.length === 0) return;
     return withTransactionCtx(ctx, async (txCtx) => {
       if (groups.length === 0) return;
 
