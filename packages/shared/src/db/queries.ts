@@ -2155,6 +2155,7 @@ export const clearThreadUnread = createWriteQuery(
 export const insertActivityEvents = createWriteQuery(
   'insertActivityEvents',
   async (events: ActivityEvent[], ctx: QueryCtx) => {
+    if (events.length === 0) return;
     return ctx.db
       .insert($activityEvents)
       .values(events)
