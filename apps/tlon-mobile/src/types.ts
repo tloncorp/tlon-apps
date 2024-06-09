@@ -22,7 +22,10 @@ export type HomeStackParamList = {
   ChatList: undefined;
   Channel: {
     channel: db.Channel;
-    selectedPost?: db.Post;
+    selectedPostId?: string | null;
+  };
+  GroupChannels: {
+    group: db.Group;
   };
   ChannelSearch: {
     channel: db.Channel;
@@ -43,10 +46,15 @@ export type RootStackParamList = {
 export type TabParamList = {
   Groups: NavigatorScreenParams<HomeStackParamList>;
   Activity: NavigatorScreenParams<WebViewStackParamList>;
-  Profile: NavigatorScreenParams<WebViewStackParamList>;
+  Settings: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 export type TabName = keyof TabParamList;
+
+export type SettingsStackParamList = {
+  Profile: undefined;
+  FeatureFlags: undefined;
+};
 
 export type OnboardingStackParamList = {
   Welcome: undefined;

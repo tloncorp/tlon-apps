@@ -7,8 +7,8 @@ const channel = tlonLocalBulletinBoard;
 export default (
   <ChannelHeader
     title={channel.title ?? ''}
+    channel={channel}
     showSearchButton={true}
-    showPickerButton={true}
     showSpinner={true}
   />
 );

@@ -1,9 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { ActivityScreen } from '../screens/ActivityScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
+import { SettingsStack } from './SettingsStack';
 
 const Tab = createNativeStackNavigator<TabParamList>();
 
@@ -32,8 +32,8 @@ export const TabStack = () => {
         }}
       />
       <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="Settings"
+        component={SettingsStack}
         options={{
           headerShown: false,
         }}

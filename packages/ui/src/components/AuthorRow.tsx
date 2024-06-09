@@ -2,7 +2,7 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { SizableText, View, XStack } from '../core';
+import { SizableText, SizeTokens, View, XStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
 import { ListItem } from './ListItem';
@@ -30,9 +30,7 @@ export default function AuthorRow({
   sent,
   roles,
   type,
-  parentPost,
-  unreadCount,
-  setShowComments,
+  detailView,
   width,
 }: {
   author?: db.Contact | null;
@@ -41,10 +39,8 @@ export default function AuthorRow({
   roles?: string[];
   deliveryStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
-  parentPost?: db.Post;
-  unreadCount?: number | null;
-  setShowComments?: (show: boolean) => void;
-  width?: number;
+  detailView?: boolean;
+  width?: SizeTokens;
 }) {
   const timeDisplay = useMemo(() => {
     const date = new Date(sent);
@@ -52,39 +48,12 @@ export default function AuthorRow({
   }, [sent]);
   const firstRole = roles?.[0];
 
-  if (parentPost) {
+  if (detailView) {
     return (
-      <Pressable onPress={() => setShowComments?.(true)}>
-        <XStack
-          padding="$l"
-          alignItems="center"
-          gap="$s"
-          height={AUTHOR_ROW_HEIGHT_DETAIL_VIEW}
-          justifyContent="space-between"
-        >
-          <XStack maxWidth="80%" gap="$s" alignItems="center">
-            <Avatar
-              size="$2xl"
-              contact={parentPost.author}
-              contactId={parentPost.authorId}
-            />
-            <ContactName
-              maxWidth="80%"
-              showNickname
-              fontWeight="500"
-              userId={parentPost.authorId}
-            />
-          </XStack>
-          <XStack gap="$s" alignItems="center">
-            <SizableText color="$primaryText" size="$xs">
-              {timeDisplay}
-            </SizableText>
-            <ListItem.Count notUnread={!unreadCount}>
-              {(unreadCount || parentPost.replyCount) ?? 0}
-            </ListItem.Count>
-          </XStack>
-        </XStack>
-      </Pressable>
+      <XStack gap="$s" alignItems="center">
+        <Avatar size="$2xl" contact={author} contactId={authorId} />
+        <ContactName width="100%" showNickname userId={authorId} />
+      </XStack>
     );
   }
 
@@ -127,10 +96,7 @@ export default function AuthorRow({
     return (
       <XStack gap="$s" alignItems="center">
         <Avatar size="$2xl" contact={author} contactId={authorId} />
-        <ContactName width="50%" showNickname userId={authorId} />
-        <SizableText color="$secondaryText" fontSize="$s">
-          {timeDisplay}
-        </SizableText>
+        <ContactName width="100%" showNickname userId={authorId} />
       </XStack>
     );
   }

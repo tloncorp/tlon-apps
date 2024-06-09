@@ -19,7 +19,7 @@ export interface InitData {
   channelPerms: ChannelInit[];
 }
 
-export const getInitData = async (): Promise<InitData> => {
+export const getInitData = async () => {
   const response = await scry<ub.GroupsInit>({
     app: 'groups-ui',
     path: '/v2/init',

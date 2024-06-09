@@ -39,7 +39,12 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { getToken, useWindowDimensions } from 'tamagui';
+import {
+  getToken,
+  getTokenValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
@@ -83,9 +88,9 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
   return injectJS;
 };
 
-// 52 accounts for the 16px padding around the text within the input
-// and the 20px line height of the text. 16 + 20 + 16 = 52
-const DEFAULT_CONTAINER_HEIGHT = 52;
+// 44 accounts for the 12px padding around the text within the input
+// and the 20px line height of the text. 12 + 20 + 12 = 52
+export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
   editor: EditorBridge | null;
@@ -110,13 +115,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       setShowBigInput,
       showAttachmentButton = true,
       floatingActionButton = false,
-      backgroundColor = '$secondaryBackground',
-      paddingHorizontal = '$l',
+      backgroundColor = '$background',
+      paddingHorizontal,
+      initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
       bigInput = false,
       title,
       image,
       channelType,
+      setHeight,
+      goBack,
     },
     ref
   ) => {
@@ -130,9 +138,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }));
 
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-    const [containerHeight, setContainerHeight] = useState(
-      DEFAULT_CONTAINER_HEIGHT
-    );
+    const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
@@ -349,7 +355,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(newJson);
-              // editor.setSelection(initialSelection.from, initialSelection.to);
             }
           }
         }
@@ -567,6 +572,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         if (type === 'contentHeight') {
           setContainerHeight(payload);
+          setHeight?.(payload);
           return;
         }
 
@@ -579,7 +585,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
         });
       },
-      [editor, handleAddNewLine, handlePaste]
+      [editor, handleAddNewLine, handlePaste, setHeight, webviewRef]
     );
 
     const tentapInjectedJs = useMemo(
@@ -620,6 +626,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         disableSend={
           editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
         }
+        goBack={goBack}
       >
         <XStack
           borderRadius="$xl"
@@ -627,6 +634,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           backgroundColor={backgroundColor}
           paddingHorizontal={paddingHorizontal}
           flex={1}
+          borderColor="$shadow"
+          borderWidth={1}
         >
           <RichText
             style={{

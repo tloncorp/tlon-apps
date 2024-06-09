@@ -24,7 +24,7 @@ export function IconButton({
     onPress?: () => void;
     size?: SizeTokens;
     color?: ThemeTokens | ColorTokens;
-    backgroundColor?: ThemeTokens | ColorTokens;
+    backgroundColor?: ThemeTokens | ColorTokens | 'unset';
     backgroundColorOnPress?: ThemeTokens | ColorTokens;
     radius?: RadiusTokens;
     disabled?: boolean;

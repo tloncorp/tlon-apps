@@ -197,7 +197,8 @@ export function useChannelSort(defaultSort: SortMode = DEFAULT_SORT) {
             get(channel, 'meta.title'),
           [DEFAULT_SORT]: (_flag: string, channel: GroupChannel) =>
             channel.zone || UNZONED,
-          [RECENT_SORT]: (flag: string, _channel: GroupChannel) => flag,
+          [RECENT_SORT]: (nest: string, _channel: GroupChannel) =>
+            `channel/${nest}`,
         };
 
       return sortRecordsBy(

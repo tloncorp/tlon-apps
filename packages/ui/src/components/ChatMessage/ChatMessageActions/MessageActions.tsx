@@ -81,7 +81,7 @@ interface ChannelAction {
   label: string;
   actionType?: 'destructive';
 }
-function getPostActions({
+export function getPostActions({
   post,
   channelType,
   isMuted,
@@ -129,7 +129,7 @@ function getPostActions({
         { id: 'copyRef', label: 'Copy link to message' },
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },
-        { id: 'visibility', label: post.hidden ? 'Show post' : 'Hide post' },
+        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
   }

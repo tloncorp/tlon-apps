@@ -22,6 +22,7 @@ import {
 } from '../../contexts';
 import { ReferencesProvider } from '../../contexts/references';
 import { RequestsProvider } from '../../contexts/requests';
+import { ScrollContextProvider } from '../../contexts/scroll';
 import { SizableText, View, YStack } from '../../core';
 import { useStickyUnread } from '../../hooks/useStickyUnread';
 import * as utils from '../../utils';
@@ -35,6 +36,7 @@ import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
+import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
@@ -52,6 +54,7 @@ export function Channel({
   contacts,
   group,
   calmSettings,
+  headerMode,
   goBack,
   goToChannels,
   goToSearch,
@@ -80,7 +83,8 @@ export function Channel({
 }: {
   channel: db.Channel;
   currentUserId: string;
-  selectedPostId?: string;
+  selectedPostId?: string | null;
+  headerMode?: 'default' | 'next';
   posts: db.Post[] | null;
   contacts: db.Contact[] | null;
   group: db.Group | null;
@@ -164,17 +168,17 @@ export function Channel({
   const { bottom } = useSafeAreaInsets();
 
   return (
-    <CalmProvider calmSettings={calmSettings}>
-      <GroupsProvider groups={groups}>
-        <ContactsProvider contacts={contacts ?? null}>
-          <ChannelProvider value={{ channel }}>
-            <RequestsProvider
-              usePost={usePost}
-              useChannel={useChannel}
-              useGroup={useGroup}
-              useApp={useApp}
-            >
-              <ChannelProvider value={{ channel }}>
+    <ScrollContextProvider>
+      <CalmProvider calmSettings={calmSettings}>
+        <GroupsProvider groups={groups}>
+          <ContactsProvider contacts={contacts ?? null}>
+            <ChannelProvider value={{ channel }}>
+              <RequestsProvider
+                usePost={usePost}
+                useChannel={useChannel}
+                useGroup={useGroup}
+                useApp={useApp}
+              >
                 <NavigationProvider
                   onPressRef={onPressRef}
                   onPressGroupRef={onPressGroupRef}
@@ -191,14 +195,16 @@ export function Channel({
                         height="100%"
                       >
                         <ChannelHeader
+                          channel={channel}
+                          group={group}
+                          mode={headerMode}
                           title={title}
                           goBack={() =>
                             showBigInput ? bigInputGoBack() : goBack()
                           }
-                          goToChannels={goToChannels}
                           goToSearch={goToSearch}
-                          showPickerButton={!!group}
                           showSpinner={isLoadingPosts}
+                          showMenuButton={!isChatChannel}
                         />
                         <KeyboardAvoidingView
                           behavior={
@@ -279,17 +285,16 @@ export function Channel({
                                       editingPost={editingPost}
                                       setEditingPost={setEditingPost}
                                       editPost={editPost}
-                                      onDividerSeen={markRead}
                                       channelType={channel.type}
                                       channelId={channel.id}
                                       firstUnreadId={
-                                        channelUnread?.countWithoutThreads ??
+                                        channel.unread?.countWithoutThreads ??
                                         0 > 0
-                                          ? channelUnread?.firstUnreadPostId
+                                          ? channel.unread?.firstUnreadPostId
                                           : null
                                       }
                                       unreadCount={
-                                        channelUnread?.countWithoutThreads ?? 0
+                                        channel.unread?.countWithoutThreads ?? 0
                                       }
                                       onPressPost={goToPost}
                                       onPressReplies={goToPost}
@@ -331,7 +336,6 @@ export function Channel({
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }
-                                  backgroundColor="$secondaryBackground"
                                 />
                               )}
                             {!isChatChannel && canWrite && !showBigInput && (
@@ -385,6 +389,15 @@ export function Channel({
                             )}
                           </YStack>
                         </KeyboardAvoidingView>
+                        {headerMode === 'next' ? (
+                          <ChannelFooter
+                            title={title}
+                            goBack={goBack}
+                            goToChannels={goToChannels}
+                            goToSearch={goToSearch}
+                            showPickerButton={!!group}
+                          />
+                        ) : null}
                         <GroupPreviewSheet
                           group={groupPreview ?? undefined}
                           open={!!groupPreview}
@@ -395,12 +408,12 @@ export function Channel({
                     </View>
                   </ReferencesProvider>
                 </NavigationProvider>
-              </ChannelProvider>
-            </RequestsProvider>
-          </ChannelProvider>
-        </ContactsProvider>
-      </GroupsProvider>
-    </CalmProvider>
+              </RequestsProvider>
+            </ChannelProvider>
+          </ContactsProvider>
+        </GroupsProvider>
+      </CalmProvider>
+    </ScrollContextProvider>
   );
 }
 

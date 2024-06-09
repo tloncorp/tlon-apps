@@ -6,6 +6,7 @@ import {
   format,
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
+import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
@@ -334,6 +335,66 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
   }
 
   return false;
+};
+
+export const textPostIsReference = (post: db.Post): boolean => {
+  const { inlines, references } = extractContentTypesFromPost(post);
+  if (references.length === 0) {
+    return false;
+  }
+
+  if (inlines.length === 2) {
+    const [first] = inlines;
+    const isRefString =
+      typeof first === 'string' && REF_REGEX.test(first as string);
+
+    if (isRefString) {
+      return true;
+    }
+  }
+
+  if (
+    inlines.length === 1 &&
+    typeof inlines[0] === 'object' &&
+    'break' in inlines[0]
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+export const usePostMeta = (post: db.Post) => {
+  const { inlines, references, blocks } = useMemo(
+    () => extractContentTypesFromPost(post),
+    [post]
+  );
+  const isText = useMemo(() => isTextPost(post), [post]);
+  const isImage = useMemo(() => isImagePost(post), [post]);
+  const isReference = useMemo(() => isReferencePost(post), [post]);
+  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
+  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
+  const image = useMemo(
+    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
+    [blocks, isImage]
+  );
+  const linkedImage = useMemo(
+    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
+    [inlines, isLinkedImage]
+  );
+
+  return {
+    isText,
+    isImage,
+    isReference,
+    isLinkedImage,
+    isRefInText,
+    inlines,
+    references,
+    blocks,
+    image,
+    linkedImage,
+  };
 };
 
 export const getCompositeGroups = (

@@ -1347,25 +1347,6 @@ export function useReply(
   }, [post, replyId]);
 }
 
-export function useChatStoreChannelUnreads() {
-  const chats = useChatStore((s) => s.chats);
-
-  return useMemo(
-    () =>
-      Object.entries(chats).reduce((acc, [k, v]) => {
-        if (whomIsFlag(k)) {
-          const { unread } = v;
-
-          if (unread && !unread.seen) {
-            acc.push(k);
-          }
-        }
-        return acc;
-      }, [] as string[]),
-    [chats]
-  );
-}
-
 export function useIsJoined(nest: Nest) {
   checkNest(nest);
   const unreads = useUnreads();

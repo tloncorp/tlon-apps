@@ -18,53 +18,74 @@ const logger = createDevLogger('sync', true);
 export const channelCursors = new Map<string, string>();
 
 export const syncInitData = async () => {
-  return syncQueue.add('init', async () => {
-    const initData = await api.getInitData();
-    return batchEffects('init sync', async (ctx) => {
-      return await Promise.all([
-        db.insertPinnedItems(initData.pins, ctx),
-        db.insertGroups({ groups: initData.groups }, ctx),
-        db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
-        db.insertChannels(initData.channels, ctx),
-        // resetUnreads(initData.unreads, ctx),
-        resetActivity(initData.activity, ctx),
-        db.insertChannelPerms(initData.channelPerms, ctx),
-      ]);
-    });
+  // return syncQueue.add('init', async () => {
+  //   const initData = await api.getInitData();
+  //   return batchEffects('init sync', async (ctx) => {
+  //     return await Promise.all([
+  //       db.insertPinnedItems(initData.pins, ctx),
+  //       db.insertGroups({ groups: initData.groups }, ctx),
+  //       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
+  //       db.insertChannels(initData.channels, ctx),
+  //       // resetUnreads(initData.unreads, ctx),
+  //       resetActivity(initData.activity, ctx),
+  //       db.insertChannelPerms(initData.channelPerms, ctx),
+  //     ]);
+  //   });
+  // //////////////
+  // const initData = await syncQueue.add('init', () => api.getInitData());
+  // return batchEffects('init sync', async (ctx) => {
+  //   return await Promise.all([
+  //     db.insertPinnedItems(initData.pins, ctx),
+  //     db.insertGroups({ groups: initData.groups }, ctx),
+  //     db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
+  //     db.insertChannels(initData.channels, ctx),
+  //     resetUnreads(initData.unreads, ctx),
+  //     db.insertChannelPerms(initData.channelPerms, ctx),
+  //   ]);
+  // });
+  const initData = await syncQueue.add('init', () => api.getInitData());
+  return batchEffects('init sync', async (ctx) => {
+    return await Promise.all([
+      db.insertPinnedItems(initData.pins, ctx),
+      db.insertGroups({ groups: initData.groups }, ctx),
+      db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
+      db.insertChannels(initData.channels, ctx),
+      // resetUnreads(initData.unreads, ctx),
+      resetActivity(initData.activity, ctx),
+      db.insertChannelPerms(initData.channelPerms, ctx),
+    ]);
   });
 };
 
 export const syncLatestPosts = async () => {
-  return syncQueue.add('latest-posts', async () => {
-    const result = await Promise.all([
+  const result = await syncQueue.add('latest-posts', async () =>
+    Promise.all([
       api.getLatestPosts({ type: 'channels' }),
       api.getLatestPosts({ type: 'chats' }),
-    ]);
-    const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
-    for (const post of allPosts) {
-      if (
-        !channelCursors.has(post.channelId) ||
-        post.id > channelCursors.get(post.channelId)!
-      ) {
-        channelCursors.set(post.channelId, post.id);
-      }
+    ])
+  );
+  const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
+  for (const post of allPosts) {
+    if (
+      !channelCursors.has(post.channelId) ||
+      post.id > channelCursors.get(post.channelId)!
+    ) {
+      channelCursors.set(post.channelId, post.id);
     }
-    await db.insertLatestPosts(allPosts);
-  });
+  }
+  await db.insertLatestPosts(allPosts);
 };
 
 export const syncChanges = async (options: api.GetChangedPostsOptions) => {
-  return syncQueue.add('changes', async () => {
-    const result = await api.getChangedPosts(options);
-    await persistPagedPostData(options.channelId, result);
-  });
+  const result = await syncQueue.add('changes', () =>
+    api.getChangedPosts(options)
+  );
+  await persistPagedPostData(options.channelId, result);
 };
 
 export const syncSettings = async () => {
-  return syncQueue.add('settings', async () => {
-    const settings = await api.getSettings();
-    await db.insertSettings(settings);
-  });
+  const settings = await syncQueue.add('settings', () => api.getSettings());
+  return db.insertSettings(settings);
 };
 
 export const syncVolumeSettings = async () => {
@@ -82,26 +103,28 @@ export const syncActivityEvents = async () => {
 };
 
 export const syncContacts = async () => {
-  return syncQueue.add('contacts', async () => {
-    const contacts = await api.getContacts();
-    await db.insertContacts(contacts);
-  });
+  const contacts = await syncQueue.add('contacts', () => api.getContacts());
+  await db.insertContacts(contacts);
 };
 
 export const syncPinnedItems = async () => {
-  const pinnedItems = await api.getPinnedItems();
+  const pinnedItems = await syncQueue.add('pinnedItems', () =>
+    api.getPinnedItems()
+  );
   await db.insertPinnedItems(pinnedItems);
 };
 
 export const syncGroups = async () => {
-  return syncQueue.add('groups', async () => {
-    const groups = await api.getGroups({ includeMembers: false });
-    await db.insertGroups({ groups: groups });
-  });
+  const groups = await syncQueue.add('groups', () =>
+    api.getGroups({ includeMembers: false })
+  );
+  await db.insertGroups({ groups: groups });
 };
 
 export const syncDms = async () => {
-  const [dms, groupDms] = await Promise.all([api.getDms(), api.getGroupDms()]);
+  const [dms, groupDms] = await syncQueue.add('dms', () =>
+    Promise.all([api.getDms(), api.getGroupDms()])
+  );
   await db.insertChannels([...dms, ...groupDms]);
 };
 

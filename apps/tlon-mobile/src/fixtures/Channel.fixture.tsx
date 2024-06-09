@@ -73,12 +73,14 @@ const ChannelFixtureWrapper = ({
 export const ChannelFixture = (props: {
   theme?: 'light' | 'dark';
   negotiationMatch?: boolean;
+  headerMode?: 'default' | 'next';
 }) => {
   const switcher = useChannelSwitcher(tlonLocalIntros);
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel
+        headerMode={props.headerMode}
         posts={posts}
         currentUserId="~zod"
         channel={switcher.activeChannel}
@@ -258,7 +260,13 @@ function SwitcherFixture({
 }
 
 export default {
-  chat: <ChannelFixture />,
+  chat: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      headerMode={'default'}
+    />
+  ),
   notebook: <NotebookChannelFixture />,
   chatWithImage: <ChannelFixtureWithImage />,
   negotiationMismatch: <ChannelFixture negotiationMatch={false} />,

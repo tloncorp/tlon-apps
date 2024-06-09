@@ -20,7 +20,10 @@ export default function AttachmentButton({
           <Spinner />
         </View>
       ) : (
-        <IconButton onPress={() => setShowInputSelector(true)}>
+        <IconButton
+          backgroundColor="unset"
+          onPress={() => setShowInputSelector(true)}
+        >
           <Add />
         </IconButton>
       )}

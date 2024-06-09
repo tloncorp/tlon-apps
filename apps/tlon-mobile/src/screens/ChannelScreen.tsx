@@ -50,13 +50,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     uploadInfo,
     currentUserId,
     performGroupAction,
+    headerMode,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
     uploaderKey: `${currentChannelId}`,
   });
 
-  const selectedPostId = props.route.params.selectedPost?.id;
+  const selectedPostId = props.route.params.selectedPostId;
   const unread = channel?.unread;
   const firstUnreadId =
     unread &&
@@ -127,6 +128,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   return (
     <>
       <Channel
+        headerMode={headerMode}
         channel={channel}
         currentUserId={currentUserId}
         calmSettings={calmSettings}

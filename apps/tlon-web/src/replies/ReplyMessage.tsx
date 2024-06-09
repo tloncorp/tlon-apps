@@ -126,18 +126,18 @@ const ReplyMessage = React.memo<
       const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
-      const id = !whomIsFlag(whom)
+      const msgId = !whomIsFlag(whom)
         ? seal.id
         : `${memo.author}/${formatUd(bigInt(seal.id))}`;
       const threadKey = getThreadKey(
         whom,
-        !whomIsFlag(whom) ? seal.id : parent.time
+        !whomIsFlag(whom) ? parent.id : parent.time
       );
       const chatInfo = useChatInfo(`${whom}/${parent.id}`);
       const unread = useUnread(threadKey);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const isUnread =
-        unread?.status !== 'read' && unread?.lastUnread?.id === id;
+        unread?.status !== 'read' && unread?.lastUnread?.id === msgId;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { markRead: markChannelRead } = useMarkChannelRead(
@@ -161,7 +161,9 @@ const ReplyMessage = React.memo<
               return;
             }
 
-            const unseen = unread.status === 'unread';
+            const unseen = whomIsFlag(whom)
+              ? unread.status === 'unread'
+              : unread.combined.status === 'unread';
             /* the first fire of this function
                which we don't to do anything with. */
             if (!inView && unseen) {

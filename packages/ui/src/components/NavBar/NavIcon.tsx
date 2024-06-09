@@ -9,16 +9,14 @@ export function AvatarNavIcon({
   id,
   focused,
   contact,
-  isLoading,
   onPress,
 }: {
   id: string;
   focused: boolean;
   contact?: Contact | null;
-  isLoading: boolean;
   onPress?: () => void;
 }) {
-  return isLoading && !contact ? null : (
+  return (
     <View flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
       <Avatar
         width={20}

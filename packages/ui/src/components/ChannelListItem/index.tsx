@@ -125,7 +125,7 @@ function ChannelListItemIcon({
       return (
         <ListItem.TextIcon
           fallbackText={utils.getChannelTitle(model)}
-          backgroundColor={backgroundColor}
+          backgroundColor={backgroundColor ?? '$secondaryBackground'}
           {...props}
         />
       );

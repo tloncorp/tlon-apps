@@ -1,22 +1,11 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
-import { NotificationLevel } from 'packages/shared/dist/urbit';
 import { PropsWithChildren, useCallback, useState } from 'react';
 import { Dimensions, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Checkbox,
-  Circle,
-  Label,
-  RadioGroup,
-  ScrollView,
-  SizableText,
-  XStack,
-  getTokens,
-} from 'tamagui';
+import { ScrollView, SizableText, XStack, getTokens } from 'tamagui';
 
-import { ChevronLeft } from '../assets/icons';
 import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
 import { Avatar } from './Avatar';
@@ -29,6 +18,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 interface Props {
   currentUserId: string;
   debugMessage: string;
+  onAppSettingsPressed?: () => void;
 }
 
 export function ProfileScreenView({
@@ -47,7 +37,7 @@ type NotificationState = { open: boolean; setting: 1 | 2 | 3 };
 export function Wrapped(props: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const defaultNotificationLevel = store.useDefaultNotificationLevel();
-  const { top, bottom } = useSafeAreaInsets();
+  const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
   const [notifState, setNotifState] = useState<NotificationState>({
     open: false,
@@ -126,7 +116,11 @@ export function Wrapped(props: Props) {
             </View>
             <View marginTop="$xl">
               <ProfileAction title="Edit profile" icon="Draw" />
-              <ProfileAction title="App Settings" icon="Settings" />
+              <ProfileAction
+                title="App Settings"
+                icon="Settings"
+                onPress={props.onAppSettingsPressed}
+              />
               <ProfileAction
                 title="Push Notifications"
                 icon="Notifications"

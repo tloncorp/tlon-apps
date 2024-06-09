@@ -566,7 +566,7 @@ const ChatMessage = React.memo<
                             threadUnread &&
                               threadUr?.status !== 'unread' &&
                               'mr-2',
-                            threadUnread
+                            threadUnread && threadUr?.status === 'unread'
                               ? threadNotify
                                 ? 'text-blue'
                                 : ''
