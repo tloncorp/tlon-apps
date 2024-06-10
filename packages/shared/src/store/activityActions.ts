@@ -6,18 +6,48 @@ import * as ub from '../urbit';
 const logger = createDevLogger('activityActions', true);
 
 export async function muteChat(channel: db.Channel) {
+  const existingSettings = await db.getVolumeSettings();
+
   const { source, sourceId } = api.getRootSourceFromChannel(channel);
   const volume = ub.getVolumeMap('soft', true);
 
   // optimistic update
   db.mergeVolumeSettings([{ sourceId, volume }]);
+  if (channel.groupId) {
+    db.setGroupVolumes([
+      { groupId: channel.groupId, isMuted: true, isNoisy: false },
+    ]);
+  } else {
+    db.setChannelVolumes([
+      { channelId: channel.id, isMuted: true, isNoisy: false },
+    ]);
+  }
 
   try {
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.log(`failed to mute group ${channel.id}`, e);
     // revert the optimistic update
-    db.mergeVolumeSettings([{ sourceId, volume: null }]);
+    db.mergeVolumeSettings([
+      { sourceId, volume: existingSettings[sourceId] ?? null },
+    ]);
+    if (channel.groupId) {
+      db.setGroupVolumes([
+        {
+          groupId: channel.groupId,
+          isMuted: channel.isMuted ?? undefined,
+          isNoisy: channel.isNoisy ?? undefined,
+        },
+      ]);
+    } else {
+      db.setChannelVolumes([
+        {
+          channelId: channel.id,
+          isMuted: channel.isMuted ?? undefined,
+          isNoisy: channel.isNoisy ?? undefined,
+        },
+      ]);
+    }
   }
 }
 
@@ -28,6 +58,16 @@ export async function unmuteChat(channel: db.Channel) {
   // optimistic update
   db.mergeVolumeSettings([{ sourceId, volume: null }]);
 
+  if (channel.groupId) {
+    db.setGroupVolumes([
+      { groupId: channel.groupId, isMuted: false, isNoisy: false },
+    ]);
+  } else {
+    db.setChannelVolumes([
+      { channelId: channel.id, isMuted: false, isNoisy: false },
+    ]);
+  }
+
   try {
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
@@ -36,6 +76,24 @@ export async function unmuteChat(channel: db.Channel) {
     db.mergeVolumeSettings([
       { sourceId, volume: existingSettings[sourceId] ?? null },
     ]);
+
+    if (channel.groupId) {
+      db.setGroupVolumes([
+        {
+          groupId: channel.groupId,
+          isMuted: channel.isMuted ?? undefined,
+          isNoisy: channel.isNoisy ?? undefined,
+        },
+      ]);
+    } else {
+      db.setChannelVolumes([
+        {
+          channelId: channel.id,
+          isMuted: channel.isMuted ?? undefined,
+          isNoisy: channel.isNoisy ?? undefined,
+        },
+      ]);
+    }
   }
 }
 

@@ -16,6 +16,7 @@ export default function NotebookPost({
   showAuthor = true,
   smallImage = false,
   smallTitle = false,
+  viewMode,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
@@ -26,6 +27,7 @@ export default function NotebookPost({
   showAuthor?: boolean;
   smallImage?: boolean;
   smallTitle?: boolean;
+  viewMode?: 'activity';
 }) {
   const dateDisplay = useMemo(() => {
     const date = new Date(post.sentAt);
@@ -46,6 +48,7 @@ export default function NotebookPost({
       onPress={() => onPress?.(post)}
       onLongPress={handleLongPress}
       delayLongPress={250}
+      disabled={viewMode === 'activity'}
     >
       <YStack
         key={post.id}
@@ -56,6 +59,8 @@ export default function NotebookPost({
         borderRadius="$xl"
         borderColor="$shadow"
         marginVertical="$xl"
+        width={viewMode === 'activity' ? 60 : undefined}
+        overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
         {post.image && (
           <Image

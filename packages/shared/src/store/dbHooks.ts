@@ -191,6 +191,30 @@ export const useUnreadsCount = () => {
   });
 };
 
+export const useGroupUnreadsCount = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getGroupUnreadCount);
+  return useQuery({
+    queryKey: ['groupUnreadsCount', deps, groupId],
+    queryFn: () => {
+      if (!groupId) return null;
+
+      return db.getGroupUnreadCount(groupId);
+    },
+  });
+};
+
+export const useGroupChannelUnreadsCount = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getGroupChannelUnreadCount);
+  return useQuery({
+    queryKey: ['groupChannelUnreadsCount', deps, channelId],
+    queryFn: () => {
+      if (!channelId) return null;
+
+      return db.getGroupChannelUnreadCount(channelId);
+    },
+  });
+};
+
 export const useUnreads = (options: db.GetUnreadsOptions) => {
   return useQuery({
     queryKey: ['unreads'],

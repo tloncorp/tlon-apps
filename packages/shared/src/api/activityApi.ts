@@ -2,9 +2,10 @@ import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
 import { getCanonicalPostId, udToDate } from './apiUtils';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', true);
 
@@ -138,6 +139,11 @@ export type ActivityEvent =
       type: 'updateVolumeSetting';
       update: VolumeUpdate;
     }
+  | {
+      type: 'updateGroupVolume';
+      volumeUpdate: db.GroupVolume;
+    }
+  | { type: 'updateChannelVolume'; volumeUpdate: db.ChannelVolume }
   | { type: 'addActivityEvent'; event: db.ActivityEvent };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
@@ -182,6 +188,36 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
       if ('adjust' in update) {
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
+
+        if ('group' in source) {
+          const clientVolume = extractClientVolume(volume);
+          return handler({
+            type: 'updateGroupVolume',
+            volumeUpdate: {
+              groupId: source.group,
+              ...clientVolume,
+            },
+          });
+        }
+
+        if ('channel' in source || 'dm' in source) {
+          const clientVolume = extractClientVolume(volume, 'channel' in source);
+          const channelId =
+            'channel' in source
+              ? source.channel.nest
+              : 'ship' in source.dm
+                ? source.dm.ship
+                : source.dm.club;
+          return handler({
+            type: 'updateChannelVolume',
+            volumeUpdate: {
+              channelId,
+              ...clientVolume,
+            },
+          });
+        }
+
+        // keep handling threads as they were
         return handler({
           type: 'updateVolumeSetting',
           update: { sourceId, volume },
@@ -426,6 +462,8 @@ export async function adjustVolumeSetting(
 export type ActivityUpdateQueue = {
   channelActivity: db.Unread[];
   threadActivity: db.ThreadUnreadState[];
+  channelVolumeUpdates: db.ChannelVolume[];
+  groupVolumeUpdates: db.GroupVolume[];
   volumeSettings: VolumeUpdate[];
   activityEvents: db.ActivityEvent[];
 };

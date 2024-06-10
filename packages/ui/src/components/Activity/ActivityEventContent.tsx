@@ -6,6 +6,7 @@ import * as ub from '@tloncorp/shared/dist/urbit';
 import { SizableText, View, XStack } from '../../core';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
+import { NotebookPost } from '../NotebookPost';
 
 export function ActivityEventContent({
   summary,
@@ -20,6 +21,14 @@ export function ActivityEventContent({
     return (
       <View marginTop="$s" marginRight="$xl">
         <ContentRenderer post={post} viewMode="activity" />
+      </View>
+    );
+  }
+
+  if (newest.channel?.type === 'notebook') {
+    return (
+      <View marginTop="$s" marginRight="$xl">
+        <NotebookPost post={post} />
       </View>
     );
   }

@@ -44,28 +44,6 @@ function ActivityHeaderRaw({
         </XStack>
         <XStack
           flexGrow={1}
-          borderBottomWidth={activeTab === 'threads' ? 1 : 0}
-          borderColor="$primaryText"
-          justifyContent="center"
-        >
-          <Pressable
-            disabled={activeTab === 'threads'}
-            onPress={() => onTabPress('threads')}
-          >
-            <SizableText
-              width={100}
-              textAlign="center"
-              paddingVertical="$m"
-              color={
-                activeTab === 'threads' ? '$primaryText' : '$secondaryText'
-              }
-            >
-              Threads
-            </SizableText>
-          </Pressable>
-        </XStack>
-        <XStack
-          flexGrow={1}
           borderBottomWidth={activeTab === 'mentions' ? 1 : 0}
           borderColor="$primaryText"
           justifyContent="center"
@@ -83,6 +61,28 @@ function ActivityHeaderRaw({
               }
             >
               Mentions
+            </SizableText>
+          </Pressable>
+        </XStack>
+        <XStack
+          flexGrow={1}
+          borderBottomWidth={activeTab === 'threads' ? 1 : 0}
+          borderColor="$primaryText"
+          justifyContent="center"
+        >
+          <Pressable
+            disabled={activeTab === 'threads'}
+            onPress={() => onTabPress('threads')}
+          >
+            <SizableText
+              width={100}
+              textAlign="center"
+              paddingVertical="$m"
+              color={
+                activeTab === 'threads' ? '$primaryText' : '$secondaryText'
+              }
+            >
+              Replies
             </SizableText>
           </Pressable>
         </XStack>

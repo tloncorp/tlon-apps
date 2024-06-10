@@ -66,109 +66,21 @@ export function ChannelIndicator({
   channel: db.Channel;
   group?: db.Group;
 }) {
+  const title =
+    channel.type === 'dm'
+      ? 'DM'
+      : channel.type === 'groupDm'
+        ? 'Group chat'
+        : getChannelTitle(channel);
   return (
     <XStack alignItems="center">
       <ChannelIcon channel={channel} group={group} />
       <SizableText marginLeft="$m" fontSize="$s" color="$secondaryText">
-        {getChannelTitle(channel)}
+        {title}
       </SizableText>
     </XStack>
   );
 }
-
-// export function SummaryMessage({
-//   summary,
-//   newestPostContact,
-// }: {
-//   summary: db.SourceActivityEvents;
-//   newestPostContact: db.Contact | null;
-// }) {
-//   const newest = summary.newest;
-
-//   // if it's a mention, life is easy and we just say what it is
-//   if (newest.isMention) {
-//     return (
-//       <SummaryMessageWrapper>
-//         <ContactName
-//           fontSize="$s"
-//           userId={newest.authorId ?? ''}
-//           showNickname
-//         />
-//         {` mentioned you in a ${postName(newest)}`}
-//       </SummaryMessageWrapper>
-//     );
-//   }
-
-//   // if the activity source is unread, we use that total count
-//   const count =
-//     newest.type === 'reply'
-//       ? newest.post?.threadUnread?.count ?? summary.all.length
-//       : newest.channel?.unread?.count ?? summary.all.length;
-
-//   if (summary.all.length === 1) {
-//     return (
-//       <SizableText color="$secondaryText">
-//         <ContactName userId={newest.authorId ?? ''} showNickname />
-//         {` ${postVerb(newest.channel?.type ?? 'chat')} a ${postName(newest)}`}
-//       </SizableText>
-//     );
-//   }
-
-//   const uniqueAuthors = new Set<string>();
-//   summary.all.forEach((event) => uniqueAuthors.add(event.authorId ?? ''));
-//   if (uniqueAuthors.size === 1) {
-//     return (
-//       <SizableText color="$secondaryText">
-//         <ContactName
-//           userId={newest.authorId ?? ''}
-//           fontWeight="500"
-//           showNickname
-//         />
-//         {` ${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
-//       </SizableText>
-//     );
-//   } else {
-//     <SizableText color="$secondaryText">
-//       {`${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
-//     </SizableText>;
-//   }
-// }
-
-// function SummaryMessageWrapper({ children }: PropsWithChildren) {
-//   return (
-//     <SizableText color="$secondaryText" size="$s">
-//       {children}
-//     </SizableText>
-//   );
-// }
-
-// function postName(event: db.ActivityEvent, plural?: boolean) {
-//   const isThread = Boolean(event.parentId);
-//   const channelType = event.channel?.type ?? 'chat';
-
-//   if (isThread) {
-//     if (channelType === 'gallery' || channelType === 'notebook') {
-//       return `comment${plural ? 's' : ''}`;
-//     }
-//     return plural ? 'replies' : 'reply';
-//   }
-
-//   const name =
-//     channelType === 'gallery'
-//       ? 'block'
-//       : channelType === 'notebook'
-//         ? 'note'
-//         : 'message';
-//   return `${name}${plural ? 's' : ''}`;
-// }
-
-// function postVerb(channelType: string) {
-//   return channelType === 'gallery'
-//     ? 'added'
-//     : channelType === 'notebook'
-//       ? 'added'
-//       : 'sent';
-// }
 
 // TODO: we dont really have a sizable channel/group icon, we use hardcoded ListItem everywhere?
 export function ChannelIcon({

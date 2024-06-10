@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "65c1782e-4502-4ae3-b618-448c9a90047c",
+  "id": "acd310eb-4a9a-44b7-9b28-07f5c3f866a2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -252,6 +252,20 @@
         },
         "is_dm_invite": {
           "name": "is_dm_invite",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_muted": {
+          "name": "is_muted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_noisy": {
+          "name": "is_noisy",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1082,6 +1096,20 @@
         },
         "last_post_at": {
           "name": "last_post_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_muted": {
+          "name": "is_muted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_noisy": {
+          "name": "is_noisy",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

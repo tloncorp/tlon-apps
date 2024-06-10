@@ -1,6 +1,7 @@
 import {
   AnyColumn,
   Column,
+  SQL,
   SQLWrapper,
   Subquery,
   Table,
@@ -23,7 +24,9 @@ import {
   not,
   or,
   sql,
+  sum,
 } from 'drizzle-orm';
+import { SqliteRemoteResult } from 'drizzle-orm/sqlite-proxy';
 
 import { ChannelInit, getCurrentUserId } from '../api';
 import { createDevLogger } from '../debug';
@@ -79,7 +82,7 @@ import {
   Unread,
 } from './types';
 
-const logger = createDevLogger('queries', false);
+const logger = createDevLogger('queries', true);
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -536,13 +539,15 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  (channelsInit: ChannelInit[], ctx: QueryCtx) => {
+  (channelsInit: ChannelInit[], ctx: QueryCtx): any => {
     const writers = channelsInit.flatMap((chanInit) =>
       chanInit.writers.map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
+
+    if (writers.length === 0) return;
 
     return ctx.db
       .insert($channelWriters)
@@ -928,6 +933,180 @@ export const getAllUnreadsCounts = createReadQuery(
     };
   },
   ['unreads']
+);
+
+export type ChannelVolume = {
+  channelId: string;
+  isMuted?: boolean;
+  isNoisy?: boolean;
+};
+export const setChannelVolumes = createWriteQuery(
+  `setChannelVolumes`,
+  async (channelVolumes: ChannelVolume[], ctx: QueryCtx) => {
+    if (channelVolumes.length === 0) {
+      return;
+    }
+
+    console.log(`inserting chan vols`, channelVolumes);
+
+    const validChannelIds = await ctx.db
+      .select({ id: $channels.id })
+      .from($channels);
+    const validChannelIdsSet = new Set(validChannelIds.map((c) => c.id));
+    const validVolumes = channelVolumes.filter((v) =>
+      validChannelIdsSet.has(v.channelId)
+    );
+
+    if (validVolumes.length === 0) {
+      return;
+    }
+
+    const channelIds: string[] = [];
+
+    // isMuted sql
+    const mutedChunks: SQL[] = [];
+    mutedChunks.push(sql`(case`);
+    for (const volume of validVolumes) {
+      mutedChunks.push(
+        sql`when ${$channels.id} = ${volume.channelId} then ${volume.isMuted}`
+      );
+      channelIds.push(volume.channelId);
+    }
+    mutedChunks.push(sql`end)`);
+    const isMuted: SQL = sql.join(mutedChunks, sql.raw(' '));
+
+    // noisy sql
+    const noisyChunks: SQL[] = [];
+    noisyChunks.push(sql`(case`);
+    for (const volume of channelVolumes) {
+      noisyChunks.push(
+        sql`when ${$channels.id} = ${volume.channelId} then ${volume.isMuted}`
+      );
+    }
+    noisyChunks.push(sql`end)`);
+    const isNoisy: SQL = sql.join(noisyChunks, sql.raw(' '));
+
+    return ctx.db
+      .update($channels)
+      .set({ isMuted, isNoisy })
+      .where(inArray($channels.id, channelIds));
+  },
+  ['channels']
+);
+
+export type GroupVolume = {
+  groupId: string;
+  isMuted?: boolean;
+  isNoisy?: boolean;
+};
+export const setGroupVolumes = createWriteQuery(
+  `setGroupVolumes`,
+  async (groupVolumes: GroupVolume[], ctx: QueryCtx) => {
+    if (groupVolumes.length === 0) {
+      return;
+    }
+
+    logger.log(`have`, groupVolumes);
+
+    const validGroupIds = await ctx.db.select({ id: $groups.id }).from($groups);
+    const validGroupIdsSet = new Set(validGroupIds.map((g) => g.id));
+
+    logger.log(`valid set`, validGroupIdsSet);
+    const validVolumes = groupVolumes.filter((g) =>
+      validGroupIdsSet.has(g.groupId)
+    );
+
+    logger.log(`valid volumes`, validVolumes);
+
+    if (validVolumes.length === 0) {
+      return;
+    }
+
+    const groupIds: string[] = [];
+
+    // isMuted sql
+    const mutedChunks: SQL[] = [];
+    mutedChunks.push(sql`(case`);
+    for (const volume of validVolumes) {
+      mutedChunks.push(
+        sql`when ${$groups.id} = ${volume.groupId} then ${volume.isMuted}`
+      );
+      groupIds.push(volume.groupId);
+    }
+    mutedChunks.push(sql`end)`);
+    const isMuted: SQL = sql.join(mutedChunks, sql.raw(' '));
+
+    // noisy sql
+    const noisyChunks: SQL[] = [];
+    noisyChunks.push(sql`(case`);
+    for (const volume of groupVolumes) {
+      noisyChunks.push(
+        sql`when ${$groups.id} = ${volume.groupId} then ${volume.isMuted}`
+      );
+    }
+    noisyChunks.push(sql`end)`);
+    const isNoisy: SQL = sql.join(noisyChunks, sql.raw(' '));
+
+    return ctx.db
+      .update($groups)
+      .set({ isMuted, isNoisy })
+      .where(inArray($groups.id, groupIds));
+  },
+  ['groups']
+);
+
+export const getGroupUnreadCount = createReadQuery(
+  'getGroupUnreadCount',
+  async (groupId: string, ctx: QueryCtx) => {
+    const channelsCount = await ctx.db
+      .select({ count: sum($unreads.countWithoutThreads).mapWith(Number) })
+      .from($unreads)
+      .leftJoin($channels, eq($channels.id, $unreads.channelId))
+      .where(
+        and(
+          eq($channels.groupId, groupId),
+          eq($channels.currentUserIsMember, true),
+          eq($channels.isMuted, false)
+        )
+      );
+
+    const threadsCount = await ctx.db
+      .select({ count: sum($threadUnreads.count).mapWith(Number) })
+      .from($threadUnreads)
+      .leftJoin($channels, eq($channels.id, $threadUnreads.channelId))
+      .where(
+        and(
+          eq($channels.groupId, groupId),
+          eq($channels.currentUserIsMember, true),
+          eq($threadUnreads.notify, true)
+        )
+      );
+
+    return (channelsCount[0]?.count ?? 0) + (threadsCount[0]?.count ?? 0);
+  },
+  ['unreads', 'threadUnreads', 'channels']
+);
+
+export const getGroupChannelUnreadCount = createReadQuery(
+  'getGroupChannelUnreadCount',
+  async (channelId: string, ctx: QueryCtx) => {
+    const channel = await ctx.db.query.unreads.findFirst({
+      where: and(eq($unreads.channelId, channelId)),
+    });
+
+    const threadsCount = await ctx.db
+      .select({ count: sum($threadUnreads.count).mapWith(Number) })
+      .from($threadUnreads)
+      .where(
+        and(
+          eq($threadUnreads.channelId, channelId),
+          eq($threadUnreads.notify, true)
+        )
+      );
+
+    return (channel?.countWithoutThreads ?? 0) + (threadsCount[0]?.count ?? 0);
+  },
+  ['unreads', 'threadUnreads', 'channels']
 );
 
 export const getChannelUnread = createReadQuery(

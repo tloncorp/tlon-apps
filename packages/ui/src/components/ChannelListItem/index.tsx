@@ -22,7 +22,14 @@ export default function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
-  const isMuted = store.useChannelIsMuted(model);
+  const { data: countWithInvolvedThreads } = store.useGroupChannelUnreadsCount(
+    model.type === 'dm' || model.type === 'groupDm' ? '' : model.id
+  );
+  const countToDisplay =
+    model.type === 'dm' || model.type === 'groupDm'
+      ? model.unread?.count ?? 0 // if a DM, any activity is "involved"
+      : countWithInvolvedThreads ?? 0;
+
   const title = utils.getChannelTitle(model);
 
   return (
@@ -34,10 +41,10 @@ export default function ChannelListItem({
       <ChannelListItemIcon
         model={model}
         useTypeIcon={useTypeIcon}
-        opacity={isMuted ? 0.2 : 1}
+        opacity={model.isMuted ? 0.2 : 1}
       />
       <ListItem.MainContent>
-        <ListItem.Title color={isMuted ? '$tertiaryText' : undefined}>
+        <ListItem.Title color={model.isMuted ? '$tertiaryText' : undefined}>
           {title}
         </ListItem.Title>
         {model.lastPost && (
@@ -65,10 +72,10 @@ export default function ChannelListItem({
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
           <ListItem.Count
-            opacity={model.unread?.count || isMuted ? 1 : 0}
-            muted={isMuted}
+            opacity={countToDisplay > 0 || model.isMuted ? 1 : 0}
+            muted={model.isMuted ?? false}
           >
-            {model.unread?.count ?? 0}
+            {countToDisplay}
           </ListItem.Count>
         </ListItem.EndContent>
       )}

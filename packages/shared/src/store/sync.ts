@@ -5,6 +5,7 @@ import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
+import { extractClientVolumes } from '../logic/activity';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 
@@ -18,31 +19,6 @@ const logger = createDevLogger('sync', true);
 export const channelCursors = new Map<string, string>();
 
 export const syncInitData = async () => {
-  // return syncQueue.add('init', async () => {
-  //   const initData = await api.getInitData();
-  //   return batchEffects('init sync', async (ctx) => {
-  //     return await Promise.all([
-  //       db.insertPinnedItems(initData.pins, ctx),
-  //       db.insertGroups({ groups: initData.groups }, ctx),
-  //       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
-  //       db.insertChannels(initData.channels, ctx),
-  //       // resetUnreads(initData.unreads, ctx),
-  //       resetActivity(initData.activity, ctx),
-  //       db.insertChannelPerms(initData.channelPerms, ctx),
-  //     ]);
-  //   });
-  // //////////////
-  // const initData = await syncQueue.add('init', () => api.getInitData());
-  // return batchEffects('init sync', async (ctx) => {
-  //   return await Promise.all([
-  //     db.insertPinnedItems(initData.pins, ctx),
-  //     db.insertGroups({ groups: initData.groups }, ctx),
-  //     db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
-  //     db.insertChannels(initData.channels, ctx),
-  //     resetUnreads(initData.unreads, ctx),
-  //     db.insertChannelPerms(initData.channelPerms, ctx),
-  //   ]);
-  // });
   const initData = await syncQueue.add('init', () => api.getInitData());
   return batchEffects('init sync', async (ctx) => {
     return await Promise.all([
@@ -50,7 +26,6 @@ export const syncInitData = async () => {
       db.insertGroups({ groups: initData.groups }, ctx),
       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
       db.insertChannels(initData.channels, ctx),
-      // resetUnreads(initData.unreads, ctx),
       resetActivity(initData.activity, ctx),
       db.insertChannelPerms(initData.channelPerms, ctx),
     ]);
@@ -91,7 +66,12 @@ export const syncSettings = async () => {
 export const syncVolumeSettings = async () => {
   return syncQueue.add('volumeSettings', async () => {
     const volumeSettings = await api.getVolumeSettings();
-    await db.storeVolumeSettings(volumeSettings);
+    const clientVolume = extractClientVolumes(volumeSettings);
+
+    await db.storeVolumeSettings(volumeSettings); // TODO: remove?
+
+    await db.setChannelVolumes(clientVolume.channelVolumes);
+    await db.setGroupVolumes(clientVolume.groupVolumes);
   });
 };
 
@@ -342,11 +322,13 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-const handleActivityUpdate = (queueDebounce: number = 5000) => {
+const handleActivityUpdate = (queueDebounce: number = 300) => {
   const queue: api.ActivityUpdateQueue = {
     channelActivity: [],
     threadActivity: [],
     volumeSettings: [],
+    channelVolumeUpdates: [],
+    groupVolumeUpdates: [],
     activityEvents: [],
   };
   const processQueue = _.debounce(
@@ -355,6 +337,8 @@ const handleActivityUpdate = (queueDebounce: number = 5000) => {
       queue.channelActivity = [];
       queue.threadActivity = [];
       queue.volumeSettings = [];
+      queue.channelVolumeUpdates = [];
+      queue.groupVolumeUpdates = [];
       queue.activityEvents = [];
 
       logger.log(
@@ -362,11 +346,15 @@ const handleActivityUpdate = (queueDebounce: number = 5000) => {
         activitySnapshot.channelActivity.length,
         activitySnapshot.threadActivity.length,
         activitySnapshot.volumeSettings.length,
+        activitySnapshot.channelVolumeUpdates.length,
+        activitySnapshot.groupVolumeUpdates.length,
         activitySnapshot.activityEvents.length
       );
       await db.insertUnreads(activitySnapshot.channelActivity);
       await db.insertThreadActivity(activitySnapshot.threadActivity);
       await db.mergeVolumeSettings(activitySnapshot.volumeSettings);
+      await db.setChannelVolumes(activitySnapshot.channelVolumeUpdates);
+      await db.setGroupVolumes(activitySnapshot.groupVolumeUpdates);
       await db.insertActivityEvents(activitySnapshot.activityEvents);
     },
     queueDebounce,
@@ -384,6 +372,12 @@ const handleActivityUpdate = (queueDebounce: number = 5000) => {
         break;
       case 'updateVolumeSetting':
         queue.volumeSettings.push(event.update);
+        break;
+      case 'updateChannelVolume':
+        queue.channelVolumeUpdates.push(event.volumeUpdate);
+        break;
+      case 'updateGroupVolume':
+        queue.groupVolumeUpdates.push(event.volumeUpdate);
         break;
       case 'addActivityEvent':
         queue.activityEvents.push(event.event);

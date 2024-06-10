@@ -31,6 +31,7 @@ export interface DetailViewProps {
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   goBack?: () => void;
+  markRead: (post: db.Post) => void;
 }
 
 const DetailViewMetaDataComponent = ({
@@ -113,6 +114,7 @@ const DetailViewFrameComponent = ({
   getDraft,
   children,
   goBack,
+  markRead,
 }: DetailViewProps) => {
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
@@ -149,6 +151,7 @@ const DetailViewFrameComponent = ({
                   : null
               }
               unreadCount={threadUnread?.count ?? 0}
+              onDividerSeen={markRead}
             />
           </View>
         )}

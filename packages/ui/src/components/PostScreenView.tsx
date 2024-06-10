@@ -15,6 +15,7 @@ import {
 } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
+import { useStickyUnread } from '../hooks/useStickyUnread';
 import * as utils from '../utils';
 import { ChannelFooter } from './Channel/ChannelFooter';
 import { ChannelHeader } from './Channel/ChannelHeader';
@@ -73,6 +74,7 @@ export function PostScreenView({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
+  const threadUnread = useStickyUnread(parentPost?.threadUnread);
   const postsWithoutParent = useMemo(
     () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
     [posts, parentPost]
@@ -125,6 +127,7 @@ export function PostScreenView({
                       clearDraft={clearDraft}
                       getDraft={getDraft}
                       goBack={goBack}
+                      markRead={markRead}
                     />
                   )}
                   {parentPost && channel.type === 'notebook' && (
@@ -143,6 +146,7 @@ export function PostScreenView({
                       clearDraft={clearDraft}
                       getDraft={getDraft}
                       goBack={goBack}
+                      markRead={markRead}
                     />
                   )}
                   {uploadInfo.imageAttachment ? (
@@ -170,6 +174,13 @@ export function PostScreenView({
                           posts={posts}
                           showReplies={false}
                           onPressImage={handleGoToImage}
+                          firstUnreadId={
+                            threadUnread?.count ?? 0 > 0
+                              ? threadUnread?.firstUnreadPostId
+                              : null
+                          }
+                          unreadCount={threadUnread?.count ?? 0}
+                          onDividerSeen={markRead}
                         />
                       </View>
                     )

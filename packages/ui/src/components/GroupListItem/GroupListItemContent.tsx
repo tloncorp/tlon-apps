@@ -14,7 +14,8 @@ export default function GroupListItemContent({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) {
-  const isMuted = store.useGroupIsMuted(model);
+  const { data: unreadCount } = store.useGroupUnreadsCount(model.id);
+  const countToDisplay = unreadCount ?? 0;
   const { isPending, statusDisplay, isErrored } = useMemo(
     () => getDisplayInfo(model),
     [model]
@@ -27,7 +28,7 @@ export default function GroupListItemContent({
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
-      <View opacity={isMuted ? 0.2 : 1}>
+      <View opacity={model.isMuted ? 0.2 : 1}>
         <ListItem.Icon
           fallbackText={model.title?.[0]}
           backgroundColor={model.iconImageColor ?? undefined}
@@ -35,7 +36,7 @@ export default function GroupListItemContent({
         />
       </View>
       <ListItem.MainContent>
-        <ListItem.Title color={isMuted ? '$tertiaryText' : undefined}>
+        <ListItem.Title color={model.isMuted ? '$tertiaryText' : undefined}>
           {model.title}
         </ListItem.Title>
         {model.lastPost && (
@@ -73,10 +74,10 @@ export default function GroupListItemContent({
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
           <ListItem.Count
-            opacity={model.unreadCount || isMuted ? 1 : 0}
-            muted={isMuted}
+            opacity={countToDisplay > 0 || model.isMuted ? 1 : 0}
+            muted={model.isMuted ?? false}
           >
-            {model.unreadCount ?? 0}
+            {countToDisplay}
           </ListItem.Count>
         </ListItem.EndContent>
       )}

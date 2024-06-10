@@ -6,7 +6,6 @@ import React, { useMemo } from 'react';
 import { useChannelContext, useContactGetter } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
-import { Icon } from '../Icon';
 import { UnreadDot } from '../UnreadDot';
 
 export const ChatMessageReplySummary = React.memo(
@@ -49,7 +48,13 @@ export const ChatMessageReplySummary = React.memo(
         <XStack alignItems="center">
           <SizableText
             size="$s"
-            color={threadUnread?.count ? '$positiveActionText' : undefined}
+            color={
+              threadUnread?.count
+                ? threadIsMuted
+                  ? '$tertiaryText'
+                  : '$positiveActionText'
+                : undefined
+            }
             fontWeight={threadUnread?.count ? '500' : undefined}
           >
             {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
@@ -74,12 +79,10 @@ function ThreadStatus({
   unreadCount: number;
   isMuted: boolean;
 }) {
-  if (isMuted) {
-    return <Icon type="Notifications" size="$s" marginLeft="$m" />;
-  }
-
   if (unreadCount) {
-    return <UnreadDot marginLeft="$m" />;
+    return (
+      <UnreadDot marginLeft="$s" color={isMuted ? 'neutral' : 'primary'} />
+    );
   }
 
   return null;

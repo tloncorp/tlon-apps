@@ -288,14 +288,15 @@ export function Channel({
                                       channelType={channel.type}
                                       channelId={channel.id}
                                       firstUnreadId={
-                                        channel.unread?.countWithoutThreads ??
+                                        channelUnread?.countWithoutThreads ??
                                         0 > 0
-                                          ? channel.unread?.firstUnreadPostId
+                                          ? channelUnread?.firstUnreadPostId
                                           : null
                                       }
                                       unreadCount={
-                                        channel.unread?.countWithoutThreads ?? 0
+                                        channelUnread?.countWithoutThreads ?? 0
                                       }
+                                      onDividerSeen={markRead}
                                       onPressPost={goToPost}
                                       onPressReplies={goToPost}
                                       onPressImage={goToImageViewer}
