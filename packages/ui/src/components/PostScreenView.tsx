@@ -142,8 +142,6 @@ export function PostScreenView({
                   />
                 ) : (
                   posts &&
-                  // Delay rendering until replies have been loaded.
-                  posts.length > 1 &&
                   channel &&
                   isChatChannel && (
                     <View paddingBottom={bottom} flex={1}>
