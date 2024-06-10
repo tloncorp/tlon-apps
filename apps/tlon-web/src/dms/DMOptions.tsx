@@ -75,8 +75,8 @@ export default function DmOptions({
     : whomIsFlag(whom)
       ? chatUnread
       : chatUnread.combined;
-  const hasNotify = !!unread.notify;
-  const hasActivity = pending || unread.status === 'unread';
+  const hasNotify = !!chatUnread?.combined.notify;
+  const hasActivity = pending || unread.status === 'unread' || hasNotify;
   const key = whomIsFlag(whom) ? `chat/${whom}` : whom;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();

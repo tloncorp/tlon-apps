@@ -111,7 +111,7 @@ function channelUnread(nest: string, unreads: Record<string, Unread>) {
     return false;
   }
 
-  return unread.status === 'unread';
+  return unread.status === 'unread' || unread.combined.notify;
 }
 
 export function useCheckChannelUnread() {
