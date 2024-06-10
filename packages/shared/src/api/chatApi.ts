@@ -192,48 +192,6 @@ export function subscribeToChatUpdates(
   );
 }
 
-// export type ChatEvent =
-//   | { type: 'addDmInvites'; channels: db.Channel[] }
-//   | { type: 'groupDmsUpdate' };
-// export function subscribeToChatUpdates(
-//   eventHandler: (event: ChatEvent, currentUserId: string) => void
-// ) {
-//   const currentUserId = getCurrentUserId();
-
-//   subscribe(
-//     {
-//       app: 'chat',
-//       path: '/dm/invited',
-//     },
-//     (data) => {
-//       logger.log('subscribeToChatUpdates', data);
-//       eventHandler(
-//         {
-//           type: 'addDmInvites',
-//           channels: toClientDms(data as string[], true),
-//         },
-//         currentUserId
-//       );
-//     }
-//   );
-
-//   subscribe(
-//     {
-//       app: 'chat',
-//       path: '/clubs',
-//     },
-//     (data) => {
-//       logger.log('subscribeToChatUpdates', data);
-//       eventHandler(
-//         {
-//           type: 'groupDmsUpdate',
-//         },
-//         currentUserId
-//       );
-//     }
-//   );
-// }
-
 export function blockUser(userId: string) {
   return poke({
     app: 'chat',
