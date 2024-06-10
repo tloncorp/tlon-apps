@@ -138,17 +138,9 @@ export default function useLeap() {
       filter: string,
       entry: fuzzy.FilterResult<[string, Contact]>
     ): number => {
-      const parts = entry.string.split('~');
+      const ship = entry.original[0];
+      const nickname = entry.original[1].nickname;
       let newScore = entry.score;
-
-      // shouldn't happen
-      if (parts.length === 1) {
-        return newScore;
-      }
-
-      const [nickname, ship] = parts;
-
-      // console.log('ship', ship, 'score', newScore);
 
       // boost mutuals significantly
       if (preSiggedMutuals.includes(preSig(ship))) {
