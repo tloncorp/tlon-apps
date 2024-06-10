@@ -8,11 +8,12 @@ import { Button } from '../Button';
 export default function UploadedImagePreview({
   imageAttachment,
   resetImageAttachment,
+  uploading,
 }: {
   imageAttachment: string;
   resetImageAttachment: () => void;
+  uploading?: boolean;
 }) {
-  const [isLoading, setIsLoading] = useState(true);
 
   return (
     <XStack
@@ -34,9 +35,6 @@ export default function UploadedImagePreview({
           imageStyle={{
             borderRadius: 16,
           }}
-          onLoadEnd={() => {
-            setIsLoading(false);
-          }}
         >
           <XStack paddingTop="$xl" paddingHorizontal="$l" alignItems="flex-end">
             <View>
@@ -54,15 +52,18 @@ export default function UploadedImagePreview({
             </View>
           </XStack>
         </ImageBackground>
-        {isLoading && (
+        {uploading && (
           <View
             position="absolute"
-            top="50%"
-            left="50%"
+            top={0}
             justifyContent="center"
+            width="100%"
+            height="100%"
             alignItems="center"
+            backgroundColor="$translucentBlack"
+            borderRadius="$l"
           >
-            <Spinner size="large" color="$text" />
+            <Spinner size="large" color="$primaryText" />
           </View>
         )}
       </View>
