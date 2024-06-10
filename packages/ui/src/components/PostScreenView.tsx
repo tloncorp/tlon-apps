@@ -146,7 +146,6 @@ export function PostScreenView({
                   isChatChannel && (
                     <View paddingBottom={bottom} flex={1}>
                       <Scroller
-                        setInputShouldBlur={setInputShouldBlur}
                         inverted
                         renderItem={ChatMessage}
                         channelType="chat"
