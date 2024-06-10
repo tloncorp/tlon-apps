@@ -611,6 +611,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     return (
       <MessageInputContainer
+        setShouldBlur={setShouldBlur}
         onPressSend={handleSend}
         onPressEdit={handleEdit}
         uploadInfo={uploadInfo}
