@@ -247,6 +247,7 @@ export function Channel({
                               channel.type !== 'notebook' ? (
                               <UploadedImagePreview
                                 imageAttachment={uploadInfo.imageAttachment}
+                                uploading={uploadInfo.uploading}
                                 resetImageAttachment={
                                   uploadInfo.resetImageAttachment
                                 }
@@ -303,7 +304,7 @@ export function Channel({
                             !editingPost &&
                             (isChatChannel ||
                               (channel.type === 'gallery' &&
-                                uploadInfo?.uploadedImage)) &&
+                                uploadInfo?.imageAttachment)) &&
                             canWrite && (
                               <MessageInput
                                 shouldBlur={inputShouldBlur}
@@ -322,9 +323,6 @@ export function Channel({
                                 editingPost={editingPost}
                                 setEditingPost={setEditingPost}
                                 editPost={editPost}
-                                floatingActionButton={
-                                  channel.type === 'gallery'
-                                }
                                 showAttachmentButton={
                                   channel.type !== 'gallery'
                                 }
