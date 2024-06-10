@@ -78,7 +78,6 @@ export default function Scroller({
   channelId,
   firstUnreadId,
   unreadCount,
-  setInputShouldBlur,
   onStartReached,
   onEndReached,
   onPressPost,
@@ -101,7 +100,6 @@ export default function Scroller({
   channelId: string;
   firstUnreadId?: string | null;
   unreadCount?: number | null;
-  setInputShouldBlur?: (shouldBlur: boolean) => void;
   onStartReached?: () => void;
   onEndReached?: () => void;
   onPressPost?: (post: db.Post) => void;
@@ -283,8 +281,7 @@ export default function Scroller({
 
   const handleScrollBeginDrag = useCallback(() => {
     userHasScrolledRef.current = true;
-    setInputShouldBlur?.(true);
-  }, [setInputShouldBlur]);
+  }, []);
 
   const pendingEvents = useRef({
     onEndReached: false,

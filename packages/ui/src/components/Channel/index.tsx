@@ -291,7 +291,6 @@ export function Channel({
                                     onPressPost={goToPost}
                                     onPressReplies={goToPost}
                                     onPressImage={goToImageViewer}
-                                    setInputShouldBlur={setInputShouldBlur}
                                     onEndReached={onScrollEndReached}
                                     onStartReached={onScrollStartReached}
                                   />
