@@ -1318,7 +1318,7 @@ export function useCheckDmUnread() {
   const unreads = useUnreads();
   return useCallback(
     (whom: string) => {
-      return unreads[whom].combined.status === 'unread';
+      return unreads[whom]?.combined.status === 'unread';
     },
     [unreads]
   );
