@@ -12,21 +12,33 @@ import ContactName from '../ContactName';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { ListItem } from '../ListItem';
+import { UnreadDot } from '../UnreadDot';
 import { ActivityEventContent } from './ActivityEventContent';
 import { SummaryMessage } from './ActivitySummaryMessage';
 
 export function ChannelActivitySummary({
   summary,
   seenMarker,
+  pressHandler,
 }: {
   summary: db.SourceActivityEvents;
   seenMarker: number;
+  pressHandler?: () => void;
 }) {
   console.log(`bl: rendering activity summary for `, summary);
   const newestPost = summary.newest;
   const newestPostContact = useContact(newestPost.authorId ?? '');
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
+  const unreadCount =
+    summary.type === 'post'
+      ? newestPost.channel?.unread?.countWithoutThreads ?? 0
+      : newestPost.post?.threadUnread?.count ?? 0;
+
+  const newestIsBlockOrNote =
+    (summary.type === 'post' && newestPost.channel?.type === 'gallery') ||
+    newestPost.channel?.type === 'notebook';
+
   return (
     <View
       padding="$l"
@@ -35,6 +47,7 @@ export function ChannelActivitySummary({
         newestPost.timestamp > seenMarker ? '$positiveBackground' : 'unset'
       }
       borderRadius="$l"
+      onPress={newestIsBlockOrNote ? undefined : pressHandler}
     >
       <XStack>
         <Avatar
@@ -45,14 +58,20 @@ export function ChannelActivitySummary({
           explicitSigilSize={14}
         />
         <YStack marginLeft="$m">
-          {channel && <ChannelIndicator channel={channel} group={group} />}
+          {channel && (
+            <ChannelIndicator
+              unreadCount={unreadCount}
+              channel={channel}
+              group={group}
+            />
+          )}
           <View>
             <SummaryMessage
               summary={summary}
               newestPostContact={newestPostContact}
             />
           </View>
-          <ActivityEventContent summary={summary} />
+          <ActivityEventContent summary={summary} pressHandler={pressHandler} />
         </YStack>
       </XStack>
     </View>
@@ -62,9 +81,11 @@ export function ChannelActivitySummary({
 export function ChannelIndicator({
   channel,
   group,
+  unreadCount,
 }: {
   channel: db.Channel;
   group?: db.Group;
+  unreadCount: number;
 }) {
   const title =
     channel.type === 'dm'
@@ -72,8 +93,10 @@ export function ChannelIndicator({
       : channel.type === 'groupDm'
         ? 'Group chat'
         : getChannelTitle(channel);
+
   return (
     <XStack alignItems="center">
+      {unreadCount ? <UnreadDot marginRight="$s" /> : null}
       <ChannelIcon channel={channel} group={group} />
       <SizableText marginLeft="$m" fontSize="$s" color="$secondaryText">
         {title}

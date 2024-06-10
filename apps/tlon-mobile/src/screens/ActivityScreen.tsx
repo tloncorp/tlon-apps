@@ -81,12 +81,15 @@ function toSourceActivity(
     }
   });
 
+  console.log(`bl: event list`, eventsList);
+
   // Convert the map values to an array
   return eventsList;
 }
 
 function getRollupKey(event: db.ActivityEvent): string {
-  const timeBlock = Math.floor(event.timestamp / (6 * 60 * 60 * 1000)); // bundle unreads into 6 hour blocks
+  // const timeBlock = Math.floor(event.timestamp / (6 * 60 * 60 * 1000)); // bundle unreads into 6 hour blocks
+  const timeBlock = '';
 
   if (event.type === 'post' && event.channelId) {
     return `${event.channelId}/${timeBlock}`;

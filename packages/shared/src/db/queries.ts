@@ -2435,7 +2435,11 @@ export const getYourActivity = createReadQuery(
       orderBy: desc($activityEvents.timestamp),
       with: {
         group: true,
-        channel: true,
+        channel: {
+          with: {
+            unread: true,
+          },
+        },
         post: true,
         author: true,
         parent: true,
@@ -2450,7 +2454,11 @@ export const getYourActivity = createReadQuery(
       orderBy: desc($activityEvents.timestamp),
       with: {
         group: true,
-        channel: true,
+        channel: {
+          with: {
+            unread: true,
+          },
+        },
         post: true,
         author: true,
         parent: true,
@@ -2462,7 +2470,11 @@ export const getYourActivity = createReadQuery(
       orderBy: desc($activityEvents.timestamp),
       with: {
         group: true,
-        channel: true,
+        channel: {
+          with: {
+            unread: true,
+          },
+        },
         post: {
           with: {
             threadUnread: true,

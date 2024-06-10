@@ -59,7 +59,7 @@ export default function NotebookPost({
         borderRadius="$xl"
         borderColor="$shadow"
         marginVertical="$xl"
-        width={viewMode === 'activity' ? 60 : undefined}
+        width={viewMode === 'activity' ? 256 : undefined}
         overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
         {post.image && (
@@ -77,12 +77,12 @@ export default function NotebookPost({
             color="$primaryText"
             fontFamily="$serif"
             fontWeight="$s"
-            fontSize={smallTitle ? '$l' : '$xl'}
+            fontSize={smallTitle || viewMode === 'activity' ? '$l' : '$xl'}
           >
             {post.title}
           </Text>
         )}
-        {showAuthor && (
+        {showAuthor && viewMode !== 'activity' && (
           <AuthorRow
             authorId={post.authorId}
             author={post.author}
@@ -98,7 +98,11 @@ export default function NotebookPost({
           {dateDisplay}
         </Text>
         {showReplies && (
-          <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+          <Text
+            color="$tertiaryText"
+            fontWeight="$s"
+            fontSize={viewMode === 'activity' ? '$s' : '$l'}
+          >
             {post.replyCount} replies
           </Text>
         )}

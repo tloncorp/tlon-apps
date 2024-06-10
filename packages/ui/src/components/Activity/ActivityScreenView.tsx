@@ -135,6 +135,7 @@ function ActivityEventRaw({
         <ChannelActivitySummary
           summary={sourceActivity}
           seenMarker={seenMarker}
+          pressHandler={() => onPress(event)}
         />
       </View>
     );
@@ -146,6 +147,7 @@ function ActivityEventRaw({
         <ChannelActivitySummary
           summary={sourceActivity}
           seenMarker={seenMarker}
+          pressHandler={() => onPress(event)}
         />
       </View>
     );

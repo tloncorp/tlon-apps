@@ -3,15 +3,17 @@ import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
 
-import { SizableText, View, XStack } from '../../core';
+import { ScrollView, SizableText, View, XStack } from '../../core';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
 
 export function ActivityEventContent({
   summary,
+  pressHandler,
 }: {
   summary: db.SourceActivityEvents;
+  pressHandler?: () => void;
 }) {
   const newest = summary.newest;
   const post = getPost(newest);
@@ -25,18 +27,13 @@ export function ActivityEventContent({
     );
   }
 
-  if (newest.channel?.type === 'notebook') {
-    return (
-      <View marginTop="$s" marginRight="$xl">
-        <NotebookPost post={post} />
-      </View>
-    );
-  }
-
-  if (newest.channel?.type === 'gallery') {
+  if (
+    newest.channel?.type === 'gallery' ||
+    newest.channel?.type === 'notebook'
+  ) {
     const allPosts = summary.all.map((event) => getPost(event));
 
-    // TODO: why is this needed?
+    // TODO: why are we getting dupes?
     const seen = new Set();
     const uniquePosts = allPosts.filter((item) => {
       if (seen.has(item.id)) {
@@ -47,11 +44,38 @@ export function ActivityEventContent({
     });
 
     return (
-      <XStack marginTop="$s" gap="$s" overflow="hidden">
-        {uniquePosts.map((post) => (
-          <GalleryPost key={post.id} post={post} viewMode="activity" />
-        ))}
-      </XStack>
+      <ScrollView
+        marginTop="$s"
+        marginRight="$xl"
+        gap="$s"
+        horizontal
+        // overflow="scroll"
+        alwaysBounceHorizontal={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        {newest.channel?.type === 'notebook' ? (
+          <>
+            {uniquePosts.map((post) => (
+              <View key={post.id} marginRight="$s" onPress={pressHandler}>
+                <NotebookPost
+                  post={post}
+                  viewMode="activity"
+                  smallImage
+                  smallTitle
+                />
+              </View>
+            ))}
+          </>
+        ) : (
+          <>
+            {uniquePosts.map((post) => (
+              <View key={post.id} onPress={pressHandler}>
+                <GalleryPost post={post} viewMode="activity" />
+              </View>
+            ))}
+          </>
+        )}
+      </ScrollView>
     );
   }
 
