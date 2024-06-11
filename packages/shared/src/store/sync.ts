@@ -13,6 +13,15 @@ import { syncQueue } from './syncQueue';
 // - We create a new post locally
 // - We receive a new post from a subscription
 export const channelCursors = new Map<string, string>();
+export function updateChannelCursor(channelId: string, cursor: string) {
+  if (
+    !channelCursors.has(channelId) ||
+    cursor > channelCursors.get(channelId)!
+  ) {
+    channelCursors.set(channelId, cursor);
+  }
+}
+
 const logger = createDevLogger('sync', false);
 
 export const syncInitData = async () => {
@@ -403,14 +412,18 @@ async function handleAddPost(post: db.Post) {
         replyTime: post.sentAt,
       });
     }
+    await db.insertChannelPosts({
+      channelId: post.channelId,
+      posts: [post],
+    });
+  } else {
+    await db.insertChannelPosts({
+      channelId: post.channelId,
+      posts: [post],
+      older: channelCursors.get(post.channelId),
+    });
+    updateChannelCursor(post.channelId, post.id);
   }
-  // insert the reply
-  await db.insertChannelPosts({
-    channelId: post.channelId,
-    posts: [post],
-    older: channelCursors.get(post.channelId),
-  });
-  channelCursors.set(post.channelId, post.id);
 }
 
 export async function syncPosts(options: api.GetChannelPostsOptions) {

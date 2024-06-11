@@ -34,7 +34,7 @@ export async function sendPost({
     posts: [cachePost],
     older: sync.channelCursors.get(channel.id),
   });
-  sync.channelCursors.set(channel.id, cachePost.id);
+  sync.updateChannelCursor(channel.id, cachePost.id);
   try {
     await api.sendPost({
       channelId: channel.id,
