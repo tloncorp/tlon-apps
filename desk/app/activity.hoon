@@ -313,6 +313,15 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
   ::
+      [%x %feed %init count=@ ~]
+    =-  ``activity-feed-init+!>(-)
+    =/  start  now.bowl
+    =/  count  (slav %ud count.pole)
+    :*  (feed %all start count)
+        (feed %mentions start count)
+        (feed %replies start count)
+    ==
+  ::
       [%x %feed type=@ count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
@@ -320,11 +329,9 @@
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
     =-  ``activity-feed+!>(-)
-    ?+  type.pole  ~|(bad-feed-type+type.pole !!)
-        %all        (all-feed start count)
-        %replies    (replies-feed start count)
-        %mentions   (mentions-feed start count)
-    ==
+    ~|  bad-feed-type+type.pole
+    ?>  ?=(?(%all %mentions %replies) type.pole)
+    (feed type.pole start count)
   ::
   ::  /each: unified feed (equality of outcome)
   ::TODO  want to be able to filter for specific events kind too, but that will
@@ -387,8 +394,8 @@
     ``activity-settings+!>(volume-settings)
   ==
 ::
-++  all-feed
-  |=  [start=time-id:a count=@ud]
+++  feed
+  |=  [type=?(%all %mentions %replies) start=time-id:a count=@ud]
   |^
   ^-  (list activity-bundle:a)
   =-  happenings.-.-
@@ -403,20 +410,29 @@
           ?=(?(%post %reply %dm-post %dm-reply) -<.event)
       ==
     acc
-  =/  is-mention
-    ?-  -<.event
-      %post  mention.event
-      %reply  mention.event
-      %dm-post  mention.event
-      %dm-reply  mention.event
-    ==
-  ::  make sure we haven't collapsed this event already, but elevate
-  ::  mentions either way
-  ?.  |(!(~(has in collapsed.acc) time) is-mention)  acc
   :-  (sub limit.acc 1)
-  ?:  is-mention
-    =/  bundle=activity-bundle:a  [source time ~[[time event]]]
-    [(snoc happenings.acc bundle) collapsed.acc]
+  =/  mention=(unit activity-bundle:a)
+    ?.  |(?=(%all type) ?=(%mentions type))  ~
+    =/  is-mention
+      ?-  -<.event
+        %post  mention.event
+        %reply  mention.event
+        %dm-post  mention.event
+        %dm-reply  mention.event
+      ==
+    ?.  is-mention  ~
+    `[source time ~[[time event]]]
+  ?^  mention
+    [(snoc happenings.acc u.mention) collapsed.acc]
+  =/  care
+    ?|  ?=(%all type)
+        &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
+    ==
+  ::  make sure we care and haven't collapsed this event already
+  ?.  ?&  care
+          !(~(has in collapsed.acc) time)
+      ==
+    [happenings collapsed]:acc
   =/  top  (top-messages source stream:(get-index source))
   =/  collapsed
     (~(gas in collapsed.acc) (turn top |=([=time-id:a *] time-id)))
@@ -425,61 +441,6 @@
     $:  limit=@ud
         happenings=(list activity-bundle:a)
         collapsed=(set time-id:a)
-    ==
-  --
-++  mentions-feed
-  |=  [start=time-id:a count=@ud]
-  |^
-  ^-  (list activity-bundle:a)
-  =-  happenings.-.-
-  %^  (dop:ex-event:a out)
-    (lot:on-event:a stream:base `*@da `+(start))   [count ~]
-  |=  [acc=out =time =event:a]
-  ^-  [(unit event:a) ? out]
-  ?:  =(limit.acc 0)  [~ & acc]
-  :-  ~   :-  |
-  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  acc
-  =/  is-mention
-    ?-  -<.event
-      %post  mention.event
-      %reply  mention.event
-      %dm-post  mention.event
-      %dm-reply  mention.event
-    ==
-  ?.  is-mention  acc
-  =/  =source:a  (determine-source -.event)
-  =/  bundle  [source time ~[[time event]]]
-  [(sub limit.acc 1) (snoc happenings.acc bundle)]
-  +$  out
-    $:  limit=@ud
-        happenings=(list activity-bundle:a)
-    ==
-  --
-::
-++  replies-feed
-  |=  [start=time-id:a count=@ud]
-  |^
-  ^-  (list activity-bundle:a)
-  =-  happenings.-.-
-  %^  (dop:ex-event:a out)
-    (lot:on-event:a stream:base `*@da `+(start))   [count ~]
-  |=  [acc=out =time =event:a]
-  ^-  [(unit event:a) ? out]
-  ?:  =(limit.acc 0)  [~ & acc]
-  :-  ~   :-  |
-  ?.  &(?=(?(%reply %dm-reply) -<.event) notified.event)  acc
-  =/  is-mention
-    ?-  -<.event
-      %reply  mention.event
-      %dm-reply  mention.event
-    ==
-  ?:  is-mention  acc
-  =/  =source:a  (determine-source -.event)
-  =/  bundle  [source time (top-messages source stream:(get-index source))]
-  [(sub limit.acc 1) (snoc happenings.acc bundle)]
-  +$  out
-    $:  limit=@ud
-        happenings=(list activity-bundle:a)
     ==
   --
 ::
