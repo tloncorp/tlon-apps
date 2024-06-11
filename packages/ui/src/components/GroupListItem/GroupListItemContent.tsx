@@ -27,7 +27,13 @@ export default function GroupListItemContent({
     >
       <ListItem.Icon
         fallbackText={model.title?.[0]}
-        backgroundColor={model.iconImageColor ?? undefined}
+        backgroundColor={
+          model.iconImageColor
+            ? model.iconImageColor
+            : model.iconImage
+              ? 'transparent'
+              : 'unset'
+        }
         imageUrl={model.iconImage ?? undefined}
       />
       <ListItem.MainContent>
