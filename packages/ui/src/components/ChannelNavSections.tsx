@@ -63,7 +63,12 @@ export default function ChannelNavSections({
             All Channels
           </SizableText>
           {unGroupedChannels.map((item) => (
-            <ChannelListItem key={item.id} model={item} onPress={onSelect} />
+            <ChannelListItem
+              key={item.id}
+              model={item}
+              onPress={onSelect}
+              useTypeIcon={true}
+            />
           ))}
         </YStack>
       )}
