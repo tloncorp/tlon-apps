@@ -14,7 +14,6 @@ export default function UploadedImagePreview({
   resetImageAttachment: () => void;
   uploading?: boolean;
 }) {
-
   return (
     <XStack
       padding="$l"

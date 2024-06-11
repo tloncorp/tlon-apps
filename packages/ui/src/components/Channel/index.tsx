@@ -179,7 +179,7 @@ export function Channel({
               >
                 <ReferencesProvider>
                   <View
-                    paddingBottom={bottom}
+                    paddingBottom={isChatChannel ? bottom : 'unset'}
                     backgroundColor="$background"
                     flex={1}
                   >
@@ -330,7 +330,7 @@ export function Channel({
                           {!isChatChannel && canWrite && !showBigInput && (
                             <View
                               position="absolute"
-                              bottom="$s"
+                              bottom={bottom}
                               flex={1}
                               width="100%"
                               alignItems="center"
