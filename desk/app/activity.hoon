@@ -400,8 +400,23 @@
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
   :-  ~   :-  |
-  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  acc
   =/  =source:a  (determine-source -.event)
+  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  acc
+  ::  if it's a channel we don't host, we don't care
+  ?:  ?&  ?=(%channel -.source)
+          !=(ship.nest.source our.bowl)
+      ==
+    acc
+  ::  if it's a thread make sure it's one we care about
+  ?:  ?&  ?=(?(%reply %dm-reply) -<.event)
+          !notified.event
+      ==
+    acc
+  ::  if it's a DM make sure we haven't muted it
+  ?:  ?&  ?=(%dm-post -<.event)
+          !notified.event
+      ==
+    acc
   =-  acc(limit (sub limit.acc 1), happenings (snoc happenings.acc -))
   =/  is-mention
     ?-  -<.event
@@ -457,7 +472,7 @@
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
   :-  ~   :-  |
-  ?.  ?=(?(%reply %dm-reply) -<.event)  acc
+  ?.  &(?=(?(%reply %dm-reply) -<.event) notified.event)  acc
   =/  is-mention
     ?-  -<.event
       %reply  mention.event
