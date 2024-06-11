@@ -404,17 +404,32 @@
   |^
   ^-  (list activity-bundle:a)
   =-  happenings.-.-
+  ::  if start is now, need to increment to make sure we include latest
+  ::  event if that event somehow has now as its time
+  =/  real-start  ?:(=(start now.bowl) +(start) start)
   %^  (dop:ex-event:a out)
-    (lot:on-event:a stream:base `*@da `+(start))   [count ~ ~]
+    (lot:on-event:a stream:base `*@da `real-start)   [~ count ~ ~]
   |=  [acc=out =time =event:a]
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
   :-  ~   :-  |
   =/  =source:a  (determine-source -.event)
+  =/  latest
+    ?^  stored=(~(get by times.acc) source)  u.stored
+    ?~  new=(ram:on-event:a stream:(get-index source))
+      ::  should never happen but -\_(ツ)_/-
+      (sub start 1)
+    -.u.new
+  =/  new-times  (~(put by times.acc) source latest)
+  ::  we only care about posts/replies events that are notified, and we
+  ::  don't want to include events from sources whose latest event is
+  ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
+          (lth latest start)
           ?=(?(%post %reply %dm-post %dm-reply) -<.event)
       ==
-    acc
+    acc(times new-times)
+  :-  new-times
   :-  (sub limit.acc 1)
   =/  mention=(unit activity-bundle:a)
     ?.  |(?=(%all type) ?=(%mentions type))  ~
@@ -443,7 +458,8 @@
     (~(gas in collapsed.acc) (turn top |=([=time-id:a *] time-id)))
   [(snoc happenings.acc [source time top]) collapsed]
   +$  out
-    $:  limit=@ud
+    $:  times=(map source:a time-id:a)
+        limit=@ud
         happenings=(list activity-bundle:a)
         collapsed=(set time-id:a)
     ==
