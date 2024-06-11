@@ -7,8 +7,5 @@ export const useCalmSettings = () => {
   const calmSettingsQuery = store.useCalmSettings({
     userId: currentUserId,
   });
-
-  console.log(calmSettingsQuery.data);
-
   return { calmSettings: calmSettingsQuery.data ?? null } as const;
 };
