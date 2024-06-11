@@ -26,7 +26,9 @@ export function Avatar({
       size={size}
       {...props}
       // @ts-expect-error custom color
-      backgroundColor={colors.backgroundColor}
+      backgroundColor={
+        contact?.avatarImage ? 'transparent' : colors.backgroundColor
+      }
     >
       {contact?.avatarImage && !disableAvatars ? (
         <Image
