@@ -9,7 +9,7 @@ import {
 } from '@tloncorp/shared/dist/store';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import type { HomeStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
@@ -58,12 +58,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   });
 
   const selectedPostId = props.route.params.selectedPostId;
-  const unread = channel?.unread;
-  const firstUnreadId =
-    unread &&
-    (unread.countWithoutThreads ?? 0) > 0 &&
-    unread?.firstUnreadPostId;
-  const cursor = selectedPostId || firstUnreadId;
+  const cursor = useMemo(() => {
+    if (!channel) {
+      return undefined;
+    }
+    const unread = channel?.unread;
+    const firstUnreadId =
+      unread &&
+      (unread.countWithoutThreads ?? 0) > 0 &&
+      unread?.firstUnreadPostId;
+    return selectedPostId || firstUnreadId;
+  }, [!!channel]);
   const {
     posts,
     query: postsQuery,
