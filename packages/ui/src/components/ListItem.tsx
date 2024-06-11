@@ -126,12 +126,14 @@ const ListItemImageIcon = ({
 const ListItemTextIcon = ({
   fallbackText,
   backgroundColor,
+  rounded,
 }: {
   fallbackText: string;
   backgroundColor?: ColorProp;
+  rounded?: boolean;
 }) => {
   return (
-    <ListItemIconContainer backgroundColor={backgroundColor}>
+    <ListItemIconContainer backgroundColor={backgroundColor} rounded={rounded}>
       <View flex={1} alignItems="center" justifyContent="center">
         <Text fontSize={16} color="$primaryText">
           {fallbackText.slice(0, 1).toUpperCase()}

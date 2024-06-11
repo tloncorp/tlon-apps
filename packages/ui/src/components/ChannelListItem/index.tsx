@@ -103,7 +103,8 @@ function ChannelListItemIcon({
       return (
         <ListItem.TextIcon
           fallbackText={utils.getChannelTitle(model)}
-          backgroundColor={'$red'}
+          backgroundColor={backgroundColor ?? '$secondaryBackground'}
+          rounded={model.type === 'groupDm'}
         />
       );
     }
