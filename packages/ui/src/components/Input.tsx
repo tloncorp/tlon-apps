@@ -25,7 +25,6 @@ const InputContainerFrame = styled(XStack, {
   borderWidth: 1,
   borderColor: '$border',
   borderRadius: '$m',
-
   variants: {
     size: {
       '...size': (val, { tokens }) => ({
@@ -36,7 +35,7 @@ const InputContainerFrame = styled(XStack, {
     },
     search: {
       true: {
-        backgroundColor: '$color.gray100',
+        backgroundColor: '$secondaryBackground',
         borderRadius: '$m',
         // TODO: need tint & animation on press for native search feel
       },

@@ -63,9 +63,9 @@ export function SearchBar({
             justifyContent="center"
             alignItems="center"
             size="$xl"
-            backgroundColor="$color.gray500"
+            backgroundColor="$secondaryText"
           >
-            <Icon size="$s" type="Close" color="$color.gray100" />
+            <Icon size="$s" type="Close" color="$secondaryBackground" />
           </Circle>
         </Input.Icon>
       </Input>
