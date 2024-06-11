@@ -23,6 +23,12 @@ export function buildPendingPost({
   const sentAt = Date.now();
   const id = getCanonicalPostId(unixToDa(sentAt).toString());
   const [postContent, postFlags] = api.toPostContent(content);
+  const isDm = isDmChannelId(channel.id) || isGroupDmChannelId(channel.id);
+  const type = parentId
+    ? 'reply'
+    : isDm
+      ? 'chat'
+      : (channel.id.split('/')[0] as types.PostType);
 
   // TODO: punt on DM delivery status until we have a single subscription
   // to lean on
@@ -36,7 +42,7 @@ export function buildPendingPost({
     authorId,
     channelId: channel.id,
     groupId: channel.groupId,
-    type: parentId ? 'reply' : (channel.id.split('/')[0] as types.PostType),
+    type,
     sentAt,
     receivedAt: sentAt,
     title: '',
