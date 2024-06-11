@@ -27,9 +27,13 @@ export default function MessageActions({
 }) {
   const { setReferences } = useReferences();
   const channel = useChannelContext();
-  const isMuted = store.useThreadIsMuted({ channel, post }); // always false if the post is a reply
+  // const isMuted = store.useThreadIsMuted({ channel, post }); // always false if the post is a reply
   const postActions = useMemo(() => {
-    return getPostActions({ post, channelType, isMuted }).filter((action) => {
+    return getPostActions({
+      post,
+      channelType,
+      isMuted: post.isMuted ?? false,
+    }).filter((action) => {
       switch (action.id) {
         case 'startThread':
           // only show start thread if
@@ -46,7 +50,7 @@ export default function MessageActions({
           return true;
       }
     });
-  }, [post, channelType, isMuted, currentUserId]);
+  }, [post, channelType, currentUserId]);
 
   return (
     // arbitrary width that looks reasonable given labels
@@ -58,7 +62,7 @@ export default function MessageActions({
               id: action.id,
               post,
               channel,
-              isMuted,
+              isMuted: post.isMuted ?? false,
               dismiss,
               onReply,
               onEdit,

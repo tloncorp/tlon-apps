@@ -1,12 +1,14 @@
-import { ChannelVolume, GroupVolume } from '../db';
+import { ChannelVolume, GroupVolume, ThreadVolume } from '../db';
 import { VolumeMap, VolumeSettings, getLevelFromVolumeMap } from '../urbit';
 
 export function extractClientVolumes(volume: VolumeSettings): {
   channelVolumes: ChannelVolume[];
   groupVolumes: GroupVolume[];
+  threadVolumes: ThreadVolume[];
 } {
   const channelVolumes: ChannelVolume[] = [];
   const groupVolumes: GroupVolume[] = [];
+  const threadVolumes: ThreadVolume[] = [];
 
   Object.entries(volume).forEach(([sourceId, volumeMap]) => {
     if (!volumeMap) return;
@@ -22,9 +24,15 @@ export function extractClientVolumes(volume: VolumeSettings): {
       const clientVolume = getClientVolume(volumeMap, sourceType === 'channel');
       channelVolumes.push({ channelId: entityId, ...clientVolume });
     }
+
+    if (sourceType === 'thread' || sourceType === 'dm-thread') {
+      const postId = rest[rest.length - 1];
+      const clientVolume = getClientVolume(volumeMap);
+      threadVolumes.push({ postId, ...clientVolume });
+    }
   });
 
-  return { channelVolumes, groupVolumes };
+  return { channelVolumes, groupVolumes, threadVolumes };
 }
 
 export function extractClientVolume(

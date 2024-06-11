@@ -626,6 +626,8 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+    isMuted: boolean('is_muted').default(false),
+    isNoisy: boolean('is_noisy').default(false),
     // urbit side types we need for interacting with the api
     backendTime: text('backend_time'),
   },

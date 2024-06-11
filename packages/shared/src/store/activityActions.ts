@@ -108,7 +108,8 @@ export async function muteThread({
   const volume = ub.getVolumeMap('soft', true);
 
   // optimistic update
-  db.mergeVolumeSettings([{ sourceId, volume }]);
+  // db.mergeVolumeSettings([{ sourceId, volume }]);
+  db.setThreadVolumes([{ postId: thread.id, isMuted: true, isNoisy: false }]);
 
   try {
     await api.adjustVolumeSetting(source, volume);
@@ -116,6 +117,13 @@ export async function muteThread({
     logger.log(`failed to mute thread ${channel.id}/${thread.id}`, e);
     // revert the optimistic update
     db.mergeVolumeSettings([{ sourceId, volume: null }]);
+    db.setThreadVolumes([
+      {
+        postId: thread.id,
+        isMuted: thread.isMuted ?? false,
+        isNoisy: thread.isNoisy ?? false,
+      },
+    ]);
   }
 }
 
@@ -130,15 +138,23 @@ export async function unmuteThread({
   const { source, sourceId } = api.getThreadSource({ channel, post: thread });
 
   // optimistic update
-  db.mergeVolumeSettings([{ sourceId, volume: null }]);
+  // db.mergeVolumeSettings([{ sourceId, volume: null }]);
+  db.setThreadVolumes([{ postId: thread.id, isMuted: true, isNoisy: false }]);
 
   try {
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
     logger.log(`failed to unmute thread ${channel.id}/${thread.id}`, e);
     // revert the optimistic update
-    db.mergeVolumeSettings([
-      { sourceId, volume: existingSettings[sourceId] ?? null },
+    // db.mergeVolumeSettings([
+    //   { sourceId, volume: existingSettings[sourceId] ?? null },
+    // ]);
+    db.setThreadVolumes([
+      {
+        postId: thread.id,
+        isMuted: thread.isMuted ?? false,
+        isNoisy: thread.isNoisy ?? false,
+      },
     ]);
   }
 }

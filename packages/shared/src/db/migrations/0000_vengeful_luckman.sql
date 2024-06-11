@@ -38,8 +38,8 @@ CREATE TABLE `channels` (
 	`last_post_at` integer,
 	`is_cached_pending_channel` integer,
 	`is_dm_invite` integer,
-	`is_muted` integer,
-	`is_noisy` integer,
+	`is_muted` integer DEFAULT false,
+	`is_noisy` integer DEFAULT false,
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
@@ -166,8 +166,8 @@ CREATE TABLE `groups` (
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer,
-	`is_muted` integer,
-	`is_noisy` integer
+	`is_muted` integer DEFAULT false,
+	`is_noisy` integer DEFAULT false
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
@@ -225,6 +225,8 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`delivery_status` text,
+	`is_muted` integer DEFAULT false,
+	`is_noisy` integer DEFAULT false,
 	`backend_time` text
 );
 --> statement-breakpoint

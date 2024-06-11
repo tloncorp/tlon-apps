@@ -18,7 +18,7 @@ export const ChatMessageReplySummary = React.memo(
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
     const channel = useChannelContext();
-    const threadIsMuted = store.useThreadIsMuted({ channel, post });
+    // const threadIsMuted = store.useThreadIsMuted({ channel, post });
 
     const contactGetter = useContactGetter();
     const time = useMemo(() => {
@@ -50,7 +50,7 @@ export const ChatMessageReplySummary = React.memo(
             size="$s"
             color={
               threadUnread?.count
-                ? threadIsMuted
+                ? post.isMuted
                   ? '$tertiaryText'
                   : '$positiveActionText'
                 : undefined
@@ -61,7 +61,7 @@ export const ChatMessageReplySummary = React.memo(
           </SizableText>
           <ThreadStatus
             unreadCount={threadUnread?.count ?? 0}
-            isMuted={threadIsMuted}
+            isMuted={post.isMuted ?? false}
           />
         </XStack>
         <SizableText size="$s" color="$tertiaryText">

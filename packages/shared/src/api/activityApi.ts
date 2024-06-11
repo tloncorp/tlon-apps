@@ -152,6 +152,10 @@ export type ActivityEvent =
       type: 'updateGroupVolume';
       volumeUpdate: db.GroupVolume;
     }
+  | {
+      type: 'updateThreadVolume';
+      volumeUpdate: db.ThreadVolume;
+    }
   | { type: 'updateChannelVolume'; volumeUpdate: db.ChannelVolume }
   | { type: 'addActivityEvent'; event: db.ActivityEvent };
 
@@ -221,6 +225,18 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
             type: 'updateChannelVolume',
             volumeUpdate: {
               channelId,
+              ...clientVolume,
+            },
+          });
+        }
+
+        if ('thread' in source || 'dm-thread' in source) {
+          const clientVolume = extractClientVolume(volume);
+          const postId = getPostIdFromSource(source);
+          return handler({
+            type: 'updateThreadVolume',
+            volumeUpdate: {
+              postId,
               ...clientVolume,
             },
           });
@@ -473,6 +489,7 @@ export type ActivityUpdateQueue = {
   threadActivity: db.ThreadUnreadState[];
   channelVolumeUpdates: db.ChannelVolume[];
   groupVolumeUpdates: db.GroupVolume[];
+  threadVolumeUpdates: db.ThreadVolume[];
   volumeSettings: VolumeUpdate[];
   activityEvents: db.ActivityEvent[];
 };

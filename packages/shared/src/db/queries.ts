@@ -947,8 +947,6 @@ export const setChannelVolumes = createWriteQuery(
       return;
     }
 
-    console.log(`inserting chan vols`, channelVolumes);
-
     const validChannelIds = await ctx.db
       .select({ id: $channels.id })
       .from($channels);
@@ -1006,17 +1004,12 @@ export const setGroupVolumes = createWriteQuery(
       return;
     }
 
-    logger.log(`have`, groupVolumes);
-
     const validGroupIds = await ctx.db.select({ id: $groups.id }).from($groups);
     const validGroupIdsSet = new Set(validGroupIds.map((g) => g.id));
 
-    logger.log(`valid set`, validGroupIdsSet);
     const validVolumes = groupVolumes.filter((g) =>
       validGroupIdsSet.has(g.groupId)
     );
-
-    logger.log(`valid volumes`, validVolumes);
 
     if (validVolumes.length === 0) {
       return;
@@ -1053,6 +1046,62 @@ export const setGroupVolumes = createWriteQuery(
       .where(inArray($groups.id, groupIds));
   },
   ['groups']
+);
+
+export type ThreadVolume = {
+  postId: string;
+  isMuted?: boolean;
+  isNoisy?: boolean;
+};
+export const setThreadVolumes = createWriteQuery(
+  `setGroupVolumes`,
+  async (threadVolumes: ThreadVolume[], ctx: QueryCtx) => {
+    if (threadVolumes.length === 0) {
+      return;
+    }
+
+    const validThreadIds = await ctx.db.select({ id: $posts.id }).from($posts);
+    const validGroupIdsSet = new Set(validThreadIds.map((t) => t.id));
+
+    const validVolumes = threadVolumes.filter((t) =>
+      validGroupIdsSet.has(t.postId)
+    );
+
+    if (validVolumes.length === 0) {
+      return;
+    }
+
+    const postIds: string[] = [];
+
+    // isMuted sql
+    const mutedChunks: SQL[] = [];
+    mutedChunks.push(sql`(case`);
+    for (const volume of validVolumes) {
+      mutedChunks.push(
+        sql`when ${$posts.id} = ${volume.postId} then ${volume.isMuted}`
+      );
+      postIds.push(volume.postId);
+    }
+    mutedChunks.push(sql`end)`);
+    const isMuted: SQL = sql.join(mutedChunks, sql.raw(' '));
+
+    // noisy sql
+    const noisyChunks: SQL[] = [];
+    noisyChunks.push(sql`(case`);
+    for (const volume of validVolumes) {
+      noisyChunks.push(
+        sql`when ${$posts.id} = ${volume.postId} then ${volume.isMuted}`
+      );
+    }
+    noisyChunks.push(sql`end)`);
+    const isNoisy: SQL = sql.join(noisyChunks, sql.raw(' '));
+
+    return ctx.db
+      .update($posts)
+      .set({ isMuted, isNoisy })
+      .where(inArray($posts.id, postIds));
+  },
+  ['posts']
 );
 
 export const getGroupUnreadCount = createReadQuery(
