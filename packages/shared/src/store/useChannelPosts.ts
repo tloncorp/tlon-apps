@@ -65,7 +65,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       return secondResult ?? [];
     },
     queryKey: [
-      ['channelPosts', options.channelId, options.cursor, mountTime],
+      ['channelPosts', options.channelId, mountTime],
       useKeyFromQueryDeps(db.getChannelPosts, options),
     ],
     getNextPageParam: (
