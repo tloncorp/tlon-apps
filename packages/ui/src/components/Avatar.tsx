@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useMemo } from 'react';
 import { getTokenValue, styled } from 'tamagui';
 
-import { useCalm } from '../contexts';
+import { useCalm } from '../contexts/calm';
 import { Image, View } from '../core';
 import { useSigilColors } from '../utils/colorUtils';
 import UrbitSigil from './UrbitSigil';
@@ -27,10 +27,12 @@ export function Avatar({
       {...props}
       // @ts-expect-error custom color
       backgroundColor={
-        contact?.avatarImage ? 'transparent' : colors.backgroundColor
+        contact?.avatarImage && !disableAvatars
+          ? 'transparent'
+          : colors.backgroundColor
       }
     >
-      {contact?.avatarImage && !disableAvatars ? (
+      {!disableAvatars && contact?.avatarImage ? (
         <Image
           source={{
             uri: contact.avatarImage,
