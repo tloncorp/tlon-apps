@@ -5,8 +5,7 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   CalmProvider,
-  ChatList,
-  ChatOptionsSheet,
+  ChatList, // ChatOptionsSheet,
   ContactsProvider,
   FloatingActionButton,
   GroupPreviewSheet,
@@ -34,9 +33,12 @@ type ChatListScreenProps = NativeStackScreenProps<
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
-  const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
-    null
-  );
+  {
+    /* FIXME: Disabling long-press on ChatListScreen items for now */
+  }
+  // const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
+  //   null
+  // );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -103,9 +105,12 @@ export default function ChatListScreen(
     [props.navigation]
   );
 
-  const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
-    logic.isChannel(item) ? setLongPressedItem(item) : null;
-  }, []);
+  {
+    /* FIXME: Disabling long-press on ChatListScreen items for now */
+  }
+  // const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
+  //   logic.isChannel(item) ? setLongPressedItem(item) : null;
+  // }, []);
 
   const handleDmOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -125,14 +130,17 @@ export default function ChatListScreen(
     }
   }, []);
 
-  const handleChatOptionsOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setLongPressedItem(null);
-      }
-    },
-    [setLongPressedItem]
-  );
+  {
+    /* FIXME: Disabling long-press on ChatListScreen items for now */
+  }
+  // const handleChatOptionsOpenChange = useCallback(
+  //   (open: boolean) => {
+  //     if (!open) {
+  //       setLongPressedItem(null);
+  //     }
+  //   },
+  //   [setLongPressedItem]
+  // );
 
   const handleGroupCreated = useCallback(
     ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
@@ -160,7 +168,8 @@ export default function ChatListScreen(
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
               pendingChats={resolvedChats.pendingChats}
-              onLongPressItem={onLongPressItem}
+              // FIXME: Disabling long-press on ChatListScreen items for now
+              // onLongPressItem={onLongPressItem}
               onPressItem={onPressChat}
             />
           ) : null}
@@ -195,11 +204,12 @@ export default function ChatListScreen(
               />
             </ContextMenu>
           </View>
-          <ChatOptionsSheet
-            open={longPressedItem !== null}
-            onOpenChange={handleChatOptionsOpenChange}
-            channel={longPressedItem ?? undefined}
-          />
+          {/* FIXME: Disabling long-press on ChatListScreen items for now */}
+          {/* <ChatOptionsSheet
+          open={longPressedItem !== null}
+          onOpenChange={handleChatOptionsOpenChange}
+          channel={longPressedItem ?? undefined}
+        /> */}
           <StartDmSheet
             goToDm={goToDm}
             open={startDmOpen}
