@@ -173,6 +173,13 @@ export interface ActivitySummary {
   children: Activity | null;
 }
 
+export interface ActivityBundle {
+  source: Source;
+  latest: string;
+  events: ActivityEvent[];
+  'source-key': string;
+}
+
 export type Activity = Record<string, ActivitySummary>;
 
 export type Indices = Record<string, IndexData>;
@@ -180,6 +187,8 @@ export type Indices = Record<string, IndexData>;
 export type Stream = Record<string, ActivityEvent>;
 
 export type VolumeMap = Partial<Record<ExtendedEventType, Volume>>;
+
+export type ActivityFeed = ActivityBundle[];
 
 export type ReadAction =
   | { event: ActivityIncomingEvent }
@@ -218,8 +227,10 @@ export interface ActivityVolumeUpdate {
 
 export interface ActivityAddUpdate {
   add: {
+    source: Source;
     time: string;
     event: ActivityEvent;
+    'source-key': string;
   };
 }
 

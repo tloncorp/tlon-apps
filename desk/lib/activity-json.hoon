@@ -148,6 +148,7 @@
     |=  ab=activity-bundle:a
     %-  pairs
     :~  source+(source source.ab)
+        source-key+s+(string-source source.ab)
         latest+s+(scot %ud latest.ab)
         events+a+(turn events.ab time-event)
     ==
@@ -299,10 +300,12 @@
     ==
   ::
   ++  added
-    |=  ad=time-event:a
+    |=  [src=source:a te=time-event:a]
     %-  pairs
-    :~  time+(time time.ad)
-        event+(event event.ad)
+    :~  source+(source src)
+        source-key+s+(string-source src)
+        time+(time time.te)
+        event+(event event.te)
     ==
   ::
   ++  read

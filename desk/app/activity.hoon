@@ -313,19 +313,17 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
   ::
-      [%x %feed type=@ start=@ count=@ ~]
-    =/  start  (slav %ud start.pole)
+      [%x %feed type=@ count=@ start=?(~ [u=@ ~])]
+    =/  start
+      ?~  start.pole  now.bowl
+      ?^  tim=(slaw %ud u.start.pole)  u.tim
+      (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
     =-  ``activity-feed+!>(-)
     ?+  type.pole  ~|(bad-feed-type+type.pole !!)
-        %all
-      (all-feed start count)
-    ::
-        %mentions
-      (mentions-feed start count)
-    ::
-        %replies
-      (replies-feed start count)
+        %all        (all-feed start count)
+        %replies    (replies-feed start count)
+        %mentions   (mentions-feed start count)
     ==
   ::
   ::  /each: unified feed (equality of outcome)
@@ -395,29 +393,16 @@
   ^-  (list activity-bundle:a)
   =-  happenings.-.-
   %^  (dop:ex-event:a out)
-    (lot:on-event:a stream:base `*@da `+(start))   [count ~]
+    (lot:on-event:a stream:base `*@da `+(start))   [count ~ ~]
   |=  [acc=out =time =event:a]
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
   :-  ~   :-  |
   =/  =source:a  (determine-source -.event)
-  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  acc
-  ::  if it's a channel we don't host, we don't care
-  ?:  ?&  ?=(%channel -.source)
-          !=(ship.nest.source our.bowl)
+  ?.  ?&  notified.event
+          ?=(?(%post %reply %dm-post %dm-reply) -<.event)
       ==
     acc
-  ::  if it's a thread make sure it's one we care about
-  ?:  ?&  ?=(?(%reply %dm-reply) -<.event)
-          !notified.event
-      ==
-    acc
-  ::  if it's a DM make sure we haven't muted it
-  ?:  ?&  ?=(%dm-post -<.event)
-          !notified.event
-      ==
-    acc
-  =-  acc(limit (sub limit.acc 1), happenings (snoc happenings.acc -))
   =/  is-mention
     ?-  -<.event
       %post  mention.event
@@ -425,11 +410,21 @@
       %dm-post  mention.event
       %dm-reply  mention.event
     ==
-  ?:  is-mention  [source time ~[[time event]]]
-  [source time (top-messages source stream:(get-index source))]
+  ::  make sure we haven't collapsed this event already, but elevate
+  ::  mentions either way
+  ?.  |(!(~(has in collapsed.acc) time) is-mention)  acc
+  :-  (sub limit.acc 1)
+  ?:  is-mention
+    =/  bundle=activity-bundle:a  [source time ~[[time event]]]
+    [(snoc happenings.acc bundle) collapsed.acc]
+  =/  top  (top-messages source stream:(get-index source))
+  =/  collapsed
+    (~(gas in collapsed.acc) (turn top |=([=time-id:a *] time-id)))
+  [(snoc happenings.acc [source time top]) collapsed]
   +$  out
     $:  limit=@ud
         happenings=(list activity-bundle:a)
+        collapsed=(set time-id:a)
     ==
   --
 ++  mentions-feed
@@ -527,14 +522,14 @@
     $(t +(t))
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
+  =/  =source:a  (determine-source inc)
   =?  cor  !importing
-    (give %fact ~[/] activity-update+!>([%add time-id event]))
+    (give %fact ~[/] activity-update+!>([%add source time-id event]))
   =?  cor  &(!importing notify)
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
-  =/  =source:a  (determine-source inc)
   ?+  -<.event  (add-to-index source time-id event)
       %chan-init
     =/  group-src  [%group group.event]

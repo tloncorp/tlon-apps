@@ -57,7 +57,7 @@
 ::    $adjust: the volume of a source was adjusted
 ::
 +$  update
-  $%  [%add time-event]
+  $%  [%add =source time-event]
       [%del =source]
       [%read =source =activity-summary]
       [%adjust =source volume-map=(unit volume-map)]
