@@ -1,14 +1,12 @@
-import { toPostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import React from 'react';
-import { FlatList } from 'react-native';
+import { FlatList, RefreshControl } from 'react-native';
 
 import { SizableText, View } from '../../core';
-import AuthorRow from '../AuthorRow';
-import ContentRenderer from '../ContentRenderer';
+import { LoadingSpinner } from '../LoadingSpinner';
 import { ActivityHeader, ActivityTab } from './ActivityHeader';
 import { ChannelActivitySummary } from './ChannelActivitySummary';
 
@@ -17,11 +15,13 @@ export function ActivityScreenView({
   isFocused,
   goToChannel,
   goToThread,
+  activityFetcher,
 }: {
   bucketedActivity: db.BucketedSourceActivity;
   isFocused: boolean;
   goToChannel: (channel: db.Channel) => void;
   goToThread: (post: db.PseudoPost) => void;
+  activityFetcher: store.ActivityFetcher;
 }) {
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<ActivityTab>('all');
@@ -106,6 +106,21 @@ export function ActivityScreenView({
     [activeTab]
   );
 
+  const handleEndReached = useCallback(() => {
+    if (activityFetcher.canFetchMoreActivity) {
+      activityFetcher.fetchMoreActivity();
+    }
+  }, [activityFetcher]);
+
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+
   return (
     <View flex={1}>
       <ActivityHeader activeTab={activeTab} onTabPress={handleTabPress} />
@@ -114,6 +129,17 @@ export function ActivityScreenView({
         renderItem={renderItem}
         keyExtractor={(item) => item.newest.id}
         contentContainerStyle={{ paddingTop: 16 }}
+        onEndReached={handleEndReached}
+        ListFooterComponent={
+          activityFetcher.isFetching ? <LoadingSpinner /> : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            size={5}
+          />
+        }
       />
     </View>
   );

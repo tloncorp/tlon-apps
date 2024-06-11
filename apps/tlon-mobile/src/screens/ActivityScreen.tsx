@@ -33,6 +33,8 @@ export function ActivityScreen(props: Props) {
     [props.navigation]
   );
 
+  const activityFetcher = store.useFetchActivity();
+
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
   const handleGoToThread = useCallback(
@@ -51,6 +53,7 @@ export function ActivityScreen(props: Props) {
           isFocused={isFocused}
           goToChannel={handleGoToChannel}
           goToThread={handleGoToThread}
+          activityFetcher={activityFetcher}
         />
         <NavBarView navigation={props.navigation} />
       </View>

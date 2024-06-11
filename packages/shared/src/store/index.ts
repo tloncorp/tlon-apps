@@ -13,3 +13,4 @@ export * from './groupActions';
 export * from './dmActions';
 export * from './useNegotiation';
 export * from './activityActions';
+export * from './useFetchActivity';

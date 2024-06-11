@@ -35,6 +35,15 @@ export async function getActivityEvents() {
   return toActivityEvents(activity);
 }
 
+export async function getPagedActivity() {
+  // const activity = await scry<ub.Stream>({
+  //   app: 'activity',
+  //   path: '/all',
+  // });
+
+  return [];
+}
+
 function toActivityEvents(stream: ub.Stream): db.ActivityEvent[] {
   return Object.entries(stream)
     .map(([id, event]) => toActivityEvent(id, event))
