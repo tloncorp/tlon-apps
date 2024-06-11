@@ -144,6 +144,13 @@
         children+?~(children.sum ~ (activity u.children.sum))
     ==
   ::
+  ++  activity-bundle
+    |=  ab=activity-bundle:a
+    %-  pairs
+    :~  source+(source source.ab)
+        latest+s+(scot %ud latest.ab)
+        events+a+(turn events.ab time-event)
+    ==
   ++  event
     |=  e=event:a
     %-  pairs
@@ -226,7 +233,7 @@
   ++  time-event
     |=  te=time-event:a
     %-  pairs
-    :~  time+(time time.te)
+    :~  time+s+(scot %ud time.te)
         event+(event event.te)
     ==
   +|  %collections
@@ -276,6 +283,10 @@
     %+  turn  ~(tap by vm)
     |=  [e=event-type:a v=volume:a]
     [e (volume v)]
+  ++  feed
+    |=  f=feed:a
+    a+(turn f activity-bundle)
+  ::
   +|  %updates
   ++  update
     |=  u=update:a

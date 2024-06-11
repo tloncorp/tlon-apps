@@ -313,6 +313,21 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
   ::
+      [%x %feed type=@ start=@ count=@ ~]
+    =/  start  (slav %ud start.pole)
+    =/  count  (slav %ud count.pole)
+    =-  ``activity-feed+!>(-)
+    ?+  type.pole  ~|(bad-feed-type+type.pole !!)
+        %all
+      (all-feed start count)
+    ::
+        %mentions
+      (mentions-feed start count)
+    ::
+        %replies
+      (replies-feed start count)
+    ==
+  ::
   ::  /each: unified feed (equality of outcome)
   ::TODO  want to be able to filter for specific events kind too, but that will
   ::      suffer from the "search range" "problem", where we want .count to
@@ -373,6 +388,115 @@
       [%x %volume-settings ~]
     ``activity-settings+!>(volume-settings)
   ==
+::
+++  all-feed
+  |=  [start=time-id:a count=@ud]
+  |^
+  ^-  (list activity-bundle:a)
+  =-  happenings.-.-
+  %^  (dop:ex-event:a out)
+    (lot:on-event:a stream:base `*@da `+(start))   [count ~]
+  |=  [acc=out =time =event:a]
+  ^-  [(unit event:a) ? out]
+  ?:  =(limit.acc 0)  [~ & acc]
+  :-  ~   :-  |
+  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  acc
+  =/  =source:a  (determine-source -.event)
+  =-  acc(limit (sub limit.acc 1), happenings (snoc happenings.acc -))
+  =/  is-mention
+    ?-  -<.event
+      %post  mention.event
+      %reply  mention.event
+      %dm-post  mention.event
+      %dm-reply  mention.event
+    ==
+  ?:  is-mention  [source time ~[[time event]]]
+  [source time (top-messages source stream:(get-index source))]
+  +$  out
+    $:  limit=@ud
+        happenings=(list activity-bundle:a)
+    ==
+  --
+++  mentions-feed
+  |=  [start=time-id:a count=@ud]
+  |^
+  ^-  (list activity-bundle:a)
+  =-  happenings.-.-
+  %^  (dop:ex-event:a out)
+    (lot:on-event:a stream:base `*@da `+(start))   [count ~]
+  |=  [acc=out =time =event:a]
+  ^-  [(unit event:a) ? out]
+  ?:  =(limit.acc 0)  [~ & acc]
+  :-  ~   :-  |
+  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  acc
+  =/  is-mention
+    ?-  -<.event
+      %post  mention.event
+      %reply  mention.event
+      %dm-post  mention.event
+      %dm-reply  mention.event
+    ==
+  ?.  is-mention  acc
+  =/  =source:a  (determine-source -.event)
+  =/  bundle  [source time ~[[time event]]]
+  [(sub limit.acc 1) (snoc happenings.acc bundle)]
+  +$  out
+    $:  limit=@ud
+        happenings=(list activity-bundle:a)
+    ==
+  --
+::
+++  replies-feed
+  |=  [start=time-id:a count=@ud]
+  |^
+  ^-  (list activity-bundle:a)
+  =-  happenings.-.-
+  %^  (dop:ex-event:a out)
+    (lot:on-event:a stream:base `*@da `+(start))   [count ~]
+  |=  [acc=out =time =event:a]
+  ^-  [(unit event:a) ? out]
+  ?:  =(limit.acc 0)  [~ & acc]
+  :-  ~   :-  |
+  ?.  ?=(?(%reply %dm-reply) -<.event)  acc
+  =/  is-mention
+    ?-  -<.event
+      %reply  mention.event
+      %dm-reply  mention.event
+    ==
+  ?:  is-mention  acc
+  =/  =source:a  (determine-source -.event)
+  =/  bundle  [source time (top-messages source stream:(get-index source))]
+  [(sub limit.acc 1) (snoc happenings.acc bundle)]
+  +$  out
+    $:  limit=@ud
+        happenings=(list activity-bundle:a)
+    ==
+  --
+::
+++  top-messages
+  |=  [=source:a =stream:a]
+  |^
+  ^-  (list time-event:a)
+  =-  msgs.-.-
+  %^  (dop:ex-event:a out)  stream  [6 ~]
+  |=  [acc=out [=time =event:a]]
+  ?:  =(limit.acc 0)  [~ & acc]
+  ?:  child.event  [~ | acc]
+  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  [~ | acc]
+  =/  is-mention
+    ?-  -<.event
+      %post  mention.event
+      %reply  mention.event
+      %dm-post  mention.event
+      %dm-reply  mention.event
+    ==
+  ?:  is-mention  [~ | acc]
+  [~ | [(sub limit.acc 1) (snoc msgs.acc [time event])]]
+  +$  out
+    $:  limit=@ud
+        msgs=(list time-event:a)
+    ==
+  --
 ::
 ++  base
   ^-  index:a
