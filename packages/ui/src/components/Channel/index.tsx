@@ -31,7 +31,6 @@ import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
-import { LoadingSpinner } from '../LoadingSpinner';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelFooter } from './ChannelFooter';
@@ -254,17 +253,6 @@ export function Channel({
                               />
                             ) : (
                               <View flex={1} width="100%">
-                                <View
-                                  position="absolute"
-                                  top={0}
-                                  left={0}
-                                  width="100%"
-                                  height="100%"
-                                  alignItems="center"
-                                  justifyContent="center"
-                                >
-                                  <LoadingSpinner />
-                                </View>
                                 {channel && posts && (
                                   <Scroller
                                     inverted={isChatChannel ? true : false}
