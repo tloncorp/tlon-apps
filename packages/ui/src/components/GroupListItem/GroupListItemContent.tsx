@@ -1,7 +1,8 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
-import { View, XStack } from '../../core';
+import { useCalm } from '../../contexts/calm';
+import { XStack } from '../../core';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
@@ -13,6 +14,8 @@ export default function GroupListItemContent({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) {
+  const { disableAvatars } = useCalm();
+
   const { isPending, statusDisplay, isErrored } = useMemo(
     () => getDisplayInfo(model),
     [model]
@@ -28,13 +31,17 @@ export default function GroupListItemContent({
       <ListItem.Icon
         fallbackText={model.title?.[0]}
         backgroundColor={
-          model.iconImageColor
-            ? model.iconImageColor
-            : model.iconImage
-              ? 'transparent'
-              : 'unset'
+          disableAvatars
+            ? '$secondaryBackground'
+            : model.iconImageColor
+              ? model.iconImageColor
+              : model.iconImage
+                ? 'transparent'
+                : '$secondaryBackground'
         }
-        imageUrl={model.iconImage ?? undefined}
+        imageUrl={
+          !disableAvatars && model.iconImage ? model.iconImage : undefined
+        }
       />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
