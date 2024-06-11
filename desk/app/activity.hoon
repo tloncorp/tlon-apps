@@ -309,9 +309,14 @@
       [%x %all ~]
     ``activity-stream+!>(stream:base)
   ::
-      [%x %all start=@ count=@ ~]
+      [%x %all count=@ start=?(~ [u=@ ~])]
+    =/  start
+      ?~  start.pole  now.bowl
+      ?^  tim=(slaw %ud u.start.pole)  u.tim
+      (slav %da u.start.pole)
+    =/  count  (slav %ud count.pole)
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
-    (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
+    (bat:ex-event:a stream:base `start count)
   ::
       [%x %feed %init count=@ ~]
     =-  ``activity-feed-init+!>(-)
