@@ -27,22 +27,32 @@ export default function ChannelNavSections({
     [channels, group.navSections]
   );
 
-  const hasSomeUnGroupedChannels = useMemo(
+  const sectionHasChannels = useMemo(
     () => unGroupedChannels.length > 0,
     [unGroupedChannels]
   );
 
   return (
     <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
-      {group.navSections?.map((section) => (
-        <ChannelNavSection
-          key={section.id}
-          section={section}
-          channels={channels}
-          onSelect={onSelect}
-        />
-      ))}
-      {hasSomeUnGroupedChannels && (
+      {group.navSections?.map((section) => {
+        const sectionChannels = channels.filter((c) =>
+          section.channels?.some((sc) => sc.channelId === c.id)
+        );
+
+        if (sectionChannels.length === 0) {
+          return null;
+        }
+
+        return (
+          <ChannelNavSection
+            key={section.id}
+            section={section}
+            channels={sectionChannels}
+            onSelect={onSelect}
+          />
+        );
+      })}
+      {sectionHasChannels && (
         <YStack>
           <SizableText
             paddingHorizontal="$l"
