@@ -72,11 +72,9 @@ export default function DmOptions({
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const unread = !chatUnread
     ? { status: 'read', count: 0, notify: false }
-    : whomIsFlag(whom)
-      ? chatUnread
-      : chatUnread.combined;
-  const hasNotify = !!chatUnread?.combined.notify;
-  const hasActivity = pending || unread.status === 'unread' || hasNotify;
+    : chatUnread.combined;
+  const hasNotify = unread.notify;
+  const hasActivity = pending || unread.status === 'unread';
   const key = whomIsFlag(whom) ? `chat/${whom}` : whom;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
@@ -261,7 +259,7 @@ export default function DmOptions({
               <button
                 className={cn(
                   'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                  hasNotify && 'text-blue',
+                  hasActivity && hasNotify && 'text-blue',
                   isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
                 )}
                 aria-label="Open Message Options"
