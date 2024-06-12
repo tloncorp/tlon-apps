@@ -37,6 +37,7 @@ export type Contact = BaseModel<'contacts'>;
 export type ContactPinnedGroups = Contact['pinnedGroups'];
 export type Unread = BaseModel<'unreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
+export type ActivityBucket = schema.ActivityBucket;
 // TODO: We need to include unread count here because it's  returned by the chat
 // list query, but doesn't feel great.
 export type Group = BaseModel<'groups'> & {

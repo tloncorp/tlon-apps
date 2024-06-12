@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "22f74125-8a65-4685-a854-11db2ec09b0f",
+  "id": "4ee09bb5-3870-49a7-b6d3-f24d83a85b84",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -10,7 +10,21 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bucket_id": {
+          "name": "bucket_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -94,7 +108,15 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "activity_events_id_bucket_id_pk": {
+          "columns": [
+            "bucket_id",
+            "id"
+          ],
+          "name": "activity_events_id_bucket_id_pk"
+        }
+      },
       "uniqueConstraints": {}
     },
     "channel_writers": {

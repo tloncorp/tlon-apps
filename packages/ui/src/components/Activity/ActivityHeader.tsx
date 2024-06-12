@@ -1,3 +1,4 @@
+import * as db from '@tloncorp/shared/dist/db';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,8 +11,8 @@ function ActivityHeaderRaw({
   activeTab,
   onTabPress,
 }: {
-  activeTab: ActivityTab;
-  onTabPress: (tab: ActivityTab) => void;
+  activeTab: db.ActivityBucket;
+  onTabPress: (tab: db.ActivityBucket) => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -66,20 +67,20 @@ function ActivityHeaderRaw({
         </XStack>
         <XStack
           flexGrow={1}
-          borderBottomWidth={activeTab === 'threads' ? 1 : 0}
+          borderBottomWidth={activeTab === 'replies' ? 1 : 0}
           borderColor="$primaryText"
           justifyContent="center"
         >
           <Pressable
-            disabled={activeTab === 'threads'}
-            onPress={() => onTabPress('threads')}
+            disabled={activeTab === 'replies'}
+            onPress={() => onTabPress('replies')}
           >
             <SizableText
               width={100}
               textAlign="center"
               paddingVertical="$m"
               color={
-                activeTab === 'threads' ? '$primaryText' : '$secondaryText'
+                activeTab === 'replies' ? '$primaryText' : '$secondaryText'
               }
             >
               Replies

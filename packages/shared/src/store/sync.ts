@@ -6,6 +6,10 @@ import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
 import { extractClientVolumes } from '../logic/activity';
+import {
+  INFINITE_ACTIVITY_QUERY_KEY,
+  resetActivityFetchers,
+} from '../store/useActivityFetchers';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 
@@ -26,7 +30,7 @@ export const syncInitData = async () => {
       db.insertGroups({ groups: initData.groups }, ctx),
       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
       db.insertChannels(initData.channels, ctx),
-      resetActivity(initData.activity, ctx),
+      handleInitialUnreads(initData.activity, ctx),
       db.insertChannelPerms(initData.channelPerms, ctx),
     ]);
   });
@@ -76,13 +80,6 @@ export const syncVolumeSettings = async () => {
   });
 };
 
-export const syncActivityEvents = async () => {
-  return syncQueue.add('activity', async () => {
-    const events = await api.getActivityEvents();
-    await db.insertActivityEvents(events);
-  });
-};
-
 export const syncContacts = async () => {
   const contacts = await syncQueue.add('contacts', () => api.getContacts());
   await db.insertContacts(contacts);
@@ -121,7 +118,10 @@ export const syncUnreads = async () => {
   });
 };
 
-const resetActivity = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
+const handleInitialUnreads = async (
+  activity: api.ActivityInit,
+  ctx?: QueryCtx
+) => {
   const { channelActivity, threadActivity } = activity;
   await db.insertUnreads(channelActivity);
   await db.insertThreadActivity(threadActivity);
@@ -132,6 +132,23 @@ const resetActivity = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
       .map((u) => u.channelId),
   });
 };
+
+export const resetActivity = async () => {
+  const activityEvents = await api.getInitialActivity();
+  await db.clearActivityEvents();
+  await db.insertActivityEvents(activityEvents);
+  // api.queryClient.invalidateQueries({
+  //   queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
+  // });
+  resetActivityFetchers();
+};
+
+// export const syncActivityEvents = async () => {
+//   return syncQueue.add('activity', async () => {
+//     const events = await api.getActivityEvents();
+//     await db.insertActivityEvents(events);
+//   });
+// };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
@@ -361,6 +378,14 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
       await db.setGroupVolumes(activitySnapshot.groupVolumeUpdates);
       await db.setThreadVolumes(activitySnapshot.threadVolumeUpdates);
       await db.insertActivityEvents(activitySnapshot.activityEvents);
+
+      // if we inserted new activity, invalidate the activity page
+      // data loader
+      if (activitySnapshot.activityEvents.length > 0) {
+        api.queryClient.invalidateQueries({
+          queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
+        });
+      }
     },
     queueDebounce,
     { leading: true, trailing: true }

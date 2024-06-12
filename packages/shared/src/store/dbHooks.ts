@@ -247,21 +247,35 @@ export const useActivityEvents = () => {
   });
 };
 
-export const useYourActivity = () => {
-  const tablesKey = useKeyFromQueryDeps(db.getYourActivity);
+export const useActivityBucketCursors = () => {
   return useQuery({
-    queryKey: ['yourActivity', tablesKey],
-    queryFn: () => db.getYourActivity(),
+    queryKey: db.ACTIVITY_BUCKET_CURSORS_QUERY_KEY,
+    queryFn: () => db.getActivityBucketCursors(),
+  });
+};
+
+// export const useYourActivity = () => {
+//   const tablesKey = useKeyFromQueryDeps(db.getYourActivity);
+//   return useQuery({
+//     queryKey: ['yourActivity', tablesKey],
+//     queryFn: () => db.getYourActivity(),
+//   });
+// };
+
+export const useLatestActivityEvent = () => {
+  return useQuery({
+    queryKey: ['latestActivityEvent'],
+    queryFn: () => db.getLatestActivityEvent(),
   });
 };
 
 export const useHaveUnseenActivity = () => {
   const { data: seenMarker } = useActivitySeenMarker();
-  const { data: activity } = useYourActivity();
-  if (!activity || seenMarker === null || seenMarker === undefined)
+  const { data: latestEvent } = useLatestActivityEvent();
+  if (!latestEvent || seenMarker === null || seenMarker === undefined)
     return false;
 
-  return activity.all[0]?.timestamp > seenMarker;
+  return latestEvent?.timestamp > seenMarker;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {

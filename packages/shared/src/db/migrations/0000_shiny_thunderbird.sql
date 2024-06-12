@@ -1,5 +1,7 @@
 CREATE TABLE `activity_events` (
-	`id` text PRIMARY KEY NOT NULL,
+	`id` text,
+	`bucket_id` text NOT NULL,
+	`source_id` text NOT NULL,
 	`type` text NOT NULL,
 	`timestamp` integer NOT NULL,
 	`post_id` text,
@@ -10,7 +12,8 @@ CREATE TABLE `activity_events` (
 	`group_id` text,
 	`is_mention` integer,
 	`should_notify` integer,
-	`content` text
+	`content` text,
+	PRIMARY KEY(`bucket_id`, `id`)
 );
 --> statement-breakpoint
 CREATE TABLE `channel_writers` (

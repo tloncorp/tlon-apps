@@ -1,10 +1,11 @@
+import { unixToDa } from '@urbit/api';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
-import { getCanonicalPostId, udToDate } from './apiUtils';
+import { formatUd, getCanonicalPostId, udToDate } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', true);
@@ -26,37 +27,134 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   return settings;
 }
 
-export async function getActivityEvents() {
-  const activity = await scry<ub.Stream>({
+// export async function getActivityEvents() {
+//   const activity = await scry<ub.Stream>({
+//     app: 'activity',
+//     path: '/all',
+//   });
+
+//   return toActivityEvents(activity);
+// }
+
+// ::
+// [%x %feed type=@ start=@ count=@ ~]
+// =/  start  (slav %ud start.pole)
+// =/  count  (slav %ud count.pole)
+// =-  ``activity-feed+!>(-)
+// ?+  type.pole  ~|(bad-feed-type+type.pole !!)
+//   %all
+// (all-feed start count)
+// ::
+//   %mentions
+// (mentions-feed start count)
+// ::
+//   %replies
+// (replies-feed start count)
+// ==
+
+export const ACTIVITY_SOURCE_PAGESIZE = 10;
+export async function getInitialActivity() {
+  const activity = await scry<ub.InitActivityFeeds>({
     app: 'activity',
-    path: '/all',
+    path: `/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
 
-  return toActivityEvents(activity);
+  // return {
+  //   all: fromFeedToActivityEvents(activity.all, 'all'),
+  //   mentions: fromFeedToActivityEvents(activity.mentions, 'mentions'),
+  //   replies: fromFeedToActivityEvents(activity.replies, 'replies'),
+  // };
+
+  return [
+    ...fromFeedToActivityEvents(activity.all, 'all'),
+    ...fromFeedToActivityEvents(activity.mentions, 'mentions'),
+    ...fromFeedToActivityEvents(activity.replies, 'replies'),
+  ];
 }
 
-export async function getPagedActivity() {
-  // const activity = await scry<ub.Stream>({
-  //   app: 'activity',
-  //   path: '/all',
-  // });
+export async function getPagedActivityByBucket({
+  cursor,
+  bucket,
+}: {
+  cursor: number;
+  bucket: db.ActivityBucket;
+}): Promise<{ events: db.ActivityEvent[]; nextCursor: number | null }> {
+  logger.log(
+    `bl: fetching next activity page for bucket ${bucket} with cursor`,
+    cursor
+  );
+  const urbitCursor = formatUd(unixToDa(cursor).toString());
+  const path = `/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
+  const activity = await scry<ub.ActivityFeed>({
+    app: 'activity',
+    path,
+  });
 
-  return [];
+  const events = fromFeedToActivityEvents(activity, bucket);
+  const nextCursor = extractNextCursor(activity);
+  return { events, nextCursor };
 }
 
-function toActivityEvents(stream: ub.Stream): db.ActivityEvent[] {
+function fromFeedToActivityEvents(
+  feed: ub.ActivityFeed,
+  bucket: db.ActivityBucket
+): db.ActivityEvent[] {
+  const stream: EnhancedStream = {};
+  feed.forEach((feedItem) => {
+    const sourceId = feedItem['source-key'];
+    feedItem.events.forEach(({ time, event }) => {
+      stream[time] = { sourceId, ...event };
+    });
+  });
+
+  return toActivityEvents(stream, bucket);
+}
+
+function extractNextCursor(feed: ub.ActivityFeed): number | null {
+  if (feed.length === 0) {
+    return null;
+  }
+
+  const lastItem = feed[feed.length - 1];
+  const lastEvent = lastItem.events[0];
+  return udToDate(lastEvent.time);
+}
+
+export type EnhancedStream = Record<
+  string,
+  ub.ActivityEvent & { sourceId: string }
+>;
+function toActivityEvents(
+  stream: EnhancedStream,
+  bucketId: db.ActivityBucket
+): db.ActivityEvent[] {
   return Object.entries(stream)
-    .map(([id, event]) => toActivityEvent(id, event))
+    .map(([id, event]) =>
+      toActivityEvent({ id, event, bucketId, sourceId: event.sourceId })
+    )
     .filter(Boolean) as db.ActivityEvent[];
 }
 
-function toActivityEvent(
-  id: string | number,
-  event: ub.ActivityEvent
-): db.ActivityEvent | null {
+function toActivityEvent({
+  id,
+  sourceId,
+  bucketId,
+  event,
+}: {
+  id: string | number;
+  sourceId: string;
+  event: ub.ActivityEvent;
+  bucketId: db.ActivityBucket;
+}): db.ActivityEvent | null {
   const timestamp = typeof id === 'number' ? id : udToDate(id);
   const shouldNotify = event.notified;
-  const baseFields = { id: id.toString(), timestamp, shouldNotify };
+  const baseFields = {
+    id: id.toString(),
+    timestamp,
+    shouldNotify,
+    bucketId,
+    sourceId,
+  };
 
   if ('post' in event) {
     const postEvent = event.post;
@@ -250,8 +348,18 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
       }
 
       if ('add' in update) {
+        const id = update.add.time;
+        const sourceId = update.add['source-key'];
         const rawEvent = update.add.event;
-        const activityEvent = toActivityEvent(update.add.time, rawEvent);
+        logger.log(`bl: got raw activity event`, update);
+        // TODO: parse relevant buckets
+
+        const activityEvent = toActivityEvent({
+          id,
+          sourceId,
+          bucketId: 'all',
+          event: rawEvent,
+        });
         if (activityEvent) {
           return handler({ type: 'addActivityEvent', event: activityEvent });
         }
@@ -575,6 +683,7 @@ export const toThreadActivity = (
   return {
     channelId,
     threadId: getCanonicalPostId(threadId),
+    updatedAt: summary.recency,
     count: summary.count,
     notify: summary.notify,
     firstUnreadPostId,

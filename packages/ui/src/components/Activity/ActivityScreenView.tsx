@@ -11,26 +11,30 @@ import { ActivityHeader, ActivityTab } from './ActivityHeader';
 import { ChannelActivitySummary } from './ChannelActivitySummary';
 
 export function ActivityScreenView({
-  bucketedActivity,
   isFocused,
   goToChannel,
   goToThread,
-  activityFetcher,
+  bucketFetchers,
+  refresh,
 }: {
-  bucketedActivity: db.BucketedSourceActivity;
+  // bucketedActivity: store.BucketFetchers;
   isFocused: boolean;
   goToChannel: (channel: db.Channel) => void;
   goToThread: (post: db.PseudoPost) => void;
-  activityFetcher: store.ActivityFetcher;
+  bucketFetchers: store.BucketFetchers;
+  refresh: () => Promise<void>;
 }) {
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
-  const [activeTab, setActiveTab] = useState<ActivityTab>('all');
+  const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
+  const currentFetcher = bucketFetchers[activeTab];
 
   // keep track of the newest timestamp. If focused and newest timestamp is
   // greater than the seen marker, advance the seen marker
   const newestTimestamp = useMemo(() => {
-    return bucketedActivity.all[0]?.newest.timestamp ?? activitySeenMarker;
-  }, [activitySeenMarker, bucketedActivity.all]);
+    return (
+      bucketFetchers.all.activity[0]?.newest.timestamp ?? activitySeenMarker
+    );
+  }, [activitySeenMarker, bucketFetchers.all.activity]);
   const moveSeenMarker = useCallback(() => {
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
@@ -93,12 +97,12 @@ export function ActivityScreenView({
   );
 
   const events = useMemo(
-    () => bucketedActivity[activeTab],
-    [activeTab, bucketedActivity]
+    () => currentFetcher.activity,
+    [currentFetcher.activity]
   );
 
   const handleTabPress = useCallback(
-    (tab: ActivityTab) => {
+    (tab: db.ActivityBucket) => {
       if (tab !== activeTab) {
         setActiveTab(tab);
       }
@@ -107,19 +111,18 @@ export function ActivityScreenView({
   );
 
   const handleEndReached = useCallback(() => {
-    if (activityFetcher.canFetchMoreActivity) {
-      activityFetcher.fetchMoreActivity();
+    if (currentFetcher.canFetchMoreActivity) {
+      currentFetcher.fetchMoreActivity();
     }
-  }, [activityFetcher]);
+  }, [currentFetcher]);
 
   const [refreshing, setRefreshing] = React.useState(false);
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  }, []);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
 
   return (
     <View flex={1}>
@@ -127,11 +130,13 @@ export function ActivityScreenView({
       <FlatList
         data={events}
         renderItem={renderItem}
-        keyExtractor={(item) => item.newest.id}
+        keyExtractor={(item) =>
+          item.newest.id ?? item.newest.timestamp.toString()
+        }
         contentContainerStyle={{ paddingTop: 16 }}
         onEndReached={handleEndReached}
         ListFooterComponent={
-          activityFetcher.isFetching ? <LoadingSpinner /> : null
+          currentFetcher.isFetching ? <LoadingSpinner /> : null
         }
         refreshControl={
           <RefreshControl

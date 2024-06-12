@@ -120,6 +120,7 @@ export const threadUnreads = sqliteTable(
     threadId: text('thread_id'),
     notify: boolean('notify'),
     count: integer('count'),
+    updatedAt: timestamp('updated_at').notNull(),
     firstUnreadPostId: text('first_unread_post_id'),
     firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
   },
@@ -141,20 +142,34 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   }),
 }));
 
-export const activityEvents = sqliteTable('activity_events', {
-  id: text('id').primaryKey(),
-  type: text('type').$type<ExtendedEventType>().notNull(),
-  timestamp: timestamp('timestamp').notNull(),
-  postId: text('post_id'),
-  authorId: text('author_id'),
-  parentId: text('parent_id'),
-  parentAuthorId: text('parent_author_id'),
-  channelId: text('channel_id'),
-  groupId: text('group_id'),
-  isMention: boolean('is_mention'),
-  shouldNotify: boolean('should_notify'),
-  content: text('content', { mode: 'json' }),
-});
+export type ActivityBucket = 'all' | 'mentions' | 'replies';
+export const activityEvents = sqliteTable(
+  'activity_events',
+  {
+    id: text('id'),
+    bucketId: text('bucket_id').$type<ActivityBucket>().notNull(),
+    sourceId: text('source_id').notNull(),
+    type: text('type').$type<ExtendedEventType>().notNull(),
+    timestamp: timestamp('timestamp').notNull(),
+    postId: text('post_id'),
+    authorId: text('author_id'),
+    parentId: text('parent_id'),
+    parentAuthorId: text('parent_author_id'),
+    channelId: text('channel_id'),
+    groupId: text('group_id'),
+    isMention: boolean('is_mention'),
+    shouldNotify: boolean('should_notify'),
+    content: text('content', { mode: 'json' }),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.id, table.bucketId] }),
+    };
+  }
+  // (table) => ({
+  //   pk: primaryKey({ columns: [table.id, table.bucketId] }),
+  // })
+);
 
 export const activityRelations = relations(activityEvents, ({ one, many }) => ({
   post: one(posts, {

@@ -173,6 +173,20 @@ export interface ActivitySummary {
   children: Activity | null;
 }
 
+export interface ActivityBundle {
+  source: Source;
+  latest: string;
+  events: { event: ActivityEvent; time: string }[];
+  'source-key': string;
+}
+
+export type ActivityFeed = ActivityBundle[];
+export type InitActivityFeeds = {
+  all: ActivityBundle[];
+  mentions: ActivityBundle[];
+  replies: ActivityBundle[];
+};
+
 export type Activity = Record<string, ActivitySummary>;
 
 export type Indices = Record<string, IndexData>;
@@ -218,6 +232,7 @@ export interface ActivityVolumeUpdate {
 
 export interface ActivityAddUpdate {
   add: {
+    ['source-key']: string;
     time: string;
     event: ActivityEvent;
   };

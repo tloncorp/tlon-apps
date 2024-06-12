@@ -14,16 +14,17 @@ export function ActivityScreen(props: Props) {
   const { data: contacts } = store.useContacts();
   const isFocused = useIsFocused();
   // const { data: bucketedActivity } = store.useActivityEvents();
-  const { data: bucketedActivity } = store.useYourActivity();
+  // const { data: bucketedActivity } = store.useYourActivity();
+  // const bucketedActivity: any = null;
 
-  const rolledBuckets = useMemo(() => {
-    if (!bucketedActivity) return { all: [], threads: [], mentions: [] };
-    return {
-      all: toSourceActivity(bucketedActivity?.all ?? []),
-      threads: toSourceActivity(bucketedActivity?.threads ?? []),
-      mentions: toSourceActivity(bucketedActivity?.mentions ?? [], true),
-    };
-  }, [bucketedActivity]);
+  // const rolledBuckets = useMemo(() => {
+  //   if (!bucketedActivity) return { all: [], threads: [], mentions: [] };
+  //   return {
+  //     all: toSourceActivity(bucketedActivity?.all ?? []),
+  //     threads: toSourceActivity(bucketedActivity?.threads ?? []),
+  //     mentions: toSourceActivity(bucketedActivity?.mentions ?? [], true),
+  //   };
+  // }, [bucketedActivity]);
 
   const handleGoToChannel = useCallback(
     (channel: db.Channel) => {
@@ -33,7 +34,21 @@ export function ActivityScreen(props: Props) {
     [props.navigation]
   );
 
-  const activityFetcher = store.useFetchActivity();
+  const handleRefreshActivity = useCallback(async () => {
+    console.log(`bl: refreshing activity`);
+    return store.resetActivity();
+  }, []);
+
+  // const activityFetcher = store.useFetchActivity();
+  const allFetcher = store.useInfiniteBucketedActivity('all');
+
+  const bucketedActivity = useMemo(() => {
+    return {
+      all: allFetcher,
+      replies: {} as store.ActivityFetcher,
+      mentions: {} as store.ActivityFetcher,
+    };
+  }, [allFetcher]);
 
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
@@ -49,11 +64,12 @@ export function ActivityScreen(props: Props) {
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
         <ActivityScreenView
-          bucketedActivity={rolledBuckets}
+          bucketFetchers={bucketedActivity}
           isFocused={isFocused}
           goToChannel={handleGoToChannel}
           goToThread={handleGoToThread}
-          activityFetcher={activityFetcher}
+          refresh={handleRefreshActivity}
+          // activityFetcher={activityFetcher}
         />
         <NavBarView navigation={props.navigation} />
       </View>
@@ -61,34 +77,34 @@ export function ActivityScreen(props: Props) {
   );
 }
 
-function toSourceActivity(
-  events: db.ActivityEvent[],
-  noRollup?: boolean
-): db.SourceActivityEvents[] {
-  const eventMap = new Map<string, db.SourceActivityEvents>();
-  const eventsList: db.SourceActivityEvents[] = [];
+// function toSourceActivity(
+//   events: db.ActivityEvent[],
+//   noRollup?: boolean
+// ): db.SourceActivityEvents[] {
+//   const eventMap = new Map<string, db.SourceActivityEvents>();
+//   const eventsList: db.SourceActivityEvents[] = [];
 
-  events.forEach((event) => {
-    const key = noRollup ? event.id : getRollupKey(event);
-    if (eventMap.has(key)) {
-      const existing = eventMap.get(key);
-      if (existing) {
-        // Add the current event to the all array
-        existing.all.push(event);
-      }
-    } else {
-      // Create a new entry in the map
-      const newRollup = { newest: event, all: [event], type: event.type };
-      eventMap.set(key, newRollup);
-      eventsList.push(newRollup);
-    }
-  });
+//   events.forEach((event) => {
+//     const key = noRollup ? event.id : getRollupKey(event);
+//     if (eventMap.has(key)) {
+//       const existing = eventMap.get(key);
+//       if (existing) {
+//         // Add the current event to the all array
+//         existing.all.push(event);
+//       }
+//     } else {
+//       // Create a new entry in the map
+//       const newRollup = { newest: event, all: [event], type: event.type };
+//       eventMap.set(key, newRollup);
+//       eventsList.push(newRollup);
+//     }
+//   });
 
-  console.log(`bl: event list`, eventsList);
+//   console.log(`bl: event list`, eventsList);
 
-  // Convert the map values to an array
-  return eventsList;
-}
+//   // Convert the map values to an array
+//   return eventsList;
+// }
 
 function getRollupKey(event: db.ActivityEvent): string {
   // const timeBlock = Math.floor(event.timestamp / (6 * 60 * 60 * 1000)); // bundle unreads into 6 hour blocks

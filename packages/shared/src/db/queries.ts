@@ -22,13 +22,18 @@ import {
   max,
   min,
   not,
+  notInArray,
   or,
   sql,
   sum,
 } from 'drizzle-orm';
 import { SqliteRemoteResult } from 'drizzle-orm/sqlite-proxy';
 
-import { ChannelInit, getCurrentUserId } from '../api';
+import {
+  ACTIVITY_SOURCE_PAGESIZE,
+  ChannelInit,
+  getCurrentUserId,
+} from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { ExtendedEventType, Rank, desig } from '../urbit';
@@ -61,8 +66,10 @@ import {
   settings as $settings,
   threadUnreads as $threadUnreads,
   unreads as $unreads,
+  activityEvents,
 } from './schema';
 import {
+  ActivityBucket,
   ActivityEvent,
   Channel,
   ChatMember,
@@ -2389,12 +2396,210 @@ export const insertActivityEvents = createWriteQuery(
       .insert($activityEvents)
       .values(events)
       .onConflictDoUpdate({
-        target: $activityEvents.id,
+        target: [$activityEvents.id, $activityEvents.bucketId],
         set: conflictUpdateSetAll($activityEvents),
       });
   },
   ['activityEvents']
 );
+
+export const clearActivityEvents = createWriteQuery(
+  'clearActivityEvents',
+  async (ctx: QueryCtx) => {
+    return ctx.db.delete($activityEvents);
+  },
+  ['activityEvents']
+);
+
+export const getLatestActivityEvent = createReadQuery(
+  'getLatestActivityEvent',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.activityEvents
+      .findFirst({
+        orderBy: desc($activityEvents.timestamp),
+        where: and(
+          eq($activityEvents.shouldNotify, true),
+          eq($activityEvents.bucketId, 'all')
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['activityEvents']
+);
+
+export const getBucketedActivityPage = createReadQuery(
+  'getBucketedActivityPage',
+  async (
+    {
+      startCursor,
+      bucket,
+      existingSourceIds,
+    }: {
+      startCursor: number;
+      bucket: ActivityBucket;
+      existingSourceIds: string[];
+    },
+    ctx: QueryCtx
+  ) => {
+    logger.log(
+      `bl: get activity query ${bucket} ${startCursor}`,
+      existingSourceIds
+    );
+
+    try {
+      const sourceCheck = await ctx.db
+        .selectDistinct({ sourceId: $activityEvents.sourceId })
+        .from($activityEvents)
+        .where(
+          and(
+            eq($activityEvents.bucketId, bucket),
+            eq($activityEvents.shouldNotify, true),
+            lt($activityEvents.timestamp, startCursor),
+            notInArray($activityEvents.sourceId, [
+              'throwsIfEmpty',
+              ...existingSourceIds,
+            ])
+          )
+        )
+        .orderBy(desc($activityEvents.timestamp))
+        .limit(ACTIVITY_SOURCE_PAGESIZE);
+
+      if (sourceCheck.length === 0) {
+        return [];
+      }
+
+      // get the first N activity sources where the most recent message
+      // is older than the cursor
+      const sources = ctx.db
+        .selectDistinct({ sourceId: $activityEvents.sourceId })
+        .from($activityEvents)
+        .where(
+          and(
+            eq($activityEvents.bucketId, bucket),
+            eq($activityEvents.shouldNotify, true),
+            lt($activityEvents.timestamp, startCursor),
+            notInArray($activityEvents.sourceId, [
+              'throwsIfEmpty',
+              ...existingSourceIds,
+            ])
+          )
+        )
+        .orderBy(desc($activityEvents.timestamp))
+        .limit(50)
+        .as('sources');
+
+      // then get all the posts for those sources
+      const rankedEvents = ctx.db
+        .select({
+          id: $activityEvents.id,
+          rowNumber:
+            sql`ROW_NUMBER() OVER(PARTITION BY ${$activityEvents.sourceId} ORDER BY ${$activityEvents.timestamp} DESC)`.as(
+              'rowNumber'
+            ),
+        })
+        .from($activityEvents)
+        .where(
+          and(
+            eq($activityEvents.shouldNotify, true),
+            eq($activityEvents.bucketId, bucket)
+          )
+        )
+        .innerJoin(sources, eq($activityEvents.sourceId, sources.sourceId))
+        .as('rankedEvents');
+
+      // then trim to the newest 6 posts per source
+      const limitedEventIds = await ctx.db
+        .select({ id: rankedEvents.id })
+        .from(rankedEvents)
+        .where(lte(rankedEvents.rowNumber, 6));
+
+      const ids = limitedEventIds.map((e) => e.id).filter(Boolean) as string[];
+
+      // we should probably try to do this through the main query, but this will suffice
+      const activityEvents = await ctx.db.query.activityEvents.findMany({
+        where: and(
+          inArray($activityEvents.id, ids),
+          eq($activityEvents.bucketId, bucket)
+        ),
+        orderBy: desc($activityEvents.timestamp),
+        with: {
+          group: true,
+          post: true,
+          channel: {
+            with: {
+              unread: true,
+            },
+          },
+          parent: {
+            with: {
+              threadUnread: true,
+            },
+          },
+        },
+      });
+
+      const sourceActivity = toSourceActivity(activityEvents);
+      return sourceActivity;
+    } catch (e) {
+      logger.error('bl: get activity query error', e);
+      return [];
+    }
+  },
+  ['activityEvents']
+);
+
+export function toSourceActivity(
+  events: ActivityEvent[],
+  noRollup?: boolean
+): SourceActivityEvents[] {
+  const eventMap = new Map<string, SourceActivityEvents>();
+  const eventsList: SourceActivityEvents[] = [];
+
+  events.forEach((event) => {
+    const key = event.sourceId;
+    if (eventMap.has(key)) {
+      const existing = eventMap.get(key);
+      if (existing) {
+        // Add the current event to the all array
+        existing.all.push(event);
+      }
+    } else {
+      // Create a new entry in the map
+      const newRollup = {
+        newest: event,
+        all: [event],
+        type: event.type,
+        sourceId: event.sourceId,
+      };
+      eventMap.set(key, newRollup);
+      eventsList.push(newRollup);
+    }
+  });
+
+  // Convert the map values to an array
+  return eventsList;
+}
+
+// probably actually need something like this?
+// or(
+//   and(
+//     eq($activityEvents.type, 'post'),
+//     lte($unreads.updatedAt, startCursor)
+//   ),
+//   and(
+//     eq($activityEvents.type, 'reply'),
+//     lte($threadUnreads.updatedAt, startCursor)
+//   )
+// )
+
+// na, let's just aggregate in JS
+// const eventsForSources = await ctx.db
+//   .select({
+//     sourceId: limitedEvents.sourceId,
+//     events: sql`ARRAY_AGG(${limitedEvents.eventId})`.as('events'),
+//   })
+//   .from(limitedEvents)
+//   .groupBy(limitedEvents.sourceId);
 
 export type BucketedActivity = {
   all: ActivityEvent[];
@@ -2403,16 +2608,17 @@ export type BucketedActivity = {
 };
 
 export interface SourceActivityEvents {
+  sourceId: string;
   type: ExtendedEventType;
   newest: ActivityEvent;
   all: ActivityEvent[];
 }
 
-export type BucketedSourceActivity = {
-  all: SourceActivityEvents[];
-  threads: SourceActivityEvents[];
-  mentions: SourceActivityEvents[];
-};
+// export type BucketedSourceActivity = {
+//   all: SourceActivityEvents[];
+//   threads: SourceActivityEvents[];
+//   mentions: SourceActivityEvents[];
+// };
 
 // YOUR ACTIVITY
 // gets all acivity events related to the current user. This includes:
@@ -2449,108 +2655,108 @@ const isNewPostInYourChannel = (currentUserId: string) =>
     not(eq($activityEvents.authorId, currentUserId))
   );
 
-export const getYourActivity = createReadQuery(
-  'getYourActivity',
-  async (ctx: QueryCtx): Promise<BucketedActivity> => {
-    const currentUserId = getCurrentUserId();
+// export const getYourActivity = createReadQuery(
+//   'getYourActivity',
+//   async (ctx: QueryCtx): Promise<BucketedActivity> => {
+//     const currentUserId = getCurrentUserId();
 
-    // TODO: optimize, hustling but I imagine we could go way harder with
-    // the SQL aggregation and subqueries here
-    const yourActivity = await ctx.db
-      .select({ event: $activityEvents })
-      .from($activityEvents)
-      .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
-      .where(
-        and(
-          or(
-            eq($activityEvents.type, 'reply'),
-            eq($activityEvents.type, 'post')
-          ),
-          or(
-            isMention,
-            isInvolvedThread,
-            isUserBlockOrNoteComment(currentUserId),
-            isDmOrGroupchat,
-            isNewPostInYourChannel(currentUserId)
-          )
-        )
-      );
+//     // TODO: optimize, hustling but I imagine we could go way harder with
+//     // the SQL aggregation and subqueries here
+//     const yourActivity = await ctx.db
+//       .select({ event: $activityEvents })
+//       .from($activityEvents)
+//       .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
+//       .where(
+//         and(
+//           or(
+//             eq($activityEvents.type, 'reply'),
+//             eq($activityEvents.type, 'post')
+//           ),
+//           or(
+//             isMention,
+//             isInvolvedThread,
+//             isUserBlockOrNoteComment(currentUserId),
+//             isDmOrGroupchat,
+//             isNewPostInYourChannel(currentUserId)
+//           )
+//         )
+//       );
 
-    const allQuery = ctx.db.query.activityEvents.findMany({
-      where: inArray(
-        $activityEvents.id,
-        yourActivity.map((e) => e.event.id)
-      ),
-      orderBy: desc($activityEvents.timestamp),
-      with: {
-        group: true,
-        channel: {
-          with: {
-            unread: true,
-          },
-        },
-        post: true,
-        author: true,
-        parent: true,
-      },
-    });
+//     const allQuery = ctx.db.query.activityEvents.findMany({
+//       where: inArray(
+//         $activityEvents.id,
+//         yourActivity.map((e) => e.event.id)
+//       ),
+//       orderBy: desc($activityEvents.timestamp),
+//       with: {
+//         group: true,
+//         channel: {
+//           with: {
+//             unread: true,
+//           },
+//         },
+//         post: true,
+//         author: true,
+//         parent: true,
+//       },
+//     });
 
-    const threadsQuery = ctx.db.query.activityEvents.findMany({
-      where: and(
-        eq($activityEvents.type, 'reply'),
-        like($activityEvents.channelId, '%chat/%')
-      ),
-      orderBy: desc($activityEvents.timestamp),
-      with: {
-        group: true,
-        channel: {
-          with: {
-            unread: true,
-          },
-        },
-        post: true,
-        author: true,
-        parent: true,
-      },
-    });
+//     const threadsQuery = ctx.db.query.activityEvents.findMany({
+//       where: and(
+//         eq($activityEvents.type, 'reply'),
+//         like($activityEvents.channelId, '%chat/%')
+//       ),
+//       orderBy: desc($activityEvents.timestamp),
+//       with: {
+//         group: true,
+//         channel: {
+//           with: {
+//             unread: true,
+//           },
+//         },
+//         post: true,
+//         author: true,
+//         parent: true,
+//       },
+//     });
 
-    const mentionsQuery = ctx.db.query.activityEvents.findMany({
-      where: eq($activityEvents.isMention, true),
-      orderBy: desc($activityEvents.timestamp),
-      with: {
-        group: true,
-        channel: {
-          with: {
-            unread: true,
-          },
-        },
-        post: {
-          with: {
-            threadUnread: true,
-          },
-        },
-        author: true,
-        parent: true,
-      },
-    });
+//     const mentionsQuery = ctx.db.query.activityEvents.findMany({
+//       where: eq($activityEvents.isMention, true),
+//       orderBy: desc($activityEvents.timestamp),
+//       with: {
+//         group: true,
+//         channel: {
+//           with: {
+//             unread: true,
+//           },
+//         },
+//         post: {
+//           with: {
+//             threadUnread: true,
+//           },
+//         },
+//         author: true,
+//         parent: true,
+//       },
+//     });
 
-    const [all, allThreads, mentions] = await Promise.all([
-      allQuery,
-      threadsQuery,
-      mentionsQuery,
-    ]);
+//     const [all, allThreads, mentions] = await Promise.all([
+//       allQuery,
+//       threadsQuery,
+//       mentionsQuery,
+//     ]);
 
-    const allIds = new Set();
-    all.forEach((e) => allIds.add(e.id));
+//     const allIds = new Set();
+//     all.forEach((e) => allIds.add(e.id));
 
-    return {
-      all,
-      threads: allThreads.filter((e) => allIds.has(e.id)),
-      mentions,
-    };
-  },
-  ['activityEvents']
-);
+//     return {
+//       all,
+//       threads: allThreads.filter((e) => allIds.has(e.id)),
+//       mentions,
+//     };
+//   },
+//   ['activityEvents']
+// );
 
 export const getBucketedActivity = createReadQuery(
   'getActivityEvents',
