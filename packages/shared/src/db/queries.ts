@@ -1556,16 +1556,16 @@ function setPostGroups(ctx: QueryCtx) {
 }
 
 async function setLastPosts(ctx: QueryCtx) {
-  const $lastPost = ctx.db
-    .$with('lastPost')
-    .as(
-      ctx.db
-        .select({ id: $posts.id, receivedAt: $posts.receivedAt })
-        .from($posts)
-        .where(eq($posts.channelId, $channels.id))
-        .orderBy(desc($posts.receivedAt))
-        .limit(1)
-    );
+  const $lastPost = ctx.db.$with('lastPost').as(
+    ctx.db
+      .select({ id: $posts.id, receivedAt: $posts.receivedAt })
+      .from($posts)
+      .where(
+        and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+      )
+      .orderBy(desc($posts.receivedAt))
+      .limit(1)
+  );
 
   await ctx.db
     .with($lastPost)
