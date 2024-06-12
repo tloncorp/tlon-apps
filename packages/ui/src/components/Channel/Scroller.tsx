@@ -323,6 +323,7 @@ export default function Scroller({
               isFirstPostOfDay={isFirstPostOfDay}
               channelInfo={{ id: channelId, type: channelType }}
               index={index}
+              onSeen={onDividerSeen}
             />
           ) : null}
         </View>
