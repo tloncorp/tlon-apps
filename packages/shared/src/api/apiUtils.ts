@@ -1,5 +1,6 @@
 import { daToUnix, decToUd, unixToDa } from '@urbit/api';
 import { formatUd as baseFormatUd, parseUd } from '@urbit/aura';
+import bigInt from 'big-integer';
 
 import type * as db from '../db/types';
 import type * as ub from '../urbit';
@@ -170,4 +171,60 @@ export function toPostEssay({
   };
 
   return essay;
+}
+
+// the chat subscription doesn't include full posts (writs) in its add events,
+// so we need to recreate the implicit msising data before inserting them
+export function deriveFullWrit(
+  id: string,
+  delta: ub.WritDeltaAdd | ub.WritResponseAdd
+): ub.Writ {
+  const time = delta.add.time
+    ? bigInt(delta.add.time).toString()
+    : unixToDa(delta.add.memo.sent).toString();
+
+  const seal: ub.WritSeal = {
+    id,
+    time,
+    replies: [],
+    reacts: {},
+    meta: {
+      replyCount: 0,
+      lastRepliers: [],
+      lastReply: null,
+    },
+  };
+
+  const essay: ub.WritEssay = {
+    ...delta.add.memo,
+    'kind-data': {
+      chat: 'kind' in delta.add ? delta.add.kind : null,
+    },
+  };
+
+  return { seal, essay };
+}
+
+export function deriveFullWritReply({
+  id,
+  parentId,
+  delta,
+}: {
+  id: string;
+  parentId: string;
+  delta: ub.ReplyDeltaAdd;
+}): ub.WritReply {
+  const time = delta.add.time
+    ? bigInt(delta.add.time).toString()
+    : unixToDa(delta.add.memo.sent).toString();
+
+  const seal: ub.WritReplySeal = {
+    id,
+    time,
+    'parent-id': parentId,
+    reacts: {},
+  };
+  const memo = delta.add.memo;
+
+  return { seal, memo };
 }

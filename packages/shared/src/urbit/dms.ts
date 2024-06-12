@@ -72,7 +72,7 @@ interface WritDeltaDelReact {
   'del-react': string;
 }
 
-interface ReplyDeltaAdd {
+export interface ReplyDeltaAdd {
   add: {
     memo: WritMemo;
     time: string | null;
@@ -133,6 +133,7 @@ export type WritResponseDelta =
   | ReplyDelta;
 
 export interface WritResponse {
+  whom: string;
   id: string;
   response: WritResponseDelta;
 }

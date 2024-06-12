@@ -20,6 +20,7 @@ export function MessageInput({
       groupMembers={groupMembers}
       onSelectMention={() => {}}
       onPressSend={() => {}}
+      setShouldBlur={setShouldBlur}
     >
       <TextArea
         flexGrow={1}
