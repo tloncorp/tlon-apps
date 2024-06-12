@@ -75,13 +75,14 @@ export default function DmOptions({
     : whomIsFlag(whom)
       ? chatUnread
       : chatUnread.combined;
-  const hasNotify = !!unread.notify;
-  const hasActivity = pending || unread.status === 'unread';
+  const hasNotify = !!chatUnread?.combined.notify;
+  const hasActivity = pending || unread.status === 'unread' || hasNotify;
+  const key = whomIsFlag(whom) ? `chat/${whom}` : whom;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
-  const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
+  const { markRead: markReadChannel } = useMarkChannelRead(key);
   const { markDmRead } = useMarkDmReadMutation(whom);
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
@@ -134,14 +135,14 @@ export default function DmOptions({
   const handlePin = useCallback(
     async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       e.stopPropagation();
-      const isPinned = pinned.includes(whom);
+      const isPinned = pinned.includes(key);
       if (isPinned) {
-        await delPin({ pin: whom });
+        await delPin({ pin: key });
       } else {
-        await addPin({ pin: whom });
+        await addPin({ pin: key });
       }
     },
-    [whom, pinned, addPin, delPin]
+    [whom, key, pinned, addPin, delPin]
   );
 
   const handleInvite = () => {
@@ -216,7 +217,7 @@ export default function DmOptions({
     actions.push({
       key: 'pin',
       onClick: handlePin,
-      content: pinned.includes(whom) ? 'Unpin' : 'Pin',
+      content: pinned.includes(key) ? 'Unpin' : 'Pin',
     });
 
     if (isMulti) {

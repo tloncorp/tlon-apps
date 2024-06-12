@@ -79,7 +79,7 @@ function sumChildren(
 
     return {
       count: acc.count + (child.unread?.count || 0),
-      notify: acc.notify || Boolean(child.unread?.notify),
+      notify: acc.notify || Boolean(child.notify),
       status,
     };
   }, top);
@@ -356,7 +356,7 @@ export function useCombinedChatUnreads(messagesFilter: SidebarFilter) {
         return {
           unread: acc.unread || isUnread,
           count: acc.count + source.count,
-          notify: acc.notify || source.notify,
+          notify: acc.notify || source.combined.notify,
         };
       }, defaultUnread),
     [sources, messagesFilter]

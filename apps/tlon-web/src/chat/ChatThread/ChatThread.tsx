@@ -80,10 +80,13 @@ export default function ChatThread() {
   const { post: note, isLoading } = usePost(nest, idTime!);
   const time = formatUd(bigInt(idTime!));
   const id = note ? `${note.essay.author}/${time}` : '';
-  const msgKey = {
-    id,
-    time: formatUd(bigInt(idTime!)),
-  };
+  const msgKey = useMemo(
+    () => ({
+      id,
+      time: formatUd(bigInt(idTime!)),
+    }),
+    [id, idTime]
+  );
   const chatUnreadsKey = getThreadKey(flag, time);
   const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;

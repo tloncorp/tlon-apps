@@ -78,10 +78,13 @@ export default function DMThread() {
     unreadsKey,
     markDmRead,
   });
-  const msgKey: MessageKey = {
-    id,
-    time: formatUd(bigInt(time)),
-  };
+  const msgKey: MessageKey = useMemo(
+    () => ({
+      id,
+      time: formatUd(bigInt(time)),
+    }),
+    [id, time]
+  );
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
