@@ -422,7 +422,7 @@ export default function Scroller({
       // we're starting at an older post and scrolling down towards newer ones,
       // as it will trigger on every new page load, causing jumping. Instead, we
       // only enable it when there's nothing newer left to load (so, for new incoming messages only).
-      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+      autoscrollToTopThreshold: hasNewerPosts ? 0 : undefined,
     };
   }, [hasNewerPosts]);
 
