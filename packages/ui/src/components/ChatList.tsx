@@ -1,15 +1,17 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   SectionList,
   SectionListData,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
+  ViewToken,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
@@ -26,9 +28,11 @@ export function ChatList({
   pendingChats,
   onLongPressItem,
   onPressItem,
+  onSectionChange,
 }: store.CurrentChats & {
   onPressItem?: (chat: ListItem) => void;
   onLongPressItem?: (chat: ListItem) => void;
+  onSectionChange?: (title: string) => void;
 }) {
   const data = useMemo(() => {
     if (pinned.length === 0) {
@@ -84,6 +88,52 @@ export function ChatList({
     []
   );
 
+  const viewabilityConfig = {
+    minimumViewTime: 0,
+    itemVisiblePercentThreshold: 0,
+    waitForInteraction: false,
+  };
+
+  const isAtTopRef = useRef(true);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length === 0) {
+        return;
+      }
+
+      if (!isAtTopRef.current) {
+        const { section } = viewableItems[0];
+        if (section) {
+          onSectionChange?.(section.title);
+        }
+      }
+    }
+  ).current;
+
+  const handleScroll = useRef(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const atTop = event.nativeEvent.contentOffset.y === 0;
+      if (atTop !== isAtTopRef.current) {
+        isAtTopRef.current = atTop;
+        if (atTop) {
+          onSectionChange?.('Home');
+        }
+      }
+    }
+  ).current;
+
+  const getChannelKey = useCallback((item: ListItem) => {
+    if (!item || typeof item !== 'object' || !item.id) {
+      return 'invalid-item';
+    }
+
+    if (logic.isGroup(item)) {
+      return item.id;
+    }
+    return `${item.id}-${item.pin?.itemId ?? ''}`;
+  }, []);
+
   return (
     <SectionList
       sections={data}
@@ -94,20 +144,13 @@ export function ChatList({
       maxToRenderPerBatch={11}
       initialNumToRender={11}
       windowSize={2}
-      viewabilityConfig={{
-        minimumViewTime: 1000,
-        itemVisiblePercentThreshold: 50,
-      }}
+      viewabilityConfig={viewabilityConfig}
       renderSectionHeader={renderSectionHeader}
+      onViewableItemsChanged={onViewableItemsChanged}
+      onScroll={handleScroll}
     />
   );
 }
-
-function getChannelKey(item: ListItem) {
-  if (logic.isGroup(item)) return item.id;
-  return item.id + item.pin?.itemId ?? '';
-}
-
 const ChatListItem = React.memo(function ChatListItemComponent({
   model,
   onPress,
