@@ -62,11 +62,6 @@ export function ActivityScreenView({
           break;
         case 'reply':
           if (event.parentId && event.channelId && event.authorId) {
-            console.log(`bl: go to`, {
-              id: event.parentId,
-              channelId: event.channelId,
-              authorId: event.authorId,
-            });
             goToThread({
               id: event.parentId,
               channelId: event.channelId,

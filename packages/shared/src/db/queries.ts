@@ -2442,32 +2442,11 @@ export const getBucketedActivityPage = createReadQuery(
     ctx: QueryCtx
   ) => {
     logger.log(
-      `bl: get activity query ${bucket} ${startCursor}`,
+      `getBucketedActivityPage ${bucket} ${startCursor}`,
       existingSourceIds
     );
 
     try {
-      const sourceCheck = await ctx.db
-        .selectDistinct({ sourceId: $activityEvents.sourceId })
-        .from($activityEvents)
-        .where(
-          and(
-            eq($activityEvents.bucketId, bucket),
-            eq($activityEvents.shouldNotify, true),
-            lt($activityEvents.timestamp, startCursor),
-            notInArray($activityEvents.sourceId, [
-              'throwsIfEmpty',
-              ...existingSourceIds,
-            ])
-          )
-        )
-        .orderBy(desc($activityEvents.timestamp))
-        .limit(ACTIVITY_SOURCE_PAGESIZE);
-
-      if (sourceCheck.length === 0) {
-        return [];
-      }
-
       // get the first N activity sources where the most recent message
       // is older than the cursor
       const sources = ctx.db
@@ -2515,6 +2494,10 @@ export const getBucketedActivityPage = createReadQuery(
 
       const ids = limitedEventIds.map((e) => e.id).filter(Boolean) as string[];
 
+      if (ids.length === 0) {
+        return [];
+      }
+
       // we should probably try to do this through the main query, but this will suffice
       const activityEvents = await ctx.db.query.activityEvents.findMany({
         where: and(
@@ -2541,7 +2524,7 @@ export const getBucketedActivityPage = createReadQuery(
       const sourceActivity = toSourceActivity(activityEvents);
       return sourceActivity;
     } catch (e) {
-      logger.error('bl: get activity query error', e);
+      logger.error('getBucketedActivityPage query error', e);
       return [];
     }
   },
@@ -2580,27 +2563,6 @@ export function toSourceActivity(
   return eventsList;
 }
 
-// probably actually need something like this?
-// or(
-//   and(
-//     eq($activityEvents.type, 'post'),
-//     lte($unreads.updatedAt, startCursor)
-//   ),
-//   and(
-//     eq($activityEvents.type, 'reply'),
-//     lte($threadUnreads.updatedAt, startCursor)
-//   )
-// )
-
-// na, let's just aggregate in JS
-// const eventsForSources = await ctx.db
-//   .select({
-//     sourceId: limitedEvents.sourceId,
-//     events: sql`ARRAY_AGG(${limitedEvents.eventId})`.as('events'),
-//   })
-//   .from(limitedEvents)
-//   .groupBy(limitedEvents.sourceId);
-
 export type BucketedActivity = {
   all: ActivityEvent[];
   threads: ActivityEvent[];
@@ -2613,150 +2575,6 @@ export interface SourceActivityEvents {
   newest: ActivityEvent;
   all: ActivityEvent[];
 }
-
-// export type BucketedSourceActivity = {
-//   all: SourceActivityEvents[];
-//   threads: SourceActivityEvents[];
-//   mentions: SourceActivityEvents[];
-// };
-
-// YOUR ACTIVITY
-// gets all acivity events related to the current user. This includes:
-
-// posts you're mentioned in
-const isMention = eq($activityEvents.isMention, true);
-
-// threads you're involved in
-const isInvolvedThread = and(
-  eq($activityEvents.type, 'reply'),
-  eq($activityEvents.shouldNotify, true)
-);
-
-// comments on your blocks & notes
-const isUserBlockOrNoteComment = (currentUserId: string) =>
-  and(
-    eq($activityEvents.type, 'reply'),
-    // or(eq($channels.type, 'gallery'), eq($channels.type, 'notebook')), // TODO: isInvolvedThread not finding? confirm how notify being set dynamically for threads
-    not(eq($activityEvents.authorId, currentUserId)),
-    eq($activityEvents.parentAuthorId, currentUserId)
-  );
-
-// new messages in your DMs and groupchats
-const isDmOrGroupchat = or(
-  eq($channels.type, 'dm'),
-  eq($channels.type, 'groupDm')
-);
-
-// posts (you didn't author) in channels you host
-const isNewPostInYourChannel = (currentUserId: string) =>
-  and(
-    eq($activityEvents.type, 'post'),
-    like($channels.id, `%/${currentUserId}/%`),
-    not(eq($activityEvents.authorId, currentUserId))
-  );
-
-// export const getYourActivity = createReadQuery(
-//   'getYourActivity',
-//   async (ctx: QueryCtx): Promise<BucketedActivity> => {
-//     const currentUserId = getCurrentUserId();
-
-//     // TODO: optimize, hustling but I imagine we could go way harder with
-//     // the SQL aggregation and subqueries here
-//     const yourActivity = await ctx.db
-//       .select({ event: $activityEvents })
-//       .from($activityEvents)
-//       .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
-//       .where(
-//         and(
-//           or(
-//             eq($activityEvents.type, 'reply'),
-//             eq($activityEvents.type, 'post')
-//           ),
-//           or(
-//             isMention,
-//             isInvolvedThread,
-//             isUserBlockOrNoteComment(currentUserId),
-//             isDmOrGroupchat,
-//             isNewPostInYourChannel(currentUserId)
-//           )
-//         )
-//       );
-
-//     const allQuery = ctx.db.query.activityEvents.findMany({
-//       where: inArray(
-//         $activityEvents.id,
-//         yourActivity.map((e) => e.event.id)
-//       ),
-//       orderBy: desc($activityEvents.timestamp),
-//       with: {
-//         group: true,
-//         channel: {
-//           with: {
-//             unread: true,
-//           },
-//         },
-//         post: true,
-//         author: true,
-//         parent: true,
-//       },
-//     });
-
-//     const threadsQuery = ctx.db.query.activityEvents.findMany({
-//       where: and(
-//         eq($activityEvents.type, 'reply'),
-//         like($activityEvents.channelId, '%chat/%')
-//       ),
-//       orderBy: desc($activityEvents.timestamp),
-//       with: {
-//         group: true,
-//         channel: {
-//           with: {
-//             unread: true,
-//           },
-//         },
-//         post: true,
-//         author: true,
-//         parent: true,
-//       },
-//     });
-
-//     const mentionsQuery = ctx.db.query.activityEvents.findMany({
-//       where: eq($activityEvents.isMention, true),
-//       orderBy: desc($activityEvents.timestamp),
-//       with: {
-//         group: true,
-//         channel: {
-//           with: {
-//             unread: true,
-//           },
-//         },
-//         post: {
-//           with: {
-//             threadUnread: true,
-//           },
-//         },
-//         author: true,
-//         parent: true,
-//       },
-//     });
-
-//     const [all, allThreads, mentions] = await Promise.all([
-//       allQuery,
-//       threadsQuery,
-//       mentionsQuery,
-//     ]);
-
-//     const allIds = new Set();
-//     all.forEach((e) => allIds.add(e.id));
-
-//     return {
-//       all,
-//       threads: allThreads.filter((e) => allIds.has(e.id)),
-//       mentions,
-//     };
-//   },
-//   ['activityEvents']
-// );
 
 export const getBucketedActivity = createReadQuery(
   'getActivityEvents',

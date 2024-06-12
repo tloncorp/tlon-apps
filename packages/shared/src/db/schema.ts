@@ -146,7 +146,7 @@ export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export const activityEvents = sqliteTable(
   'activity_events',
   {
-    id: text('id'),
+    id: text('id').notNull(),
     bucketId: text('bucket_id').$type<ActivityBucket>().notNull(),
     sourceId: text('source_id').notNull(),
     type: text('type').$type<ExtendedEventType>().notNull(),

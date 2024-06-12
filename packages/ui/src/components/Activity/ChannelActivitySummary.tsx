@@ -25,7 +25,6 @@ export function ChannelActivitySummary({
   seenMarker: number;
   pressHandler?: () => void;
 }) {
-  console.log(`bl: rendering activity summary for `, summary);
   const newestPost = summary.newest;
   const newestPostContact = useContact(newestPost.authorId ?? '');
   const group = newestPost.group ?? undefined;

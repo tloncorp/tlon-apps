@@ -24,7 +24,7 @@ export interface BucketFetchers {
 export const INFINITE_ACTIVITY_QUERY_KEY = 'useInfiniteBucketedActivity';
 
 export function resetActivityFetchers() {
-  logger.log('bl: resetting activity fetchers');
+  logger.log('resetting activity fetchers');
   const fetchers = ['all', 'mentions', 'replies'];
   for (const fetcher in fetchers) {
     api.queryClient.setQueryData([INFINITE_ACTIVITY_QUERY_KEY, fetcher], () => {

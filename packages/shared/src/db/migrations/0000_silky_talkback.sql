@@ -1,5 +1,5 @@
 CREATE TABLE `activity_events` (
-	`id` text,
+	`id` text NOT NULL,
 	`bucket_id` text NOT NULL,
 	`source_id` text NOT NULL,
 	`type` text NOT NULL,
@@ -261,6 +261,7 @@ CREATE TABLE `thread_unreads` (
 	`thread_id` text,
 	`notify` integer,
 	`count` integer,
+	`updated_at` integer NOT NULL,
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
 	PRIMARY KEY(`channel_id`, `thread_id`)

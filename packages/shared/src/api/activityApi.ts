@@ -27,43 +27,12 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   return settings;
 }
 
-// export async function getActivityEvents() {
-//   const activity = await scry<ub.Stream>({
-//     app: 'activity',
-//     path: '/all',
-//   });
-
-//   return toActivityEvents(activity);
-// }
-
-// ::
-// [%x %feed type=@ start=@ count=@ ~]
-// =/  start  (slav %ud start.pole)
-// =/  count  (slav %ud count.pole)
-// =-  ``activity-feed+!>(-)
-// ?+  type.pole  ~|(bad-feed-type+type.pole !!)
-//   %all
-// (all-feed start count)
-// ::
-//   %mentions
-// (mentions-feed start count)
-// ::
-//   %replies
-// (replies-feed start count)
-// ==
-
-export const ACTIVITY_SOURCE_PAGESIZE = 10;
+export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
   const activity = await scry<ub.InitActivityFeeds>({
     app: 'activity',
     path: `/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
-
-  // return {
-  //   all: fromFeedToActivityEvents(activity.all, 'all'),
-  //   mentions: fromFeedToActivityEvents(activity.mentions, 'mentions'),
-  //   replies: fromFeedToActivityEvents(activity.replies, 'replies'),
-  // };
 
   return [
     ...fromFeedToActivityEvents(activity.all, 'all'),
@@ -80,7 +49,7 @@ export async function getPagedActivityByBucket({
   bucket: db.ActivityBucket;
 }): Promise<{ events: db.ActivityEvent[]; nextCursor: number | null }> {
   logger.log(
-    `bl: fetching next activity page for bucket ${bucket} with cursor`,
+    `fetching next activity page for bucket ${bucket} with cursor`,
     cursor
   );
   const urbitCursor = formatUd(unixToDa(cursor).toString());
@@ -351,7 +320,6 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         const id = update.add.time;
         const sourceId = update.add['source-key'];
         const rawEvent = update.add.event;
-        logger.log(`bl: got raw activity event`, update);
         // TODO: parse relevant buckets
 
         const activityEvent = toActivityEvent({

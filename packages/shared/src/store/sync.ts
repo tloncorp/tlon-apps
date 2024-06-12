@@ -137,9 +137,6 @@ export const resetActivity = async () => {
   const activityEvents = await api.getInitialActivity();
   await db.clearActivityEvents();
   await db.insertActivityEvents(activityEvents);
-  // api.queryClient.invalidateQueries({
-  //   queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
-  // });
   resetActivityFetchers();
 };
 
