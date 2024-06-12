@@ -58,3 +58,38 @@ function parseInputAsRgba(color: string): [number, number, number, number] {
     return [0, 0, 0, 1];
   }
 }
+
+interface BackgroundColorParams {
+  contact?: {
+    avatarImage?: string;
+  } | null;
+  disableAvatars: boolean;
+  colors: {
+    backgroundColor: string;
+  };
+  model?: {
+    iconImageColor?: string | null;
+    iconImage?: string | null;
+  };
+}
+
+export function getBackgroundColor({
+  contact,
+  disableAvatars,
+  colors,
+  model,
+}: BackgroundColorParams): string {
+  if (disableAvatars) {
+    return colors.backgroundColor;
+  }
+  if (contact?.avatarImage && !disableAvatars) {
+    return 'transparent';
+  }
+  if (model?.iconImageColor) {
+    return model.iconImageColor;
+  }
+  if (model?.iconImage) {
+    return 'transparent';
+  }
+  return colors.backgroundColor;
+}

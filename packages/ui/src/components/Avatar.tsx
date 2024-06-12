@@ -4,7 +4,7 @@ import { getTokenValue, styled } from 'tamagui';
 
 import { useCalm } from '../contexts/calm';
 import { Image, View } from '../core';
-import { useSigilColors } from '../utils/colorUtils';
+import { getBackgroundColor, useSigilColors } from '../utils/colorUtils';
 import UrbitSigil from './UrbitSigil';
 
 export function Avatar({
@@ -26,11 +26,7 @@ export function Avatar({
       size={size}
       {...props}
       // @ts-expect-error custom color
-      backgroundColor={
-        contact?.avatarImage && !disableAvatars
-          ? 'transparent'
-          : colors.backgroundColor
-      }
+      backgroundColor={getBackgroundColor({ contact, disableAvatars, colors })}
     >
       {!disableAvatars && contact?.avatarImage ? (
         <Image

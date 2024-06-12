@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 
 import { useCalm } from '../../contexts/calm';
 import { XStack } from '../../core';
+import { getBackgroundColor } from '../../utils/colorUtils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
@@ -15,6 +16,8 @@ export default function GroupListItemContent({
   ...props
 }: ListItemProps<db.Group>) {
   const { disableAvatars } = useCalm();
+  // Fallback color for calm mode or unset colors
+  const colors = { backgroundColor: '$secondaryBackground' };
 
   const { isPending, statusDisplay, isErrored } = useMemo(
     () => getDisplayInfo(model),
@@ -30,15 +33,7 @@ export default function GroupListItemContent({
     >
       <ListItem.Icon
         fallbackText={model.title?.[0]}
-        backgroundColor={
-          disableAvatars
-            ? '$secondaryBackground'
-            : model.iconImageColor
-              ? model.iconImageColor
-              : model.iconImage
-                ? 'transparent'
-                : '$secondaryBackground'
-        }
+        backgroundColor={getBackgroundColor({ disableAvatars, colors, model })}
         imageUrl={
           !disableAvatars && model.iconImage ? model.iconImage : undefined
         }
