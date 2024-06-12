@@ -1,15 +1,17 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   SectionList,
   SectionListData,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
+  ViewToken,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStyle } from '../core';
 import ChannelListItem from './ChannelListItem';
@@ -20,15 +22,21 @@ import { SwipableChatRow } from './SwipableChatListItem';
 
 type ListItem = db.Channel | db.Group;
 
+function isValidListItem(item: any): item is ListItem {
+  return item && typeof item === 'object' && 'id' in item;
+}
+
 export function ChatList({
   pinned,
   unpinned,
   pendingChats,
   onLongPressItem,
   onPressItem,
+  onSectionChange,
 }: store.CurrentChats & {
   onPressItem?: (chat: ListItem) => void;
   onLongPressItem?: (chat: ListItem) => void;
+  onSectionChange?: (title: string) => void;
 }) {
   const data = useMemo(() => {
     if (pinned.length === 0) {
@@ -84,21 +92,57 @@ export function ChatList({
     []
   );
 
+  const viewabilityConfig = {
+    minimumViewTime: 0,
+    itemVisiblePercentThreshold: 0,
+    waitForInteraction: false,
+  };
+
+  const isAtTopRef = useRef(true);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length === 0) {
+        return;
+      }
+
+      if (!isAtTopRef.current) {
+        const { section } = viewableItems[0];
+        if (section) {
+          onSectionChange?.(section.title);
+        }
+      }
+    }
+  ).current;
+
+  const handleScroll = useRef(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const atTop = event.nativeEvent.contentOffset.y === 0;
+      if (atTop !== isAtTopRef.current) {
+        isAtTopRef.current = atTop;
+        if (atTop) {
+          onSectionChange?.('Home');
+        }
+      }
+    }
+  ).current;
+
   return (
     <SectionList
       sections={data}
       contentContainerStyle={contentContainerStyle}
-      keyExtractor={getChannelKey}
+      keyExtractor={(item) =>
+        isValidListItem(item) ? getChannelKey(item) : 'invalid-item'
+      }
       stickySectionHeadersEnabled={false}
       renderItem={renderItem}
       maxToRenderPerBatch={11}
       initialNumToRender={11}
       windowSize={2}
-      viewabilityConfig={{
-        minimumViewTime: 1000,
-        itemVisiblePercentThreshold: 50,
-      }}
+      viewabilityConfig={viewabilityConfig}
       renderSectionHeader={renderSectionHeader}
+      onViewableItemsChanged={onViewableItemsChanged}
+      onScroll={handleScroll}
     />
   );
 }
