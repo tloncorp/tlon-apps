@@ -18,7 +18,7 @@ import UploadedImagePreview from './Channel/UploadedImagePreview';
 import { ChatMessage } from './ChatMessage';
 import { NotebookDetailView } from './DetailView';
 import GalleryDetailView from './DetailView/GalleryDetailView';
-import { MessageInput } from './MessageInput';
+import { DEFAULT_MESSAGE_INPUT_HEIGHT, MessageInput } from './MessageInput';
 
 export function PostScreenView({
   currentUserId,
@@ -96,7 +96,9 @@ export function PostScreenView({
               <KeyboardAvoidingView
                 //TODO: Standardize this component, account for tab bar in a better way
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                // keyboardVerticalOffset={70}
+                keyboardVerticalOffset={
+                  Platform.OS === 'ios' ? -bottom : DEFAULT_MESSAGE_INPUT_HEIGHT
+                }
                 style={{ flex: 1 }}
               >
                 {parentPost && channel.type === 'gallery' && (

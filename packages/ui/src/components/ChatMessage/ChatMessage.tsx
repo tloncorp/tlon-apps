@@ -100,12 +100,12 @@ const ChatMessage = ({
     <YStack
       onLongPress={handleLongPress}
       key={post.id}
-      gap="$l"
-      paddingVertical="$m"
+      gap="$s"
+      paddingVertical="$xs"
       paddingRight="$l"
     >
       {showAuthor ? (
-        <View paddingLeft="$l">
+        <View paddingLeft="$l" paddingTop="$s">
           <AuthorRow
             author={post.author}
             authorId={post.authorId}
