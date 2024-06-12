@@ -430,7 +430,6 @@
       ==
     acc(times new-times)
   :-  new-times
-  :-  (sub limit.acc 1)
   =/  mention=(unit activity-bundle:a)
     ?.  |(?=(%all type) ?=(%mentions type))  ~
     =/  is-mention
@@ -443,7 +442,7 @@
     ?.  is-mention  ~
     `[source time ~[[time event]]]
   ?^  mention
-    [(snoc happenings.acc u.mention) collapsed.acc]
+    [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
   =/  care
     ?|  ?=(%all type)
         &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
@@ -452,11 +451,11 @@
   ?.  ?&  care
           !(~(has in collapsed.acc) time)
       ==
-    [happenings collapsed]:acc
+    [limit happenings collapsed]:acc
   =/  top  (top-messages source stream:(get-index source))
   =/  collapsed
     (~(gas in collapsed.acc) (turn top |=([=time-id:a *] time-id)))
-  [(snoc happenings.acc [source time top]) collapsed]
+  [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
   +$  out
     $:  times=(map source:a time-id:a)
         limit=@ud
