@@ -46,14 +46,7 @@ export const syncLatestPosts = async () => {
     ])
   );
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
-  for (const post of allPosts) {
-    if (
-      !channelCursors.has(post.channelId) ||
-      post.id > channelCursors.get(post.channelId)!
-    ) {
-      channelCursors.set(post.channelId, post.id);
-    }
-  }
+  allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
   await db.insertLatestPosts(allPosts);
 };
 
