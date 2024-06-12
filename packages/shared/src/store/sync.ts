@@ -17,13 +17,6 @@ const logger = createDevLogger('sync', false);
 
 export const syncInitData = async () => {
   const initData = await syncQueue.add('init', () => api.getInitData());
-  const writers = initData.channelPerms.flatMap((chanInit) =>
-    chanInit.writers.map((writer) => ({
-      channelId: chanInit.channelId,
-      roleId: writer,
-    }))
-  );
-
   return batchEffects('init sync', async (ctx) => {
     return await Promise.all([
       db.insertPinnedItems(initData.pins, ctx),
@@ -31,9 +24,7 @@ export const syncInitData = async () => {
       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
       db.insertChannels(initData.channels, ctx),
       resetUnreads(initData.unreads, ctx),
-      writers.length > 0
-        ? db.insertChannelPerms(initData.channelPerms, ctx)
-        : null,
+      db.insertChannelPerms(initData.channelPerms, ctx),
     ]);
   });
 };

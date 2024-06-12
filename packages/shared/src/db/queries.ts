@@ -531,13 +531,18 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  (channelsInit: ChannelInit[], ctx: QueryCtx) => {
+  async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
     const writers = channelsInit.flatMap((chanInit) =>
       chanInit.writers.map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
+
+    if (writers.length === 0) {
+      return;
+    }
+
     return ctx.db
       .insert($channelWriters)
       .values(writers)
