@@ -1,5 +1,6 @@
 name: Sync Develop with Staging
 on:
+  workflow_dispatch:
   push:
     branches:
       - "staging"
