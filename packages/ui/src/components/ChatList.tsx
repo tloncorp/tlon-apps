@@ -22,10 +22,6 @@ import { SwipableChatRow } from './SwipableChatListItem';
 
 type ListItem = db.Channel | db.Group;
 
-function isValidListItem(item: any): item is ListItem {
-  return item && typeof item === 'object' && 'id' in item;
-}
-
 export function ChatList({
   pinned,
   unpinned,
@@ -127,13 +123,22 @@ export function ChatList({
     }
   ).current;
 
+  const getChannelKey = useCallback((item: ListItem) => {
+    if (!item || typeof item !== 'object' || !item.id) {
+      return 'invalid-item';
+    }
+
+    if (logic.isGroup(item)) {
+      return item.id;
+    }
+    return `${item.id}-${item.pin?.itemId ?? ''}`;
+  }, []);
+
   return (
     <SectionList
       sections={data}
       contentContainerStyle={contentContainerStyle}
-      keyExtractor={(item) =>
-        isValidListItem(item) ? getChannelKey(item) : 'invalid-item'
-      }
+      keyExtractor={getChannelKey}
       stickySectionHeadersEnabled={false}
       renderItem={renderItem}
       maxToRenderPerBatch={11}
@@ -146,12 +151,6 @@ export function ChatList({
     />
   );
 }
-
-function getChannelKey(item: ListItem) {
-  if (logic.isGroup(item)) return item.id;
-  return item.id + item.pin?.itemId ?? '';
-}
-
 const ChatListItem = React.memo(function ChatListItemComponent({
   model,
   onPress,
