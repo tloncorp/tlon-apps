@@ -105,7 +105,7 @@
   ++  state-1-to-2
     |=  old=state-1
     ^-  state-2
-    [%2 %all +.state-1]
+    [%2 %all +.old]
   --
 ::
 ++  scry-path
@@ -285,7 +285,8 @@
       %noun
     ?+  q.vase  ~|(bad-poke+mark !!)
         %migrate
-      =.  state  *state-1
+      =.  state  *current-state
+      =.  allowed  %all
       migrate
     ==
   ::
