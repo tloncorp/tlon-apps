@@ -72,16 +72,15 @@ export default function DmOptions({
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const unread = !chatUnread
     ? { status: 'read', count: 0, notify: false }
-    : whomIsFlag(whom)
-      ? chatUnread
-      : chatUnread.combined;
-  const hasNotify = !!unread.notify;
+    : chatUnread.combined;
+  const hasNotify = unread.notify;
   const hasActivity = pending || unread.status === 'unread';
+  const key = whomIsFlag(whom) ? `chat/${whom}` : whom;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
-  const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
+  const { markRead: markReadChannel } = useMarkChannelRead(key);
   const { markDmRead } = useMarkDmReadMutation(whom);
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
@@ -134,14 +133,14 @@ export default function DmOptions({
   const handlePin = useCallback(
     async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       e.stopPropagation();
-      const isPinned = pinned.includes(whom);
+      const isPinned = pinned.includes(key);
       if (isPinned) {
-        await delPin({ pin: whom });
+        await delPin({ pin: key });
       } else {
-        await addPin({ pin: whom });
+        await addPin({ pin: key });
       }
     },
-    [whom, pinned, addPin, delPin]
+    [whom, key, pinned, addPin, delPin]
   );
 
   const handleInvite = () => {
@@ -216,7 +215,7 @@ export default function DmOptions({
     actions.push({
       key: 'pin',
       onClick: handlePin,
-      content: pinned.includes(whom) ? 'Unpin' : 'Pin',
+      content: pinned.includes(key) ? 'Unpin' : 'Pin',
     });
 
     if (isMulti) {
@@ -260,7 +259,7 @@ export default function DmOptions({
               <button
                 className={cn(
                   'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                  hasNotify && 'text-blue',
+                  hasActivity && hasNotify && 'text-blue',
                   isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
                 )}
                 aria-label="Open Message Options"

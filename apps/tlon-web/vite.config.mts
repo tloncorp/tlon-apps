@@ -82,6 +82,7 @@ export default ({ mode }: { mode: string }) => {
         strategies: 'injectManifest',
         srcDir: 'src',
         filename: 'sw.ts',
+        useCredentials: true,
         devOptions: {
           enabled: mode === 'sw',
           type: 'module',
