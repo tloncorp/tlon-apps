@@ -1350,6 +1350,7 @@ export const getChannelPosts = createReadQuery(
         .where(
           and(
             eq($posts.channelId, channelId),
+            not(eq($posts.type, 'reply')),
             gte($posts.id, window.oldestPostId),
             lte($posts.id, window.newestPostId)
           )

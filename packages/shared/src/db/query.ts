@@ -167,6 +167,7 @@ export async function withCtxOrDefault<T>(
     }
     logger.log(`${meta.label}:trigger:${listDebugLabel(pendingEffects)}`);
     queryClient.invalidateQueries({
+      fetchStatus: 'idle',
       predicate: (query) => {
         const tableKey = query.queryKey[1];
         const shouldInvalidate =
