@@ -97,6 +97,8 @@ export const syncUnreads = async () => {
 const resetUnreads = async (unreads: db.Unread[], ctx?: QueryCtx) => {
   if (!unreads.length) return;
 
+  logger.log('resetting unreads', unreads);
+
   await db.insertUnreads(unreads);
   await db.setJoinedGroupChannels(
     {
@@ -246,10 +248,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.deleteChannel(update.channelId);
       break;
     case 'joinChannel':
-      await db.setJoinedGroupChannels({ channelIds: [update.channelId] });
+      await db.addJoinedGroupChannel({ channelId: update.channelId });
       break;
     case 'leaveChannel':
-      await db.setLeftGroupChannels({ channelIds: [update.channelId] });
+      await db.removeJoinedGroupChannel({ channelId: update.channelId });
       break;
     case 'addNavSection':
       await db.addNavSectionToGroup({
@@ -347,7 +349,21 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
       break;
+    case 'joinChannelSuccess':
+      await db.addJoinedGroupChannel({ channelId: update.channelId });
+      break;
+    case 'leaveChannelSuccess':
+      await db.removeJoinedGroupChannel({ channelId: update.channelId });
+      break;
+    case 'initialPostsOnChannelJoin':
+      await db.insertChannelPosts({
+        channelId: update.channelId,
+        posts: update.posts,
+      });
+      break;
     case 'unknown':
+      logger.log('unknown channels update', update);
+      break;
     default:
       break;
   }

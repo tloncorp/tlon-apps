@@ -458,6 +458,8 @@ export const deleteGroup = createWriteQuery(
 export const insertUnjoinedGroups = createWriteQuery(
   'insertUnjoinedGroups',
   async (groups: Group[], ctx: QueryCtx) => {
+    logger.log('insertUnjoinedGroups', groups.length);
+
     return withTransactionCtx(ctx, async (txCtx) => {
       // ensure we never delete metadata if we get a partial for some reason
       // during the join process
@@ -529,13 +531,18 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  (channelsInit: ChannelInit[], ctx: QueryCtx) => {
+  async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
     const writers = channelsInit.flatMap((chanInit) =>
       chanInit.writers.map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
+
+    if (writers.length === 0) {
+      return;
+    }
+
     return ctx.db
       .insert($channelWriters)
       .values(writers)
@@ -1195,12 +1202,46 @@ export const getChannelNavSection = createReadQuery(
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
   async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+    logger.log('setJoinedGroupChannels', channelIds);
     return await ctx.db
       .update($channels)
       .set({
         currentUserIsMember: inArray($channels.id, channelIds),
       })
       .where(isNotNull($channels.groupId));
+  },
+  ['channels']
+);
+
+export const addJoinedGroupChannel = createWriteQuery(
+  'addJoinedGroupChannel',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    logger.log('addJoinedGroupChannel', channelId);
+
+    await ctx.db.insert($groupNavSectionChannels).values({
+      channelId,
+      groupNavSectionId: 'default',
+    });
+
+    return await ctx.db
+      .update($channels)
+      .set({
+        currentUserIsMember: true,
+      })
+      .where(eq($channels.id, channelId));
+  },
+  ['channels']
+);
+
+export const removeJoinedGroupChannel = createWriteQuery(
+  'removeJoinedGroupChannel',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return await ctx.db
+      .update($channels)
+      .set({
+        currentUserIsMember: false,
+      })
+      .where(eq($channels.id, channelId));
   },
   ['channels']
 );
@@ -2023,6 +2064,7 @@ export const deleteContact = createWriteQuery(
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
   async (unreads: Unread[], ctx: QueryCtx) => {
+    logger.log('insertUnreads', unreads.length, unreads);
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
         .insert($unreads)
