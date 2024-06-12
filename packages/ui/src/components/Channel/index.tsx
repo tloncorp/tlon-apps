@@ -195,6 +195,7 @@ export function Channel({
                         goBack={() =>
                           showBigInput ? bigInputGoBack() : goBack()
                         }
+                        showSearchButton={isChatChannel}
                         goToSearch={goToSearch}
                         showSpinner={isLoadingPosts}
                         showMenuButton={!isChatChannel}

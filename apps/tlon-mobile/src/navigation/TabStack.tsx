@@ -9,6 +9,7 @@ import { SettingsStack } from './SettingsStack';
 const ActivityScreen = (props: any) => {
   return (
     <View backgroundColor="$background" flex={1}>
+      <View flex={1} />
       <NavBar navigation={props.navigation} />
     </View>
   );
