@@ -34,7 +34,7 @@ export async function sendPost({
     posts: [cachePost],
     older: sync.channelCursors.get(channel.id),
   });
-  sync.channelCursors.set(channel.id, cachePost.id);
+  sync.updateChannelCursor(channel.id, cachePost.id);
   try {
     await api.sendPost({
       channelId: channel.id,
@@ -183,12 +183,13 @@ export async function addPostReaction(
   });
 
   try {
-    await api.addReaction(
-      post.channelId,
-      post.id,
-      formattedShortcode,
-      currentUserId
-    );
+    await api.addReaction({
+      channelId: post.channelId,
+      postId: post.id,
+      shortCode: formattedShortcode,
+      our: currentUserId,
+      postAuthor: post.authorId,
+    });
     sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
     console.error('Failed to add post reaction', e);
@@ -208,7 +209,12 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
   await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
 
   try {
-    await api.removeReaction(post.channelId, post.id, currentUserId);
+    await api.removeReaction({
+      channelId: post.channelId,
+      postId: post.id,
+      our: currentUserId,
+      postAuthor: post.authorId,
+    });
     sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
     console.error('Failed to remove post reaction', e);

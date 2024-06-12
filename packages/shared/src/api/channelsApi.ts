@@ -3,6 +3,7 @@ import { decToUd, unixToDa } from '@urbit/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
+import { Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
 import { getCanonicalPostId } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
@@ -39,6 +40,12 @@ export type JoinChannelSuccessUpdate = {
   channelId: string;
 };
 
+export type InitialPostsOnChannelJoin = {
+  type: 'initialPostsOnChannelJoin';
+  channelId: string;
+  posts: db.Post[];
+};
+
 export type LeaveChannelSuccessUpdate = {
   type: 'leaveChannelSuccess';
   channelId: string;
@@ -58,8 +65,9 @@ export type ChannelsUpdate =
   | HidePostUpdate
   | ShowPostUpdate
   // | CreateChannelUpdate
-  // | JoinChannelSuccessUpdate
+  | JoinChannelSuccessUpdate
   | LeaveChannelSuccessUpdate
+  | InitialPostsOnChannelJoin
   // | MarkChannelReadUpdate
   | WritersUpdate;
 
@@ -135,13 +143,12 @@ export const toChannelsUpdate = (
     // };
     // }
 
-    // not clear that this is necessary
-    // if ('join' in channelEvent.response) {
-    // return {
-    // type: 'joinChannelSuccess',
-    // channelId,
-    // };
-    // }
+    if ('join' in channelEvent.response) {
+      return {
+        type: 'joinChannelSuccess',
+        channelId,
+      };
+    }
 
     // not clear that this is necessary
     // if ('read' in channelEvent.response) {
@@ -151,13 +158,25 @@ export const toChannelsUpdate = (
     // };
     // }
 
-    // not used yet
-    // if ('leave' in channelEvent.response) {
-    // return {
-    // type: 'leaveChannelSuccess',
-    // channelId,
-    // };
-    // }
+    if ('leave' in channelEvent.response) {
+      return {
+        type: 'leaveChannelSuccess',
+        channelId,
+      };
+    }
+
+    if ('posts' in channelEvent.response) {
+      const { posts: postsFromBackend }: { posts: Posts } =
+        channelEvent.response;
+
+      const posts = Object.entries(postsFromBackend)
+        .filter(([_, post]) => post !== null)
+        .map(([_, post]) => {
+          return toPostData(channelId, post!);
+        });
+
+      return { type: 'initialPostsOnChannelJoin', channelId, posts };
+    }
 
     if ('post' in channelEvent.response) {
       // post events
@@ -223,7 +242,7 @@ export const toChannelsUpdate = (
     }
   }
 
-  logger.log(`unknown event`);
+  logger.log(`unknown event`, channelEvent);
   return { type: 'unknown' };
 };
 

@@ -1,13 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isToday, makePrettyDay } from '@tloncorp/shared/dist/logic';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useMemo } from 'react';
+import { useWindowDimensions } from 'tamagui';
 
 import { SizableText, View, XStack } from '../../core';
 
@@ -16,17 +10,25 @@ export function ChannelDivider({
   unreadCount,
   isFirstPostOfDay,
   onSeen,
+  channelInfo,
+  index,
 }: {
   post: db.Post;
   unreadCount: number;
   isFirstPostOfDay?: boolean;
   onSeen?: (post: db.Post) => void;
+  channelInfo?: {
+    id: string;
+    type: db.ChannelType;
+  };
+  index: number;
 }) {
   const color = unreadCount ? '$positiveActionText' : '$border';
   const hideTime = unreadCount && isToday(post.receivedAt) && !isFirstPostOfDay;
   const time = useMemo(() => {
     return makePrettyDay(new Date(post.receivedAt));
   }, [post.receivedAt]);
+  const { width } = useWindowDimensions();
 
   const handleSeen = useCallback(() => {
     if (unreadCount) {
@@ -34,8 +36,28 @@ export function ChannelDivider({
     }
   }, [onSeen, post, unreadCount]);
 
+  const isEven = index % 2 === 0;
+
   return (
-    <XStack alignItems="center" padding="$l" onLayout={handleSeen}>
+    <XStack
+      marginRight={
+        channelInfo?.type === 'gallery'
+          ? !isEven
+            ? 0
+            : -(width / 2)
+          : undefined
+      }
+      marginLeft={
+        channelInfo?.type === 'gallery'
+          ? isEven
+            ? 0
+            : -(width / 2)
+          : undefined
+      }
+      alignItems="center"
+      padding="$l"
+      onLayout={handleSeen}
+    >
       <View width={'$2xl'} flex={1} height={1} backgroundColor={color} />
       <View
         paddingHorizontal="$m"
@@ -52,7 +74,7 @@ export function ChannelDivider({
           {!hideTime ? `${time}` : null}
           {!hideTime && unreadCount ? ' • ' : null}
           {unreadCount
-            ? `${unreadCount} new message${unreadCount === 1 ? '' : 's'} below`
+            ? `${unreadCount} new message${unreadCount === 1 ? '' : 's'} ${channelInfo?.type === 'gallery' ? 'above' : 'below'}`
             : null}
         </SizableText>
       </View>

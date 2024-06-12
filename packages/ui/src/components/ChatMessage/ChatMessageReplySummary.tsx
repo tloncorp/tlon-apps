@@ -3,7 +3,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 
-import { useChannelContext, useContactGetter } from '../../contexts';
+import { useContactGetter } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';
@@ -17,8 +17,6 @@ export const ChatMessageReplySummary = React.memo(
     onPress?: () => void;
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
-    const channel = useChannelContext();
-    // const threadIsMuted = store.useThreadIsMuted({ channel, post });
 
     const contactGetter = useContactGetter();
     const time = useMemo(() => {

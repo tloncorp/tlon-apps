@@ -70,12 +70,18 @@ function ShipMention(props: ComponentProps<typeof ContactName>) {
   );
 }
 
-function ListingContent({ content }: { content: Listing }) {
+function ListingContent({
+  serif = false,
+  content,
+}: {
+  serif?: boolean;
+  content: Listing;
+}) {
   if (isListItem(content)) {
     return (
       <View>
         {content.item.map((item, i) => (
-          <InlineContent key={`${i}-${item}`} inline={item} />
+          <InlineContent serif={serif} key={`${i}-${item}`} inline={item} />
         ))}
       </View>
     );
@@ -86,12 +92,12 @@ function ListingContent({ content }: { content: Listing }) {
       <View>
         {content.list.contents.map((item, i) => (
           <XStack key={i}>
-            <InlineContent key={`${i}-${item}`} inline={item} />
+            <InlineContent serif={serif} key={`${i}-${item}`} inline={item} />
           </XStack>
         ))}
         <View style={{ listStyleType: 'none' }}>
           {content.list.items.map((con, i) => (
-            <ListingContent key={i} content={con} />
+            <ListingContent serif={serif} key={i} content={con} />
           ))}
         </View>
       </View>
@@ -104,7 +110,7 @@ function ListingContent({ content }: { content: Listing }) {
     <View>
       {content.list.contents.map((item, i) => (
         <XStack key={i}>
-          <InlineContent key={`${i}-${item}`} inline={item} />
+          <InlineContent serif={serif} key={`${i}-${item}`} inline={item} />
         </XStack>
       ))}
       <View>
@@ -112,13 +118,13 @@ function ListingContent({ content }: { content: Listing }) {
           <XStack key={i} alignItems="flex-start">
             <View marginRight="$m">
               {isOrderedList ? (
-                <InlineContent inline={`${i + 1}.`} />
+                <InlineContent serif={serif} inline={`${i + 1}.`} />
               ) : (
-                <InlineContent inline="•" />
+                <InlineContent serif={serif} inline="•" />
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <ListingContent key={i} content={con} />
+              <ListingContent serif={serif} key={i} content={con} />
             </View>
           </XStack>
         ))}
@@ -173,14 +179,20 @@ function getHeaderStyle(tag: HeaderLevel) {
   }
 }
 
-function HeaderText({ header }: Header) {
-  const { tag, content } = header;
+function HeaderText({
+  serif = false,
+  header,
+}: {
+  serif?: boolean;
+  header: Header;
+}) {
+  const { tag, content } = header.header;
   const style = getHeaderStyle(tag);
 
   return (
     <Text style={style}>
       {content.map((con, i) => (
-        <InlineContent key={`${con}-${i}`} inline={con} />
+        <InlineContent serif={serif} key={`${con}-${i}`} inline={con} />
       ))}
     </Text>
   );
@@ -412,7 +424,7 @@ export function InlineContent({
             fontWeight="bold"
             key={k}
           >
-            <InlineContent inline={s} color={color} />
+            <InlineContent serif={serif} inline={s} color={color} />
           </Text>
         ))}
       </>
@@ -430,7 +442,7 @@ export function InlineContent({
             fontStyle="italic"
             key={k}
           >
-            <InlineContent inline={s} color={color} />
+            <InlineContent serif={serif} inline={s} color={color} />
           </Text>
         ))}
       </>
@@ -448,7 +460,7 @@ export function InlineContent({
             textDecorationLine="line-through"
             key={k}
           >
-            <InlineContent inline={s} color={color} />
+            <InlineContent serif={serif} inline={s} color={color} />
           </Text>
         ))}
       </>
@@ -531,7 +543,7 @@ export function InlineContent({
           {inline.task.checked ? '☑' : '☐'}
         </Text>
         {inline.task.content.map((s, k) => (
-          <InlineContent key={k} inline={s} color={color} />
+          <InlineContent serif={serif} key={k} inline={s} color={color} />
         ))}
       </XStack>
     );
@@ -549,10 +561,12 @@ export function BlockContent({
   block,
   onPressImage,
   onLongPress,
+  serif = false,
 }: {
   block: Block;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
+  serif?: boolean;
 }) {
   const [aspect, setAspect] = useState<number | null>(() => {
     return isImage(block) && block.image.height && block.image.width
@@ -597,11 +611,11 @@ export function BlockContent({
   }
 
   if (isListing(block)) {
-    return <ListingContent content={block.listing} />;
+    return <ListingContent serif={serif} content={block.listing} />;
   }
 
   if (isHeader(block)) {
-    return <HeaderText header={block.header} />;
+    return <HeaderText serif={serif} header={block} />;
   }
 
   if (isCode(block)) {
@@ -687,6 +701,7 @@ const LineRenderer = memo(
               <LineRenderer
                 inlines={inline.blockquote}
                 color="$secondaryText"
+                serif={serif}
               />
             ) : (
               // not clear if this is necessary
@@ -842,7 +857,7 @@ export default function ContentRenderer({
       <YStack width="100%">
         {story.map((s, k) => {
           if ('block' in s) {
-            return <BlockContent key={k} block={s.block} />;
+            return <BlockContent serif key={k} block={s.block} />;
           }
 
           if ('type' in s && s.type === 'reference') {

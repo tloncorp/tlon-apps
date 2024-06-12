@@ -133,7 +133,6 @@ const DetailViewFrameComponent = ({
         renderItem={() => (
           <View paddingTop="$m" paddingHorizontal="$xs">
             <Scroller
-              setInputShouldBlur={setInputShouldBlur}
               inverted
               renderItem={ChatMessage}
               channelType="chat"

@@ -51,6 +51,7 @@ export interface MessageInputProps {
 export const MessageInputContainer = ({
   children,
   onPressSend,
+  setShouldBlur,
   uploadInfo,
   containerHeight,
   showMentionPopup = false,
@@ -65,6 +66,7 @@ export const MessageInputContainer = ({
   onPressEdit,
   goBack,
 }: PropsWithChildren<{
+  setShouldBlur: (shouldBlur: boolean) => void;
   onPressSend: () => void;
   uploadInfo?: UploadInfo;
   containerHeight: number;
@@ -124,7 +126,10 @@ export const MessageInputContainer = ({
         {hasUploadedImage ? null : uploadInfo?.canUpload &&
           showAttachmentButton ? (
           <View paddingBottom="$xs">
-            <AttachmentButton uploadInfo={uploadInfo} />
+            <AttachmentButton
+              uploadInfo={uploadInfo}
+              setShouldBlur={setShouldBlur}
+            />
           </View>
         ) : null}
         {children}

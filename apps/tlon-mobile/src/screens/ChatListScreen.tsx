@@ -4,8 +4,8 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
-  ChatList,
-  ChatOptionsSheet,
+  CalmProvider,
+  ChatList, // ChatOptionsSheet,
   ContactsProvider,
   FloatingActionButton,
   GroupPreviewSheet,
@@ -19,6 +19,7 @@ import ContextMenu from 'react-native-context-menu-view';
 
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
+import { useCalmSettings } from '../hooks/useCalmSettings';
 import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
@@ -32,9 +33,12 @@ type ChatListScreenProps = NativeStackScreenProps<
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
-  const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
-    null
-  );
+  {
+    /* FIXME: Disabling long-press on ChatListScreen items for now */
+  }
+  // const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
+  //   null
+  // );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -102,9 +106,12 @@ export default function ChatListScreen(
     [props.navigation]
   );
 
-  const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
-    logic.isChannel(item) ? setLongPressedItem(item) : null;
-  }, []);
+  {
+    /* FIXME: Disabling long-press on ChatListScreen items for now */
+  }
+  // const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
+  //   logic.isChannel(item) ? setLongPressedItem(item) : null;
+  // }, []);
 
   const handleDmOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -124,14 +131,17 @@ export default function ChatListScreen(
     }
   }, []);
 
-  const handleChatOptionsOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        setLongPressedItem(null);
-      }
-    },
-    [setLongPressedItem]
-  );
+  {
+    /* FIXME: Disabling long-press on ChatListScreen items for now */
+  }
+  // const handleChatOptionsOpenChange = useCallback(
+  //   (open: boolean) => {
+  //     if (!open) {
+  //       setLongPressedItem(null);
+  //     }
+  //   },
+  //   [setLongPressedItem]
+  // );
 
   const handleGroupCreated = useCallback(
     ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
@@ -147,72 +157,78 @@ export default function ChatListScreen(
     identifyTlonEmployee();
   }
 
+  const { calmSettings } = useCalmSettings();
+
   return (
-    <ContactsProvider contacts={contacts ?? []}>
-      <View backgroundColor="$background" flex={1}>
-        <ScreenHeader title={isFetchingInitData ? 'Loading…' : 'Channels'} />
-        {chats && (chats.unpinned.length || !isFetchingInitData) ? (
-          <ChatList
-            pinned={resolvedChats.pinned}
-            unpinned={resolvedChats.unpinned}
-            pendingChats={resolvedChats.pendingChats}
-            onLongPressItem={onLongPressItem}
-            onPressItem={onPressChat}
-          />
-        ) : null}
-        <View
-          zIndex={50}
-          position="absolute"
-          bottom="$s"
-          alignItems="center"
-          width={'100%'}
-          pointerEvents="box-none"
-        >
-          <ContextMenu
-            dropdownMenuMode={true}
-            actions={[
-              { title: 'Create or join a group' },
-              { title: 'Start a direct message' },
-            ]}
-            onPress={(event) => {
-              const { index } = event.nativeEvent;
-              if (index === 0) {
-                setAddGroupOpen(true);
-              }
-              if (index === 1) {
-                setStartDmOpen(true);
-              }
-            }}
-          >
-            <FloatingActionButton
-              icon={<Icon type="Add" size="$s" marginRight="$s" />}
-              label={'Add'}
-              onPress={() => {}}
+    <CalmProvider calmSettings={calmSettings}>
+      <ContactsProvider contacts={contacts ?? []}>
+        <View backgroundColor="$background" flex={1}>
+          <ScreenHeader title={isFetchingInitData ? 'Loading…' : 'Channels'} />
+          {chats && (chats.unpinned.length || !isFetchingInitData) ? (
+            <ChatList
+              pinned={resolvedChats.pinned}
+              unpinned={resolvedChats.unpinned}
+              pendingChats={resolvedChats.pendingChats}
+              // FIXME: Disabling long-press on ChatListScreen items for now
+              // onLongPressItem={onLongPressItem}
+              onPressItem={onPressChat}
             />
-          </ContextMenu>
-        </View>
-        <ChatOptionsSheet
+          ) : null}
+          <View
+            zIndex={50}
+            position="absolute"
+            bottom="$s"
+            alignItems="center"
+            width={'100%'}
+            pointerEvents="box-none"
+          >
+            <ContextMenu
+              dropdownMenuMode={true}
+              actions={[
+                { title: 'Create or join a group' },
+                { title: 'Start a direct message' },
+              ]}
+              onPress={(event) => {
+                const { index } = event.nativeEvent;
+                if (index === 0) {
+                  setAddGroupOpen(true);
+                }
+                if (index === 1) {
+                  setStartDmOpen(true);
+                }
+              }}
+            >
+              <FloatingActionButton
+                icon={<Icon type="Add" size="$s" marginRight="$s" />}
+                label={'Add'}
+                onPress={() => {}}
+              />
+            </ContextMenu>
+          </View>
+          {/* FIXME: Disabling long-press on ChatListScreen items for now */}
+          {/* <ChatOptionsSheet
           open={longPressedItem !== null}
           onOpenChange={handleChatOptionsOpenChange}
           channel={longPressedItem ?? undefined}
-        />
-        <StartDmSheet
-          goToDm={goToDm}
-          open={startDmOpen}
-          onOpenChange={handleDmOpenChange}
-        />
-        <AddGroupSheet
-          open={addGroupOpen}
-          onOpenChange={handleAddGroupOpenChange}
-          onCreatedGroup={handleGroupCreated}
-        />
-        <GroupPreviewSheet
-          open={selectedGroup !== null}
-          onOpenChange={handleGroupPreviewSheetOpenChange}
-          group={selectedGroup ?? undefined}
-        />
-      </View>
-      <NavBar navigation={props.navigation} />
-    </ContactsProvider>
+        /> */}
+          <StartDmSheet
+            goToDm={goToDm}
+            open={startDmOpen}
+            onOpenChange={handleDmOpenChange}
+          />
+          <AddGroupSheet
+            open={addGroupOpen}
+            onOpenChange={handleAddGroupOpenChange}
+            onCreatedGroup={handleGroupCreated}
+          />
+          <GroupPreviewSheet
+            open={selectedGroup !== null}
+            onOpenChange={handleGroupPreviewSheetOpenChange}
+            group={selectedGroup ?? undefined}
+          />
+        </View>
+        <NavBar navigation={props.navigation} />
+      </ContactsProvider>
+    </CalmProvider>
   );
 }

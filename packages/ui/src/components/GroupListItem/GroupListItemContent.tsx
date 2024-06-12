@@ -2,7 +2,9 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 
+import { useCalm } from '../../contexts/calm';
 import { View, XStack } from '../../core';
+import { getBackgroundColor } from '../../utils/colorUtils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
 import { Icon } from '../Icon';
@@ -16,6 +18,10 @@ export default function GroupListItemContent({
 }: ListItemProps<db.Group>) {
   const { data: unreadCount } = store.useGroupUnreadsCount(model.id);
   const countToDisplay = unreadCount ?? 0;
+  const { disableAvatars } = useCalm();
+  // Fallback color for calm mode or unset colors
+  const colors = { backgroundColor: '$secondaryBackground' };
+
   const { isPending, statusDisplay, isErrored } = useMemo(
     () => getDisplayInfo(model),
     [model]
@@ -31,8 +37,14 @@ export default function GroupListItemContent({
       <View opacity={model.isMuted ? 0.2 : 1}>
         <ListItem.Icon
           fallbackText={model.title?.[0]}
-          backgroundColor={model.iconImageColor ?? undefined}
-          imageUrl={model.iconImage ?? undefined}
+          backgroundColor={getBackgroundColor({
+            disableAvatars,
+            colors,
+            model,
+          })}
+          imageUrl={
+            !disableAvatars && model.iconImage ? model.iconImage : undefined
+          }
         />
       </View>
       <ListItem.MainContent>

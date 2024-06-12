@@ -323,7 +323,7 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
 
   const { inlines } = extractContentTypesFromPost(post);
 
-  if (inlines.length === 2) {
+  if (inlines.length <= 2) {
     const [first] = inlines;
     if (typeof first === 'object' && 'link' in first) {
       const link = first as ub.Link;

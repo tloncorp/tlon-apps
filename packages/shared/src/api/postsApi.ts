@@ -386,12 +386,67 @@ export const getChangedPosts = async ({
   return toPagedPostsData(channelId, response);
 };
 
-export async function addReaction(
-  channelId: string,
-  postId: string,
-  shortCode: string,
-  our: string
-) {
+export async function addReaction({
+  channelId,
+  postId,
+  shortCode,
+  our,
+  postAuthor,
+}: {
+  channelId: string;
+  postId: string;
+  shortCode: string;
+  our: string;
+  postAuthor: string;
+}) {
+  const isDmOrGroupDm =
+    isDmChannelId(channelId) || isGroupDmChannelId(channelId);
+
+  if (isDmOrGroupDm) {
+    if (isDmChannelId(channelId)) {
+      await poke({
+        app: 'chat',
+        mark: 'chat-dm-action',
+        json: {
+          ship: channelId,
+          diff: {
+            id: `${channelId}/${postId}`,
+            delta: {
+              'add-react': {
+                react: shortCode,
+                ship: our,
+              },
+            },
+          },
+        },
+      });
+      return;
+    } else {
+      await poke({
+        app: 'chat',
+        mark: 'chat-club-action-0',
+        json: {
+          id: channelId,
+          diff: {
+            uid: '0v3',
+            delta: {
+              writ: {
+                delta: {
+                  'add-react': {
+                    react: shortCode,
+                    ship: our,
+                  },
+                },
+                id: `${postAuthor}/${postId}`,
+              },
+            },
+          },
+        },
+      });
+      return;
+    }
+  }
+
   await poke({
     app: 'channels',
     mark: 'channel-action',
@@ -412,11 +467,57 @@ export async function addReaction(
   });
 }
 
-export async function removeReaction(
-  channelId: string,
-  postId: string,
-  our: string
-) {
+export async function removeReaction({
+  channelId,
+  postId,
+  our,
+  postAuthor,
+}: {
+  channelId: string;
+  postId: string;
+  our: string;
+  postAuthor: string;
+}) {
+  const isDmOrGroupDm =
+    isDmChannelId(channelId) || isGroupDmChannelId(channelId);
+
+  if (isDmOrGroupDm) {
+    if (isDmChannelId(channelId)) {
+      return poke({
+        app: 'chat',
+        mark: 'chat-dm-action',
+        json: {
+          ship: channelId,
+          diff: {
+            id: `${channelId}/${postId}`,
+            delta: {
+              'del-react': our,
+            },
+          },
+        },
+      });
+    } else {
+      return poke({
+        app: 'chat',
+        mark: 'chat-club-action-0',
+        json: {
+          id: channelId,
+          diff: {
+            uid: '0v3',
+            delta: {
+              writ: {
+                delta: {
+                  'del-react': our,
+                },
+                id: `${postAuthor}/${postId}`,
+              },
+            },
+          },
+        },
+      });
+    }
+  }
+
   return await poke({
     app: 'channels',
     mark: 'channel-action',
