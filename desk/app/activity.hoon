@@ -6,15 +6,16 @@
   |%
   +$  card  card:agent:gall
   ::
-  +$  versioned-state
-    $%  state-1
+  +$  current-state
+    $:  %2
+        allowed=notifications-allowed:a
+        =indices:a
+        =activity:a
+        =volume-settings:a
     ==
-  ::
-  +$  state-1
-    [%1 =indices:a =activity:a =volume-settings:a]
   --
 ::
-=|  state-1
+=|  current-state
 =*  state  -
 ::
 ::NOTE  setting this to true causes some parts of state & update management to
@@ -90,12 +91,22 @@
 ::
 ++  load
   |=  =vase
-  ^+  cor
+  |^  ^+  cor
   ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
-  ?>  ?=(%1 -.old)
+  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+  ?>  ?=(%2 -.old)
   =.  state  old
   cor
+  +$  versioned-state  $%(state-2 state-1)
+  +$  state-2  current-state
+  +$  state-1
+    [%1 =indices:a =activity:a =volume-settings:a]
+  ++  state-1-to-2
+    |=  old=state-1
+    ^-  state-2
+    [%2 %all +.state-1]
+  --
 ::
 ++  scry-path
   |=  [=dude:gall =path]
@@ -285,6 +296,7 @@
       %del      (del +.action)
       %read     (read +.action)
       %adjust   (adjust +.action)
+      %allow-notifications  (allow +.action)
     ==
   ==
 ::
@@ -390,7 +402,7 @@
   =/  =event:a  [inc notify |]
   =?  cor  !importing
     (give %fact ~[/] activity-update+!>([%add time-id event]))
-  =?  cor  &(!importing notify)
+  =?  cor  &(!importing notify (is-allowed inc))
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
@@ -420,6 +432,21 @@
     (add-to-index group-src time-id event(child &))
   ==
 ::
+++  is-allowed
+  |=  =incoming-event:a
+  ?:  ?=(%all allowed)  &
+  ?:  ?=(%none allowed)  |
+  =/  type  (determine-event-type incoming-event)
+  ?+  type  |
+    %reply  &
+    %dm-invite  &
+    %dm-post    &
+    %dm-reply   &
+    %post-mention  &
+    %reply-mention  &
+    %dm-post-mention  &
+    %dm-reply-mention  &
+  ==
 ++  del
   |=  =source:a
   ^+  cor
@@ -609,6 +636,11 @@
   ::  recalculate activity summary with new settings
   (refresh source)
 ::
+++  allow
+  |=  na=notifications-allowed:a
+  ^+  cor
+  =.  allowed  na
+  (give %fact ~[/] activity-update+!>([%allow-notifications na]))
 ++  get-children
   |=  =source:a
   ^-  (list source:a)

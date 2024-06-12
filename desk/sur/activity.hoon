@@ -25,12 +25,14 @@
 ::    $del: remove a source and all its activity
 ::    $read: mark an event as read
 ::    $adjust: adjust the volume of an source
+::    $allow-notifications: change which notifications are allowed
 ::
 +$  action
   $%  [%add =incoming-event]
       [%del =source]
       [%read =source =read-action]
       [%adjust =source =(unit volume-map)]
+      [%allow-notifications allow=notifications-allowed]
   ==
 ::
 ::  $read-action: mark activity read
@@ -163,6 +165,7 @@
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]
++$  notifications-allowed  ?(%all %some %none)
 +|  %primitives
 +$  whom
   $%  [%ship p=ship]
