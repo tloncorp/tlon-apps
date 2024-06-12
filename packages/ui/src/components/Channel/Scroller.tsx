@@ -130,10 +130,36 @@ export default function Scroller({
       return true;
     });
 
-    if (!firstUnreadId || !postsWithContent || channelType !== 'gallery') {
+    if (!postsWithContent || channelType !== 'gallery') {
       return postsWithContent;
     }
 
+    // if we're in a gallery channel and we have an uneven number of posts, we
+    // need to add an empty post at the end to make sure that the last post is
+    // displayed correctly
+
+    if (postsWithContent.length % 2 !== 0) {
+      const emptyPost: Post = {
+        id: '',
+        authorId: '~zod',
+        channelId: '',
+        content: JSON.stringify([{ inline: '' }]),
+        receivedAt: 0,
+        sentAt: 0,
+        type: 'block',
+        replyCount: 0,
+      };
+
+      postsWithContent.push(emptyPost);
+    }
+
+    if (!firstUnreadId) {
+      return postsWithContent;
+    }
+
+    // for gallery channels we want to make sure that we separate unreads from
+    // the other posts, we do that by adding an empty post after the first unread
+    // post if it's at an even index
     const firstUnreadIndex = postsWithContent.findIndex(
       (post) => post.id === firstUnreadId
     );
