@@ -385,6 +385,9 @@
   ::
       [%x %volume-settings ~]
     ``activity-settings+!>(volume-settings)
+  ::
+      [%x %notifications-allowed ~]
+    ``activity-allowed+!>(`notifications-allowed:a`allowed)
   ==
 ::
 ++  base

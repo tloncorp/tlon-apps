@@ -229,6 +229,8 @@
     :~  time+(time time.te)
         event+(event event.te)
     ==
+  ::
+  ++  allowed  (lead %s)
   +|  %collections
   ::
   ++  stream
@@ -285,6 +287,7 @@
       %del  (source +.u)
       %read  (read +.u)
       %adjust  (adjusted +.u)
+      %allow-notifications  (allowed +.u)
     ==
   ::
   ++  added
@@ -360,6 +363,7 @@
         del/source
         read/read
         adjust/adjust
+        allow-notifications/(su (perk %all %some %none ~))
     ==
   ::
   ++  add

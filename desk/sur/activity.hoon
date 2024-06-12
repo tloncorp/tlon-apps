@@ -55,12 +55,14 @@
 ::    $del: a source and its activity were removed
 ::    $read: a source's activity state was updated
 ::    $adjust: the volume of a source was adjusted
+::    $allow-notifications: the allowed notifications were changed
 ::
 +$  update
   $%  [%add time-event]
       [%del =source]
       [%read =source =activity-summary]
       [%adjust =source volume-map=(unit volume-map)]
+      [%allow-notifications allow=notifications-allowed]
   ==
 ::
 +|  %basics
