@@ -319,23 +319,23 @@
     (bat:ex-event:a stream:base `start count)
   ::
       [%x %feed %init count=@ ~]
-    =-  ``activity-feed-init+!>(-)
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
+    =;  init=[all=feed:a mentions=feed:a replies=feed:a]
+      ``activity-feed-init+!>(init)
     :*  (feed %all start count)
         (feed %mentions start count)
         (feed %replies start count)
     ==
   ::
-      [%x %feed type=@ count=@ start=?(~ [u=@ ~])]
+      [%x %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
-    =-  ``activity-feed+!>(-)
-    ~|  bad-feed-type+type.pole
-    ?>  ?=(?(%all %mentions %replies) type.pole)
+    =;  =feed:a
+      ``activity-feed+!>(feed)
     (feed type.pole start count)
   ::
   ::  /each: unified feed (equality of outcome)
@@ -403,24 +403,24 @@
   |=  [type=?(%all %mentions %replies) start=time-id:a count=@ud]
   |^
   ^-  (list activity-bundle:a)
-  =-  happenings.-.-
+  =-  happenings
   ::  if start is now, need to increment to make sure we include latest
   ::  event if that event somehow has now as its time
   =/  real-start  ?:(=(start now.bowl) +(start) start)
   %^  (dop:ex-event:a out)
-    (lot:on-event:a stream:base `*@da `real-start)   [~ count ~ ~]
+      stream:base
+    [~ count ~ ~]
   |=  [acc=out =time =event:a]
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
+  ::  we only care about events older than start
+  ?:  (gth time real-start)  [~ | acc]
   :-  ~   :-  |
   =/  =source:a  (determine-source -.event)
   =/  latest
     ?^  stored=(~(get by times.acc) source)  u.stored
-    ?~  new=(ram:on-event:a stream:(get-index source))
-      ::  should never happen but -\_(ツ)_/-
-      (sub start 1)
-    -.u.new
-  =/  new-times  (~(put by times.acc) source latest)
+    -:(need (ram:on-event:a stream:(get-index source)))
+  =.  times.acc  (~(put by times.acc) source latest)
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
   ::  after the start so we always get "new" sources when paging
@@ -428,8 +428,8 @@
           (lth latest start)
           ?=(?(%post %reply %dm-post %dm-reply) -<.event)
       ==
-    acc(times new-times)
-  :-  new-times
+    acc
+  :-  times.acc
   =/  mention=(unit activity-bundle:a)
     ?.  |(?=(%all type) ?=(%mentions type))  ~
     =/  is-mention
@@ -453,8 +453,10 @@
       ==
     [limit happenings collapsed]:acc
   =/  top  (top-messages source stream:(get-index source))
+  ::  collapsed is a set of event ids that we've already included in the feed
+  ::  and so should be ignored
   =/  collapsed
-    (~(gas in collapsed.acc) (turn top |=([=time-id:a *] time-id)))
+    (~(gas in collapsed.acc) (turn top head))
   [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
   +$  out
     $:  times=(map source:a time-id:a)
@@ -463,13 +465,13 @@
         collapsed=(set time-id:a)
     ==
   --
-::
+++  recent-messages-amount  6
 ++  top-messages
   |=  [=source:a =stream:a]
   |^
   ^-  (list time-event:a)
-  =-  msgs.-.-
-  %^  (dop:ex-event:a out)  stream  [6 ~]
+  =-  msgs
+  %^  (dop:ex-event:a out)  stream  [recent-messages-amount ~]
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
