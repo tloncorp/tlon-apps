@@ -75,7 +75,7 @@ export default function GroupListItemContent({
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
           <ListItem.Count opacity={model.unreadCount ? 1 : 0}>
-            {model.unreadCount ?? 0}
+            {(model.unreadCount ?? 0) > 99 ? '99+' : model.unreadCount ?? 0}
           </ListItem.Count>
         </ListItem.EndContent>
       )}
