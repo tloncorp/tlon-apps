@@ -4,7 +4,6 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
@@ -18,7 +17,8 @@ import UploadedImagePreview from './Channel/UploadedImagePreview';
 import { ChatMessage } from './ChatMessage';
 import { NotebookDetailView } from './DetailView';
 import GalleryDetailView from './DetailView/GalleryDetailView';
-import { DEFAULT_MESSAGE_INPUT_HEIGHT, MessageInput } from './MessageInput';
+import KeyboardAvoidingView from './KeyboardAvoidingView';
+import { MessageInput } from './MessageInput';
 
 export function PostScreenView({
   currentUserId,
@@ -79,7 +79,11 @@ export function PostScreenView({
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts}>
         <ReferencesProvider>
-          <View backgroundColor="$background" flex={1}>
+          <View
+            paddingBottom={isChatChannel ? bottom : 'unset'}
+            backgroundColor="$background"
+            flex={1}
+          >
             <YStack flex={1} backgroundColor={'$background'}>
               <ChannelHeader
                 channel={channel}
@@ -93,14 +97,7 @@ export function PostScreenView({
                 currentUserId={currentUserId}
                 mode={headerMode}
               />
-              <KeyboardAvoidingView
-                //TODO: Standardize this component, account for tab bar in a better way
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={
-                  Platform.OS === 'ios' ? -bottom : DEFAULT_MESSAGE_INPUT_HEIGHT
-                }
-                style={{ flex: 1 }}
-              >
+              <KeyboardAvoidingView>
                 {parentPost && channel.type === 'gallery' && (
                   <GalleryDetailView
                     post={parentPost}
@@ -146,7 +143,7 @@ export function PostScreenView({
                   posts &&
                   channel &&
                   isChatChannel && (
-                    <View paddingBottom={bottom} flex={1}>
+                    <View flex={1}>
                       <Scroller
                         inverted
                         renderItem={ChatMessage}
@@ -163,28 +160,23 @@ export function PostScreenView({
                     </View>
                   )
                 )}
-                {negotiationMatch && !editingPost && channel && canWrite && (
-                  <View
-                    position={isChatChannel ? undefined : 'absolute'}
-                    backgroundColor="$background"
-                    bottom={bottom}
-                    width="100%"
-                  >
-                    {isChatChannel ? (
-                      <MessageInput
-                        shouldBlur={inputShouldBlur}
-                        setShouldBlur={setInputShouldBlur}
-                        send={sendReply}
-                        channelId={channel.id}
-                        uploadInfo={uploadInfo}
-                        groupMembers={groupMembers}
-                        storeDraft={storeDraft}
-                        clearDraft={clearDraft}
-                        getDraft={getDraft}
-                      />
-                    ) : null}
-                  </View>
-                )}
+                {negotiationMatch &&
+                  !editingPost &&
+                  channel &&
+                  canWrite &&
+                  isChatChannel && (
+                    <MessageInput
+                      shouldBlur={inputShouldBlur}
+                      setShouldBlur={setInputShouldBlur}
+                      send={sendReply}
+                      channelId={channel.id}
+                      uploadInfo={uploadInfo}
+                      groupMembers={groupMembers}
+                      storeDraft={storeDraft}
+                      clearDraft={clearDraft}
+                      getDraft={getDraft}
+                    />
+                  )}
                 {!negotiationMatch && channel && canWrite && (
                   <View
                     position={isChatChannel ? undefined : 'absolute'}

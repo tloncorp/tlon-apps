@@ -8,7 +8,6 @@ import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
@@ -31,6 +30,7 @@ import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
+import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelFooter } from './ChannelFooter';
@@ -199,13 +199,7 @@ export function Channel({
                         showSpinner={isLoadingPosts}
                         showMenuButton={!isChatChannel}
                       />
-                      <KeyboardAvoidingView
-                        behavior={
-                          Platform.OS === 'ios' ? 'padding' : 'position'
-                        }
-                        style={{ flex: 1 }}
-                        contentContainerStyle={{ flex: 1 }}
-                      >
+                      <KeyboardAvoidingView>
                         <YStack alignItems="center" flex={1}>
                           <AnimatePresence>
                             {showBigInput ? (
