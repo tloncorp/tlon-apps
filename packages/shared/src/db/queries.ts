@@ -1366,6 +1366,10 @@ export const getChannelPosts = createReadQuery(
         .from($windowQuery)
         .where(eq($windowQuery.id, cursor));
 
+      if (cursorRow.length === 0) {
+        return [];
+      }
+
       // Calculate min and max rows
       const itemsBefore = Math.floor((count - 1) / 2);
       const itemsAfter = Math.ceil((count - 1) / 2);
