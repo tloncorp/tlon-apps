@@ -233,6 +233,7 @@ export interface ActivityVolumeUpdate {
 export interface ActivityAddUpdate {
   add: {
     ['source-key']: string;
+    source: Source;
     time: string;
     event: ActivityEvent;
   };

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { useCalm } from '../../contexts/calm';
 import { View, XStack } from '../../core';
+import * as utils from '../../utils';
 import { getBackgroundColor } from '../../utils/colorUtils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
@@ -17,7 +18,7 @@ export default function GroupListItemContent({
   ...props
 }: ListItemProps<db.Group>) {
   const { data: unreadCount } = store.useGroupUnreadsCount(model.id);
-  const countToDisplay = unreadCount ?? 0;
+  const countToShow = unreadCount ?? 0;
   const { disableAvatars } = useCalm();
   // Fallback color for calm mode or unset colors
   const colors = { backgroundColor: '$secondaryBackground' };
@@ -86,10 +87,10 @@ export default function GroupListItemContent({
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
           <ListItem.Count
-            opacity={countToDisplay > 0 || model.isMuted ? 1 : 0}
+            opacity={countToShow > 0 || model.isMuted ? 1 : 0}
             muted={model.isMuted ?? false}
           >
-            {countToDisplay}
+            {utils.displayableUnreadCount(countToShow)}
           </ListItem.Count>
         </ListItem.EndContent>
       )}

@@ -1653,6 +1653,10 @@ export const getChannelPosts = createReadQuery(
         .from($windowQuery)
         .where(eq($windowQuery.id, cursor));
 
+      if (cursorRow.length === 0) {
+        return [];
+      }
+
       // Calculate min and max rows
       const itemsBefore = Math.floor((count - 1) / 2);
       const itemsAfter = Math.ceil((count - 1) / 2);
@@ -1843,16 +1847,16 @@ function setPostGroups(ctx: QueryCtx) {
 }
 
 async function setLastPosts(ctx: QueryCtx) {
-  const $lastPost = ctx.db
-    .$with('lastPost')
-    .as(
-      ctx.db
-        .select({ id: $posts.id, receivedAt: $posts.receivedAt })
-        .from($posts)
-        .where(eq($posts.channelId, $channels.id))
-        .orderBy(desc($posts.receivedAt))
-        .limit(1)
-    );
+  const $lastPost = ctx.db.$with('lastPost').as(
+    ctx.db
+      .select({ id: $posts.id, receivedAt: $posts.receivedAt })
+      .from($posts)
+      .where(
+        and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+      )
+      .orderBy(desc($posts.receivedAt))
+      .limit(1)
+  );
 
   await ctx.db
     .with($lastPost)

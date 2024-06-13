@@ -25,7 +25,7 @@ export default function ChannelListItem({
   const { data: countWithInvolvedThreads } = store.useGroupChannelUnreadsCount(
     model.type === 'dm' || model.type === 'groupDm' ? '' : model.id
   );
-  const countToDisplay =
+  const countToShow =
     model.type === 'dm' || model.type === 'groupDm'
       ? model.unread?.count ?? 0 // if a DM, any activity is "involved"
       : countWithInvolvedThreads ?? 0;
@@ -72,10 +72,10 @@ export default function ChannelListItem({
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
           <ListItem.Count
-            opacity={countToDisplay > 0 || model.isMuted ? 1 : 0}
+            opacity={countToShow > 0 || model.isMuted ? 1 : 0}
             muted={model.isMuted ?? false}
           >
-            {countToDisplay}
+            {utils.displayableUnreadCount(countToShow)}
           </ListItem.Count>
         </ListItem.EndContent>
       )}
