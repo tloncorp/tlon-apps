@@ -1,5 +1,5 @@
 import { UploadInfo } from '@tloncorp/shared/dist/api';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Add } from '../../assets/icons';
 import { Spinner, View } from '../../core';
@@ -8,10 +8,18 @@ import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
   uploadInfo,
+  setShouldBlur,
 }: {
   uploadInfo: UploadInfo;
+  setShouldBlur: (shouldBlur: boolean) => void;
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
+
+  useEffect(() => {
+    if (showInputSelector) {
+      setShouldBlur(true);
+    }
+  }, [showInputSelector, setShouldBlur]);
 
   return (
     <>

@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { ComponentProps, PropsWithChildren } from 'react';
+import { ComponentProps, PropsWithChildren, useCallback, useRef } from 'react';
 import { Animated, TouchableOpacity } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { ColorTokens, Stack } from 'tamagui';
@@ -12,6 +12,8 @@ import { Icon, IconType } from './Icon';
 export function SwipableChatRow(
   props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
 ) {
+  const swipeAnim = useRef(new Animated.Value(0)).current;
+
   async function handleAction(actionId: 'pin' | 'placeholder') {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     switch (actionId) {
@@ -25,8 +27,49 @@ export function SwipableChatRow(
     }
   }
 
+  const opacity = swipeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.5],
+  });
+
+  const onSwipeableWillOpen = useCallback(() => {
+    Animated.timing(swipeAnim, {
+      toValue: 1,
+      duration: 50,
+      useNativeDriver: true,
+    }).start();
+  }, [swipeAnim]);
+
+  const onSwipeableOpen = useCallback(() => {
+    Animated.timing(swipeAnim, {
+      toValue: 1,
+      duration: 50,
+      useNativeDriver: true,
+    }).start();
+  }, [swipeAnim]);
+
+  const onSwipeableWillClose = useCallback(() => {
+    Animated.timing(swipeAnim, {
+      toValue: 0.5,
+      duration: 50,
+      useNativeDriver: true,
+    }).start();
+  }, [swipeAnim]);
+
+  const onSwipeableClose = useCallback(() => {
+    Animated.timing(swipeAnim, {
+      toValue: 0,
+      duration: 50,
+      useNativeDriver: true,
+    }).start();
+  }, [swipeAnim]);
+
   return (
     <Swipeable
+      onSwipeableWillOpen={onSwipeableWillOpen}
+      onSwipeableOpen={onSwipeableOpen}
+      onSwipeableWillClose={onSwipeableWillClose}
+      onSwipeableClose={onSwipeableClose}
       renderLeftActions={(progress, drag) =>
         props.jailBroken ? (
           <LeftActions progress={progress} drag={drag} model={props.model} />
@@ -43,11 +86,17 @@ export function SwipableChatRow(
       )}
       leftThreshold={1}
       rightThreshold={1}
-      // friction={1.5}
+      friction={1.5}
       overshootLeft={false}
       overshootRight={false}
     >
-      {props.children}
+      <Animated.View
+        style={{
+          opacity,
+        }}
+      >
+        {props.children}
+      </Animated.View>
     </Swipeable>
   );
 }

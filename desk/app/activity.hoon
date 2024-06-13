@@ -322,9 +322,34 @@
       [%x %all ~]
     ``activity-stream+!>(stream:base)
   ::
-      [%x %all start=@ count=@ ~]
+      [%x %all count=@ start=?(~ [u=@ ~])]
+    =/  start
+      ?~  start.pole  now.bowl
+      ?^  tim=(slaw %ud u.start.pole)  u.tim
+      (slav %da u.start.pole)
+    =/  count  (slav %ud count.pole)
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
-    (tab:on-event:a stream:base `(slav %da start.pole) (slav %ud count.pole))
+    (bat:ex-event:a stream:base `start count)
+  ::
+      [%x %feed %init count=@ ~]
+    =/  start  now.bowl
+    =/  count  (slav %ud count.pole)
+    =;  init=[all=feed:a mentions=feed:a replies=feed:a]
+      ``activity-feed-init+!>(init)
+    :*  (feed %all start count)
+        (feed %mentions start count)
+        (feed %replies start count)
+    ==
+  ::
+      [%x %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+    =/  start
+      ?~  start.pole  now.bowl
+      ?^  tim=(slaw %ud u.start.pole)  u.tim
+      (slav %da u.start.pole)
+    =/  count  (slav %ud count.pole)
+    =;  =feed:a
+      ``activity-feed+!>(feed)
+    (feed type.pole start count)
   ::
   ::  /each: unified feed (equality of outcome)
   ::TODO  want to be able to filter for specific events kind too, but that will
@@ -390,6 +415,102 @@
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
   ==
 ::
+++  feed
+  |=  [type=?(%all %mentions %replies) start=time-id:a count=@ud]
+  |^
+  ^-  (list activity-bundle:a)
+  =-  happenings
+  ::  if start is now, need to increment to make sure we include latest
+  ::  event if that event somehow has now as its time
+  =/  real-start  ?:(=(start now.bowl) +(start) start)
+  %^  (dop:ex-event:a out)
+      stream:base
+    [~ count ~ ~]
+  |=  [acc=out =time =event:a]
+  ^-  [(unit event:a) ? out]
+  ?:  =(limit.acc 0)  [~ & acc]
+  ::  we only care about events older than start
+  ?:  (gth time real-start)  [~ | acc]
+  :-  ~   :-  |
+  =/  =source:a  (determine-source -.event)
+  =/  src-info=[latest=time-id:a added=?]
+    ?^  stored=(~(get by sources.acc) source)  u.stored
+    :_  |
+    -:(need (ram:on-event:a stream:(get-index source)))
+  =.  sources.acc  (~(put by sources.acc) source src-info)
+  ::  we only care about posts/replies events that are notified, and we
+  ::  don't want to include events from sources whose latest event is
+  ::  after the start so we always get "new" sources when paging
+  ?.  ?&  notified.event
+          (lth latest.src-info start)
+          ?=(?(%post %reply %dm-post %dm-reply) -<.event)
+      ==
+    acc
+  =/  mention=(unit activity-bundle:a)
+    ?.  |(?=(%all type) ?=(%mentions type))  ~
+    =/  is-mention
+      ?-  -<.event
+        %post  mention.event
+        %reply  mention.event
+        %dm-post  mention.event
+        %dm-reply  mention.event
+      ==
+    ?.  is-mention  ~
+    `[source time ~[[time event]]]
+  ?^  mention
+    :-  sources.acc
+    [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
+  =/  care
+    ?|  ?=(%all type)
+        &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
+    ==
+  ::  make sure we care, haven't added this source, and haven't collapsed
+  ::  this event already
+  ?.  ?&  care
+          ?!(added:(~(got by sources.acc) source))
+          !(~(has in collapsed.acc) time)
+      ==
+    acc
+  =/  top  (top-messages source stream:(get-index source))
+  ::  collapsed is a set of event ids that we've already included in the feed
+  ::  and so should be ignored
+  =/  collapsed
+    (~(gas in collapsed.acc) (turn top head))
+  :-  (~(put by sources.acc) source src-info(added &))
+  [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
+  +$  out
+    $:  sources=(map source:a [latest=time-id:a added=?])
+        limit=@ud
+        happenings=(list activity-bundle:a)
+        collapsed=(set time-id:a)
+    ==
+  --
+++  recent-messages-amount  6
+++  top-messages
+  |=  [=source:a =stream:a]
+  |^
+  ^-  (list time-event:a)
+  =-  msgs
+  %^  (dop:ex-event:a out)  stream  [recent-messages-amount ~]
+  |=  [acc=out [=time =event:a]]
+  ?:  =(limit.acc 0)  [~ & acc]
+  ?:  child.event  [~ | acc]
+  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  [~ | acc]
+  =/  is-mention
+    ?-  -<.event
+      %post  mention.event
+      %reply  mention.event
+      %dm-post  mention.event
+      %dm-reply  mention.event
+    ==
+  ?:  is-mention  [~ | acc]
+  [~ | [(sub limit.acc 1) (snoc msgs.acc [time event])]]
+  +$  out
+    $:  limit=@ud
+        msgs=(list time-event:a)
+    ==
+  --
+::
 ++  base
   ^-  index:a
   (~(got by indices) [%base ~])
@@ -404,14 +525,14 @@
     $(t +(t))
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
+  =/  =source:a  (determine-source inc)
   =?  cor  !importing
-    (give %fact ~[/] activity-update+!>([%add time-id event]))
+    (give %fact ~[/] activity-update+!>([%add source time-id event]))
   =?  cor  &(!importing notify (is-allowed inc))
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
-  =/  =source:a  (determine-source inc)
   ?+  -<.event  (add-to-index source time-id event)
       %chan-init
     =/  group-src  [%group group.event]

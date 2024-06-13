@@ -8,7 +8,7 @@ import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
 
-import { SidebarFilter, useMessagesFilter } from './settings';
+import { SidebarFilter } from './settings';
 
 export type ReadStatus = 'read' | 'seen' | 'unread';
 
@@ -48,10 +48,14 @@ export interface UnreadsStore {
   update: (unreads: Activity) => void;
 }
 
-export const unreadStoreLogger = createDevLogger('UnreadsStore', true);
+export const unreadStoreLogger = createDevLogger('UnreadsStore', false);
 
-export function isUnread(count: number, notify: boolean): boolean {
-  return Boolean(count > 0 || notify);
+function getUnreadStatus(count: number, notify: boolean): ReadStatus {
+  if (count > 0 || notify) {
+    return 'unread';
+  }
+
+  return 'read';
 }
 
 export interface ShortSummary {
@@ -60,35 +64,85 @@ export interface ShortSummary {
   notify: boolean;
 }
 
+function combineStatus(status: ReadStatus, aggregate: ReadStatus): ReadStatus {
+  if (status === 'unread') {
+    return 'unread';
+  }
+
+  if (status === 'seen' && aggregate === 'read') {
+    return 'seen';
+  }
+
+  return aggregate;
+}
+
+function shouldBeCombined(source: string): boolean {
+  return (
+    source.startsWith('group/') ||
+    source.startsWith('ship/') ||
+    source.startsWith('club/')
+  );
+}
+
 function sumChildren(
   children: Activity,
   unreads: Unreads,
   top: ShortSummary,
-  refresh = false
+  sumCounts: boolean
 ): ShortSummary {
   const { count, notify, status } = Object.entries(
     children
-  ).reduce<ShortSummary>((acc, [key, child]) => {
-    let status = acc.status;
-    const childStatus = unreads[key]?.status;
-    if (childStatus === 'unread') {
-      status = 'unread';
-    } else if (childStatus === 'seen' && status === 'read') {
-      status = 'seen';
+  ).reduce<ShortSummary>(
+    (acc, [key, child]) => {
+      let status = acc.status;
+      const childStatus = unreads[key]?.status;
+
+      // if we don't care about summing counts then we can skip aggregating
+      // but if any child is notify then we need to take into account it's
+      // status and notify values
+      if (!(sumCounts || child.notify)) {
+        return acc;
+      }
+
+      if (childStatus === 'unread') {
+        status = 'unread';
+      } else if (childStatus === 'seen' && status === 'read') {
+        status = 'seen';
+      }
+
+      return {
+        count: !sumCounts ? acc.count : acc.count + (child.unread?.count || 0),
+        notify: acc.notify || Boolean(child.notify),
+        status,
+      };
+    },
+    // we start with nothing so that we can safely separate children summary
+    // from the top level summary
+    {
+      count: 0,
+      notify: false,
+      status: 'read',
     }
+  );
 
-    return {
-      count: acc.count + (child.unread?.count || 0),
-      notify: acc.notify || Boolean(child.notify),
-      status,
-    };
-  }, top);
-
-  return {
-    count,
-    notify,
-    status: refresh ? status : isUnread(count, notify) ? 'unread' : 'read',
+  const combined = {
+    count: top.count + count,
+    notify: top.notify || notify,
+    status: top.status,
   };
+
+  /**
+   * We want to always combine top count and notify with children. However,
+   * in cases where sumContents is false, we only want to combine status if
+   * a child is notify.
+   */
+  if (sumCounts) {
+    combined.status = combineStatus(top.status, status);
+  } else {
+    combined.status = combineStatus(top.status, notify ? status : 'read');
+  }
+
+  return combined;
 }
 
 function getUnread(
@@ -101,7 +155,7 @@ function getUnread(
   const top: ShortSummary = {
     count: topCount,
     notify: topNotify,
-    status: isUnread(topCount, topNotify) ? 'unread' : 'read',
+    status: getUnreadStatus(topCount, topNotify),
   };
 
   return {
@@ -111,13 +165,12 @@ function getUnread(
     recency: summary.recency,
     readTimeout: 0,
     summary,
-    combined: shouldBeCombined(source)
-      ? sumChildren(summary.children || {}, unreads, top)
-      : {
-          count: summary.count,
-          notify: summary.notify,
-          status: isUnread(summary.count, summary.notify) ? 'unread' : 'read',
-        },
+    combined: sumChildren(
+      summary.children || {},
+      unreads,
+      top,
+      shouldBeCombined(source)
+    ),
     lastUnread: !summary.unread
       ? undefined
       : {
@@ -159,19 +212,10 @@ const sortOrder = {
   base: 0,
 };
 
-function shouldBeCombined(source: string): boolean {
-  return (
-    source.startsWith('group/') ||
-    source.startsWith('ship/') ||
-    source.startsWith('club/')
-  );
-}
-
 function updateParents(parents: string[], draft: UnreadsStore) {
   parents.forEach((parent) => {
     const parentSrc = draft.sources[parent];
-    const shouldUpdate = shouldBeCombined(parent);
-    if (!parentSrc || !shouldUpdate) {
+    if (!parentSrc) {
       return;
     }
 
@@ -179,7 +223,7 @@ function updateParents(parents: string[], draft: UnreadsStore) {
       parentSrc.children || {},
       draft.sources,
       parentSrc,
-      true
+      shouldBeCombined(parent)
     );
     unreadStoreLogger.log('updating parent', parent, combined);
     draft.sources[parent] = {
@@ -250,18 +294,16 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         draft.sources[key] = {
           ...source,
           status: 'seen',
-          combined: !shouldBeCombined(key)
-            ? source.combined
-            : sumChildren(
-                source.children || {},
-                draft.sources,
-                {
-                  count: source.count,
-                  notify: source.notify,
-                  status: 'seen',
-                },
-                true
-              ),
+          combined: sumChildren(
+            source.children || {},
+            draft.sources,
+            {
+              count: source.count,
+              notify: source.notify,
+              status: 'seen',
+            },
+            shouldBeCombined(key)
+          ),
         };
 
         updateParents(source.parents, draft);
@@ -285,18 +327,16 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         draft.sources[key] = {
           ...source,
           status: 'read',
-          combined: !shouldBeCombined(key)
-            ? source.combined
-            : sumChildren(
-                source.children || {},
-                draft.sources,
-                {
-                  count: source.count,
-                  notify: source.notify,
-                  status: 'read',
-                },
-                true
-              ),
+          combined: sumChildren(
+            source.children || {},
+            draft.sources,
+            {
+              count: source.count,
+              notify: source.notify,
+              status: 'read',
+            },
+            shouldBeCombined(key)
+          ),
           readTimeout: 0,
         };
         unreadStoreLogger.log('post read', JSON.stringify(draft.sources[key]));
@@ -350,11 +390,8 @@ export function useCombinedChatUnreads(messagesFilter: SidebarFilter) {
           return acc;
         }
 
-        const isUnread = isDm
-          ? source.combined.status === 'unread'
-          : source.status === 'unread';
         return {
-          unread: acc.unread || isUnread,
+          unread: acc.unread || source.combined.status === 'unread',
           count: acc.count + source.count,
           notify: acc.notify || source.combined.notify,
         };

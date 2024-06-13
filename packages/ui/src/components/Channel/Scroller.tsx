@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
+import { Post } from '@tloncorp/shared/dist/db';
 import {
   extractContentTypesFromPost,
   isSameDay,
@@ -78,7 +79,6 @@ export default function Scroller({
   channelId,
   firstUnreadId,
   unreadCount,
-  setInputShouldBlur,
   onStartReached,
   onEndReached,
   onPressPost,
@@ -101,7 +101,6 @@ export default function Scroller({
   channelId: string;
   firstUnreadId?: string | null;
   unreadCount?: number | null;
-  setInputShouldBlur?: (shouldBlur: boolean) => void;
   onStartReached?: () => void;
   onEndReached?: () => void;
   onPressPost?: (post: db.Post) => void;
@@ -114,26 +113,81 @@ export default function Scroller({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
-  const filteredPosts = useMemo(
-    () =>
-      posts?.filter((post) => {
-        const { blocks, inlines, references } =
-          extractContentTypesFromPost(post);
+  const filteredPosts = useMemo(() => {
+    const postsWithContent = posts?.filter((post) => {
+      const { blocks, inlines, references } = extractContentTypesFromPost(post);
 
-        if (
-          blocks.length === 0 &&
-          inlines.length === 0 &&
-          references.length === 0 &&
-          post.title === '' &&
-          post.image === ''
-        ) {
-          return false;
-        }
+      if (
+        blocks.length === 0 &&
+        inlines.length === 0 &&
+        references.length === 0 &&
+        post.title === '' &&
+        post.image === ''
+      ) {
+        return false;
+      }
 
-        return true;
-      }),
-    [posts]
-  );
+      return true;
+    });
+
+    if (!postsWithContent || channelType !== 'gallery') {
+      return postsWithContent;
+    }
+
+    // if we're in a gallery channel and we have an uneven number of posts, we
+    // need to add an empty post at the end to make sure that the last post is
+    // displayed correctly
+
+    if (postsWithContent.length % 2 !== 0) {
+      const emptyPost: Post = {
+        id: '',
+        authorId: '~zod',
+        channelId: '',
+        content: JSON.stringify([{ inline: '' }]),
+        receivedAt: 0,
+        sentAt: 0,
+        type: 'block',
+        replyCount: 0,
+      };
+
+      postsWithContent.push(emptyPost);
+    }
+
+    if (!firstUnreadId) {
+      return postsWithContent;
+    }
+
+    // for gallery channels we want to make sure that we separate unreads from
+    // the other posts, we do that by adding an empty post after the first unread
+    // post if it's at an even index
+    const firstUnreadIndex = postsWithContent.findIndex(
+      (post) => post.id === firstUnreadId
+    );
+
+    if (firstUnreadIndex === -1) {
+      return postsWithContent;
+    }
+
+    // if first unread is at an odd index, we don't need to add an empty post
+    if (firstUnreadIndex % 2 !== 0) {
+      return postsWithContent;
+    }
+
+    const before = postsWithContent.slice(0, firstUnreadIndex + 1);
+    const after = postsWithContent.slice(firstUnreadIndex + 1);
+    const emptyPost: Post = {
+      id: '',
+      authorId: '~zod',
+      channelId: '',
+      content: JSON.stringify([{ inline: '' }]),
+      receivedAt: 0,
+      sentAt: 0,
+      type: 'block',
+      replyCount: 0,
+    };
+
+    return [...before, emptyPost, ...after];
+  }, [firstUnreadId, posts, channelType]);
 
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
@@ -218,17 +272,27 @@ export default function Scroller({
       // this is necessary because we can't call memoized components as functions
       // (they are objects, not functions)
       const RenderItem = renderItem;
+
+      if (item.id === '' && item.type === 'block') {
+        return <View height={1} width="50%" backgroundColor="$background" />;
+      }
+
       return (
         <View onLayout={() => handleItemLayout(item, index)}>
-          {isFirstUnread ? (
+          {isFirstUnread && channelType !== 'gallery' ? (
             <ChannelDivider
               timestamp={item.receivedAt}
               unreadCount={unreadCount ?? 0}
               isFirstPostOfDay={isFirstPostOfDay}
               channelInfo={{ id: channelId, type: channelType }}
+              index={index}
             />
           ) : isFirstPostOfDay && item.type === 'chat' ? (
-            <ChannelDivider unreadCount={0} timestamp={item.receivedAt} />
+            <ChannelDivider
+              unreadCount={0}
+              timestamp={item.receivedAt}
+              index={index}
+            />
           ) : null}
           <PressableMessage
             ref={activeMessageRefs.current[item.id]}
@@ -248,6 +312,15 @@ export default function Scroller({
               onPress={onPressPost}
             />
           </PressableMessage>
+          {isFirstUnread && channelType === 'gallery' ? (
+            <ChannelDivider
+              timestamp={item.receivedAt}
+              unreadCount={unreadCount ?? 0}
+              isFirstPostOfDay={isFirstPostOfDay}
+              channelInfo={{ id: channelId, type: channelType }}
+              index={index}
+            />
+          ) : null}
         </View>
       );
     },
@@ -283,8 +356,7 @@ export default function Scroller({
 
   const handleScrollBeginDrag = useCallback(() => {
     userHasScrolledRef.current = true;
-    setInputShouldBlur?.(true);
-  }, [setInputShouldBlur]);
+  }, []);
 
   const pendingEvents = useRef({
     onEndReached: false,

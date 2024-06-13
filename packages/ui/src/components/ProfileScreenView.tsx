@@ -47,15 +47,11 @@ export function Wrapped(props: Props) {
           )}
         </View>
         <View marginTop="$xl">
-          <ProfileAction title="Edit profile" icon="Draw" />
           <ProfileAction
             title="App Settings"
             icon="Settings"
             onPress={props.onAppSettingsPressed}
           />
-          <ProfileAction title="Connected Accounts" icon="Face" />
-          <ProfileAction title="Submit Feedback" icon="Mail" />
-          <ProfileAction title="Contact Support" icon="Messages" />
         </View>
       </YStack>
     </ScrollView>
@@ -115,7 +111,7 @@ function ProfileRow({
       borderRadius={dark ? '$xl' : undefined}
     >
       <Avatar size="$5xl" contactId={contactId} contact={contact} />
-      <View marginLeft="$l">
+      <View marginLeft="$l" flex={1}>
         {contact?.nickname ? (
           <YStack>
             <ContactName

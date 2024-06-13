@@ -8,7 +8,6 @@ import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
@@ -31,7 +30,7 @@ import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
 import { Icon } from '../Icon';
-import { LoadingSpinner } from '../LoadingSpinner';
+import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
 import { ChannelFooter } from './ChannelFooter';
@@ -179,7 +178,7 @@ export function Channel({
               >
                 <ReferencesProvider>
                   <View
-                    paddingBottom={bottom}
+                    paddingBottom={isChatChannel ? bottom : 'unset'}
                     backgroundColor="$background"
                     flex={1}
                   >
@@ -196,17 +195,12 @@ export function Channel({
                         goBack={() =>
                           showBigInput ? bigInputGoBack() : goBack()
                         }
+                        showSearchButton={isChatChannel}
                         goToSearch={goToSearch}
                         showSpinner={isLoadingPosts}
                         showMenuButton={!isChatChannel}
                       />
-                      <KeyboardAvoidingView
-                        behavior={
-                          Platform.OS === 'ios' ? 'padding' : 'position'
-                        }
-                        style={{ flex: 1 }}
-                        contentContainerStyle={{ flex: 1 }}
-                      >
+                      <KeyboardAvoidingView>
                         <YStack alignItems="center" flex={1}>
                           <AnimatePresence>
                             {showBigInput ? (
@@ -247,23 +241,13 @@ export function Channel({
                               channel.type !== 'notebook' ? (
                               <UploadedImagePreview
                                 imageAttachment={uploadInfo.imageAttachment}
+                                uploading={uploadInfo.uploading}
                                 resetImageAttachment={
                                   uploadInfo.resetImageAttachment
                                 }
                               />
                             ) : (
                               <View flex={1} width="100%">
-                                <View
-                                  position="absolute"
-                                  top={0}
-                                  left={0}
-                                  width="100%"
-                                  height="100%"
-                                  alignItems="center"
-                                  justifyContent="center"
-                                >
-                                  <LoadingSpinner />
-                                </View>
                                 {channel && posts && (
                                   <Scroller
                                     inverted={isChatChannel ? true : false}
@@ -291,7 +275,6 @@ export function Channel({
                                     onPressPost={goToPost}
                                     onPressReplies={goToPost}
                                     onPressImage={goToImageViewer}
-                                    setInputShouldBlur={setInputShouldBlur}
                                     onEndReached={onScrollEndReached}
                                     onStartReached={onScrollStartReached}
                                   />
@@ -303,7 +286,7 @@ export function Channel({
                             !editingPost &&
                             (isChatChannel ||
                               (channel.type === 'gallery' &&
-                                uploadInfo?.uploadedImage)) &&
+                                uploadInfo?.imageAttachment)) &&
                             canWrite && (
                               <MessageInput
                                 shouldBlur={inputShouldBlur}
@@ -322,9 +305,6 @@ export function Channel({
                                 editingPost={editingPost}
                                 setEditingPost={setEditingPost}
                                 editPost={editPost}
-                                floatingActionButton={
-                                  channel.type === 'gallery'
-                                }
                                 showAttachmentButton={
                                   channel.type !== 'gallery'
                                 }
@@ -333,7 +313,7 @@ export function Channel({
                           {!isChatChannel && canWrite && !showBigInput && (
                             <View
                               position="absolute"
-                              bottom="$s"
+                              bottom={bottom}
                               flex={1}
                               width="100%"
                               alignItems="center"

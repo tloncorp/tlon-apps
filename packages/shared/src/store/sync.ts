@@ -13,6 +13,15 @@ import { syncQueue } from './syncQueue';
 // - We create a new post locally
 // - We receive a new post from a subscription
 export const channelCursors = new Map<string, string>();
+export function updateChannelCursor(channelId: string, cursor: string) {
+  if (
+    !channelCursors.has(channelId) ||
+    cursor > channelCursors.get(channelId)!
+  ) {
+    channelCursors.set(channelId, cursor);
+  }
+}
+
 const logger = createDevLogger('sync', false);
 
 export const syncInitData = async () => {
@@ -37,14 +46,7 @@ export const syncLatestPosts = async () => {
     ])
   );
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
-  for (const post of allPosts) {
-    if (
-      !channelCursors.has(post.channelId) ||
-      post.id > channelCursors.get(post.channelId)!
-    ) {
-      channelCursors.set(post.channelId, post.id);
-    }
-  }
+  allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
   await db.insertLatestPosts(allPosts);
 };
 
@@ -96,6 +98,8 @@ export const syncUnreads = async () => {
 
 const resetUnreads = async (unreads: db.Unread[], ctx?: QueryCtx) => {
   if (!unreads.length) return;
+
+  logger.log('resetting unreads', unreads);
 
   await db.insertUnreads(unreads);
   await db.setJoinedGroupChannels(
@@ -246,10 +250,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.deleteChannel(update.channelId);
       break;
     case 'joinChannel':
-      await db.setJoinedGroupChannels({ channelIds: [update.channelId] });
+      await db.addJoinedGroupChannel({ channelId: update.channelId });
       break;
     case 'leaveChannel':
-      await db.setLeftGroupChannels({ channelIds: [update.channelId] });
+      await db.removeJoinedGroupChannel({ channelId: update.channelId });
       break;
     case 'addNavSection':
       await db.addNavSectionToGroup({
@@ -318,27 +322,7 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
-      // first check if it's a reply. If it is and we haven't already cached
-      // it, we need to add it to the parent post
-      if (update.post.parentId) {
-        const cachedReply = await db.getPostByCacheId({
-          sentAt: update.post.sentAt,
-          authorId: update.post.authorId,
-        });
-        if (!cachedReply) {
-          await db.addReplyToPost({
-            parentId: update.post.parentId,
-            replyAuthor: update.post.authorId,
-            replyTime: update.post.sentAt,
-          });
-        }
-      }
-      await db.insertChannelPosts({
-        channelId: update.post.channelId,
-        posts: [update.post],
-        older: channelCursors.get(update.post.channelId),
-      });
-      channelCursors.set(update.post.channelId, update.post.id);
+      handleAddPost(update.post);
       break;
     case 'updateWriters':
       await db.updateChannel({
@@ -367,17 +351,53 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
       break;
+    case 'joinChannelSuccess':
+      await db.addJoinedGroupChannel({ channelId: update.channelId });
+      break;
+    case 'leaveChannelSuccess':
+      await db.removeJoinedGroupChannel({ channelId: update.channelId });
+      break;
+    case 'initialPostsOnChannelJoin':
+      await db.insertChannelPosts({
+        channelId: update.channelId,
+        posts: update.posts,
+      });
+      break;
     case 'unknown':
+      logger.log('unknown channels update', update);
+      break;
     default:
       break;
   }
 };
 
-export const handleChatUpdate = async (event: api.ChatEvent) => {
-  switch (event.type) {
+export const handleChatUpdate = async (update: api.ChatEvent) => {
+  switch (update.type) {
+    case 'addPost':
+      await handleAddPost(update.post);
+      break;
+    case 'deletePost':
+      await db.deletePosts({ ids: [update.postId] });
+      break;
+    case 'addReaction':
+      db.insertPostReactions({
+        reactions: [
+          {
+            postId: update.postId,
+            contactId: update.userId,
+            value: update.react,
+          },
+        ],
+      });
+      break;
+    case 'deleteReaction':
+      db.deletePostReaction({
+        postId: update.postId,
+        contactId: update.userId,
+      });
+      break;
     case 'addDmInvites':
-      // insert the new DMs
-      db.insertChannels(event.channels);
+      db.insertChannels(update.channels);
       break;
 
     case 'groupDmsUpdate':
@@ -385,6 +405,35 @@ export const handleChatUpdate = async (event: api.ChatEvent) => {
       break;
   }
 };
+
+async function handleAddPost(post: db.Post) {
+  // first check if it's a reply. If it is and we haven't already cached
+  // it, we need to add it to the parent post
+  if (post.parentId) {
+    const cachedReply = await db.getPostByCacheId({
+      sentAt: post.sentAt,
+      authorId: post.authorId,
+    });
+    if (!cachedReply) {
+      await db.addReplyToPost({
+        parentId: post.parentId,
+        replyAuthor: post.authorId,
+        replyTime: post.sentAt,
+      });
+    }
+    await db.insertChannelPosts({
+      channelId: post.channelId,
+      posts: [post],
+    });
+  } else {
+    await db.insertChannelPosts({
+      channelId: post.channelId,
+      posts: [post],
+      older: channelCursors.get(post.channelId),
+    });
+    updateChannelCursor(post.channelId, post.id);
+  }
+}
 
 export async function syncPosts(options: api.GetChannelPostsOptions) {
   logger.log(

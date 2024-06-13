@@ -16,6 +16,8 @@
 +$  volume-map
   $~  default-volumes
   (map event-type volume)
+::  $feed: a set of grouped events
++$  feed  (list activity-bundle)
 +|  %actions
 ::  $action: how to interact with our activity stream
 ::
@@ -58,7 +60,7 @@
 ::    $allow-notifications: the allowed notifications were changed
 ::
 +$  update
-  $%  [%add time-event]
+  $%  [%add =source time-event]
       [%del =source]
       [%read =source =activity-summary]
       [%adjust =source volume-map=(unit volume-map)]
@@ -168,6 +170,12 @@
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]
 +$  notifications-allowed  ?(%all %some %none)
++$  activity-bundle
+  $:  =source
+      latest=time
+      events=(list time-event)
+  ==
+::
 +|  %primitives
 +$  whom
   $%  [%ship p=ship]
