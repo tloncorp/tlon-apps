@@ -1217,6 +1217,15 @@ export const getChannelNavSection = createReadQuery(
   ['groupNavSectionChannels']
 );
 
+/* This sets which channels the current user is a member of, which is what we key off of
+when determining channels to show in the UI. There's no direct setting for this on
+the backend. Instead we look at two things:
+   1) do you have an unreads entry for the channel?
+   2) if you do, do you have read permissions for it?
+    Read permissions are stored as an array of roles. If the array is empty, anyone
+    can read the channel. If it's not empty, we check to make sure the user has one of the
+    reader roles.
+*/
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
   async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
