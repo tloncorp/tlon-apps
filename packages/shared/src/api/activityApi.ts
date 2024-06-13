@@ -354,8 +354,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         }
       }
 
-      // delete
-      // TODO: straightforward
+      // TODO: delete
     }
   );
 }

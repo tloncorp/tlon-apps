@@ -401,7 +401,6 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
   );
 
   return (event: api.ActivityEvent) => {
-    logger.log('received activity event', event);
     switch (event.type) {
       case 'updateGroupUnread':
         queue.groupUnreads.push(event.unread);

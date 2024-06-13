@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
-import { NotificationLevel, getLevelFromVolumeMap } from '../urbit';
+import { getLevelFromVolumeMap } from '../urbit';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -87,7 +87,7 @@ export const useVolumeSettings = () => {
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
-    queryFn: db.getActivitySeenMarker,
+    queryFn: () => db.getActivitySeenMarker(),
   });
 };
 
@@ -250,17 +250,10 @@ export const useActivityBucketCursors = () => {
   });
 };
 
-// export const useYourActivity = () => {
-//   const tablesKey = useKeyFromQueryDeps(db.getYourActivity);
-//   return useQuery({
-//     queryKey: ['yourActivity', tablesKey],
-//     queryFn: () => db.getYourActivity(),
-//   });
-// };
-
 export const useLatestActivityEvent = () => {
+  const depsKey = useKeyFromQueryDeps(db.getLatestActivityEvent);
   return useQuery({
-    queryKey: ['latestActivityEvent'],
+    queryKey: ['latestActivityEvent', depsKey],
     queryFn: () => db.getLatestActivityEvent(),
   });
 };

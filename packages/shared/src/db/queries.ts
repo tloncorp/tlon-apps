@@ -91,7 +91,7 @@ import {
   Unread,
 } from './types';
 
-const logger = createDevLogger('queries', true);
+const logger = createDevLogger('queries', false);
 
 const GROUP_META_COLUMNS = {
   id: true,

@@ -259,7 +259,7 @@ export function getRelevancy(
     return 'involvedThread';
   }
 
-  console.error(
+  console.log(
     'Unknown relevancy type for activity summary. Defaulting to involvedThread.',
     summary
   );
