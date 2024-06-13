@@ -731,6 +731,18 @@ export const toGroupUpdate = (
   return { type: 'unknown' };
 };
 
+export const extractChannelReaders = (groups: ub.Groups) => {
+  const channelReaders: Record<string, string[]> = {};
+
+  Object.entries(groups).forEach(([groupId, group]) => {
+    Object.entries(group.channels).forEach(([channelId, channel]) => {
+      channelReaders[channelId] = channel.readers ?? [];
+    });
+  });
+
+  return channelReaders;
+};
+
 const extractFlaggedPosts = (
   groupId: string,
   flaggedContent?: FlaggedContent
