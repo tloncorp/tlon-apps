@@ -3,6 +3,7 @@ import type * as ub from '../urbit';
 import { toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
+  extractChannelReaders,
   toClientGroups,
   toClientGroupsFromGangs,
   toClientPinnedItems,
@@ -30,7 +31,8 @@ export const getInitData = async () => {
   });
 
   const pins = toClientPinnedItems(response.pins);
-  const channelsInit = toClientChannelsInit(response.channels);
+  const channelReaders = extractChannelReaders(response.groups);
+  const channelsInit = toClientChannelsInit(response.channels, channelReaders);
   const groups = toClientGroups(response.groups, true);
   const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
   const channelUnreads = toClientUnreads(response.unreads, 'channel');

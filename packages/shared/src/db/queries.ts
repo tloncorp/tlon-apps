@@ -24,7 +24,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { ChannelInit } from '../api';
+import { ChannelInit, getCurrentUserId } from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { Rank, desig } from '../urbit';
@@ -35,6 +35,7 @@ import {
   withTransactionCtx,
 } from './query';
 import {
+  channelReaders as $channelReaders,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
@@ -538,6 +539,23 @@ export const insertChannelPerms = createWriteQuery(
         roleId: writer,
       }))
     );
+
+    const readers = channelsInit.flatMap((chanInit) =>
+      chanInit.readers.map((reader) => ({
+        channelId: chanInit.channelId,
+        roleId: reader,
+      }))
+    );
+
+    if (readers.length > 0) {
+      return ctx.db
+        .insert($channelReaders)
+        .values(readers)
+        .onConflictDoUpdate({
+          target: [$channelReaders.channelId, $channelReaders.roleId],
+          set: conflictUpdateSetAll($channelReaders),
+        });
+    }
 
     if (writers.length === 0) {
       return;
@@ -1202,11 +1220,50 @@ export const getChannelNavSection = createReadQuery(
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
   async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    if (channelIds.length === 0) return;
+
+    const channels = await ctx.db.query.channels.findMany({
+      with: {
+        readerRoles: true,
+        group: {
+          with: {
+            roles: {
+              with: {
+                members: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const channelsIndex = new Map<string, Channel>();
+    for (const channel of channels) {
+      channelsIndex.set(channel.id, channel);
+    }
+
+    const channelsWhereMember = channelIds.filter((id) => {
+      const channel = channelsIndex.get(id);
+      const isOpenChannel = channel?.readerRoles?.length === 0;
+
+      const userRolesForGroup =
+        channel?.group?.roles
+          ?.filter((role) =>
+            role.members?.map((m) => m.contactId).includes(currentUserId)
+          )
+          .map((role) => role.id) ?? [];
+
+      const isClosedButCanRead = channel?.readerRoles
+        ?.map((r) => r.roleId)
+        .some((r) => userRolesForGroup.includes(r));
+      return isOpenChannel || isClosedButCanRead;
+    });
+
     logger.log('setJoinedGroupChannels', channelIds);
     return await ctx.db
       .update($channels)
       .set({
-        currentUserIsMember: inArray($channels.id, channelIds),
+        currentUserIsMember: inArray($channels.id, channelsWhereMember),
       })
       .where(isNotNull($channels.groupId));
   },
