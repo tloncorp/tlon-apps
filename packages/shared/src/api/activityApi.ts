@@ -627,7 +627,6 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
 
     if (activityId === 'group') {
       const groupId = rest.join('/');
-      logger.log(`bl: found group unread`, groupId);
       groupUnreads.push(toGroupUnread(groupId, summary));
     }
 

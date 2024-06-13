@@ -38,21 +38,6 @@ export const useInitialSync = () => {
         handleSyncError(e);
       });
 
-      // try {
-      //   await setupSubscriptions();
-      //   console.log(`bl: sub done`);
-      //   await initializeStorage();
-      //   console.log(`bl: storage done`);
-      //   await syncSettings();
-      //   console.log(`bl: settings done`);
-      //   await syncVolumeSettings();
-      //   console.log(`bl: volume done`);
-      //   await resetActivity();
-      //   console.log(`bl: actifvity done`);
-      // } catch (e) {
-      //   handleSyncError(e);
-      // }
-
       return true;
     },
   });
