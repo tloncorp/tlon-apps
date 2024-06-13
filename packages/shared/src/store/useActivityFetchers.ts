@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { useActivityBucketCursors } from './dbHooks';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', true);
 
@@ -39,18 +38,21 @@ export function resetActivityFetchers() {
   });
 }
 
+interface PageParam {
+  cursor: number | null;
+  existingSourceIds: string[];
+}
+
 export function useInfiniteBucketedActivity(
   bucket: db.ActivityBucket
 ): ActivityFetcher {
-  const { data: bucketCursors } = useActivityBucketCursors();
-  const bucketCursor = useMemo(
-    () => (bucketCursors ? bucketCursors[bucket] : Infinity),
-    [bucket, bucketCursors]
-  );
-
   const infiniteQuery = useInfiniteQuery({
     queryKey: [INFINITE_ACTIVITY_QUERY_KEY, bucket],
-    queryFn: async ({ pageParam }): Promise<db.SourceActivityEvents[]> => {
+    queryFn: async ({
+      pageParam,
+    }: {
+      pageParam: PageParam;
+    }): Promise<db.SourceActivityEvents[]> => {
       const { cursor, existingSourceIds } = pageParam;
       logger.log(`query fn running`, bucket, pageParam);
 
@@ -70,7 +72,7 @@ export function useInfiniteBucketedActivity(
       // if we don't, hit the api with the given cursor
       const fetchedPage = await api.getPagedActivityByBucket({
         bucket,
-        cursor,
+        cursor: cursor ?? Date.now(),
       });
       logger.log('fetched next page from API', fetchedPage);
 
@@ -94,7 +96,7 @@ export function useInfiniteBucketedActivity(
       logger.log(`no more activity for bucket ${bucket}`);
       return [];
     },
-    initialPageParam: { existingSourceIds: [] as string[], cursor: Date.now() },
+    initialPageParam: { existingSourceIds: [], cursor: null } as PageParam,
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage === null || lastPage.length === 0) {
         return null;

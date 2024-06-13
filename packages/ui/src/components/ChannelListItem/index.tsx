@@ -22,14 +22,7 @@ export default function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
-  const { data: countWithInvolvedThreads } = store.useGroupChannelUnreadsCount(
-    model.type === 'dm' || model.type === 'groupDm' ? '' : model.id
-  );
-  const countToShow =
-    model.type === 'dm' || model.type === 'groupDm'
-      ? model.unread?.count ?? 0 // if a DM, any activity is "involved"
-      : countWithInvolvedThreads ?? 0;
-
+  const countToShow = model.unread?.countWithoutThreads ?? 0;
   const title = utils.getChannelTitle(model);
 
   return (

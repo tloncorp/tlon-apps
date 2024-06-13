@@ -2612,7 +2612,7 @@ export const getBucketedActivityPage = createReadQuery(
       bucket,
       existingSourceIds,
     }: {
-      startCursor: number;
+      startCursor?: number | null;
       bucket: ActivityBucket;
       existingSourceIds: string[];
     },
@@ -2622,6 +2622,8 @@ export const getBucketedActivityPage = createReadQuery(
       `getBucketedActivityPage ${bucket} ${startCursor}`,
       existingSourceIds
     );
+
+    const resolvedCursor = startCursor ?? Date.now();
 
     try {
       // get the first N activity sources where the most recent message
@@ -2633,7 +2635,7 @@ export const getBucketedActivityPage = createReadQuery(
           and(
             eq($activityEvents.bucketId, bucket),
             eq($activityEvents.shouldNotify, true),
-            lt($activityEvents.timestamp, startCursor),
+            lt($activityEvents.timestamp, resolvedCursor),
             notInArray($activityEvents.sourceId, [
               'throwsIfEmpty',
               ...existingSourceIds,
