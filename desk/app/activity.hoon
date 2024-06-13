@@ -227,6 +227,7 @@
   (welp writs replies)
 ++  set-volumes
   |=  =channels:c
+  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
     =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
@@ -247,11 +248,12 @@
         .^($-([ship nest] ?) %gx path)
       [test (~(put by checkers) group test)]
     =.  cor
+      ::  don't set channel default if group above it has setting
+      ?^  (~(get by area.volume) group)  cor
       %+  adjust  [%channel nest group]
       ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
       `mute:a
     $(entries t.entries)
-  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set any overrides from previous volume settings
   =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
   =.  cor
