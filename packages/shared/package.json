@@ -26,6 +26,7 @@
     ]
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "1.21.0",
     "@urbit/api": "^2.2.0",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.52",
