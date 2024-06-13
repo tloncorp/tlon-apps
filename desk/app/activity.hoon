@@ -417,19 +417,19 @@
   ?:  (gth time real-start)  [~ | acc]
   :-  ~   :-  |
   =/  =source:a  (determine-source -.event)
-  =/  latest
-    ?^  stored=(~(get by times.acc) source)  u.stored
+  =/  src-info=[latest=time-id:a added=?]
+    ?^  stored=(~(get by sources.acc) source)  u.stored
+    :_  |
     -:(need (ram:on-event:a stream:(get-index source)))
-  =.  times.acc  (~(put by times.acc) source latest)
+  =.  sources.acc  (~(put by sources.acc) source src-info)
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
-          (lth latest start)
+          (lth latest.src-info start)
           ?=(?(%post %reply %dm-post %dm-reply) -<.event)
       ==
     acc
-  :-  times.acc
   =/  mention=(unit activity-bundle:a)
     ?.  |(?=(%all type) ?=(%mentions type))  ~
     =/  is-mention
@@ -442,24 +442,28 @@
     ?.  is-mention  ~
     `[source time ~[[time event]]]
   ?^  mention
+    :-  sources.acc
     [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
   =/  care
     ?|  ?=(%all type)
         &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
     ==
-  ::  make sure we care and haven't collapsed this event already
+  ::  make sure we care, haven't added this source, and haven't collapsed
+  ::  this event already
   ?.  ?&  care
+          ?!(added:(~(got by sources.acc) source))
           !(~(has in collapsed.acc) time)
       ==
-    [limit happenings collapsed]:acc
+    acc
   =/  top  (top-messages source stream:(get-index source))
   ::  collapsed is a set of event ids that we've already included in the feed
   ::  and so should be ignored
   =/  collapsed
     (~(gas in collapsed.acc) (turn top head))
+  :-  (~(put by sources.acc) source src-info(added &))
   [(sub limit.acc 1) (snoc happenings.acc [source time top]) collapsed]
   +$  out
-    $:  times=(map source:a time-id:a)
+    $:  sources=(map source:a [latest=time-id:a added=?])
         limit=@ud
         happenings=(list activity-bundle:a)
         collapsed=(set time-id:a)
