@@ -9,11 +9,13 @@ export default function ChannelNavSections({
   group,
   channels,
   onSelect,
+  sortBy,
   paddingBottom,
 }: {
   group: db.Group;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
+  sortBy: 'recency' | 'arranged';
   paddingBottom?: number;
 }) {
   const unGroupedChannels = useMemo(
@@ -27,10 +29,46 @@ export default function ChannelNavSections({
     [channels, group.navSections]
   );
 
+  const channelsSortedByRecency = useMemo(
+    () =>
+      channels && sortBy === 'recency'
+        ? [...channels].sort((a, b) => {
+            const aFirstUnreadReceivedAt = a.unread?.firstUnreadPostReceivedAt;
+            const bFirstUnreadReceivedAt = b.unread?.firstUnreadPostReceivedAt;
+
+            if (aFirstUnreadReceivedAt && bFirstUnreadReceivedAt) {
+              return bFirstUnreadReceivedAt - aFirstUnreadReceivedAt;
+            } else if (aFirstUnreadReceivedAt) {
+              return -1;
+            } else if (bFirstUnreadReceivedAt) {
+              return 1;
+            } else {
+              return 0;
+            }
+          })
+        : [],
+    [channels, sortBy]
+  );
+
   const sectionHasChannels = useMemo(
     () => unGroupedChannels.length > 0,
     [unGroupedChannels]
   );
+
+  if (sortBy === 'recency') {
+    return (
+      <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
+        {channelsSortedByRecency.map((item) => (
+          <ChannelListItem
+            key={item.id}
+            model={item}
+            onPress={onSelect}
+            useTypeIcon={true}
+          />
+        ))}
+      </YStack>
+    );
+  }
 
   return (
     <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">

@@ -8,6 +8,8 @@ export default {
       open
       onOpenChange={() => {}}
       group={group}
+      sortBy="recency"
+      setSortBy={() => {}}
       channels={group.channels!}
       contacts={initialContacts}
       onSelect={(channel) => console.debug(`Selected ${channel.title}`)}

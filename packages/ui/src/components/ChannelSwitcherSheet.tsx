@@ -1,10 +1,12 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useEffect, useState } from 'react';
+import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ContactsProvider } from '../contexts';
-import { SizableText } from '../core';
+import { SizableText, Text, XStack } from '../core';
 import ChannelNavSections from './ChannelNavSections';
+import { Icon } from './Icon';
 import { Sheet } from './Sheet';
 
 interface Props {
@@ -14,6 +16,8 @@ interface Props {
   channels: db.Channel[];
   contacts: db.Contact[];
   onSelect: (channel: db.Channel) => void;
+  sortBy: 'recency' | 'arranged';
+  setSortBy: (sortBy: 'recency' | 'arranged') => void;
 }
 
 export function ChannelSwitcherSheet({
@@ -23,8 +27,11 @@ export function ChannelSwitcherSheet({
   channels,
   onSelect,
   contacts,
+  sortBy,
+  setSortBy,
 }: Props) {
   const [hasOpened, setHasOpened] = useState(open);
+  // const [sortBy, setSortBy] = useState<'recency' | 'arranged'>('recency');
   const { bottom } = useSafeAreaInsets();
 
   useEffect(() => {
@@ -45,20 +52,42 @@ export function ChannelSwitcherSheet({
         <Sheet.Frame>
           <Sheet.Handle paddingTop="$xl" />
           <Sheet.ScrollView gap="$xl" paddingHorizontal="$xl" paddingTop="$xl">
-            <SizableText
-              fontSize="$l"
-              fontWeight="500"
-              color="$primaryText"
-              paddingHorizontal="$l"
-            >
-              {group?.title}
-            </SizableText>
+            <XStack alignItems="center" justifyContent="space-between">
+              <SizableText
+                fontSize="$l"
+                fontWeight="500"
+                color="$primaryText"
+                paddingHorizontal="$l"
+              >
+                {group?.title}
+              </SizableText>
+              <TouchableOpacity
+                onPress={() => {
+                  const newSortBy =
+                    sortBy === 'recency' ? 'arranged' : 'recency';
+                  setSortBy(newSortBy);
+                }}
+              >
+                <XStack
+                  alignItems="center"
+                  justifyContent="flex-end"
+                  paddingVertical="$s"
+                  gap="$s"
+                >
+                  <Icon type="Filter" />
+                  <Text>
+                    Sorted by {sortBy === 'recency' ? 'recency' : 'arranged'}
+                  </Text>
+                </XStack>
+              </TouchableOpacity>
+            </XStack>
             {hasOpened && (
               <ChannelNavSections
                 group={group}
                 channels={channels}
                 onSelect={onSelect}
                 paddingBottom={bottom}
+                sortBy={sortBy}
               />
             )}
           </Sheet.ScrollView>
