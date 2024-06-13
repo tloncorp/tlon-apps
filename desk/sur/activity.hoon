@@ -27,12 +27,14 @@
 ::    $del: remove a source and all its activity
 ::    $read: mark an event as read
 ::    $adjust: adjust the volume of an source
+::    $allow-notifications: change which notifications are allowed
 ::
 +$  action
   $%  [%add =incoming-event]
       [%del =source]
       [%read =source =read-action]
       [%adjust =source =(unit volume-map)]
+      [%allow-notifications allow=notifications-allowed]
   ==
 ::
 ::  $read-action: mark activity read
@@ -55,12 +57,14 @@
 ::    $del: a source and its activity were removed
 ::    $read: a source's activity state was updated
 ::    $adjust: the volume of a source was adjusted
+::    $allow-notifications: the allowed notifications were changed
 ::
 +$  update
   $%  [%add =source time-event]
       [%del =source]
       [%read =source =activity-summary]
       [%adjust =source volume-map=(unit volume-map)]
+      [%allow-notifications allow=notifications-allowed]
   ==
 ::
 +|  %basics
@@ -165,6 +169,7 @@
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]
++$  notifications-allowed  ?(%all %some %none)
 +$  activity-bundle
   $:  =source
       latest=time

@@ -35,6 +35,7 @@
 /$  act-sum     %activity-summary     %json
 /$  act-vol     %activity-settings    %json
 /$  act-evt     %activity-event       %json
+/$  act-allow   %activity-allowed     %json
 /$  act-stream  %activity-stream      %json
 /$  act-feed    %activity-feed        %json
 /$  act-fe-it   %activity-feed-init   %json
