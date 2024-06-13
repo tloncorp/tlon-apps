@@ -218,9 +218,14 @@ export const useChannel = (options: { id: string }) => {
   });
 };
 
-export const usePostWithRelations = (options: { id: string }) => {
+export const usePostWithRelations = (
+  options: { id: string },
+  initialData?: db.Post
+) => {
   return useQuery({
-    queryKey: [['post', options]],
+    queryKey: ['post', options.id],
+    staleTime: Infinity,
+    initialData,
     queryFn: () => db.getPostWithRelations(options),
   });
 };

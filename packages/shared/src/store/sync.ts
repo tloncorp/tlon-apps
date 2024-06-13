@@ -6,6 +6,7 @@ import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
+import { addToChannelPosts } from './useChannelPosts';
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -406,7 +407,7 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
   }
 };
 
-async function handleAddPost(post: db.Post) {
+export async function handleAddPost(post: db.Post) {
   // first check if it's a reply. If it is and we haven't already cached
   // it, we need to add it to the parent post
   if (post.parentId) {
@@ -426,12 +427,14 @@ async function handleAddPost(post: db.Post) {
       posts: [post],
     });
   } else {
+    const older = channelCursors.get(post.channelId);
+    addToChannelPosts(post, older);
+    updateChannelCursor(post.channelId, post.id);
     await db.insertChannelPosts({
       channelId: post.channelId,
       posts: [post],
-      older: channelCursors.get(post.channelId),
+      older,
     });
-    updateChannelCursor(post.channelId, post.id);
   }
 }
 

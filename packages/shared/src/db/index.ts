@@ -4,3 +4,4 @@ export * from './types';
 export * from './fallback';
 export * from './modelBuilders';
 export { setClient } from './client';
+export * from './changeListener';

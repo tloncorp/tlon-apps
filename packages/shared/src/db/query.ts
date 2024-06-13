@@ -2,10 +2,11 @@ import { sql } from 'drizzle-orm';
 
 import { queryClient } from '../api';
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
+import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { TableName } from './types';
 
-const logger = createDevLogger('query', false);
+const logger = createDevLogger('query', true);
 
 export interface QueryMeta<TOptions> {
   /**
@@ -162,6 +163,7 @@ export async function withCtxOrDefault<T>(
   // Invalidate queries based on affected tables. We run in the next tick to
   // prevent possible loops.
   setTimeout(() => {
+    changeListener.flush();
     if (!pendingEffects.size) {
       return;
     }

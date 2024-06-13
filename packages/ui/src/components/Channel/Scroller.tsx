@@ -29,6 +29,7 @@ import {
 import Animated from 'react-native-reanimated';
 import { useStyle, useTheme } from 'tamagui';
 
+import { useRequests } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
@@ -256,6 +257,7 @@ export default function Scroller({
       backgroundColor: theme.background.val,
     };
   }, [hasFoundAnchor, theme.background.val]);
+
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
       const previousItem = filteredPosts?.[index + 1];
@@ -268,82 +270,58 @@ export default function Scroller({
         item.type === 'block' ||
         previousItem?.authorId !== item.authorId ||
         previousItem?.type === 'notice' ||
-        (item.replyCount ?? 0) > 0 ||
         isFirstPostOfDay;
+
       const isFirstUnread = item.id === firstUnreadId;
-      // this is necessary because we can't call memoized components as functions
-      // (they are objects, not functions)
-      const RenderItem = renderItem;
 
       if (item.id === '' && item.type === 'block') {
         return <View height={1} width="50%" backgroundColor="$background" />;
       }
 
       return (
-        <View onLayout={() => handleItemLayout(item, index)}>
-          {isFirstUnread && channelType !== 'gallery' ? (
-            <ChannelDivider
-              timestamp={item.receivedAt}
-              unreadCount={unreadCount ?? 0}
-              isFirstPostOfDay={isFirstPostOfDay}
-              channelInfo={{ id: channelId, type: channelType }}
-              index={index}
-            />
-          ) : isFirstPostOfDay && item.type === 'chat' ? (
-            <ChannelDivider
-              unreadCount={0}
-              timestamp={item.receivedAt}
-              index={index}
-            />
-          ) : null}
-          <PressableMessage
-            ref={activeMessageRefs.current[item.id]}
-            isActive={activeMessage?.id === item.id}
-          >
-            <RenderItem
-              currentUserId={currentUserId}
-              post={item}
-              editing={editingPost && editingPost?.id === item.id}
-              setEditingPost={setEditingPost}
-              editPost={editPost}
-              showAuthor={showAuthor}
-              showReplies={showReplies}
-              onPressReplies={onPressReplies}
-              onPressImage={onPressImage}
-              onLongPress={handlePostLongPressed}
-              onPress={onPressPost}
-            />
-          </PressableMessage>
-          {isFirstUnread && channelType === 'gallery' ? (
-            <ChannelDivider
-              timestamp={item.receivedAt}
-              unreadCount={unreadCount ?? 0}
-              isFirstPostOfDay={isFirstPostOfDay}
-              channelInfo={{ id: channelId, type: channelType }}
-              index={index}
-            />
-          ) : null}
-        </View>
+        <ScrollerItem
+          item={item}
+          index={index}
+          showUnreadDivider={isFirstUnread}
+          showDayDivider={isFirstPostOfDay}
+          showAuthor={showAuthor}
+          Component={renderItem}
+          currentUserId={currentUserId}
+          unreadCount={unreadCount}
+          editingPost={editingPost}
+          onLayout={handleItemLayout}
+          channelId={channelId}
+          channelType={channelType}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          showReplies={showReplies}
+          onPressImage={onPressImage}
+          onPressReplies={onPressReplies}
+          onPressPost={onPressPost}
+          onLongPressPost={handlePostLongPressed}
+          activeMessage={activeMessage}
+          messageRef={activeMessageRefs.current[item.id]}
+        />
       );
     },
     [
       filteredPosts,
-      unreadCount,
       firstUnreadId,
-      handleItemLayout,
       renderItem,
+      currentUserId,
+      unreadCount,
+      editingPost,
+      handleItemLayout,
       channelId,
       channelType,
-      activeMessage?.id,
-      currentUserId,
-      showReplies,
-      onPressPost,
-      onPressReplies,
-      onPressImage,
-      handlePostLongPressed,
-      editingPost,
       setEditingPost,
       editPost,
+      showReplies,
+      onPressImage,
+      onPressReplies,
+      onPressPost,
+      handlePostLongPressed,
+      activeMessage,
     ]
   );
 
@@ -499,6 +477,104 @@ export default function Scroller({
 function getPostId(post: db.Post) {
   return post.id;
 }
+
+const ScrollerItem = ({
+  item,
+  index,
+  showUnreadDivider,
+  showDayDivider,
+  showAuthor,
+  Component,
+  currentUserId,
+  unreadCount,
+  editingPost,
+  onLayout,
+  channelId,
+  channelType,
+  setEditingPost,
+  editPost,
+  showReplies,
+  onPressImage,
+  onPressReplies,
+  onPressPost,
+  onLongPressPost,
+  activeMessage,
+  messageRef,
+}: {
+  showUnreadDivider: boolean;
+  showAuthor: boolean;
+  showDayDivider: boolean;
+  item: db.Post;
+  index: number;
+  Component: RenderItemType;
+  currentUserId: string;
+  unreadCount?: number | null;
+  onLayout: (post: db.Post, index: number) => void;
+  channelId: string;
+  channelType: db.ChannelType;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressReplies?: (post: db.Post) => void;
+  showReplies?: boolean;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost?: (post: db.Post, content: Story) => void;
+  onPressPost?: (post: db.Post) => void;
+  onLongPressPost: (post: db.Post) => void;
+  activeMessage?: db.Post | null;
+  messageRef: RefObject<RNView>;
+}) => {
+  const { usePost } = useRequests();
+  const { data: updatedPost } = usePost({ id: item.id }, item);
+  const post = updatedPost ?? item;
+
+  const handleLayout = useCallback(() => {
+    onLayout?.(post, index);
+  }, [onLayout, post, index]);
+
+  const unreadDivider = showUnreadDivider ? (
+    <ChannelDivider
+      timestamp={post.receivedAt}
+      unreadCount={unreadCount ?? 0}
+      isFirstPostOfDay={showDayDivider}
+      channelInfo={{ id: channelId, type: channelType }}
+      index={index}
+    />
+  ) : null;
+
+  const dayDivider =
+    showDayDivider && !showUnreadDivider && channelType === 'chat' ? (
+      <ChannelDivider
+        unreadCount={0}
+        timestamp={post.receivedAt}
+        index={index}
+      />
+    ) : null;
+
+  return (
+    <View onLayout={handleLayout}>
+      {channelType !== 'gallery' ? unreadDivider ?? dayDivider : null}
+      <PressableMessage
+        ref={messageRef}
+        isActive={activeMessage?.id === post.id}
+      >
+        <Component
+          currentUserId={currentUserId}
+          post={post}
+          editing={editingPost && editingPost?.id === item.id}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          showAuthor={showAuthor}
+          showReplies={showReplies}
+          onPressReplies={onPressReplies}
+          onPressImage={onPressImage}
+          onLongPress={onLongPressPost}
+          onPress={onPressPost}
+        />
+      </PressableMessage>
+      {channelType === 'gallery' ? unreadDivider : null}
+    </View>
+  );
+};
 
 const PressableMessage = forwardRef<
   RNView,
