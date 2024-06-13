@@ -29,7 +29,7 @@ import {
 import Animated from 'react-native-reanimated';
 import { useStyle, useTheme } from 'tamagui';
 
-import { useRequests } from '../../contexts/requests';
+import { useLivePost } from '../../contexts/requests';
 import { useScrollDirectionTracker } from '../../contexts/scroll';
 import { Modal, View, XStack } from '../../core';
 import { Button } from '../Button';
@@ -523,9 +523,7 @@ const ScrollerItem = ({
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
 }) => {
-  const { usePost } = useRequests();
-  const { data: updatedPost } = usePost({ id: item.id }, item);
-  const post = updatedPost ?? item;
+  const post = useLivePost(item);
 
   const handleLayout = useCallback(() => {
     onLayout?.(post, index);

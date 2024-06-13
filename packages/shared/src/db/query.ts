@@ -6,7 +6,7 @@ import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { TableName } from './types';
 
-const logger = createDevLogger('query', true);
+const logger = createDevLogger('query', false);
 
 export interface QueryMeta<TOptions> {
   /**

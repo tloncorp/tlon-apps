@@ -1,22 +1,6 @@
-import { useEffect } from 'react';
-
 import { queryClient } from '../api';
 
-type PostChangeListener = (changes: Record<string, string[]>) => void;
-const listeners: PostChangeListener[] = [];
 let postEvents: Record<string, string[]> = {};
-
-export function useDatabasePostChangeListener(cb: PostChangeListener) {
-  useEffect(() => {
-    listeners.push(cb);
-    return () => {
-      const index = listeners.indexOf(cb);
-      if (index !== -1) {
-        listeners.splice(index, 1);
-      }
-    };
-  }, [cb]);
-}
 
 /**
  * Flush current pending change batch
