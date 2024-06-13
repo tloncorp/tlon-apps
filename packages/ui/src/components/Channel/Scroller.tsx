@@ -113,6 +113,8 @@ export default function Scroller({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
   const filteredPosts = useMemo(() => {
     const postsWithContent = posts?.filter((post) => {
       const { blocks, inlines, references } = extractContentTypesFromPost(post);
@@ -422,11 +424,23 @@ export default function Scroller({
       // we're starting at an older post and scrolling down towards newer ones,
       // as it will trigger on every new page load, causing jumping. Instead, we
       // only enable it when there's nothing newer left to load (so, for new incoming messages only).
-      autoscrollToTopThreshold: hasNewerPosts ? 0 : undefined,
+      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
     };
   }, [hasNewerPosts]);
 
-  const handleScroll = useScrollDirectionTracker();
+  const handleScroll = useScrollDirectionTracker(setIsAtBottom);
+
+  const scrollToBottom = useCallback(() => {
+    if (flatListRef.current && isAtBottom) {
+      logger.log('scrolling to bottom');
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [isAtBottom]);
+
+  // Scroll to bottom when new messages are received
+  useEffect(() => {
+    scrollToBottom();
+  }, [filteredPosts?.length, scrollToBottom]);
 
   return (
     <View flex={1}>
