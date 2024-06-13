@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,8 +16,6 @@ interface Props {
   channels: db.Channel[];
   contacts: db.Contact[];
   onSelect: (channel: db.Channel) => void;
-  sortBy: 'recency' | 'arranged';
-  setSortBy: (sortBy: 'recency' | 'arranged') => void;
 }
 
 export function ChannelSwitcherSheet({
@@ -27,15 +25,32 @@ export function ChannelSwitcherSheet({
   channels,
   onSelect,
   contacts,
-  sortBy,
-  setSortBy,
 }: Props) {
   const [hasOpened, setHasOpened] = useState(open);
+  const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const { bottom } = useSafeAreaInsets();
 
   useEffect(() => {
     setHasOpened(open);
   }, [open]);
+
+  useEffect(() => {
+    const getSortByPreference = async () => {
+      const preference = await db.getChannelSortPreference();
+      setSortBy(preference ?? 'recency');
+    };
+
+    getSortByPreference();
+  }, [setSortBy]);
+
+  const handleSortByChanged = useCallback(
+    (newSortBy: 'recency' | 'arranged') => {
+      setSortBy(newSortBy);
+      db.storeChannelSortPreference(newSortBy);
+    },
+    []
+  );
+
   return (
     <ContactsProvider contacts={contacts}>
       <Sheet
@@ -64,7 +79,7 @@ export function ChannelSwitcherSheet({
                 onPress={() => {
                   const newSortBy =
                     sortBy === 'recency' ? 'arranged' : 'recency';
-                  setSortBy(newSortBy);
+                  handleSortByChanged(newSortBy);
                 }}
               >
                 <XStack

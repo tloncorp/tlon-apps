@@ -246,8 +246,6 @@ function SwitcherFixture({
       open={switcher.isOpen}
       onOpenChange={switcher.toggle}
       group={group}
-      sortBy="recency"
-      setSortBy={() => {}}
       channels={group.channels || []}
       onSelect={(channel: db.Channel) => {
         switcher.setActiveChannel(channel);

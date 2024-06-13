@@ -959,6 +959,9 @@ importers:
 
   packages/shared:
     dependencies:
+      '@react-native-async-storage/async-storage':
+        specifier: 1.21.0
+        version: 1.21.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))
       '@tanstack/react-query':
         specifier: ^5.32.1
         version: 5.32.1(react@18.2.0)

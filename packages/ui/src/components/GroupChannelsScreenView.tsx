@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScrollView, View } from '../core';
@@ -26,18 +26,32 @@ export function GroupChannelsScreenView({
   channels,
   onChannelPressed,
   onBackPressed,
-  sortBy,
-  setSortBy,
 }: {
   group: db.Group | undefined | null;
   channels: db.Channel[] | undefined | null;
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
-  sortBy: 'recency' | 'arranged';
-  setSortBy: (sortBy: 'recency' | 'arranged') => void;
 }) {
   const [showSortOptions, setShowSortOptions] = useState(false);
+  const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const getSortByPreference = async () => {
+      const preference = await db.getChannelSortPreference();
+      setSortBy(preference ?? 'recency');
+    };
+
+    getSortByPreference();
+  }, [setSortBy]);
+
+  const handleSortByChanged = useCallback(
+    (newSortBy: 'recency' | 'arranged') => {
+      setSortBy(newSortBy);
+      db.storeChannelSortPreference(newSortBy);
+    },
+    []
+  );
 
   return (
     <View flex={1}>
@@ -68,7 +82,7 @@ export function GroupChannelsScreenView({
       <ActionSheet open={showSortOptions} onOpenChange={setShowSortOptions}>
         <ActionSheet.Action
           action={() => {
-            setSortBy('recency');
+            handleSortByChanged('recency');
             setShowSortOptions(false);
           }}
           primary={sortBy === 'recency'}
@@ -77,7 +91,7 @@ export function GroupChannelsScreenView({
         </ActionSheet.Action>
         <ActionSheet.Action
           action={() => {
-            setSortBy('arranged');
+            handleSortByChanged('arranged');
             setShowSortOptions(false);
           }}
           primary={sortBy === 'arranged'}

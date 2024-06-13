@@ -11,10 +11,6 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
 
-import {
-  getChannelSortPreference,
-  setChannelSortPreference,
-} from '../lib/channelSortPreference';
 import type { HomeStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
@@ -34,9 +30,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   const [currentChannelId, setCurrentChannelId] = React.useState(
     props.route.params.channel.id
   );
-  const [sortByPreference, setSortByPrefence] = React.useState<
-    'recency' | 'arranged'
-  >(() => getChannelSortPreference());
 
   const {
     negotiationStatus,
@@ -129,14 +122,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
-  const handleSortByChanged = useCallback(
-    (newSortBy: 'recency' | 'arranged') => {
-      setSortByPrefence(newSortBy);
-      setChannelSortPreference(newSortBy);
-    },
-    []
-  );
-
   if (!channel) {
     return null;
   }
@@ -185,8 +170,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           channels={group?.channels || []}
           contacts={contacts ?? []}
           onSelect={handleChannelSelected}
-          sortBy={sortByPreference}
-          setSortBy={handleSortByChanged}
         />
       )}
     </>
