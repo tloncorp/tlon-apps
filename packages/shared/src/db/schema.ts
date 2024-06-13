@@ -297,6 +297,7 @@ export const groupRolesRelations = relations(groupRoles, ({ one, many }) => ({
     references: [groups.id],
   }),
   writeChannels: many(channelWriters),
+  readChannels: many(channelReaders),
 }));
 
 export const chatMembers = sqliteTable(
@@ -449,6 +450,34 @@ export const groupRankBanRelations = relations(groupRankBans, ({ one }) => ({
     references: [groups.id],
   }),
 }));
+
+export const channelReaders = sqliteTable(
+  'channel_readers',
+  {
+    channelId: text('channel_id').notNull(),
+    roleId: text('role_id').notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.channelId, table.roleId],
+      }),
+    };
+  }
+);
+
+export const channelReaderRelations = relations(channelReaders, ({ one }) => {
+  return {
+    channel: one(channels, {
+      fields: [channelReaders.channelId],
+      references: [channels.id],
+    }),
+    role: one(groupRoles, {
+      fields: [channelReaders.roleId],
+      references: [groupRoles.id],
+    }),
+  };
+});
 
 export const channelWriters = sqliteTable(
   'channel_writers',
@@ -624,6 +653,7 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   threadUnreads: many(threadUnreads),
   members: many(chatMembers),
   writerRoles: many(channelWriters),
+  readerRoles: many(channelReaders),
 }));
 
 export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';

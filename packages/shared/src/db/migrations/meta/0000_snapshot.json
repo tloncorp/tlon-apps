@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "a915535c-398f-4ff2-8976-e24c32de716d",
+  "id": "b17bf0fc-9f22-49ea-8a99-ae21988e257a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -115,6 +115,37 @@
             "id"
           ],
           "name": "activity_events_id_bucket_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "channel_readers": {
+      "name": "channel_readers",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role_id": {
+          "name": "role_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "channel_readers_channel_id_role_id_pk": {
+          "columns": [
+            "channel_id",
+            "role_id"
+          ],
+          "name": "channel_readers_channel_id_role_id_pk"
         }
       },
       "uniqueConstraints": {}

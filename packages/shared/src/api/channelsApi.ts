@@ -82,22 +82,27 @@ export const subscribeToChannelsUpdates = async (
   );
 };
 
-export function toClientChannelsInit(channels: ub.Channels) {
+export function toClientChannelsInit(
+  channels: ub.Channels,
+  readersMap: Record<string, string[]>
+) {
   return Object.entries(channels).map(([id, channel]) => {
-    return toClientChannelInit(id, channel);
+    return toClientChannelInit(id, channel, readersMap[id] ?? []);
   });
 }
 
 export type ChannelInit = {
   channelId: string;
   writers: string[];
+  readers: string[];
 };
 
 export function toClientChannelInit(
   id: string,
-  channel: ub.Channel
+  channel: ub.Channel,
+  readers: string[]
 ): ChannelInit {
-  return { channelId: id, writers: channel.perms.writers ?? [] };
+  return { channelId: id, writers: channel.perms.writers ?? [], readers };
 }
 
 export const toChannelsUpdate = (

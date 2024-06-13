@@ -18,6 +18,26 @@ export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
   'pushNotifications',
 ];
 
+export type ChannelSortPreference = 'recency' | 'arranged';
+export async function storeChannelSortPreference(
+  sortPreference: ChannelSortPreference
+) {
+  try {
+    await AsyncStorage.setItem('channelSortPreference', sortPreference);
+  } catch (error) {
+    logger.error('storeChannelSortPreference', error);
+  }
+}
+
+export async function getChannelSortPreference() {
+  try {
+    const value = await AsyncStorage.getItem('channelSortPreference');
+    return (value ?? 'recency') as ChannelSortPreference;
+  } catch (error) {
+    logger.error('getChannelSortPreference', error);
+  }
+}
+
 export async function storeVolumeSettings(volumeSettings: ub.VolumeSettings) {
   await AsyncStorage.setItem('volumeSettings', JSON.stringify(volumeSettings));
   queryClient.invalidateQueries({ queryKey: VOLUME_SETTINGS_QUERY_KEY });

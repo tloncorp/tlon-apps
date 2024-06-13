@@ -16,6 +16,12 @@ CREATE TABLE `activity_events` (
 	PRIMARY KEY(`bucket_id`, `id`)
 );
 --> statement-breakpoint
+CREATE TABLE `channel_readers` (
+	`channel_id` text NOT NULL,
+	`role_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `role_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `channel_writers` (
 	`channel_id` text NOT NULL,
 	`role_id` text NOT NULL,

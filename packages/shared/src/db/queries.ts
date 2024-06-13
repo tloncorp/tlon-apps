@@ -45,6 +45,7 @@ import {
 } from './query';
 import {
   activityEvents as $activityEvents,
+  channelReaders as $channelReaders,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
@@ -565,6 +566,23 @@ export const insertChannelPerms = createWriteQuery(
         roleId: writer,
       }))
     );
+
+    const readers = channelsInit.flatMap((chanInit) =>
+      chanInit.readers.map((reader) => ({
+        channelId: chanInit.channelId,
+        roleId: reader,
+      }))
+    );
+
+    if (readers.length > 0) {
+      return ctx.db
+        .insert($channelReaders)
+        .values(readers)
+        .onConflictDoUpdate({
+          target: [$channelReaders.channelId, $channelReaders.roleId],
+          set: conflictUpdateSetAll($channelReaders),
+        });
+    }
 
     if (writers.length === 0) {
       return;
@@ -1491,18 +1509,62 @@ export const getChannelNavSection = createReadQuery(
   ['groupNavSectionChannels']
 );
 
+/* This sets which channels the current user is a member of, which is what we key off of
+when determining channels to show in the UI. There's no direct setting for this on
+the backend. Instead we look at two things:
+   1) do you have an unreads entry for the channel?
+   2) if you do, do you have read permissions for it?
+    Read permissions are stored as an array of roles. If the array is empty, anyone
+    can read the channel. If it's not empty, we check to make sure the user has one of the
+    reader roles.
+*/
 export const setJoinedGroupChannels = createWriteQuery(
   'setJoinedGroupChannels',
   async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (channelIds.length === 0) return;
+
+    const channels = await ctx.db.query.channels.findMany({
+      with: {
+        readerRoles: true,
+        group: {
+          with: {
+            roles: {
+              with: {
+                members: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const channelsIndex = new Map<string, Channel>();
+    for (const channel of channels) {
+      channelsIndex.set(channel.id, channel);
+    }
+
+    const channelsWhereMember = channelIds.filter((id) => {
+      const channel = channelsIndex.get(id);
+      const isOpenChannel = channel?.readerRoles?.length === 0;
+
+      const userRolesForGroup =
+        channel?.group?.roles
+          ?.filter((role) =>
+            role.members?.map((m) => m.contactId).includes(currentUserId)
+          )
+          .map((role) => role.id) ?? [];
+
+      const isClosedButCanRead = channel?.readerRoles
+        ?.map((r) => r.roleId)
+        .some((r) => userRolesForGroup.includes(r));
+      return isOpenChannel || isClosedButCanRead;
+    });
 
     logger.log('setJoinedGroupChannels', channelIds);
     return await ctx.db
       .update($channels)
       .set({
-        currentUserIsMember: channelIds.length
-          ? inArray($channels.id, channelIds)
-          : false,
+        currentUserIsMember: inArray($channels.id, channelsWhereMember),
       })
       .where(isNotNull($channels.groupId));
   },
