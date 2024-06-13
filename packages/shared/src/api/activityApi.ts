@@ -211,6 +211,7 @@ export type ActivityEvent =
       activity: db.Unread;
     }
   | { type: 'updateThreadActivity'; activity: db.ThreadUnreadState }
+  | { type: 'updateGroupUnread'; unread: db.GroupUnread }
   | {
       type: 'updateVolumeSetting';
       update: VolumeUpdate;
@@ -265,6 +266,13 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
               summary,
               'dm-thread' in source ? 'dm' : 'channel'
             ),
+          });
+        }
+
+        if ('group' in source) {
+          return handler({
+            type: 'updateGroupUnread',
+            unread: toGroupUnread(source.group, summary),
           });
         }
       }
@@ -576,7 +584,6 @@ export async function adjustVolumeSetting(
 export async function setPushNotificationsSetting(
   allow: ub.PushNotificationsSetting
 ) {
-  logger.log(`bl: api setting notifications to ${allow}`);
   const action = activityAction({ 'allow-notifications': allow });
   return poke(action);
 }
@@ -589,6 +596,7 @@ export async function getPushNotificationsSetting(): Promise<ub.PushNotification
 }
 
 export type ActivityUpdateQueue = {
+  groupUnreads: db.GroupUnread[];
   channelActivity: db.Unread[];
   threadActivity: db.ThreadUnreadState[];
   channelVolumeUpdates: db.ChannelVolume[];
@@ -599,11 +607,13 @@ export type ActivityUpdateQueue = {
 };
 
 export type ActivityInit = {
+  groupUnreads: db.GroupUnread[];
   channelActivity: db.Unread[];
   threadActivity: db.ThreadUnreadState[];
 };
 
 export const toClientActivity = (activity: ub.Activity): ActivityInit => {
+  const groupUnreads: db.GroupUnread[] = [];
   const channelActivity: db.Unread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
 
@@ -613,6 +623,12 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
     if (activityId === 'ship' || activityId === 'club') {
       const channelId = rest.join('/');
       channelActivity.push(toChannelActivity(channelId, summary, 'dm'));
+    }
+
+    if (activityId === 'group') {
+      const groupId = rest.join('/');
+      logger.log(`bl: found group unread`, groupId);
+      groupUnreads.push(toGroupUnread(groupId, summary));
     }
 
     if (activityId === 'channel') {
@@ -637,7 +653,19 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
     // discard everything else for now
   });
 
-  return { channelActivity, threadActivity };
+  return { channelActivity, threadActivity, groupUnreads };
+};
+
+export const toGroupUnread = (
+  groupId: string,
+  summary: ub.ActivitySummary
+): db.GroupUnread => {
+  return {
+    groupId,
+    count: summary.count,
+    notify: summary.notify,
+    updatedAt: summary.recency,
+  };
 };
 
 export const toChannelActivity = (

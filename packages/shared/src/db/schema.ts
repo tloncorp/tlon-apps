@@ -142,6 +142,20 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
   }),
 }));
 
+export const groupUnreads = sqliteTable('group_unreads', {
+  groupId: text('channel_id').primaryKey(),
+  notify: boolean('notify'),
+  count: integer('count'),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
+export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupUnreads.groupId],
+    references: [groups.id],
+  }),
+}));
+
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export const activityEvents = sqliteTable(
   'activity_events',
@@ -253,6 +267,10 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   lastPost: one(posts, {
     fields: [groups.lastPostId],
     references: [posts.id],
+  }),
+  unread: one(groupUnreads, {
+    fields: [groups.id],
+    references: [groupUnreads.groupId],
   }),
 }));
 

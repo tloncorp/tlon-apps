@@ -153,6 +153,13 @@ CREATE TABLE `group_roles` (
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `group_unreads` (
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`notify` integer,
+	`count` integer,
+	`updated_at` integer NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `groups` (
 	`id` text PRIMARY KEY NOT NULL,
 	`icon_image` text,

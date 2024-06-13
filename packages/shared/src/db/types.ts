@@ -36,6 +36,7 @@ type BaseModel<T extends TableName> = InferModelFromColumns<
 export type Contact = BaseModel<'contacts'>;
 export type ContactPinnedGroups = Contact['pinnedGroups'];
 export type Unread = BaseModel<'unreads'>;
+export type GroupUnread = BaseModel<'groupUnreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
 export type ActivityBucket = schema.ActivityBucket;
 // TODO: We need to include unread count here because it's  returned by the chat

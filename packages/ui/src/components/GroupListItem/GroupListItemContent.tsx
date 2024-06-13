@@ -17,8 +17,7 @@ export default function GroupListItemContent({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) {
-  const { data: unreadCount } = store.useGroupUnreadsCount(model.id);
-  const countToShow = unreadCount ?? 0;
+  const countToShow = model.unread?.count ?? 0;
   const { disableAvatars } = useCalm();
   // Fallback color for calm mode or unset colors
   const colors = { backgroundColor: '$secondaryBackground' };

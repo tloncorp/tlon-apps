@@ -108,7 +108,9 @@ export const syncDms = async () => {
 };
 
 export const syncUnreads = async () => {
-  const { channelActivity, threadActivity } = await api.getUnreads();
+  const { groupUnreads, channelActivity, threadActivity } =
+    await api.getUnreads();
+  await db.insertGroupUnreads(groupUnreads);
   await db.insertUnreads(channelActivity);
   await db.insertThreadActivity(threadActivity);
 
@@ -123,7 +125,8 @@ const handleInitialUnreads = async (
   activity: api.ActivityInit,
   ctx?: QueryCtx
 ) => {
-  const { channelActivity, threadActivity } = activity;
+  const { groupUnreads, channelActivity, threadActivity } = activity;
+  await db.insertGroupUnreads(groupUnreads);
   await db.insertUnreads(channelActivity);
   await db.insertThreadActivity(threadActivity);
 
@@ -345,6 +348,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 
 const handleActivityUpdate = (queueDebounce: number = 100) => {
   const queue: api.ActivityUpdateQueue = {
+    groupUnreads: [],
     channelActivity: [],
     threadActivity: [],
     volumeSettings: [],
@@ -356,6 +360,7 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
   const processQueue = _.debounce(
     async () => {
       const activitySnapshot = _.cloneDeep(queue);
+      queue.groupUnreads = [];
       queue.channelActivity = [];
       queue.threadActivity = [];
       queue.volumeSettings = [];
@@ -366,6 +371,7 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
 
       logger.log(
         `processing activity queue`,
+        activitySnapshot.groupUnreads.length,
         activitySnapshot.channelActivity.length,
         activitySnapshot.threadActivity.length,
         activitySnapshot.volumeSettings.length,
@@ -374,9 +380,9 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
         activitySnapshot.threadVolumeUpdates.length,
         activitySnapshot.activityEvents.length
       );
+      await db.insertGroupUnreads(activitySnapshot.groupUnreads);
       await db.insertUnreads(activitySnapshot.channelActivity);
       await db.insertThreadActivity(activitySnapshot.threadActivity);
-      // await db.mergeVolumeSettings(activitySnapshot.volumeSettings);
       await db.setChannelVolumes(activitySnapshot.channelVolumeUpdates);
       await db.setGroupVolumes(activitySnapshot.groupVolumeUpdates);
       await db.setThreadVolumes(activitySnapshot.threadVolumeUpdates);
@@ -397,6 +403,9 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
   return (event: api.ActivityEvent) => {
     logger.log('received activity event', event);
     switch (event.type) {
+      case 'updateGroupUnread':
+        queue.groupUnreads.push(event.unread);
+        break;
       case 'updateChannelActivity':
         queue.channelActivity.push(event.activity);
         break;

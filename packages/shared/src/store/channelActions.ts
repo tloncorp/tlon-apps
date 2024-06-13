@@ -36,6 +36,15 @@ export async function markChannelRead(channel: db.Channel) {
     await db.clearChannelUnread(channel.id);
   }
 
+  const existingCount = existingUnread?.count ?? 0;
+  if (channel.groupId && existingCount > 0) {
+    // optimitically update group unread count
+    await db.updateGroupUnreadCount({
+      groupId: channel.groupId,
+      decrement: existingCount,
+    });
+  }
+
   try {
     await api.readChannel(channel);
   } catch (e) {
@@ -66,6 +75,21 @@ export async function markThreadRead({
       channelId: channel.id,
       threadId: parentPost.id,
     });
+
+    const existingCount = existingUnread.count ?? 0;
+    if (existingCount > 0) {
+      // optimistic updately update channel & group counts
+      await db.updateChannelUnreadCount({
+        channelId: channel.id,
+        decrement: existingCount,
+      });
+      if (channel.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount,
+        });
+      }
+    }
   }
 
   try {

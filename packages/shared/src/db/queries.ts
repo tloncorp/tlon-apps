@@ -58,6 +58,7 @@ import {
   groupNavSections as $groupNavSections,
   groupRankBans as $groupRankBans,
   groupRoles as $groupRoles,
+  groupUnreads as $groupUnreads,
   groups as $groups,
   pins as $pins,
   postReactions as $postReactions,
@@ -78,6 +79,7 @@ import {
   Group,
   GroupNavSection,
   GroupRole,
+  GroupUnread,
   Pin,
   PinType,
   Post,
@@ -246,6 +248,7 @@ export const getChats = createReadQuery(
       .select({
         ...allQueryColumns(allChannels),
         group: getTableColumns($groups),
+        groupUnread: getTableColumns($groupUnreads),
         unread: getTableColumns($unreads),
         pin: getTableColumns($pins),
         lastPost: getTableColumns($posts),
@@ -256,6 +259,7 @@ export const getChats = createReadQuery(
       })
       .from(allChannels)
       .leftJoin($groups, eq($groups.id, allChannels.groupId))
+      .leftJoin($groupUnreads, eq($groupUnreads.groupId, allChannels.groupId))
       .leftJoin($unreads, eq($unreads.channelId, allChannels.id))
       .leftJoin(
         $pins,
@@ -299,6 +303,12 @@ export const getChats = createReadQuery(
       return {
         ...c,
         members: chatMembers[c.id] ?? null,
+        group: !c.group
+          ? null
+          : {
+              ...c.group,
+              unread: c.groupUnread,
+            },
       };
     });
   },
@@ -2356,6 +2366,44 @@ export const deleteContact = createWriteQuery(
   ['contacts']
 );
 
+export const insertGroupUnreads = createWriteQuery(
+  'insertGroupUnreads',
+  async (unreads: GroupUnread[], ctx: QueryCtx) => {
+    if (!unreads.length) return;
+    return ctx.db
+      .insert($groupUnreads)
+      .values(unreads)
+      .onConflictDoUpdate({
+        target: [$groupUnreads.groupId],
+        set: conflictUpdateSetAll($groupUnreads),
+      });
+  },
+  ['groups', 'groupUnreads']
+);
+
+export const updateGroupUnreadCount = createWriteQuery(
+  'updateGroupUnreadCount',
+  async (
+    { groupId, decrement }: { groupId: string; decrement: number },
+    ctx: QueryCtx
+  ) => {
+    const existingUnread = await ctx.db.query.groupUnreads.findFirst({
+      where: eq($groupUnreads.groupId, groupId),
+    });
+
+    if (existingUnread) {
+      const existingCount = existingUnread.count ?? 0;
+      if (existingCount && existingCount - decrement >= 0) {
+        return ctx.db
+          .update($groupUnreads)
+          .set({ count: existingCount - decrement })
+          .where(eq($groupUnreads.groupId, groupId));
+      }
+    }
+  },
+  ['groupUnreads']
+);
+
 export const insertUnreads = createWriteQuery(
   'insertUnreads',
   async (unreads: Unread[], ctx: QueryCtx) => {
@@ -2396,6 +2444,29 @@ export const clearChannelUnread = createWriteQuery(
       .where(eq($unreads.channelId, channelId));
   },
   ['unreads']
+);
+
+export const updateChannelUnreadCount = createWriteQuery(
+  'updateGroupUnreadCount',
+  async (
+    { channelId, decrement }: { channelId: string; decrement: number },
+    ctx: QueryCtx
+  ) => {
+    const existingUnread = await ctx.db.query.unreads.findFirst({
+      where: eq($unreads.channelId, channelId),
+    });
+
+    if (existingUnread) {
+      const existingCount = existingUnread.count ?? 0;
+      if (existingCount && existingCount - decrement >= 0) {
+        return ctx.db
+          .update($unreads)
+          .set({ count: existingCount - decrement })
+          .where(eq($unreads.channelId, channelId));
+      }
+    }
+  },
+  ['groupUnreads']
 );
 
 export const insertThreadActivity = createWriteQuery(
