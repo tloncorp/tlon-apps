@@ -33,18 +33,10 @@ export default function ChannelNavSections({
     () =>
       channels && sortBy === 'recency'
         ? [...channels].sort((a, b) => {
-            const aFirstUnreadReceivedAt = a.unread?.firstUnreadPostReceivedAt;
-            const bFirstUnreadReceivedAt = b.unread?.firstUnreadPostReceivedAt;
+            const aLastPostAt = a.lastPostAt || 0;
+            const bLastPostAt = b.lastPostAt || 0;
 
-            if (aFirstUnreadReceivedAt && bFirstUnreadReceivedAt) {
-              return bFirstUnreadReceivedAt - aFirstUnreadReceivedAt;
-            } else if (aFirstUnreadReceivedAt) {
-              return -1;
-            } else if (bFirstUnreadReceivedAt) {
-              return 1;
-            } else {
-              return 0;
-            }
+            return bLastPostAt - aLastPostAt;
           })
         : [],
     [channels, sortBy]
