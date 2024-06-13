@@ -8,6 +8,7 @@ import {
   syncContacts,
   syncInitData,
   syncLatestPosts,
+  syncPushNotificationsSetting,
   syncSettings,
   syncStaleChannels,
   syncVolumeSettings,
@@ -31,6 +32,7 @@ export const useInitialSync = () => {
         initializeStorage(),
         syncSettings(),
         syncVolumeSettings(),
+        syncPushNotificationsSetting(),
         resetActivity(),
       ]).catch((e) => {
         handleSyncError(e);

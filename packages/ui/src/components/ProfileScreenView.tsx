@@ -36,7 +36,8 @@ type NotificationState = { open: boolean; setting: 1 | 2 | 3 };
 
 export function Wrapped(props: Props) {
   const [loading, setLoading] = useState<string | null>(null);
-  const defaultNotificationLevel = store.useDefaultNotificationLevel();
+  const { data: pushNotificationsSetting } =
+    store.usePushNotificationsSetting();
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
   const [notifState, setNotifState] = useState<NotificationState>({
@@ -45,22 +46,22 @@ export function Wrapped(props: Props) {
   });
 
   const setLevel = useCallback(
-    async (level: ub.NotificationLevel) => {
-      if (level === defaultNotificationLevel) return;
+    async (level: ub.PushNotificationsSetting) => {
+      if (level === pushNotificationsSetting) return;
       setLoading(level);
       await store.setDefaultNotificationLevel(level);
       setLoading(null);
     },
-    [defaultNotificationLevel]
+    [pushNotificationsSetting]
   );
 
   const LevelIndicator = useCallback(
-    (props: { level: ub.NotificationLevel }) => {
+    (props: { level: ub.PushNotificationsSetting }) => {
       if (loading === props.level) {
         return <LoadingSpinner />;
       }
 
-      if (defaultNotificationLevel === props.level) {
+      if (pushNotificationsSetting === props.level) {
         return (
           <View
             height="$2xl"
@@ -83,7 +84,7 @@ export function Wrapped(props: Props) {
         />
       );
     },
-    [defaultNotificationLevel, loading]
+    [pushNotificationsSetting, loading]
   );
 
   // TODO: implement real UI once designs are ready
@@ -147,13 +148,13 @@ export function Wrapped(props: Props) {
             </SizableText>
 
             <YStack marginLeft="$m" marginTop="$3xl">
-              <XStack onPress={() => setLevel('loud')}>
-                <LevelIndicator level="loud" />
+              <XStack onPress={() => setLevel('all')}>
+                <LevelIndicator level="all" />
                 <SizableText marginLeft="$l">All group activity</SizableText>
               </XStack>
 
-              <XStack marginTop="$xl" onPress={() => setLevel('medium')}>
-                <LevelIndicator level="medium" />
+              <XStack marginTop="$xl" onPress={() => setLevel('some')}>
+                <LevelIndicator level="some" />
                 <YStack marginLeft="$l">
                   <SizableText>Mentions and replies only</SizableText>
                   <SizableText
@@ -167,8 +168,8 @@ export function Wrapped(props: Props) {
                 </YStack>
               </XStack>
 
-              <XStack marginTop="$xl" onPress={() => setLevel('soft')}>
-                <LevelIndicator level="soft" />
+              <XStack marginTop="$xl" onPress={() => setLevel('none')}>
+                <LevelIndicator level="none" />
                 <SizableText marginLeft="$l">Nothing</SizableText>
               </XStack>
             </YStack>

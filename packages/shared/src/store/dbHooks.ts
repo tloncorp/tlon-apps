@@ -157,15 +157,11 @@ export const useGroupIsMuted = (group: db.Group): boolean => {
   return isMuted;
 };
 
-export const useDefaultNotificationLevel = (): NotificationLevel => {
-  const { data: volumeSettings } = useVolumeSettings();
-  if (volumeSettings) {
-    const volumeMap = volumeSettings.base;
-    if (volumeMap) {
-      return getLevelFromVolumeMap(volumeMap);
-    }
-  }
-  return 'loud';
+export const usePushNotificationsSetting = () => {
+  return useQuery({
+    queryKey: db.PUSH_NOTIFICATIONS_SETTING_QUERY_KEY,
+    queryFn: db.getPushNotificationsSetting,
+  });
 };
 
 export const useContact = (options: { id: string }) => {

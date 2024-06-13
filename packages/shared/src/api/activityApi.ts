@@ -224,6 +224,10 @@ export type ActivityEvent =
       volumeUpdate: db.ThreadVolume;
     }
   | { type: 'updateChannelVolume'; volumeUpdate: db.ChannelVolume }
+  | {
+      type: 'updatePushNotificationsSetting';
+      value: ub.PushNotificationsSetting;
+    }
   | { type: 'addActivityEvent'; event: db.ActivityEvent };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
@@ -313,6 +317,15 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         return handler({
           type: 'updateVolumeSetting',
           update: { sourceId, volume },
+        });
+      }
+
+      if ('allow-notifications' in update) {
+        const notifsAllowed = update['allow-notifications'];
+
+        return handler({
+          type: 'updatePushNotificationsSetting',
+          value: notifsAllowed,
         });
       }
 
@@ -558,6 +571,21 @@ export async function adjustVolumeSetting(
 ) {
   const action = activityAction({ adjust: { source, volume } });
   return poke(action);
+}
+
+export async function setPushNotificationsSetting(
+  allow: ub.PushNotificationsSetting
+) {
+  logger.log(`bl: api setting notifications to ${allow}`);
+  const action = activityAction({ 'allow-notifications': allow });
+  return poke(action);
+}
+
+export async function getPushNotificationsSetting(): Promise<ub.PushNotificationsSetting> {
+  return scry<ub.PushNotificationsSetting>({
+    app: 'activity',
+    path: '/notifications-allowed',
+  });
 }
 
 export type ActivityUpdateQueue = {

@@ -13,6 +13,10 @@ export const ACTIVITY_SEEN_MARKER_QUERY_KEY = [
   'activitySeenMarker',
 ];
 export const ACTIVITY_BUCKET_CURSORS_QUERY_KEY = ['activity', 'bucketCursors'];
+export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
+  'settings',
+  'pushNotifications',
+];
 
 export async function storeVolumeSettings(volumeSettings: ub.VolumeSettings) {
   await AsyncStorage.setItem('volumeSettings', JSON.stringify(volumeSettings));
@@ -76,4 +80,21 @@ export async function getActivityBucketCursors() {
     mentions: Number(mentions) ?? Infinity,
     replies: Number(replies) ?? Infinity,
   };
+}
+
+export async function setPushNotificationsSetting(
+  value: ub.PushNotificationsSetting
+) {
+  await AsyncStorage.setItem(`settings:pushNotifications`, value);
+  queryClient.invalidateQueries({
+    queryKey: PUSH_NOTIFICATIONS_SETTING_QUERY_KEY,
+  });
+  logger.log('stored push notifications setting');
+}
+
+export async function getPushNotificationsSetting(): Promise<ub.PushNotificationsSetting> {
+  const pushSetting = (await AsyncStorage.getItem(
+    `settings:pushNotifications`
+  )) as ub.PushNotificationsSetting;
+  return pushSetting ?? 'none';
 }

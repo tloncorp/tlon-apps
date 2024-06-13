@@ -159,23 +159,19 @@ export async function unmuteThread({
   }
 }
 
-export async function setDefaultNotificationLevel(level: ub.NotificationLevel) {
-  const existingSettings = await db.getVolumeSettings();
-  const source: ub.Source = { base: null };
-  const sourceId = 'base';
-  const volumeMap = ub.getVolumeMap(level, true);
+export async function setDefaultNotificationLevel(
+  level: ub.PushNotificationsSetting
+) {
+  const currentSetting = await db.getPushNotificationsSetting();
 
   // optimistic update
-  db.mergeVolumeSettings([{ sourceId, volume: ub.getVolumeMap(level, true) }]);
+  await db.setPushNotificationsSetting(level);
 
   try {
-    await api.adjustVolumeSetting(source, volumeMap);
+    await api.setPushNotificationsSetting(level);
   } catch (e) {
     logger.log(`failed to set default notification level`, e);
-    // revert the optimistic update
-    db.mergeVolumeSettings([
-      { sourceId, volume: existingSettings.base ?? null },
-    ]);
+    await db.setPushNotificationsSetting(currentSetting);
   }
 }
 

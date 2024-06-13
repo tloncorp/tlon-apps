@@ -141,6 +141,11 @@ export const resetActivity = async () => {
   resetActivityFetchers();
 };
 
+export const syncPushNotificationsSetting = async () => {
+  const setting = await api.getPushNotificationsSetting();
+  await db.setPushNotificationsSetting(setting);
+};
+
 // export const syncActivityEvents = async () => {
 //   return syncQueue.add('activity', async () => {
 //     const events = await api.getActivityEvents();
@@ -412,6 +417,9 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
         break;
       case 'addActivityEvent':
         queue.activityEvents.push(event.event);
+        break;
+      case 'updatePushNotificationsSetting':
+        db.setPushNotificationsSetting(event.value);
         break;
     }
     processQueue();

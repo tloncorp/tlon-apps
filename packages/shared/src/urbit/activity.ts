@@ -210,11 +210,14 @@ export interface ActivityVolumeAction {
   volume: VolumeMap | null;
 }
 
+export type PushNotificationsSetting = 'all' | 'some' | 'none';
+
 export type ActivityAction =
   | { add: ActivityIncomingEvent }
   | { del: Source }
   | { read: ActivityReadAction }
-  | { adjust: ActivityVolumeAction };
+  | { adjust: ActivityVolumeAction }
+  | { 'allow-notifications': PushNotificationsSetting };
 
 export interface ActivityReadUpdate {
   read: {
@@ -243,11 +246,16 @@ export interface ActivityDeleteUpdate {
   del: Source;
 }
 
+export interface ActivityPushNotificationsSettingUpdate {
+  'allow-notifications': PushNotificationsSetting;
+}
+
 export type ActivityUpdate =
   | ActivityReadUpdate
   | ActivityVolumeUpdate
   | ActivityDeleteUpdate
-  | ActivityAddUpdate;
+  | ActivityAddUpdate
+  | ActivityPushNotificationsSettingUpdate;
 
 export interface FullActivity {
   indices: Indices;
