@@ -31,7 +31,6 @@ export function ChannelSwitcherSheet({
   setSortBy,
 }: Props) {
   const [hasOpened, setHasOpened] = useState(open);
-  // const [sortBy, setSortBy] = useState<'recency' | 'arranged'>('recency');
   const { bottom } = useSafeAreaInsets();
 
   useEffect(() => {
