@@ -9,6 +9,7 @@ import {
   count,
   desc,
   eq,
+  exists,
   getTableColumns,
   gt,
   gte,
@@ -1620,15 +1621,33 @@ function setPostGroups(ctx: QueryCtx) {
       groupId: sql`${ctx.db
         .select({ groupId: $channels.groupId })
         .from($channels)
-        .where(eq($channels.id, $posts.channelId))}`,
+        .where(
+          and(eq($channels.id, $posts.channelId), isNotNull($channels.groupId))
+        )}`,
     })
-    .where(isNull($posts.groupId));
+    .where(
+      and(
+        isNull($posts.groupId),
+        exists(
+          ctx.db
+            .select()
+            .from($channels)
+            .where(
+              and(eq($channels.id, $posts.id), isNotNull($channels.groupId))
+            )
+        )
+      )
+    );
 }
 
 async function setLastPosts(ctx: QueryCtx) {
   const $lastPost = ctx.db.$with('lastPost').as(
     ctx.db
-      .select({ id: $posts.id, receivedAt: $posts.receivedAt })
+      .select({
+        id: $posts.id,
+        channelId: $posts.channelId,
+        receivedAt: $posts.receivedAt,
+      })
       .from($posts)
       .where(
         and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
@@ -1643,7 +1662,19 @@ async function setLastPosts(ctx: QueryCtx) {
     .set({
       lastPostId: sql`(select ${$lastPost.id} from ${$lastPost})`,
       lastPostAt: sql`(select ${$lastPost.receivedAt} from ${$lastPost})`,
-    });
+    })
+    .where(
+      or(
+        isNull($channels.lastPostId),
+        lt(
+          $channels.lastPostId,
+          sql`${ctx.db
+            .select({ id: max($posts.id) })
+            .from($posts)
+            .where(eq($posts.channelId, $channels.id))}`
+        )
+      )
+    );
 
   const $groupLastPost = ctx.db.$with('groupLastPost').as(
     ctx.db
@@ -1665,7 +1696,19 @@ async function setLastPosts(ctx: QueryCtx) {
     .set({
       lastPostId: sql`(select ${$groupLastPost.lastPostId} from ${$groupLastPost})`,
       lastPostAt: sql`(select ${$groupLastPost.lastPostAt} from ${$groupLastPost})`,
-    });
+    })
+    .where(
+      or(
+        isNull($groups.lastPostId),
+        lt(
+          $groups.lastPostId,
+          sql`${ctx.db
+            .select({ id: max($posts.id) })
+            .from($posts)
+            .where(eq($posts.groupId, $groups.id))}`
+        )
+      )
+    );
 }
 
 // Delete any pending posts whose sentAt matches the incoming sentAt.
