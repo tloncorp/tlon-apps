@@ -22,6 +22,17 @@ CREATE TABLE `channel_readers` (
 	PRIMARY KEY(`channel_id`, `role_id`)
 );
 --> statement-breakpoint
+CREATE TABLE `channel_unreads` (
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
+	`notify` integer NOT NULL,
+	`count` integer NOT NULL,
+	`count_without_threads` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`first_unread_post_id` text,
+	`first_unread_post_received_at` integer
+);
+--> statement-breakpoint
 CREATE TABLE `channel_writers` (
 	`channel_id` text NOT NULL,
 	`role_id` text NOT NULL,
@@ -278,17 +289,6 @@ CREATE TABLE `thread_unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
 	PRIMARY KEY(`channel_id`, `thread_id`)
-);
---> statement-breakpoint
-CREATE TABLE `unreads` (
-	`channel_id` text PRIMARY KEY NOT NULL,
-	`type` text NOT NULL,
-	`notify` integer NOT NULL,
-	`count` integer NOT NULL,
-	`count_without_threads` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`first_unread_post_id` text,
-	`first_unread_post_received_at` integer
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint

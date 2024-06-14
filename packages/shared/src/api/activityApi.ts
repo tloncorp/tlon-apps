@@ -208,7 +208,7 @@ export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {
       type: 'updateChannelUnread';
-      activity: db.Unread;
+      activity: db.ChannelUnread;
     }
   | { type: 'updateThreadUnread'; activity: db.ThreadUnreadState }
   | { type: 'updateGroupUnread'; unread: db.GroupUnread }
@@ -596,7 +596,7 @@ export async function getPushNotificationsSetting(): Promise<ub.PushNotification
 
 export type ActivityUpdateQueue = {
   groupUnreads: db.GroupUnread[];
-  channelUnreads: db.Unread[];
+  channelUnreads: db.ChannelUnread[];
   threadUnreads: db.ThreadUnreadState[];
   channelVolumeUpdates: db.ChannelVolume[];
   groupVolumeUpdates: db.GroupVolume[];
@@ -606,13 +606,13 @@ export type ActivityUpdateQueue = {
 
 export type ActivityInit = {
   groupUnreads: db.GroupUnread[];
-  channelUnreads: db.Unread[];
+  channelUnreads: db.ChannelUnread[];
   threadActivity: db.ThreadUnreadState[];
 };
 
 export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
   const groupUnreads: db.GroupUnread[] = [];
-  const channelUnreads: db.Unread[] = [];
+  const channelUnreads: db.ChannelUnread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
 
   Object.entries(activity).forEach(([id, summary]) => {
@@ -672,8 +672,8 @@ export const toGroupUnread = (
 export const toChannelUnread = (
   channelId: string,
   summary: ub.ActivitySummary,
-  type: db.Unread['type']
-): db.Unread & { threadUnreads: db.ThreadUnreadState[] } => {
+  type: db.ChannelUnread['type']
+): db.ChannelUnread & { threadUnreads: db.ThreadUnreadState[] } => {
   const summaryKey = type === 'dm' ? 'id' : 'time';
   const firstUnreadPostId =
     summary.unread && summary.unread[summaryKey]
@@ -698,7 +698,7 @@ export const toThreadUnread = (
   channelId: string,
   threadId: string,
   summary: ub.ActivitySummary,
-  type: db.Unread['type']
+  type: db.ChannelUnread['type']
 ): db.ThreadUnreadState => {
   const summaryKey = type === 'dm' ? 'id' : 'time';
   const firstUnreadPostId =

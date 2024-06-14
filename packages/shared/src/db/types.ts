@@ -35,7 +35,7 @@ type BaseModel<T extends TableName> = InferModelFromColumns<
 
 export type Contact = BaseModel<'contacts'>;
 export type ContactPinnedGroups = Contact['pinnedGroups'];
-export type Unread = BaseModel<'unreads'>;
+export type ChannelUnread = BaseModel<'channelUnreads'>;
 export type GroupUnread = BaseModel<'groupUnreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
 export type ActivityBucket = schema.ActivityBucket;

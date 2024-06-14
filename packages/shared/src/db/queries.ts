@@ -16,7 +16,6 @@ import {
   inArray,
   isNotNull,
   isNull,
-  like,
   lt,
   lte,
   max,
@@ -27,7 +26,6 @@ import {
   sql,
   sum,
 } from 'drizzle-orm';
-import { SqliteRemoteResult } from 'drizzle-orm/sqlite-proxy';
 
 import {
   ACTIVITY_SOURCE_PAGESIZE,
@@ -46,6 +44,7 @@ import {
 import {
   activityEvents as $activityEvents,
   channelReaders as $channelReaders,
+  channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
@@ -67,13 +66,13 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
-  unreads as $unreads,
   activityEvents,
 } from './schema';
 import {
   ActivityBucket,
   ActivityEvent,
   Channel,
+  ChannelUnread,
   ChatMember,
   ClientMeta,
   Contact,
@@ -89,7 +88,6 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
-  Unread,
 } from './types';
 
 const logger = createDevLogger('queries', false);
@@ -158,9 +156,9 @@ export const getGroups = createReadQuery(
         count: count().as('count'),
       })
       .from($channels)
-      .rightJoin($unreads, eq($channels.id, $unreads.channelId))
+      .rightJoin($channelUnreads, eq($channels.id, $channelUnreads.channelId))
       .groupBy($channels.groupId)
-      .having(gt($unreads.count, 0))
+      .having(gt($channelUnreads.count, 0))
       .as('unreadCounts');
     const query = ctx.db
       .select({
@@ -185,7 +183,7 @@ export const getGroups = createReadQuery(
   ({ includeLastPost, includeUnreads }: GetGroupsOptions): TableName[] => [
     'groups',
     ...(includeLastPost ? (['posts'] as TableName[]) : []),
-    ...(includeUnreads ? (['unreads'] as TableName[]) : []),
+    ...(includeUnreads ? (['channelUnreads'] as TableName[]) : []),
   ]
 );
 
@@ -250,7 +248,7 @@ export const getChats = createReadQuery(
         ...allQueryColumns(allChannels),
         group: getTableColumns($groups),
         groupUnread: getTableColumns($groupUnreads),
-        unread: getTableColumns($unreads),
+        unread: getTableColumns($channelUnreads),
         pin: getTableColumns($pins),
         lastPost: getTableColumns($posts),
         member: {
@@ -261,7 +259,7 @@ export const getChats = createReadQuery(
       .from(allChannels)
       .leftJoin($groups, eq($groups.id, allChannels.groupId))
       .leftJoin($groupUnreads, eq($groupUnreads.groupId, allChannels.groupId))
-      .leftJoin($unreads, eq($unreads.channelId, allChannels.id))
+      .leftJoin($channelUnreads, eq($channelUnreads.channelId, allChannels.id))
       .leftJoin(
         $pins,
         or(
@@ -275,7 +273,7 @@ export const getChats = createReadQuery(
       .orderBy(
         ascNullsLast($pins.index),
         sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
-        desc($unreads.updatedAt)
+        desc($channelUnreads.updatedAt)
       );
 
     const [chatMembers, filteredChannels] = result.reduce<
@@ -313,7 +311,7 @@ export const getChats = createReadQuery(
       };
     });
   },
-  ['groups', 'channels', 'posts', 'unreads', 'threadUnreads']
+  ['groups', 'channels', 'posts', 'channelUnreads', 'threadUnreads']
 );
 
 export const insertGroups = createWriteQuery(
@@ -923,22 +921,25 @@ export const removeChatMembers = createWriteQuery(
 
 export const getUnreadsCount = createReadQuery(
   'getUnreadsCount',
-  async ({ type }: { type?: Unread['type'] }, ctx: QueryCtx) => {
+  async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
     const result = await ctx.db
       .select({ count: count() })
-      .from($unreads)
+      .from($channelUnreads)
       .where(() =>
-        and(gt($unreads.count, 0), type ? eq($unreads.type, type) : undefined)
+        and(
+          gt($channelUnreads.count, 0),
+          type ? eq($channelUnreads.type, type) : undefined
+        )
       );
     return result[0]?.count ?? 0;
   },
-  ['unreads']
+  ['channelUnreads']
 );
 
 export interface GetUnreadsOptions {
   orderBy?: 'updatedAt';
   includeFullyRead?: boolean;
-  type?: Unread['type'];
+  type?: ChannelUnread['type'];
 }
 
 export const getUnreads = createReadQuery(
@@ -947,15 +948,16 @@ export const getUnreads = createReadQuery(
     { orderBy = 'updatedAt', includeFullyRead = true, type }: GetUnreadsOptions,
     ctx: QueryCtx
   ) => {
-    return ctx.db.query.unreads.findMany({
+    return ctx.db.query.channelUnreads.findMany({
       where: and(
-        type ? eq($unreads.type, type) : undefined,
-        includeFullyRead ? undefined : gt($unreads.count, 0)
+        type ? eq($channelUnreads.type, type) : undefined,
+        includeFullyRead ? undefined : gt($channelUnreads.count, 0)
       ),
-      orderBy: orderBy === 'updatedAt' ? desc($unreads.updatedAt) : undefined,
+      orderBy:
+        orderBy === 'updatedAt' ? desc($channelUnreads.updatedAt) : undefined,
     });
   },
-  ['unreads']
+  ['channelUnreads']
 );
 
 export const getAllUnreadsCounts = createReadQuery(
@@ -971,7 +973,7 @@ export const getAllUnreadsCounts = createReadQuery(
       total: (channelUnreadCount ?? 0) + (dmUnreadCount ?? 0),
     };
   },
-  ['unreads']
+  ['channelUnreads']
 );
 
 export type ChannelVolume = {
@@ -1147,9 +1149,11 @@ export const getGroupUnreadCount = createReadQuery(
   'getGroupUnreadCount',
   async (groupId: string, ctx: QueryCtx) => {
     const channelsCount = await ctx.db
-      .select({ count: sum($unreads.countWithoutThreads).mapWith(Number) })
-      .from($unreads)
-      .leftJoin($channels, eq($channels.id, $unreads.channelId))
+      .select({
+        count: sum($channelUnreads.countWithoutThreads).mapWith(Number),
+      })
+      .from($channelUnreads)
+      .leftJoin($channels, eq($channels.id, $channelUnreads.channelId))
       .where(
         and(
           eq($channels.groupId, groupId),
@@ -1172,14 +1176,14 @@ export const getGroupUnreadCount = createReadQuery(
 
     return (channelsCount[0]?.count ?? 0) + (threadsCount[0]?.count ?? 0);
   },
-  ['unreads', 'threadUnreads', 'channels']
+  ['channelUnreads', 'threadUnreads', 'channels']
 );
 
 export const getGroupChannelUnreadCount = createReadQuery(
   'getGroupChannelUnreadCount',
   async (channelId: string, ctx: QueryCtx) => {
-    const channel = await ctx.db.query.unreads.findFirst({
-      where: and(eq($unreads.channelId, channelId)),
+    const channel = await ctx.db.query.channelUnreads.findFirst({
+      where: and(eq($channelUnreads.channelId, channelId)),
     });
 
     const threadsCount = await ctx.db
@@ -1194,17 +1198,17 @@ export const getGroupChannelUnreadCount = createReadQuery(
 
     return (channel?.countWithoutThreads ?? 0) + (threadsCount[0]?.count ?? 0);
   },
-  ['unreads', 'threadUnreads', 'channels']
+  ['channelUnreads', 'threadUnreads', 'channels']
 );
 
 export const getChannelUnread = createReadQuery(
   'getChannelUnread',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
-    return ctx.db.query.unreads.findFirst({
-      where: and(eq($unreads.channelId, channelId)),
+    return ctx.db.query.channelUnreads.findFirst({
+      where: and(eq($channelUnreads.channelId, channelId)),
     });
   },
-  ['unreads']
+  ['channelUnreads']
 );
 
 export const getThreadActivity = createReadQuery(
@@ -1220,7 +1224,7 @@ export const getThreadActivity = createReadQuery(
       ),
     });
   },
-  ['unreads', 'threadUnreads']
+  ['channelUnreads', 'threadUnreads']
 );
 
 export const getChannel = createReadQuery(
@@ -1304,21 +1308,21 @@ export const getStaleChannels = createReadQuery(
     return ctx.db
       .select({
         ...getTableColumns($channels),
-        unread: getTableColumns($unreads),
+        unread: getTableColumns($channelUnreads),
       })
       .from($channels)
-      .innerJoin($unreads, eq($unreads.channelId, $channels.id))
+      .innerJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
       .where(
         or(
           isNull($channels.lastPostAt),
-          lt($channels.remoteUpdatedAt, $unreads.updatedAt)
+          lt($channels.remoteUpdatedAt, $channelUnreads.updatedAt)
         )
       )
       .leftJoin(
         $pins,
         or(eq($pins.itemId, $channels.id), eq($pins.itemId, $channels.groupId))
       )
-      .orderBy(ascNullsLast($pins.index), desc($unreads.updatedAt));
+      .orderBy(ascNullsLast($pins.index), desc($channelUnreads.updatedAt));
   },
   ['channels']
 );
@@ -1759,7 +1763,7 @@ export const getChannelPosts = createReadQuery(
       throw new Error('invalid mode');
     }
   },
-  ['posts', 'unreads', 'threadUnreads']
+  ['posts', 'channelUnreads', 'threadUnreads']
 );
 
 export interface GetChannelPostsAroundOptions {
@@ -2276,7 +2280,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'unreads']
+  ['groups', 'channelUnreads']
 );
 
 export const getGroupByChannel = createReadQuery(
@@ -2468,17 +2472,17 @@ export const updateGroupUnreadCount = createWriteQuery(
 
 export const insertChannelUnreads = createWriteQuery(
   'insertChannelUnreads',
-  async (unreads: Unread[], ctx: QueryCtx) => {
+  async (unreads: ChannelUnread[], ctx: QueryCtx) => {
     if (!unreads.length) return;
 
     logger.log('insertChannelUnreads', unreads.length, unreads);
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
-        .insert($unreads)
+        .insert($channelUnreads)
         .values(unreads)
         .onConflictDoUpdate({
-          target: [$unreads.channelId],
-          set: conflictUpdateSetAll($unreads),
+          target: [$channelUnreads.channelId],
+          set: conflictUpdateSetAll($channelUnreads),
         });
       const threadUnreads = unreads.flatMap((u) => {
         return u.threadUnreads ?? [];
@@ -2489,23 +2493,23 @@ export const insertChannelUnreads = createWriteQuery(
           .values(threadUnreads)
           .onConflictDoUpdate({
             target: [$threadUnreads.threadId, $threadUnreads.channelId],
-            set: conflictUpdateSetAll($unreads),
+            set: conflictUpdateSetAll($channelUnreads),
           });
       }
     });
   },
-  ['unreads']
+  ['channelUnreads']
 );
 
 export const clearChannelUnread = createWriteQuery(
   'clearChannelUnread',
   async (channelId: string, ctx: QueryCtx) => {
     return ctx.db
-      .update($unreads)
+      .update($channelUnreads)
       .set({ countWithoutThreads: 0, firstUnreadPostId: null })
-      .where(eq($unreads.channelId, channelId));
+      .where(eq($channelUnreads.channelId, channelId));
   },
-  ['unreads']
+  ['channelUnreads']
 );
 
 export const updateChannelUnreadCount = createWriteQuery(
@@ -2514,17 +2518,17 @@ export const updateChannelUnreadCount = createWriteQuery(
     { channelId, decrement }: { channelId: string; decrement: number },
     ctx: QueryCtx
   ) => {
-    const existingUnread = await ctx.db.query.unreads.findFirst({
-      where: eq($unreads.channelId, channelId),
+    const existingUnread = await ctx.db.query.channelUnreads.findFirst({
+      where: eq($channelUnreads.channelId, channelId),
     });
 
     if (existingUnread) {
       const existingCount = existingUnread.count ?? 0;
       if (existingCount && existingCount - decrement >= 0) {
         return ctx.db
-          .update($unreads)
+          .update($channelUnreads)
           .set({ count: existingCount - decrement })
-          .where(eq($unreads.channelId, channelId));
+          .where(eq($channelUnreads.channelId, channelId));
       }
     }
   },
@@ -2543,7 +2547,7 @@ export const insertThreadUnreads = createWriteQuery(
         set: conflictUpdateSetAll($threadUnreads),
       });
   },
-  ['threadUnreads', 'unreads']
+  ['threadUnreads', 'channelUnreads']
 );
 
 export const clearThreadUnread = createWriteQuery(

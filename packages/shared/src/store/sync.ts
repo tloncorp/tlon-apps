@@ -564,7 +564,7 @@ export async function syncPosts(options: api.GetChannelPostsOptions) {
   return response;
 }
 
-type StaleChannel = db.Channel & { unread: db.Unread };
+type StaleChannel = db.Channel & { unread: db.ChannelUnread };
 
 export const syncStaleChannels = async () => {
   const channels: StaleChannel[] = optimizeChannelLoadOrder(

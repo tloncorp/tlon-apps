@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const READ_DELAY = 15_000; // 15 seconds
 
-type AnyUnread = db.Unread | db.ThreadUnreadState;
+type AnyUnread = db.ChannelUnread | db.ThreadUnreadState;
 type UnreadInput = AnyUnread | null | undefined;
 
 // If we read a channel, we want the divider to stay visible for a bit before clearing. This hook
@@ -48,6 +48,6 @@ function wasNewlyRead(current: UnreadInput, previous: UnreadInput): boolean {
   return current.count === 0 && (previous.count ?? 0) > 0;
 }
 
-function isChannelUnread(unread: AnyUnread): unread is db.Unread {
+function isChannelUnread(unread: AnyUnread): unread is db.ChannelUnread {
   return 'countWithoutThreads' in unread;
 }

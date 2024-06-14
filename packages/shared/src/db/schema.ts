@@ -94,7 +94,7 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
   }),
 }));
 
-export const unreads = sqliteTable('unreads', {
+export const channelUnreads = sqliteTable('channel_unreads', {
   channelId: text('channel_id').primaryKey(),
   type: text('type').$type<'channel' | 'dm'>().notNull(),
   notify: boolean('notify').notNull(),
@@ -105,9 +105,9 @@ export const unreads = sqliteTable('unreads', {
   firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
 });
 
-export const unreadsRelations = relations(unreads, ({ one, many }) => ({
+export const unreadsRelations = relations(channelUnreads, ({ one, many }) => ({
   channel: one(channels, {
-    fields: [unreads.channelId],
+    fields: [channelUnreads.channelId],
     references: [channels.id],
   }),
   threadUnreads: many(threadUnreads),
@@ -136,9 +136,9 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
     fields: [threadUnreads.channelId],
     references: [channels.id],
   }),
-  channelUnread: one(unreads, {
+  channelUnread: one(channelUnreads, {
     fields: [threadUnreads.channelId],
-    references: [unreads.channelId],
+    references: [channelUnreads.channelId],
   }),
 }));
 
@@ -646,9 +646,9 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
     fields: [channels.lastPostId],
     references: [posts.id],
   }),
-  unread: one(unreads, {
+  unread: one(channelUnreads, {
     fields: [channels.id],
-    references: [unreads.channelId],
+    references: [channelUnreads.channelId],
   }),
   threadUnreads: many(threadUnreads),
   members: many(chatMembers),
