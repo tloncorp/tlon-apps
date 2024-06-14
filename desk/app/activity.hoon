@@ -249,7 +249,7 @@
       [test (~(put by checkers) group test)]
     =.  cor
       ::  don't set channel default if group above it has setting
-      ?^  (~(get by area.volume) group)  cor
+      ?:  (~(has by area.volume) group)  cor
       %+  adjust  [%channel nest group]
       ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
       `mute:a
