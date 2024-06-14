@@ -32,7 +32,7 @@ export function ActivityEventContent({
     newest.channel?.type === 'gallery' ||
     newest.channel?.type === 'notebook'
   ) {
-    const allPosts = summary.all.map((event) => getPost(event));
+    const allPosts = summary.all?.map((event) => getPost(event)) ?? []; // defensive
 
     // TODO: i don't _think_ we're still seeing dupes here?
     const seen = new Set();
