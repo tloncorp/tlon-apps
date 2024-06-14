@@ -1768,7 +1768,7 @@ export const getChannelPosts = createReadQuery(
       throw new Error('invalid mode');
     }
   },
-  ['posts', 'channelUnreads', 'threadUnreads']
+  ['posts']
 );
 
 export interface GetChannelPostsAroundOptions {
