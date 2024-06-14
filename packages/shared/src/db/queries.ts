@@ -2650,6 +2650,7 @@ export const getMentionEvents = createReadQuery(
           },
         },
       },
+      limit: !stopCursor ? ACTIVITY_SOURCE_PAGESIZE : undefined,
     });
     return events;
   },
@@ -2724,7 +2725,7 @@ export const getAllOrRepliesPage = createReadQuery(
           )
         )
         .orderBy(desc($activityEvents.timestamp))
-        .limit(50)
+        .limit(ACTIVITY_SOURCE_PAGESIZE)
         .as('sources');
 
       // then get all the posts for those sources
