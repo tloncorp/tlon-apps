@@ -373,6 +373,32 @@ function CodeContent({ code }: Code) {
   );
 }
 
+function InlineBlockCode({ code }: { code: string }) {
+  // usinng refractor here in case we want to add highlighting for this
+  // in the future (like we do with CodeContent in blocks)
+  const tree = refractor.highlight(code, 'plaintext') as TreeNode;
+  const element = hastToReactNative(tree);
+
+  return (
+    <View
+      backgroundColor="$secondaryBackground"
+      padding="$m"
+      borderRadius="$s"
+      marginBottom="$m"
+    >
+      <Text
+        fontFamily="$mono"
+        padding="$m"
+        borderRadius="$s"
+        backgroundColor="$secondaryBackground"
+        lineHeight="$m"
+      >
+        {element}
+      </Text>
+    </View>
+  );
+}
+
 export function InlineContent({
   inline,
   color = '$primaryText',
@@ -481,25 +507,7 @@ export function InlineContent({
   }
 
   if (isBlockCode(inline)) {
-    return (
-      <View
-        backgroundColor="$secondaryBackground"
-        padding="$m"
-        borderRadius="$s"
-        marginBottom="$m"
-      >
-        <Text
-          fontFamily="$mono"
-          padding="$m"
-          borderRadius="$s"
-          color={color}
-          backgroundColor="$secondaryBackground"
-          lineHeight="$m"
-        >
-          {inline.code}
-        </Text>
-      </View>
-    );
+    return <InlineBlockCode code={inline.code} />;
   }
 
   if (isLink(inline)) {
@@ -715,6 +723,11 @@ const LineRenderer = memo(
             fontFamily={serif ? '$serif' : '$body'}
           />
         );
+      } else if (isBlockCode(inline)) {
+        currentLine.push(
+          <InlineBlockCode key={`code-${index}`} code={inline.code} />
+        );
+        currentLine.push(<Text key={`space-${index}`}> </Text>);
       } else {
         currentLine.push(
           <InlineContent
@@ -743,6 +756,10 @@ const LineRenderer = memo(
                 <Text height="$xl">{'\n'}</Text>
               </XStack>
             );
+          }
+
+          if (line.length === 2 && 'code' in line[0].props) {
+            return line;
           }
 
           return (
