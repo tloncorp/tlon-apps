@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useCallback, useState } from 'react';
-import { Dimensions, ImageBackground } from 'react-native';
+import { Alert, Dimensions, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, XStack, getTokens } from 'tamagui';
 
@@ -19,6 +19,7 @@ interface Props {
   currentUserId: string;
   debugMessage: string;
   onAppSettingsPressed?: () => void;
+  handleLogout: () => void;
 }
 
 export function ProfileScreenView({
@@ -88,6 +89,19 @@ export function Wrapped(props: Props) {
   );
 
   // TODO: implement real UI once designs are ready
+  const onLogoutPress = () => {
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Log out',
+        onPress: props.handleLogout,
+      },
+    ]);
+  };
+
   return (
     <ScrollView>
       <YStack
@@ -127,6 +141,12 @@ export function Wrapped(props: Props) {
                 onPress={() =>
                   setNotifState((prev) => ({ ...prev, open: true }))
                 }
+              />
+              <ProfileAction
+                title="Log Out"
+                icon="LogOut"
+                hideCaret
+                onPress={onLogoutPress}
               />
             </View>
           </>
@@ -277,10 +297,12 @@ function ProfileRow({
 function ProfileAction({
   icon,
   title,
+  hideCaret,
   onPress,
 }: {
   icon: IconType;
   title: string;
+  hideCaret?: boolean;
   onPress?: () => void;
 }) {
   return (
@@ -293,7 +315,7 @@ function ProfileAction({
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
       </ListItem.MainContent>
-      <ListItem.Icon icon="ChevronRight" />
+      {!hideCaret && <ListItem.Icon icon="ChevronRight" />}
     </ListItem>
   );
 }
