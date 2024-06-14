@@ -2753,34 +2753,41 @@ export const getAllOrRepliesPage = createReadQuery(
         .from(rankedEvents)
         .where(lte(rankedEvents.rowNumber, 6));
 
-      const ids = limitedEventIds.map((e) => e.id).filter(Boolean) as string[];
+      let sourceEvents: ActivityEvent[];
+      if (limitedEventIds && limitedEventIds.length > 0) {
+        const ids = limitedEventIds
+          .map((e) => e.id)
+          .filter(Boolean) as string[];
 
-      if (ids.length === 0) {
-        return [];
+        if (ids.length === 0) {
+          return [];
+        }
+
+        // we should probably try to do this through the main query, but this will suffice
+        sourceEvents = await ctx.db.query.activityEvents.findMany({
+          where: and(
+            inArray($activityEvents.id, ids),
+            eq($activityEvents.bucketId, bucket)
+          ),
+          orderBy: desc($activityEvents.timestamp),
+          with: {
+            group: true,
+            post: true,
+            channel: {
+              with: {
+                unread: true,
+              },
+            },
+            parent: {
+              with: {
+                threadUnread: true,
+              },
+            },
+          },
+        });
+      } else {
+        sourceEvents = [];
       }
-
-      // we should probably try to do this through the main query, but this will suffice
-      const sourceEvents = await ctx.db.query.activityEvents.findMany({
-        where: and(
-          inArray($activityEvents.id, ids),
-          eq($activityEvents.bucketId, bucket)
-        ),
-        orderBy: desc($activityEvents.timestamp),
-        with: {
-          group: true,
-          post: true,
-          channel: {
-            with: {
-              unread: true,
-            },
-          },
-          parent: {
-            with: {
-              threadUnread: true,
-            },
-          },
-        },
-      });
 
       let allEvents: ActivityEvent[];
       if (bucket === 'all') {
