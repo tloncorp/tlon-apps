@@ -44,7 +44,7 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
+import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import { chatStoreLogger, useChatStore } from '../useChatStore';
@@ -133,11 +133,7 @@ export default function ChatThread() {
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const { paddingBottom } = useBottomPadding();
   const readTimeout = useUnread(chatUnreadsKey)?.readTimeout;
-  const clearOnNavRef = useRef({
-    readTimeout,
-    chatUnreadsKey,
-    markRead,
-  });
+  const path = location.pathname;
   const activeTab = useActiveTab();
 
   const returnURL = useCallback(
@@ -175,24 +171,16 @@ export default function ChatThread() {
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = {
-      readTimeout,
-      chatUnreadsKey,
-      markRead,
-    };
-  }, [readTimeout, chatUnreadsKey, markRead]);
-
-  useEffect(
-    () => () => {
-      const curr = clearOnNavRef.current;
-      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        chatStoreLogger.log('unmount read from thread');
-        useUnreadsStore.getState().read(curr.chatUnreadsKey);
-        curr.markRead();
+    return () => {
+      const winPath = window.location.pathname.replace('/apps/groups', '');
+      if (winPath !== path && readTimeout) {
+        unreadStoreLogger.log(winPath, path);
+        unreadStoreLogger.log('marking read from dismount', chatUnreadsKey);
+        useUnreadsStore.getState().read(chatUnreadsKey);
+        markRead();
       }
-    },
-    []
-  );
+    };
+  }, [path, readTimeout, chatUnreadsKey, markRead]);
 
   useEffect(() => {
     if (!idTimeIsNumber) {

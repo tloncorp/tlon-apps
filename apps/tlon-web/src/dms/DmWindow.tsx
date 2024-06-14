@@ -3,7 +3,12 @@ import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -14,7 +19,7 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useIsScrolling } from '@/logic/scroll';
 import { getPatdaParts, log } from '@/logic/utils';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
+import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
 
 interface DmWindowProps {
   whom: string;
@@ -33,6 +38,7 @@ export default function DmWindow({
   root,
   prefixedElement,
 }: DmWindowProps) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { idTime } = useParams();
   const scrollToId = useMemo(
@@ -45,7 +51,7 @@ export default function DmWindow({
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { markDmRead } = useMarkDmReadMutation(whom);
-  const clearOnNavRef = useRef({ readTimeout, unreadsKey, markDmRead });
+  const path = location.pathname;
 
   const {
     writs,
@@ -138,19 +144,16 @@ export default function DmWindow({
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { readTimeout, unreadsKey, markDmRead };
-  }, [readTimeout, unreadsKey, markDmRead]);
-
-  useEffect(
-    () => () => {
-      const curr = clearOnNavRef.current;
-      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        useUnreadsStore.getState().read(curr.unreadsKey);
-        curr.markDmRead();
+    return () => {
+      const winPath = window.location.pathname.replace('/apps/groups', '');
+      if (winPath !== path && readTimeout) {
+        unreadStoreLogger.log(winPath, path);
+        unreadStoreLogger.log('marking read from dismount', unreadsKey);
+        useUnreadsStore.getState().read(unreadsKey);
+        markDmRead();
       }
-    },
-    []
-  );
+    };
+  }, [path, readTimeout, unreadsKey, markDmRead]);
 
   useEffect(() => {
     const doRefetch = async () => {
