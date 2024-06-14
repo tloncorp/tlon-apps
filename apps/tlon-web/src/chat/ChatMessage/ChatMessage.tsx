@@ -93,7 +93,7 @@ function getUnreadDisplay(
   id: string,
   thread: Unread | undefined
 ): 'none' | 'top' | 'thread' | 'top-with-thread' {
-  const isTop = unread?.lastUnread?.id === id;
+  const isTop = unread?.lastUnread?.id === id && unread.status !== 'read';
 
   // if this message is the oldest unread in the main chat,
   // and has an unread thread, show the divider and thread indicator
@@ -207,55 +207,47 @@ const ChatMessage = React.memo<
         () => isMessageHidden || isPostHidden,
         [isMessageHidden, isPostHidden]
       );
-      const { ref: viewRef } = useInView({
+
+      const { ref: viewRef, inView } = useInView({
         threshold: 1,
-        onChange: useCallback(
-          (inView: boolean) => {
-            // if no tracked unread we don't need to take any action
-            if (!unread) {
-              return;
-            }
-
-            const unseen = unread.status === 'unread';
-            /* the first fire of this function
-               which we don't to do anything with. */
-            if (!inView && unseen) {
-              return;
-            }
-
-            const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
-            /* once the unseen marker comes into view we need to mark it
-               as seen and start a timer to mark it read so it goes away.
-               we ensure that the brief matches and hasn't changed before
-               doing so. we don't want to accidentally clear unreads when
-               the state has changed
-            */
-            if (
-              inView &&
-              (unreadDisplay === 'top' ||
-                unreadDisplay === 'top-with-thread') &&
-              unseen
-            ) {
-              markSeen(unreadsKey);
-              delayedRead(unreadsKey, () => {
-                if (isDMOrMultiDM) {
-                  markDmRead();
-                } else {
-                  markReadChannel();
-                }
-              });
-            }
-          },
-          [
-            unreadDisplay,
-            unread,
-            unreadsKey,
-            isDMOrMultiDM,
-            markReadChannel,
-            markDmRead,
-          ]
-        ),
       });
+
+      useEffect(() => {
+        if (!inView || !unread) {
+          return;
+        }
+
+        const unseen = unread.status === 'unread';
+        const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
+        /* once the unseen marker comes into view we need to mark it
+            as seen and start a timer to mark it read so it goes away.
+            we ensure that the brief matches and hasn't changed before
+            doing so. we don't want to accidentally clear unreads when
+            the state has changed
+        */
+        if (
+          inView &&
+          (unreadDisplay === 'top' || unreadDisplay === 'top-with-thread') &&
+          unseen
+        ) {
+          markSeen(unreadsKey);
+          delayedRead(unreadsKey, () => {
+            if (isDMOrMultiDM) {
+              markDmRead();
+            } else {
+              markReadChannel();
+            }
+          });
+        }
+      }, [
+        inView,
+        unread,
+        unreadsKey,
+        unreadDisplay,
+        isDMOrMultiDM,
+        markReadChannel,
+        markDmRead,
+      ]);
 
       const cacheId = {
         author: window.our,

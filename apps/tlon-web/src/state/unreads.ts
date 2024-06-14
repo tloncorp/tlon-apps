@@ -254,14 +254,9 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
           })
           .forEach(([key, summary]) => {
             const source = draft.sources[key];
-            unreadStoreLogger.log(
-              'update',
-              key,
-              source,
-              summary,
-              draft.sources
-            );
+            unreadStoreLogger.log('update', key, { ...source }, { ...summary });
             const unread = getUnread(key, summary, draft.sources);
+            unreadStoreLogger.log('new unread', key, unread);
             draft.sources[key] = unread;
 
             Object.keys(unread.children || {}).forEach((child) => {
@@ -284,11 +279,10 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
   seen: (key) => {
     set(
       produce((draft: UnreadsStore) => {
-        if (!draft.sources[key]) {
-          draft.sources[key] = emptyUnread();
-        }
-
         const source = draft.sources[key];
+        if (!source || source.status !== 'unread') {
+          return;
+        }
 
         unreadStoreLogger.log('seen', key);
         draft.sources[key] = {
@@ -314,7 +308,7 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
     set(
       produce((draft: UnreadsStore) => {
         const source = draft.sources[key];
-        if (!source) {
+        if (!source || source.status === 'read') {
           return;
         }
 
@@ -347,12 +341,16 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
   delayedRead: (key, cb) => {
     const { sources, read } = get();
     const source = sources[key] || emptyUnread();
+    if (source.status === 'read') {
+      return;
+    }
 
     if (source.readTimeout) {
       clearTimeout(source.readTimeout);
     }
 
     const readTimeout = setTimeout(() => {
+      unreadStoreLogger.log('delayedRead timeout reached', key);
       read(key);
       cb();
     }, 15 * 1000); // 15 seconds
