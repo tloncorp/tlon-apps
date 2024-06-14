@@ -1,5 +1,3 @@
-import { makePrettyDayAndTime } from '@tloncorp//shared/dist/logic';
-import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as ub from '@tloncorp/shared/dist/urbit';
@@ -87,8 +85,6 @@ export function ActivityEventContent({
 }
 
 function getPost(event: db.ActivityEvent): db.Post {
-  const parsed = api.toPostContent(event.content as ub.Verse[]);
-  const content = parsed[0];
   let post: db.Post;
   if (event.post) {
     post = event.post;
@@ -96,7 +92,7 @@ function getPost(event: db.ActivityEvent): db.Post {
     // %activity gives us partials so...square peg, round hole
     post = db.buildPendingPost({
       authorId: event.authorId ?? '',
-      content: content as ub.Story,
+      content: (event.content as ub.Story) ?? [],
       channel: event.channel!,
     });
   }
