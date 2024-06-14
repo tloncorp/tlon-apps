@@ -1,4 +1,4 @@
-import { ActivitySummary, getKey } from '@tloncorp/shared/dist/urbit/activity';
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { format, isToday } from 'date-fns';
@@ -10,8 +10,6 @@ import { useMarkChannelRead } from '@/logic/channel';
 import { pluralize, whomIsFlag } from '@/logic/utils';
 import { useMarkDmReadMutation } from '@/state/chat';
 import { useUnread, useUnreadsStore } from '@/state/unreads';
-
-import { useChatStore } from './useChatStore';
 
 interface UnreadAlertsProps {
   whom: string;
