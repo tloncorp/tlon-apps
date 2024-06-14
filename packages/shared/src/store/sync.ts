@@ -38,7 +38,7 @@ export const syncInitData = async () => {
       db.insertGroups({ groups: initData.groups }, ctx),
       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
       db.insertChannels(initData.channels, ctx),
-      handleInitialUnreads(initData.activity, ctx),
+      handleInitialUnreads(initData.unreads, ctx),
       db.insertChannelPerms(initData.channelPerms, ctx),
     ]);
   });
@@ -73,8 +73,6 @@ export const syncVolumeSettings = async () => {
     const volumeSettings = await api.getVolumeSettings();
     const clientVolume = extractClientVolumes(volumeSettings);
 
-    // await db.storeVolumeSettings(volumeSettings); // TODO: remove?
-
     await db.setChannelVolumes(clientVolume.channelVolumes);
     await db.setGroupVolumes(clientVolume.groupVolumes);
     await db.setThreadVolumes(clientVolume.threadVolumes);
@@ -108,14 +106,14 @@ export const syncDms = async () => {
 };
 
 export const syncUnreads = async () => {
-  const { groupUnreads, channelActivity, threadActivity } =
+  const { groupUnreads, channelUnreads, threadActivity } =
     await api.getUnreads();
   await db.insertGroupUnreads(groupUnreads);
-  await db.insertUnreads(channelActivity);
-  await db.insertThreadActivity(threadActivity);
+  await db.insertChannelUnreads(channelUnreads);
+  await db.insertThreadUnreads(threadActivity);
 
   await db.setJoinedGroupChannels({
-    channelIds: channelActivity
+    channelIds: channelUnreads
       .filter((u) => u.type === 'channel')
       .map((u) => u.channelId),
   });
@@ -125,13 +123,13 @@ const handleInitialUnreads = async (
   activity: api.ActivityInit,
   ctx?: QueryCtx
 ) => {
-  const { groupUnreads, channelActivity, threadActivity } = activity;
+  const { groupUnreads, channelUnreads, threadActivity } = activity;
   await db.insertGroupUnreads(groupUnreads);
-  await db.insertUnreads(channelActivity);
-  await db.insertThreadActivity(threadActivity);
+  await db.insertChannelUnreads(channelUnreads);
+  await db.insertThreadUnreads(threadActivity);
 
   await db.setJoinedGroupChannels({
-    channelIds: channelActivity
+    channelIds: channelUnreads
       .filter((u) => u.type === 'channel')
       .map((u) => u.channelId),
   });
@@ -148,13 +146,6 @@ export const syncPushNotificationsSetting = async () => {
   const setting = await api.getPushNotificationsSetting();
   await db.setPushNotificationsSetting(setting);
 };
-
-// export const syncActivityEvents = async () => {
-//   return syncQueue.add('activity', async () => {
-//     const events = await api.getActivityEvents();
-//     await db.insertActivityEvents(events);
-//   });
-// };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
@@ -349,11 +340,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 const handleActivityUpdate = (queueDebounce: number = 100) => {
   const queue: api.ActivityUpdateQueue = {
     groupUnreads: [],
-    channelActivity: [],
-    threadActivity: [],
-    volumeSettings: [],
-    channelVolumeUpdates: [],
+    channelUnreads: [],
+    threadUnreads: [],
     groupVolumeUpdates: [],
+    channelVolumeUpdates: [],
     threadVolumeUpdates: [],
     activityEvents: [],
   };
@@ -361,30 +351,28 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
     async () => {
       const activitySnapshot = _.cloneDeep(queue);
       queue.groupUnreads = [];
-      queue.channelActivity = [];
-      queue.threadActivity = [];
-      queue.volumeSettings = [];
-      queue.channelVolumeUpdates = [];
+      queue.channelUnreads = [];
+      queue.threadUnreads = [];
       queue.groupVolumeUpdates = [];
+      queue.channelVolumeUpdates = [];
       queue.threadVolumeUpdates = [];
       queue.activityEvents = [];
 
       logger.log(
         `processing activity queue`,
         activitySnapshot.groupUnreads.length,
-        activitySnapshot.channelActivity.length,
-        activitySnapshot.threadActivity.length,
-        activitySnapshot.volumeSettings.length,
-        activitySnapshot.channelVolumeUpdates.length,
+        activitySnapshot.channelUnreads.length,
+        activitySnapshot.threadUnreads.length,
         activitySnapshot.groupVolumeUpdates.length,
+        activitySnapshot.channelVolumeUpdates.length,
         activitySnapshot.threadVolumeUpdates.length,
         activitySnapshot.activityEvents.length
       );
       await db.insertGroupUnreads(activitySnapshot.groupUnreads);
-      await db.insertUnreads(activitySnapshot.channelActivity);
-      await db.insertThreadActivity(activitySnapshot.threadActivity);
-      await db.setChannelVolumes(activitySnapshot.channelVolumeUpdates);
+      await db.insertChannelUnreads(activitySnapshot.channelUnreads);
+      await db.insertThreadUnreads(activitySnapshot.threadUnreads);
       await db.setGroupVolumes(activitySnapshot.groupVolumeUpdates);
+      await db.setChannelVolumes(activitySnapshot.channelVolumeUpdates);
       await db.setThreadVolumes(activitySnapshot.threadVolumeUpdates);
       await db.insertActivityEvents(activitySnapshot.activityEvents);
 
@@ -405,20 +393,17 @@ const handleActivityUpdate = (queueDebounce: number = 100) => {
       case 'updateGroupUnread':
         queue.groupUnreads.push(event.unread);
         break;
-      case 'updateChannelActivity':
-        queue.channelActivity.push(event.activity);
+      case 'updateChannelUnread':
+        queue.channelUnreads.push(event.activity);
         break;
-      case 'updateThreadActivity':
-        queue.threadActivity.push(event.activity);
-        break;
-      // case 'updateVolumeSetting':
-      //   queue.volumeSettings.push(event.update);
-      //   break;
-      case 'updateChannelVolume':
-        queue.channelVolumeUpdates.push(event.volumeUpdate);
+      case 'updateThreadUnread':
+        queue.threadUnreads.push(event.activity);
         break;
       case 'updateGroupVolume':
         queue.groupVolumeUpdates.push(event.volumeUpdate);
+        break;
+      case 'updateChannelVolume':
+        queue.channelVolumeUpdates.push(event.volumeUpdate);
         break;
       case 'updateThreadVolume':
         queue.threadVolumeUpdates.push(event.volumeUpdate);

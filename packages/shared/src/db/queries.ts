@@ -2466,12 +2466,12 @@ export const updateGroupUnreadCount = createWriteQuery(
   ['groupUnreads']
 );
 
-export const insertUnreads = createWriteQuery(
-  'insertUnreads',
+export const insertChannelUnreads = createWriteQuery(
+  'insertChannelUnreads',
   async (unreads: Unread[], ctx: QueryCtx) => {
     if (!unreads.length) return;
 
-    logger.log('insertUnreads', unreads.length, unreads);
+    logger.log('insertChannelUnreads', unreads.length, unreads);
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
         .insert($unreads)
@@ -2531,8 +2531,8 @@ export const updateChannelUnreadCount = createWriteQuery(
   ['groupUnreads']
 );
 
-export const insertThreadActivity = createWriteQuery(
-  'insertThreadActivity',
+export const insertThreadUnreads = createWriteQuery(
+  'insertThreadUnreads',
   async (threadActivity: ThreadUnreadState[], ctx: QueryCtx) => {
     if (!threadActivity.length) return;
     return ctx.db

@@ -15,7 +15,7 @@ export async function getUnreads() {
     app: 'activity',
     path: '/activity',
   });
-  const deserialized = toClientActivity(activity);
+  const deserialized = toClientUnreads(activity);
   return deserialized;
 }
 
@@ -207,10 +207,10 @@ function getInfoFromMessageKey(
 export type VolumeUpdate = { sourceId: string; volume: ub.VolumeMap | null };
 export type ActivityEvent =
   | {
-      type: 'updateChannelActivity';
+      type: 'updateChannelUnread';
       activity: db.Unread;
     }
-  | { type: 'updateThreadActivity'; activity: db.ThreadUnreadState }
+  | { type: 'updateThreadUnread'; activity: db.ThreadUnreadState }
   | { type: 'updateGroupUnread'; unread: db.GroupUnread }
   | {
       type: 'updateVolumeSetting';
@@ -220,11 +220,11 @@ export type ActivityEvent =
       type: 'updateGroupVolume';
       volumeUpdate: db.GroupVolume;
     }
+  | { type: 'updateChannelVolume'; volumeUpdate: db.ChannelVolume }
   | {
       type: 'updateThreadVolume';
       volumeUpdate: db.ThreadVolume;
     }
-  | { type: 'updateChannelVolume'; volumeUpdate: db.ChannelVolume }
   | {
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
@@ -242,16 +242,16 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         if ('dm' in source) {
           const channelId = getChannelIdFromSource(source);
           return handler({
-            type: 'updateChannelActivity',
-            activity: toChannelActivity(channelId, summary, 'dm'),
+            type: 'updateChannelUnread',
+            activity: toChannelUnread(channelId, summary, 'dm'),
           });
         }
 
         if ('channel' in source) {
           const channelId = getChannelIdFromSource(source);
           return handler({
-            type: 'updateChannelActivity',
-            activity: toChannelActivity(channelId, summary, 'channel'),
+            type: 'updateChannelUnread',
+            activity: toChannelUnread(channelId, summary, 'channel'),
           });
         }
 
@@ -259,8 +259,8 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const channelId = getChannelIdFromSource(source);
           const threadId = getPostIdFromSource(source);
           return handler({
-            type: 'updateThreadActivity',
-            activity: toThreadActivity(
+            type: 'updateThreadUnread',
+            activity: toThreadUnread(
               channelId,
               threadId,
               summary,
@@ -417,7 +417,7 @@ export const readChannel = async (channel: db.Channel) => {
   // simple retry logic to avoid failed read leading to lingering unread state
   return backOff(() => poke(action), {
     delayFirstAttempt: false,
-    startingDelay: 2000, // 4 seconds
+    startingDelay: 2000,
     numOfAttempts: 4,
   });
 };
@@ -487,7 +487,7 @@ export const readThread = async ({
   // simple retry logic to avoid failed read leading to lingering unread state
   return backOff(() => poke(action), {
     delayFirstAttempt: false,
-    startingDelay: 2000, // 4 seconds
+    startingDelay: 2000,
     numOfAttempts: 4,
   });
 };
@@ -596,24 +596,23 @@ export async function getPushNotificationsSetting(): Promise<ub.PushNotification
 
 export type ActivityUpdateQueue = {
   groupUnreads: db.GroupUnread[];
-  channelActivity: db.Unread[];
-  threadActivity: db.ThreadUnreadState[];
+  channelUnreads: db.Unread[];
+  threadUnreads: db.ThreadUnreadState[];
   channelVolumeUpdates: db.ChannelVolume[];
   groupVolumeUpdates: db.GroupVolume[];
   threadVolumeUpdates: db.ThreadVolume[];
-  volumeSettings: VolumeUpdate[];
   activityEvents: db.ActivityEvent[];
 };
 
 export type ActivityInit = {
   groupUnreads: db.GroupUnread[];
-  channelActivity: db.Unread[];
+  channelUnreads: db.Unread[];
   threadActivity: db.ThreadUnreadState[];
 };
 
-export const toClientActivity = (activity: ub.Activity): ActivityInit => {
+export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
   const groupUnreads: db.GroupUnread[] = [];
-  const channelActivity: db.Unread[] = [];
+  const channelUnreads: db.Unread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
 
   Object.entries(activity).forEach(([id, summary]) => {
@@ -621,7 +620,7 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
     const [activityId, ...rest] = id.split('/');
     if (activityId === 'ship' || activityId === 'club') {
       const channelId = rest.join('/');
-      channelActivity.push(toChannelActivity(channelId, summary, 'dm'));
+      channelUnreads.push(toChannelUnread(channelId, summary, 'dm'));
     }
 
     if (activityId === 'group') {
@@ -631,7 +630,7 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
 
     if (activityId === 'channel') {
       const channelId = rest.join('/');
-      channelActivity.push(toChannelActivity(channelId, summary, 'channel'));
+      channelUnreads.push(toChannelUnread(channelId, summary, 'channel'));
     }
 
     if (activityId === 'thread' || activityId === 'dm-thread') {
@@ -639,7 +638,7 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
         activityId === 'dm-thread' ? rest[0] : rest.slice(0, 3).join('/');
       const threadId = rest[rest.length - 1];
       threadActivity.push(
-        toThreadActivity(
+        toThreadUnread(
           channelId,
           threadId,
           summary,
@@ -651,7 +650,7 @@ export const toClientActivity = (activity: ub.Activity): ActivityInit => {
     // discard everything else for now
   });
 
-  return { channelActivity, threadActivity, groupUnreads };
+  return { channelUnreads, threadActivity, groupUnreads };
 };
 
 export const toGroupUnread = (
@@ -670,7 +669,7 @@ export const toGroupUnread = (
   };
 };
 
-export const toChannelActivity = (
+export const toChannelUnread = (
   channelId: string,
   summary: ub.ActivitySummary,
   type: db.Unread['type']
@@ -695,7 +694,7 @@ export const toChannelActivity = (
   };
 };
 
-export const toThreadActivity = (
+export const toThreadUnread = (
   channelId: string,
   threadId: string,
   summary: ub.ActivitySummary,

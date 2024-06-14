@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 
-import * as db from '../db';
 import {
   initializeStorage, // syncActivityEvents,
   resetActivity,
@@ -10,7 +9,6 @@ import {
   syncLatestPosts,
   syncPushNotificationsSetting,
   syncSettings,
-  syncStaleChannels,
   syncVolumeSettings,
 } from './sync';
 import { QueueClearedError } from './syncQueue';

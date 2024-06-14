@@ -51,7 +51,7 @@ export async function markChannelRead(channel: db.Channel) {
     console.error('Failed to read channel', e);
     // rollback optimistic update
     if (existingUnread) {
-      await db.insertUnreads([existingUnread]);
+      await db.insertChannelUnreads([existingUnread]);
     }
   }
 }
@@ -98,7 +98,7 @@ export async function markThreadRead({
     console.error('Failed to read thread', e);
     // rollback optimistic update
     if (existingUnread) {
-      await db.insertThreadActivity([existingUnread]);
+      await db.insertThreadUnreads([existingUnread]);
     }
   }
 }

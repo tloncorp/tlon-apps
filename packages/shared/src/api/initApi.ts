@@ -1,6 +1,6 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
-import { ActivityInit, toClientActivity } from './activityApi';
+import { ActivityInit, toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
@@ -34,13 +34,13 @@ export const getInitData = async () => {
   const dmChannels = toClientDms(response.chat.dms);
   const groupDmChannels = toClientGroupDms(response.chat.clubs);
   const invitedDms = toClientDms(response.chat.invited, true);
-  const activity = toClientActivity(response.activity ?? {});
+  const unreads = toClientUnreads(response.activity ?? {});
 
   return {
     pins,
     groups,
     unjoinedGroups,
-    activity,
+    unreads,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
   };
