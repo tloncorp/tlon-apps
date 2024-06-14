@@ -48,7 +48,7 @@ export interface UnreadsStore {
   update: (unreads: Activity) => void;
 }
 
-export const unreadStoreLogger = createDevLogger('UnreadsStore', true);
+export const unreadStoreLogger = createDevLogger('UnreadsStore', false);
 
 function getUnreadStatus(count: number, notify: boolean): ReadStatus {
   if (count > 0 || notify) {
@@ -341,7 +341,6 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
   delayedRead: (key, cb) => {
     const { sources, read } = get();
     const source = sources[key] || emptyUnread();
-    debugger;
     if (source.status === 'read') {
       return;
     }

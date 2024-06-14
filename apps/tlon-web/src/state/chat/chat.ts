@@ -481,7 +481,7 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
             return;
           }
 
-          const opAuthor =
+          const replyingAuthor =
             'add' in reply.delta ? reply.delta.add.memo.author : ''; // should never happen
 
           const updatedWrit = {
@@ -491,7 +491,7 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
               meta: {
                 ...opWrit.seal.meta,
                 replyCount: opWrit.seal.meta.replyCount + 1,
-                repliers: [...opWrit.seal.meta.lastRepliers, opAuthor],
+                repliers: [...opWrit.seal.meta.lastRepliers, replyingAuthor],
               },
             },
           };
