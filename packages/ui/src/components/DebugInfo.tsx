@@ -18,7 +18,7 @@ export function DebugInfo(props: PropsWithChildren<{ debugMessage: string }>) {
     if (newClicks.length >= KONAMI_CLICKS) {
       const timeWindow = now - newClicks[newClicks.length - KONAMI_CLICKS];
       if (timeWindow <= KONAMI_TIME_WINDOW) {
-        Alert.alert(props.debugMessage);
+        Alert.alert('Build Info', props.debugMessage);
         setClicks([]);
       }
     }

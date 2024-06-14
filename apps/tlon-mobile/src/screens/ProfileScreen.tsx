@@ -12,8 +12,6 @@ import { SettingsStackParamList } from '../types';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Profile'>;
 
 const DEBUG_MESSAGE = `
-  Build Details
-  
   Version: 
   ${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}
   
