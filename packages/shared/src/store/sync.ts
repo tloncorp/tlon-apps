@@ -38,7 +38,7 @@ export const syncInitData = async () => {
       db.insertGroups({ groups: initData.groups }, ctx),
       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
       db.insertChannels(initData.channels, ctx),
-      handleInitialUnreads(initData.unreads, ctx),
+      persistUnreads(initData.unreads, ctx),
       db.insertChannelPerms(initData.channelPerms, ctx),
     ]);
   });
@@ -69,13 +69,14 @@ export const syncSettings = async () => {
 };
 
 export const syncVolumeSettings = async () => {
-  return syncQueue.add('volumeSettings', async () => {
+  return syncQueue.add('volumeSettings', async (): Promise<void> => {
     const volumeSettings = await api.getVolumeSettings();
     const clientVolume = extractClientVolumes(volumeSettings);
-
-    await db.setChannelVolumes(clientVolume.channelVolumes);
-    await db.setGroupVolumes(clientVolume.groupVolumes);
-    await db.setThreadVolumes(clientVolume.threadVolumes);
+    return batchEffects('volumeSettings', async (ctx) => {
+      await db.setChannelVolumes(clientVolume.channelVolumes, ctx);
+      await db.setGroupVolumes(clientVolume.groupVolumes, ctx);
+      await db.setThreadVolumes(clientVolume.threadVolumes, ctx);
+    });
   });
 };
 
@@ -106,33 +107,23 @@ export const syncDms = async () => {
 };
 
 export const syncUnreads = async () => {
-  const { groupUnreads, channelUnreads, threadActivity } =
-    await api.getUnreads();
-  await db.insertGroupUnreads(groupUnreads);
-  await db.insertChannelUnreads(channelUnreads);
-  await db.insertThreadUnreads(threadActivity);
-
-  await db.setJoinedGroupChannels({
-    channelIds: channelUnreads
-      .filter((u) => u.type === 'channel')
-      .map((u) => u.channelId),
-  });
+  const unreads = await syncQueue.add('unreads', () => api.getUnreads());
+  return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
 
-const handleInitialUnreads = async (
-  activity: api.ActivityInit,
-  ctx?: QueryCtx
-) => {
+const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
   const { groupUnreads, channelUnreads, threadActivity } = activity;
-  await db.insertGroupUnreads(groupUnreads);
-  await db.insertChannelUnreads(channelUnreads);
-  await db.insertThreadUnreads(threadActivity);
-
-  await db.setJoinedGroupChannels({
-    channelIds: channelUnreads
-      .filter((u) => u.type === 'channel')
-      .map((u) => u.channelId),
-  });
+  await db.insertGroupUnreads(groupUnreads, ctx);
+  await db.insertChannelUnreads(channelUnreads, ctx);
+  await db.insertThreadUnreads(threadActivity, ctx);
+  await db.setJoinedGroupChannels(
+    {
+      channelIds: channelUnreads
+        .filter((u) => u.type === 'channel')
+        .map((u) => u.channelId),
+    },
+    ctx
+  );
 };
 
 export const resetActivity = async () => {
@@ -733,28 +724,29 @@ async function persistPagedPostData(
   channelId: string,
   data: api.GetChannelPostsResponse
 ) {
-  await db.updateChannel({
-    id: channelId,
-    postCount: data.totalPosts,
-  });
-  if (data.posts.length) {
-    await db.insertChannelPosts({
-      channelId,
-      posts: data.posts,
-      newer: data.newer,
-      older: data.older,
-    });
-    const reactions = data.posts
-      .map((p) => p.reactions)
-      .flat()
-      .filter(Boolean) as db.Reaction[];
-    if (reactions.length) {
-      await db.insertPostReactions({ reactions });
+  batchEffects('pagedPostData', async (ctx) => {
+    if (data.posts.length) {
+      await db.insertChannelPosts(
+        {
+          channelId,
+          posts: data.posts,
+          newer: data.newer,
+          older: data.older,
+        },
+        ctx
+      );
+      const reactions = data.posts
+        .map((p) => p.reactions)
+        .flat()
+        .filter(Boolean) as db.Reaction[];
+      if (reactions.length) {
+        await db.insertPostReactions({ reactions }, ctx);
+      }
     }
-  }
-  if (data.deletedPosts?.length) {
-    await db.deletePosts({ ids: data.deletedPosts });
-  }
+    if (data.deletedPosts?.length) {
+      await db.deletePosts({ ids: data.deletedPosts }, ctx);
+    }
+  });
 }
 
 export const clearSyncQueue = () => {
