@@ -368,13 +368,15 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         activitySnapshot.threadVolumeUpdates.length,
         activitySnapshot.activityEvents.length
       );
-      await db.insertGroupUnreads(activitySnapshot.groupUnreads);
-      await db.insertChannelUnreads(activitySnapshot.channelUnreads);
-      await db.insertThreadUnreads(activitySnapshot.threadUnreads);
-      await db.setGroupVolumes(activitySnapshot.groupVolumeUpdates);
-      await db.setChannelVolumes(activitySnapshot.channelVolumeUpdates);
-      await db.setThreadVolumes(activitySnapshot.threadVolumeUpdates);
-      await db.insertActivityEvents(activitySnapshot.activityEvents);
+      await batchEffects('activityUpdate', async (ctx) => {
+        await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
+        await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
+        await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
+        await db.setGroupVolumes(activitySnapshot.groupVolumeUpdates, ctx);
+        await db.setChannelVolumes(activitySnapshot.channelVolumeUpdates, ctx);
+        await db.setThreadVolumes(activitySnapshot.threadVolumeUpdates, ctx);
+        await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
+      });
 
       // if we inserted new activity, invalidate the activity page
       // data loader
