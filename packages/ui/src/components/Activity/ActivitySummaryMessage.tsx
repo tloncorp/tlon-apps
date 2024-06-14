@@ -123,6 +123,16 @@ function SummaryMessageRaw({
     );
   }
 
+  if (relevancy === 'postToChannel') {
+    const message = ` ${postVerb(newest.channel?.type ?? 'chat')} ${postName(newest, plural)} to the channel`;
+    return (
+      <SummaryMessageWrapper>
+        {Authors}
+        {message}
+      </SummaryMessageWrapper>
+    );
+  }
+
   if (summary.all.length === 1) {
     return (
       <SizableText color="$secondaryText">
@@ -189,7 +199,8 @@ type ActivityRelevancy =
   | 'replyToChatPost'
   | 'dm'
   | 'groupchat'
-  | 'postInYourChannel';
+  | 'postInYourChannel'
+  | 'postToChannel';
 
 export function getRelevancy(
   summary: logic.SourceActivityEvents
@@ -231,6 +242,10 @@ export function getRelevancy(
 
   if (newest.type === 'reply' && newest.shouldNotify) {
     return 'involvedThread';
+  }
+
+  if (newest.type === 'post' && newest.shouldNotify) {
+    return 'postToChannel';
   }
 
   console.log(

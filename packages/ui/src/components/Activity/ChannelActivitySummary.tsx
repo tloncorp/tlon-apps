@@ -55,6 +55,7 @@ export function ChannelActivitySummary({
               unreadCount={unreadCount}
               channel={channel}
               group={group}
+              sentTime={newestPost.timestamp}
             />
           )}
           <View>
@@ -71,10 +72,12 @@ export function ChannelIndicator({
   channel,
   group,
   unreadCount,
+  sentTime,
 }: {
   channel: db.Channel;
   group?: db.Group;
   unreadCount: number;
+  sentTime?: number;
 }) {
   const title =
     channel.type === 'dm'
@@ -90,6 +93,11 @@ export function ChannelIndicator({
       <SizableText marginLeft="$m" fontSize="$s" color="$secondaryText">
         {title}
       </SizableText>
+      {sentTime && (
+        <SizableText marginLeft="$s" fontSize="$s" color="$secondaryText">
+          {logic.makePrettyTime(new Date(sentTime))}
+        </SizableText>
+      )}
     </XStack>
   );
 }
