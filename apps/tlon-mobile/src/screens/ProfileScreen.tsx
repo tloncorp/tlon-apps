@@ -4,7 +4,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { useShip } from '../contexts/ship';
+import { clearShipInfo, useShip } from '../contexts/ship';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { purgeDb } from '../lib/nativeDb';
 import NavBar from '../navigation/NavBarView';
@@ -23,6 +23,7 @@ export default function ProfileScreen(props: Props) {
     api.queryClient.clear();
     api.removeUrbitClient();
     clearShip();
+    clearShipInfo();
     removeHostingToken();
     removeHostingUserId();
   }, [clearShip]);
