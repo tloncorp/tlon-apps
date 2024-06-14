@@ -337,7 +337,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-const handleActivityUpdate = (queueDebounce: number = 100) => {
+const createActivityUpdateHandler = (queueDebounce: number = 100) => {
   const queue: api.ActivityUpdateQueue = {
     groupUnreads: [],
     channelUnreads: [],
@@ -770,7 +770,7 @@ export const initializeStorage = () => {
 export const setupSubscriptions = async () => {
   return syncQueue.add('setup subscriptions', async () => {
     await Promise.all([
-      api.subscribeToActivity(handleActivityUpdate()),
+      api.subscribeToActivity(createActivityUpdateHandler()),
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToChannelsUpdates(handleChannelsUpdate),
       api.subscribeToChatUpdates(handleChatUpdate),
