@@ -8,7 +8,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -17,7 +22,7 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChannelCompatibility, useMarkChannelRead } from '@/logic/channel';
 import { log } from '@/logic/utils';
 import { useInfinitePosts } from '@/state/channel/channel';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
+import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 import UnreadAlerts from './UnreadAlerts';
@@ -38,6 +43,7 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   scrollElementRef,
   isScrolling,
 }: ChatWindowProps) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { idTime } = useParams();
   const scrollToId = useMemo(
@@ -65,7 +71,7 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   const [showUnreadBanner, setShowUnreadBanner] = useState(false);
   const unreadsKey = getKey(whom);
   const readTimeout = useUnread(unreadsKey)?.readTimeout;
-  const clearOnNavRef = useRef({ readTimeout, nest, unreadsKey, markRead });
+  const path = location.pathname;
   const { compatible } = useChannelCompatibility(nest);
   const navigate = useNavigate();
   const latestMessageIndex = messages.length - 1;
@@ -165,19 +171,16 @@ const ChatWindow = React.memo(function ChatWindowRaw({
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { readTimeout, nest, unreadsKey, markRead };
-  }, [readTimeout, nest, unreadsKey, markRead]);
-
-  useEffect(
-    () => () => {
-      const curr = clearOnNavRef.current;
-      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        useUnreadsStore.getState().read(curr.unreadsKey);
-        curr.markRead();
+    return () => {
+      const winPath = window.location.pathname.replace('/apps/groups', '');
+      if (winPath !== path && readTimeout) {
+        unreadStoreLogger.log(winPath, path);
+        unreadStoreLogger.log('marking read from dismount', unreadsKey);
+        useUnreadsStore.getState().read(unreadsKey);
+        markRead();
       }
-    },
-    []
-  );
+    };
+  }, [path, readTimeout, unreadsKey, markRead]);
 
   useEffect(() => {
     const doRefetch = async () => {
