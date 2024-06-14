@@ -2241,7 +2241,7 @@ export const getPendingPosts = createReadQuery(
 
 export const getPostWithRelations = createReadQuery(
   'getPostWithRelations',
-  async ({ id }: { id: string }, ctx: QueryCtx) => {
+  async ({ id }: { id: string }, ctx: QueryCtx): Promise<Post | null> => {
     return ctx.db.query.posts
       .findFirst({
         where: eq($posts.id, id),

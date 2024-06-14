@@ -379,10 +379,23 @@ export const useChannel = (options: { id: string }) => {
   });
 };
 
-export const usePostWithRelations = (options: { id: string }) => {
+export const usePostWithThreadUnreads = (options: { id: string }) => {
   const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
     queryKey: [['post', options], tableDeps],
+    staleTime: Infinity,
+    queryFn: () => db.getPostWithRelations(options),
+  });
+};
+
+export const usePostWithRelations = (
+  options: { id: string },
+  initialData?: db.Post
+) => {
+  return useQuery({
+    queryKey: ['post', options.id],
+    staleTime: Infinity,
+    ...(initialData ? { initialData } : {}),
     queryFn: () => db.getPostWithRelations(options),
   });
 };

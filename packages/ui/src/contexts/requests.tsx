@@ -3,6 +3,7 @@ import {
   useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
+import * as db from 'packages/shared/dist/db';
 import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 
 type State = {
@@ -50,4 +51,10 @@ export const RequestsProvider = ({
     [usePost, useChannel, useGroup, useApp]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
+};
+
+export const useLivePost = (post: db.Post): db.Post => {
+  const { usePost } = useRequests();
+  const { data: updatedPost } = usePost({ id: post.id }, post);
+  return updatedPost ?? post;
 };
