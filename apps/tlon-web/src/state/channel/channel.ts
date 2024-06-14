@@ -39,6 +39,7 @@ import { Flag } from '@tloncorp/shared/dist/urbit/hark';
 import { daToUnix, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
+import produce from 'immer';
 import _, { last } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import create from 'zustand';
@@ -468,7 +469,7 @@ function updateReplyMetaData(
     return undefined;
   }
 
-  const newPages = cache.pages.map((page) => {
+  cache.pages = cache.pages.map((page) => {
     const newPage = {
       ...page,
     };
@@ -497,11 +498,6 @@ function updateReplyMetaData(
 
     return newPage;
   });
-
-  return {
-    pages: newPages,
-    pageParams: cache.pageParams,
-  };
 }
 
 const replyUpdater = (
@@ -1050,7 +1046,7 @@ export function useChannelsFirehose() {
         } = postResponse;
         queryClient.setQueryData<PostsInCachePrev | undefined>(
           infinitePostsKey(nest),
-          (d) => updateReplyMetaData(d, time, meta)
+          (d) => produce(d, (draft) => updateReplyMetaData(draft, time, meta))
         );
       });
     }

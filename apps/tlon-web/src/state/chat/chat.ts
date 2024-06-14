@@ -42,6 +42,7 @@ import { decToUd, udToDec } from '@urbit/api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
+import produce from 'immer';
 import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
@@ -457,120 +458,108 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
     const replyParentQueryKey = ['dms', whom, id];
     const { reply } = delta;
     if ('add' in reply.delta) {
-      queryClient.setQueriesData<InfiniteDMsData>(queryKey, (queryData) => {
-        if (queryData === undefined) {
-          return undefined;
-        }
-
-        const allWritsInPages = queryData.pages.flatMap((page) =>
-          Object.entries(page.writs)
-        );
-
-        const writFind = allWritsInPages.find(([k, w]) => w.seal.id === id);
-
-        if (writFind) {
-          const replyId = writFind[0];
-          const replyingWrit = writFind[1];
-
-          if (replyingWrit === undefined || replyingWrit === null) {
-            return queryData;
+      queryClient.setQueriesData<InfiniteDMsData>(queryKey, (queryData) =>
+        produce(queryData, (draft) => {
+          if (draft === undefined) {
+            return;
           }
 
-          const replyAuthor =
+          const allWritsInPages = draft.pages.flatMap((page) =>
+            Object.entries(page.writs)
+          );
+
+          const writFind = allWritsInPages.find(([k, w]) => w.seal.id === id);
+
+          if (!writFind) {
+            return;
+          }
+
+          const opId = writFind[0];
+          const opWrit = writFind[1];
+
+          if (opWrit === undefined || opWrit === null) {
+            return;
+          }
+
+          const opAuthor =
             'add' in reply.delta ? reply.delta.add.memo.author : ''; // should never happen
 
           const updatedWrit = {
-            ...replyingWrit,
+            ...opWrit,
             seal: {
-              ...replyingWrit.seal,
+              ...opWrit.seal,
               meta: {
-                ...replyingWrit.seal.meta,
-                replyCount: replyingWrit.seal.meta.replyCount + 1,
-                repliers: [...replyingWrit.seal.meta.lastRepliers, replyAuthor],
+                ...opWrit.seal.meta,
+                replyCount: opWrit.seal.meta.replyCount + 1,
+                repliers: [...opWrit.seal.meta.lastRepliers, opAuthor],
               },
             },
           };
 
-          const pageInCache = queryData.pages.find((page) =>
-            Object.keys(page.writs).some((k) => k === replyId)
+          const pageInCache = draft.pages.find((page) =>
+            Object.keys(page.writs).some((k) => k === opId)
           );
 
-          const pageInCacheIdx = queryData.pages.findIndex((page) =>
-            Object.keys(page.writs).some((k) => k === replyId)
+          const pageInCacheIdx = draft.pages.findIndex((page) =>
+            Object.keys(page.writs).some((k) => k === opId)
           );
 
           if (pageInCache === undefined) {
-            return queryData;
+            return;
           }
 
-          return {
-            pages: [
-              ...queryData.pages.slice(0, pageInCacheIdx),
-              {
-                ...pageInCache,
-                writs: {
-                  ...pageInCache.writs,
-                  [replyId]: updatedWrit,
-                },
-              },
-              ...queryData.pages.slice(pageInCacheIdx + 1),
-            ],
-            pageParams: queryData.pageParams,
-          };
-        }
+          pageInCache.writs[opId] = updatedWrit;
+          draft.pages = [
+            ...draft.pages.slice(0, pageInCacheIdx),
+            pageInCache,
+            ...draft.pages.slice(pageInCacheIdx + 1),
+          ];
 
-        return {
-          pages: queryData.pages,
-          pageParams: queryData.pageParams,
-        };
-      });
+          return;
+        })
+      );
 
       queryClient.setQueryData(
         replyParentQueryKey,
-        (queryData: WritInCache | undefined) => {
-          if (queryData === undefined) {
-            return undefined;
-          }
+        (queryData: WritInCache | undefined) =>
+          produce(queryData, (draft) => {
+            if (draft === undefined) {
+              return;
+            }
 
-          if (!('add' in reply.delta)) {
-            return queryData;
-          }
-          const { memo } = reply.delta.add;
+            if (!('add' in reply.delta)) {
+              return;
+            }
+            const { id: replyId } = reply;
+            const { memo } = reply.delta.add;
 
-          const prevWrit = queryData as WritInCache;
-          const prevReplies = prevWrit.seal.replies;
+            const prevWrit = queryData as WritInCache;
+            const prevReplies = prevWrit.seal.replies;
 
-          const hasInCache = Object.entries(prevReplies).find(([k, r]) => {
-            return r.memo.sent === memo.sent && r.memo.author === memo.author;
-          });
+            const hasInCache = Object.entries(prevReplies).find(([k, r]) => {
+              return r.memo.sent === memo.sent && r.memo.author === memo.author;
+            });
 
-          if (hasInCache) {
-            return queryData;
-          }
+            if (hasInCache) {
+              return;
+            }
 
-          const replyId = unixToDa(memo.sent).toString();
-          const newReply: Reply = {
-            seal: {
-              id: replyId,
-              'parent-id': id!,
-              reacts: {},
-            },
-            memo,
-          };
+            const newReply: Reply = {
+              seal: {
+                id: replyId,
+                'parent-id': id!,
+                reacts: {},
+              },
+              memo,
+            };
 
-          const newReplies = {
-            ...prevReplies,
-            [replyId]: newReply,
-          };
+            const newReplies = {
+              ...prevReplies,
+              [formatUd(bigInt(reply.delta.add.time!))]: newReply,
+            };
 
-          return {
-            ...prevWrit,
-            seal: {
-              ...prevWrit.seal,
-              replies: newReplies,
-            },
-          };
-        }
+            draft.seal.replies = newReplies;
+          })
       );
     }
   }
