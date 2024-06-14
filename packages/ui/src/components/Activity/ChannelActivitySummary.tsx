@@ -1,14 +1,10 @@
-import { toPostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import * as ub from '@tloncorp/shared/dist/urbit';
 
 import { useContact } from '../../contexts';
 import { Image, SizableText, Text, View, XStack, YStack } from '../../core';
 import { getChannelTitle } from '../../utils';
 import { Avatar } from '../Avatar';
-import ContentRenderer from '../ContentRenderer';
-import { GalleryPost } from '../GalleryPost';
 import { UnreadDot } from '../UnreadDot';
 import { ActivityEventContent } from './ActivityEventContent';
 import { SummaryMessage } from './ActivitySummaryMessage';
@@ -62,10 +58,7 @@ export function ChannelActivitySummary({
             />
           )}
           <View>
-            <SummaryMessage
-              summary={summary}
-              newestPostContact={newestPostContact}
-            />
+            <SummaryMessage summary={summary} />
           </View>
           <ActivityEventContent summary={summary} pressHandler={pressHandler} />
         </YStack>
@@ -128,15 +121,6 @@ export function ChannelIcon({
     );
   }
 
-  if (channel.type === 'dm') {
-    return null;
-    // return <Avatar contact={dmContact} contactId={channel.id} size="$xl" />;
-  }
-
-  if (channel.type === 'groupDm') {
-    // TODO
-  }
-
   if (group?.iconImage) {
     return (
       <View
@@ -157,6 +141,10 @@ export function ChannelIcon({
     );
   }
 
+  if (channel.type === 'dm' || channel.type === 'groupDm') {
+    return null;
+  }
+
   return (
     <View
       height={SIZE}
@@ -169,59 +157,6 @@ export function ChannelIcon({
           {(group?.title ?? '~').slice(0, 1).toUpperCase()}
         </Text>
       </View>
-    </View>
-  );
-}
-
-function EventContent({ event }: { event: db.ActivityEvent }) {
-  if (!event.content) {
-    return null;
-  }
-
-  let postContent;
-  try {
-    // console.log(`trying to parsse ${event.id} content`, event.content);
-    const parsed = toPostContent(event.content as ub.Verse[]);
-    postContent = parsed[0];
-  } catch (e) {
-    console.error('Failed to parse event content', e);
-    postContent = [] as ub.Verse[];
-  }
-
-  if (event.channel?.type === 'gallery') {
-    const fakePost = db.buildPendingPost({
-      authorId: event.authorId ?? '',
-      content: postContent as ub.Story,
-      channel: event.channel!,
-    }); // hackkkk
-
-    return (
-      <View padding="$l">
-        <GalleryPost post={fakePost} />
-      </View>
-    );
-  }
-
-  return (
-    <View padding="$l">
-      {/* {event.authorId && (
-        <AuthorRow
-          author={event.author}
-          authorId={event.authorId}
-          sent={event.timestamp}
-          type="chat"
-        />
-      )} */}
-      {event.content && (
-        <ContentRenderer
-          post={{
-            id: event.id,
-            content: postContent ?? [],
-            type: 'diary' as 'chat' | 'gallery' | 'diary',
-          }}
-        />
-      )}
-      {/* <SizableText>{event.author}</SizableText> */}
     </View>
   );
 }

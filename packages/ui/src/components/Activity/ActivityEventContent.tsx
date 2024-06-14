@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as ub from '@tloncorp/shared/dist/urbit';
 
-import { ScrollView, SizableText, View } from '../../core';
+import { ScrollView, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
@@ -34,7 +34,7 @@ export function ActivityEventContent({
   ) {
     const allPosts = summary.all.map((event) => getPost(event));
 
-    // TODO: why are we getting dupes?
+    // TODO: i don't _think_ we're still seeing dupes here?
     const seen = new Set();
     const uniquePosts = allPosts.filter((item) => {
       if (seen.has(item.id)) {
@@ -50,7 +50,6 @@ export function ActivityEventContent({
         marginRight="$xl"
         gap="$s"
         horizontal
-        // overflow="scroll"
         alwaysBounceHorizontal={false}
         showsHorizontalScrollIndicator={false}
       >
@@ -103,13 +102,4 @@ function getPost(event: db.ActivityEvent): db.Post {
   }
 
   return post;
-}
-
-function PostDate({ event }: { event: db.ActivityEvent }) {
-  const display = makePrettyDayAndTime(new Date(event.timestamp ?? Date.now()));
-  return (
-    <SizableText fontSize="$s" color="$secondaryText">
-      {display}
-    </SizableText>
-  );
 }

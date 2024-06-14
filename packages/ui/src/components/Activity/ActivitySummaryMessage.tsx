@@ -4,16 +4,13 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import { PropsWithChildren, useMemo } from 'react';
 import React from 'react';
 
-import { useContact } from '../../contexts';
 import { SizableText } from '../../core';
 import ContactName from '../ContactName';
 
 function SummaryMessageRaw({
   summary,
-  newestPostContact,
 }: {
   summary: logic.SourceActivityEvents;
-  newestPostContact: db.Contact | null;
 }) {
   const relevancy = getRelevancy(summary);
   const newest = summary.newest;
@@ -127,12 +124,6 @@ function SummaryMessageRaw({
   }
 
   if (summary.all.length === 1) {
-    // // if the activity source is unread, we use that total count
-    // const count =
-    //   newest.type === 'reply'
-    //     ? newest.post?.threadUnread?.count ?? summary.all.length
-    //     : newest.channel?.unread?.count ?? summary.all.length;
-
     return (
       <SizableText color="$secondaryText">
         <ContactName userId={newest.authorId ?? ''} showNickname />
@@ -172,15 +163,7 @@ function SummaryMessageWrapper({ children }: PropsWithChildren) {
 }
 
 function postName(event: db.ActivityEvent, plural?: boolean) {
-  const isThread = Boolean(event.parentId);
   const channelType = event.channel?.type ?? 'chat';
-
-  // if (isThread) {
-  //   if (channelType === 'gallery' || channelType === 'notebook') {
-  //     return `comment${plural ? 's' : ''}`;
-  //   }
-  //   return plural ? 'replies' : 'reply';
-  // }
 
   const name =
     channelType === 'gallery'
