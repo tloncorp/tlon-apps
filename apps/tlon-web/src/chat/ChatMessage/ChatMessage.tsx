@@ -93,7 +93,7 @@ function getUnreadDisplay(
   id: string,
   thread: Unread | undefined
 ): 'none' | 'top' | 'thread' | 'top-with-thread' {
-  const isTop = unread?.lastUnread?.id === id;
+  const isTop = unread?.lastUnread?.id === id && unread.status !== 'read';
 
   // if this message is the oldest unread in the main chat,
   // and has an unread thread, show the divider and thread indicator
