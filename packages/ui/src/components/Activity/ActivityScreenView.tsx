@@ -134,11 +134,7 @@ export function ActivityScreenView({
           currentFetcher.isFetching ? <LoadingSpinner /> : null
         }
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            size={5}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
     </View>
