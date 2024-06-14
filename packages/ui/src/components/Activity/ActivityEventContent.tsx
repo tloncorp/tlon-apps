@@ -1,9 +1,10 @@
 import { makePrettyDayAndTime } from '@tloncorp//shared/dist/logic';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as ub from '@tloncorp/shared/dist/urbit';
 
-import { ScrollView, SizableText, View, XStack } from '../../core';
+import { ScrollView, SizableText, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
@@ -12,7 +13,7 @@ export function ActivityEventContent({
   summary,
   pressHandler,
 }: {
-  summary: db.SourceActivityEvents;
+  summary: logic.SourceActivityEvents;
   pressHandler?: () => void;
 }) {
   const newest = summary.newest;

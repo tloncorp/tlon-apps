@@ -1,13 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import * as ub from '@tloncorp/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import React from 'react';
 import { FlatList, RefreshControl } from 'react-native';
 
 import { SizableText, View } from '../../core';
 import { LoadingSpinner } from '../LoadingSpinner';
-import { ActivityHeader, ActivityTab } from './ActivityHeader';
+import { ActivityHeader } from './ActivityHeader';
 import { ChannelActivitySummary } from './ChannelActivitySummary';
 
 export function ActivityScreenView({
@@ -17,7 +17,6 @@ export function ActivityScreenView({
   bucketFetchers,
   refresh,
 }: {
-  // bucketedActivity: store.BucketFetchers;
   isFocused: boolean;
   goToChannel: (channel: db.Channel) => void;
   goToThread: (post: db.PseudoPost) => void;
@@ -77,7 +76,7 @@ export function ActivityScreenView({
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: db.SourceActivityEvents }) => {
+    ({ item }: { item: logic.SourceActivityEvents }) => {
       return (
         <View marginHorizontal="$l">
           <SourceActivityDisplay
@@ -147,23 +146,11 @@ function ActivityEventRaw({
   onPress,
 }: {
   seenMarker: number;
-  sourceActivity: db.SourceActivityEvents;
+  sourceActivity: logic.SourceActivityEvents;
   onPress: (event: db.ActivityEvent) => void;
 }) {
   const event = sourceActivity.newest;
-  if (event.type === 'post') {
-    return (
-      <View onPress={() => onPress(event)}>
-        <ChannelActivitySummary
-          summary={sourceActivity}
-          seenMarker={seenMarker}
-          pressHandler={() => onPress(event)}
-        />
-      </View>
-    );
-  }
-
-  if (event.type === 'reply') {
+  if (event.type === 'post' || event.type === 'reply') {
     return (
       <View onPress={() => onPress(event)}>
         <ChannelActivitySummary

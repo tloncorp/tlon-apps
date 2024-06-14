@@ -1,5 +1,10 @@
-import { ChannelVolume, GroupVolume, ThreadVolume } from '../db';
-import { VolumeMap, VolumeSettings, getLevelFromVolumeMap } from '../urbit';
+import { ActivityEvent, ChannelVolume, GroupVolume, ThreadVolume } from '../db';
+import {
+  ExtendedEventType,
+  VolumeMap,
+  VolumeSettings,
+  getLevelFromVolumeMap,
+} from '../urbit';
 
 export function extractClientVolumes(volume: VolumeSettings): {
   channelVolumes: ChannelVolume[];
@@ -59,4 +64,103 @@ function getClientVolume(volumeMap: VolumeMap, isGroupChannel?: boolean) {
       : level === 'soft' || level === 'hush',
     isNoisy: level === 'loud' || level === 'medium',
   };
+}
+
+// Aggregates events from the same source into a shape that we can use
+// to display
+export interface SourceActivityEvents {
+  sourceId: string;
+  type: ExtendedEventType;
+  newest: ActivityEvent;
+  all: ActivityEvent[];
+}
+
+export function toSourceActivityEvents(
+  events: ActivityEvent[]
+): SourceActivityEvents[] {
+  const eventMap = new Map<string, SourceActivityEvents>();
+  const eventsList: SourceActivityEvents[] = [];
+
+  events.forEach((event) => {
+    const key = event.sourceId;
+    // If we already have an entry for this channel/thread
+    if (eventMap.has(key)) {
+      const existing = eventMap.get(key);
+      if (existing) {
+        // Surface it as a separate "source" if it's a mention, we don't
+        // want to roll those up
+        if (event.isMention) {
+          const mentionSource = {
+            newest: event,
+            all: [event],
+            type: event.type,
+            sourceId: `${event.sourceId}/${event.postId}`,
+          };
+          eventMap.set(key, mentionSource);
+          eventsList.push(mentionSource);
+        } else {
+          // Otherwise, add the current event to the all array
+          existing.all.push(event);
+        }
+      }
+    } else {
+      // Create a new entry in the map
+      const newRollup = {
+        newest: event,
+        all: [event],
+        type: event.type,
+        sourceId: event.sourceId,
+      };
+      eventMap.set(key, newRollup);
+      eventsList.push(newRollup);
+    }
+  });
+
+  return eventsList;
+}
+
+export function interleaveActivityEvents(
+  listA: ActivityEvent[],
+  listB: ActivityEvent[]
+): ActivityEvent[] {
+  const results: ActivityEvent[] = [];
+
+  let aIndex = 0;
+  let bIndex = 0;
+
+  while (aIndex < listA.length && bIndex < listB.length) {
+    if (listA[aIndex].timestamp >= listB[bIndex].timestamp) {
+      results.push(listA[aIndex]);
+      aIndex++;
+    } else {
+      results.push(listB[bIndex]);
+      bIndex++;
+    }
+  }
+
+  // If there are remaining elements in listA, add them to the results
+  while (aIndex < listA.length) {
+    results.push(listA[aIndex]);
+    aIndex++;
+  }
+
+  // If there are remaining elements in listB, add them to the results
+  while (bIndex < listB.length) {
+    results.push(listB[bIndex]);
+    bIndex++;
+  }
+
+  return filterDupeEvents(results);
+}
+
+export function filterDupeEvents(events: ActivityEvent[]): ActivityEvent[] {
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    if (!event.postId) return false; // shouldn't happen
+    if (seen.has(event.postId)) {
+      return false;
+    }
+    seen.add(event.id);
+    return true;
+  });
 }

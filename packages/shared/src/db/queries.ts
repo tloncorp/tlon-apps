@@ -34,6 +34,11 @@ import {
 } from '../api';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  SourceActivityEvents,
+  interleaveActivityEvents,
+  toSourceActivityEvents,
+} from '../logic/activity';
 import { ExtendedEventType, Rank, desig } from '../urbit';
 import {
   QueryCtx,
@@ -2608,7 +2613,76 @@ export const getLatestActivityEvent = createReadQuery(
   ['activityEvents']
 );
 
-export const getBucketedActivityPage = createReadQuery(
+export type BucketedActivity = {
+  all: ActivityEvent[];
+  threads: ActivityEvent[];
+  mentions: ActivityEvent[];
+};
+
+export const getMentionEvents = createReadQuery(
+  'getMentionsPage',
+  async (
+    {
+      startCursor,
+      stopCursor,
+    }: { startCursor?: number | null; stopCursor?: number | null },
+    ctx: QueryCtx
+  ) => {
+    const resolvedCursor = startCursor ?? Date.now();
+    const events = await ctx.db.query.activityEvents.findMany({
+      where: and(
+        eq($activityEvents.bucketId, 'mentions'),
+        lt($activityEvents.timestamp, resolvedCursor),
+        gt($activityEvents.timestamp, stopCursor ?? 0)
+      ),
+      orderBy: desc($activityEvents.timestamp),
+      with: {
+        group: true,
+        post: true,
+        channel: {
+          with: {
+            unread: true,
+          },
+        },
+        parent: {
+          with: {
+            threadUnread: true,
+          },
+        },
+      },
+    });
+    return events;
+  },
+  ['activityEvents']
+);
+
+export const getBucketedMentionsPage = async ({
+  startCursor,
+}: {
+  startCursor?: number | null;
+}) => {
+  const events = await getMentionEvents({ startCursor });
+  const sourceEvents = toSourceActivityEvents(events);
+  return sourceEvents;
+};
+
+export const getBucketedActivityPage = async ({
+  startCursor,
+  bucket,
+  existingSourceIds,
+}: {
+  startCursor?: number | null;
+  bucket: ActivityBucket;
+  existingSourceIds: string[];
+}): Promise<SourceActivityEvents[]> => {
+  if (bucket === 'mentions') {
+    return getBucketedMentionsPage({ startCursor });
+  }
+
+  return getAllOrRepliesPage({ startCursor, bucket, existingSourceIds });
+};
+
+export const getAllOrRepliesPage = createReadQuery(
   'getBucketedActivityPage',
   async (
     {
@@ -2640,6 +2714,9 @@ export const getBucketedActivityPage = createReadQuery(
             eq($activityEvents.bucketId, bucket),
             eq($activityEvents.shouldNotify, true),
             lt($activityEvents.timestamp, resolvedCursor),
+            bucket === 'all'
+              ? gt($activityEvents.timestamp, 0) // noop
+              : eq($activityEvents.type, 'reply'),
             notInArray($activityEvents.sourceId, [
               'throwsIfEmpty',
               ...existingSourceIds,
@@ -2682,7 +2759,7 @@ export const getBucketedActivityPage = createReadQuery(
       }
 
       // we should probably try to do this through the main query, but this will suffice
-      const activityEvents = await ctx.db.query.activityEvents.findMany({
+      const sourceEvents = await ctx.db.query.activityEvents.findMany({
         where: and(
           inArray($activityEvents.id, ids),
           eq($activityEvents.bucketId, bucket)
@@ -2704,7 +2781,22 @@ export const getBucketedActivityPage = createReadQuery(
         },
       });
 
-      const sourceActivity = toSourceActivity(activityEvents);
+      let allEvents: ActivityEvent[];
+      if (bucket === 'all') {
+        // the set of source events doesn't necessarily encompass all mentions,
+        // but we need them all to accurately represent an "all" timeline so we
+        // grab separately
+        const stopCursor = sourceEvents[sourceEvents.length - 1].timestamp;
+        const mentionEvents = await getMentionEvents({
+          startCursor,
+          stopCursor,
+        });
+        allEvents = interleaveActivityEvents(sourceEvents, mentionEvents);
+      } else {
+        allEvents = sourceEvents;
+      }
+
+      const sourceActivity = toSourceActivityEvents(allEvents);
       return sourceActivity;
     } catch (e) {
       logger.error('getBucketedActivityPage query error', e);
@@ -2713,51 +2805,6 @@ export const getBucketedActivityPage = createReadQuery(
   },
   ['activityEvents']
 );
-
-export function toSourceActivity(
-  events: ActivityEvent[],
-  noRollup?: boolean
-): SourceActivityEvents[] {
-  const eventMap = new Map<string, SourceActivityEvents>();
-  const eventsList: SourceActivityEvents[] = [];
-
-  events.forEach((event) => {
-    const key = event.sourceId;
-    if (eventMap.has(key)) {
-      const existing = eventMap.get(key);
-      if (existing) {
-        // Add the current event to the all array
-        existing.all.push(event);
-      }
-    } else {
-      // Create a new entry in the map
-      const newRollup = {
-        newest: event,
-        all: [event],
-        type: event.type,
-        sourceId: event.sourceId,
-      };
-      eventMap.set(key, newRollup);
-      eventsList.push(newRollup);
-    }
-  });
-
-  // Convert the map values to an array
-  return eventsList;
-}
-
-export type BucketedActivity = {
-  all: ActivityEvent[];
-  threads: ActivityEvent[];
-  mentions: ActivityEvent[];
-};
-
-export interface SourceActivityEvents {
-  sourceId: string;
-  type: ExtendedEventType;
-  newest: ActivityEvent;
-  all: ActivityEvent[];
-}
 
 export const getBucketedActivity = createReadQuery(
   'getActivityEvents',

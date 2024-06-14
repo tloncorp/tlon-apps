@@ -1,33 +1,24 @@
-import { toPostContent } from '@tloncorp/shared/dist/api';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import * as ub from '@tloncorp/shared/dist/urbit';
+import * as logic from '@tloncorp/shared/dist/logic';
 import { PropsWithChildren, useMemo } from 'react';
 import React from 'react';
 
 import { useContact } from '../../contexts';
-import { Image, SizableText, Text, View, XStack, YStack } from '../../core';
-import { getChannelTitle } from '../../utils';
-import AuthorRow from '../AuthorRow';
-import { Avatar } from '../Avatar';
+import { SizableText } from '../../core';
 import ContactName from '../ContactName';
-import ContentRenderer from '../ContentRenderer';
-import { GalleryPost } from '../GalleryPost';
-import { ListItem } from '../ListItem';
-import { ActivityEventContent } from './ActivityEventContent';
 
 function SummaryMessageRaw({
   summary,
   newestPostContact,
 }: {
-  summary: db.SourceActivityEvents;
+  summary: logic.SourceActivityEvents;
   newestPostContact: db.Contact | null;
 }) {
   const relevancy = getRelevancy(summary);
   const newest = summary.newest;
   const count = summary.all.length;
   const plural = summary.all.length > 1;
-  const newestContact = useContact(newest.authorId ?? '');
   const otherSet = new Set<string>();
   summary.all.forEach((event) => {
     if (event.authorId && event.authorId !== newest.authorId) {
@@ -218,7 +209,7 @@ type ActivityRelevancy =
   | 'postInYourChannel';
 
 export function getRelevancy(
-  summary: db.SourceActivityEvents
+  summary: logic.SourceActivityEvents
 ): ActivityRelevancy {
   const currentUserId = api.getCurrentUserId();
   const newest = summary.newest;

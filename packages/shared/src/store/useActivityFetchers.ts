@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as logic from '../logic';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', true);
 
@@ -11,7 +12,7 @@ export interface ActivityFetcher {
   canFetchMoreActivity: boolean;
   fetchMoreActivity: () => void;
   isFetching: boolean;
-  activity: db.SourceActivityEvents[];
+  activity: logic.SourceActivityEvents[];
 }
 
 export interface BucketFetchers {
@@ -52,7 +53,7 @@ export function useInfiniteBucketedActivity(
       pageParam,
     }: {
       pageParam: PageParam;
-    }): Promise<db.SourceActivityEvents[]> => {
+    }): Promise<logic.SourceActivityEvents[]> => {
       const { cursor, existingSourceIds } = pageParam;
       logger.log(`query fn running`, bucket, pageParam);
 

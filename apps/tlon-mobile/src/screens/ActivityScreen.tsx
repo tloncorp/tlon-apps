@@ -15,13 +15,15 @@ export function ActivityScreen(props: Props) {
   const isFocused = useIsFocused();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
+  const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
+  const repliesFetcher = store.useInfiniteBucketedActivity('replies');
   const bucketedActivity = useMemo(() => {
     return {
       all: allFetcher,
-      replies: {} as store.ActivityFetcher,
-      mentions: {} as store.ActivityFetcher,
+      replies: repliesFetcher,
+      mentions: mentionsFetcher,
     };
-  }, [allFetcher]);
+  }, [allFetcher, mentionsFetcher, repliesFetcher]);
 
   const handleRefreshActivity = useCallback(async () => {
     return store.resetActivity();

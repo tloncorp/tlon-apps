@@ -1,17 +1,14 @@
 import { toPostContent } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as ub from '@tloncorp/shared/dist/urbit';
-import { PropsWithChildren } from 'react';
 
 import { useContact } from '../../contexts';
 import { Image, SizableText, Text, View, XStack, YStack } from '../../core';
 import { getChannelTitle } from '../../utils';
-import AuthorRow from '../AuthorRow';
 import { Avatar } from '../Avatar';
-import ContactName from '../ContactName';
 import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
-import { ListItem } from '../ListItem';
 import { UnreadDot } from '../UnreadDot';
 import { ActivityEventContent } from './ActivityEventContent';
 import { SummaryMessage } from './ActivitySummaryMessage';
@@ -21,7 +18,7 @@ export function ChannelActivitySummary({
   seenMarker,
   pressHandler,
 }: {
-  summary: db.SourceActivityEvents;
+  summary: logic.SourceActivityEvents;
   seenMarker: number;
   pressHandler?: () => void;
 }) {
