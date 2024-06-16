@@ -30,7 +30,7 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
 
   const [postContent, _flags] = api.toPostContent(event.content as ub.Story);
   const post: types.Post = {
-    id: event.id,
+    id: event.postId ?? event.id,
     type: logic.getPostTypeFromChannelId({
       channelId: event.channelId,
       parentId: event.parentId,

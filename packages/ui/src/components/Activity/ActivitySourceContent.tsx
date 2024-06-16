@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
-import * as ub from '@tloncorp/shared/dist/urbit';
 
 import { ScrollView, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
@@ -30,7 +29,8 @@ export function ActivitySourceContent({
     newest.channel?.type === 'gallery' ||
     newest.channel?.type === 'notebook'
   ) {
-    const allPosts = summary.all?.map((event) => getPost(event)) ?? []; // defensive
+    const allPosts =
+      summary.all?.map((event) => getPost(event)).filter(Boolean) ?? []; // defensive
 
     // TODO: i don't _think_ we're still seeing dupes here?
     const seen = new Set();

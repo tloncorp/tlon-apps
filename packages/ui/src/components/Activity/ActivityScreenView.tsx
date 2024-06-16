@@ -121,21 +121,23 @@ export function ActivityScreenView({
   return (
     <View flex={1}>
       <ActivityHeader activeTab={activeTab} onTabPress={handleTabPress} />
-      <FlatList
-        data={events}
-        renderItem={renderItem}
-        keyExtractor={(item) =>
-          item.newest.id ?? item.newest.timestamp.toString()
-        }
-        contentContainerStyle={{ paddingTop: 16 }}
-        onEndReached={handleEndReached}
-        ListFooterComponent={
-          currentFetcher.isFetching ? <LoadingSpinner /> : null
-        }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      />
+      {events.length > 0 && (
+        <FlatList
+          data={events}
+          renderItem={renderItem}
+          keyExtractor={(item) =>
+            `${item.sourceId}/${item.newest.bucketId}/${item.all.length}`
+          }
+          contentContainerStyle={{ paddingTop: 16 }}
+          onEndReached={handleEndReached}
+          ListFooterComponent={
+            currentFetcher.isFetching ? <LoadingSpinner /> : null
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
+      )}
     </View>
   );
 }

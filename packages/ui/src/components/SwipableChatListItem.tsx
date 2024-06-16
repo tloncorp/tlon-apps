@@ -20,7 +20,6 @@ export function SwipableChatRow(
   props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
 ) {
   const swipeableRef = useRef<Swipeable | null>(null);
-  const swipeAnim = useRef(new Animated.Value(0)).current;
   const isMuted = store.useChannelIsMuted(props.model);
   // prevent color flicker when unmuting
   const [mutedState, setMutedState] = useState(isMuted);
@@ -52,50 +51,9 @@ export function SwipableChatRow(
     [props.model, isMuted]
   );
 
-  const opacity = swipeAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.5],
-  });
-
-  const onSwipeableWillOpen = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 1,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  const onSwipeableOpen = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 1,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  const onSwipeableWillClose = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 0.5,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  const onSwipeableClose = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 0,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
   return (
     <Swipeable
       ref={swipeableRef}
-      onSwipeableWillOpen={onSwipeableWillOpen}
-      onSwipeableOpen={onSwipeableOpen}
-      onSwipeableWillClose={onSwipeableWillClose}
-      onSwipeableClose={onSwipeableClose}
       renderLeftActions={(progress, drag) =>
         props.jailBroken ? (
           <LeftActions progress={progress} drag={drag} model={props.model} />
@@ -117,13 +75,7 @@ export function SwipableChatRow(
       overshootLeft={false}
       overshootRight={false}
     >
-      <Animated.View
-        style={{
-          opacity,
-        }}
-      >
-        {props.children}
-      </Animated.View>
+      {props.children}
     </Swipeable>
   );
 }
