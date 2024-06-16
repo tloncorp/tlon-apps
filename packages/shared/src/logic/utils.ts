@@ -9,6 +9,7 @@ import emojiRegex from 'emoji-regex';
 import { useMemo } from 'react';
 
 import * as api from '../api';
+import { isDmChannelId, isGroupDmChannelId } from '../api/apiUtils';
 import * as db from '../db';
 import * as ub from '../urbit';
 
@@ -362,6 +363,22 @@ export const textPostIsReference = (post: db.Post): boolean => {
   }
 
   return false;
+};
+
+export const getPostTypeFromChannelId = ({
+  channelId,
+  parentId,
+}: {
+  channelId?: string | null;
+  parentId?: string | null;
+}): db.PostType => {
+  if (!channelId) return 'chat';
+  const isDm = isDmChannelId(channelId) || isGroupDmChannelId(channelId);
+  return parentId
+    ? 'reply'
+    : isDm
+      ? 'chat'
+      : (channelId.split('/')[0] as db.PostType);
 };
 
 export const usePostMeta = (post: db.Post) => {

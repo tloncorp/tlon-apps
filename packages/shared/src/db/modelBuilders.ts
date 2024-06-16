@@ -6,8 +6,51 @@ import {
   isDmChannelId,
   isGroupDmChannelId,
 } from '../api/apiUtils';
+import * as db from '../db';
+import * as logic from '../logic';
 import * as ub from '../urbit';
 import * as types from './types';
+
+export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
+  if (!['post', 'reply'].includes(event.type)) {
+    console.warn(
+      `assembling post from activity event that isn't a message`,
+      event.id,
+      event
+    );
+  }
+
+  if (!event.authorId || !event.channelId) {
+    console.warn(
+      `assembling post from activity event with missing data`,
+      event.id,
+      event
+    );
+  }
+
+  const [postContent, _flags] = api.toPostContent(event.content as ub.Story);
+  const post: types.Post = {
+    id: event.id,
+    type: logic.getPostTypeFromChannelId({
+      channelId: event.channelId,
+      parentId: event.parentId,
+    }),
+    authorId: event.authorId ?? '',
+    parentId: event.parentId ?? '',
+    channelId: event.channelId ?? '',
+    groupId: event.groupId,
+    sentAt: event.timestamp,
+    receivedAt: event.timestamp,
+    content: JSON.stringify(postContent),
+    textContent: ub.getTextContent(event.content as ub.Story),
+    images: api.getContentImages(event.id, event.content as ub.Story),
+    reactions: [],
+    replies: [],
+    hidden: false,
+  };
+
+  return post;
+}
 
 export function buildPendingPost({
   authorId,
@@ -23,12 +66,10 @@ export function buildPendingPost({
   const sentAt = Date.now();
   const id = getCanonicalPostId(unixToDa(sentAt).toString());
   const [postContent, postFlags] = api.toPostContent(content);
-  const isDm = isDmChannelId(channel.id) || isGroupDmChannelId(channel.id);
-  const type = parentId
-    ? 'reply'
-    : isDm
-      ? 'chat'
-      : (channel.id.split('/')[0] as types.PostType);
+  const type = logic.getPostTypeFromChannelId({
+    channelId: channel.id,
+    parentId,
+  });
 
   // TODO: punt on DM delivery status until we have a single subscription
   // to lean on

@@ -29,15 +29,21 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
-  const activity = await scry<ub.InitActivityFeeds>({
+  const feeds = await scry<ub.InitActivityFeeds>({
     app: 'activity',
     path: `/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
 
+  return fromInitFeedToBucketedActivityEvents(feeds);
+}
+
+export function fromInitFeedToBucketedActivityEvents(
+  feeds: ub.InitActivityFeeds
+) {
   return [
-    ...fromFeedToActivityEvents(activity.all, 'all'),
-    ...fromFeedToActivityEvents(activity.mentions, 'mentions'),
-    ...fromFeedToActivityEvents(activity.replies, 'replies'),
+    ...fromFeedToActivityEvents(feeds.all, 'all'),
+    ...fromFeedToActivityEvents(feeds.mentions, 'mentions'),
+    ...fromFeedToActivityEvents(feeds.replies, 'replies'),
   ];
 }
 
@@ -64,7 +70,7 @@ export async function getPagedActivityByBucket({
   return { events, nextCursor };
 }
 
-function fromFeedToActivityEvents(
+export function fromFeedToActivityEvents(
   feed: ub.ActivityFeed,
   bucket: db.ActivityBucket
 ): db.ActivityEvent[] {
@@ -177,7 +183,7 @@ function toActivityEvent({
     const replyEvent = event['dm-reply'];
     const { authorId, postId } = getInfoFromMessageKey(replyEvent.key, true);
     const { postId: parentId, authorId: parentAuthorId } =
-      getInfoFromMessageKey(replyEvent.parent);
+      getInfoFromMessageKey(replyEvent.parent, true);
     return {
       ...baseFields,
       type: 'reply',
@@ -615,9 +621,9 @@ export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
   const channelUnreads: db.ChannelUnread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
 
-  Object.entries(activity).forEach(([id, summary]) => {
-    logger.log(`parsing activity: ${id}`, summary);
-    const [activityId, ...rest] = id.split('/');
+  Object.entries(activity).forEach(([sourceId, summary]) => {
+    logger.log(`parsing unreads for ${sourceId}`, summary);
+    const [activityId, ...rest] = sourceId.split('/');
     if (activityId === 'ship' || activityId === 'club') {
       const channelId = rest.join('/');
       channelUnreads.push(toChannelUnread(channelId, summary, 'dm'));
@@ -646,8 +652,6 @@ export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
         )
       );
     }
-
-    // discard everything else for now
   });
 
   return { channelUnreads, threadActivity, groupUnreads };
@@ -673,7 +677,7 @@ export const toChannelUnread = (
   channelId: string,
   summary: ub.ActivitySummary,
   type: db.ChannelUnread['type']
-): db.ChannelUnread & { threadUnreads: db.ThreadUnreadState[] } => {
+): db.ChannelUnread => {
   const summaryKey = type === 'dm' ? 'id' : 'time';
   const firstUnreadPostId =
     summary.unread && summary.unread[summaryKey]
@@ -690,7 +694,6 @@ export const toChannelUnread = (
     firstUnreadPostReceivedAt: firstUnreadPostId
       ? udToDate(firstUnreadPostId)
       : null,
-    threadUnreads: [],
   };
 };
 

@@ -7,7 +7,7 @@ import ContentRenderer from '../ContentRenderer';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
 
-export function ActivityEventContent({
+export function ActivitySourceContent({
   summary,
   pressHandler,
 }: {
@@ -90,11 +90,7 @@ function getPost(event: db.ActivityEvent): db.Post {
     post = event.post;
   } else {
     // %activity gives us partials so...square peg, round hole
-    post = db.buildPendingPost({
-      authorId: event.authorId ?? '',
-      content: (event.content as ub.Story) ?? [],
-      channel: event.channel!,
-    });
+    post = db.assemblePostFromActivityEvent(event);
   }
 
   return post;

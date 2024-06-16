@@ -78,7 +78,7 @@ export interface DmPostEvent {
   'dm-post': {
     key: MessageKey;
     whom: Whom;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -88,7 +88,7 @@ export interface DmReplyEvent {
     parent: MessageKey;
     key: MessageKey;
     whom: Whom;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -98,7 +98,7 @@ export interface PostEvent {
     key: MessageKey;
     group: string;
     channel: string;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -109,7 +109,7 @@ export interface ReplyEvent {
     key: MessageKey;
     group: string;
     channel: string;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }

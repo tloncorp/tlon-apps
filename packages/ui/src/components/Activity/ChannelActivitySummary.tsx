@@ -6,7 +6,7 @@ import { Image, SizableText, Text, View, XStack, YStack } from '../../core';
 import { getChannelTitle } from '../../utils';
 import { Avatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';
-import { ActivityEventContent } from './ActivityEventContent';
+import { ActivitySourceContent } from './ActivitySourceContent';
 import { SummaryMessage } from './ActivitySummaryMessage';
 
 export function ChannelActivitySummary({
@@ -61,7 +61,10 @@ export function ChannelActivitySummary({
           <View>
             <SummaryMessage summary={summary} />
           </View>
-          <ActivityEventContent summary={summary} pressHandler={pressHandler} />
+          <ActivitySourceContent
+            summary={summary}
+            pressHandler={pressHandler}
+          />
         </YStack>
       </XStack>
     </View>

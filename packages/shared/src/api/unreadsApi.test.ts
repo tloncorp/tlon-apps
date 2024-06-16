@@ -1,110 +1,229 @@
 import { expect, test } from 'vitest';
 
-test('stub', () => expect(1).toBe(1));
+import type * as ub from '../urbit';
+import {
+  toChannelUnread,
+  toClientUnreads,
+  toGroupUnread,
+  toThreadUnread,
+} from './activityApi';
 
-// import type * as client from '../client';
-// import type * as ub from '../urbit';
-// import { toClientUnread, toClientUnreads } from './unreadsApi';
+const channelUnread: Record<string, ub.ActivitySummary> = {
+  'channel/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870':
+    {
+      unread: {
+        count: 4,
+        id: '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.853.155.647.879.036.981.225.717.760',
+        time: '170141184506853155647879036981225717760',
+        notify: true,
+      },
+      count: 5,
+      recency: 1718513986192,
+      children: {
+        'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.591.089.314.701.116.289.581.056':
+          {
+            unread: null,
+            count: 1,
+            recency: 1718483402625,
+            children: null,
+            notify: true,
+          },
+        'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.590.556.405.446.059.399.053.312':
+          {
+            unread: null,
+            count: 0,
+            recency: 1718483869007,
+            children: null,
+            notify: false,
+          },
+      },
+      notify: true,
+    },
+};
 
-// const inputUnread: [string, ub.Unread, client.UnreadType] = [
-//   'chat/~nibset-napwyn/commons',
-//   {
-//     unread: null,
-//     count: 0,
-//     recency: 1684342021902,
-//     threads: {
-//       '170141184506679332462977882563190718464': {
-//         count: 1,
-//         id: '170141184506679449778442814913098285056',
-//       },
-//       '170141184506573685591436091634451742720': {
-//         count: 7,
-//         id: '170141184506573686840992177870717583360',
-//       },
-//     },
-//   },
-//   'channel',
-// ];
+const expectedChannelUnread = {
+  channelId:
+    'chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870',
+  type: 'channel',
+  updatedAt: 1718513986192,
+  count: 5,
+  countWithoutThreads: 4,
+  notify: true,
+  firstUnreadPostId: '170.141.184.506.853.155.647.879.036.981.225.717.760',
+  firstUnreadPostReceivedAt: 1718513986192,
+};
 
-// const expectedChannelUnread = {
-//   channelId: 'chat/~nibset-napwyn/commons',
-//   type: 'channel',
-//   count: 0,
-//   updatedAt: 1684342021902,
-//   countWithoutThreads: 0,
-//   firstUnreadPostId: null,
-//   firstUnreadPostReceivedAt: null,
-//   threadUnreads: [
-//     {
-//       channelId: 'chat/~nibset-napwyn/commons',
-//       count: 1,
-//       firstUnreadPostId: '170.141.184.506.679.449.778.442.814.913.098.285.056',
-//       firstUnreadPostReceivedAt: 1709097372141,
-//       threadId: '170.141.184.506.679.332.462.977.882.563.190.718.464',
-//     },
-//     {
-//       channelId: 'chat/~nibset-napwyn/commons',
-//       count: 7,
-//       firstUnreadPostId: '170.141.184.506.573.686.840.992.177.870.717.583.360',
-//       firstUnreadPostReceivedAt: 1703363951814,
-//       threadId: '170.141.184.506.573.685.591.436.091.634.451.742.720',
-//     },
-//   ],
-// };
+test('converts a channel unread from server to client format', () => {
+  const [sourceId, summary] = Object.entries(channelUnread)[0];
+  const [_prefix, ...rest] = sourceId.split('/');
+  const channelId = rest.join('/');
+  expect(toChannelUnread(channelId, summary, 'channel')).toStrictEqual(
+    expectedChannelUnread
+  );
+});
 
-// test('converts a channel unread from server to client format', () => {
-//   expect(toClientUnread(...inputUnread)).toStrictEqual(expectedChannelUnread);
-// });
+const threadUnread: Record<string, ub.ActivitySummary> = {
+  'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.613.519.639.575.172.887.871.488':
+    {
+      unread: {
+        count: 1,
+        id: '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.853.162.261.354.291.179.829.592.064',
+        time: '170141184506853162261354291179829592064',
+        notify: false,
+      },
+      count: 1,
+      recency: 1718514344709,
+      children: {},
+      notify: false,
+    },
+};
 
-// test('converts an array of contacts from server to client format', () => {
-//   expect(
-//     toClientUnreads({ [inputUnread[0]]: inputUnread[1] }, inputUnread[2])
-//   ).toStrictEqual([expectedChannelUnread]);
-// });
+const expectedThreadUnread = {
+  channelId:
+    'chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870',
+  threadId: '170.141.184.506.852.613.519.639.575.172.887.871.488',
+  updatedAt: 1718514344709,
+  count: 1,
+  notify: false,
+  firstUnreadPostId: '170.141.184.506.853.162.261.354.291.179.829.592.064',
+  firstUnreadPostReceivedAt: 1718514344709,
+};
 
-// const inputDMUnread: [string, ub.DMUnread, client.UnreadType] = [
-//   'dm/~pondus-latter',
-//   {
-//     unread: null,
-//     count: 0,
-//     recency: 1684342021902,
-//     threads: {
-//       '~solfer-magfed/170.141.184.506.756.887.451.899.884.050.553.971.408': {
-//         'parent-time': '170141184506756887456934791340363874304',
-//         count: 4,
-//         id: '~pondus-watbel/170.141.184.506.756.903.044.379.247.235.026.665.865',
-//         time: '170141184506756903048577408232069267456',
-//       },
-//     },
-//   },
-//   'dm',
-// ];
+test('converts a thread unread from server to client format', () => {
+  const [sourceId, summary] = Object.entries(threadUnread)[0];
+  const [_prefix, ...rest] = sourceId.split('/');
+  const channelId = rest.slice(0, 3).join('/');
+  const threadId = rest[rest.length - 1];
+  expect(toThreadUnread(channelId, threadId, summary, 'channel')).toStrictEqual(
+    expectedThreadUnread
+  );
+});
 
-// const expectedDMUnread = {
-//   channelId: 'dm/~pondus-latter',
-//   type: 'dm',
-//   count: 0,
-//   updatedAt: 1684342021902,
-//   countWithoutThreads: 0,
-//   firstUnreadPostId: null,
-//   firstUnreadPostReceivedAt: null,
-//   threadUnreads: [
-//     {
-//       channelId: 'dm/~pondus-latter',
-//       count: 4,
-//       firstUnreadPostId: '170.141.184.506.756.903.044.379.247.235.026.665.865',
-//       firstUnreadPostReceivedAt: 1713296122101,
-//       threadId: '170.141.184.506.756.887.451.899.884.050.553.971.408',
-//     },
-//   ],
-// };
+const dmUnread: Record<string, ub.ActivitySummary> = {
+  'ship/~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod': {
+    unread: {
+      count: 4,
+      id: '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.853.323.576.871.214.428.711.452.409',
+      time: '170141184506853323579606989072752443392',
+      notify: true,
+    },
+    count: 6,
+    recency: 1718523089789,
+    children: {},
+    notify: true,
+  },
+};
 
-// test('converts a channel unread from server to client format', () => {
-//   expect(toClientUnread(...inputDMUnread)).toStrictEqual(expectedDMUnread);
-// });
+const expectedDMUnread = {
+  channelId: '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod',
+  type: 'dm',
+  updatedAt: 1718523089789,
+  count: 6,
+  countWithoutThreads: 4,
+  notify: true,
+  firstUnreadPostId: '170.141.184.506.853.323.576.871.214.428.711.452.409',
+  firstUnreadPostReceivedAt: 1718523089641,
+};
 
-// test('converts an array of channels from server to client format', () => {
-//   expect(
-//     toClientUnreads({ [inputDMUnread[0]]: inputDMUnread[1] }, inputDMUnread[2])
-//   ).toStrictEqual([expectedDMUnread]);
-// });
+test('converts a dm unread from server to client format', () => {
+  const [sourceId, summary] = Object.entries(dmUnread)[0];
+  const [_prefix, ...rest] = sourceId.split('/');
+  const channelId = rest[0];
+  expect(toChannelUnread(channelId, summary, 'dm')).toStrictEqual(
+    expectedDMUnread
+  );
+});
+
+const dmThreadUnread: Record<string, ub.ActivitySummary> = {
+  'dm-thread/~latter-bolden/~pondus-watbel/170.141.184.506.850.891.890.487.524.537.451.390.435':
+    {
+      unread: {
+        count: 1,
+        id: '~latter-bolden/170.141.184.506.853.331.045.293.807.087.055.357.870',
+        time: '170141184506853331047376811986706759680',
+        notify: true,
+      },
+      count: 1,
+      recency: 1718523494618,
+      children: {},
+      notify: true,
+    },
+};
+
+const expectedDmThreadUnread = {
+  channelId: '~latter-bolden',
+  threadId: '170.141.184.506.850.891.890.487.524.537.451.390.435',
+  updatedAt: 1718523494618,
+  count: 1,
+  notify: true,
+  firstUnreadPostId: '170.141.184.506.853.331.045.293.807.087.055.357.870',
+  firstUnreadPostReceivedAt: 1718523494505,
+};
+
+test('converts a dm thread unread from server to client format', () => {
+  const [sourceId, summary] = Object.entries(dmThreadUnread)[0];
+  const [_prefix, ...rest] = sourceId.split('/');
+  const channelId = rest[0];
+  const threadId = rest[rest.length - 1];
+  expect(toThreadUnread(channelId, threadId, summary, 'dm')).toStrictEqual(
+    expectedDmThreadUnread
+  );
+});
+
+const groupUnread: Record<string, ub.ActivitySummary> = {
+  'group/~latter-bolden/woodshop': {
+    unread: null,
+    count: 6,
+    recency: 946684800000,
+    children: {
+      'channel/chat/~latter-bolden/welcome-8186': {
+        unread: {
+          count: 5,
+          notify: true,
+          id: '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.853.155.647.879.036.981.225.717.760',
+          time: '170141184506853155647879036981225717760',
+        },
+        count: 5,
+        recency: 946684800000,
+        children: null,
+        notify: false,
+      },
+    },
+    notify: true,
+  },
+};
+
+const expectedGroupUnread = {
+  groupId: '~latter-bolden/woodshop',
+  updatedAt: 946684800000,
+  count: 5,
+  notify: true,
+};
+
+test('converts a group unread from server to client format', () => {
+  const [sourceId, summary] = Object.entries(groupUnread)[0];
+  const [_prefix, ...rest] = sourceId.split('/');
+  const groupId = rest.join('/');
+  expect(toGroupUnread(groupId, summary)).toStrictEqual(expectedGroupUnread);
+});
+
+test('converts a set of unreads from server to client format', () => {
+  const unreads: ub.Activity = {
+    ...channelUnread,
+    ...threadUnread,
+    ...dmUnread,
+    ...dmThreadUnread,
+    ...groupUnread,
+  };
+  const clientUnreads = toClientUnreads(unreads);
+
+  expect(clientUnreads.channelUnreads.length).toBe(2);
+  expect(clientUnreads.threadActivity.length).toBe(2);
+  expect(clientUnreads.groupUnreads.length).toBe(1);
+
+  expect(clientUnreads.channelUnreads[0]).toStrictEqual(expectedChannelUnread);
+  expect(clientUnreads.channelUnreads[1]).toStrictEqual(expectedDMUnread);
+  expect(clientUnreads.threadActivity[0]).toStrictEqual(expectedThreadUnread);
+  expect(clientUnreads.threadActivity[1]).toStrictEqual(expectedDmThreadUnread);
+  expect(clientUnreads.groupUnreads[0]).toStrictEqual(expectedGroupUnread);
+});
