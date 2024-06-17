@@ -2,7 +2,7 @@ import type { OPSQLiteConnection } from '@op-engineering/op-sqlite';
 import { open } from '@op-engineering/op-sqlite';
 import { createDevLogger, escapeLog } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/dist/db';
-import { schema, setClient } from '@tloncorp/shared/dist/db';
+import { handleChange, schema, setClient } from '@tloncorp/shared/dist/db';
 import { migrations } from '@tloncorp/shared/dist/db/migrations';
 import type { OPSQLiteDatabase } from 'drizzle-orm/op-sqlite';
 import { drizzle } from 'drizzle-orm/op-sqlite';
@@ -26,6 +26,8 @@ export function setupDb() {
   connection.execute('PRAGMA mmap_size=268435456');
   connection.execute('PRAGMA journal_mode=MEMORY');
   connection.execute('PRAGMA synchronous=OFF');
+
+  connection.updateHook(handleChange);
 
   client = drizzle(connection, {
     schema,

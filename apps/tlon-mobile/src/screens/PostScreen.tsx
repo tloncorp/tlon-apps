@@ -35,7 +35,7 @@ export default function PostScreen(props: PostScreenProps) {
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
 
-  const { data: post } = store.usePostWithRelations({
+  const { data: post } = store.usePostWithThreadUnreads({
     id: postParam.id,
   });
   const { data: threadPosts } = store.useThreadPosts({

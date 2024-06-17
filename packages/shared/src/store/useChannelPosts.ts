@@ -1,10 +1,14 @@
-import { replaceEqualDeep, useInfiniteQuery } from '@tanstack/react-query';
+import {
+  InfiniteData,
+  replaceEqualDeep,
+  useInfiniteQuery,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { queryClient } from './reactQuery';
 import * as sync from './sync';
-import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
@@ -12,6 +16,58 @@ type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
+};
+
+/**
+ * Adds a post to the query data for a given channel, if query exists.
+ * Called from sync.handleAddPost when we send a post or receive a post event.
+ */
+export const addToChannelPosts = (
+  newPost: db.Post,
+  previousPostId?: string
+) => {
+  queryClient.setQueriesData(
+    {
+      queryKey: [['channelPosts', newPost.channelId]],
+    },
+    (
+      currentData?: InfiniteData<db.Post[], db.GetChannelPostsOptions>
+    ): InfiniteData<db.Post[], db.GetChannelPostsOptions> => {
+      let setPost = false;
+      if (!currentData) {
+        currentData = {
+          pages: [[]],
+          pageParams: [{ channelId: newPost.channelId, mode: 'newest' }],
+        };
+      }
+      const nextPages = currentData?.pages?.map((p) => {
+        return p.flatMap((post) => {
+          // Check if there's a pending post to replace
+          if (post.sentAt === newPost.sentAt) {
+            setPost = true;
+            return [
+              {
+                ...post,
+                ...newPost,
+              },
+            ];
+          } else if (post.id === previousPostId) {
+            setPost = true;
+            return [newPost, post];
+          } else {
+            return [post];
+          }
+        });
+      });
+      if (!setPost) {
+        console.log('unable to place post', newPost, currentData);
+      }
+      return {
+        ...currentData,
+        pages: nextPages,
+      };
+    }
+  );
 };
 
 export const useChannelPosts = (options: UseChanelPostsParams) => {
@@ -64,10 +120,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       );
       return secondResult ?? [];
     },
-    queryKey: [
-      ['channelPosts', options.channelId, options.cursor, mountTime],
-      useKeyFromQueryDeps(db.getChannelPosts, options),
-    ],
+    queryKey: [['channelPosts', options.channelId, options.cursor, mountTime]],
     getNextPageParam: (
       lastPage,
       _allPages,
