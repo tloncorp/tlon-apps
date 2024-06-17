@@ -32,18 +32,19 @@ export function Wrapped(props: Props) {
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
 
-  const onLogoutPress = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Log out',
-        onPress: props.handleLogout,
-      },
-    ]);
-  };
+  // TODO: Add logout back in when we figure out TLON-2098.
+  // const onLogoutPress = () => {
+  // Alert.alert('Log out', 'Are you sure you want to log out?', [
+  // {
+  // text: 'Cancel',
+  // style: 'cancel',
+  // },
+  // {
+  // text: 'Log out',
+  // onPress: props.handleLogout,
+  // },
+  // ]);
+  // };
 
   return (
     <ScrollView>
@@ -66,12 +67,14 @@ export function Wrapped(props: Props) {
             icon="Settings"
             onPress={props.onAppSettingsPressed}
           />
+          {/*
           <ProfileAction
             title="Log Out"
             icon="LogOut"
             hideCaret
             onPress={onLogoutPress}
           />
+          */}
         </View>
       </YStack>
     </ScrollView>
