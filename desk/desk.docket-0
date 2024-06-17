@@ -2,7 +2,7 @@
     info+'Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Tlon is a decentralized platform that offers a full, communal suite of tools for messaging, writing and sharing media with others.'
     color+0xde.dede
     image+'https://bootstrap.urbit.org/tlon.svg?v=1'
-    glob-http+['https://bootstrap.urbit.org/glob-0v4.ta00c.d5v5b.f6e16.cun2b.6p9em.glob' 0v4.ta00c.d5v5b.f6e16.cun2b.6p9em]
+    glob-http+['https://bootstrap.urbit.org/glob-0v7.r6osg.1s260.uduvg.ikrsl.3h9l2.glob' 0v7.r6osg.1s260.uduvg.ikrsl.3h9l2]
     base+'groups'
     version+[6 0 0]
     website+'https://tlon.io'
