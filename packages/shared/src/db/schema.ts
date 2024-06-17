@@ -691,7 +691,9 @@ export const posts = sqliteTable(
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
     isMuted: boolean('is_muted').default(false),
     isNoisy: boolean('is_noisy').default(false),
-    // urbit side types we need for interacting with the api
+    // backendTime translates to an unfortunate alternative timestamp that is used
+    // in some places by the backend agents as part of a composite key for identifying a post.
+    // You should not be accessing this field except in very particular contexts.
     backendTime: text('backend_time'),
   },
   (table) => ({
