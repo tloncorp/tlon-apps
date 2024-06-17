@@ -541,10 +541,15 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
             });
 
             if (hasInCache) {
-              return;
+              delete prevReplies[hasInCache[0]];
             }
 
-            const newReplyId = formatUd(unixToDa(memo.sent));
+            const newReplyId =
+              reply.delta.add.time === null
+                ? // handles the optimistic case
+                  formatUd(unixToDa(memo.sent))
+                : // handles the case where we hear the fact
+                  formatUd(bigInt(reply.delta.add.time));
             const newReply: Reply = {
               seal: {
                 id: replyId,
