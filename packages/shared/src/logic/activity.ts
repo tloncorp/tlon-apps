@@ -87,17 +87,27 @@ export function toSourceActivityEvents(
     if (eventMap.has(key)) {
       const existing = eventMap.get(key);
       if (existing) {
-        // Surface it as a separate "source" if it's a mention, we don't
-        // want to roll those up
-        if (event.isMention) {
-          const mentionSource = {
-            newest: event,
-            all: [event],
-            type: event.type,
-            sourceId: `${event.sourceId}/${event.postId}`,
-          };
-          eventMap.set(key, mentionSource);
-          eventsList.push(mentionSource);
+        const existingNewestEvent = existing.newest;
+        // If a mention is already included as the latest event of its source,
+        // we don't need to add it again
+        if (
+          event.isMention &&
+          existingNewestEvent.id !== event.id &&
+          existingNewestEvent.postId !== event.postId
+        ) {
+          // If it's not included as the latest of its source, add it as it's own
+          // "source" if it hasn't already been added
+          const individualMentionKey = `${key}/${event.postId}`;
+          if (!eventMap.has(individualMentionKey)) {
+            const mentionSource = {
+              newest: event,
+              all: [event],
+              type: event.type,
+              sourceId: `${event.sourceId}/${event.postId}`,
+            };
+            eventMap.set(individualMentionKey, mentionSource);
+            eventsList.push(mentionSource);
+          }
         } else {
           // Otherwise, add the current event to the all array
           existing.all.push(event);
