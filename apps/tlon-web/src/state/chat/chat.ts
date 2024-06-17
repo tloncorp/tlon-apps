@@ -544,7 +544,7 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
               return;
             }
 
-            const newReplyId = unixToDa(memo.sent).toString();
+            const newReplyId = formatUd(unixToDa(memo.sent));
             const newReply: Reply = {
               seal: {
                 id: replyId,
