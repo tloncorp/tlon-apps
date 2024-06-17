@@ -308,7 +308,6 @@ const ListItemCount = ({
         notUnread ? undefined : muted ? undefined : '$secondaryBackground'
       }
       borderRadius="$l"
-      // backgroundColor="$secondaryBackground"
       {...rest}
     >
       {muted ? (

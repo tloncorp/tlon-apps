@@ -104,12 +104,7 @@ export function Wrapped(props: Props) {
 
   return (
     <ScrollView>
-      <YStack
-        flex={1}
-        paddingHorizontal="$xl"
-        paddingTop={top}
-        // paddingBottom={navHeight + bottom}
-      >
+      <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
         {!notifState.open && (
           <>
             <View marginTop="$l">

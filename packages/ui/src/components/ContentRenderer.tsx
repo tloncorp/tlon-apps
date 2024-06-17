@@ -663,8 +663,6 @@ const LineRenderer = memo(
     const inlineElements: ReactElement[][] = [];
     let currentLine: ReactElement[] = [];
 
-    // return <View height={40} width={200} backgroundColor="orange" />;
-
     inlines.forEach((inline, index) => {
       if (isBreak(inline)) {
         inlineElements.push(currentLine);

@@ -374,7 +374,6 @@ export interface Said {
 }
 
 export interface Init {
-  // unreads: Unreads;
   channels: Channels;
 }
 

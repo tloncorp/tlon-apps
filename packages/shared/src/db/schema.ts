@@ -180,9 +180,6 @@ export const activityEvents = sqliteTable(
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
     };
   }
-  // (table) => ({
-  //   pk: primaryKey({ columns: [table.id, table.bucketId] }),
-  // })
 );
 
 export const activityRelations = relations(activityEvents, ({ one, many }) => ({

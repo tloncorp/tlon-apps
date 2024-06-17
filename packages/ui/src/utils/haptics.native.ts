@@ -6,6 +6,7 @@ export function triggerHaptic(action: HapticAction) {
   switch (action) {
     case 'baseButtonClick':
     case 'sheetOpen':
+    case 'swipeAction':
       setTimeout(
         () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
         10

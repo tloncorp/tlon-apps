@@ -14,6 +14,7 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { ColorTokens, Stack } from 'tamagui';
 
 import { XStack } from '../core';
+import * as utils from '../utils';
 import { Icon, IconType } from './Icon';
 
 export function SwipableChatRow(
@@ -34,6 +35,7 @@ export function SwipableChatRow(
   const handleAction = useCallback(
     async (actionId: 'pin' | 'mute') => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
           props.model.pin
@@ -66,7 +68,6 @@ export function SwipableChatRow(
           model={props.model}
           handleAction={handleAction}
           isMuted={mutedState}
-          // jailBroken={props.jailBroken ?? false}
         />
       )}
       leftThreshold={1}
