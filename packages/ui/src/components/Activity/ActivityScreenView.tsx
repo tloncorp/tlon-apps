@@ -19,7 +19,7 @@ export function ActivityScreenView({
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel) => void;
-  goToThread: (post: db.PseudoPost) => void;
+  goToThread: (post: db.Post) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
@@ -61,11 +61,8 @@ export function ActivityScreenView({
           break;
         case 'reply':
           if (event.parentId && event.channelId && event.authorId) {
-            goToThread({
-              id: event.parentId,
-              channelId: event.channelId,
-              authorId: event.authorId,
-            });
+            const post = event.post ?? db.assemblePostFromActivityEvent(event);
+            goToThread(post);
           }
           break;
         default:

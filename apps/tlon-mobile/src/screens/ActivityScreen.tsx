@@ -46,7 +46,7 @@ export function ActivityScreen(props: Props) {
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
   const handleGoToThread = useCallback(
-    (post: db.PseudoPost) => {
+    (post: db.Post) => {
       // @ts-expect-error it works
       props.navigation.navigate('Post', { post });
     },
