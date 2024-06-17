@@ -88,19 +88,19 @@ export function Wrapped(props: Props) {
     [pushNotificationsSetting, loading]
   );
 
-  // TODO: implement real UI once designs are ready
-  const onLogoutPress = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Log out',
-        onPress: props.handleLogout,
-      },
-    ]);
-  };
+  // TODO: Add logout back in when we figure out TLON-2098.
+  // const onLogoutPress = () => {
+  //   Alert.alert('Log out', 'Are you sure you want to log out?', [
+  //     {
+  //       text: 'Cancel',
+  //       style: 'cancel',
+  //     },
+  //     {
+  //       text: 'Log out',
+  //       onPress: props.handleLogout,
+  //     },
+  //   ]);
+  // };
 
   return (
     <ScrollView>
@@ -142,12 +142,12 @@ export function Wrapped(props: Props) {
                   setNotifState((prev) => ({ ...prev, open: true }))
                 }
               />
-              <ProfileAction
+              {/* <ProfileAction
                 title="Log Out"
                 icon="LogOut"
                 hideCaret
                 onPress={onLogoutPress}
-              />
+              /> */}
             </View>
           </>
         )}
