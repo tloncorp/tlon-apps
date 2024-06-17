@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
+import { useMemo } from 'react';
 
 import { ScrollView, View } from '../../core';
 import ContentRenderer from '../ContentRenderer';
@@ -13,11 +14,22 @@ export function ActivitySourceContent({
   summary: logic.SourceActivityEvents;
   pressHandler?: () => void;
 }) {
-  const newest = summary.newest;
-  const post = getPost(newest);
+  const post = useMemo(() => getPost(summary.newest), [summary.newest]);
+  const allPosts = useMemo(() => {
+    const fullPosts =
+      summary.all?.map((event) => getPost(event)).filter(Boolean) ?? []; // defensive
+    const seen = new Set();
+    return fullPosts.filter((item) => {
+      if (seen.has(item.id)) {
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    });
+  }, [summary.all]);
 
   // thread or comment
-  if (newest.parentId) {
+  if (summary.newest.parentId) {
     return (
       <View marginTop="$s" marginRight="$xl">
         <ContentRenderer post={post} viewMode="activity" />
@@ -26,22 +38,9 @@ export function ActivitySourceContent({
   }
 
   if (
-    newest.channel?.type === 'gallery' ||
-    newest.channel?.type === 'notebook'
+    summary.newest.channel?.type === 'gallery' ||
+    summary.newest.channel?.type === 'notebook'
   ) {
-    const allPosts =
-      summary.all?.map((event) => getPost(event)).filter(Boolean) ?? []; // defensive
-
-    // TODO: i don't _think_ we're still seeing dupes here?
-    const seen = new Set();
-    const uniquePosts = allPosts.filter((item) => {
-      if (seen.has(item.id)) {
-        return false;
-      }
-      seen.add(item.id);
-      return true;
-    });
-
     return (
       <ScrollView
         marginTop="$s"
@@ -51,9 +50,9 @@ export function ActivitySourceContent({
         alwaysBounceHorizontal={false}
         showsHorizontalScrollIndicator={false}
       >
-        {newest.channel?.type === 'notebook' ? (
+        {summary.newest.channel?.type === 'notebook' ? (
           <>
-            {uniquePosts.map((post) => (
+            {allPosts.map((post) => (
               <View key={post.id} marginRight="$s" onPress={pressHandler}>
                 <NotebookPost
                   post={post}
@@ -66,7 +65,7 @@ export function ActivitySourceContent({
           </>
         ) : (
           <>
-            {uniquePosts.map((post) => (
+            {allPosts.map((post) => (
               <View key={post.id} onPress={pressHandler}>
                 <GalleryPost post={post} viewMode="activity" />
               </View>

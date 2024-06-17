@@ -107,8 +107,11 @@ export function ActivityScreenView({
     }
   }, [currentFetcher]);
 
-  const [refreshing, setRefreshing] = React.useState(false);
+  const keyExtractor = useCallback((item: logic.SourceActivityEvents) => {
+    return `${item.sourceId}/${item.newest.bucketId}/${item.all.length}`;
+  }, []);
 
+  const [refreshing, setRefreshing] = React.useState(false);
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     await refresh();
@@ -122,9 +125,7 @@ export function ActivityScreenView({
         <FlatList
           data={events}
           renderItem={renderItem}
-          keyExtractor={(item) =>
-            `${item.sourceId}/${item.newest.bucketId}/${item.all.length}`
-          }
+          keyExtractor={keyExtractor}
           contentContainerStyle={{ paddingTop: 16 }}
           onEndReached={handleEndReached}
           ListFooterComponent={
@@ -149,13 +150,15 @@ function ActivityEventRaw({
   onPress: (event: db.ActivityEvent) => void;
 }) {
   const event = sourceActivity.newest;
+  const handlePress = useCallback(() => onPress(event), [event, onPress]);
+
   if (event.type === 'post' || event.type === 'reply') {
     return (
-      <View onPress={() => onPress(event)}>
+      <View onPress={handlePress}>
         <ChannelActivitySummary
           summary={sourceActivity}
           seenMarker={seenMarker}
-          pressHandler={() => onPress(event)}
+          pressHandler={handlePress}
         />
       </View>
     );
