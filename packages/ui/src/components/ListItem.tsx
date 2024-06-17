@@ -6,7 +6,6 @@ import {
   ReactElement,
   useMemo,
 } from 'react';
-import { Platform } from 'react-native';
 import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
 
 import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
@@ -127,12 +126,14 @@ const ListItemImageIcon = ({
 const ListItemTextIcon = ({
   fallbackText,
   backgroundColor,
+  rounded,
 }: {
   fallbackText: string;
   backgroundColor?: ColorProp;
+  rounded?: boolean;
 }) => {
   return (
-    <ListItemIconContainer backgroundColor={backgroundColor}>
+    <ListItemIconContainer backgroundColor={backgroundColor} rounded={rounded}>
       <View flex={1} alignItems="center" justifyContent="center">
         <Text fontSize={16} color="$primaryText">
           {fallbackText.slice(0, 1).toUpperCase()}
@@ -143,20 +144,27 @@ const ListItemTextIcon = ({
 };
 
 const ListItemAvatarIcon = ({
-  contactId,
-  contact,
   backgroundColor,
+  contact,
+  contactId,
+  rounded = false,
   size = '$4xl',
   ...props
 }: {
-  contactId: string;
-  contact?: db.Contact | null;
   backgroundColor?: ColorProp;
+  contact?: db.Contact | null;
+  contactId: string;
+  rounded?: boolean;
   size?: AvatarSize;
 } & ComponentProps<typeof ListItemIconContainer>) => {
   return (
     <ListItemIconContainer {...props} backgroundColor={backgroundColor}>
-      <Avatar size={size} contactId={contactId} contact={contact} />
+      <Avatar
+        rounded={rounded}
+        size={size}
+        contactId={contactId}
+        contact={contact}
+      />
     </ListItemIconContainer>
   );
 };
@@ -214,7 +222,6 @@ const ListItemMainContent = styled(YStack, {
 });
 
 const ListItemTitle = styled(SizableText, {
-  alignItems: 'baseline',
   color: '$primaryText',
   numberOfLines: 1,
 
@@ -258,9 +265,7 @@ const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
   color: '$secondaryText',
   size: '$s',
-  // Tiny tweak to try to align with the baseline of the title
-  position: 'relative',
-  top: 1,
+  lineHeight: '$xs',
 });
 
 const ListItemTime = ListItemTimeText.styleable<{
@@ -287,23 +292,15 @@ const ListItemTime = ListItemTimeText.styleable<{
   );
 });
 
-const ListItemCount = ({ children }: PropsWithChildren) => {
+const ListItemCount = ({ children, ...rest }: React.PropsWithChildren<any>) => {
   return (
     <Stack
-      padding="$2xs"
       paddingHorizontal={'$m'}
-      backgroundColor="$secondaryBackground"
       borderRadius="$l"
-      // Tiny tweak to try to align with the baseline of the title
-      position="relative"
-      top={-2}
+      backgroundColor="$secondaryBackground"
+      {...rest}
     >
-      <SizableText
-        size="$s"
-        lineHeight={Platform.OS === 'ios' ? 0 : 17}
-        color="$secondaryText"
-        textAlign="center"
-      >
+      <SizableText size="$s" color="$secondaryText" textAlign="center">
         {children}
       </SizableText>
     </Stack>
@@ -339,8 +336,9 @@ const Dragger = () => {
 
 const ListItemEndContent = styled(YStack, {
   flex: 0,
-  gap: '$s',
-  justifyContent: 'space-between',
+  paddingTop: '$xs',
+  gap: '$2xs',
+  justifyContent: 'center',
   alignItems: 'flex-end',
 });
 

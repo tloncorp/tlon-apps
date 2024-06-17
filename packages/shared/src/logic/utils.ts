@@ -1,3 +1,4 @@
+import anyAscii from 'any-ascii';
 import {
   differenceInCalendarDays,
   differenceInDays,
@@ -5,8 +6,11 @@ import {
   format,
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
+import { useMemo } from 'react';
 
+import * as api from '../api';
 import * as db from '../db';
+import * as ub from '../urbit';
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -23,14 +27,6 @@ export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
 export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
-}
-
-export function isChatChannel(channel: db.Channel): boolean {
-  return (
-    channel.type === 'chat' ||
-    channel.type === 'dm' ||
-    channel.type === 'groupDm'
-  );
 }
 
 export async function jsonFetch<T>(
@@ -217,4 +213,204 @@ export const appendContactIdToReplies = (
   }
   newArray.push(contactId);
   return newArray;
+};
+
+export function convertToAscii(str: string): string {
+  const ascii = anyAscii(str);
+  return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
+}
+
+export const createShortCodeFromTitle = (title: string): string => {
+  const shortCode = convertToAscii(title).replace(
+    /[^a-z]*([a-z][-\w\d]+)/i,
+    '$1'
+  );
+  return shortCode;
+};
+
+export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
+  const inlines =
+    story !== null
+      ? (story.filter((v) => 'inline' in v) as ub.VerseInline[]).flatMap(
+          (i) => i.inline
+        )
+      : [];
+
+  return inlines;
+}
+
+export function extractReferencesFromContent(
+  story: api.PostContent
+): api.ContentReference[] {
+  const references =
+    story !== null
+      ? (story.filter(
+          (s) => 'type' in s && s.type == 'reference'
+        ) as api.ContentReference[])
+      : [];
+
+  return references;
+}
+
+export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
+  const blocks =
+    story !== null
+      ? (story.filter((v) => 'block' in v) as ub.VerseBlock[]).flatMap(
+          (b) => b.block
+        )
+      : [];
+
+  return blocks;
+}
+
+export const extractContentTypes = (
+  content: string
+): {
+  inlines: ub.Inline[];
+  references: api.ContentReference[];
+  blocks: ub.Block[];
+  story: api.PostContent;
+} => {
+  const story = JSON.parse(content as string) as api.PostContent;
+  const inlines = extractInlinesFromContent(story);
+  const references = extractReferencesFromContent(story);
+  const blocks = extractBlocksFromContent(story);
+
+  return { inlines, references, blocks, story };
+};
+
+export const extractContentTypesFromPost = (
+  post: db.Post
+): {
+  inlines: ub.Inline[];
+  references: api.ContentReference[];
+  blocks: ub.Block[];
+  story: api.PostContent;
+} => {
+  const { inlines, references, blocks, story } = extractContentTypes(
+    post.content as string
+  );
+
+  return { inlines, references, blocks, story };
+};
+
+export const isTextPost = (post: db.Post) => {
+  const { inlines, references, blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 0 && inlines.length > 0 && references.length === 0;
+};
+
+export const isReferencePost = (post: db.Post) => {
+  const { inlines, references, blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 0 && inlines.length === 0 && references.length === 1;
+};
+
+export const isImagePost = (post: db.Post) => {
+  const { blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 1 && blocks.some((b) => 'image' in b);
+};
+
+export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
+  return blocks.find((b) => 'image' in b) as ub.Image;
+};
+
+export const textPostIsLinkedImage = (post: db.Post): boolean => {
+  const postIsJustText = isTextPost(post);
+  if (!postIsJustText) {
+    return false;
+  }
+
+  const { inlines } = extractContentTypesFromPost(post);
+
+  if (inlines.length <= 2) {
+    const [first] = inlines;
+    if (typeof first === 'object' && 'link' in first) {
+      const link = first as ub.Link;
+      const { href } = link.link;
+      const isImage = IMAGE_REGEX.test(href);
+
+      return isImage;
+    }
+  }
+
+  return false;
+};
+
+export const textPostIsReference = (post: db.Post): boolean => {
+  const { inlines, references } = extractContentTypesFromPost(post);
+  if (references.length === 0) {
+    return false;
+  }
+
+  if (inlines.length === 2) {
+    const [first] = inlines;
+    const isRefString =
+      typeof first === 'string' && REF_REGEX.test(first as string);
+
+    if (isRefString) {
+      return true;
+    }
+  }
+
+  if (
+    inlines.length === 1 &&
+    typeof inlines[0] === 'object' &&
+    'break' in inlines[0]
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+export const usePostMeta = (post: db.Post) => {
+  const { inlines, references, blocks } = useMemo(
+    () => extractContentTypesFromPost(post),
+    [post]
+  );
+  const isText = useMemo(() => isTextPost(post), [post]);
+  const isImage = useMemo(() => isImagePost(post), [post]);
+  const isReference = useMemo(() => isReferencePost(post), [post]);
+  const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
+  const isRefInText = useMemo(() => textPostIsReference(post), [post]);
+  const image = useMemo(
+    () => (isImage ? findFirstImageBlock(blocks)?.image : undefined),
+    [blocks, isImage]
+  );
+  const linkedImage = useMemo(
+    () => (isLinkedImage ? (inlines[0] as ub.Link).link.href : undefined),
+    [inlines, isLinkedImage]
+  );
+
+  return {
+    isText,
+    isImage,
+    isReference,
+    isLinkedImage,
+    isRefInText,
+    inlines,
+    references,
+    blocks,
+    image,
+    linkedImage,
+  };
+};
+
+export const getCompositeGroups = (
+  groups: db.Group[],
+  base: Partial<db.Group>[]
+): db.Group[] => {
+  const baseIndex = base.reduce(
+    (acc, curr) => {
+      if (curr.id) {
+        acc[curr.id] = curr;
+      }
+      return acc;
+    },
+    {} as Record<string, Partial<db.Group>>
+  );
+
+  return groups.map((group) => {
+    const baseGroup = baseIndex[group.id] ?? {};
+    return { ...baseGroup, ...group };
+  });
 };

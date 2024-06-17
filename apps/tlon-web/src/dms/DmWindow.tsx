@@ -1,18 +1,25 @@
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
-import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import DMUnreadAlerts from '@/chat/UnreadAlerts';
+import { useChatStore } from '@/chat/useChatStore';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useIsScrolling } from '@/logic/scroll';
 import { getPatdaParts, log } from '@/logic/utils';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
+import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
 
 interface DmWindowProps {
   whom: string;
@@ -31,6 +38,7 @@ export default function DmWindow({
   root,
   prefixedElement,
 }: DmWindowProps) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { idTime } = useParams();
   const scrollToId = useMemo(
@@ -38,11 +46,12 @@ export default function DmWindow({
     [searchParams, idTime]
   );
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const unreadsKey = getKey(whom);
+  const readTimeout = useUnread(unreadsKey)?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const { mutate: markDmRead } = useMarkDmReadMutation();
-  const clearOnNavRef = useRef({ readTimeout, whom, markDmRead });
+  const { markDmRead } = useMarkDmReadMutation(whom);
+  const path = location.pathname;
 
   const {
     writs,
@@ -80,14 +89,15 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(whom, () => markDmRead({ whom }));
+    delayedRead(unreadsKey, markDmRead);
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetching, whom, markDmRead]);
+  }, [fetchPreviousPage, hasPreviousPage, isFetching, unreadsKey, markDmRead]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -134,19 +144,16 @@ export default function DmWindow({
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { readTimeout, whom, markDmRead };
-  }, [readTimeout, whom, markDmRead]);
-
-  useEffect(
-    () => () => {
-      const curr = clearOnNavRef.current;
-      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
-        useChatStore.getState().read(curr.whom);
-        curr.markDmRead({ whom: curr.whom });
+    return () => {
+      const winPath = window.location.pathname.replace('/apps/groups', '');
+      if (winPath !== path && readTimeout) {
+        unreadStoreLogger.log(winPath, path);
+        unreadStoreLogger.log('marking read from dismount', unreadsKey);
+        useUnreadsStore.getState().read(unreadsKey);
+        markDmRead();
       }
-    },
-    []
-  );
+    };
+  }, [path, readTimeout, unreadsKey, markDmRead]);
 
   useEffect(() => {
     const doRefetch = async () => {

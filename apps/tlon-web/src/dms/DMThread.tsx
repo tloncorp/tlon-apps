@@ -1,4 +1,10 @@
+import {
+  MessageKey,
+  getKey,
+  getThreadKey,
+} from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import React, {
@@ -30,19 +36,18 @@ import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   useMarkDmReadMutation,
   useMultiDm,
   useSendReplyMutation,
   useWrit,
 } from '@/state/chat';
+import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
 
 export default function DMThread() {
-  const { chShip, ship, chName, idTime, idShip } = useParams<{
-    chShip: string;
+  const { ship, idTime, idShip } = useParams<{
     ship: string;
-    chName: string;
     idShip: string;
     idTime: string;
   }>();
@@ -67,10 +72,17 @@ export default function DMThread() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
-  const { mutate: markDmRead } = useMarkDmReadMutation();
-  const isSmall = useMedia('(max-width: 1023px)');
-  const clearOnNavRef = useRef({ isSmall, readTimeout, whom, markDmRead });
+  const unreadsKey = getThreadKey(whom, id);
+  const readTimeout = useUnread(unreadsKey)?.readTimeout;
+  const msgKey: MessageKey = useMemo(
+    () => ({
+      id,
+      time: formatUd(bigInt(time)),
+    }),
+    [id, time]
+  );
+  const { markDmRead } = useMarkDmReadMutation(whom, msgKey);
+  const path = location.pathname;
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -114,33 +126,26 @@ export default function DMThread() {
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom, delayedRead } = useChatStore.getState();
+    const { bottom } = useChatStore.getState();
+    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(whom, () => markDmRead({ whom }));
-  }, [whom, markDmRead]);
+    delayedRead(unreadsKey, markDmRead);
+  }, [unreadsKey, markDmRead]);
 
   useEventListener('keydown', onEscape, threadRef);
 
   // read the messages once navigated away
   useEffect(() => {
-    clearOnNavRef.current = { isSmall, readTimeout, whom, markDmRead };
-  }, [readTimeout, whom, isSmall, markDmRead]);
-
-  useEffect(
-    () => () => {
-      const curr = clearOnNavRef.current;
-      if (
-        curr.isSmall &&
-        curr.readTimeout !== undefined &&
-        curr.readTimeout !== 0
-      ) {
-        chatStoreLogger.log('unmount read from thread');
-        useChatStore.getState().read(curr.whom);
-        curr.markDmRead({ whom: curr.whom });
+    return () => {
+      const winPath = window.location.pathname.replace('/apps/groups', '');
+      if (winPath !== path && readTimeout) {
+        unreadStoreLogger.log(winPath, path);
+        unreadStoreLogger.log('marking read from dismount', unreadsKey);
+        useUnreadsStore.getState().read(unreadsKey);
+        markDmRead();
       }
-    },
-    []
-  );
+    };
+  }, [path, readTimeout, unreadsKey, markDmRead]);
 
   if (!writ || isLoading) return null;
 
@@ -216,6 +221,7 @@ export default function DMThread() {
             key={idTime}
             messages={replies}
             whom={whom}
+            parent={msgKey}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}

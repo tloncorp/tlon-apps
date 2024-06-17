@@ -4,7 +4,6 @@ import { useCallback, useMemo } from 'react';
 
 import { ALPHABETICAL_SORT, RECENT_SORT } from '@/constants';
 
-import { useChannelSort } from './channel';
 import useSidebarSort, {
   Sorter,
   sortAlphabetical,
@@ -25,22 +24,13 @@ export default function useGroupSort() {
     flag: '~',
     defaultSort: RECENT_SORT,
   });
-  const { sortChannels } = useChannelSort(RECENT_SORT);
 
   const sortGroups = useCallback(
     (groups?: Groups) => {
       const accessors: Record<string, (k: string, v: Group) => string> = {
         [ALPHABETICAL_SORT]: (_flag: string, group: Group) =>
           get(group, 'meta.title'),
-        [RECENT_SORT]: (flag: string, group: Group) => {
-          /**
-           * Use the latest channel flag associated with the Group; otherwise
-           * fallback to the Group flag itself, which won't be in the briefs and
-           * thus use INFINITY by default
-           */
-          const channels = sortChannels(group.channels);
-          return channels.length > 0 ? channels[0][0] : flag;
-        },
+        [RECENT_SORT]: (flag: string, group: Group) => `group/${flag}`,
       };
 
       return sortRecordsBy(
@@ -49,7 +39,7 @@ export default function useGroupSort() {
         sortFn === RECENT_SORT
       );
     },
-    [sortChannels, sortFn, sortRecordsBy]
+    [sortFn, sortRecordsBy]
   );
 
   return {

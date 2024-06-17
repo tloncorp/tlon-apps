@@ -1,14 +1,24 @@
 import cn from 'classnames';
-import React from 'react';
 
 import ActivityIndicator from './ActivityIndicator';
 
-export default function UnreadIndicator({ className }: { className?: string }) {
+interface UnreadIndicatorProps {
+  className?: string;
+  count: number;
+  notify?: boolean;
+}
+
+export default function UnreadIndicator({
+  className,
+  count,
+  notify,
+}: UnreadIndicatorProps) {
+  const color = notify ? 'text-blue' : 'text-gray-400';
   return (
     <ActivityIndicator
-      count={0}
+      count={count}
       bg={'transparent'}
-      className={cn('text-blue', className)}
+      className={cn(color, className)}
     />
   );
 }

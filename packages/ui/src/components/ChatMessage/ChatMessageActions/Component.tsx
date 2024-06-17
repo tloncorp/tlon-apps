@@ -36,6 +36,7 @@ export function ChatMessageActions({
   width,
   height,
   onReply,
+  onEdit,
 }: {
   post: db.Post;
   currentUserId: string;
@@ -45,6 +46,7 @@ export function ChatMessageActions({
   width?: DimensionValue;
   height?: DimensionValue;
   onReply?: (post: db.Post) => void;
+  onEdit?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -152,9 +154,11 @@ export function ChatMessageActions({
           <MessageContainer post={post} currentUserId={currentUserId} />
           <MessageActions
             post={post}
+            currentUserId={currentUserId}
             channelType={channelType}
             dismiss={onDismiss}
             onReply={onReply}
+            onEdit={onEdit}
           />
         </YStack>
       </View>

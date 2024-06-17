@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useMemo } from 'react';
-import { SizeTokens, Token, getTokenValue, styled } from 'tamagui';
+import { getTokenValue, styled } from 'tamagui';
 
-import { useCalm } from '../contexts';
+import { useCalm } from '../contexts/calm';
 import { Image, View } from '../core';
-import { useSigilColors } from '../utils/colorUtils';
+import { getBackgroundColor, useSigilColors } from '../utils/colorUtils';
 import UrbitSigil from './UrbitSigil';
 
 export function Avatar({
@@ -26,9 +26,9 @@ export function Avatar({
       size={size}
       {...props}
       // @ts-expect-error custom color
-      backgroundColor={colors.backgroundColor}
+      backgroundColor={getBackgroundColor({ contact, disableAvatars, colors })}
     >
-      {contact?.avatarImage && !disableAvatars ? (
+      {!disableAvatars && contact?.avatarImage ? (
         <Image
           source={{
             uri: contact.avatarImage,
@@ -50,6 +50,11 @@ const AvatarFrame = styled(View, {
   alignItems: 'center',
   justifyContent: 'center',
   variants: {
+    rounded: {
+      true: {
+        borderRadius: '$4xl',
+      },
+    },
     size: {
       $xl: {
         height: '$xl',

@@ -1,12 +1,11 @@
 import { getSize, getSpace } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
 import {
+  ColorTokens,
   SizeTokens,
   Stack,
   Text,
   ThemeTokens,
-  Variable,
-  View,
   createStyledContext,
   styled,
   useTheme,
@@ -17,11 +16,17 @@ export const ButtonContext = createStyledContext<{
   size: SizeTokens;
   color: ThemeTokens;
   minimal: boolean;
+  hero: boolean;
+  secondary: boolean;
+  disabled: boolean;
   onPress?: () => void;
 }>({
   size: '$m',
   color: '$primaryText',
   minimal: false,
+  hero: false,
+  secondary: false,
+  disabled: false,
 });
 
 export const ButtonFrame = styled(Stack, {
@@ -30,6 +35,7 @@ export const ButtonFrame = styled(Stack, {
   backgroundColor: '$background',
   alignItems: 'center',
   flexDirection: 'row',
+  justifyContent: 'center',
   pressStyle: {
     backgroundColor: '$positiveBackground',
   },
@@ -66,8 +72,33 @@ export const ButtonFrame = styled(Stack, {
         },
       },
     } as const,
+    hero: {
+      true: {
+        backgroundColor: '$darkBackground',
+        padding: '$xl',
+        borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$gray700',
+        },
+        disabledStyle: {
+          backgroundColor: '$gray600',
+        },
+      },
+    } as const,
+    secondary: {
+      true: {
+        backgroundColor: '$border',
+        padding: '$xl',
+        borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$secondaryBackground',
+        },
+      },
+    } as const,
   },
 });
+
+export type ButtonProps = React.ComponentProps<typeof ButtonFrame>;
 
 export const ButtonFrameImpl = ButtonFrame.styleable((props, ref) => {
   // adding group to the styled component itself seems to break typing for variants
@@ -94,18 +125,39 @@ export const ButtonText = styled(Text, {
         },
       },
     },
+    hero: {
+      true: {
+        color: '$white',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+    secondary: {
+      true: {
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
+
+    // disabled: {
+    //   true: {
+    //     color: '$tertiaryText',
+    //   },
+    // },
   } as const,
 });
 
-const ButtonIcon = (props: { color?: ThemeTokens; children: any }) => {
-  const { size, color } = useContext(ButtonContext.context);
+const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
+  const { size, color, hero } = useContext(ButtonContext.context);
   const smaller = getSize(size, {
-    shift: -2,
+    shift: -1,
   });
   const theme = useTheme();
   return cloneElement(props.children, {
-    size: smaller.val * 0.5,
-    color: props.color ?? color ?? theme.primaryText?.get(),
+    size: smaller.val,
+    color: props.color ?? color ?? (hero ? '$white' : '$primaryText'),
   });
 };
 

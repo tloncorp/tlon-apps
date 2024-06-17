@@ -75,6 +75,7 @@ export const TlonLoginScreen = ({ navigation }: Props) => {
                     {
                       ship: shipId,
                       shipUrl,
+                      authCookie,
                     },
                     authCookie
                   );

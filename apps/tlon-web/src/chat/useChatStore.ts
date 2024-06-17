@@ -1,5 +1,5 @@
-import { Block, Unread, Unreads } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread, DMUnreads } from '@tloncorp/shared/dist/urbit/dms';
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
+import { Block } from '@tloncorp/shared/dist/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
@@ -9,11 +9,6 @@ import { createDevLogger } from '@/logic/utils';
 export interface ChatInfo {
   replying: string | null;
   blocks: Block[];
-  unread?: {
-    readTimeout: number;
-    seen: boolean;
-    unread: DMUnread | Unread; // lags behind actual unread, only gets update if unread
-  };
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
   failedToLoadContent: Record<string, Record<number, boolean>>;
@@ -39,17 +34,8 @@ export interface ChatStore {
     failureState: boolean
   ) => void;
   setHovering: (whom: string, writId: string, hovering: boolean) => void;
-  seen: (whom: string) => void;
-  read: (whom: string) => void;
-  delayedRead: (whom: string, callback: () => void) => void;
-  handleUnread: (
-    whom: string,
-    unread: Unread | DMUnread,
-    markRead: (whm: string) => void
-  ) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (unreads: Unreads | DMUnreads) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -63,43 +49,14 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
-export function isUnread(unread: Unread | DMUnread): boolean {
-  const hasThreads = Object.keys(unread.threads || {}).length > 0;
-  return unread.count > 0 && (!!unread.unread || hasThreads);
+export function isUnread(unread: ActivitySummary): boolean {
+  return unread.count > 0;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
   current: '',
   atBottom: false,
-  update: (unreads) => {
-    set(
-      produce((draft: ChatStore) => {
-        Object.entries(unreads).forEach(([whom, unread]) => {
-          const chat = draft.chats[whom];
-          chatStoreLogger.log('update', whom, chat, unread, draft.chats);
-
-          if (isUnread(unread)) {
-            draft.chats[whom] = {
-              ...(chat || emptyInfo()),
-              unread: {
-                seen: false,
-                readTimeout: 0,
-                unread,
-              },
-            };
-            return;
-          }
-
-          if (!chat) {
-            return;
-          }
-
-          delete chat.unread;
-        });
-      })
-    );
-  },
   setBlocks: (whom, blocks) => {
     set(
       produce((draft) => {
@@ -171,110 +128,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  seen: (whom) => {
-    set(
-      produce((draft: ChatStore) => {
-        if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo();
-        }
-
-        const chat = draft.chats[whom];
-        const unread = chat.unread || {
-          unread: {
-            recency: 0,
-            count: 0,
-            unread: { id: '', count: 0 },
-            threads: {},
-          },
-          readTimeout: 0,
-        };
-
-        chatStoreLogger.log('seen', whom);
-        draft.chats[whom].unread = {
-          ...unread,
-          seen: true,
-        };
-      })
-    );
-  },
-  read: (whom) => {
-    set(
-      produce((draft: ChatStore) => {
-        const chat = draft.chats[whom];
-        if (!chat) {
-          return;
-        }
-
-        if (chat.unread && chat.unread.readTimeout) {
-          chatStoreLogger.log('clear delayedRead', whom);
-          clearTimeout(chat.unread.readTimeout);
-        }
-
-        chatStoreLogger.log('read', whom, JSON.stringify(chat));
-        chat.unread = undefined;
-        chatStoreLogger.log('post read', JSON.stringify(draft.chats[whom]));
-      })
-    );
-  },
-  delayedRead: (whom, cb) => {
-    const { chats, read } = get();
-    const chat = chats[whom] || emptyInfo();
-
-    if (!chat.unread) {
-      return;
-    }
-
-    if (chat.unread.readTimeout) {
-      clearTimeout(chat.unread.readTimeout);
-    }
-
-    const readTimeout = setTimeout(() => {
-      read(whom);
-      cb();
-    }, 15 * 1000); // 15 seconds
-
-    set(
-      produce((draft) => {
-        const latest = draft.chats[whom] || emptyInfo();
-        chatStoreLogger.log('delayedRead', whom, chat, latest);
-        draft.chats[whom] = {
-          ...latest,
-          unread: {
-            ...latest.unread,
-            readTimeout,
-          },
-        };
-      })
-    );
-  },
-  handleUnread: (whom, unread) => {
-    const hasUnreads = isUnread(unread);
-    if (hasUnreads) {
-      set(
-        produce((draft: ChatStore) => {
-          const chat = draft.chats[whom] || emptyInfo();
-
-          /* TODO: there was initially logic here to mark read when we're on the chat and
-            at the bottom of the scroll. This was very rarely firing since the scroller
-            doesn't actually call that event very often and if it did, would clear thread
-            unreads before they're seen. We should revisit once we have more granular control
-            over what we mark read.
-          */
-          chatStoreLogger.log('unread', whom, chat, unread);
-          draft.chats[whom] = {
-            ...chat,
-            unread: {
-              seen: false,
-              readTimeout: 0,
-              unread,
-            },
-          };
-        })
-      );
-    } else {
-      get().read(whom);
-    }
-  },
   setCurrent: (current) => {
     set(
       produce((draft) => {
@@ -296,6 +149,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 const defaultInfo = { replying: null, blocks: [] };
 export function useChatInfo(flag: string): ChatInfo {
   return useChatStore(useCallback((s) => s.chats[flag] || defaultInfo, [flag]));
+}
+
+export function useChatKeys(): string[] {
+  return useChatStore(useCallback((s) => Object.keys(s.chats), []));
 }
 
 export function fetchChatBlocks(whom: string): Block[] {

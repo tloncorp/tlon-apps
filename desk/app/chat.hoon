@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
 /-  meta
 /-  ha=hark
 /-  contacts
@@ -574,6 +574,12 @@
     %-  (slog 'Failed to do chat data migration' u.p.sign)
     cor
   ::
+      [%activity %submit ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog 'Failed to send activity' u.p.sign)
+    cor
+  ::
       [%said *]
     ::  old chat used to fetch previews, we don't do those here anymore
     ::
@@ -624,6 +630,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %full ~]  ``noun+!>([dms clubs])
     [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
@@ -753,6 +760,37 @@
   |=  =new-yarn:ha
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   (pass-hark cage)
+::
+++  pass-activity
+  =,  activity
+  |=  $:  =whom
+          $=  concern
+          $%  [%post key=message-key]
+              [%reply key=message-key top=message-key]
+              [%invite ~]
+          ==
+          content=story:d
+          mention=?
+      ==
+  ^+  cor
+  ?:  ?&  ?=(?(%post %reply) -.concern)
+          .=  our.bowl
+          p.id:?-(-.concern %post key.concern, %reply key.concern)
+      ==
+    cor
+  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
+    cor
+  %-  emit
+  =;  =cage
+    [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  :-  %activity-action
+  !>  ^-  action
+  :-  %add
+  ?-  -.concern
+    %post    [%dm-post key.concern whom content mention]
+    %reply   [%dm-reply key.concern top.concern whom content mention]
+    %invite  [%dm-invite whom]
+  ==
 ::
 ++  make-notice
     |=  [=ship text=cord]
@@ -1131,6 +1169,11 @@
     =/  link  (welp /dm/(scot %uv id) rest)
     [& & rope con link but]
   ::
+  ++  cu-activity  !.
+    |*  a=*
+    =.  cor  (pass-activity [%club id] a)
+    cu-core
+  ::
   ++  cu-pass
     |%
     ++  act
@@ -1196,7 +1239,7 @@
     |=  =action:club:c
     =/  =cage  chat-club-action+!>(action)
     =.  cor
-      (emit %give %fact ~[/clubs] cage)
+      (emit %give %fact ~[/ /clubs] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
@@ -1204,11 +1247,11 @@
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
     ?~  response  cu-core
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[cu-area] cage)
+      =/  =cage  writ-response+!>([[%club id] u.response])
+      (emit %give %fact ~[/ cu-area] cage)
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[cu-area-writs] cage)
+      =/  =cage  writ-response+!>([[%club id] u.response])
+      (emit %give %fact ~[/ cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1268,6 +1311,9 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
+        =/  concern  [%post [. q]:p.diff.delta]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  cu-core  (cu-activity concern content.memo mention)
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1299,6 +1345,10 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
+          =/  top-con  [. q]:p.diff.delta
+          =/  concern  [%reply [. q]:id.q.diff.delta top-con]
+          =/  mention  (was-mentioned:utils content.memo our.bowl)
+          =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1495,7 +1545,7 @@
   =/  invites
   ?:  (~(has by dms) ship)   ~(key by pending-dms)
   (~(put in ~(key by pending-dms)) ship)
-  (give %fact ~[/dm/invited] ships+!>(invites))
+  (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
@@ -1546,6 +1596,11 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-area-writs  `path`/dm/(scot %p ship)/writs
   ::
+  ++  di-activity  !.
+    |*  a=*
+    =.  cor  (pass-activity [%ship ship] a)
+    di-core
+  ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -1568,11 +1623,11 @@
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
     ?~  response  di-core
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area] cage)
+      =/  =cage  writ-response+!>([[%ship ship] u.response])
+      (emit %give %fact ~[/ di-area] cage)
     =.  cor
-      =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[di-area-writs] cage)
+      =/  =cage  writ-response+!>([[%ship ship] u.response])
+      (emit %give %fact ~[/ di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff
@@ -1584,6 +1639,8 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
+    =?  di-core  &(=(net.dm %invited) !=(ship our.bowl))
+      (di-activity [%invite ~] *story:d &)
     ?-  -.q.diff
         ?(%del %add-react %del-react)  (di-give-writs-diff diff)
     ::
@@ -1607,6 +1664,11 @@
         ~
       =?  cor  (want-hark %to-us)
         (emit (pass-yarn new-yarn))
+      =/  concern
+        ?:  =(net.dm %invited)  [%invite ~]
+        [%post p.diff now.bowl]
+      =/  mention  (was-mentioned:utils content.memo our.bowl)
+      =.  di-core  (di-activity concern content.memo mention)
       (di-give-writs-diff diff)
     ::
         %reply
@@ -1637,6 +1699,10 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
+        =/  top-con  [id.writ.u.entry time.writ.u.entry]
+        =/  concern  [%reply [id.q.diff now.bowl] top-con]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)
       ==
     ==
@@ -1657,6 +1723,7 @@
     =?  cor  =(our src):bowl
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
+    =.  cor  (pass-activity [%ship ship] [%invite ~] *story:d |)
     ::  TODO hook into archive
     ?.  ok
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)

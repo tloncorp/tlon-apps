@@ -3,13 +3,23 @@ import { useMemberRoles } from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 
 import type { IconType } from '../components/Icon';
+import { useCalm } from '../contexts/calm';
+
+export function useChannelMemberName(member: db.ChatMember) {
+  const { disableNicknames } = useCalm();
+  if (disableNicknames) {
+    return member.contactId;
+  }
+  return member.contact?.nickname ? member.contact.nickname : member.contactId;
+}
 
 export function getChannelTitle(channel: db.Channel) {
+  const getChannelMemberName = useChannelMemberName;
+
   if (channel.type === 'dm') {
     const member = channel.members?.[0];
     if (!member) {
-      console.warn('bad dm channel', channel.id, 'missing contact');
-      return 'Untitled DM';
+      return channel.id;
     }
     return getChannelMemberName(member);
   } else if (channel.type === 'groupDm') {
@@ -19,10 +29,6 @@ export function getChannelTitle(channel: db.Channel) {
   } else {
     return channel.title ?? 'Untitled channel';
   }
-}
-
-export function getChannelMemberName(member: db.ChatMember) {
-  return member.contact?.nickname ? member.contact.nickname : member.contactId;
 }
 
 export function isDmChannel(channel: db.Channel): boolean {

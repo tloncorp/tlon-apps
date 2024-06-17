@@ -113,6 +113,8 @@ PODS:
     - ExpoModulesCore
   - ExpoKeepAwake (12.8.2):
     - ExpoModulesCore
+  - ExpoLinearGradient (12.7.2):
+    - ExpoModulesCore
   - ExpoLocalization (14.8.3):
     - ExpoModulesCore
   - ExpoModulesCore (1.11.8):
@@ -1119,6 +1121,8 @@ PODS:
   - react-native-branch (5.9.2):
     - BranchSDK (= 2.2.1)
     - React-Core
+  - react-native-context-menu-view (1.15.0):
+    - React
   - react-native-get-random-values (1.11.0):
     - React-Core
   - react-native-netinfo (11.1.0):
@@ -1379,6 +1383,7 @@ DEPENDENCIES:
   - ExpoImageManipulator (from `../../../node_modules/expo-image-manipulator/ios`)
   - ExpoImagePicker (from `../../../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../../../node_modules/expo-keep-awake/ios`)
+  - ExpoLinearGradient (from `../../../node_modules/expo-linear-gradient/ios`)
   - ExpoLocalization (from `../../../node_modules/expo-localization/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
@@ -1417,6 +1422,7 @@ DEPENDENCIES:
   - React-logger (from `../../../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../../../node_modules/react-native/ReactCommon`)
   - react-native-branch (from `../../../node_modules/react-native-branch`)
+  - react-native-context-menu-view (from `../../../node_modules/react-native-context-menu-view`)
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
@@ -1538,6 +1544,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../../../node_modules/expo-keep-awake/ios"
+  ExpoLinearGradient:
+    :path: "../../../node_modules/expo-linear-gradient/ios"
   ExpoLocalization:
     :path: "../../../node_modules/expo-localization/ios"
   ExpoModulesCore:
@@ -1609,6 +1617,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon"
   react-native-branch:
     :path: "../../../node_modules/react-native-branch"
+  react-native-context-menu-view:
+    :path: "../../../node_modules/react-native-context-menu-view"
   react-native-get-random-values:
     :path: "../../../node_modules/react-native-get-random-values"
   react-native-netinfo:
@@ -1711,6 +1721,7 @@ SPEC CHECKSUMS:
   ExpoImageManipulator: c1d7cb865eacd620a35659f3da34c70531f10b59
   ExpoImagePicker: 66970181d1c838f444e5e1f81b804ab2d5ff49bd
   ExpoKeepAwake: 0f5cad99603a3268e50af9a6eb8b76d0d9ac956c
+  ExpoLinearGradient: 4ad1449a2408e0435ac959076562b3921f2e32a1
   ExpoLocalization: f5f5d71dc0c9514d3d77b2771144f6fed6398d04
   ExpoModulesCore: 2346e83abf90c2b2c16a54c3fc4a1169ae12816c
   ExpoSecureStore: c84ae37d1c36f38524d289c67c3a2e3fc56f1108
@@ -1766,6 +1777,7 @@ SPEC CHECKSUMS:
   React-logger: 0a57b68dd2aec7ff738195f081f0520724b35dab
   React-Mapbuffer: 114be72666d7e3e317c1a36fb566cd3ad712fcc8
   react-native-branch: 021b9c261f732d0950e9a304284779d48bf81109
+  react-native-context-menu-view: dcec18eb8882e20596dbb75802e7d19cb87dac02
   react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-netinfo: 3aa5637c18834966e0c932de8ae1ae56fea20a97
   react-native-safe-area-context: 0ee144a6170530ccc37a0fd9388e28d06f516a89

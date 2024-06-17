@@ -17,6 +17,12 @@
   $%  [%group flag:g]
       [%channel nest:g]
   ==
++$  volume
+  $:  base=level
+      area=(map flag:g level)  ::  override per group
+      chan=(map nest:g level)  ::  override per channel
+  ==
+::
 ::  +fit-level: full "do we want a notification for this" check
 ::
 ++  fit-level

@@ -49,7 +49,10 @@ export default function RadioGroup({
           )}
         >
           <div>
-            <label className="line-clamp-1 block" htmlFor={option.value}>
+            <label
+              className="line-clamp-1 leading-tight block"
+              htmlFor={option.value}
+            >
               {option.label}
             </label>
             {option.secondaryLabel && (

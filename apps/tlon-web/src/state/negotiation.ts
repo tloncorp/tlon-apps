@@ -110,13 +110,13 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     .filter((ship) => ship !== window.our)
     .map((ship) => `${ship}/${agent}`);
 
-  const allShipsMatch = shipKeys.every(
-    (ship) => ship in data && data[ship] === 'match'
+  const allShipsMatchOrPending = shipKeys.every(
+    (ship) => ship in data && (data[ship] === 'match' || data[ship] === 'await')
   );
 
   const haveAllNegotiations = shipKeys.every((ship) => ship in data);
 
-  return { ...rest, match: allShipsMatch, haveAllNegotiations };
+  return { ...rest, match: allShipsMatchOrPending, haveAllNegotiations };
 }
 
 export function useForceNegotiationUpdate(ships: string[], app: string) {
@@ -127,7 +127,8 @@ export function useForceNegotiationUpdate(ships: string[], app: string) {
         (ship) =>
           !data ||
           !(`${ship}/${app}` in data) ||
-          data[`${ship}/${app}`] !== 'match'
+          (data[`${ship}/${app}`] !== 'match' &&
+            data[`${ship}/${app}`] !== 'clash')
       ),
     [ships, app, data]
   );
@@ -144,6 +145,7 @@ export function useForceNegotiationUpdate(ships: string[], app: string) {
         );
       });
       await Promise.all(responses);
+      queryClient.invalidateQueries(['negotiation', app]);
     },
     [app]
   );

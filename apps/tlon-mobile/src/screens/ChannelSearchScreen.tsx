@@ -1,9 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannelSearch } from '@tloncorp/shared/dist';
 import type * as db from '@tloncorp/shared/dist/db';
-import { XStack, YStack } from '@tloncorp/ui';
-import { Button, SearchBar, SearchResults } from '@tloncorp/ui';
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { Button, SearchBar, SearchResults, XStack, YStack } from '@tloncorp/ui';
+import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
@@ -24,25 +23,11 @@ export default function ChannelSearch({
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channel.id, query);
 
-  // handle full screen view without bottom nav, resets on dismout
-  useLayoutEffect(() => {
-    navigation.getParent()?.setOptions({
-      headerShown: false,
-      tabBarStyle: { display: 'none' },
-    });
-
-    return () => {
-      navigation.getParent()?.setOptions({
-        tabBarStyle: undefined,
-      });
-    };
-  }, [navigation]);
-
   const navigateToPost = useCallback(
     (post: db.Post) => {
       navigation.navigate('Channel', {
         channel,
-        selectedPost: post,
+        selectedPostId: post.id,
       });
     },
     [channel, navigation]

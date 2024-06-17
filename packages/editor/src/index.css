@@ -5,3 +5,18 @@
   border-radius: 48px;
   text-decoration: none;
 }
+.code-block {
+  margin-right: 16px;
+  padding-left: 8px;
+  padding-right: 8px;
+  background-color: #6161611a;
+  border-radius: 4px;
+}
+
+p {
+  display: block;
+  margin-block-start: 12px;
+  margin-block-end: 12px;
+  margin-inline-start: 12px;
+  margin-inline-end: 0px;
+}

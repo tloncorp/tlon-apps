@@ -82,6 +82,7 @@ export default ({ mode }: { mode: string }) => {
         strategies: 'injectManifest',
         srcDir: 'src',
         filename: 'sw.ts',
+        useCredentials: true,
         devOptions: {
           enabled: mode === 'sw',
           type: 'module',
@@ -175,6 +176,7 @@ export default ({ mode }: { mode: string }) => {
           } as BuildOptions),
     plugins: plugins(mode),
     resolve: {
+      dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },

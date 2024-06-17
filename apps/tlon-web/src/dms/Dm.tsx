@@ -1,3 +1,4 @@
+import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { Contact } from '@tloncorp/shared/dist/urbit/contact';
 import cn from 'classnames';
 import React, { useCallback, useMemo, useRef } from 'react';
@@ -32,9 +33,10 @@ import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { dmListPath } from '@/logic/utils';
-import { useDmIsPending, useDmUnread, useSendMessage } from '@/state/chat';
+import { useDmIsPending, useSendMessage } from '@/state/chat';
 import { useContact } from '@/state/contact';
 import { useNegotiate } from '@/state/negotiation';
+import { useUnread } from '@/state/unreads';
 import { useConnectivityCheck } from '@/state/vitals';
 
 import DmSearch from './DmSearch';
@@ -116,7 +118,7 @@ export default function Dm() {
   const isMobile = useIsMobile();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
-  const unread = useDmUnread(ship);
+  const unread = useUnread(getKey(ship));
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const canStart = ship && !!unread;

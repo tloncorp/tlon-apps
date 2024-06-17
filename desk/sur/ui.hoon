@@ -1,12 +1,22 @@
-/-  g=groups, d=channels, c=chat
+/-  g=groups, d=channels, c=chat, a=activity
 |%
 +$  init
   $:  groups=groups-ui:g
       =gangs:g
       =channels:d
-      =unreads:d
+      =activity:a
       pins=(list whom)
       =chat
+      profile=?
+  ==
+::
++$  init-1
+  $:  groups=groups-ui:g
+      =gangs:g
+      =channels:d
+      =unreads:d
+      pins=(list whom)
+      chat=chat-0
       profile=?
   ==
 ::
@@ -16,13 +26,18 @@
       channels=channels-0:d
       =unreads:d
       pins=(list whom)
-      =chat
+      chat=chat-0
       profile=?
   ==
 ::
 +$  mixed-heads  [chan=channel-heads:d chat=chat-heads:c]
 ::
 +$  chat
+  $:  clubs=(map id:club:c crew:club:c)
+      dms=(set ship)
+      invited=(set ship)
+  ==
++$  chat-0
   $:  clubs=(map id:club:c crew:club:c)
       dms=(set ship)
       =unreads:c

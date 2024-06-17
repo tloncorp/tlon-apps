@@ -38,7 +38,23 @@ export type ContactPinnedGroups = Contact['pinnedGroups'];
 export type Unread = BaseModel<'unreads'>;
 // TODO: We need to include unread count here because it's  returned by the chat
 // list query, but doesn't feel great.
-export type Group = BaseModel<'groups'> & { unreadCount?: number | null };
+export type Group = BaseModel<'groups'> & {
+  unreadCount?: number | null;
+  lastChannel?: string | null;
+};
+export type ClientMeta = Pick<
+  Group,
+  | 'title'
+  | 'coverImage'
+  | 'iconImage'
+  | 'description'
+  | 'coverImageColor'
+  | 'iconImageColor'
+>;
+export type GroupMemberInvite = BaseModel<'groupMemberInvites'>;
+export type GroupMemberBan = BaseModel<'groupMemberBans'>;
+export type GroupRankBan = BaseModel<'groupRankBans'>;
+export type GroupFlaggedPosts = BaseModel<'groupFlaggedPosts'>;
 export type ChatMember = BaseModel<'chatMembers'>;
 export type GroupRole = BaseModel<'groupRoles'>;
 export type ChatMemberGroupRole = BaseModel<'chatMemberGroupRoles'>;
@@ -64,3 +80,4 @@ export type Reaction = BaseModel<'postReactions'>;
 export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
+export type PostWindow = BaseModel<'postWindows'>;

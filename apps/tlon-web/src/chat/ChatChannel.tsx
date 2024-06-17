@@ -190,10 +190,7 @@ const ChatChannel = React.memo(({ title }: ViewProps) => {
       </Layout>
       <Routes>
         {isSmall ? null : (
-          <Route
-            path="message/:idTime/:idReplyTime?"
-            element={<ChatThread />}
-          />
+          <Route path="message/:idTime" element={<ChatThread />} />
         )}
       </Routes>
     </>

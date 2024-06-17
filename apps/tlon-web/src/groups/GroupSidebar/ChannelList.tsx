@@ -135,7 +135,7 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const isMobile = useIsMobile();
   const vessel = useVessel(flag, window.our);
   const isChannelJoined = useCheckChannelJoined();
-  const isChannelUnread = useCheckChannelUnread();
+  const { isChannelUnread, getUnread } = useCheckChannelUnread();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   useEffect(() => {
@@ -235,7 +235,10 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
           to={channelHref(flag, nest)}
           actions={
             isChannelUnread(nest) ? (
-              <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
+              <UnreadIndicator
+                count={getUnread(nest)?.count || 0}
+                notify={getUnread(nest)?.combined.notify}
+              />
             ) : null
           }
         >

@@ -1,10 +1,16 @@
+import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
+import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
+import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  NavigationContainerRefWithCurrent,
+  useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { TamaguiProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
@@ -38,17 +44,19 @@ import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 import { posthogAsync } from './utils/posthog';
-import { getPathFromWer } from './utils/string';
 
 type Props = {
   wer?: string;
+  channelId?: string;
 };
 
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-// on Android if a notification click causes the app to open, the corresponding notification
-// path is passed in here as "wer"
-const App = ({ wer }: Props) => {
+// Android notification tap handler passes initial params here
+const App = ({
+  wer: notificationPath,
+  channelId: notificationChannelId,
+}: Props) => {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
   const { isLoading, isAuthenticated } = useShip();
@@ -77,7 +85,10 @@ const App = ({ wer }: Props) => {
           </View>
         ) : isAuthenticated ? (
           <AuthenticatedApp
-            initialNotificationPath={getPathFromWer(wer ?? '')}
+            notificationListenerProps={{
+              notificationPath,
+              notificationChannelId,
+            }}
           />
         ) : (
           <OnboardingStack.Navigator
@@ -192,6 +203,7 @@ function MigrationCheck({ children }: PropsWithChildren) {
 export default function ConnectedApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
+  const navigationContainerRef = useNavigationContainerRef();
 
   return (
     <TamaguiProvider
@@ -199,13 +211,24 @@ export default function ConnectedApp(props: Props) {
       config={tamaguiConfig}
     >
       <ShipProvider>
-        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+        <NavigationContainer
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+          ref={navigationContainerRef}
+        >
           <BranchProvider>
             <PostHogProvider client={posthogAsync} autocapture>
               <GestureHandlerRootView style={tailwind('flex-1')}>
                 <SafeAreaProvider>
                   <MigrationCheck>
-                    <App {...props} />
+                    <QueryClientProvider client={queryClient}>
+                      <App {...props} />
+
+                      {__DEV__ && (
+                        <DevTools
+                          navigationContainerRef={navigationContainerRef}
+                        />
+                      )}
+                    </QueryClientProvider>
                   </MigrationCheck>
                 </SafeAreaProvider>
               </GestureHandlerRootView>
@@ -216,3 +239,16 @@ export default function ConnectedApp(props: Props) {
     </TamaguiProvider>
   );
 }
+
+// This is rendered as a component because I didn't have any better ideas
+// on calling these hooks conditionally.
+const DevTools = ({
+  navigationContainerRef,
+}: {
+  navigationContainerRef: NavigationContainerRefWithCurrent<any>;
+}) => {
+  useAsyncStorageDevTools();
+  useReactQueryDevTools(queryClient);
+  useReactNavigationDevTools(navigationContainerRef);
+  return null;
+};

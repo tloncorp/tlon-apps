@@ -1,6 +1,4 @@
-import { Unread } from '@tloncorp/shared/dist/urbit/channel';
-import { DMUnread } from '@tloncorp/shared/dist/urbit/dms';
-import { deSig } from '@urbit/api';
+import { stripSourcePrefix } from '@tloncorp/shared/src/urbit/activity';
 import fuzzy from 'fuzzy';
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -9,19 +7,14 @@ import { InlineEmptyPlaceholder } from '@/components/EmptyPlaceholder';
 import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSort from '@/logic/useMessageSort';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useChats, useUnreads } from '@/state/channel/channel';
+import { useChats } from '@/state/channel/channel';
 import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
+import { Unread, useUnreads } from '@/state/unreads';
 
-import {
-  useDmUnreads,
-  useMultiDms,
-  usePendingDms,
-  usePendingMultiDms,
-} from '../state/chat';
+import { useMultiDms, usePendingDms, usePendingMultiDms } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 type MessagesListProps = PropsWithChildren<{
@@ -31,7 +24,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
+function itemContent(_i: number, [whom, _unread]: [string, Unread]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -39,10 +32,7 @@ function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
   );
 }
 
-const computeItemKey = (
-  _i: number,
-  [whom, _unread]: [string, Unread | DMUnread]
-) => whom;
+const computeItemKey = (_i: number, [whom, _unread]: [string, Unread]) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
 
@@ -57,15 +47,7 @@ export default function MessagesList({
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinnedChats();
   const { sortMessages } = useMessageSort();
-  const { data: dmUnreads } = useDmUnreads();
-  const channelUnreads = useUnreads();
-  const unreads = useMemo(
-    () => ({
-      ...channelUnreads,
-      ...dmUnreads,
-    }),
-    [channelUnreads, dmUnreads]
-  );
+  const unreads = useUnreads();
   const contacts = useContacts();
   const clubs = useMultiDms();
   const chats = useChats();
@@ -81,75 +63,61 @@ export default function MessagesList({
       : { main: 400, reverse: 400 },
   };
 
-  const messages = useMemo(() => {
-    const filteredMsgs = sortMessages(unreads).filter(([b]) => {
-      const chat = chats[b];
-      const groupFlag = chat?.perms.group;
-      const group = groups[groupFlag || ''];
-      const vessel = group?.fleet[window.our];
-      const channel = group?.channels[b];
-
-      if (
-        chat &&
-        channel &&
-        vessel &&
-        !canReadChannel(channel, vessel, group?.bloc)
-      ) {
-        return false;
-      }
-
-      if (pinned.includes(b) && !searchQuery) {
-        return false;
-      }
-
-      if (allPending.includes(b)) {
-        return false;
-      }
-
-      if (filter === filters.groups && (whomIsDm(b) || whomIsMultiDm(b))) {
-        return false;
-      }
-
-      if (filter === filters.dms && b.includes('/')) {
-        return false;
-      }
-
-      if (b.includes('/') && !group) {
-        return false;
-      }
-
-      if (searchQuery) {
-        if (b.includes('/')) {
-          const titleMatch = group.meta.title
-            .toLowerCase()
-            .startsWith(searchQuery.toLowerCase());
-          const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
-          return titleMatch || shipMatch;
+  const organizedUnreads = useMemo(() => {
+    const filteredMsgs = sortMessages(unreads)
+      .filter(([k]) => {
+        if (
+          !(
+            k.startsWith('ship/') ||
+            k.startsWith('club/') ||
+            k.startsWith('channel/')
+          )
+        ) {
+          return false;
         }
 
-        if (whomIsDm(b)) {
-          const contact = contacts[b];
-          const nicknameMatch = contact?.nickname
-            .toLowerCase()
-            .startsWith(searchQuery.toLowerCase());
-          const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
-          return nicknameMatch || shipMatch;
+        const key = stripSourcePrefix(k);
+        const chat = chats[key];
+        const groupFlag = chat?.perms.group;
+        const group = groups[groupFlag || ''];
+        const vessel = group?.fleet[window.our];
+        const channel = group?.channels[key];
+        const isChannel = k.startsWith('channel/');
+        const isDm = k.startsWith('ship/');
+        const isMultiDm = k.startsWith('club/');
+
+        if (
+          chat &&
+          channel &&
+          vessel &&
+          !canReadChannel(channel, vessel, group?.bloc)
+        ) {
+          return false;
         }
 
-        if (whomIsMultiDm(b)) {
-          const club = clubs[b];
-          const titleMatch = club?.meta.title
-            ?.toLowerCase()
-            .startsWith(searchQuery.toLowerCase());
-          const shipsMatch = club?.hive?.some((ship) =>
-            deSig(ship)?.startsWith(deSig(searchQuery) || '')
-          );
-          return titleMatch || shipsMatch;
+        if (pinned.includes(key) && !searchQuery) {
+          return false;
         }
-      }
 
-      return true; // is all
-    });
+        if (allPending.includes(key)) {
+          return false;
+        }
+
+        if (filter === filters.groups && (isDm || isMultiDm)) {
+          return false;
+        }
+
+        if (filter === filters.dms && isChannel) {
+          return false;
+        }
+
+        if (!group && isChannel) {
+          return false;
+        }
+
+        return true; // is all
+      })
+      .map(([k, v]) => [stripSourcePrefix(k), v]) as [string, Unread][];
     return !searchQuery
       ? filteredMsgs
       : fuzzy
@@ -237,7 +205,7 @@ export default function MessagesList({
     <Virtuoso
       {...thresholds}
       ref={virtuosoRef}
-      data={messages}
+      data={organizedUnreads}
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       components={components}

@@ -1,5 +1,6 @@
 import {
   BridgeExtension,
+  EditorBridge,
   EditorMessage,
   PlaceholderBridge,
   RichText,
@@ -9,21 +10,41 @@ import {
 } from '@10play/tentap-editor';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
-import { MentionsBridge, ShortcutsBridge } from '@tloncorp/editor/src/bridges';
+import {
+  CodeBlockBridge,
+  MentionsBridge,
+  ShortcutsBridge,
+} from '@tloncorp/editor/src/bridges';
 import { tiptap } from '@tloncorp/shared/dist';
-import { toContentReference } from '@tloncorp/shared/dist/api';
+import { PostContent, toContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
   Inline,
   JSONContent,
+  Story,
   constructStory,
   isInline,
   pathToCite,
 } from '@tloncorp/shared/dist/urbit';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
+import {
+  getToken,
+  getTokenValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
@@ -67,70 +88,189 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
   return injectJS;
 };
 
-// 52 accounts for the 16px padding around the text within the input
-// and the 20px line height of the text. 16 + 20 + 16 = 52
-const DEFAULT_CONTAINER_HEIGHT = 52;
+// 44 accounts for the 12px padding around the text within the input
+// and the 20px line height of the text. 12 + 20 + 12 = 52
+export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
-export function MessageInput({
-  shouldBlur,
-  setShouldBlur,
-  send,
-  channelId,
-  setImageAttachment,
-  uploadedImage,
-  canUpload,
-  groupMembers,
-  storeDraft,
-  clearDraft,
-  getDraft,
-}: MessageInputProps) {
-  const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-  const [containerHeight, setContainerHeight] = useState(
-    DEFAULT_CONTAINER_HEIGHT
-  );
-  const [mentionText, setMentionText] = useState<string>();
-  const [showMentionPopup, setShowMentionPopup] = useState(false);
-  const { references, setReferences } = useReferences();
-  const editor = useEditorBridge({
-    customSource: editorHtml,
-    autofocus: false,
-    bridgeExtensions: [
+export interface MessageInputHandle {
+  editor: EditorBridge | null;
+  setEditor: (editor: EditorBridge) => void;
+}
+
+export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
+  (
+    {
+      shouldBlur,
+      setShouldBlur,
+      send,
+      channelId,
+      uploadInfo,
+      groupMembers,
+      storeDraft,
+      clearDraft,
+      getDraft,
+      editingPost,
+      setEditingPost,
+      editPost,
+      setShowBigInput,
+      showAttachmentButton = true,
+      floatingActionButton = false,
+      backgroundColor = '$background',
+      paddingHorizontal,
+      initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
+      placeholder = 'Message',
+      bigInput = false,
+      title,
+      image,
+      channelType,
+      setHeight,
+      goBack,
+    },
+    ref
+  ) => {
+    const localEditorRef = useRef<EditorBridge | null>(null);
+
+    useImperativeHandle(ref, () => ({
+      editor: localEditorRef.current,
+      setEditor: (editor: EditorBridge) => {
+        localEditorRef.current = editor;
+      },
+    }));
+
+    const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+    const [containerHeight, setContainerHeight] = useState(initialHeight);
+    const { bottom, top } = useSafeAreaInsets();
+    const { height } = useWindowDimensions();
+    const headerHeight = 48;
+    const titleInputHeight = 48;
+    const inputBasePadding = getToken('$s', 'space');
+    const imageInputButtonHeight = 50;
+    const basicOffset =
+      top + headerHeight + titleInputHeight + imageInputButtonHeight;
+    const bigInputHeightBasic =
+      height - basicOffset - bottom - inputBasePadding * 2;
+    const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
+    const [mentionText, setMentionText] = useState<string>();
+    const [editorIsEmpty, setEditorIsEmpty] = useState(true);
+    const [showMentionPopup, setShowMentionPopup] = useState(false);
+    const { references, setReferences } = useReferences();
+    const bridgeExtensions = [
       ...TenTapStartKit,
-      PlaceholderBridge.configureExtension({
-        placeholder: 'Message',
-      }),
       MentionsBridge,
       ShortcutsBridge,
-    ],
-  });
-  const editorState = useBridgeState(editor);
-  const webviewRef = editor.webviewRef;
+      CodeBlockBridge,
+    ];
 
-  useEffect(() => {
-    if (!hasSetInitialContent && editorState.isReady) {
-      try {
-        getDraft().then((draft) => {
-          if (draft) {
-            // @ts-expect-error setContent does accept JSONContent
-            editor.setContent(draft);
-            setHasSetInitialContent(true);
-          }
-        });
-      } catch (e) {
-        console.error('Error getting draft', e);
+    if (placeholder) {
+      bridgeExtensions.push(
+        PlaceholderBridge.configureExtension({
+          placeholder,
+        })
+      );
+    }
+
+    const editor = useEditorBridge({
+      customSource: editorHtml,
+      autofocus: false,
+      bridgeExtensions,
+    });
+    const editorState = useBridgeState(editor);
+    const webviewRef = editor.webviewRef;
+
+    useEffect(() => {
+      if (editor) {
+        localEditorRef.current = editor;
       }
-    }
-  }, [editor, getDraft, hasSetInitialContent, editorState.isReady]);
 
-  useEffect(() => {
-    if (editor && shouldBlur && editorState.isFocused) {
-      editor.blur();
-      setShouldBlur(false);
-    }
-  }, [shouldBlur, editor, editorState, setShouldBlur]);
+      if (ref && typeof ref === 'object' && ref.current) {
+        ref.current.setEditor(editor);
+      }
+    }, [editor, ref]);
 
-  editor._onContentUpdate = async () => {
-    editor.getJSON().then((json: JSONContent) => {
+    useEffect(() => {
+      if (!hasSetInitialContent && editorState.isReady) {
+        try {
+          getDraft().then((draft) => {
+            if (draft) {
+              // @ts-expect-error setContent does accept JSONContent
+              editor.setContent(draft);
+              setHasSetInitialContent(true);
+              setEditorIsEmpty(false);
+            }
+            if (editingPost?.content) {
+              const content = JSON.parse(
+                editingPost.content as string
+              ) as PostContent;
+
+              if (!content) {
+                return;
+              }
+
+              const story =
+                (content.filter(
+                  (c) => 'inline' in c || 'block' in c
+                ) as Story) ?? [];
+              const tiptapContent = tiptap.diaryMixedToJSON(story);
+              // @ts-expect-error setContent does accept JSONContent
+              editor.setContent(tiptapContent);
+              setHasSetInitialContent(true);
+            }
+          });
+        } catch (e) {
+          console.error('Error getting draft', e);
+        }
+      }
+    }, [
+      editor,
+      getDraft,
+      hasSetInitialContent,
+      editorState.isReady,
+      editingPost,
+    ]);
+
+    useEffect(() => {
+      if (editor && shouldBlur && editorState.isFocused) {
+        editor.blur();
+        setShouldBlur(false);
+      }
+    }, [shouldBlur, editor, editorState, setShouldBlur]);
+
+    useEffect(() => {
+      editor.getJSON().then((json: JSONContent) => {
+        const inlines = tiptap
+          .JSONToInlines(json)
+          .filter(
+            (c) =>
+              typeof c === 'string' || (typeof c === 'object' && isInline(c))
+          ) as Inline[];
+        const blocks =
+          (tiptap
+            .JSONToInlines(json)
+            .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
+          [];
+
+        const inlineIsJustBreak = !!(
+          inlines.length === 1 &&
+          inlines[0] &&
+          typeof inlines[0] === 'object' &&
+          'break' in inlines[0]
+        );
+
+        const isEmpty =
+          (inlines.length === 0 || inlineIsJustBreak) &&
+          blocks.length === 0 &&
+          !uploadInfo?.uploadedImage &&
+          Object.entries(references).filter(([, ref]) => ref !== null)
+            .length === 0;
+
+        if (isEmpty !== editorIsEmpty) {
+          setEditorIsEmpty(isEmpty);
+        }
+      });
+    }, [editor, references, uploadInfo, editorIsEmpty]);
+
+    editor._onContentUpdate = async () => {
+      const json = await editor.getJSON();
       const inlines = (
         tiptap
           .JSONToInlines(json)
@@ -138,11 +278,11 @@ export function MessageInput({
             (c) =>
               typeof c === 'string' || (typeof c === 'object' && isInline(c))
           ) as Inline[]
-      ).filter((inline) => inline !== null) as string[];
+      ).filter((inline) => inline !== null) as Inline[];
       // find the first mention in the inlines without refs
       const mentionInline = inlines.find(
         (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
-      );
+      ) as string | undefined;
       // extract the mention text from the mention inline
       const mentionText = mentionInline
         ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
@@ -156,22 +296,20 @@ export function MessageInput({
       }
 
       storeDraft(json);
-    });
-  };
+    };
 
-  const handlePaste = useCallback(
-    (pastedText: string) => {
-      if (pastedText) {
-        const isRef = pastedText.match(tiptap.REF_REGEX);
+    const handlePaste = useCallback(
+      async (pastedText: string) => {
+        if (pastedText) {
+          const isRef = pastedText.match(tiptap.REF_REGEX);
 
-        if (isRef) {
-          const cite = pathToCite(isRef[0]);
+          if (isRef) {
+            const cite = pathToCite(isRef[0]);
 
-          if (cite) {
-            const reference = toContentReference(cite);
-            setReferences({ [isRef[0]]: reference });
-
-            editor.getJSON().then((json: JSONContent) => {
+            if (cite) {
+              const reference = toContentReference(cite);
+              setReferences({ [isRef[0]]: reference });
+              const json = await editor.getJSON();
               const inlines = tiptap
                 .JSONToInlines(json)
                 .filter(
@@ -217,18 +355,16 @@ export function MessageInput({
 
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(newJson);
-              // editor.setSelection(initialSelection.from, initialSelection.to);
-            });
+            }
           }
         }
-      }
-    },
-    [editor, setReferences]
-  );
+      },
+      [editor, setReferences]
+    );
 
-  const onSelectMention = useCallback(
-    (contact: db.Contact) => {
-      editor.getJSON().then(async (json) => {
+    const onSelectMention = useCallback(
+      async (contact: db.Contact) => {
+        const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
 
         let textBeforeSig = '';
@@ -285,87 +421,133 @@ export function MessageInput({
         // @ts-expect-error setContent does accept JSONContent
         editor.setContent(newJson);
         storeDraft(newJson);
-      });
-      setMentionText('');
-      setShowMentionPopup(false);
-    },
-    [editor, storeDraft]
-  );
+        setMentionText('');
+        setShowMentionPopup(false);
+      },
+      [editor, storeDraft]
+    );
 
-  const sendMessage = useCallback(() => {
-    editor.getJSON().then(async (json) => {
-      const blocks: Block[] = [];
-      const inlines = tiptap.JSONToInlines(json);
-      const story = constructStory(inlines);
+    const sendMessage = useCallback(
+      async (isEdit?: boolean) => {
+        const json = await editor.getJSON();
+        const blocks: Block[] = [];
+        const inlines = tiptap.JSONToInlines(json);
+        const story = constructStory(inlines);
 
-      if (Object.keys(references).length) {
-        Object.keys(references).forEach((ref) => {
-          const cite = pathToCite(ref);
-          if (!cite) {
-            return;
+        if (Object.keys(references).length) {
+          Object.keys(references).forEach((ref) => {
+            const cite = pathToCite(ref);
+            if (!cite) {
+              return;
+            }
+            blocks.push({ cite });
+          });
+        }
+
+        if (!image && uploadInfo?.uploadedImage) {
+          blocks.push({
+            image: {
+              src: uploadInfo.uploadedImage.url,
+              height: uploadInfo.uploadedImage.height,
+              width: uploadInfo.uploadedImage.width,
+              alt: 'image',
+            },
+          });
+        }
+
+        if (blocks && blocks.length > 0) {
+          story.push(...blocks.map((block) => ({ block })));
+        }
+
+        if (isEdit && editingPost) {
+          await editPost?.(editingPost, story);
+          setEditingPost?.(undefined);
+        } else {
+          const metadata: db.PostMetadata = {};
+          if (title && title.length > 0) {
+            metadata['title'] = title;
           }
-          blocks.push({ cite });
-        });
-      }
 
-      if (uploadedImage) {
-        blocks.push({
-          image: {
-            src: uploadedImage.url,
-            height: uploadedImage.size ? uploadedImage.size[0] : 200,
-            width: uploadedImage.size ? uploadedImage.size[1] : 200,
-            alt: 'image',
-          },
-        });
-      }
+          if (image && image.url && image.url.length > 0) {
+            metadata['image'] = image.url;
+          }
 
-      if (blocks && blocks.length > 0) {
-        story.push(...blocks.map((block) => ({ block })));
-      }
+          await send(story, channelId, metadata);
+        }
 
-      await send(story, channelId);
+        editor.setContent('');
+        setReferences({});
+        clearDraft();
+        setShowBigInput?.(false);
+      },
+      [
+        editor,
+        send,
+        channelId,
+        uploadInfo,
+        references,
+        setReferences,
+        clearDraft,
+        editPost,
+        editingPost,
+        setEditingPost,
+        setShowBigInput,
+        title,
+        image,
+      ]
+    );
 
-      editor.setContent('');
-      setReferences({});
-      clearDraft();
-    });
-  }, [
-    editor,
-    send,
-    channelId,
-    uploadedImage,
-    references,
-    setReferences,
-    clearDraft,
-  ]);
+    const handleSend = useCallback(async () => {
+      Keyboard.dismiss();
+      await sendMessage();
+    }, [sendMessage]);
 
-  const handleSend = useCallback(() => {
-    Keyboard.dismiss();
-    sendMessage();
-  }, [sendMessage]);
-
-  const handleAddNewLine = useCallback(() => {
-    editor.splitBlock();
-  }, [editor]);
-
-  const handleMessage = useCallback(
-    async (event: WebViewMessageEvent) => {
-      const { data } = event.nativeEvent;
-      if (data === 'enter') {
-        handleAddNewLine();
+    const handleEdit = useCallback(async () => {
+      Keyboard.dismiss();
+      if (!editingPost) {
         return;
       }
 
-      if (data === 'shift-enter') {
-        handleAddNewLine();
+      await sendMessage(true);
+    }, [sendMessage, editingPost]);
+
+    const handleAddNewLine = useCallback(() => {
+      if (editorState.isCodeBlockActive) {
+        editor.newLineInCode();
         return;
       }
 
-      const { type, payload } = JSON.parse(data) as MessageEditorMessage;
+      if (editorState.isBulletListActive || editorState.isOrderedListActive) {
+        editor.splitListItem('listItem');
+        return;
+      }
 
-      if (type === 'editor-ready') {
-        webviewRef.current?.injectJavaScript(
-          `
+      if (editorState.isTaskListActive) {
+        editor.splitListItem('taskItem');
+        return;
+      }
+
+      editor.splitBlock();
+    }, [editor, editorState]);
+
+    const handleMessage = useCallback(
+      async (event: WebViewMessageEvent) => {
+        const { data } = event.nativeEvent;
+        if (data === 'enter') {
+          handleAddNewLine();
+          return;
+        }
+
+        if (data === 'shift-enter') {
+          handleAddNewLine();
+          return;
+        }
+
+        const { type, payload } = JSON.parse(data) as MessageEditorMessage;
+
+        if (type === 'editor-ready') {
+          webviewRef.current?.injectJavaScript(
+            `
               function updateContentHeight() {
                 const editorElement = document.querySelector('#root div .ProseMirror');
                 editorElement.style.height = 'auto';
@@ -385,58 +567,84 @@ export function MessageInput({
 
               setupMutationObserver();
           `
-        );
+          );
+        }
+
+        if (type === 'contentHeight') {
+          setContainerHeight(payload);
+          setHeight?.(payload);
+          return;
+        }
+
+        if (type === 'paste') {
+          handlePaste(payload);
+          return;
+        }
+
+        editor.bridgeExtensions?.forEach((e) => {
+          e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
+        });
+      },
+      [editor, handleAddNewLine, handlePaste, setHeight, webviewRef]
+    );
+
+    const tentapInjectedJs = useMemo(
+      () => getInjectedJS(editor.bridgeExtensions || []),
+      [editor.bridgeExtensions]
+    );
+
+    useEffect(() => {
+      if (bigInput) {
+        Keyboard.addListener('keyboardDidShow', () => {
+          // we should always have the keyboard height here but just in case
+          const keyboardHeight = Keyboard.metrics()?.height || 300;
+          setBigInputHeight(bigInputHeightBasic - keyboardHeight);
+        });
+
+        Keyboard.addListener('keyboardDidHide', () => {
+          setBigInputHeight(bigInputHeightBasic);
+        });
       }
+    }, [bigInput, bigInputHeightBasic]);
 
-      if (type === 'contentHeight') {
-        setContainerHeight(payload);
-        return;
-      }
+    const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
 
-      if (type === 'paste') {
-        handlePaste(payload);
-        return;
-      }
-
-      editor.bridgeExtensions?.forEach((e) => {
-        e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
-      });
-    },
-    [editor, handleAddNewLine, handlePaste]
-  );
-
-  const tentapInjectedJs = useMemo(
-    () => getInjectedJS(editor.bridgeExtensions || []),
-    [editor.bridgeExtensions]
-  );
-
-  return (
-    <MessageInputContainer
-      setImageAttachment={setImageAttachment}
-      onPressSend={handleSend}
-      uploadedImage={uploadedImage}
-      canUpload={canUpload}
-      containerHeight={containerHeight}
-      mentionText={mentionText}
-      groupMembers={groupMembers}
-      onSelectMention={onSelectMention}
-      showMentionPopup={showMentionPopup}
-    >
-      <XStack
-        borderRadius="$xl"
-        height={containerHeight}
-        backgroundColor="$secondaryBackground"
-        paddingHorizontal="$l"
-        flex={1}
+    return (
+      <MessageInputContainer
+        setShouldBlur={setShouldBlur}
+        onPressSend={handleSend}
+        onPressEdit={handleEdit}
+        uploadInfo={uploadInfo}
+        containerHeight={containerHeight}
+        mentionText={mentionText}
+        groupMembers={groupMembers}
+        onSelectMention={onSelectMention}
+        showMentionPopup={showMentionPopup}
+        isEditing={!!editingPost}
+        cancelEditing={() => setEditingPost?.(undefined)}
+        showAttachmentButton={showAttachmentButton}
+        floatingActionButton={floatingActionButton}
+        disableSend={
+          editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
+        }
+        goBack={goBack}
       >
-        <RichText
-          style={{
-            padding: 8,
-            backgroundColor: '$secondaryBackground',
-          }}
-          editor={editor}
-          onMessage={handleMessage}
-          injectedJavaScript={`
+        <XStack
+          borderRadius="$xl"
+          height={bigInput ? bigInputHeight : containerHeight}
+          backgroundColor={backgroundColor}
+          paddingHorizontal={paddingHorizontal}
+          flex={1}
+          borderColor="$shadow"
+          borderWidth={1}
+        >
+          <RichText
+            style={{
+              backgroundColor: 'transparent',
+            }}
+            editor={editor}
+            onMessage={handleMessage}
+            injectedJavaScript={`
               ${tentapInjectedJs}
 
               window.addEventListener('keydown', (e) => {
@@ -460,8 +668,11 @@ export function MessageInput({
                 }
               });
             `}
-        />
-      </XStack>
-    </MessageInputContainer>
-  );
-}
+          />
+        </XStack>
+      </MessageInputContainer>
+    );
+  }
+);
+
+MessageInput.displayName = 'MessageInput';
