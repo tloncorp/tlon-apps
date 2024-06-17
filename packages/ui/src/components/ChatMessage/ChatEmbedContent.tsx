@@ -45,11 +45,7 @@ export default function ChatEmbedContent({
   const isOembed = isTrusted && validOembedCheck(embed, url);
   const calm = useCalm();
   const openLink = async () => {
-    const supported = await Linking.canOpenURL(url);
-
-    if (supported) {
-      await Linking.openURL(url);
-    }
+    await Linking.openURL(url);
   };
 
   if (!calm.disableRemoteContent) {

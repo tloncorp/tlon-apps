@@ -9,11 +9,13 @@ export default function ChannelNavSections({
   group,
   channels,
   onSelect,
+  sortBy,
   paddingBottom,
 }: {
   group: db.Group;
   channels: db.Channel[];
   onSelect: (channel: any) => void;
+  sortBy: 'recency' | 'arranged';
   paddingBottom?: number;
 }) {
   const unGroupedChannels = useMemo(
@@ -27,10 +29,38 @@ export default function ChannelNavSections({
     [channels, group.navSections]
   );
 
+  const channelsSortedByRecency = useMemo(
+    () =>
+      channels && sortBy === 'recency'
+        ? [...channels].sort((a, b) => {
+            const aLastPostAt = a.lastPostAt || 0;
+            const bLastPostAt = b.lastPostAt || 0;
+
+            return bLastPostAt - aLastPostAt;
+          })
+        : [],
+    [channels, sortBy]
+  );
+
   const sectionHasChannels = useMemo(
     () => unGroupedChannels.length > 0,
     [unGroupedChannels]
   );
+
+  if (sortBy === 'recency') {
+    return (
+      <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">
+        {channelsSortedByRecency.map((item) => (
+          <ChannelListItem
+            key={item.id}
+            model={item}
+            onPress={onSelect}
+            useTypeIcon={true}
+          />
+        ))}
+      </YStack>
+    );
+  }
 
   return (
     <YStack paddingBottom={paddingBottom} alignSelf="stretch" gap="$s">

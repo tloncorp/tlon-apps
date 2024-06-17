@@ -33,6 +33,7 @@ type ChatListScreenProps = NativeStackScreenProps<
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
+  const [screenTitle, setScreenTitle] = useState('Home');
   {
     /* FIXME: Disabling long-press on ChatListScreen items for now */
   }
@@ -158,11 +159,15 @@ export default function ChatListScreen(
 
   const { calmSettings } = useCalmSettings();
 
+  const handleSectionChange = useCallback((title: string) => {
+    setScreenTitle(title);
+  }, []);
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts ?? []}>
         <View backgroundColor="$background" flex={1}>
-          <ScreenHeader title={isFetchingInitData ? 'Loading…' : 'Channels'} />
+          <ScreenHeader title={isFetchingInitData ? 'Loading…' : screenTitle} />
           {chats && (chats.unpinned.length || !isFetchingInitData) ? (
             <ChatList
               pinned={resolvedChats.pinned}
@@ -171,6 +176,7 @@ export default function ChatListScreen(
               // FIXME: Disabling long-press on ChatListScreen items for now
               // onLongPressItem={onLongPressItem}
               onPressItem={onPressChat}
+              onSectionChange={handleSectionChange}
             />
           ) : null}
           <View

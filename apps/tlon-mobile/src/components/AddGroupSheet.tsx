@@ -7,10 +7,12 @@ import {
   NativeStackScreenProps,
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Button,
   ContactBook,
+  ContactsProvider,
   CreateGroupWidget,
   GroupPreviewPane,
   Icon,
@@ -20,6 +22,7 @@ import {
   XStack,
   YStack,
   triggerHaptic,
+  useContacts,
   useTheme,
 } from '@tloncorp/ui/src';
 import {
@@ -44,6 +47,7 @@ interface AddGroupActions {
   }) => void;
   onScrollChange: (scrolling: boolean) => void;
   screenKey?: number;
+  contacts?: db.Contact[] | null;
 }
 const ActionContext = createContext<AddGroupActions>({} as AddGroupActions);
 
@@ -79,6 +83,7 @@ export default function AddGroupSheet({
   const theme = useTheme();
   const navigationRef = useRef<NavigationContainerRef<StackParamList>>(null);
   const [screenKey, setScreenKey] = useState<number>(0);
+  const contacts = useContacts();
 
   const dismiss = useCallback(() => {
     if (navigationRef.current && navigationRef.current.canGoBack()) {
@@ -107,41 +112,46 @@ export default function AddGroupSheet({
     >
       <Sheet.Overlay />
       <Sheet.LazyFrame>
-        <Sheet.Handle marginBottom="$l" />
-        <KeyboardAvoidingView style={{ flex: 1 }}>
-          <NavigationContainer independent={true} ref={navigationRef}>
-            <ActionContext.Provider
-              value={{
-                dismiss,
-                onCreatedGroup,
-                onScrollChange: setScreenScrolling,
-                screenKey,
-              }}
-            >
-              <Stack.Navigator
-                initialRouteName="Root"
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: theme.background.val },
-                }}
-              >
-                <Stack.Screen name="Root" component={RootScreen} />
-                <Stack.Screen
-                  name="CreateGroup"
-                  component={CreateGroupScreen}
-                />
-                <Stack.Screen
-                  name="ViewContactGroups"
-                  component={ViewContactGroupsScreen}
-                />
-                <Stack.Screen
-                  name="ViewGroupPreview"
-                  component={ViewGroupPreviewScreen}
-                />
-              </Stack.Navigator>
-            </ActionContext.Provider>
-          </NavigationContainer>
-        </KeyboardAvoidingView>
+        <QueryClientProvider client={queryClient}>
+          <ContactsProvider contacts={contacts ?? null}>
+            <Sheet.Handle marginBottom="$l" />
+            <KeyboardAvoidingView style={{ flex: 1 }}>
+              <NavigationContainer independent={true} ref={navigationRef}>
+                <ActionContext.Provider
+                  value={{
+                    dismiss,
+                    onCreatedGroup,
+                    onScrollChange: setScreenScrolling,
+                    screenKey,
+                    contacts,
+                  }}
+                >
+                  <Stack.Navigator
+                    initialRouteName="Root"
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: theme.background.val },
+                    }}
+                  >
+                    <Stack.Screen name="Root" component={RootScreen} />
+                    <Stack.Screen
+                      name="CreateGroup"
+                      component={CreateGroupScreen}
+                    />
+                    <Stack.Screen
+                      name="ViewContactGroups"
+                      component={ViewContactGroupsScreen}
+                    />
+                    <Stack.Screen
+                      name="ViewGroupPreview"
+                      component={ViewGroupPreviewScreen}
+                    />
+                  </Stack.Navigator>
+                </ActionContext.Provider>
+              </NavigationContainer>
+            </KeyboardAvoidingView>
+          </ContactsProvider>
+        </QueryClientProvider>
       </Sheet.LazyFrame>
     </Sheet>
   );
@@ -167,7 +177,7 @@ function ScreenWrapper({
 }
 
 function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
-  const { onScrollChange, screenKey } = useContext(ActionContext);
+  const { onScrollChange, screenKey, contacts } = useContext(ActionContext);
   const insets = useSafeAreaInsets();
   const onSelect = useCallback(
     (contactId: string) => {
@@ -180,6 +190,9 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
 
   return (
     <ScreenWrapper withoutSafe>
+      {/* Unclear why we have to render another contacts provider here, but the screen context shows up empty */}
+      {/* on Android? */}
+      {/* <ContactsProvider contacts={contacts ?? null}> */}
       <YStack flex={1} gap="$xl">
         <ContactBook
           searchable
@@ -194,6 +207,7 @@ function RootScreen(props: NativeStackScreenProps<StackParamList, 'Root'>) {
           </Button>
         </View>
       </YStack>
+      {/* </ContactsProvider> */}
     </ScreenWrapper>
   );
 }

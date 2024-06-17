@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 import {
   Easing,
   type SharedValue,
+  runOnJS,
   useAnimatedScrollHandler,
   useSharedValue,
   withTiming,
@@ -18,10 +19,14 @@ export const ScrollContext = createContext<ScrollContextTuple>(INITIAL_VALUE);
 
 export const useScrollContext = () => useContext(ScrollContext);
 
-export const useScrollDirectionTracker = () => {
+export const useScrollDirectionTracker = (
+  setIsAtBottom: (isAtBottom: boolean) => void
+) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
   const { bottom } = useSafeAreaInsets();
+  const isAtBottom = useSharedValue(true);
+
   return useAnimatedScrollHandler(
     (event) => {
       const { y } = event.contentOffset;
@@ -37,6 +42,12 @@ export const useScrollDirectionTracker = () => {
       );
 
       previousScrollValue.value = y;
+
+      const atBottom = y <= 0;
+      if (isAtBottom.value !== atBottom) {
+        isAtBottom.value = atBottom;
+        runOnJS(setIsAtBottom)(atBottom);
+      }
     },
     [bottom]
   );
