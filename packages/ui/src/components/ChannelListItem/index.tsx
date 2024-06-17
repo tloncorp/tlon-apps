@@ -51,7 +51,7 @@ export default function ChannelListItem({
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
           <ListItem.Count opacity={model.unread?.count ? 1 : 0}>
-            {model.unread?.count ?? 0}
+            {(model.unread?.count ?? 0) > 99 ? '99+' : model.unread?.count ?? 0}
           </ListItem.Count>
         </ListItem.EndContent>
       )}

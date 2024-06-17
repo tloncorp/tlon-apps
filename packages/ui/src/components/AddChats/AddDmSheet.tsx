@@ -1,7 +1,9 @@
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ContactsProvider, useContacts } from '../../contexts';
 import { XStack, YStack, ZStack } from '../../core';
 import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
@@ -18,6 +20,7 @@ export function StartDmSheet({
   onOpenChange: (open: boolean) => void;
   goToDm: (participants: string[]) => void;
 }) {
+  const contacts = useContacts();
   const insets = useSafeAreaInsets();
   const [contentScrolling, setContentScrolling] = useState(false);
   const [dmParticipants, setDmParticipants] = useState<string[]>([]);
@@ -60,31 +63,35 @@ export function StartDmSheet({
     >
       <Sheet.Overlay />
       <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
-        <Sheet.Handle marginBottom="$l" />
-        <ZStack flex={1}>
-          <YStack flex={1} gap="$2xl">
-            <ContactBook
-              key={contactBookKey}
-              multiSelect
-              onSelectedChange={setDmParticipants}
-              searchable
-              searchPlaceholder="Start a DM with..."
-              onScrollChange={setContentScrolling}
-            />
-            {dmParticipants.length > 0 && (
-              <XStack
-                position="absolute"
-                bottom={insets.bottom + 12}
-                justifyContent="center"
-              >
-                <StartDMButton
-                  participants={dmParticipants}
-                  onPress={handleGoToDm}
+        <QueryClientProvider client={queryClient}>
+          <ContactsProvider contacts={contacts ?? null}>
+            <Sheet.Handle marginBottom="$l" />
+            <ZStack flex={1}>
+              <YStack flex={1} gap="$2xl">
+                <ContactBook
+                  key={contactBookKey}
+                  multiSelect
+                  onSelectedChange={setDmParticipants}
+                  searchable
+                  searchPlaceholder="Start a DM with..."
+                  onScrollChange={setContentScrolling}
                 />
-              </XStack>
-            )}
-          </YStack>
-        </ZStack>
+                {dmParticipants.length > 0 && (
+                  <XStack
+                    position="absolute"
+                    bottom={insets.bottom + 12}
+                    justifyContent="center"
+                  >
+                    <StartDMButton
+                      participants={dmParticipants}
+                      onPress={handleGoToDm}
+                    />
+                  </XStack>
+                )}
+              </YStack>
+            </ZStack>
+          </ContactsProvider>
+        </QueryClientProvider>
       </Sheet.LazyFrame>
     </Sheet>
   );

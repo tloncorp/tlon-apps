@@ -28,6 +28,7 @@ export function GroupChannelsScreen({
   const handleGoBackPressed = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+
   return (
     <GroupChannelsScreenView
       onChannelPressed={handleChannelSelected}
