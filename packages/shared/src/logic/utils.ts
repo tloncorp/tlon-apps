@@ -194,8 +194,13 @@ export function getPinPartial(channel: db.Channel): {
   return { type: 'channel', itemId: channel.id };
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;
+
 export const isSameDay = (a: number, b: number) => {
-  return differenceInCalendarDays(a, b) === 0;
+  const dayA = Math.floor((a - timezoneOffset) / MS_PER_DAY);
+  const dayB = Math.floor((b - timezoneOffset) / MS_PER_DAY);
+  return dayA === dayB;
 };
 
 export const isToday = (date: number) => {
