@@ -544,6 +544,7 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
               return;
             }
 
+            const newReplyId = unixToDa(memo.sent).toString();
             const newReply: Reply = {
               seal: {
                 id: replyId,
@@ -555,7 +556,7 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
 
             const newReplies = {
               ...prevReplies,
-              [formatUd(bigInt(reply.delta.add.time!))]: newReply,
+              [newReplyId]: newReply,
             };
 
             draft.seal.replies = newReplies;
