@@ -7,7 +7,6 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
-import { ChannelsUpdate } from './channelsApi';
 import { toPostData, toPostReplyData } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
