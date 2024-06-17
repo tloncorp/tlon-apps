@@ -47,6 +47,8 @@ export function fromInitFeedToBucketedActivityEvents(
   ];
 }
 
+// Whereas the initial feed scry returns all, mentions, and replies, for paginated
+// fetching of more data, we grab by particular bucket
 export async function getPagedActivityByBucket({
   cursor,
   bucket,
@@ -365,40 +367,6 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   );
 }
 
-function getChannelIdFromSource(source: ub.Source): string {
-  if ('dm' in source) {
-    return 'ship' in source.dm ? source.dm.ship : source.dm.club;
-  }
-
-  if ('channel' in source) {
-    return source.channel.nest;
-  }
-
-  if ('thread' in source) {
-    return source.thread.channel;
-  }
-
-  if ('dm-thread' in source) {
-    return 'ship' in source['dm-thread'].whom
-      ? source['dm-thread'].whom.ship
-      : source['dm-thread'].whom.club;
-  }
-
-  return '';
-}
-
-function getPostIdFromSource(source: ub.Source): string {
-  if ('thread' in source) {
-    return getCanonicalPostId(source.thread.key.time);
-  }
-
-  if ('dm-thread' in source) {
-    return getCanonicalPostId(source['dm-thread'].key.id);
-  }
-
-  return '';
-}
-
 export function activityAction(action: ub.ActivityAction) {
   return {
     app: 'activity',
@@ -498,6 +466,8 @@ export const readThread = async ({
   });
 };
 
+// We need to pass a particular data structure to the backend when referencing
+// threads. It's subtly different depending on whether it's %chat or %channels based
 export function getMessageKey(
   channel: db.Channel,
   post: db.Post
@@ -520,6 +490,13 @@ export function getMessageKey(
   };
 }
 
+/* 
+  The following helpers are used to produce "sources" which is what %activity uses to refer
+  to particular activity-emitting contexts (groups, channels, threads). They nest under eachother, so
+  a thread will have a parent channel source, which in turn will have a parent group source
+
+  Sources can be represented as a string or an object (see urbit/activity.ts for details).
+*/
 export function getThreadSource({
   channel,
   post,
@@ -578,6 +555,45 @@ export function getRootSourceFromChannel(channel: db.Channel): {
   return { source, sourceId };
 }
 
+function getChannelIdFromSource(source: ub.Source): string {
+  if ('dm' in source) {
+    return 'ship' in source.dm ? source.dm.ship : source.dm.club;
+  }
+
+  if ('channel' in source) {
+    return source.channel.nest;
+  }
+
+  if ('thread' in source) {
+    return source.thread.channel;
+  }
+
+  if ('dm-thread' in source) {
+    return 'ship' in source['dm-thread'].whom
+      ? source['dm-thread'].whom.ship
+      : source['dm-thread'].whom.club;
+  }
+
+  return '';
+}
+
+function getPostIdFromSource(source: ub.Source): string {
+  if ('thread' in source) {
+    return getCanonicalPostId(source.thread.key.time);
+  }
+
+  if ('dm-thread' in source) {
+    return getCanonicalPostId(source['dm-thread'].key.id);
+  }
+
+  return '';
+}
+
+/*
+  Volume settings are %activity's way of managing what kind of activity events should be
+  considered "meaningful". These are what's manipulated when you mute a resource for example.
+*/
+
 export async function adjustVolumeSetting(
   source: ub.Source,
   volume: ub.VolumeMap | null
@@ -586,6 +602,9 @@ export async function adjustVolumeSetting(
   return poke(action);
 }
 
+// This is a global, top level filter for which kinds of activity events are allowed to send
+// push notifications to your device. If an activity event has the notify flag set, and passes
+// the filter, then a push will be triggered.
 export async function setPushNotificationsSetting(
   allow: ub.PushNotificationsSetting
 ) {
