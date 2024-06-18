@@ -52,11 +52,13 @@ export default function useMessageSelector() {
     }
 
     return (
-      Object.entries(unreads).find(([source, _unread]) => {
-        const theShip = ships[0].value;
-        const sameDM = `ship/${theShip}` === source;
-        return sameDM;
-      })?.[0] ?? null
+      Object.entries(unreads)
+        .find(([source, _unread]) => {
+          const theShip = ships[0].value;
+          const sameDM = `ship/${theShip}` === source;
+          return sameDM;
+        })?.[0]
+        .split('/')[1] ?? null
     );
   }, [ships, unreads]);
 
