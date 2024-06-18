@@ -6,8 +6,7 @@ import * as ub from '../urbit';
 const logger = createDevLogger('activityActions', true);
 
 export async function muteChat(channel: db.Channel) {
-  const initialSettings =
-    channel.volumeSettings ?? (await db.getVolumeSetting(channel.id));
+  const initialSettings = await getChatVolumeSettings(channel);
 
   db.setVolumes([
     {
@@ -32,8 +31,7 @@ export async function muteChat(channel: db.Channel) {
 }
 
 export async function unmuteChat(channel: db.Channel) {
-  const initialSettings =
-    channel.volumeSettings ?? (await db.getVolumeSetting(channel.id));
+  const initialSettings = await getChatVolumeSettings(channel);
 
   db.setVolumes([
     {
@@ -53,6 +51,16 @@ export async function unmuteChat(channel: db.Channel) {
     if (initialSettings) {
       await db.setVolumes([initialSettings]);
     }
+  }
+}
+
+async function getChatVolumeSettings(chat: db.Channel) {
+  if (chat.groupId) {
+    return (
+      chat.group?.volumeSettings ?? (await db.getVolumeSetting(chat.groupId))
+    );
+  } else {
+    return chat.volumeSettings ?? (await db.getVolumeSetting(chat.id));
   }
 }
 
