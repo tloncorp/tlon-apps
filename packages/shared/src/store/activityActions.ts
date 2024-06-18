@@ -6,94 +6,61 @@ import * as ub from '../urbit';
 const logger = createDevLogger('activityActions', true);
 
 export async function muteChat(channel: db.Channel) {
-  const existingSettings = await db.getVolumeSettings();
+  const initialSettings = await getChatVolumeSettings(channel);
 
-  const { source, sourceId } = api.getRootSourceFromChannel(channel);
-  const volume = ub.getVolumeMap('soft', true);
-
-  // optimistic update
-  db.mergeVolumeSettings([{ sourceId, volume }]);
-  if (channel.groupId) {
-    db.setGroupVolumes([
-      { groupId: channel.groupId, isMuted: true, isNoisy: false },
-    ]);
-  } else {
-    db.setChannelVolumes([
-      { channelId: channel.id, isMuted: true, isNoisy: false },
-    ]);
-  }
+  db.setVolumes([
+    {
+      itemId: channel.groupId ?? channel.id,
+      itemType: channel.groupId ? 'group' : 'channel',
+      isMuted: true,
+      isNoisy: false,
+    },
+  ]);
 
   try {
+    const { source } = api.getRootSourceFromChannel(channel);
+    const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.log(`failed to mute group ${channel.id}`, e);
     // revert the optimistic update
-    db.mergeVolumeSettings([
-      { sourceId, volume: existingSettings[sourceId] ?? null },
-    ]);
-    if (channel.groupId) {
-      db.setGroupVolumes([
-        {
-          groupId: channel.groupId,
-          isMuted: channel.isMuted ?? undefined,
-          isNoisy: channel.isNoisy ?? undefined,
-        },
-      ]);
-    } else {
-      db.setChannelVolumes([
-        {
-          channelId: channel.id,
-          isMuted: channel.isMuted ?? undefined,
-          isNoisy: channel.isNoisy ?? undefined,
-        },
-      ]);
+    if (initialSettings) {
+      await db.setVolumes([initialSettings]);
     }
   }
 }
 
 export async function unmuteChat(channel: db.Channel) {
-  const { source, sourceId } = api.getRootSourceFromChannel(channel);
-  const existingSettings = await db.getVolumeSettings();
+  const initialSettings = await getChatVolumeSettings(channel);
 
-  // optimistic update
-  db.mergeVolumeSettings([{ sourceId, volume: null }]);
-
-  if (channel.groupId) {
-    db.setGroupVolumes([
-      { groupId: channel.groupId, isMuted: false, isNoisy: false },
-    ]);
-  } else {
-    db.setChannelVolumes([
-      { channelId: channel.id, isMuted: false, isNoisy: false },
-    ]);
-  }
+  db.setVolumes([
+    {
+      itemId: channel.groupId ?? channel.id,
+      itemType: channel.groupId ? 'group' : 'channel',
+      isMuted: false,
+      isNoisy: false,
+    },
+  ]);
 
   try {
+    const { source } = api.getRootSourceFromChannel(channel);
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
     logger.log(`failed to unmute chat ${channel.id}`, e);
     // revert the optimistic update
-    db.mergeVolumeSettings([
-      { sourceId, volume: existingSettings[sourceId] ?? null },
-    ]);
-
-    if (channel.groupId) {
-      db.setGroupVolumes([
-        {
-          groupId: channel.groupId,
-          isMuted: channel.isMuted ?? undefined,
-          isNoisy: channel.isNoisy ?? undefined,
-        },
-      ]);
-    } else {
-      db.setChannelVolumes([
-        {
-          channelId: channel.id,
-          isMuted: channel.isMuted ?? undefined,
-          isNoisy: channel.isNoisy ?? undefined,
-        },
-      ]);
+    if (initialSettings) {
+      await db.setVolumes([initialSettings]);
     }
+  }
+}
+
+async function getChatVolumeSettings(chat: db.Channel) {
+  if (chat.groupId) {
+    return (
+      chat.group?.volumeSettings ?? (await db.getVolumeSetting(chat.groupId))
+    );
+  } else {
+    return chat.volumeSettings ?? (await db.getVolumeSetting(chat.id));
   }
 }
 
@@ -104,26 +71,23 @@ export async function muteThread({
   channel: db.Channel;
   thread: db.Post;
 }) {
-  const { source, sourceId } = api.getThreadSource({ channel, post: thread });
-  const volume = ub.getVolumeMap('soft', true);
+  const initialSettings = await db.getVolumeSetting(thread.id);
 
-  // optimistic update
-  // db.mergeVolumeSettings([{ sourceId, volume }]);
-  db.setThreadVolumes([{ postId: thread.id, isMuted: true, isNoisy: false }]);
+  db.setVolumes([
+    { itemId: thread.id, itemType: 'thread', isMuted: true, isNoisy: false },
+  ]);
 
   try {
+    const { source } = api.getThreadSource({ channel, post: thread });
+    const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {
     logger.log(`failed to mute thread ${channel.id}/${thread.id}`, e);
-    // revert the optimistic update
-    db.mergeVolumeSettings([{ sourceId, volume: null }]);
-    db.setThreadVolumes([
-      {
-        postId: thread.id,
-        isMuted: thread.isMuted ?? false,
-        isNoisy: thread.isNoisy ?? false,
-      },
-    ]);
+    if (initialSettings) {
+      db.setVolumes([initialSettings]);
+    } else {
+      db.clearVolumeSetting(thread.id);
+    }
   }
 }
 
@@ -134,28 +98,22 @@ export async function unmuteThread({
   channel: db.Channel;
   thread: db.Post;
 }) {
-  const existingSettings = await db.getVolumeSettings();
-  const { source, sourceId } = api.getThreadSource({ channel, post: thread });
+  const initialSettings = await db.getVolumeSetting(thread.id);
 
-  // optimistic update
-  // db.mergeVolumeSettings([{ sourceId, volume: null }]);
-  db.setThreadVolumes([{ postId: thread.id, isMuted: true, isNoisy: false }]);
+  db.setVolumes([
+    { itemId: thread.id, itemType: 'thread', isMuted: false, isNoisy: false },
+  ]);
 
   try {
+    const { source } = api.getThreadSource({ channel, post: thread });
     await api.adjustVolumeSetting(source, null);
   } catch (e) {
     logger.log(`failed to unmute thread ${channel.id}/${thread.id}`, e);
-    // revert the optimistic update
-    // db.mergeVolumeSettings([
-    //   { sourceId, volume: existingSettings[sourceId] ?? null },
-    // ]);
-    db.setThreadVolumes([
-      {
-        postId: thread.id,
-        isMuted: thread.isMuted ?? false,
-        isNoisy: thread.isNoisy ?? false,
-      },
-    ]);
+    if (initialSettings) {
+      db.setVolumes([initialSettings]);
+    } else {
+      db.clearVolumeSetting(thread.id);
+    }
   }
 }
 

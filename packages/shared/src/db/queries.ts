@@ -1,7 +1,6 @@
 import {
   AnyColumn,
   Column,
-  SQL,
   SQLWrapper,
   Subquery,
   Table,
@@ -39,7 +38,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
-import { ExtendedEventType, Rank, desig } from '../urbit';
+import { Rank, desig } from '../urbit';
 import {
   QueryCtx,
   createReadQuery,
@@ -71,7 +70,7 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
-  activityEvents,
+  volumeSettings as $volumeSettings,
 } from './schema';
 import {
   ActivityBucket,
@@ -93,6 +92,7 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
+  VolumeSettings,
 } from './types';
 
 const logger = createDevLogger('queries', false);
@@ -249,11 +249,19 @@ export const getChats = createReadQuery(
       .union(groupChannels)
       .as('ac');
 
+    const $groupVolumeSettings = ctx.db
+      .select()
+      .from($volumeSettings)
+      .where(eq($volumeSettings.itemType, 'group'))
+      .as('gvs');
+
     const result = await ctx.db
       .select({
         ...allQueryColumns(allChannels),
         group: getTableColumns($groups),
         groupUnread: getTableColumns($groupUnreads),
+        groupVolumeSettings: allQueryColumns($groupVolumeSettings),
+        volumeSettings: getTableColumns($volumeSettings),
         unread: getTableColumns($channelUnreads),
         pin: getTableColumns($pins),
         lastPost: getTableColumns($posts),
@@ -263,6 +271,11 @@ export const getChats = createReadQuery(
         contact: getTableColumns($contacts),
       })
       .from(allChannels)
+      .leftJoin(
+        $groupVolumeSettings,
+        eq($groupVolumeSettings.itemId, allChannels.groupId)
+      )
+      .leftJoin($volumeSettings, eq($volumeSettings.itemId, allChannels.id))
       .leftJoin($groups, eq($groups.id, allChannels.groupId))
       .leftJoin($groupUnreads, eq($groupUnreads.groupId, allChannels.groupId))
       .leftJoin($channelUnreads, eq($channelUnreads.channelId, allChannels.id))
@@ -313,11 +326,19 @@ export const getChats = createReadQuery(
           : {
               ...c.group,
               unread: c.groupUnread,
+              volumeSettings: c.groupVolumeSettings,
             },
       };
     });
   },
-  ['groups', 'channels', 'posts', 'channelUnreads', 'threadUnreads']
+  [
+    'groups',
+    'channels',
+    'posts',
+    'channelUnreads',
+    'threadUnreads',
+    'volumeSettings',
+  ]
 );
 
 export const insertGroups = createWriteQuery(
@@ -987,224 +1008,40 @@ export type ChannelVolume = {
   isMuted?: boolean;
   isNoisy?: boolean;
 };
-export const setChannelVolumes = createWriteQuery(
-  `setChannelVolumes`,
-  async (channelVolumes: ChannelVolume[], ctx: QueryCtx) => {
-    if (channelVolumes.length === 0) {
-      return;
-    }
 
-    const validChannelIds = await ctx.db
-      .select({ id: $channels.id })
-      .from($channels);
-    const validChannelIdsSet = new Set(validChannelIds.map((c) => c.id));
-    const validVolumes = channelVolumes.filter((v) =>
-      validChannelIdsSet.has(v.channelId)
-    );
-
-    if (validVolumes.length === 0) {
-      return;
-    }
-
-    const channelIds: string[] = [];
-
-    // isMuted sql
-    const mutedChunks: SQL[] = [];
-    mutedChunks.push(sql`(case`);
-    for (const volume of validVolumes) {
-      mutedChunks.push(
-        sql`when ${$channels.id} = ${volume.channelId} then ${volume.isMuted}`
-      );
-      channelIds.push(volume.channelId);
-    }
-    mutedChunks.push(sql`end)`);
-    const isMuted: SQL = sql.join(mutedChunks, sql.raw(' '));
-
-    // noisy sql
-    const noisyChunks: SQL[] = [];
-    noisyChunks.push(sql`(case`);
-    for (const volume of channelVolumes) {
-      noisyChunks.push(
-        sql`when ${$channels.id} = ${volume.channelId} then ${volume.isMuted}`
-      );
-    }
-    noisyChunks.push(sql`end)`);
-    const isNoisy: SQL = sql.join(noisyChunks, sql.raw(' '));
-
+export const setVolumes = createWriteQuery(
+  'setVolumes',
+  async (volumes: VolumeSettings[], ctx: QueryCtx) => {
+    if (!volumes.length) return;
     return ctx.db
-      .update($channels)
-      .set({ isMuted, isNoisy })
-      .where(inArray($channels.id, channelIds));
+      .insert($volumeSettings)
+      .values(volumes)
+      .onConflictDoUpdate({
+        target: $volumeSettings.itemId,
+        set: conflictUpdateSetAll($volumeSettings),
+      });
   },
-  ['channels']
+  ['volumeSettings']
 );
 
-export type GroupVolume = {
-  groupId: string;
-  isMuted?: boolean;
-  isNoisy?: boolean;
-};
-export const setGroupVolumes = createWriteQuery(
-  `setGroupVolumes`,
-  async (groupVolumes: GroupVolume[], ctx: QueryCtx) => {
-    if (groupVolumes.length === 0) {
-      return;
-    }
-
-    const validGroupIds = await ctx.db.select({ id: $groups.id }).from($groups);
-    const validGroupIdsSet = new Set(validGroupIds.map((g) => g.id));
-
-    const validVolumes = groupVolumes.filter((g) =>
-      validGroupIdsSet.has(g.groupId)
-    );
-
-    if (validVolumes.length === 0) {
-      return;
-    }
-
-    const groupIds: string[] = [];
-
-    // isMuted sql
-    const mutedChunks: SQL[] = [];
-    mutedChunks.push(sql`(case`);
-    for (const volume of validVolumes) {
-      mutedChunks.push(
-        sql`when ${$groups.id} = ${volume.groupId} then ${volume.isMuted}`
-      );
-      groupIds.push(volume.groupId);
-    }
-    mutedChunks.push(sql`end)`);
-    const isMuted: SQL = sql.join(mutedChunks, sql.raw(' '));
-
-    // noisy sql
-    const noisyChunks: SQL[] = [];
-    noisyChunks.push(sql`(case`);
-    for (const volume of groupVolumes) {
-      noisyChunks.push(
-        sql`when ${$groups.id} = ${volume.groupId} then ${volume.isMuted}`
-      );
-    }
-    noisyChunks.push(sql`end)`);
-    const isNoisy: SQL = sql.join(noisyChunks, sql.raw(' '));
-
-    return ctx.db
-      .update($groups)
-      .set({ isMuted, isNoisy })
-      .where(inArray($groups.id, groupIds));
-  },
-  ['groups']
-);
-
-export type ThreadVolume = {
-  postId: string;
-  isMuted?: boolean;
-  isNoisy?: boolean;
-};
-export const setThreadVolumes = createWriteQuery(
-  `setGroupVolumes`,
-  async (threadVolumes: ThreadVolume[], ctx: QueryCtx) => {
-    if (threadVolumes.length === 0) {
-      return;
-    }
-
-    const validThreadIds = await ctx.db.select({ id: $posts.id }).from($posts);
-    const validGroupIdsSet = new Set(validThreadIds.map((t) => t.id));
-
-    const validVolumes = threadVolumes.filter((t) =>
-      validGroupIdsSet.has(t.postId)
-    );
-
-    if (validVolumes.length === 0) {
-      return;
-    }
-
-    const postIds: string[] = [];
-
-    // isMuted sql
-    const mutedChunks: SQL[] = [];
-    mutedChunks.push(sql`(case`);
-    for (const volume of validVolumes) {
-      mutedChunks.push(
-        sql`when ${$posts.id} = ${volume.postId} then ${volume.isMuted}`
-      );
-      postIds.push(volume.postId);
-    }
-    mutedChunks.push(sql`end)`);
-    const isMuted: SQL = sql.join(mutedChunks, sql.raw(' '));
-
-    // noisy sql
-    const noisyChunks: SQL[] = [];
-    noisyChunks.push(sql`(case`);
-    for (const volume of validVolumes) {
-      noisyChunks.push(
-        sql`when ${$posts.id} = ${volume.postId} then ${volume.isMuted}`
-      );
-    }
-    noisyChunks.push(sql`end)`);
-    const isNoisy: SQL = sql.join(noisyChunks, sql.raw(' '));
-
-    return ctx.db
-      .update($posts)
-      .set({ isMuted, isNoisy })
-      .where(inArray($posts.id, postIds));
-  },
-  ['posts']
-);
-
-export const getGroupUnreadCount = createReadQuery(
-  'getGroupUnreadCount',
-  async (groupId: string, ctx: QueryCtx) => {
-    const channelsCount = await ctx.db
-      .select({
-        count: sum($channelUnreads.countWithoutThreads).mapWith(Number),
-      })
-      .from($channelUnreads)
-      .leftJoin($channels, eq($channels.id, $channelUnreads.channelId))
-      .where(
-        and(
-          eq($channels.groupId, groupId),
-          eq($channels.currentUserIsMember, true),
-          eq($channels.isMuted, false)
-        )
-      );
-
-    const threadsCount = await ctx.db
-      .select({ count: sum($threadUnreads.count).mapWith(Number) })
-      .from($threadUnreads)
-      .leftJoin($channels, eq($channels.id, $threadUnreads.channelId))
-      .where(
-        and(
-          eq($channels.groupId, groupId),
-          eq($channels.currentUserIsMember, true),
-          eq($threadUnreads.notify, true)
-        )
-      );
-
-    return (channelsCount[0]?.count ?? 0) + (threadsCount[0]?.count ?? 0);
-  },
-  ['channelUnreads', 'threadUnreads', 'channels']
-);
-
-export const getGroupChannelUnreadCount = createReadQuery(
-  'getGroupChannelUnreadCount',
-  async (channelId: string, ctx: QueryCtx) => {
-    const channel = await ctx.db.query.channelUnreads.findFirst({
-      where: and(eq($channelUnreads.channelId, channelId)),
+export const getVolumeSetting = createReadQuery(
+  'getVolume',
+  (itemId: string, ctx: QueryCtx) => {
+    return ctx.db.query.volumeSettings.findFirst({
+      where: eq($volumeSettings.itemId, itemId),
     });
-
-    const threadsCount = await ctx.db
-      .select({ count: sum($threadUnreads.count).mapWith(Number) })
-      .from($threadUnreads)
-      .where(
-        and(
-          eq($threadUnreads.channelId, channelId),
-          eq($threadUnreads.notify, true)
-        )
-      );
-
-    return (channel?.countWithoutThreads ?? 0) + (threadsCount[0]?.count ?? 0);
   },
-  ['channelUnreads', 'threadUnreads', 'channels']
+  ['volumeSettings']
+);
+
+export const clearVolumeSetting = createWriteQuery(
+  'clearVolumeSettings',
+  (itemId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($volumeSettings)
+      .where(eq($volumeSettings.itemId, itemId));
+  },
+  ['volumeSettings']
 );
 
 export const getChannelUnread = createReadQuery(
@@ -1666,6 +1503,7 @@ export const getChannelPosts = createReadQuery(
       author: true,
       reactions: true,
       threadUnread: true,
+      volumeSettings: true,
     } as const;
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
@@ -2250,11 +2088,12 @@ export const getPostWithRelations = createReadQuery(
           author: true,
           reactions: true,
           threadUnread: true,
+          volumeSettings: true,
         },
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'threadUnreads']
+  ['posts', 'threadUnreads', 'volumeSettings']
 );
 
 export const getGroup = createReadQuery(
@@ -2269,6 +2108,7 @@ export const getGroup = createReadQuery(
             with: {
               lastPost: true,
               unread: true,
+              volumeSettings: true,
             },
           },
           roles: true,
@@ -2286,7 +2126,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads']
+  ['groups', 'channelUnreads', 'volumeSettings']
 );
 
 export const getGroupByChannel = createReadQuery(

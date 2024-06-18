@@ -48,7 +48,7 @@ export const ChatMessageReplySummary = React.memo(
             size="$s"
             color={
               threadUnread?.count
-                ? post.isMuted
+                ? post.volumeSettings?.isMuted
                   ? '$tertiaryText'
                   : '$positiveActionText'
                 : undefined
@@ -59,7 +59,7 @@ export const ChatMessageReplySummary = React.memo(
           </SizableText>
           <ThreadStatus
             unreadCount={threadUnread?.count ?? 0}
-            isMuted={post.isMuted ?? false}
+            isMuted={post.volumeSettings?.isMuted ?? false}
           />
         </XStack>
         <SizableText size="$s" color="$tertiaryText">

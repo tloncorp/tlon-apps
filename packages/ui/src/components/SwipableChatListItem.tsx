@@ -24,9 +24,9 @@ export function SwipableChatRow(
   const swipeableRef = useRef<Swipeable | null>(null);
   const isMuted = useMemo(() => {
     if (props.model.group) {
-      return props.model.group.isMuted ?? false;
+      return props.model.group.volumeSettings?.isMuted ?? false;
     } else if (props.model.type === 'dm' || props.model.type === 'groupDm') {
-      return props.model.isMuted ?? false;
+      return props.model.volumeSettings?.isMuted ?? false;
     }
 
     return false;

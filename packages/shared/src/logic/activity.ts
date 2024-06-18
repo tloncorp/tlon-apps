@@ -1,4 +1,5 @@
-import { ActivityEvent, ChannelVolume, GroupVolume, ThreadVolume } from '../db';
+import * as db from '../db';
+import { ActivityEvent } from '../db';
 import {
   ExtendedEventType,
   VolumeMap,
@@ -6,14 +7,10 @@ import {
   getLevelFromVolumeMap,
 } from '../urbit';
 
-export function extractClientVolumes(volume: VolumeSettings): {
-  channelVolumes: ChannelVolume[];
-  groupVolumes: GroupVolume[];
-  threadVolumes: ThreadVolume[];
-} {
-  const channelVolumes: ChannelVolume[] = [];
-  const groupVolumes: GroupVolume[] = [];
-  const threadVolumes: ThreadVolume[] = [];
+export function extractClientVolumes(
+  volume: VolumeSettings
+): db.VolumeSettings[] {
+  const settings: db.VolumeSettings[] = [];
 
   Object.entries(volume).forEach(([sourceId, volumeMap]) => {
     if (!volumeMap) return;
@@ -22,22 +19,22 @@ export function extractClientVolumes(volume: VolumeSettings): {
 
     if (sourceType === 'group') {
       const clientVolume = getClientVolume(volumeMap);
-      groupVolumes.push({ groupId: entityId, ...clientVolume });
+      settings.push({ itemId: entityId, itemType: 'group', ...clientVolume });
     }
 
     if (sourceType === 'channel' || sourceType === 'dm') {
       const clientVolume = getClientVolume(volumeMap, sourceType === 'channel');
-      channelVolumes.push({ channelId: entityId, ...clientVolume });
+      settings.push({ itemId: entityId, itemType: 'channel', ...clientVolume });
     }
 
     if (sourceType === 'thread' || sourceType === 'dm-thread') {
       const postId = rest[rest.length - 1];
       const clientVolume = getClientVolume(volumeMap);
-      threadVolumes.push({ postId, ...clientVolume });
+      settings.push({ itemId: postId, itemType: 'thread', ...clientVolume });
     }
   });
 
-  return { channelVolumes, groupVolumes, threadVolumes };
+  return settings;
 }
 
 export function extractClientVolume(

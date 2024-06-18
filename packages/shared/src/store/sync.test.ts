@@ -156,8 +156,6 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     isPendingChannel: null,
     isDmInvite: false,
-    isMuted: false,
-    isNoisy: false,
     members: [
       {
         chatId: '~solfer-magfed',
@@ -194,8 +192,6 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     isPendingChannel: null,
     isDmInvite: false,
-    isMuted: false,
-    isNoisy: false,
     members: [
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',

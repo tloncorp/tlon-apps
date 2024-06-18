@@ -1,5 +1,4 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
 import { useMemo } from 'react';
 
 import { useCalm } from '../../contexts/calm';
@@ -34,7 +33,7 @@ export default function GroupListItemContent({
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
-      <View opacity={model.isMuted ? 0.2 : 1}>
+      <View opacity={model.volumeSettings?.isMuted ? 0.2 : 1}>
         <ListItem.Icon
           fallbackText={model.title?.[0]}
           backgroundColor={getBackgroundColor({
@@ -48,7 +47,9 @@ export default function GroupListItemContent({
         />
       </View>
       <ListItem.MainContent>
-        <ListItem.Title color={model.isMuted ? '$tertiaryText' : undefined}>
+        <ListItem.Title
+          color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
+        >
           {model.title}
         </ListItem.Title>
         {model.lastPost && (
@@ -86,8 +87,8 @@ export default function GroupListItemContent({
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
           <ListItem.Count
-            opacity={countToShow > 0 || model.isMuted ? 1 : 0}
-            muted={model.isMuted ?? false}
+            opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
+            muted={model.volumeSettings?.isMuted ?? false}
           >
             {utils.displayableUnreadCount(countToShow)}
           </ListItem.Count>

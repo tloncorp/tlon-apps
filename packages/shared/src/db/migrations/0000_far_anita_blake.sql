@@ -58,8 +58,6 @@ CREATE TABLE `channels` (
 	`last_post_at` integer,
 	`is_cached_pending_channel` integer,
 	`is_dm_invite` integer,
-	`is_muted` integer DEFAULT false,
-	`is_noisy` integer DEFAULT false,
 	`synced_at` integer,
 	`remote_updated_at` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
@@ -192,9 +190,7 @@ CREATE TABLE `groups` (
 	`is_new` integer,
 	`join_status` text,
 	`last_post_id` text,
-	`last_post_at` integer,
-	`is_muted` integer DEFAULT false,
-	`is_noisy` integer DEFAULT false
+	`last_post_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `pins` (
@@ -252,8 +248,6 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`delivery_status` text,
-	`is_muted` integer DEFAULT false,
-	`is_noisy` integer DEFAULT false,
 	`backend_time` text
 );
 --> statement-breakpoint
@@ -289,6 +283,13 @@ CREATE TABLE `thread_unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
 	PRIMARY KEY(`channel_id`, `thread_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `volume_settings` (
+	`item_id` text PRIMARY KEY NOT NULL,
+	`item_type` text NOT NULL,
+	`is_muted` integer DEFAULT false,
+	`is_noisy` integer DEFAULT false
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
