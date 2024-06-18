@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
 import React from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SizableText, View, XStack } from '../../core';
 import Pressable from '../Pressable';
+import { ScreenHeader } from '../ScreenHeader';
 
 export type ActivityTab = 'all' | 'threads' | 'mentions';
 
@@ -14,14 +14,13 @@ function ActivityHeaderRaw({
   activeTab: db.ActivityBucket;
   onTabPress: (tab: db.ActivityBucket) => void;
 }) {
-  const insets = useSafeAreaInsets();
   return (
-    <View paddingTop={insets.top}>
-      <XStack justifyContent="center" paddingVertical="$m">
-        <SizableText size="$l" fontWeight="500">
-          Activity
-        </SizableText>
-      </XStack>
+    <View>
+      <View width="100%">
+        <ScreenHeader>
+          <ScreenHeader.Title textAlign="center">Activity</ScreenHeader.Title>
+        </ScreenHeader>
+      </View>
       <XStack>
         <XStack
           flexGrow={1}
