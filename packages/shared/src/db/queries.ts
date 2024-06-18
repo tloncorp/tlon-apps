@@ -225,12 +225,13 @@ export const getChats = createReadQuery(
     const partitionedGroupsQuery = ctx.db
       .select({
         ...getTableColumns($channels),
-        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY ${$channels.lastPostAt} DESC)`.as(
+        rn: sql`ROW_NUMBER() OVER(PARTITION BY ${$channels.groupId} ORDER BY COALESCE(${$channels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC)`.as(
           'rn'
         ),
       })
       .from($channels)
       .where(and(isNotNull($channels.groupId)))
+      .leftJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
       .as('q');
 
     const groupChannels = ctx.db
