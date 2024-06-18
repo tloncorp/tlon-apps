@@ -7,12 +7,10 @@ import * as db from './types';
 
 const logger = createDevLogger('keyValueStore', true);
 
-export const VOLUME_SETTINGS_QUERY_KEY = ['activity', 'volumeSettings'];
 export const ACTIVITY_SEEN_MARKER_QUERY_KEY = [
   'activity',
   'activitySeenMarker',
 ];
-export const ACTIVITY_BUCKET_CURSORS_QUERY_KEY = ['activity', 'bucketCursors'];
 export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
   'settings',
   'pushNotifications',
@@ -47,34 +45,6 @@ export async function storeActivitySeenMarker(timestamp: number) {
   await AsyncStorage.setItem('activitySeenMarker', String(timestamp));
   queryClient.invalidateQueries({ queryKey: ACTIVITY_SEEN_MARKER_QUERY_KEY });
   logger.log('stored activity seen marker', timestamp);
-}
-
-export async function setActivityBucketCursor(
-  bucketId: db.ActivityBucket,
-  cursor: number
-) {
-  await AsyncStorage.setItem(`bucketCursor:${bucketId}`, cursor.toString());
-  queryClient.invalidateQueries({
-    queryKey: ACTIVITY_BUCKET_CURSORS_QUERY_KEY,
-  });
-  logger.log('stored bucket cursor', bucketId, cursor);
-}
-
-export async function getActivityBucketCursor(bucketId: db.ActivityBucket) {
-  const cursor = await AsyncStorage.getItem(`bucketCursor:${bucketId}`);
-  return Number(cursor) ?? Infinity;
-}
-
-export async function getActivityBucketCursors() {
-  const all = await AsyncStorage.getItem(`bucketCursor:all`);
-  const mentions = await AsyncStorage.getItem(`bucketCursor:mentions`);
-  const replies = await AsyncStorage.getItem(`bucketCursor:replies`);
-
-  return {
-    all: Number(all) ?? Infinity,
-    mentions: Number(mentions) ?? Infinity,
-    replies: Number(replies) ?? Infinity,
-  };
 }
 
 export async function setPushNotificationsSetting(
