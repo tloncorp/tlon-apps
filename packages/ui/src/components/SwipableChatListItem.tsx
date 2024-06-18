@@ -6,6 +6,7 @@ import {
   PropsWithChildren,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -21,7 +22,7 @@ export function SwipableChatRow(
   props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
 ) {
   const swipeableRef = useRef<Swipeable | null>(null);
-  const isMuted = store.useChannelIsMuted(props.model);
+  const isMuted = useMemo(() => props.model.isMuted ?? false, [props.model]);
   // prevent color flicker when unmuting
   const [mutedState, setMutedState] = useState(isMuted);
   useEffect(() => {

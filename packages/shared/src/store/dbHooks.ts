@@ -91,70 +91,32 @@ export const useActivitySeenMarker = () => {
   });
 };
 
-export const useThreadIsMuted = ({
-  channel,
+export const useIsMuted = ({
   post,
+  channel,
 }: {
-  channel: db.Channel | undefined | null;
-  post: db.Post;
-}): boolean => {
+  post?: db.Post;
+  channel: db.Channel;
+}) => {
   const { data: volumeSettings } = useVolumeSettings();
+  let sourceId: string;
 
-  const isMuted = useMemo(() => {
-    if (!channel || post.parentId) return false;
+  if (post) {
+    // thread source
+    sourceId = api.getThreadSource({ channel, post }).sourceId;
+  } else {
+    // group or DM source
+    sourceId = api.getRootSourceFromChannel(channel).sourceId;
+  }
 
-    const { sourceId } = api.getThreadSource({ channel, post });
-    if (volumeSettings) {
-      const volumeMap = volumeSettings[sourceId];
-      if (volumeMap) {
-        return getLevelFromVolumeMap(volumeMap) === 'soft';
-      }
+  if (volumeSettings) {
+    const volumeMap = volumeSettings[sourceId];
+    if (volumeMap) {
+      return getLevelFromVolumeMap(volumeMap) === 'soft';
     }
+  }
 
-    return false;
-  }, [channel, post, volumeSettings]);
-
-  return isMuted;
-};
-
-export const useChannelIsMuted = (channel: db.Channel): boolean => {
-  const { data: volumeSettings } = useVolumeSettings();
-
-  const isMuted = useMemo(() => {
-    const { sourceId } = api.getRootSourceFromChannel(channel);
-    if (volumeSettings) {
-      const volumeMap = volumeSettings[sourceId];
-      if (volumeMap) {
-        console.log(
-          `got a volume map, is it muted?`,
-          getLevelFromVolumeMap(volumeMap)
-        );
-        return getLevelFromVolumeMap(volumeMap) === 'soft';
-      }
-    }
-
-    return false;
-  }, [channel, volumeSettings]);
-
-  return isMuted;
-};
-
-export const useGroupIsMuted = (group: db.Group): boolean => {
-  const { data: volumeSettings } = useVolumeSettings();
-
-  const isMuted = useMemo(() => {
-    const sourceId = `group/${group.id}`;
-    if (volumeSettings) {
-      const volumeMap = volumeSettings[sourceId];
-      if (volumeMap) {
-        return getLevelFromVolumeMap(volumeMap) === 'soft';
-      }
-    }
-
-    return false;
-  }, [group, volumeSettings]);
-
-  return isMuted;
+  return false;
 };
 
 export const usePushNotificationsSetting = () => {

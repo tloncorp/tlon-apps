@@ -27,7 +27,6 @@ export default function MessageActions({
 }) {
   const { setReferences } = useReferences();
   const channel = useChannelContext();
-  // const isMuted = store.useThreadIsMuted({ channel, post }); // always false if the post is a reply
   const postActions = useMemo(() => {
     return getPostActions({
       post,
