@@ -7,7 +7,7 @@ const logger = createDevLogger('activityActions', true);
 
 export async function muteChat(channel: db.Channel) {
   const initialSettings =
-    channel.volumeSettings ?? (await db.getVolumeSettings(channel.id));
+    channel.volumeSettings ?? (await db.getVolumeSetting(channel.id));
 
   db.setVolumes([
     {
@@ -33,7 +33,7 @@ export async function muteChat(channel: db.Channel) {
 
 export async function unmuteChat(channel: db.Channel) {
   const initialSettings =
-    channel.volumeSettings ?? (await db.getVolumeSettings(channel.id));
+    channel.volumeSettings ?? (await db.getVolumeSetting(channel.id));
 
   db.setVolumes([
     {
@@ -63,7 +63,7 @@ export async function muteThread({
   channel: db.Channel;
   thread: db.Post;
 }) {
-  const initialSettings = await db.getVolumeSettings(thread.id);
+  const initialSettings = await db.getVolumeSetting(thread.id);
 
   db.setVolumes([
     { itemId: thread.id, itemType: 'thread', isMuted: true, isNoisy: false },
@@ -78,7 +78,7 @@ export async function muteThread({
     if (initialSettings) {
       db.setVolumes([initialSettings]);
     } else {
-      db.clearVolumeSettings(thread.id);
+      db.clearVolumeSetting(thread.id);
     }
   }
 }
@@ -90,7 +90,7 @@ export async function unmuteThread({
   channel: db.Channel;
   thread: db.Post;
 }) {
-  const initialSettings = await db.getVolumeSettings(thread.id);
+  const initialSettings = await db.getVolumeSetting(thread.id);
 
   db.setVolumes([
     { itemId: thread.id, itemType: 'thread', isMuted: false, isNoisy: false },
@@ -104,7 +104,7 @@ export async function unmuteThread({
     if (initialSettings) {
       db.setVolumes([initialSettings]);
     } else {
-      db.clearVolumeSettings(thread.id);
+      db.clearVolumeSetting(thread.id);
     }
   }
 }

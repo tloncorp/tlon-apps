@@ -1024,7 +1024,7 @@ export const setVolumes = createWriteQuery(
   ['volumeSettings']
 );
 
-export const getVolumeSettings = createReadQuery(
+export const getVolumeSetting = createReadQuery(
   'getVolume',
   (itemId: string, ctx: QueryCtx) => {
     return ctx.db.query.volumeSettings.findFirst({
@@ -1034,7 +1034,7 @@ export const getVolumeSettings = createReadQuery(
   ['volumeSettings']
 );
 
-export const clearVolumeSettings = createWriteQuery(
+export const clearVolumeSetting = createWriteQuery(
   'clearVolumeSettings',
   (itemId: string, ctx: QueryCtx) => {
     return ctx.db
