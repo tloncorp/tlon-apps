@@ -91,34 +91,6 @@ export const useActivitySeenMarker = () => {
   });
 };
 
-export const useIsMuted = ({
-  post,
-  channel,
-}: {
-  post?: db.Post;
-  channel: db.Channel;
-}) => {
-  const { data: volumeSettings } = useVolumeSettings();
-  let sourceId: string;
-
-  if (post) {
-    // thread source
-    sourceId = api.getThreadSource({ channel, post }).sourceId;
-  } else {
-    // group or DM source
-    sourceId = api.getRootSourceFromChannel(channel).sourceId;
-  }
-
-  if (volumeSettings) {
-    const volumeMap = volumeSettings[sourceId];
-    if (volumeMap) {
-      return getLevelFromVolumeMap(volumeMap) === 'soft';
-    }
-  }
-
-  return false;
-};
-
 export const usePushNotificationsSetting = () => {
   return useQuery({
     queryKey: db.PUSH_NOTIFICATIONS_SETTING_QUERY_KEY,
