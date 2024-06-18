@@ -1044,66 +1044,6 @@ export const clearVolumeSetting = createWriteQuery(
   ['volumeSettings']
 );
 
-export const getGroupUnreadCount = createReadQuery(
-  'getGroupUnreadCount',
-  async (groupId: string, ctx: QueryCtx) => {
-    const channelsCount = await ctx.db
-      .select({
-        count: sum($channelUnreads.countWithoutThreads).mapWith(Number),
-      })
-      .from($channelUnreads)
-      .leftJoin(
-        $volumeSettings,
-        eq($volumeSettings.itemId, $channelUnreads.channelId)
-      )
-      .leftJoin($channels, eq($channels.id, $channelUnreads.channelId))
-      .where(
-        and(
-          eq($channels.groupId, groupId),
-          eq($channels.currentUserIsMember, true),
-          eq($volumeSettings.isMuted, false)
-        )
-      );
-
-    const threadsCount = await ctx.db
-      .select({ count: sum($threadUnreads.count).mapWith(Number) })
-      .from($threadUnreads)
-      .leftJoin($channels, eq($channels.id, $threadUnreads.channelId))
-      .where(
-        and(
-          eq($channels.groupId, groupId),
-          eq($channels.currentUserIsMember, true),
-          eq($threadUnreads.notify, true)
-        )
-      );
-
-    return (channelsCount[0]?.count ?? 0) + (threadsCount[0]?.count ?? 0);
-  },
-  ['channelUnreads', 'threadUnreads', 'channels']
-);
-
-export const getGroupChannelUnreadCount = createReadQuery(
-  'getGroupChannelUnreadCount',
-  async (channelId: string, ctx: QueryCtx) => {
-    const channel = await ctx.db.query.channelUnreads.findFirst({
-      where: and(eq($channelUnreads.channelId, channelId)),
-    });
-
-    const threadsCount = await ctx.db
-      .select({ count: sum($threadUnreads.count).mapWith(Number) })
-      .from($threadUnreads)
-      .where(
-        and(
-          eq($threadUnreads.channelId, channelId),
-          eq($threadUnreads.notify, true)
-        )
-      );
-
-    return (channel?.countWithoutThreads ?? 0) + (threadsCount[0]?.count ?? 0);
-  },
-  ['channelUnreads', 'threadUnreads', 'channels']
-);
-
 export const getChannelUnread = createReadQuery(
   'getChannelUnread',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {

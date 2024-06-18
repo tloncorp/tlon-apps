@@ -7,7 +7,6 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
-import { getLevelFromVolumeMap } from '../urbit';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -70,13 +69,6 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
-export const useSettings = (options: { userId: string }) => {
-  return useQuery({
-    queryKey: ['settings'],
-    queryFn: () => db.getSettings(options.userId),
-  });
-};
-
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
@@ -111,69 +103,6 @@ export const useUnreadsCount = () => {
   return useQuery({
     queryKey: ['unreadsCount'],
     queryFn: () => db.getUnreadsCount({}),
-  });
-};
-
-export const useGroupUnreadsCount = (groupId: string) => {
-  const deps = useKeyFromQueryDeps(db.getGroupUnreadCount);
-  return useQuery({
-    queryKey: ['groupUnreadsCount', deps, groupId],
-    queryFn: () => {
-      if (!groupId) return null;
-
-      return db.getGroupUnreadCount(groupId);
-    },
-  });
-};
-
-export const useGroupChannelUnreadsCount = (channelId: string) => {
-  const deps = useKeyFromQueryDeps(db.getGroupChannelUnreadCount);
-  return useQuery({
-    queryKey: ['groupChannelUnreadsCount', deps, channelId],
-    queryFn: () => {
-      if (!channelId) return null;
-
-      return db.getGroupChannelUnreadCount(channelId);
-    },
-  });
-};
-
-export const useUnreads = (options: db.GetUnreadsOptions) => {
-  return useQuery({
-    queryKey: ['unreads'],
-    queryFn: () => db.getUnreads(options),
-  });
-};
-
-export const useThreadUnread = ({
-  channelId,
-  postId,
-}: {
-  channelId: string;
-  postId: string;
-}) => {
-  const key = useKeyFromQueryDeps(db.getThreadActivity);
-  return useQuery({
-    queryKey: ['threadActivity', key, { channelId, postId }],
-    queryFn: async () => {
-      const activity = await db.getThreadActivity({ channelId, postId });
-      return activity ?? null;
-    },
-  });
-};
-
-export const useActivityEvents = () => {
-  const tablesKey = useKeyFromQueryDeps(db.getBucketedActivity);
-  return useQuery({
-    queryKey: ['activityEvents', tablesKey],
-    queryFn: () => db.getBucketedActivity(),
-  });
-};
-
-export const useActivityBucketCursors = () => {
-  return useQuery({
-    queryKey: db.ACTIVITY_BUCKET_CURSORS_QUERY_KEY,
-    queryFn: () => db.getActivityBucketCursors(),
   });
 };
 
