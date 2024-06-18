@@ -105,15 +105,43 @@ function sumChildren(
         return acc;
       }
 
-      if (childStatus === 'unread') {
+      const {
+        count: grandChildCount,
+        notify: grandChildNotify,
+        status: grandChildStatus,
+      } = Object.entries(unreads[key].children || {}).reduce(
+        (grandAcc, [grandKey, grandChild]) => {
+          const grandChildStatus = unreads[grandKey]?.status;
+          const grandChildNotify = unreads[grandKey]?.notify;
+
+          return {
+            count: grandChildNotify
+              ? grandAcc.count + grandChild.count
+              : grandAcc.count,
+            notify: grandAcc.notify || grandChildNotify,
+            status: grandChildNotify
+              ? combineStatus(childStatus, grandChildStatus || 'read')
+              : grandAcc.status,
+          };
+        },
+        {
+          count: 0,
+          notify: false,
+          status: 'read',
+        }
+      );
+
+      if (childStatus === 'unread' || grandChildStatus === 'unread') {
         status = 'unread';
       } else if (childStatus === 'seen' && status === 'read') {
         status = 'seen';
       }
 
       return {
-        count: !sumCounts ? acc.count : acc.count + (child.unread?.count || 0),
-        notify: acc.notify || Boolean(child.notify),
+        count: !sumCounts
+          ? acc.count
+          : acc.count + (child.unread?.count || 0) + grandChildCount,
+        notify: acc.notify || Boolean(child.notify) || grandChildNotify,
         status,
       };
     },
@@ -271,6 +299,17 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
                 parents: childSrc.parents.includes(key)
                   ? childSrc.parents
                   : [...childSrc.parents, key],
+              };
+
+              const parent = draft.sources[key];
+              const childSummary = summaries[child];
+
+              draft.sources[key] = {
+                ...parent,
+                children: {
+                  ...parent.children,
+                  [child]: childSummary,
+                },
               };
             });
           });

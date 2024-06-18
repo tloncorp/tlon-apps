@@ -260,6 +260,8 @@ const Sidebar = React.memo(() => {
   );
 });
 
+Sidebar.displayName = 'Sidebar';
+
 const SidebarTopSection = React.memo(
   ({
     title,
@@ -289,5 +291,7 @@ const SidebarTopSection = React.memo(
     );
   }
 );
+
+SidebarTopSection.displayName = 'SidebarTopSection';
 
 export default Sidebar;
