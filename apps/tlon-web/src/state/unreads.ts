@@ -8,6 +8,7 @@ import create from 'zustand';
 
 import { createDevLogger } from '@/logic/utils';
 
+import { useMarkReadMutation } from './activity';
 import { SidebarFilter } from './settings';
 
 export type ReadStatus = 'read' | 'seen' | 'unread';
@@ -396,6 +397,54 @@ export function useCombinedChatUnreads(messagesFilter: SidebarFilter) {
       }, defaultUnread),
     [sources, messagesFilter]
   );
+}
+
+export function useAllGroupUnreads() {
+  const sources = useUnreadsStore(useCallback((s) => s.sources, []));
+  return Object.entries(sources).filter(
+    ([key, source]) =>
+      key.startsWith('group') &&
+      source.combined.count > 0 &&
+      source.combined.status === 'unread'
+  );
+}
+
+export function useMarkAllGroupsRead() {
+  const allGroupUnreads = useAllGroupUnreads();
+  const { read } = useUnreadsStore();
+  const { mutate } = useMarkReadMutation();
+
+  const markAllRead = useCallback(() => {
+    allGroupUnreads.forEach(([sourceId, groupUnread]) => {
+      if (groupUnread.status === 'unread') {
+        read(sourceId);
+        mutate({ source: { group: sourceId } });
+      }
+
+      const groupId = sourceId.split('/').slice(1).join('/');
+
+      const unreadChildrenIds = Object.entries(groupUnread.children ?? {})
+        .filter(([_, childUnread]) => childUnread.count > 0)
+        .map(([childId]) => childId);
+
+      unreadChildrenIds.forEach((childId) => {
+        read(childId);
+        if (childId.startsWith('channel')) {
+          const channelId = childId.split('/').slice(1).join('/');
+          mutate({
+            source: {
+              channel: {
+                group: groupId,
+                nest: channelId,
+              },
+            },
+          });
+        }
+      });
+    });
+  }, [allGroupUnreads, read, mutate]);
+
+  return markAllRead;
 }
 
 export function useCombinedGroupUnreads() {

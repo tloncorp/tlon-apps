@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
@@ -16,8 +16,10 @@ import { useMessagesFilter } from '@/state/settings';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
+  useMarkAllGroupsRead,
 } from '@/state/unreads';
 
+import ActionMenu from '../ActionMenu';
 import Avatar from '../Avatar';
 import useLeap from '../Leap/useLeap';
 import NavTab, {
@@ -31,9 +33,11 @@ import MessagesIcon from '../icons/MessagesIcon';
 import useActiveTab, { ActiveTab } from './util';
 
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const navigate = useNavigate();
   const { groupsLocation } = useLocalState.getState();
   const groupsUnread = useCombinedGroupUnreads();
+  const markAllGroupsRead = useMarkAllGroupsRead();
   const isMobile = useIsMobile();
 
   const onSingleClick = () => {
@@ -44,11 +48,16 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     }
   };
 
+  const onLongPress = useCallback(() => {
+    setOptionsOpen(true);
+  }, [setOptionsOpen]);
+
   if (isMobile) {
     return (
       <DoubleClickableNavTab
         onSingleClick={onSingleClick}
         onDoubleClick={() => navigate('/')}
+        onLongPress={onLongPress}
         linkClass="h-full !pb-0 flex flex-col items-start justify-start"
         aria-label="Groups"
         data-testid="groups-tab"
@@ -73,36 +82,66 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
             )}
           />
         </div>
+        <ActionMenu
+          open={optionsOpen}
+          onOpenChange={setOptionsOpen}
+          actions={[
+            {
+              key: 'mark-all-read',
+              content: 'Mark all read',
+              onClick: () => markAllGroupsRead(),
+            },
+          ]}
+        />
       </DoubleClickableNavTab>
     );
   }
 
   return (
     <DoubleClickableNavButton
-      className={cn(
-        'relative m-auto flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
-        !props.isInactive && '!bg-gray-100'
-      )}
+      className="m-auto flex rounded-lg"
       onSingleClick={onSingleClick}
       onDoubleClick={() => navigate('/')}
+      onLongPress={onLongPress}
       aria-label="Groups"
       data-testid="groups-tab"
     >
-      <HomeIconMobileNav
-        isInactive={props.isInactive}
-        isDarkMode={props.isDarkMode}
-        className="h-6 w-6"
-      />
-      <div
-        className={cn(
-          'h-1 w-1 rounded-full top-1 right-1 absolute',
-          groupsUnread.unread
-            ? groupsUnread.notify
-              ? 'bg-blue'
-              : 'bg-gray-400'
-            : ''
-        )}
-      />
+      <ActionMenu
+        open={optionsOpen}
+        onOpenChange={setOptionsOpen}
+        disabled={!optionsOpen}
+        actions={[
+          {
+            key: 'mark-all-read',
+            content: 'Mark all read',
+            onClick: () => markAllGroupsRead(),
+          },
+        ]}
+        asChild
+      >
+        <div
+          className={cn(
+            'relative flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-50',
+            !props.isInactive && '!bg-gray-100'
+          )}
+        >
+          <HomeIconMobileNav
+            isInactive={props.isInactive}
+            isDarkMode={props.isDarkMode}
+            className="h-6 w-6"
+          />
+          <div
+            className={cn(
+              'h-1 w-1 rounded-full top-1 right-1 absolute',
+              groupsUnread.unread
+                ? groupsUnread.notify
+                  ? 'bg-blue'
+                  : 'bg-gray-400'
+                : ''
+            )}
+          />
+        </div>
+      </ActionMenu>
     </DoubleClickableNavButton>
   );
 }

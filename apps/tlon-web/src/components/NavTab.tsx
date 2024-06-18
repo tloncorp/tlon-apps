@@ -3,9 +3,12 @@ import {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
   PropsWithChildren,
+  useEffect,
   useState,
 } from 'react';
 import { NavLink, NavLinkProps } from 'react-router-dom';
+
+import useLongPress from '@/logic/useLongPress';
 
 const DOUBLE_CLICK_WINDOW = 300;
 
@@ -66,17 +69,27 @@ type DoubleClickableNavTabProps = PropsWithChildren<
     linkClass?: string;
     onSingleClick: () => void;
     onDoubleClick: () => void;
+    onLongPress?: () => void;
   }
 >;
 
 export function DoubleClickableNavTab({
   onSingleClick,
   onDoubleClick,
+  onLongPress,
   ...props
 }: DoubleClickableNavTabProps) {
   const [clickTimeout, setClickTimeout] = useState<number | null>(null);
+  const { action, handlers } = useLongPress();
+
+  useEffect(() => {
+    if (action === 'longpress') {
+      onLongPress?.();
+    }
+  }, [action, onLongPress]);
 
   const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    handlers.onClick();
     e.preventDefault();
 
     if (clickTimeout !== null) {
@@ -93,7 +106,7 @@ export function DoubleClickableNavTab({
   };
 
   return (
-    <NavTab onClick={onClick} {...props}>
+    <NavTab {...handlers} onClick={onClick} {...props}>
       {props.children}
     </NavTab>
   );
@@ -104,17 +117,27 @@ type DoubleClickableNavButtonProps = PropsWithChildren<
     className?: string;
     onSingleClick: () => void;
     onDoubleClick: () => void;
+    onLongPress?: () => void;
   }
 >;
 
 export function DoubleClickableNavButton({
   onSingleClick,
   onDoubleClick,
+  onLongPress,
   ...props
 }: DoubleClickableNavButtonProps) {
   const [clickTimeout, setClickTimeout] = useState<number | null>(null);
+  const { action, handlers } = useLongPress();
+
+  useEffect(() => {
+    if (action === 'longpress') {
+      onLongPress?.();
+    }
+  }, [action, onLongPress]);
 
   const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    handlers.onClick();
     e.preventDefault();
 
     if (clickTimeout !== null) {
@@ -131,7 +154,7 @@ export function DoubleClickableNavButton({
   };
 
   return (
-    <button onClick={onClick} {...props}>
+    <button {...handlers} onClick={onClick} {...props}>
       {props.children}
     </button>
   );
