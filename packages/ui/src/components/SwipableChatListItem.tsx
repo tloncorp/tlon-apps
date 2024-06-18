@@ -22,7 +22,15 @@ export function SwipableChatRow(
   props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
 ) {
   const swipeableRef = useRef<Swipeable | null>(null);
-  const isMuted = useMemo(() => props.model.isMuted ?? false, [props.model]);
+  const isMuted = useMemo(() => {
+    if (props.model.group) {
+      return props.model.group.isMuted ?? false;
+    } else if (props.model.type === 'dm' || props.model.type === 'groupDm') {
+      return props.model.isMuted ?? false;
+    }
+
+    return false;
+  }, [props.model]);
   // prevent color flicker when unmuting
   const [mutedState, setMutedState] = useState(isMuted);
   useEffect(() => {
@@ -156,7 +164,7 @@ function RightActions({
       <Action
         side="right"
         backgroundColor="$blueSoft"
-        color="$gray800"
+        color="$darkBackground"
         iconType="Pin"
         xOffset={160}
         progress={progress}
@@ -165,8 +173,8 @@ function RightActions({
       />
       <Action
         side="right"
-        backgroundColor={isMuted ? '$gray800' : '$secondaryBackground'}
-        color={isMuted ? '$secondaryBackground' : '$gray800'}
+        backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
+        color={isMuted ? '$secondaryText' : '$secondaryText'}
         iconType={isMuted ? 'Notifications' : 'Mute'}
         xOffset={80}
         progress={progress}

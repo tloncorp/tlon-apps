@@ -9,7 +9,7 @@ export function UnreadDot(
     <Circle
       size="$m"
       backgroundColor={
-        props.color === 'neutral' ? '$gray300' : '$positiveActionText'
+        props.color === 'neutral' ? '$neutralUnreadDot' : '$positiveActionText'
       }
       {...props}
     />
