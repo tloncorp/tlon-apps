@@ -249,8 +249,6 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
-  isMuted: boolean('is_muted').default(false),
-  isNoisy: boolean('is_noisy').default(false),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -268,6 +266,10 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   unread: one(groupUnreads, {
     fields: [groups.id],
     references: [groupUnreads.groupId],
+  }),
+  volumeSettings: one(volumeSettings, {
+    fields: [groups.id],
+    references: [volumeSettings.itemId],
   }),
 }));
 
@@ -600,6 +602,13 @@ export const groupNavSectionChannelsRelations = relations(
   })
 );
 
+export const volumeSettings = sqliteTable('volume_settings', {
+  itemId: text('item_id').primaryKey(),
+  itemType: text('item_type').$type<'group' | 'channel' | 'thread'>().notNull(),
+  isMuted: boolean('is_muted').default(false),
+  isNoisy: boolean('is_noisy').default(false),
+});
+
 export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
 
 export const channels = sqliteTable('channels', {
@@ -618,8 +627,6 @@ export const channels = sqliteTable('channels', {
   lastPostAt: timestamp('last_post_at'),
   isPendingChannel: boolean('is_cached_pending_channel'),
   isDmInvite: boolean('is_dm_invite'),
-  isMuted: boolean(`is_muted`).default(false),
-  isNoisy: boolean('is_noisy').default(false),
 
   /**
    * Last time we ran a sync, in local time
@@ -651,6 +658,10 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   members: many(chatMembers),
   writerRoles: many(channelWriters),
   readerRoles: many(channelReaders),
+  volumeSettings: one(volumeSettings, {
+    fields: [channels.id],
+    references: [volumeSettings.itemId],
+  }),
 }));
 
 export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
@@ -686,8 +697,6 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
-    isMuted: boolean('is_muted').default(false),
-    isNoisy: boolean('is_noisy').default(false),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.
@@ -723,6 +732,10 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   }),
   replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
+  volumeSettings: one(volumeSettings, {
+    fields: [posts.id],
+    references: [volumeSettings.itemId],
+  }),
 }));
 
 export const postImages = sqliteTable(

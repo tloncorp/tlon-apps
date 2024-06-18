@@ -31,7 +31,7 @@ export default function MessageActions({
     return getPostActions({
       post,
       channelType,
-      isMuted: post.isMuted ?? false,
+      isMuted: post.volumeSettings?.isMuted ?? false,
     }).filter((action) => {
       switch (action.id) {
         case 'startThread':
@@ -61,7 +61,7 @@ export default function MessageActions({
               id: action.id,
               post,
               channel,
-              isMuted: post.isMuted ?? false,
+              isMuted: post.volumeSettings?.isMuted ?? false,
               dismiss,
               onReply,
               onEdit,

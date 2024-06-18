@@ -225,13 +225,8 @@ export type ActivityEvent =
       update: VolumeUpdate;
     }
   | {
-      type: 'updateGroupVolume';
-      volumeUpdate: db.GroupVolume;
-    }
-  | { type: 'updateChannelVolume'; volumeUpdate: db.ChannelVolume }
-  | {
-      type: 'updateThreadVolume';
-      volumeUpdate: db.ThreadVolume;
+      type: 'updateItemVolume';
+      volumeUpdate: db.VolumeSettings;
     }
   | {
       type: 'updatePushNotificationsSetting';
@@ -292,9 +287,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         if ('group' in source) {
           const clientVolume = extractClientVolume(volume);
           return handler({
-            type: 'updateGroupVolume',
+            type: 'updateItemVolume',
             volumeUpdate: {
-              groupId: source.group,
+              itemId: source.group,
+              itemType: 'group',
               ...clientVolume,
             },
           });
@@ -309,9 +305,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
                 ? source.dm.ship
                 : source.dm.club;
           return handler({
-            type: 'updateChannelVolume',
+            type: 'updateItemVolume',
             volumeUpdate: {
-              channelId,
+              itemId: channelId,
+              itemType: 'channel',
               ...clientVolume,
             },
           });
@@ -321,9 +318,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const clientVolume = extractClientVolume(volume);
           const postId = getPostIdFromSource(source);
           return handler({
-            type: 'updateThreadVolume',
+            type: 'updateItemVolume',
             volumeUpdate: {
-              postId,
+              itemId: postId,
+              itemType: 'thread',
               ...clientVolume,
             },
           });
@@ -623,9 +621,7 @@ export type ActivityUpdateQueue = {
   groupUnreads: db.GroupUnread[];
   channelUnreads: db.ChannelUnread[];
   threadUnreads: db.ThreadUnreadState[];
-  channelVolumeUpdates: db.ChannelVolume[];
-  groupVolumeUpdates: db.GroupVolume[];
-  threadVolumeUpdates: db.ThreadVolume[];
+  volumeUpdates: db.VolumeSettings[];
   activityEvents: db.ActivityEvent[];
 };
 

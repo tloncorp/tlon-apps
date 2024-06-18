@@ -77,13 +77,6 @@ export const useSettings = (options: { userId: string }) => {
   });
 };
 
-export const useVolumeSettings = () => {
-  return useQuery({
-    queryKey: db.VOLUME_SETTINGS_QUERY_KEY,
-    queryFn: db.getVolumeSettings,
-  });
-};
-
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,

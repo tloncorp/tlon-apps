@@ -1,12 +1,10 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
 import { ComponentProps } from 'react';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
-import { Icon } from '../Icon';
 import {
   ListItem,
   ListItemIconContainer,
@@ -34,10 +32,12 @@ export default function ChannelListItem({
       <ChannelListItemIcon
         model={model}
         useTypeIcon={useTypeIcon}
-        opacity={model.isMuted ? 0.2 : 1}
+        opacity={model.volumeSettings?.isMuted ? 0.2 : 1}
       />
       <ListItem.MainContent>
-        <ListItem.Title color={model.isMuted ? '$tertiaryText' : undefined}>
+        <ListItem.Title
+          color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
+        >
           {title}
         </ListItem.Title>
         {model.lastPost && (
@@ -65,8 +65,8 @@ export default function ChannelListItem({
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
           <ListItem.Count
-            opacity={countToShow > 0 || model.isMuted ? 1 : 0}
-            muted={model.isMuted ?? false}
+            opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
+            muted={model.volumeSettings?.isMuted ?? false}
           >
             {utils.displayableUnreadCount(countToShow)}
           </ListItem.Count>
