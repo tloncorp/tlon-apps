@@ -166,4 +166,6 @@ const ActionMenu = React.memo(
   }
 );
 
+ActionMenu.displayName = 'ActionMenu';
+
 export default ActionMenu;
