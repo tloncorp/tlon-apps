@@ -53,7 +53,12 @@ export function ActivitySourceContent({
         {summary.newest.channel?.type === 'notebook' ? (
           <>
             {allPosts.map((post) => (
-              <View key={post.id} marginRight="$s" onPress={pressHandler}>
+              <View
+                key={post.id}
+                marginRight="$s"
+                onPress={pressHandler}
+                width={256}
+              >
                 <NotebookPost
                   post={post}
                   viewMode="activity"
