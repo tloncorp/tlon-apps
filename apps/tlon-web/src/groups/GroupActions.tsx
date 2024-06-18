@@ -387,4 +387,6 @@ const GroupActions = React.memo(
   }
 );
 
+GroupActions.displayName = 'GroupActions';
+
 export default GroupActions;
