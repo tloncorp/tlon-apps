@@ -1587,12 +1587,17 @@
   ::
   ++  di-abed-soft
     |=  s=@p
-    =/  d
-      %+  ~(gut by dms)  s
-      =|  =remark:c
-      =.  watching.remark  &
-      [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
-    di-core(ship s, dm d)
+    =/  dm  (~(get by dms) s)
+    ?^  dm  di-core(ship s, dm u.dm)
+    =|  =remark:c
+    =/  new=dm:c
+      :*  *pact:c
+          remark(watching &)
+          ?:(=(src our):bowl %inviting %invited)
+          |
+      ==
+    =.  di-core  di-core(ship s, dm new)
+    (di-activity [%invite ~] *story:d &)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-area-writs  `path`/dm/(scot %p ship)/writs
@@ -1640,8 +1645,6 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
-    =?  di-core  &(=(net.dm %invited) !=(ship our.bowl))
-      (di-activity [%invite ~] *story:d &)
     ?-  -.q.diff
         ?(%del %add-react %del-react)  (di-give-writs-diff diff)
     ::
@@ -1724,7 +1727,6 @@
     =?  cor  =(our src):bowl
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
-    =.  cor  (pass-activity [%ship ship] [%invite ~] *story:d |)
     ::  TODO hook into archive
     ?.  ok
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
