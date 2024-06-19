@@ -1213,7 +1213,6 @@
     =.  cu-core  (cu-init %done create)
     =.  cu-core  (cu-diff 0v0 [%init team hive met]:crew.club)
     =.  cor  (give-unread club/id cu-unread)
-    =.  cor  (pass-activity [%club id] [%invite ~] *story:d |)
     =/  =delta:writs:c
       %+  make-notice  our.bowl
       %+  rap  3
@@ -1273,6 +1272,7 @@
       cu-core
     ::
         %init
+      =.  cor  (pass-activity [%club id] [%invite ~] *story:d |)
       ::  ignore if already initialized
       ?:  ?|  !=(~ hive.crew.club)
               !=(~ team.crew.club)
@@ -1367,7 +1367,6 @@
       =.  hive.crew.club  (~(del in hive.crew.club) ship)
       ?.  ok.delta
         (cu-post-notice ship ' declined the invite')
-      =.  cor  (pass-activity [%club id] [%invite ~] *story:d |)
       =.  cor  (give-unread club/id cu-unread)
       =.  team.crew.club  (~(put in team.crew.club) ship)
       =?  last-read.remark.club  =(ship our.bowl)  now.bowl
