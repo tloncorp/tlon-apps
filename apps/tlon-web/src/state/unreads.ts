@@ -100,7 +100,7 @@ function sumChildren(
       // if we don't care about summing counts then we can skip aggregating
       // but if any child is notify then we need to take into account it's
       // status and notify values
-      if (!(sumCounts || child.notify)) {
+      if (!(sumCounts || child?.notify)) {
         return acc;
       }
 
@@ -115,7 +115,7 @@ function sumChildren(
 
           return {
             count: grandChildNotify
-              ? grandAcc.count + grandChild.count
+              ? grandAcc.count + grandChild?.count
               : grandAcc.count,
             notify: grandAcc.notify || grandChildNotify,
             status: grandChildNotify
@@ -139,8 +139,8 @@ function sumChildren(
       return {
         count: !sumCounts
           ? acc.count
-          : acc.count + (child.unread?.count || 0) + grandChildCount,
-        notify: acc.notify || Boolean(child.notify) || grandChildNotify,
+          : acc.count + (child?.unread?.count || 0) + grandChildCount,
+        notify: acc.notify || Boolean(child?.notify) || grandChildNotify,
         status,
       };
     },
