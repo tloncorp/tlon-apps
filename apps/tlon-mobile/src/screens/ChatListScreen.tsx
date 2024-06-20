@@ -59,12 +59,12 @@ export default function ChatListScreen(
 
   useFocusEffect(
     useCallback(() => {
+      store.syncUnreads();
+      store.syncLatestPosts();
       store.syncStaleChannels();
       return () => store.clearSyncQueue();
     }, [])
   );
-
-  const { isFetching: isFetchingInitData } = store.useInitialSync();
 
   const goToDm = useCallback(
     async (participants: string[]) => {
@@ -168,8 +168,14 @@ export default function ChatListScreen(
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts ?? []}>
         <View backgroundColor="$background" flex={1}>
-          <ScreenHeader title={isFetchingInitData ? 'Loading…' : screenTitle} />
-          {chats && (chats.unpinned.length || !isFetchingInitData) ? (
+          <ScreenHeader
+            title={
+              !chats || (!chats.unpinned.length && !chats.pinned.length)
+                ? 'Loading…'
+                : screenTitle
+            }
+          />
+          {chats && chats.unpinned.length ? (
             <ChatList
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
