@@ -236,15 +236,22 @@ export default function Scroller({
         // scrolled yet, we should still be locked to the anchor post, so this
         // will re-scroll on subsequent layouts as well as the first.
         if (!userHasScrolledRef.current) {
+          // If we're in a gallery channel, we need to adjust the index to account
+          // for the empty post we added after the first unread post.
+          const galleryAdjustedIndex =
+            channelType === 'gallery' && firstUnreadId !== null
+              ? index - 1
+              : index;
+
           flatListRef.current?.scrollToIndex({
-            index,
+            index: galleryAdjustedIndex,
             animated: false,
             viewPosition: 1,
           });
         }
       }
     },
-    [anchor, hasFoundAnchor]
+    [anchor, hasFoundAnchor, channelType, firstUnreadId]
   );
 
   const theme = useTheme();
