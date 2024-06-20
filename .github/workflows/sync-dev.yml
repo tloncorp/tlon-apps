@@ -24,5 +24,5 @@ jobs:
           git merge staging
           git checkout --theirs desk/desk.docket-0
           git add -A
-          git commit -n --no-edit
+          git diff-index --quiet HEAD || git commit -n --no-edit
           git push
