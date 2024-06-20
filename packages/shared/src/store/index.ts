@@ -7,7 +7,6 @@ export * from './postActions';
 export * from './channelActions';
 export * from './groupActions';
 export * from './useThreadPosts';
-export * from './useInitialSync';
 export * from './storage';
 export * from './dmActions';
 export * from './useNegotiation';

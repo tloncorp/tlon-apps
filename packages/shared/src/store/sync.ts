@@ -5,6 +5,7 @@ import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
+import { ErrorReporter } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -31,27 +32,41 @@ export function updateChannelCursor(channelId: string, cursor: string) {
 
 const logger = createDevLogger('sync', false);
 
-export const syncInitData = async () => {
+export const syncInitData = async (reporter?: ErrorReporter) => {
   const initData = await syncQueue.add('init', () => api.getInitData());
+  reporter?.log('got init data from api');
   return batchEffects('init sync', async (ctx) => {
     return await Promise.all([
-      db.insertPinnedItems(initData.pins, ctx),
-      db.insertGroups({ groups: initData.groups }, ctx),
-      db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
-      db.insertChannels(initData.channels, ctx),
-      persistUnreads(initData.unreads, ctx),
-      db.insertChannelPerms(initData.channelPerms, ctx),
+      db
+        .insertPinnedItems(initData.pins, ctx)
+        .then(() => reporter?.log('inserted pinned items')),
+      db
+        .insertGroups({ groups: initData.groups }, ctx)
+        .then(() => reporter?.log('inserted groups')),
+      db
+        .insertUnjoinedGroups(initData.unjoinedGroups, ctx)
+        .then(() => reporter?.log('inserted unjoined groups')),
+      db
+        .insertChannels(initData.channels, ctx)
+        .then(() => reporter?.log('inserted channels')),
+      persistUnreads(initData.unreads, ctx).then(() =>
+        reporter?.log('persisted unreads')
+      ),
+      db
+        .insertChannelPerms(initData.channelPerms, ctx)
+        .then(() => reporter?.log('inserted channel perms')),
     ]);
   });
 };
 
-export const syncLatestPosts = async () => {
+export const syncLatestPosts = async (reporter?: ErrorReporter) => {
   const result = await syncQueue.add('latest-posts', async () =>
     Promise.all([
       api.getLatestPosts({ type: 'channels' }),
       api.getLatestPosts({ type: 'chats' }),
     ])
   );
+  reporter?.log('got latest posts from api');
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
   allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
   await db.insertLatestPosts(allPosts);
@@ -746,14 +761,46 @@ export const initializeStorage = () => {
   });
 };
 
-export const setupSubscriptions = async () => {
-  return syncQueue.add('setup subscriptions', async () => {
+export const syncStart = async () => {
+  const reporter = new ErrorReporter('sync start', logger);
+  try {
+    reporter.log('sync start running');
+    // highest priority, do immediately
+    await syncInitData(reporter);
+    reporter.log(`finished syncing init data`);
     await Promise.all([
-      api.subscribeToActivity(createActivityUpdateHandler()),
-      api.subscribeGroups(handleGroupUpdate),
-      api.subscribeToChannelsUpdates(handleChannelsUpdate),
-      api.subscribeToChatUpdates(handleChatUpdate),
-      api.subscribeToContactUpdates(handleContactUpdate),
+      syncContacts().then(() => reporter.log(`finished syncing contacts`)),
+      resetActivity().then(() => reporter.log(`finished resetting activity`)),
     ]);
-  });
+
+    await setupSubscriptions();
+    reporter.log(`subscriptions setup`);
+
+    await Promise.all([
+      syncSettings().then(() => reporter.log(`finished syncing settings`)),
+      syncVolumeSettings().then(() =>
+        reporter.log(`finished syncing volume settings`)
+      ),
+      initializeStorage().then(() =>
+        reporter.log(`finished initializing storage`)
+      ),
+      syncPushNotificationsSetting().then(() =>
+        reporter.log(`finished syncing push notifications setting`)
+      ),
+    ]);
+    reporter.log('sync start complete');
+  } catch (e) {
+    reporter.report(e);
+    logger.warn('INITIAL SYNC FAILED', e);
+  }
+};
+
+export const setupSubscriptions = async () => {
+  await Promise.all([
+    api.subscribeToActivity(createActivityUpdateHandler()),
+    api.subscribeGroups(handleGroupUpdate),
+    api.subscribeToChannelsUpdates(handleChannelsUpdate),
+    api.subscribeToChatUpdates(handleChatUpdate),
+    api.subscribeToContactUpdates(handleContactUpdate),
+  ]);
 };
