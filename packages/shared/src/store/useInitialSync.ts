@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 
 import {
-  initializeStorage,
+  initializeStorage, // syncActivityEvents,
+  resetActivity,
   setupSubscriptions,
   syncContacts,
   syncInitData,
   syncLatestPosts,
+  syncPushNotificationsSetting,
   syncSettings,
-  syncStaleChannels,
+  syncVolumeSettings,
 } from './sync';
 import { QueueClearedError } from './syncQueue';
 
@@ -27,9 +29,13 @@ export const useInitialSync = () => {
         setupSubscriptions(),
         initializeStorage(),
         syncSettings(),
+        syncVolumeSettings(),
+        syncPushNotificationsSetting(),
+        resetActivity(),
       ]).catch((e) => {
         handleSyncError(e);
       });
+
       return true;
     },
   });

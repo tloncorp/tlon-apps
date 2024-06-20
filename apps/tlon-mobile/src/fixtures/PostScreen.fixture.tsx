@@ -34,6 +34,7 @@ export default (
       channel={tlonLocalBulletinBoard}
       posts={posts}
       sendReply={() => {}}
+      markRead={() => {}}
       groupMembers={group.members ?? []}
       getDraft={async () => ({})}
       storeDraft={() => {}}

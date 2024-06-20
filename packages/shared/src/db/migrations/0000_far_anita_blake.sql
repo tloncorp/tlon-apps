@@ -1,7 +1,36 @@
+CREATE TABLE `activity_events` (
+	`id` text NOT NULL,
+	`bucket_id` text NOT NULL,
+	`source_id` text NOT NULL,
+	`type` text NOT NULL,
+	`timestamp` integer NOT NULL,
+	`post_id` text,
+	`author_id` text,
+	`parent_id` text,
+	`parent_author_id` text,
+	`channel_id` text,
+	`group_id` text,
+	`is_mention` integer,
+	`should_notify` integer,
+	`content` text,
+	PRIMARY KEY(`bucket_id`, `id`)
+);
+--> statement-breakpoint
 CREATE TABLE `channel_readers` (
 	`channel_id` text NOT NULL,
 	`role_id` text NOT NULL,
 	PRIMARY KEY(`channel_id`, `role_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `channel_unreads` (
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
+	`notify` integer NOT NULL,
+	`count` integer NOT NULL,
+	`count_without_threads` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`first_unread_post_id` text,
+	`first_unread_post_received_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `channel_writers` (
@@ -139,6 +168,13 @@ CREATE TABLE `group_roles` (
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `group_unreads` (
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`notify` integer,
+	`count` integer,
+	`updated_at` integer NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `groups` (
 	`id` text PRIMARY KEY NOT NULL,
 	`icon_image` text,
@@ -211,7 +247,8 @@ CREATE TABLE `posts` (
 	`has_image` integer,
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
-	`delivery_status` text
+	`delivery_status` text,
+	`backend_time` text
 );
 --> statement-breakpoint
 CREATE TABLE `settings` (
@@ -240,20 +277,19 @@ CREATE TABLE `settings` (
 CREATE TABLE `thread_unreads` (
 	`channel_id` text,
 	`thread_id` text,
+	`notify` integer,
 	`count` integer,
+	`updated_at` integer NOT NULL,
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
 	PRIMARY KEY(`channel_id`, `thread_id`)
 );
 --> statement-breakpoint
-CREATE TABLE `unreads` (
-	`channel_id` text PRIMARY KEY NOT NULL,
-	`type` text NOT NULL,
-	`count` integer NOT NULL,
-	`count_without_threads` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`first_unread_post_id` text,
-	`first_unread_post_received_at` integer
+CREATE TABLE `volume_settings` (
+	`item_id` text PRIMARY KEY NOT NULL,
+	`item_type` text NOT NULL,
+	`is_muted` integer DEFAULT false,
+	`is_noisy` integer DEFAULT false
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint

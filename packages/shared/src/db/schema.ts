@@ -7,7 +7,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { Rank } from '../urbit';
+import { ExtendedEventType, Rank } from '../urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -94,9 +94,10 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
   }),
 }));
 
-export const unreads = sqliteTable('unreads', {
+export const channelUnreads = sqliteTable('channel_unreads', {
   channelId: text('channel_id').primaryKey(),
   type: text('type').$type<'channel' | 'dm'>().notNull(),
+  notify: boolean('notify').notNull(),
   count: integer('count').notNull(),
   countWithoutThreads: integer('count_without_threads').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
@@ -104,9 +105,9 @@ export const unreads = sqliteTable('unreads', {
   firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
 });
 
-export const unreadsRelations = relations(unreads, ({ one, many }) => ({
+export const unreadsRelations = relations(channelUnreads, ({ one, many }) => ({
   channel: one(channels, {
-    fields: [unreads.channelId],
+    fields: [channelUnreads.channelId],
     references: [channels.id],
   }),
   threadUnreads: many(threadUnreads),
@@ -117,7 +118,9 @@ export const threadUnreads = sqliteTable(
   {
     channelId: text('channel_id'),
     threadId: text('thread_id'),
+    notify: boolean('notify'),
     count: integer('count'),
+    updatedAt: timestamp('updated_at').notNull(),
     firstUnreadPostId: text('first_unread_post_id'),
     firstUnreadPostReceivedAt: timestamp('first_unread_post_received_at'),
   },
@@ -133,9 +136,76 @@ export const threadUnreadsRelations = relations(threadUnreads, ({ one }) => ({
     fields: [threadUnreads.channelId],
     references: [channels.id],
   }),
-  channelUnread: one(unreads, {
+  channelUnread: one(channelUnreads, {
     fields: [threadUnreads.channelId],
-    references: [unreads.channelId],
+    references: [channelUnreads.channelId],
+  }),
+}));
+
+export const groupUnreads = sqliteTable('group_unreads', {
+  groupId: text('channel_id').primaryKey(),
+  notify: boolean('notify'),
+  count: integer('count'),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
+export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupUnreads.groupId],
+    references: [groups.id],
+  }),
+}));
+
+export type ActivityBucket = 'all' | 'mentions' | 'replies';
+export const activityEvents = sqliteTable(
+  'activity_events',
+  {
+    id: text('id').notNull(),
+    bucketId: text('bucket_id').$type<ActivityBucket>().notNull(),
+    sourceId: text('source_id').notNull(),
+    type: text('type').$type<ExtendedEventType>().notNull(),
+    timestamp: timestamp('timestamp').notNull(),
+    postId: text('post_id'),
+    authorId: text('author_id'),
+    parentId: text('parent_id'),
+    parentAuthorId: text('parent_author_id'),
+    channelId: text('channel_id'),
+    groupId: text('group_id'),
+    isMention: boolean('is_mention'),
+    shouldNotify: boolean('should_notify'),
+    content: text('content', { mode: 'json' }),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.id, table.bucketId] }),
+    };
+  }
+);
+
+export const activityRelations = relations(activityEvents, ({ one, many }) => ({
+  post: one(posts, {
+    fields: [activityEvents.postId],
+    references: [posts.id],
+  }),
+  parent: one(posts, {
+    fields: [activityEvents.parentId],
+    references: [posts.id],
+  }),
+  channel: one(channels, {
+    fields: [activityEvents.channelId],
+    references: [channels.id],
+  }),
+  group: one(groups, {
+    fields: [activityEvents.groupId],
+    references: [groups.id],
+  }),
+  author: one(contacts, {
+    fields: [activityEvents.authorId],
+    references: [contacts.id],
+  }),
+  parentAuthor: one(contacts, {
+    fields: [activityEvents.parentAuthorId],
+    references: [contacts.id],
   }),
 }));
 
@@ -192,6 +262,14 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   lastPost: one(posts, {
     fields: [groups.lastPostId],
     references: [posts.id],
+  }),
+  unread: one(groupUnreads, {
+    fields: [groups.id],
+    references: [groupUnreads.groupId],
+  }),
+  volumeSettings: one(volumeSettings, {
+    fields: [groups.id],
+    references: [volumeSettings.itemId],
   }),
 }));
 
@@ -524,6 +602,13 @@ export const groupNavSectionChannelsRelations = relations(
   })
 );
 
+export const volumeSettings = sqliteTable('volume_settings', {
+  itemId: text('item_id').primaryKey(),
+  itemType: text('item_type').$type<'group' | 'channel' | 'thread'>().notNull(),
+  isMuted: boolean('is_muted').default(false),
+  isNoisy: boolean('is_noisy').default(false),
+});
+
 export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
 
 export const channels = sqliteTable('channels', {
@@ -542,6 +627,7 @@ export const channels = sqliteTable('channels', {
   lastPostAt: timestamp('last_post_at'),
   isPendingChannel: boolean('is_cached_pending_channel'),
   isDmInvite: boolean('is_dm_invite'),
+
   /**
    * Last time we ran a sync, in local time
    */
@@ -564,14 +650,18 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
     fields: [channels.lastPostId],
     references: [posts.id],
   }),
-  unread: one(unreads, {
+  unread: one(channelUnreads, {
     fields: [channels.id],
-    references: [unreads.channelId],
+    references: [channelUnreads.channelId],
   }),
   threadUnreads: many(threadUnreads),
   members: many(chatMembers),
   writerRoles: many(channelWriters),
   readerRoles: many(channelReaders),
+  volumeSettings: one(volumeSettings, {
+    fields: [channels.id],
+    references: [volumeSettings.itemId],
+  }),
 }));
 
 export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
@@ -607,6 +697,10 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+    // backendTime translates to an unfortunate alternative timestamp that is used
+    // in some places by the backend agents as part of a composite key for identifying a post.
+    // You should not be accessing this field except in very particular contexts.
+    backendTime: text('backend_time'),
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
@@ -632,8 +726,16 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     references: [posts.id],
     relationName: 'parent',
   }),
+  threadUnread: one(threadUnreads, {
+    fields: [posts.id],
+    references: [threadUnreads.threadId],
+  }),
   replies: many(posts, { relationName: 'parent' }),
   images: many(postImages),
+  volumeSettings: one(volumeSettings, {
+    fields: [posts.id],
+    references: [volumeSettings.itemId],
+  }),
 }));
 
 export const postImages = sqliteTable(

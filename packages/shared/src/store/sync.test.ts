@@ -357,7 +357,7 @@ test('syncs init data', async () => {
     groupsInitData.chat.dms.length +
       Object.keys(groupsInitData.chat.clubs).length
   );
-  // TODO: fix when activity integrated
+  // TODO: fix once activity integrated
   // const staleChannels = await db.getStaleChannels();
   // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
   //   ['chat/~bolbex-fogdys/watercooler-4926'],

@@ -16,6 +16,7 @@ export default function NotebookPost({
   showAuthor = true,
   smallImage = false,
   smallTitle = false,
+  viewMode,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
@@ -26,6 +27,7 @@ export default function NotebookPost({
   showAuthor?: boolean;
   smallImage?: boolean;
   smallTitle?: boolean;
+  viewMode?: 'activity';
 }) {
   const dateDisplay = useMemo(() => {
     const date = new Date(post.sentAt);
@@ -46,6 +48,7 @@ export default function NotebookPost({
       onPress={() => onPress?.(post)}
       onLongPress={handleLongPress}
       delayLongPress={250}
+      disabled={viewMode === 'activity'}
     >
       <YStack
         key={post.id}
@@ -56,6 +59,7 @@ export default function NotebookPost({
         borderRadius="$xl"
         borderColor="$shadow"
         marginVertical="$xl"
+        overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
         {post.image && (
           <Image
@@ -72,12 +76,12 @@ export default function NotebookPost({
             color="$primaryText"
             fontFamily="$serif"
             fontWeight="$s"
-            fontSize={smallTitle ? '$l' : '$xl'}
+            fontSize={smallTitle || viewMode === 'activity' ? '$l' : '$xl'}
           >
             {post.title}
           </Text>
         )}
-        {showAuthor && (
+        {showAuthor && viewMode !== 'activity' && (
           <AuthorRow
             authorId={post.authorId}
             author={post.author}
@@ -93,7 +97,11 @@ export default function NotebookPost({
           {dateDisplay}
         </Text>
         {showReplies && (
-          <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+          <Text
+            color="$tertiaryText"
+            fontWeight="$s"
+            fontSize={viewMode === 'activity' ? '$s' : '$l'}
+          >
             {post.replyCount} replies
           </Text>
         )}

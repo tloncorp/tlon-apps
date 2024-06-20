@@ -122,6 +122,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
+  const handleMarkRead = useCallback(() => {
+    if (channel) {
+      store.markChannelRead(channel);
+    }
+  }, [channel]);
+
   if (!channel) {
     return null;
   }
@@ -150,6 +156,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onScrollEndReached={loadOlder}
         onScrollStartReached={loadNewer}
         onPressRef={navigateToRef}
+        markRead={handleMarkRead}
         usePost={usePostWithRelations}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}

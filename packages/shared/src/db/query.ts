@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 
 import { queryClient } from '../api';
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
+import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { TableName } from './types';
 
@@ -86,7 +87,6 @@ export const createQuery = <TOptions, TReturn>(
     ctx?: QueryCtx
   ): Promise<TReturn> {
     const startTime = Date.now();
-    logger.log(meta.label + ':start');
     // Resolve arguments based on parameter count of query function
     const [ctxArg, runQuery] = hasNoOptions(queryFn)
       ? [
@@ -109,7 +109,6 @@ export const createQuery = <TOptions, TReturn>(
             ? meta.tableEffects(options!)
             : meta.tableEffects;
         if (effects.length) {
-          logger.log(`${meta.label}:pending:[${effects.join(' ')}]`);
           effects.forEach((e) => resolvedCtx.pendingEffects.add(e));
         }
       }
@@ -162,10 +161,11 @@ export async function withCtxOrDefault<T>(
   // Invalidate queries based on affected tables. We run in the next tick to
   // prevent possible loops.
   setTimeout(() => {
+    changeListener.flush();
     if (!pendingEffects.size) {
       return;
     }
-    logger.log(`${meta.label}:trigger:${listDebugLabel(pendingEffects)}`);
+    const invalidated: string[] = [];
     queryClient.invalidateQueries({
       fetchStatus: 'idle',
       predicate: (query) => {
@@ -173,11 +173,16 @@ export async function withCtxOrDefault<T>(
         const shouldInvalidate =
           tableKey instanceof Set && setsOverlap(tableKey, pendingEffects);
         if (shouldInvalidate) {
-          logger.log(`${meta.label}:invalidate:${escapeLog(query.queryHash)}`);
+          invalidated.push(query.queryHash);
         }
         return shouldInvalidate;
       },
     });
+    logger.log(
+      `${meta.label}:triggered:${listDebugLabel(pendingEffects)}`,
+      'invalidating',
+      invalidated.map(escapeLog)
+    );
   }, 0);
   return result;
 }
@@ -198,6 +203,8 @@ const enqueueTransaction = async (fn: () => Promise<any>) => {
   }
 };
 
+const txLogger = createDevLogger('tx', false);
+
 /**
  * Creates a new context that will run operations against a transaction.
  * Executes the handler directly if already in a transaction.
@@ -208,20 +215,20 @@ export async function withTransactionCtx<T>(
 ): Promise<T> {
   return new Promise((resolve, reject) =>
     enqueueTransaction(async () => {
-      logger.log(ctx.meta.label, 'tx:handler');
+      txLogger.log(ctx.meta.label, 'tx:handler');
       try {
         await ctx.db.run(sql`BEGIN`);
-        logger.log(ctx.meta.label, 'tx:begin');
+        txLogger.log(ctx.meta.label, 'tx:begin');
 
         const result = await handler(ctx);
-        logger.log(ctx.meta.label, 'tx:run');
+        txLogger.log(ctx.meta.label, 'tx:run');
 
         await ctx.db.run(sql`COMMIT`);
         resolve(result);
-        logger.log(ctx.meta.label, 'tx:commit');
+        txLogger.log(ctx.meta.label, 'tx:commit');
         return result;
       } catch (e) {
-        logger.log('tx:error', e);
+        txLogger.log('tx:error', e);
         reject(e);
         await ctx.db.run(sql`ROLLBACK`);
       }

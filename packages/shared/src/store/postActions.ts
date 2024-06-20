@@ -29,12 +29,7 @@ export async function sendPost({
 
   // optimistic update
   const cachePost = db.buildPendingPost({ authorId, channel, content });
-  await db.insertChannelPosts({
-    channelId: channel.id,
-    posts: [cachePost],
-    older: sync.channelCursors.get(channel.id),
-  });
-  sync.updateChannelCursor(channel.id, cachePost.id);
+  sync.handleAddPost(cachePost);
   try {
     await api.sendPost({
       channelId: channel.id,

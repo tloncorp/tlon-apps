@@ -1,11 +1,18 @@
 import { backOff } from 'exponential-backoff';
+import _ from 'lodash';
 
 import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
+import { extractClientVolumes } from '../logic/activity';
+import {
+  INFINITE_ACTIVITY_QUERY_KEY,
+  resetActivityFetchers,
+} from '../store/useActivityFetchers';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
+import { addToChannelPosts } from './useChannelPosts';
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -32,7 +39,7 @@ export const syncInitData = async () => {
       db.insertGroups({ groups: initData.groups }, ctx),
       db.insertUnjoinedGroups(initData.unjoinedGroups, ctx),
       db.insertChannels(initData.channels, ctx),
-      resetUnreads(initData.unreads, ctx),
+      persistUnreads(initData.unreads, ctx),
       db.insertChannelPerms(initData.channelPerms, ctx),
     ]);
   });
@@ -62,6 +69,14 @@ export const syncSettings = async () => {
   return db.insertSettings(settings);
 };
 
+export const syncVolumeSettings = async () => {
+  return syncQueue.add('volumeSettings', async (): Promise<void> => {
+    const volumeSettings = await api.getVolumeSettings();
+    const clientVolumes = extractClientVolumes(volumeSettings);
+    await db.setVolumes(clientVolumes);
+  });
+};
+
 export const syncContacts = async () => {
   const contacts = await syncQueue.add('contacts', () => api.getContacts());
   await db.insertContacts(contacts);
@@ -89,27 +104,35 @@ export const syncDms = async () => {
 };
 
 export const syncUnreads = async () => {
-  const [channelUnreads, dmUnreads] = await syncQueue.add('unreads', () =>
-    Promise.all([api.getChannelUnreads(), api.getDMUnreads()])
-  );
-  const unreads = [...channelUnreads, ...dmUnreads];
-  await resetUnreads(unreads);
+  const unreads = await syncQueue.add('unreads', () => api.getUnreads());
+  return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
 
-const resetUnreads = async (unreads: db.Unread[], ctx?: QueryCtx) => {
-  if (!unreads.length) return;
-
-  logger.log('resetting unreads', unreads);
-
-  await db.insertUnreads(unreads);
+const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
+  const { groupUnreads, channelUnreads, threadActivity } = activity;
+  await db.insertGroupUnreads(groupUnreads, ctx);
+  await db.insertChannelUnreads(channelUnreads, ctx);
+  await db.insertThreadUnreads(threadActivity, ctx);
   await db.setJoinedGroupChannels(
     {
-      channelIds: unreads
+      channelIds: channelUnreads
         .filter((u) => u.type === 'channel')
         .map((u) => u.channelId),
     },
     ctx
   );
+};
+
+export const resetActivity = async () => {
+  const activityEvents = await api.getInitialActivity();
+  await db.clearActivityEvents();
+  await db.insertActivityEvents(activityEvents);
+  resetActivityFetchers();
+};
+
+export const syncPushNotificationsSetting = async () => {
+  const setting = await api.getPushNotificationsSetting();
+  await db.setPushNotificationsSetting(setting);
 };
 
 async function handleGroupUpdate(update: api.GroupUpdate) {
@@ -302,10 +325,75 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-async function handleUnreadUpdate(unread: db.Unread) {
-  logger.log('event: unread update', unread);
-  await db.insertUnreads([unread]);
-}
+const createActivityUpdateHandler = (queueDebounce: number = 100) => {
+  const queue: api.ActivityUpdateQueue = {
+    groupUnreads: [],
+    channelUnreads: [],
+    threadUnreads: [],
+    volumeUpdates: [],
+    activityEvents: [],
+  };
+  const processQueue = _.debounce(
+    async () => {
+      const activitySnapshot = _.cloneDeep(queue);
+      queue.groupUnreads = [];
+      queue.channelUnreads = [];
+      queue.threadUnreads = [];
+      queue.volumeUpdates = [];
+      queue.activityEvents = [];
+
+      logger.log(
+        `processing activity queue`,
+        activitySnapshot.groupUnreads.length,
+        activitySnapshot.channelUnreads.length,
+        activitySnapshot.threadUnreads.length,
+        activitySnapshot.volumeUpdates.length,
+        activitySnapshot.activityEvents.length
+      );
+      await batchEffects('activityUpdate', async (ctx) => {
+        await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
+        await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
+        await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
+        await db.setVolumes(activitySnapshot.volumeUpdates, ctx);
+        await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
+      });
+
+      // if we inserted new activity, invalidate the activity page
+      // data loader
+      if (activitySnapshot.activityEvents.length > 0) {
+        api.queryClient.invalidateQueries({
+          queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
+        });
+      }
+    },
+    queueDebounce,
+    { leading: true, trailing: true }
+  );
+
+  return (event: api.ActivityEvent) => {
+    switch (event.type) {
+      case 'updateGroupUnread':
+        queue.groupUnreads.push(event.unread);
+        break;
+      case 'updateChannelUnread':
+        queue.channelUnreads.push(event.activity);
+        break;
+      case 'updateThreadUnread':
+        queue.threadUnreads.push(event.activity);
+        break;
+      case 'updateItemVolume':
+        queue.volumeUpdates.push(event.volumeUpdate);
+        break;
+      case 'addActivityEvent':
+        queue.activityEvents.push(event.event);
+        break;
+      case 'updatePushNotificationsSetting':
+        db.setPushNotificationsSetting(event.value);
+        break;
+    }
+    processQueue();
+  };
+};
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
   switch (update.type) {
@@ -322,7 +410,7 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
-      handleAddPost(update.post);
+      await handleAddPost(update.post);
       break;
     case 'updateWriters':
       await db.updateChannel({
@@ -406,7 +494,7 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
   }
 };
 
-async function handleAddPost(post: db.Post) {
+export async function handleAddPost(post: db.Post) {
   // first check if it's a reply. If it is and we haven't already cached
   // it, we need to add it to the parent post
   if (post.parentId) {
@@ -426,12 +514,14 @@ async function handleAddPost(post: db.Post) {
       posts: [post],
     });
   } else {
+    const older = channelCursors.get(post.channelId);
+    addToChannelPosts(post, older);
+    updateChannelCursor(post.channelId, post.id);
     await db.insertChannelPosts({
       channelId: post.channelId,
       posts: [post],
-      older: channelCursors.get(post.channelId),
+      older,
     });
-    updateChannelCursor(post.channelId, post.id);
   }
 }
 
@@ -452,7 +542,7 @@ export async function syncPosts(options: api.GetChannelPostsOptions) {
   return response;
 }
 
-type StaleChannel = db.Channel & { unread: db.Unread };
+type StaleChannel = db.Channel & { unread: db.ChannelUnread };
 
 export const syncStaleChannels = async () => {
   const channels: StaleChannel[] = optimizeChannelLoadOrder(
@@ -619,28 +709,29 @@ async function persistPagedPostData(
   channelId: string,
   data: api.GetChannelPostsResponse
 ) {
-  await db.updateChannel({
-    id: channelId,
-    postCount: data.totalPosts,
-  });
-  if (data.posts.length) {
-    await db.insertChannelPosts({
-      channelId,
-      posts: data.posts,
-      newer: data.newer,
-      older: data.older,
-    });
-    const reactions = data.posts
-      .map((p) => p.reactions)
-      .flat()
-      .filter(Boolean) as db.Reaction[];
-    if (reactions.length) {
-      await db.insertPostReactions({ reactions });
+  batchEffects('pagedPostData', async (ctx) => {
+    if (data.posts.length) {
+      await db.insertChannelPosts(
+        {
+          channelId,
+          posts: data.posts,
+          newer: data.newer,
+          older: data.older,
+        },
+        ctx
+      );
+      const reactions = data.posts
+        .map((p) => p.reactions)
+        .flat()
+        .filter(Boolean) as db.Reaction[];
+      if (reactions.length) {
+        await db.insertPostReactions({ reactions }, ctx);
+      }
     }
-  }
-  if (data.deletedPosts?.length) {
-    await db.deletePosts({ ids: data.deletedPosts });
-  }
+    if (data.deletedPosts?.length) {
+      await db.deletePosts({ ids: data.deletedPosts }, ctx);
+    }
+  });
 }
 
 export const clearSyncQueue = () => {
@@ -658,7 +749,7 @@ export const initializeStorage = () => {
 export const setupSubscriptions = async () => {
   return syncQueue.add('setup subscriptions', async () => {
     await Promise.all([
-      api.subscribeUnreads(handleUnreadUpdate),
+      api.subscribeToActivity(createActivityUpdateHandler()),
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToChannelsUpdates(handleChannelsUpdate),
       api.subscribeToChatUpdates(handleChatUpdate),

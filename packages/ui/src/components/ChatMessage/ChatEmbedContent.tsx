@@ -84,7 +84,7 @@ export default function ChatEmbedContent({
   return (
     <Text
       textDecorationLine="underline"
-      fontSize={viewMode === 'block' ? '$s' : '$m'}
+      fontSize={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
       lineHeight="$m"
       onPress={openLink}
     >

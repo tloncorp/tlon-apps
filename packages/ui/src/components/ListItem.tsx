@@ -188,18 +188,20 @@ const ListItemTypeIcon = ({
   );
 };
 
-const ListItemIconContainer = ({
+export const ListItemIconContainer = ({
   backgroundColor = '$secondaryBackground',
   rounded,
   width = '$4xl',
   height = '$4xl',
   children,
+  ...rest
 }: PropsWithChildren<{
   backgroundColor?: ColorProp;
   width?: SizeTokens;
   height?: SizeTokens;
   rounded?: boolean;
-}>) => {
+}> &
+  Omit<ComponentProps<typeof View>, 'backgroundColor'>) => {
   return (
     <View
       width={width}
@@ -207,8 +209,8 @@ const ListItemIconContainer = ({
       borderRadius={rounded ? '$2xl' : '$s'}
       overflow="hidden"
       flex={0}
-      // @ts-expect-error user-supplied color
-      backgroundColor={backgroundColor}
+      backgroundColor={backgroundColor as any}
+      {...rest}
     >
       {children}
     </View>
@@ -292,17 +294,29 @@ const ListItemTime = ListItemTimeText.styleable<{
   );
 });
 
-const ListItemCount = ({ children, ...rest }: React.PropsWithChildren<any>) => {
+const ListItemCount = ({
+  children,
+  muted,
+  notUnread,
+  ...rest
+}: PropsWithChildren<{ muted?: boolean; notUnread?: boolean }> &
+  ComponentProps<typeof Stack>) => {
   return (
     <Stack
       paddingHorizontal={'$m'}
+      backgroundColor={
+        notUnread ? undefined : muted ? undefined : '$secondaryBackground'
+      }
       borderRadius="$l"
-      backgroundColor="$secondaryBackground"
       {...rest}
     >
-      <SizableText size="$s" color="$secondaryText" textAlign="center">
-        {children}
-      </SizableText>
+      {muted ? (
+        <Icon type="Mute" customSize={[18, 18]} color="$tertiaryText" />
+      ) : (
+        <SizableText size="$s" textAlign="center" color="$secondaryText">
+          {children}
+        </SizableText>
+      )}
     </Stack>
   );
 };

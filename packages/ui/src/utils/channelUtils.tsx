@@ -60,6 +60,12 @@ export function useCanWrite(channel: db.Channel, userId: string): boolean {
   return canWrite;
 }
 
+export function displayableUnreadCount(count: number | null | undefined) {
+  if (!count) return 0;
+
+  return count >= 99 ? '99+' : count;
+}
+
 export function getChannelTypeIcon(type: db.Channel['type']): IconType {
   switch (type) {
     case 'dm':

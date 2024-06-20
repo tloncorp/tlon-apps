@@ -1,25 +1,26 @@
+import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 
-import { useContactGetter, useContacts } from '../../contexts';
+import { useContactGetter } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
 import { Avatar } from '../Avatar';
+import { UnreadDot } from '../UnreadDot';
 
 export const ChatMessageReplySummary = React.memo(
   function ChatMessageReplySummary({
-    replyCount,
-    replyTime,
-    replyContactIds,
+    post,
     onPress,
   }: {
-    replyCount: number;
-    replyTime: number;
-    replyContactIds: string[];
+    post: db.Post;
     onPress?: () => void;
   }) {
+    const { replyCount, replyTime, replyContactIds, threadUnread } = post;
+
     const contactGetter = useContactGetter();
     const time = useMemo(() => {
-      return formatDistanceToNow(replyTime);
+      return formatDistanceToNow(replyTime!);
     }, [replyTime]);
 
     return replyCount && replyContactIds && replyTime ? (
@@ -42,9 +43,25 @@ export const ChatMessageReplySummary = React.memo(
             </View>
           ))}
         </XStack>
-        <SizableText size="$s">
-          {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
-        </SizableText>
+        <XStack alignItems="center">
+          <SizableText
+            size="$s"
+            color={
+              threadUnread?.count
+                ? post.volumeSettings?.isMuted
+                  ? '$tertiaryText'
+                  : '$positiveActionText'
+                : undefined
+            }
+            fontWeight={threadUnread?.count ? '500' : undefined}
+          >
+            {replyCount} {replyCount > 1 ? 'replies' : 'reply'}
+          </SizableText>
+          <ThreadStatus
+            unreadCount={threadUnread?.count ?? 0}
+            isMuted={post.volumeSettings?.isMuted ?? false}
+          />
+        </XStack>
         <SizableText size="$s" color="$tertiaryText">
           {time} ago
         </SizableText>
@@ -52,3 +69,19 @@ export const ChatMessageReplySummary = React.memo(
     ) : null;
   }
 );
+
+function ThreadStatus({
+  unreadCount,
+  isMuted,
+}: {
+  unreadCount: number;
+  isMuted: boolean;
+}) {
+  if (unreadCount) {
+    return (
+      <UnreadDot marginLeft="$s" color={isMuted ? 'neutral' : 'primary'} />
+    );
+  }
+
+  return null;
+}

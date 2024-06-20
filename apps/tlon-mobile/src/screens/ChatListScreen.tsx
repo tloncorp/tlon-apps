@@ -47,6 +47,7 @@ export default function ChatListScreen(
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+
   const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {
     return {

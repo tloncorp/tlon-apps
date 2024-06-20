@@ -14,6 +14,7 @@ export type Writ = channel.Writ | dms.Writ;
 export type Channels = channel.Channels;
 export type GroupChannels = groups.Channels;
 
+export * from './activity';
 export * from './channel';
 export * from './contact';
 export * from './dms';

@@ -9,6 +9,7 @@ import emojiRegex from 'emoji-regex';
 import { useMemo } from 'react';
 
 import * as api from '../api';
+import { isDmChannelId, isGroupDmChannelId } from '../api/apiUtils';
 import * as db from '../db';
 import * as ub from '../urbit';
 
@@ -264,23 +265,25 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: string
+  content: string | api.PostContent
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
-  const story = JSON.parse(content as string) as api.PostContent;
+  const story = typeof content === 'string' ? JSON.parse(content) : content;
   const inlines = extractInlinesFromContent(story);
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);
+
+  // console.log(`extracted inlines:`, inlines);
 
   return { inlines, references, blocks, story };
 };
 
 export const extractContentTypesFromPost = (
-  post: db.Post
+  post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
@@ -360,6 +363,22 @@ export const textPostIsReference = (post: db.Post): boolean => {
   }
 
   return false;
+};
+
+export const getPostTypeFromChannelId = ({
+  channelId,
+  parentId,
+}: {
+  channelId?: string | null;
+  parentId?: string | null;
+}): db.PostType => {
+  if (!channelId) return 'chat';
+  const isDm = isDmChannelId(channelId) || isGroupDmChannelId(channelId);
+  return parentId
+    ? 'reply'
+    : isDm
+      ? 'chat'
+      : (channelId.split('/')[0] as db.PostType);
 };
 
 export const usePostMeta = (post: db.Post) => {

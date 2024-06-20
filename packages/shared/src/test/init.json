@@ -1,0 +1,3939 @@
+{
+  "activity": {
+    "group/~latter-bolden/demo-test": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-5883": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "club/0v4.00000.qd75d.vkj7d.i5k75.c10oi": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715954286923,
+      "children": {},
+      "notify": true
+    },
+    "ship/~pondus-watbel": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718632223263,
+      "children": {},
+      "notify": true
+    },
+    "ship/~rilfun-lidlen": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718391682101,
+      "children": {
+        "dm-thread/~rilfun-lidlen/~latter-bolden/170.141.184.506.850.839.080.300.040.094.356.384.776": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718658129125,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": true
+    },
+    "thread/chat/~bitpyx-dildus/interface/170.141.184.506.855.656.737.316.956.463.230.353.408": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718656809775,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-1528": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717789502887,
+      "children": {},
+      "notify": false
+    },
+    "ship/~fabled-faster": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717099677752,
+      "children": {},
+      "notify": true
+    },
+    "channel/heap/~bolbex-fogdys/design-1761": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718040576412,
+      "children": {},
+      "notify": false
+    },
+    "ship/~bosser-hatber": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715961794678,
+      "children": {},
+      "notify": true
+    },
+    "ship/~palfun-foslup": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718334156005,
+      "children": {},
+      "notify": true
+    },
+    "group/~latter-bolden/woodshop": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-8186": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "club/0v4.00000.qd74r.0te7l.oa7lo.a7loa": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~latter-bolden/welcome-570": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "group/~latter-bolden/joiner-1": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715841839704,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-5696": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715841839704,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "club/0v4.00000.qd78i.8vovn.prchd.1pb08": {
+      "unread": null,
+      "count": 0,
+      "recency": 1716159682338,
+      "children": {},
+      "notify": true
+    },
+    "dm-thread/~rilfun-lidlen/~latter-bolden/170.141.184.506.850.839.080.300.040.094.356.384.776": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718658129125,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-4929": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/heap/~pondus-watbel/new-blocks": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645680864,
+      "children": {},
+      "notify": false
+    },
+    "group/~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~pondus-watbel/the-catalogue": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/banter-79": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645680864,
+      "children": {},
+      "notify": false
+    },
+    "channel/diary/~nocsyx-lassul/feedback-and-questions-2368": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~bolbex-fogdys/marcom": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718597426197,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd819.b3ubo.qjuv7.di5k7": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718728862529,
+      "children": {},
+      "notify": false
+    },
+    "ship/~roslet-tanner": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718662381638,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~nibset-napwyn/intros": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718423986650,
+      "children": {},
+      "notify": false
+    },
+    "channel/heap/~nibset-napwyn/local-directory": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715285009544,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~pondus-watbel/welcome-4526": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "ship/~sapdex-diflyx": {
+      "unread": null,
+      "count": 0,
+      "recency": 1716472289691,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~pondus-watbel/short-chats": {
+      "unread": null,
+      "count": 2,
+      "recency": 1718645680864,
+      "children": {
+        "thread/chat/~pondus-watbel/short-chats/170.141.184.506.814.164.072.541.963.840.454.131.712": {
+          "unread": {
+            "count": 2,
+            "id": "~pondus-watbel/170.141.184.506.856.982.477.910.155.694.700.494.848",
+            "time": "170141184506856982477910155694700494848",
+            "notify": false
+          },
+          "count": 2,
+          "recency": 1718721441538,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "club/0v4.00000.qd4p2.it253.qs53q.s53qs": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "club/0v4.00000.qd78i.6hmpj.6cpj6.cpj6c": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "club/0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718661918862,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd78g.r50v7.di5k7.5c10o": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/heap/~pondus-watbel/stuffs": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645680864,
+      "children": {},
+      "notify": false
+    },
+    "ship/~finned-palmer": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718306410383,
+      "children": {},
+      "notify": true
+    },
+    "group/~nibset-napwyn/tlon": {
+      "unread": null,
+      "count": 16,
+      "recency": 1718730441104,
+      "children": {
+        "channel/diary/~nocsyx-lassul/feedback-and-questions-2368": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~nibset-napwyn/intros": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718423986650,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~nibset-napwyn/local-directory": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715285009544,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~nibset-napwyn/commons": {
+          "unread": null,
+          "count": 5,
+          "recency": 1718730441104,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~nibset-napwyn/bulletin-board-53": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717651006456,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~dalwes-migdec/fall-updates": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~nibset-napwyn/getting-started": {
+          "unread": null,
+          "count": 0,
+          "recency": 1684342021902,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~nibset-napwyn/developers": {
+          "unread": null,
+          "count": 11,
+          "recency": 1718729121045,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/diary/~pondus-watbel/books": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718722495305,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-8186": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~dabben-larbet/hosting-6173/170.141.184.506.849.484.384.724.105.881.700.007.936": {
+      "unread": {
+        "count": 2,
+        "id": "~batset-motred/170.141.184.506.856.667.955.957.072.982.785.916.928",
+        "time": "170141184506856667955957072982785916928",
+        "notify": false
+      },
+      "count": 2,
+      "recency": 1718717184967,
+      "children": {},
+      "notify": false
+    },
+    "ship/~hoclun-rigsep": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718231326351,
+      "children": {},
+      "notify": true
+    },
+    "ship/~wannec-dozzod-marzod": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717907540686,
+      "children": {},
+      "notify": true
+    },
+    "group/~latter-bolden/demo-test-group": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-8300": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "group/~latter-bolden/locked-down": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-4929": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "ship/~bitter-bitduc": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717448561862,
+      "children": {},
+      "notify": true
+    },
+    "thread/chat/~nibset-napwyn/developers/170.141.184.506.849.481.846.282.842.288.271.917.056": {
+      "unread": {
+        "count": 2,
+        "id": "~sigmes-modfyn/170.141.184.506.857.004.921.446.902.208.143.556.608",
+        "time": "170141184506857004921446902208143556608",
+        "notify": false
+      },
+      "count": 2,
+      "recency": 1718726647852,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~nibset-napwyn/commons/170.141.184.506.855.625.068.323.569.417.492.365.312": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718648363793,
+      "children": {},
+      "notify": false
+    },
+    "ship/~dyl": {
+      "unread": null,
+      "count": 0,
+      "recency": 1716585649934,
+      "children": {},
+      "notify": true
+    },
+    "group/~latter-bolden/pumpkins": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-570": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/heap/~dabben-larbet/interface-1720": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715144529623,
+      "children": {},
+      "notify": false
+    },
+    "channel/diary/~bolbex-fogdys/bulletins": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717798184773,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-6251": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~dabben-larbet/native-apps": {
+      "unread": null,
+      "count": 0,
+      "recency": 1692887885871,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd75s.q6n4r.knhl7.tuer4": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~latter-bolden/welcome-8300": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "group/~pondus-watbel/atlanta-motor-speedway": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~pondus-watbel/welcome-4526": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.857.037.378.369.813.860.300.357.632": {
+      "unread": {
+        "count": 10,
+        "id": "~bitter-bitduc/170.141.184.506.857.088.346.643.469.151.428.935.680",
+        "time": "170141184506857088346643469151428935680",
+        "notify": false
+      },
+      "count": 10,
+      "recency": 1718727693022,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~pondus-watbel/the-catalogue": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~bolbex-fogdys/ops": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718595281840,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~pondus-watbel/stray-thoughts": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718343873608,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.857.091.568.851.908.944.707.190.784": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718727512233,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-2421": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "ship/~nocsyx-lassul": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718581252581,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~nibset-napwyn/commons": {
+      "unread": null,
+      "count": 5,
+      "recency": 1718730441104,
+      "children": {
+        "thread/chat/~nibset-napwyn/commons/170.141.184.506.855.625.068.323.569.417.492.365.312": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718648363793,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~nibset-napwyn/commons/170.141.184.506.832.058.136.573.733.468.784.033.792": {
+          "unread": {
+            "count": 1,
+            "id": "~bacfur-bitfed/170.141.184.506.857.039.107.583.748.734.497.849.344",
+            "time": "170141184506857039107583748734497849344",
+            "notify": false
+          },
+          "count": 1,
+          "recency": 1718724511544,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~nibset-napwyn/commons/170.141.184.506.854.236.564.334.791.602.657.558.528": {
+          "unread": {
+            "count": 4,
+            "id": "~ravmel-ropdyl/170.141.184.506.855.931.638.446.993.416.743.026.688",
+            "time": "170141184506855931638446993416743026688",
+            "notify": false
+          },
+          "count": 4,
+          "recency": 1718664512988,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~nibset-napwyn/commons/170.141.184.506.855.695.400.579.864.375.513.317.376": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718656370357,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/chat/~bitpyx-dildus/interface": {
+      "unread": null,
+      "count": 3,
+      "recency": 1718721396842,
+      "children": {
+        "thread/chat/~bitpyx-dildus/interface/170.141.184.506.855.656.737.316.956.463.230.353.408": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718656809775,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~bitpyx-dildus/interface/170.141.184.506.855.774.923.440.568.249.515.769.856": {
+          "unread": {
+            "count": 2,
+            "id": "~bitter-bitduc/170.141.184.506.855.949.580.537.396.131.526.606.848",
+            "time": "170141184506855949580537396131526606848",
+            "notify": false
+          },
+          "count": 2,
+          "recency": 1718666369441,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~bitpyx-dildus/interface/170.141.184.506.855.801.321.257.977.409.309.769.728": {
+          "unread": {
+            "count": 1,
+            "id": "~ravmel-ropdyl/170.141.184.506.855.897.328.979.915.519.777.832.960",
+            "time": "170141184506855897328979915519777832960",
+            "notify": false
+          },
+          "count": 1,
+          "recency": 1718662620896,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/heap/~nibset-napwyn/bulletin-board-53": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717651006456,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.857.092.189.801.188.692.133.412.864": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718728174541,
+      "children": {},
+      "notify": false
+    },
+    "group/~latter-bolden/places-you-ll-go": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715807322505,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-1327": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715807322505,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "group/~latter-bolden/joiner-2": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-6251": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "ship/~dovpel-nimhes-noslux-lophul--navler-dotdeg-datfel-samzod": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717789313978,
+      "children": {},
+      "notify": true
+    },
+    "thread/chat/~bitpyx-dildus/interface/170.141.184.506.855.774.923.440.568.249.515.769.856": {
+      "unread": {
+        "count": 2,
+        "id": "~bitter-bitduc/170.141.184.506.855.949.580.537.396.131.526.606.848",
+        "time": "170141184506855949580537396131526606848",
+        "notify": false
+      },
+      "count": 2,
+      "recency": 1718666369441,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~nocsyx-lassul/bongtable": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718598878724,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~pondus-watbel/image-test": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645680864,
+      "children": {},
+      "notify": false
+    },
+    "group/~pondus-watbel/digital-basics": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718343873608,
+      "children": {
+        "channel/chat/~pondus-watbel/stray-thoughts": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718343873608,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "club/0v4.00000.qd78g.49cbo.qjuv7.di5k7": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "channel/diary/~dalwes-migdec/fall-updates": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd78h.iudrc.hd1pb.0864j": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "group/~pondus-watbel/testing-facility": {
+      "unread": null,
+      "count": 2,
+      "recency": 1718722495305,
+      "children": {
+        "channel/heap/~pondus-watbel/new-blocks": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~latter-bolden/banter-79": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/short-chats": {
+          "unread": null,
+          "count": 2,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~pondus-watbel/stuffs": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~pondus-watbel/books": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718722495305,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/image-test": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/looooong-chats": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/ghost-town": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718646176929,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/new-channel": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645680864,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "thread/chat/~nibset-napwyn/developers/170.141.184.506.856.194.024.708.110.505.153.134.592": {
+      "unread": {
+        "count": 4,
+        "id": "~ravmel-ropdyl/170.141.184.506.856.401.099.748.913.789.452.419.072",
+        "time": "170141184506856401099748913789452419072",
+        "notify": false
+      },
+      "count": 4,
+      "recency": 1718710998787,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd2fn.dacu6.kvnpr.chd1p": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "thread/chat/~nibset-napwyn/developers/170.141.184.506.857.101.976.799.000.387.303.505.920": {
+      "unread": {
+        "count": 5,
+        "id": "~sigmes-modfyn/170.141.184.506.857.102.569.346.329.084.717.694.976",
+        "time": "170141184506857102569346329084717694976",
+        "notify": false
+      },
+      "count": 5,
+      "recency": 1718729121045,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd7ei.2gq96.t5sd9.vfjmp": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "thread/chat/~pondus-watbel/short-chats/170.141.184.506.814.164.072.541.963.840.454.131.712": {
+      "unread": {
+        "count": 2,
+        "id": "~pondus-watbel/170.141.184.506.856.982.477.910.155.694.700.494.848",
+        "time": "170141184506856982477910155694700494848",
+        "notify": false
+      },
+      "count": 2,
+      "recency": 1718721441538,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~nibset-napwyn/commons/170.141.184.506.832.058.136.573.733.468.784.033.792": {
+      "unread": {
+        "count": 1,
+        "id": "~bacfur-bitfed/170.141.184.506.857.039.107.583.748.734.497.849.344",
+        "time": "170141184506857039107583748734497849344",
+        "notify": false
+      },
+      "count": 1,
+      "recency": 1718724511544,
+      "children": {},
+      "notify": false
+    },
+    "club/0v4.00000.qd7dg.c71e2.hte2h.te2ht": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~latter-bolden/welcome-5696": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715841839704,
+      "children": {},
+      "notify": false
+    },
+    "channel/heap/~bitpyx-dildus/music-34": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/heap/~dabben-larbet/fanmail-3976": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718040563559,
+      "children": {},
+      "notify": false
+    },
+    "group/~latter-bolden/priv": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717789502887,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-1528": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717789502887,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/chat/~bolbex-fogdys/watercooler-4926": {
+      "unread": null,
+      "count": 10,
+      "recency": 1718728174541,
+      "children": {
+        "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.857.037.378.369.813.860.300.357.632": {
+          "unread": {
+            "count": 10,
+            "id": "~bitter-bitduc/170.141.184.506.857.088.346.643.469.151.428.935.680",
+            "time": "170141184506857088346643469151428935680",
+            "notify": false
+          },
+          "count": 10,
+          "recency": 1718727693022,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.857.091.568.851.908.944.707.190.784": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718727512233,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~bolbex-fogdys/watercooler-4926/170.141.184.506.857.092.189.801.188.692.133.412.864": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718728174541,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "thread/chat/~nibset-napwyn/commons/170.141.184.506.854.236.564.334.791.602.657.558.528": {
+      "unread": {
+        "count": 4,
+        "id": "~ravmel-ropdyl/170.141.184.506.855.931.638.446.993.416.743.026.688",
+        "time": "170141184506855931638446993416743026688",
+        "notify": false
+      },
+      "count": 4,
+      "recency": 1718664512988,
+      "children": {},
+      "notify": false
+    },
+    "ship/~dozped-mogtec": {
+      "unread": null,
+      "count": 0,
+      "recency": 1716424373255,
+      "children": {},
+      "notify": true
+    },
+    "club/0v4.00000.qd78g.m398e.ao21h.4rknh": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "club/0v4.00000.qd7sp.la7c1.0oidq.boqju": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "club/0v4.00000.qd7j4.dv0v7.di5k7.5c10o": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~pondus-watbel/looooong-chats": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645680864,
+      "children": {},
+      "notify": false
+    },
+    "group/~dabben-larbet/tlon": {
+      "unread": null,
+      "count": 15,
+      "recency": 1718728174541,
+      "children": {
+        "channel/heap/~bolbex-fogdys/design-1761": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718040576412,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/marcom": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718597426197,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~dabben-larbet/interface-1720": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715144529623,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~bolbex-fogdys/bulletins": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717798184773,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~dabben-larbet/native-apps": {
+          "unread": null,
+          "count": 0,
+          "recency": 1692887885871,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/ops": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718595281840,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bitpyx-dildus/interface": {
+          "unread": null,
+          "count": 3,
+          "recency": 1718721396842,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~nocsyx-lassul/bongtable": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718598878724,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~bitpyx-dildus/music-34": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~dabben-larbet/fanmail-3976": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718040563559,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/watercooler-4926": {
+          "unread": null,
+          "count": 10,
+          "recency": 1718728174541,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/tlon-general": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718645929334,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~dabben-larbet/hosting-6173": {
+          "unread": null,
+          "count": 2,
+          "recency": 1718721370737,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "club/0v4.00000.qd78h.1ggsl.g4329.n9f3a": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~pondus-watbel/ghost-town": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718646176929,
+      "children": {
+        "thread/chat/~pondus-watbel/ghost-town/170.141.184.506.855.589.067.108.846.371.354.968.064": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718646176929,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-8165": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "channel/diary/~nibset-napwyn/getting-started": {
+      "unread": null,
+      "count": 0,
+      "recency": 1684342021902,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~bitpyx-dildus/interface/170.141.184.506.855.801.321.257.977.409.309.769.728": {
+      "unread": {
+        "count": 1,
+        "id": "~ravmel-ropdyl/170.141.184.506.855.897.328.979.915.519.777.832.960",
+        "time": "170141184506855897328979915519777832960",
+        "notify": false
+      },
+      "count": 1,
+      "recency": 1718662620896,
+      "children": {},
+      "notify": false
+    },
+    "ship/~solfer-magfed": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718633990409,
+      "children": {},
+      "notify": true
+    },
+    "ship/~fiprud-digrun-havsef-hallyr--nocdet-roppel-tolluc-litzod": {
+      "unread": null,
+      "count": 0,
+      "recency": 1716159722466,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~bolbex-fogdys/tlon-general": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645929334,
+      "children": {},
+      "notify": false
+    },
+    "ship/~tirpec-fosdul-ragber-habpet--witnec-todtev-donbyt-binzod": {
+      "unread": null,
+      "count": 0,
+      "recency": 1717789330855,
+      "children": {},
+      "notify": true
+    },
+    "channel/chat/~nibset-napwyn/developers": {
+      "unread": null,
+      "count": 11,
+      "recency": 1718729121045,
+      "children": {
+        "thread/chat/~nibset-napwyn/developers/170.141.184.506.849.481.846.282.842.288.271.917.056": {
+          "unread": {
+            "count": 2,
+            "id": "~sigmes-modfyn/170.141.184.506.857.004.921.446.902.208.143.556.608",
+            "time": "170141184506857004921446902208143556608",
+            "notify": false
+          },
+          "count": 2,
+          "recency": 1718726647852,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~nibset-napwyn/developers/170.141.184.506.856.194.024.708.110.505.153.134.592": {
+          "unread": {
+            "count": 4,
+            "id": "~ravmel-ropdyl/170.141.184.506.856.401.099.748.913.789.452.419.072",
+            "time": "170141184506856401099748913789452419072",
+            "notify": false
+          },
+          "count": 4,
+          "recency": 1718710998787,
+          "children": null,
+          "notify": false
+        },
+        "thread/chat/~nibset-napwyn/developers/170.141.184.506.857.101.976.799.000.387.303.505.920": {
+          "unread": {
+            "count": 5,
+            "id": "~sigmes-modfyn/170.141.184.506.857.102.569.346.329.084.717.694.976",
+            "time": "170141184506857102569346329084717694976",
+            "notify": false
+          },
+          "count": 5,
+          "recency": 1718729121045,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "group/~latter-bolden/test-channels": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-2421": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "thread/chat/~pondus-watbel/ghost-town/170.141.184.506.855.589.067.108.846.371.354.968.064": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718646176929,
+      "children": {},
+      "notify": false
+    },
+    "base": {
+      "unread": {
+        "count": 4,
+        "id": "~rilfun-lidlen/170.141.184.506.855.534.555.875.319.276.040.617.984",
+        "time": "170141184506855534555875319276040617984",
+        "notify": false
+      },
+      "count": 4,
+      "recency": 1718642990262,
+      "children": {
+        "group/~latter-bolden/demo-test": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd75d.vkj7d.i5k75.c10oi": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715954286923,
+          "children": null,
+          "notify": true
+        },
+        "ship/~pondus-watbel": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718632223263,
+          "children": null,
+          "notify": true
+        },
+        "ship/~rilfun-lidlen": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718391682101,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~latter-bolden/welcome-1528": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717789502887,
+          "children": null,
+          "notify": false
+        },
+        "ship/~fabled-faster": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717099677752,
+          "children": null,
+          "notify": true
+        },
+        "channel/heap/~bolbex-fogdys/design-1761": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718040576412,
+          "children": null,
+          "notify": false
+        },
+        "ship/~bosser-hatber": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715961794678,
+          "children": null,
+          "notify": true
+        },
+        "ship/~palfun-foslup": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718334156005,
+          "children": null,
+          "notify": true
+        },
+        "group/~latter-bolden/woodshop": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd74r.0te7l.oa7lo.a7loa": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~latter-bolden/welcome-570": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/joiner-1": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715841839704,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd78i.8vovn.prchd.1pb08": {
+          "unread": null,
+          "count": 0,
+          "recency": 1716159682338,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~latter-bolden/welcome-4929": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~nocsyx-lassul/feedback-and-questions-2368": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/marcom": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd819.b3ubo.qjuv7.di5k7": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718302358360,
+          "children": null,
+          "notify": true
+        },
+        "ship/~roslet-tanner": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718642955655,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~nibset-napwyn/intros": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718423986650,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~nibset-napwyn/local-directory": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/welcome-4526": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~sapdex-diflyx": {
+          "unread": null,
+          "count": 0,
+          "recency": 1716472289691,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd4p2.it253.qs53q.s53qs": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd78i.6hmpj.6cpj6.cpj6c": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718378464464,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd78g.r50v7.di5k7.5c10o": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~finned-palmer": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718306410383,
+          "children": null,
+          "notify": true
+        },
+        "group/~nibset-napwyn/tlon": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718423986650,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~latter-bolden/welcome-8186": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~hoclun-rigsep": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718231326351,
+          "children": null,
+          "notify": true
+        },
+        "ship/~wannec-dozzod-marzod": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717907540686,
+          "children": null,
+          "notify": true
+        },
+        "group/~latter-bolden/demo-test-group": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/locked-down": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~bitter-bitduc": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717448561862,
+          "children": null,
+          "notify": true
+        },
+        "ship/~dyl": {
+          "unread": null,
+          "count": 0,
+          "recency": 1716585649934,
+          "children": null,
+          "notify": true
+        },
+        "group/~latter-bolden/pumpkins": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~dabben-larbet/interface-1720": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~bolbex-fogdys/bulletins": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~latter-bolden/welcome-6251": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~dabben-larbet/native-apps": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd75s.q6n4r.knhl7.tuer4": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~latter-bolden/welcome-8300": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~pondus-watbel/atlanta-motor-speedway": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/the-catalogue": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/ops": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~pondus-watbel/stray-thoughts": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~latter-bolden/welcome-2421": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~nocsyx-lassul": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718581252581,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~nibset-napwyn/commons": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bitpyx-dildus/interface": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~nibset-napwyn/bulletin-board-53": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/places-you-ll-go": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715807322505,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/joiner-2": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~dovpel-nimhes-noslux-lophul--navler-dotdeg-datfel-samzod": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717789313978,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~nocsyx-lassul/bongtable": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~pondus-watbel/digital-basics": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd78g.49cbo.qjuv7.di5k7": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "channel/diary/~dalwes-migdec/fall-updates": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd78h.iudrc.hd1pb.0864j": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd2fn.dacu6.kvnpr.chd1p": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd7ei.2gq96.t5sd9.vfjmp": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd7dg.c71e2.hte2h.te2ht": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~latter-bolden/welcome-5696": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715841839704,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~bitpyx-dildus/music-34": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/heap/~dabben-larbet/fanmail-3976": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/priv": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717789502887,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~bolbex-fogdys/watercooler-4926": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~dozped-mogtec": {
+          "unread": null,
+          "count": 0,
+          "recency": 1716424373255,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd78g.m398e.ao21h.4rknh": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd7sp.la7c1.0oidq.boqju": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "club/0v4.00000.qd7j4.dv0v7.di5k7.5c10o": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "group/~dabben-larbet/tlon": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718040576412,
+          "children": null,
+          "notify": false
+        },
+        "club/0v4.00000.qd78h.1ggsl.g4329.n9f3a": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~latter-bolden/welcome-8165": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/diary/~nibset-napwyn/getting-started": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~solfer-magfed": {
+          "unread": null,
+          "count": 0,
+          "recency": 1718633990409,
+          "children": null,
+          "notify": true
+        },
+        "ship/~fiprud-digrun-havsef-hallyr--nocdet-roppel-tolluc-litzod": {
+          "unread": null,
+          "count": 0,
+          "recency": 1716159722466,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~bolbex-fogdys/tlon-general": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "ship/~tirpec-fosdul-ragber-habpet--witnec-todtev-donbyt-binzod": {
+          "unread": null,
+          "count": 0,
+          "recency": 1717789330855,
+          "children": null,
+          "notify": true
+        },
+        "channel/chat/~nibset-napwyn/developers": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/test-channels": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~dabben-larbet/hosting-6173": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~latter-bolden/welcome-1327": {
+          "unread": null,
+          "count": 0,
+          "recency": 1715807322505,
+          "children": null,
+          "notify": false
+        },
+        "channel/chat/~latter-bolden/welcome-5883": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        },
+        "group/~latter-bolden/place-of-places": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": true
+    },
+    "channel/chat/~dabben-larbet/hosting-6173": {
+      "unread": null,
+      "count": 2,
+      "recency": 1718721370737,
+      "children": {
+        "thread/chat/~dabben-larbet/hosting-6173/170.141.184.506.849.484.384.724.105.881.700.007.936": {
+          "unread": {
+            "count": 2,
+            "id": "~batset-motred/170.141.184.506.856.667.955.957.072.982.785.916.928",
+            "time": "170141184506856667955957072982785916928",
+            "notify": false
+          },
+          "count": 2,
+          "recency": 1718717184967,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-1327": {
+      "unread": null,
+      "count": 0,
+      "recency": 1715807322505,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~latter-bolden/welcome-5883": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {},
+      "notify": false
+    },
+    "thread/chat/~nibset-napwyn/commons/170.141.184.506.855.695.400.579.864.375.513.317.376": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718656370357,
+      "children": {},
+      "notify": false
+    },
+    "channel/chat/~pondus-watbel/new-channel": {
+      "unread": null,
+      "count": 0,
+      "recency": 1718645680864,
+      "children": {},
+      "notify": false
+    },
+    "group/~latter-bolden/place-of-places": {
+      "unread": null,
+      "count": 0,
+      "recency": 946684800000,
+      "children": {
+        "channel/chat/~latter-bolden/welcome-8165": {
+          "unread": null,
+          "count": 0,
+          "recency": 946684800000,
+          "children": null,
+          "notify": false
+        }
+      },
+      "notify": false
+    }
+  },
+  "chat": {
+    "dms": [
+      "~sapdex-diflyx",
+      "~nocsyx-lassul",
+      "~roslet-tanner",
+      "~rilfun-lidlen",
+      "~bosser-hatber",
+      "~bitter-bitduc",
+      "~pondus-watbel",
+      "~solfer-magfed",
+      "~wannec-dozzod-marzod",
+      "~fabled-faster",
+      "~hoclun-rigsep",
+      "~finned-palmer",
+      "~palfun-foslup",
+      "~dyl",
+      "~dozped-mogtec"
+    ],
+    "clubs": {
+      "0v4.00000.qd7sp.la7c1.0oidq.boqju": {
+        "net": "done",
+        "hive": [],
+        "team": ["~pondus-watbel"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd7dg.c71e2.hte2h.te2ht": {
+        "net": "done",
+        "hive": [],
+        "team": ["~dozped-mogtec"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd4p2.it253.qs53q.s53qs": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd7ei.2gq96.t5sd9.vfjmp": {
+        "net": "done",
+        "hive": ["~zod"],
+        "team": ["~pondus-watbel"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd74r.0te7l.oa7lo.a7loa": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd78g.m398e.ao21h.4rknh": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd78h.1ggsl.g4329.n9f3a": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd78g.r50v7.di5k7.5c10o": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd75s.q6n4r.knhl7.tuer4": {
+        "net": "done",
+        "hive": ["~pondus-watbel"],
+        "team": ["~misfer-sicrex-mismep-hatnyd--ritmet-figpen-ponryd-samzod"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2": {
+        "net": "done",
+        "hive": [],
+        "team": [
+          "~sapdex-diflyx",
+          "~solfer-magfed",
+          "~finned-palmer",
+          "~latter-bolden"
+        ],
+        "meta": {
+          "image": "https://d2w9rnfcy7mm78.cloudfront.net/8497206/original_0187c6b192fc56f2209b56c52fd1d3fd.jpg?1598813823",
+          "title": "native dev",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "0v4.00000.qd78i.6hmpj.6cpj6.cpj6c": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd75d.vkj7d.i5k75.c10oi": {
+        "net": "done",
+        "hive": [],
+        "team": ["~latter-bolden"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd78g.49cbo.qjuv7.di5k7": {
+        "net": "done",
+        "hive": [],
+        "team": ["~pondus-watbel"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd819.b3ubo.qjuv7.di5k7": {
+        "net": "done",
+        "hive": [],
+        "team": [
+          "~roslet-tanner",
+          "~solfer-magfed",
+          "~malmur-halmex",
+          "~fabled-faster",
+          "~latter-bolden"
+        ],
+        "meta": {
+          "image": "#a8c9f3",
+          "title": "Tlon NY",
+          "cover": "",
+          "description": ""
+        }
+      },
+      "0v4.00000.qd7j4.dv0v7.di5k7.5c10o": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd78h.iudrc.hd1pb.0864j": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd78i.8vovn.prchd.1pb08": {
+        "net": "done",
+        "hive": [],
+        "team": ["~latter-bolden"],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      },
+      "0v4.00000.qd2fn.dacu6.kvnpr.chd1p": {
+        "net": "done",
+        "hive": [],
+        "team": [],
+        "meta": { "image": "", "title": "", "cover": "", "description": "" }
+      }
+    },
+    "invited": []
+  },
+  "pins": ["0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2"],
+  "gangs": {
+    "~latter-bolden/places-you-ll-go": {
+      "preview": {
+        "cordon": { "open": { "ships": [], "ranks": [] } },
+        "flag": "~latter-bolden/places-you-ll-go",
+        "time": 1715823630692,
+        "secret": false,
+        "meta": {
+          "image": "#999999",
+          "title": "Places You'll Go",
+          "cover": "#D9D9D9",
+          "description": ""
+        }
+      },
+      "invite": null,
+      "claim": null
+    }
+  },
+  "profile": false,
+  "channels": {
+    "chat/~latter-bolden/welcome-1528": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/priv", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "diary/~nocsyx-lassul/feedback-and-questions-2368": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/short-chats": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~dabben-larbet/interface-1720": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-2421": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/test-channels", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~pondus-watbel/new-blocks": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~bitpyx-dildus/music-34": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~nibset-napwyn/developers": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-4929": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/locked-down", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "diary/~pondus-watbel/books": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~nibset-napwyn/commons": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~nibset-napwyn/intros": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "diary/~bolbex-fogdys/bulletins": {
+      "order": [],
+      "posts": {},
+      "sort": "arranged",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "diary/~nibset-napwyn/getting-started": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": ["admin"] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~nibset-napwyn/bulletin-board-53": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~bitpyx-dildus/interface": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-5883": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/demo-test", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~pondus-watbel/stuffs": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~nocsyx-lassul/bongtable": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-1327": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/places-you-ll-go", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/new-channel": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~bolbex-fogdys/ops": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-570": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/pumpkins", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~dabben-larbet/hosting-6173": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-8300": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/demo-test-group", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-6251": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/joiner-2", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-5696": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/joiner-1", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/banter-79": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/image-test": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/stray-thoughts": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/digital-basics", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/ghost-town": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-8165": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/place-of-places", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~dabben-larbet/native-apps": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": ["admin"] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~bolbex-fogdys/watercooler-4926": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/welcome-4526": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": {
+        "group": "~pondus-watbel/atlanta-motor-speedway",
+        "writers": []
+      },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "diary/~dalwes-migdec/fall-updates": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": ["admin"] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/looooong-chats": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~pondus-watbel/testing-facility", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~dabben-larbet/fanmail-3976": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~bolbex-fogdys/marcom": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~nibset-napwyn/local-directory": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~nibset-napwyn/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~bolbex-fogdys/tlon-general": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~pondus-watbel/the-catalogue": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": {
+        "group": "~pondus-watbel/quality-assurance-center-of-consumer-excellence",
+        "writers": []
+      },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "heap/~bolbex-fogdys/design-1761": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~dabben-larbet/tlon", "writers": [] },
+      "view": "grid",
+      "pending": { "posts": {}, "replies": {} }
+    },
+    "chat/~latter-bolden/welcome-8186": {
+      "order": [],
+      "posts": {},
+      "sort": "time",
+      "perms": { "group": "~latter-bolden/woodshop", "writers": [] },
+      "view": "list",
+      "pending": { "posts": {}, "replies": {} }
+    }
+  },
+  "groups": {
+    "~latter-bolden/locked-down": {
+      "zone-ord": ["default"],
+      "cordon": { "shut": { "pending": [], "ask": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-4929"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-4929": {
+          "join": false,
+          "added": 1715881481195,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "#999999",
+        "title": "Locked Down",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~latter-bolden/test-channels": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-2421"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-2421": {
+          "join": false,
+          "added": 1717911123081,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "#999999",
+        "title": "Test Channels",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~latter-bolden/pumpkins": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-570"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-570": {
+          "join": false,
+          "added": 1718317268155,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "https://d2w9rnfcy7mm78.cloudfront.net/23698466/original_ca0216a2157abc91538802ffb2b7d75b.png?1695070672?bc=0",
+        "title": "Pumpkins",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~latter-bolden/woodshop": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-8186"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-8186": {
+          "join": false,
+          "added": 1715880831153,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0",
+        "title": "Woodworking",
+        "cover": "https://d2w9rnfcy7mm78.cloudfront.net/21743670/original_554922cca44c533119390d16b9ae40c7.jpg?1683596847?bc=0",
+        "description": ""
+      }
+    },
+    "~dabben-larbet/tlon": {
+      "zone-ord": ["default", "zguuoi", "z9ftpl", "z9857t", "ztttom"],
+      "cordon": {
+        "shut": {
+          "pending": [
+            "~nappyx-fitmus",
+            "~larnet-havsem",
+            "~bosser-hatber",
+            "~batset-motred",
+            "~wiczod-hacmes",
+            "~lospur-pagnys"
+          ],
+          "ask": []
+        }
+      },
+      "cabals": {
+        "tlon-alum": {
+          "meta": {
+            "image": "",
+            "title": "Tlon Alum",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "janitor": {
+          "meta": {
+            "image": "",
+            "title": "Janitor",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": { "~latter-bolden": { "joined": 1715104083078, "sects": [] } },
+      "zones": {
+        "z9ftpl": {
+          "idx": [
+            "chat/~bitpyx-dildus/interface",
+            "chat/~bolbex-fogdys/marcom",
+            "chat/~dabben-larbet/hosting-6173"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Team",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "zguuoi": {
+          "idx": [
+            "diary/~bolbex-fogdys/bulletins",
+            "chat/~bolbex-fogdys/tlon-general",
+            "chat/~bolbex-fogdys/watercooler-4926",
+            "chat/~nocsyx-lassul/bongtable",
+            "chat/~bolbex-fogdys/ops"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Company",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "ztttom": {
+          "idx": [
+            "chat/~dabben-larbet/native-apps",
+            "chat/~bolbex-fogdys/growth",
+            "diary/~bolbex-fogdys/digests",
+            "diary/~bolbex-fogdys/design-digests",
+            "diary/~bitpyx-dildus/infrastructure-digests",
+            "chat/~bolbex-fogdys/infrastructure",
+            "chat/~bolbex-fogdys/design",
+            "chat/~bitpyx-dildus/content-distribution-3618",
+            "diary/~roslet-tanner/homestead-digests-6268"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Archive [Read Only]",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "z9857t": {
+          "idx": [
+            "heap/~dabben-larbet/fanmail-3976",
+            "heap/~bolbex-fogdys/design-1761",
+            "heap/~bitpyx-dildus/music-34",
+            "heap/~dabben-larbet/interface-1720"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Galleries",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "default": {
+          "idx": [],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {
+        "chat/~bolbex-fogdys/ops": {
+          "170141184506682001534977571980713132032": {
+            "flaggers": [],
+            "replies": {
+              "170141184506682004053431297477917540352": ["~finmep-lanteb"]
+            },
+            "flagged": false
+          }
+        },
+        "chat/~dabben-larbet/native-apps": {
+          "170141184506404431672618457020472754176": {
+            "flaggers": ["~nocsyx-lassul"],
+            "replies": {},
+            "flagged": true
+          }
+        }
+      },
+      "channels": {
+        "heap/~dabben-larbet/interface-1720": {
+          "join": true,
+          "added": 1601334372084,
+          "readers": [],
+          "zone": "z9857t",
+          "meta": {
+            "image": "",
+            "title": "Interface",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "heap/~bitpyx-dildus/music-34": {
+          "join": true,
+          "added": 1601334916825,
+          "readers": [],
+          "zone": "z9857t",
+          "meta": {
+            "image": "",
+            "title": "Music",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "diary/~bolbex-fogdys/bulletins": {
+          "join": false,
+          "added": 1692212510149,
+          "readers": [],
+          "zone": "zguuoi",
+          "meta": {
+            "image": "",
+            "title": "Bulletins",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~bitpyx-dildus/interface": {
+          "join": true,
+          "added": 1586198728144,
+          "readers": [],
+          "zone": "z9ftpl",
+          "meta": {
+            "image": "",
+            "title": "Homestead",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~nocsyx-lassul/bongtable": {
+          "join": false,
+          "added": 1705625067532,
+          "readers": [],
+          "zone": "zguuoi",
+          "meta": {
+            "image": "",
+            "title": "Bongtable",
+            "cover": "",
+            "description": "For riffing on harebrained ideas without being shut down"
+          }
+        },
+        "diary/~bitpyx-dildus/infrastructure-digests": {
+          "join": true,
+          "added": 1585277821656,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Infrastructure Digests",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "diary/~roslet-tanner/homestead-digests-6268": {
+          "join": true,
+          "added": 1652975305250,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Homestead Digests",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/ops": {
+          "join": true,
+          "added": 1586198999565,
+          "readers": [],
+          "zone": "zguuoi",
+          "meta": {
+            "image": "",
+            "title": "Support",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~dabben-larbet/hosting-6173": {
+          "join": true,
+          "added": 1660758015103,
+          "readers": [],
+          "zone": "z9ftpl",
+          "meta": {
+            "image": "",
+            "title": "Hosting",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bitpyx-dildus/content-distribution-3618": {
+          "join": true,
+          "added": 1641932082298,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Kernel",
+            "cover": "#000000",
+            "description": "Kernel Team Discussion"
+          }
+        },
+        "chat/~dabben-larbet/native-apps": {
+          "join": false,
+          "added": 1678756376225,
+          "readers": [],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Native Apps",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "diary/~bolbex-fogdys/design-digests": {
+          "join": true,
+          "added": 1674247227000,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Design Digests",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/watercooler-4926": {
+          "join": true,
+          "added": 1592416221967,
+          "readers": [],
+          "zone": "zguuoi",
+          "meta": {
+            "image": "",
+            "title": "Watercooler",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/design": {
+          "join": true,
+          "added": 1586198948022,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Design",
+            "cover": "#000000",
+            "description": "Design Requests: https://airtable.com/shrY4HPPnZrSHu5Vm"
+          }
+        },
+        "diary/~bolbex-fogdys/digests": {
+          "join": true,
+          "added": 1675303612044,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "1024 Digests",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "heap/~dabben-larbet/fanmail-3976": {
+          "join": true,
+          "added": 1614665556842,
+          "readers": [],
+          "zone": "z9857t",
+          "meta": {
+            "image": "",
+            "title": "Fanmail",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/marcom": {
+          "join": true,
+          "added": 1586198964953,
+          "readers": [],
+          "zone": "z9ftpl",
+          "meta": {
+            "image": "",
+            "title": "Comms",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/tlon-general": {
+          "join": true,
+          "added": 1586198905586,
+          "readers": [],
+          "zone": "zguuoi",
+          "meta": {
+            "image": "",
+            "title": "Bulletin Board",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/growth": {
+          "join": true,
+          "added": 1674520265172,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Growth",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "heap/~bolbex-fogdys/design-1761": {
+          "join": true,
+          "added": 1641497686118,
+          "readers": [],
+          "zone": "z9857t",
+          "meta": {
+            "image": "",
+            "title": "Design",
+            "cover": "#000000",
+            "description": ""
+          }
+        },
+        "chat/~bolbex-fogdys/infrastructure": {
+          "join": true,
+          "added": 1586198938568,
+          "readers": ["admin"],
+          "zone": "ztttom",
+          "meta": {
+            "image": "",
+            "title": "Runtime",
+            "cover": "#000000",
+            "description": ""
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": true,
+      "saga": { "synced": null },
+      "meta": {
+        "image": "https://storage.googleapis.com/assets.tlon.io/tlon-co-group-icon.svg",
+        "title": "Tlon",
+        "cover": "#ededed",
+        "description": "We build infrastructure that is technically excellent,  architecturally sound, and aesthetically beautiful"
+      }
+    },
+    "~latter-bolden/priv": {
+      "zone-ord": ["default"],
+      "cordon": {
+        "shut": {
+          "pending": [
+            "~lasnux-havrex-tidfes-modred--livnev-savlet-nopsyp-binzod"
+          ],
+          "ask": []
+        }
+      },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-1528"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-1528": {
+          "join": false,
+          "added": 1716513791557,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "https://d2w9rnfcy7mm78.cloudfront.net/22747425/original_0b03b4c106a0e9b6fcf8ad55c4d10a28.jpg?1689888572?bc=0",
+        "title": "priv",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~latter-bolden/demo-test": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-5883"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-5883": {
+          "join": false,
+          "added": 1717184754062,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "#999999",
+        "title": "Demo Test",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~latter-bolden/place-of-places": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-8165"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-8165": {
+          "join": false,
+          "added": 1716440122903,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "#999999",
+        "title": "Place of Places",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~pondus-watbel/testing-facility": {
+      "zone-ord": ["zljifp", "default"],
+      "cordon": {
+        "shut": {
+          "pending": [
+            "~savrus-hocdyt-miswyd-tagfur--firfes-botpel-danpem-marzod",
+            "~rapwep-rilsul-wicser-fidtyr--larmel-lavsep-sarlec-samzod",
+            "~dozped-mogtec"
+          ],
+          "ask": []
+        }
+      },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        },
+        "lover": {
+          "meta": {
+            "image": "",
+            "title": "lover",
+            "cover": "",
+            "description": "yes."
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 1718645680302, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": [
+            "chat/~pondus-watbel/ghost-town",
+            "chat/~pondus-watbel/image-test",
+            "chat/~pondus-watbel/new-channel",
+            "chat/~latter-bolden/banter-79",
+            "heap/~pondus-watbel/new-blocks",
+            "heap/~pondus-watbel/stuffs",
+            "diary/~pondus-watbel/books",
+            "chat/~pondus-watbel/looooong-chats",
+            "chat/~pondus-watbel/short-chats"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "zljifp": {
+          "idx": [],
+          "meta": {
+            "image": "",
+            "title": "New Section",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {
+        "chat/~latter-bolden/banter-79": {
+          "170141184506613146589971254600657797120": {
+            "flaggers": ["~pondus-watbel"],
+            "replies": {},
+            "flagged": true
+          }
+        }
+      },
+      "channels": {
+        "chat/~pondus-watbel/short-chats": {
+          "join": false,
+          "added": 1689105085067,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Short Chats",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "heap/~pondus-watbel/new-blocks": {
+          "join": false,
+          "added": 1699289784643,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "New Blocks",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "diary/~pondus-watbel/books": {
+          "join": false,
+          "added": 1689185494954,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "books",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "heap/~pondus-watbel/stuffs": {
+          "join": false,
+          "added": 1689863923931,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "stuffs",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~pondus-watbel/new-channel": {
+          "join": false,
+          "added": 1706143407187,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "new chan",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~latter-bolden/banter-79": {
+          "join": false,
+          "added": 1701957290549,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "banter",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~pondus-watbel/image-test": {
+          "join": false,
+          "added": 1713202395709,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "image test",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~pondus-watbel/ghost-town": {
+          "join": false,
+          "added": 1714760180402,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "ghost town",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~pondus-watbel/looooong-chats": {
+          "join": false,
+          "added": 1689109219155,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Looooong Chats",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": true,
+      "saga": { "synced": null },
+      "meta": {
+        "image": "#ffee12",
+        "title": "Testing Facility",
+        "cover": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Wikidata_logo_under_construction_sign_square.svg/1024px-Wikidata_logo_under_construction_sign_square.svg.png",
+        "description": ""
+      }
+    },
+    "~pondus-watbel/digital-basics": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": { "~latter-bolden": { "joined": 1715205955432, "sects": [] } },
+      "zones": {
+        "default": {
+          "idx": ["chat/~pondus-watbel/stray-thoughts"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~pondus-watbel/stray-thoughts": {
+          "join": false,
+          "added": 1715205977687,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "stray thoughts",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": { "synced": null },
+      "meta": {
+        "image": "https://d2w9rnfcy7mm78.cloudfront.net/24239506/original_e204d534b498c08e7b33ef0e79f35ad6.png?1697681734?bc=0",
+        "title": "Digital Basics",
+        "cover": "https://d2w9rnfcy7mm78.cloudfront.net/20076114/original_9faa2e6578b93e45adfc7b0e23c17840.jpg?1674854425?bc=0",
+        "description": "The most normal group where nothing is exotic. It has a header, and a description that isn't too long. Not austere, not maximalist. Simply...plain.\n\nIs this really approximately average? Who knows, but it's what we have to work with."
+      }
+    },
+    "~nibset-napwyn/tlon": {
+      "zone-ord": ["zkqiq4", "zbgfe9", "zks3gi", "default"],
+      "cordon": { "open": { "ships": ["~forfel-norfel"], "ranks": [] } },
+      "cabals": {
+        "import/~nibset-napwyn/tlon-bookshelf-5581": {
+          "meta": {
+            "image": "",
+            "title": "Writers: ~2022 Tlon Bookshelf",
+            "cover": "",
+            "description": "The writers role for the ~2022 Tlon Bookshelf channel"
+          }
+        },
+        "tech-support": {
+          "meta": {
+            "image": "",
+            "title": "Tech Support",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "import/~nibset-napwyn/summer-refs-9798": {
+          "meta": {
+            "image": "",
+            "title": "Writers: ~2022 Summer Refs",
+            "cover": "",
+            "description": "The writers role for the ~2022 Summer Refs channel"
+          }
+        },
+        "tlon": {
+          "meta": {
+            "image": "",
+            "title": "Tlon",
+            "cover": "",
+            "description": "Tlon employees"
+          }
+        },
+        "import/~nibset-napwyn/summer-updates-9584": {
+          "meta": {
+            "image": "",
+            "title": "Writers: ~2022 Summer Updates",
+            "cover": "",
+            "description": "The writers role for the ~2022 Summer Updates channel"
+          }
+        },
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        },
+        "import/~nibset-napwyn/summer-media-3692": {
+          "meta": {
+            "image": "",
+            "title": "Writers: ~2022 Summer Media",
+            "cover": "",
+            "description": "The writers role for the ~2022 Summer Media channel"
+          }
+        },
+        "placard-": {
+          "meta": {
+            "image": "",
+            "title": "🪧",
+            "cover": "",
+            "description": "shared a group in the community catalog"
+          }
+        },
+        "coffee-": {
+          "meta": {
+            "image": "",
+            "title": "☕️",
+            "cover": "",
+            "description": "internet cafe regulars"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": {
+          "joined": 1715112756392,
+          "sects": ["tech-support", "tlon"]
+        }
+      },
+      "zones": {
+        "zks3gi": {
+          "idx": [
+            "heap/~nibset-napwyn/bulletin-board-53",
+            "heap/~nibset-napwyn/local-directory"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Catalog",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "zkqiq4": {
+          "idx": [
+            "diary/~nibset-napwyn/getting-started",
+            "chat/~nibset-napwyn/intros"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "zbgfe9": {
+          "idx": [
+            "chat/~nibset-napwyn/commons",
+            "chat/~nibset-napwyn/developers"
+          ],
+          "meta": {
+            "image": "",
+            "title": "Discuss",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "default": {
+          "idx": [],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {
+        "chat/~nibset-napwyn/commons": {
+          "170141184506736054360111748375562420224": {
+            "flaggers": ["~palfun-foslup"],
+            "replies": {},
+            "flagged": true
+          },
+          "170141184506639145268131884024161370112": {
+            "flaggers": ["~natnex-ronret"],
+            "replies": {},
+            "flagged": true
+          },
+          "170141184506635900592614747505220911104": {
+            "flaggers": ["~forfel-norfel"],
+            "replies": {},
+            "flagged": true
+          },
+          "170141184506639102248277255152893689856": {
+            "flaggers": ["~tiller-tolbus", "~mopfel-winrux"],
+            "replies": {},
+            "flagged": true
+          }
+        },
+        "chat/~nibset-napwyn/intros": {
+          "170141184506766288456647010336412532736": {
+            "flaggers": ["~nocsyx-lassul"],
+            "replies": {},
+            "flagged": true
+          }
+        }
+      },
+      "channels": {
+        "diary/~nocsyx-lassul/feedback-and-questions-2368": {
+          "join": true,
+          "added": 1664671731628,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Feedback and Questions ",
+            "cover": "#000000",
+            "description": "This notebook is a place to give feedback about our current alpha of Landscape and to ask questions outside of office hours"
+          }
+        },
+        "chat/~nibset-napwyn/developers": {
+          "join": false,
+          "added": 1679694686721,
+          "readers": [],
+          "zone": "zbgfe9",
+          "meta": {
+            "image": "",
+            "title": "Support",
+            "cover": "",
+            "description": "Question? Technical difficulties? Ask away or email us at support@tlon.io for help."
+          }
+        },
+        "chat/~nibset-napwyn/commons": {
+          "join": true,
+          "added": 1676490034812,
+          "readers": [],
+          "zone": "zbgfe9",
+          "meta": {
+            "image": "",
+            "title": "Internet Cafe",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "chat/~nibset-napwyn/intros": {
+          "join": false,
+          "added": 1686681546849,
+          "readers": [],
+          "zone": "zkqiq4",
+          "meta": {
+            "image": "",
+            "title": "Intros",
+            "cover": "",
+            "description": "Introduce yourself. Tell us 1) who you are 2) where you are 3) how you got here and 4) what the future looks like."
+          }
+        },
+        "diary/~nibset-napwyn/getting-started": {
+          "join": true,
+          "added": 1680030356778,
+          "readers": [],
+          "zone": "zkqiq4",
+          "meta": {
+            "image": "",
+            "title": "Getting Started",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "heap/~nibset-napwyn/bulletin-board-53": {
+          "join": false,
+          "added": 1681835507711,
+          "readers": [],
+          "zone": "zks3gi",
+          "meta": {
+            "image": "",
+            "title": "Bulletin Board",
+            "cover": "",
+            "description": ""
+          }
+        },
+        "diary/~dalwes-migdec/fall-updates": {
+          "join": false,
+          "added": 1667415820156,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "https://ipfs.io/ipfs/QmZbUnGxk7JPndNMQNNbremEBpbNnMKCfuUnWEiDZNpfrL",
+            "title": "Migration Logistics",
+            "cover": "#000000",
+            "description": "Bulletins from the team, for the community."
+          }
+        },
+        "heap/~nibset-napwyn/local-directory": {
+          "join": false,
+          "added": 1687821293264,
+          "readers": [],
+          "zone": "zks3gi",
+          "meta": {
+            "image": "",
+            "title": "Community Catalog",
+            "cover": "",
+            "description": "Share your group here. Post the group link and then comment with 1. Group Name 2. Theme 3. Description 4. Instructions for new members."
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": { "synced": null },
+      "meta": {
+        "image": "https://tlon.io/local-icon.svg",
+        "title": "Tlon Local",
+        "cover": "https://tlon.io/local-bg.jpg",
+        "description": "We’re off building the internet of tomorrow. And we’re not doing it alone. \n\nJoin us in Tlon Local, where the future is always under construction."
+      }
+    },
+    "~latter-bolden/joiner-2": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": {
+        "~latter-bolden": { "joined": 946684800000, "sects": ["admin"] }
+      },
+      "zones": {
+        "default": {
+          "idx": ["chat/~latter-bolden/welcome-6251"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~latter-bolden/welcome-6251": {
+          "join": false,
+          "added": 1715840512077,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": null,
+      "meta": {
+        "image": "https://d2w9rnfcy7mm78.cloudfront.net/26343985/original_f527d1a55989b940d78025c877ac658e.gif?1707914004?bc=0",
+        "title": "Joiner 2",
+        "cover": "https://d2w9rnfcy7mm78.cloudfront.net/7171902/original_7b0894138a10e2d28416df781fe0ef52.jpg?1588769183?bc=0",
+        "description": ""
+      }
+    },
+    "~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": { "~latter-bolden": { "joined": 1716493303503, "sects": [] } },
+      "zones": {
+        "default": {
+          "idx": ["chat/~pondus-watbel/the-catalogue"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~pondus-watbel/the-catalogue": {
+          "join": false,
+          "added": 1697680267113,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "the catalogue",
+            "cover": "",
+            "description": "groups of all shapes and sizes"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": { "synced": null },
+      "meta": {
+        "image": "#999999",
+        "title": "quality assurance center of consumer excellence",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    },
+    "~pondus-watbel/atlanta-motor-speedway": {
+      "zone-ord": ["default"],
+      "cordon": { "open": { "ships": [], "ranks": [] } },
+      "cabals": {
+        "admin": {
+          "meta": {
+            "image": "",
+            "title": "Admin",
+            "cover": "",
+            "description": "Admins can add and remove channels and edit metadata"
+          }
+        }
+      },
+      "fleet": { "~latter-bolden": { "joined": 1716552016856, "sects": [] } },
+      "zones": {
+        "default": {
+          "idx": ["chat/~pondus-watbel/welcome-4526"],
+          "meta": {
+            "image": "",
+            "title": "Sectionless",
+            "cover": "",
+            "description": ""
+          }
+        }
+      },
+      "flagged-content": {},
+      "channels": {
+        "chat/~pondus-watbel/welcome-4526": {
+          "join": false,
+          "added": 1716346985156,
+          "readers": [],
+          "zone": "default",
+          "meta": {
+            "image": "",
+            "title": "Welcome",
+            "cover": "",
+            "description": "Welcome to your new group!"
+          }
+        }
+      },
+      "bloc": ["admin"],
+      "secret": false,
+      "saga": { "synced": null },
+      "meta": {
+        "image": "#999999",
+        "title": "Aᴛʟᴀɴᴛᴀ Mᴏᴛᴏʀ Sᴘᴇᴇᴅᴡᴀʏ",
+        "cover": "#D9D9D9",
+        "description": ""
+      }
+    }
+  }
+}
