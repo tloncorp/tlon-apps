@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { PropsWithChildren } from 'react';
-import { Dimensions, ImageBackground } from 'react-native';
+import { Alert, Dimensions, ImageBackground } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, XStack, getTokens } from 'tamagui';
 
@@ -14,6 +14,7 @@ import { ListItem } from './ListItem';
 interface Props {
   currentUserId: string;
   onAppSettingsPressed?: () => void;
+  handleLogout: () => void;
 }
 
 export function ProfileScreenView({
@@ -30,6 +31,20 @@ export function ProfileScreenView({
 export function Wrapped(props: Props) {
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
+
+  // TODO: Add logout back in when we figure out TLON-2098.
+  // const onLogoutPress = () => {
+  // Alert.alert('Log out', 'Are you sure you want to log out?', [
+  // {
+  // text: 'Cancel',
+  // style: 'cancel',
+  // },
+  // {
+  // text: 'Log out',
+  // onPress: props.handleLogout,
+  // },
+  // ]);
+  // };
 
   return (
     <ScrollView>
@@ -52,6 +67,14 @@ export function Wrapped(props: Props) {
             icon="Settings"
             onPress={props.onAppSettingsPressed}
           />
+          {/*
+          <ProfileAction
+            title="Log Out"
+            icon="LogOut"
+            hideCaret
+            onPress={onLogoutPress}
+          />
+          */}
         </View>
       </YStack>
     </ScrollView>
@@ -138,10 +161,12 @@ function ProfileRow({
 function ProfileAction({
   icon,
   title,
+  hideCaret,
   onPress,
 }: {
   icon: IconType;
   title: string;
+  hideCaret?: boolean;
   onPress?: () => void;
 }) {
   return (
@@ -154,7 +179,7 @@ function ProfileAction({
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
       </ListItem.MainContent>
-      <ListItem.Icon icon="ChevronRight" />
+      {!hideCaret && <ListItem.Icon icon="ChevronRight" />}
     </ListItem>
   );
 }
