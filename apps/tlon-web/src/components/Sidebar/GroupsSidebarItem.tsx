@@ -73,4 +73,6 @@ const GroupsSidebarItem = React.memo(
   }
 );
 
+GroupsSidebarItem.displayName = 'GroupsSidebarItem';
+
 export default GroupsSidebarItem;
