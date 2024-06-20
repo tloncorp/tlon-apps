@@ -15,6 +15,8 @@ import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 import { addToChannelPosts } from './useChannelPosts';
 
+const logger = createDevLogger('sync', false);
+
 // Used to track latest post we've seen for each channel.
 // Updated when:
 // - We load channel heads
@@ -30,11 +32,15 @@ export function updateChannelCursor(channelId: string, cursor: string) {
   }
 }
 
-const logger = createDevLogger('sync', false);
+// Used to keep track of which groups/channels we're a part of. If we
+// see something new, we refetch init data. Fallback in case we miss
+// something over %channels or %groups
+const joinedGroupsAndChannels = new Set<string>();
 
 export const syncInitData = async (reporter?: ErrorReporter) => {
   const initData = await syncQueue.add('init', () => api.getInitData());
   reporter?.log('got init data from api');
+  initializeJoinedSet(initData.unreads);
   return batchEffects('init sync', async (ctx) => {
     return await Promise.all([
       db
@@ -58,6 +64,47 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
     ]);
   });
 };
+
+function initializeJoinedSet({
+  channelUnreads,
+  groupUnreads,
+}: {
+  channelUnreads: db.ChannelUnread[];
+  groupUnreads: db.GroupUnread[];
+}) {
+  channelUnreads.forEach((u) => joinedGroupsAndChannels.add(u.channelId));
+  groupUnreads.forEach((u) => joinedGroupsAndChannels.add(u.groupId));
+}
+
+const debouncedSyncInit = _.debounce(syncInitData, 3000, {
+  leading: true,
+  trailing: true,
+});
+
+function checkForNewlyJoined({
+  channelUnreads,
+  groupUnreads,
+}: {
+  channelUnreads: db.ChannelUnread[];
+  groupUnreads: db.GroupUnread[];
+}) {
+  const unreadItems = [
+    ...channelUnreads.map((u) => u.channelId),
+    ...groupUnreads.map((u) => u.groupId),
+  ];
+  let atLeastOneNew = false;
+  for (const item of unreadItems) {
+    if (!joinedGroupsAndChannels.has(item)) {
+      joinedGroupsAndChannels.add(item);
+      atLeastOneNew = true;
+    }
+  }
+
+  if (atLeastOneNew) {
+    logger.log('found newly joined channel or group, resyncing init data');
+    debouncedSyncInit();
+  }
+}
 
 export const syncLatestPosts = async (reporter?: ErrorReporter) => {
   const result = await syncQueue.add('latest-posts', async () =>
@@ -120,6 +167,7 @@ export const syncDms = async () => {
 
 export const syncUnreads = async () => {
   const unreads = await syncQueue.add('unreads', () => api.getUnreads());
+  checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
 
@@ -380,6 +428,12 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
         });
       }
+
+      // check for any newly joined groups and channels
+      checkForNewlyJoined({
+        groupUnreads: activitySnapshot.groupUnreads,
+        channelUnreads: activitySnapshot.channelUnreads,
+      });
     },
     queueDebounce,
     { leading: true, trailing: true }
