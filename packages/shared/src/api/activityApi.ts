@@ -8,7 +8,7 @@ import * as ub from '../urbit';
 import { formatUd, getCanonicalPostId, udToDate } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
-const logger = createDevLogger('activityApi', true);
+const logger = createDevLogger('activityApi', false);
 
 export async function getUnreads() {
   const activity = await scry<ub.Activity>({
@@ -488,7 +488,7 @@ export function getMessageKey(
   };
 }
 
-/* 
+/*
   The following helpers are used to produce "sources" which is what %activity uses to refer
   to particular activity-emitting contexts (groups, channels, threads). They nest under eachother, so
   a thread will have a parent channel source, which in turn will have a parent group source
