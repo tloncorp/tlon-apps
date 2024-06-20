@@ -233,9 +233,6 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
-      react-error-boundary:
-        specifier: ^3.1.4
-        version: 3.1.4(react@18.2.0)
       react-hook-form:
         specifier: ^7.50.1
         version: 7.50.1(react@18.2.0)

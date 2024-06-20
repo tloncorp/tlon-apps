@@ -2,15 +2,10 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useIsFocused } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import {
-  ActivityScreenView,
-  ContactsProvider,
-  SizableText,
-  View,
-} from '@tloncorp/ui';
+import { ActivityScreenView, ContactsProvider, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
 
+import ErrorBoundary from '../ErrorBoundary';
 import NavBarView from '../navigation/NavBarView';
 import { TabParamList } from '../types';
 
@@ -56,7 +51,7 @@ export function ActivityScreen(props: Props) {
   return (
     <ContactsProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
-        <ErrorBoundary fallback={<ErrorFallback />}>
+        <ErrorBoundary message="Try navigating away and coming back">
           <ActivityScreenView
             bucketFetchers={bucketedActivity}
             isFocused={isFocused}
@@ -68,18 +63,5 @@ export function ActivityScreen(props: Props) {
         <NavBarView navigation={props.navigation} />
       </View>
     </ContactsProvider>
-  );
-}
-
-function ErrorFallback() {
-  return (
-    <View flex={1} justifyContent="center" alignItems="center">
-      <SizableText fontSize="$l" color="$negativeActionText">
-        Something went wrong
-      </SizableText>
-      <SizableText color="$secondaryText">
-        Try navigating away and coming back
-      </SizableText>
-    </View>
   );
 }
