@@ -102,7 +102,6 @@ function sumChildren(
         child?.combined.notify || Boolean(summary.unread?.notify);
       const childStatus = child?.combined.status;
 
-      debugger;
       // if we don't care about summing counts then we can skip aggregating
       // but if any child is notify then we need to take into account it's
       // status and notify values
