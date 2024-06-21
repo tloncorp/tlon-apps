@@ -15,7 +15,7 @@ import {
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
-import { createDevLogger, tiptap } from '@tloncorp/shared/dist';
+import { tiptap } from '@tloncorp/shared/dist';
 import { PostContent, toContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
@@ -39,13 +39,16 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { getToken, useWindowDimensions } from 'tamagui';
+import {
+  getToken,
+  getTokenValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
 import { useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
-
-const messageInputLogger = createDevLogger('MessageInput', false);
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -135,7 +138,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }));
 
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-    const [editorIsReady, setEditorIsReady] = useState(false);
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
@@ -174,14 +176,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     });
     const editorState = useBridgeState(editor);
     const webviewRef = editor.webviewRef;
-
-    const reloadWebview = useCallback(
-      (reason: string) => {
-        webviewRef.current?.reload();
-        messageInputLogger.log('[webview] Reloading webview, reason:', reason);
-      },
-      [webviewRef]
-    );
 
     useEffect(() => {
       if (editor) {
@@ -223,7 +217,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }
           });
         } catch (e) {
-          messageInputLogger.error('Error getting draft', e);
+          console.error('Error getting draft', e);
         }
       }
     }, [
@@ -574,9 +568,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               setupMutationObserver();
           `
           );
-
-          setEditorIsReady(true);
-          return;
         }
 
         if (type === 'contentHeight') {
@@ -592,32 +583,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         editor.bridgeExtensions?.forEach((e) => {
           e.onEditorMessage && e.onEditorMessage({ type, payload }, editor);
-          return;
-        });
-
-        if (type === 'content-error') {
-          messageInputLogger.log('[webview] Content error', payload);
-          reloadWebview(`Content error: ${payload}`);
-          return;
-        }
-
-        if (type === 'send-json-back') {
-          return;
-        }
-
-        messageInputLogger.log('[webview] Unknown message from editor', {
-          type,
-          payload,
         });
       },
-      [
-        editor,
-        handleAddNewLine,
-        handlePaste,
-        setHeight,
-        webviewRef,
-        reloadWebview,
-      ]
+      [editor, handleAddNewLine, handlePaste, setHeight, webviewRef]
     );
 
     const tentapInjectedJs = useMemo(
@@ -638,21 +606,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         });
       }
     }, [bigInput, bigInputHeightBasic]);
-
-    // we need to check if the app within the webview actually loaded
-    useEffect(() => {
-      if (!editorState.isReady && !editorIsReady) {
-        // if it hasn't loaded yet, we need to try loading the content again
-        reloadWebview(`Editor not ready`);
-      }
-    }, [
-      editorState.isReady,
-      reloadWebview,
-      webviewRef,
-      editor,
-      editorIsReady,
-      editorState,
-    ]);
 
     const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
 
@@ -691,49 +644,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }}
             editor={editor}
             onMessage={handleMessage}
-            onError={(e) => {
-              messageInputLogger.warn(
-                '[webview] Error from webview',
-                e.nativeEvent
-              );
-              reloadWebview('Error from webview');
-            }}
-            onRenderProcessGone={(e) => {
-              // https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md#onrenderprocessgone
-              messageInputLogger.warn(
-                '[webview] Render process gone',
-                e.nativeEvent.didCrash
-              );
-              reloadWebview(`Render process gone: ${e.nativeEvent.didCrash}`);
-            }}
-            onContentProcessDidTerminate={(e) => {
-              // iOS will kill webview in background
-              // https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md#oncontentprocessdidterminate
-              messageInputLogger.warn(
-                '[webview] Content process terminated',
-                e
-              );
-              reloadWebview('Content process terminated');
-            }}
-            // we never want to see a loading indicator
-            renderLoading={() => <></>}
             injectedJavaScript={`
               ${tentapInjectedJs}
-
-              window.onerror = function(message, source, lineno, colno, error) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content-error', payload: message }));
-                return true;
-              }
-
-              window.addEventListener('error', function(e) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content-error', payload: e.message }));
-                return true;
-              });
-
-              window.addEventListener('unhandledrejection', function(e) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'content-error', payload: e.message }));
-                return true;
-              });
 
               window.addEventListener('keydown', (e) => {
 

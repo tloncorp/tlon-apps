@@ -11,20 +11,3 @@ index b878f5382cd64a62a6c4a66b52b6a32a9e2cf96a..c95d3513806d85560115d35d12ecf084
  
  export const RichText = ({ editor, ...props }: RichTextProps) => {
    const [loaded, setLoaded] = useState(isFabric());
-diff --git a/src/webEditorUtils/useTenTap.tsx b/src/webEditorUtils/useTenTap.tsx
-index fc6ee31cb727467aedfc97e4f08d2944e76d0f56..ef1bda589cf1475ce939981e8a6f1997e985916d 100644
---- a/src/webEditorUtils/useTenTap.tsx
-+++ b/src/webEditorUtils/useTenTap.tsx
-@@ -87,6 +87,12 @@ export const useTenTap = (options?: useTenTapArgs) => {
-         payload: undefined,
-       });
-     },
-+    onContentError: (contentError) => {
-+      sendMessage({
-+        type: 'content-error',
-+        payload: contentError,
-+      });
-+    },
-     onSelectionUpdate: (onUpdate) => sendStateUpdate(onUpdate.editor),
-     onTransaction: (onUpdate) => sendStateUpdate(onUpdate.editor),
-     ...tiptapOptionsWithExtensions,
