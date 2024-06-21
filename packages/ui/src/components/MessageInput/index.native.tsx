@@ -135,7 +135,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }));
 
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-    const [editorIsReady, setEditorIsReady] = useState(false);
+    const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
@@ -179,6 +179,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       (reason: string) => {
         webviewRef.current?.reload();
         messageInputLogger.log('[webview] Reloading webview, reason:', reason);
+        setEditorCrashed(undefined);
       },
       [webviewRef]
     );
@@ -575,7 +576,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           `
           );
 
-          setEditorIsReady(true);
           return;
         }
 
@@ -597,7 +597,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         if (type === 'content-error') {
           messageInputLogger.log('[webview] Content error', payload);
-          reloadWebview(`Content error: ${payload}`);
+          if (!editorCrashed) {
+            setEditorCrashed(payload);
+          }
           return;
         }
 
@@ -616,7 +618,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         handlePaste,
         setHeight,
         webviewRef,
-        reloadWebview,
+        editorCrashed,
+        setEditorCrashed,
       ]
     );
 
@@ -641,18 +644,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     // we need to check if the app within the webview actually loaded
     useEffect(() => {
-      if (!editorState.isReady && !editorIsReady) {
+      if (editorCrashed) {
         // if it hasn't loaded yet, we need to try loading the content again
-        reloadWebview(`Editor not ready`);
+        reloadWebview(`Editor crashed: ${editorCrashed}`);
       }
-    }, [
-      editorState.isReady,
-      reloadWebview,
-      webviewRef,
-      editor,
-      editorIsReady,
-      editorState,
-    ]);
+    }, [reloadWebview, editorCrashed]);
 
     const titleIsEmpty = useMemo(() => !title || title.length === 0, [title]);
 
