@@ -772,6 +772,7 @@ export const syncStart = async () => {
       syncContacts().then(() => reporter.log(`finished syncing contacts`)),
       resetActivity().then(() => reporter.log(`finished resetting activity`)),
     ]);
+    await syncLatestPosts();
 
     await setupSubscriptions();
     reporter.log(`subscriptions setup`);

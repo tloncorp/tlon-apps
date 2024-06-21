@@ -60,8 +60,6 @@ export default function ChatListScreen(
   useFocusEffect(
     useCallback(() => {
       store.syncUnreads();
-      store.syncLatestPosts();
-      store.syncStaleChannels();
       return () => store.clearSyncQueue();
     }, [])
   );
