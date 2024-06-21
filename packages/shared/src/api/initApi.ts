@@ -18,6 +18,8 @@ export interface InitData {
   activity: ActivityInit;
   channels: db.Channel[];
   channelPerms: ChannelInit[];
+  joinedGroups: string[];
+  joinedChannels: string[];
 }
 
 export const getInitData = async () => {
@@ -36,6 +38,9 @@ export const getInitData = async () => {
   const invitedDms = toClientDms(response.chat.invited, true);
   const unreads = toClientUnreads(response.activity ?? {});
 
+  const joinedGroups = groups.map((group) => group.id);
+  const joinedChannels = channelsInit.map((channel) => channel.channelId);
+
   return {
     pins,
     groups,
@@ -43,5 +48,7 @@ export const getInitData = async () => {
     unreads,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
+    joinedGroups,
+    joinedChannels,
   };
 };

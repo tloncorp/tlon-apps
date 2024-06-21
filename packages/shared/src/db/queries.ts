@@ -231,8 +231,11 @@ export const getChats = createReadQuery(
         ),
       })
       .from($channels)
-      .where(and(isNotNull($channels.groupId)))
+      .where(
+        and(isNotNull($channels.groupId), eq($groups.currentUserIsMember, true))
+      )
       .leftJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
+      .leftJoin($groups, eq($groups.id, $channels.groupId))
       .as('q');
 
     const groupChannels = ctx.db
@@ -1454,15 +1457,46 @@ export const removeJoinedGroupChannel = createWriteQuery(
 
 export const setLeftGroupChannels = createWriteQuery(
   'setLeftGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+  async (
+    { joinedChannelIds }: { joinedChannelIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    console.log(`bl: joinedChannelIds`, joinedChannelIds);
+    if (joinedChannelIds.length === 0) return;
     return await ctx.db
       .update($channels)
       .set({
-        currentUserIsMember: not(inArray($channels.id, channelIds)),
+        currentUserIsMember: false,
       })
-      .where(isNotNull($channels.groupId));
+      .where(
+        and(
+          notInArray($channels.id, joinedChannelIds),
+          isNotNull($channels.groupId),
+          eq($channels.currentUserIsMember, true)
+        )
+      );
   },
   ['channels']
+);
+
+export const setLeftGroups = createWriteQuery(
+  'setLeftGroups',
+  async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {
+    console.log(`bl: joinedGroupIds`, joinedGroupIds);
+    if (joinedGroupIds.length === 0) return;
+    return await ctx.db
+      .update($groups)
+      .set({
+        currentUserIsMember: false,
+      })
+      .where(
+        and(
+          notInArray($groups.id, joinedGroupIds),
+          eq($groups.currentUserIsMember, true)
+        )
+      );
+  },
+  ['groups', 'channels']
 );
 
 export type GetChannelPostsOptions = {

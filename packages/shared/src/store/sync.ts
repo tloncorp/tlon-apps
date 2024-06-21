@@ -61,6 +61,12 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
       db
         .insertChannelPerms(initData.channelPerms, ctx)
         .then(() => reporter?.log('inserted channel perms')),
+      db
+        .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, ctx)
+        .then(() => reporter?.log('set left groups')),
+      db
+        .setLeftGroupChannels({ joinedChannelIds: initData.joinedGroups }, ctx)
+        .then(() => reporter?.log('set left channels')),
     ]);
   });
 };
