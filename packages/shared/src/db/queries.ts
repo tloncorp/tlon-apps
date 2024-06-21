@@ -143,6 +143,7 @@ export const getSettings = createReadQuery(
 export const getGroupPreviews = createReadQuery(
   'getGroupPreviews',
   async (groupIds: string[], ctx: QueryCtx) => {
+    if (groupIds.length === 0) return [];
     return ctx.db.query.groups.findMany({
       where: inArray($groups.id, groupIds),
     });
@@ -919,6 +920,7 @@ export const removeChatMembersFromRoles = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    if (contactIds.length === 0 || roleIds.length === 0) return;
     return ctx.db
       .delete($chatMemberGroupRoles)
       .where(
@@ -938,6 +940,7 @@ export const removeChatMembers = createWriteQuery(
     { chatId, contactIds }: { chatId: string; contactIds: string[] },
     ctx: QueryCtx
   ) => {
+    if (contactIds.length === 0) return;
     return ctx.db
       .delete($chatMembers)
       .where(
@@ -1411,7 +1414,7 @@ export const setJoinedGroupChannels = createWriteQuery(
       return isOpenChannel || isClosedButCanRead;
     });
 
-    logger.log('setJoinedGroupChannels', channelIds);
+    if (channelsWhereMember.length === 0) return;
     return await ctx.db
       .update($channels)
       .set({
@@ -2246,6 +2249,7 @@ export const getContacts = createReadQuery(
 export const getContactsBatch = createReadQuery(
   'getContactsBatch',
   async ({ contactIds }: { contactIds: string[] }, ctx: QueryCtx) => {
+    if (contactIds.length === 0) return [];
     return ctx.db.query.contacts.findMany({
       where: (contacts, { inArray }) => inArray(contacts.id, contactIds),
     });
