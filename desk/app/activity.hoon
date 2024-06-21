@@ -106,6 +106,58 @@
     |=  old=state-1
     ^-  state-2
     [%2 %all +.old]
+  ++  correct-dm-reply-keys
+    ^+  cor
+    =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+      %gx  (scry-path %chat /full/noun)
+    ==
+    =/  club-threads
+      %~  tap  by
+      %+  roll
+        ~(tap by indices)
+      |=  [[=source:a =index:a] dms=(jar whom:a [source:a index:a])]
+      ?.  ?=(?(%dm %dm-thread) -.source)  dms
+      =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
+      ?.  ?=(%club -.whom)  dms
+      (~(add ja dms) whom [source index])
+    |-
+    ?~  club-threads  cor
+    =/  [=whom:a indexes=(list [=source:a =index:a])]  -.club-threads
+    =*  next  $(club-threads +.club-threads)
+    ?.  ?=(%club -.whom)  next
+    =/  club  (~(get by clubs) p.whom)
+    ?~  club  next
+    =;  indxs=(list [=source:a =index:a])
+      |-
+      ?~  indxs  cor
+      =.  cor  (update-index source.i.indxs index.i.indxs &)
+      $(indxs t.indxs)
+    %+  turn
+      indexes
+    |=  [=source:a =index:a]
+    ?.  ?=(?(%dm %dm-thread) -.source)  [source index]
+    =;  new-stream=stream:a
+      [source index(stream new-stream)]
+    %+  gas:on-event:a  *stream:a
+    %+  turn
+      (tap:on-event:a stream.index)
+    |=  [=time =event:a]
+    ::  skip any non post or reply events
+    ?.  ?=(?(%dm-post %dm-reply) -<.event)  [time event]
+    =/  post-id  ?:(?=(%dm-post -<.event) id.key.event id.parent.event)
+    =/  post-time  (~(get by dex.pact.u.club) post-id)
+    ?~  post-time  [time event]
+    ?:  ?=(%dm-post -<.event)
+      [time event(key [post-id u.post-time])]
+    =/  post  (get:on:writs:ch wit.pact.u.club u.post-time)
+    ?~  post  [time event]
+    =/  parent=message-key:a  [id time]:u.post
+    =/  reply-time  (~(get by dex.pact.u.club) id.key.event)
+    ?~  reply-time  [time event]
+    =/  reply  (get:on:replies:ch replies.u.post u.reply-time)
+    ?~  reply  [time event]
+    =/  key=message-key:a  [id time]:u.reply
+    [time event(key key, parent parent)]
   --
 ::
 ++  scry-path
