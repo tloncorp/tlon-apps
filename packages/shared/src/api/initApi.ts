@@ -39,6 +39,8 @@ export const getInitData = async () => {
   const unreads = toClientUnreads(response.activity ?? {});
 
   const joinedGroups = groups.map((group) => group.id);
+  // Not fully reflective of which channels you're a member of, but if a channel is _not_
+  // in here, you're definitely not a member of it
   const joinedChannels = channelsInit.map((channel) => channel.channelId);
 
   return {
