@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "28987603-440d-42eb-9c7c-a471f8946c51",
+  "id": "5b22f005-5d8a-445c-83fa-2c8ad5f2e8dc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -390,7 +390,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "last_post_id": {
+          "name": "last_post_id",
+          "columns": [
+            "last_post_id"
+          ],
+          "isUnique": false
+        },
+        "last_post_at": {
+          "name": "last_post_at",
+          "columns": [
+            "last_post_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "channels_group_id_groups_id_fk": {
           "name": "channels_group_id_groups_id_fk",
@@ -1421,7 +1436,31 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "channel_id": {
+          "name": "channel_id",
+          "columns": [
+            "channel_id"
+          ],
+          "isUnique": false
+        },
+        "channel_oldest_post": {
+          "name": "channel_oldest_post",
+          "columns": [
+            "channel_id",
+            "oldest_post_id"
+          ],
+          "isUnique": false
+        },
+        "channel_newest_post": {
+          "name": "channel_newest_post",
+          "columns": [
+            "channel_id",
+            "newest_post_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "post_windows_channel_id_oldest_post_id_newest_post_id_pk": {
@@ -1623,6 +1662,22 @@
             "sent_at"
           ],
           "isUnique": true
+        },
+        "posts_channel_id": {
+          "name": "posts_channel_id",
+          "columns": [
+            "channel_id",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "posts_group_id": {
+          "name": "posts_group_id",
+          "columns": [
+            "group_id",
+            "id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},

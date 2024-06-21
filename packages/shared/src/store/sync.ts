@@ -475,6 +475,8 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
 };
 
 export const handleChatUpdate = async (update: api.ChatEvent) => {
+  logger.log('event: chat update', update);
+
   switch (update.type) {
     case 'addPost':
       await handleAddPost(update.post);
@@ -502,14 +504,23 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
     case 'addDmInvites':
       db.insertChannels(update.channels);
       break;
-
     case 'groupDmsUpdate':
       syncDms();
       break;
   }
 };
 
+let lastAdded: string;
+
 export async function handleAddPost(post: db.Post) {
+  // We frequently get duplicate addPost events from the api,
+  // so skip if we've just added this.
+  if (post.id === lastAdded) {
+    logger.log('skipping duplicate post.');
+  } else {
+    lastAdded = post.id;
+  }
+
   // first check if it's a reply. If it is and we haven't already cached
   // it, we need to add it to the parent post
   if (post.parentId) {
