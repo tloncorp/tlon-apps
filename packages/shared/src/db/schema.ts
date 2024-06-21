@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm';
 import {
+  index,
   integer,
   primaryKey,
   sqliteTable,
@@ -611,33 +612,40 @@ export const volumeSettings = sqliteTable('volume_settings', {
 
 export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
 
-export const channels = sqliteTable('channels', {
-  id: text('id').primaryKey(),
-  type: text('type').$type<ChannelType>().notNull(),
-  groupId: text('group_id').references(() => groups.id, {
-    onDelete: 'cascade',
-  }),
-  ...metaFields,
-  addedToGroupAt: timestamp('added_to_group_at'),
-  currentUserIsMember: boolean('current_user_is_member'),
-  postCount: integer('post_count'),
-  unreadCount: integer('unread_count'),
-  firstUnreadPostId: text('first_unread_post_id'),
-  lastPostId: text('last_post_id'),
-  lastPostAt: timestamp('last_post_at'),
-  isPendingChannel: boolean('is_cached_pending_channel'),
-  isDmInvite: boolean('is_dm_invite'),
+export const channels = sqliteTable(
+  'channels',
+  {
+    id: text('id').primaryKey(),
+    type: text('type').$type<ChannelType>().notNull(),
+    groupId: text('group_id').references(() => groups.id, {
+      onDelete: 'cascade',
+    }),
+    ...metaFields,
+    addedToGroupAt: timestamp('added_to_group_at'),
+    currentUserIsMember: boolean('current_user_is_member'),
+    postCount: integer('post_count'),
+    unreadCount: integer('unread_count'),
+    firstUnreadPostId: text('first_unread_post_id'),
+    lastPostId: text('last_post_id'),
+    lastPostAt: timestamp('last_post_at'),
+    isPendingChannel: boolean('is_cached_pending_channel'),
+    isDmInvite: boolean('is_dm_invite'),
 
-  /**
-   * Last time we ran a sync, in local time
-   */
-  syncedAt: timestamp('synced_at'),
-  /**
-   * Remote time that this channel was last updated.
-   * From `recency` on unreads on the Urbit side
-   */
-  remoteUpdatedAt: timestamp('remote_updated_at'),
-});
+    /**
+     * Last time we ran a sync, in local time
+     */
+    syncedAt: timestamp('synced_at'),
+    /**
+     * Remote time that this channel was last updated.
+     * From `recency` on unreads on the Urbit side
+     */
+    remoteUpdatedAt: timestamp('remote_updated_at'),
+  },
+  (table) => ({
+    lastPostIdIndex: index('last_post_id').on(table.lastPostId),
+    lastPostAtIndex: index('last_post_at').on(table.lastPostAt),
+  })
+);
 
 export const channelRelations = relations(channels, ({ one, many }) => ({
   pin: one(pins),
@@ -704,6 +712,8 @@ export const posts = sqliteTable(
   },
   (table) => ({
     cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
+    channelId: index('posts_channel_id').on(table.channelId, table.id),
+    groupId: index('posts_group_id').on(table.groupId, table.id),
   })
 );
 
@@ -798,6 +808,15 @@ export const postWindows = sqliteTable(
       pk: primaryKey({
         columns: [table.channelId, table.oldestPostId, table.newestPostId],
       }),
+      channelIdIndex: index('channel_id').on(table.channelId),
+      channelOldestPostIndex: index('channel_oldest_post').on(
+        table.channelId,
+        table.oldestPostId
+      ),
+      channelNewestPostIndex: index('channel_newest_post').on(
+        table.channelId,
+        table.newestPostId
+      ),
     };
   }
 );

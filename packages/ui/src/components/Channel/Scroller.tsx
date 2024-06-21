@@ -69,7 +69,7 @@ export type ScrollAnchor = {
  * - If we're scrolling to an anchor, that anchor should be in the first page of posts
  * - The size of the first page of posts should match `initialNumToRender` here.
  */
-export default function Scroller({
+function Scroller({
   anchor,
   inverted,
   renderItem,
@@ -484,6 +484,8 @@ export default function Scroller({
     </View>
   );
 }
+
+export default React.memo(Scroller);
 
 function getPostId(post: db.Post) {
   return post.id;

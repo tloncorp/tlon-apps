@@ -82,8 +82,8 @@ export const listDebugLabel = runIfDev((list: Iterable<string | number>) => {
 
 const sessionStartTime = Date.now();
 
-const LOG_SESSION_TIME = false;
-const LOG_DELTA = false;
+const LOG_SESSION_TIME = true;
+const LOG_DELTA = true;
 
 function sessionTimeLabel() {
   return LOG_SESSION_TIME ? `${Date.now() - sessionStartTime}` : null;
