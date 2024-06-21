@@ -1312,7 +1312,7 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
-        =/  concern  [%post [. q]:p.diff.delta]
+        =/  concern  [%post p.diff.delta now.bowl]
         =/  mention  (was-mentioned:utils content.memo our.bowl)
         =.  cu-core  (cu-activity concern content.memo mention)
         (cu-give-writs-diff diff.delta)
@@ -1347,7 +1347,7 @@
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
           =/  top-con  [. q]:p.diff.delta
-          =/  concern  [%reply [. q]:id.q.diff.delta top-con]
+          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
           =/  mention  (was-mentioned:utils content.memo our.bowl)
           =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
