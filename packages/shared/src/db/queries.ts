@@ -1461,7 +1461,6 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    console.log(`bl: joinedChannelIds`, joinedChannelIds);
     if (joinedChannelIds.length === 0) return;
     return await ctx.db
       .update($channels)
@@ -1482,7 +1481,6 @@ export const setLeftGroupChannels = createWriteQuery(
 export const setLeftGroups = createWriteQuery(
   'setLeftGroups',
   async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {
-    console.log(`bl: joinedGroupIds`, joinedGroupIds);
     if (joinedGroupIds.length === 0) return;
     return await ctx.db
       .update($groups)
