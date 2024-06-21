@@ -16,8 +16,9 @@ export const connectNotifyProvider = async (address: string) => {
       },
     },
   });
-  console.debug(
+  console.log(
     'Registered push notifications token with provider:',
+    address,
     NOTIFY_PROVIDER,
     NOTIFY_SERVICE
   );

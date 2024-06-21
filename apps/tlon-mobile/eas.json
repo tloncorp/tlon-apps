@@ -38,6 +38,11 @@
       "channel": "demo",
       "distribution": "internal",
       "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "preview",
+        "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
+        "NOTIFY_SERVICE": "tlon-preview-release"
+      },
       "android": {
         "gradleCommand": ":app:bundlePreviewRelease",
         "buildType": "apk",
