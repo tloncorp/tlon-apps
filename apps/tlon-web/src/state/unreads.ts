@@ -109,7 +109,6 @@ function sumChildren(
         return acc;
       }
 
-      console.log(key, child);
       if (childStatus === 'unread') {
         status = 'unread';
       } else if (childStatus === 'seen' && status === 'read') {
