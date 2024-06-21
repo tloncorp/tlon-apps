@@ -198,6 +198,9 @@ function MigrationCheck({ children }: PropsWithChildren) {
   if (!success && !error) {
     return null;
   }
+  if (error) {
+    throw Error();
+  }
   return <>{children}</>;
 }
 
