@@ -55,7 +55,6 @@ export async function purgeDb() {
   client = null;
   logger.log('purged sqlite database, recreating');
   setupDb();
-  runMigrations();
 }
 
 export function getDbPath() {
