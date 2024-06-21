@@ -94,17 +94,23 @@ function sumChildren(
   const { count, notify, status } = Object.entries(
     children
   ).reduce<ShortSummary>(
-    (acc, [key, child]) => {
+    (acc, [key, summary]) => {
       let status = acc.status;
-      const childStatus = unreads[key]?.status;
+      const child = unreads[key];
+      const childCount = child?.combined.count || summary.unread?.count || 0;
+      const childNotify =
+        child?.combined.notify || Boolean(summary.unread?.notify);
+      const childStatus = child?.combined.status;
 
+      debugger;
       // if we don't care about summing counts then we can skip aggregating
       // but if any child is notify then we need to take into account it's
       // status and notify values
-      if (!(sumCounts || child.notify)) {
+      if (!(sumCounts || childNotify)) {
         return acc;
       }
 
+      console.log(key, child);
       if (childStatus === 'unread') {
         status = 'unread';
       } else if (childStatus === 'seen' && status === 'read') {
@@ -112,8 +118,8 @@ function sumChildren(
       }
 
       return {
-        count: !sumCounts ? acc.count : acc.count + (child.unread?.count || 0),
-        notify: acc.notify || Boolean(child.notify),
+        count: acc.count + (childCount || 0),
+        notify: acc.notify || Boolean(childNotify),
         status,
       };
     },
