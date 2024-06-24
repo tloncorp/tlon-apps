@@ -28,7 +28,9 @@ export async function sendPost({
   }
 
   // optimistic update
-  const cachePost = db.buildPendingPost({ authorId, channel, content });
+  // TODO: make author available more efficiently
+  const author = await db.getContact({ id: authorId });
+  const cachePost = db.buildPendingPost({ authorId, author, channel, content });
   sync.handleAddPost(cachePost);
   try {
     await api.sendPost({
@@ -92,8 +94,11 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   // optimistic update
+  // TODO: make author available more efficiently
+  const author = await db.getContact({ id: authorId });
   const cachePost = db.buildPendingPost({
     authorId,
+    author,
     channel: channel,
     content,
     parentId,

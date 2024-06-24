@@ -438,7 +438,10 @@
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
-    -:(need (ram:on-event:a stream:(get-index source)))
+    ?~  new=(ram:on-event:a stream:(get-index source))
+      ::  should never happen but -\_(ツ)_/-
+      (sub start 1)
+    -.u.new
   =.  sources.acc  (~(put by sources.acc) source src-info)
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is

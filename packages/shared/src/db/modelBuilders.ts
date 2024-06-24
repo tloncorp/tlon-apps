@@ -54,11 +54,13 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
 
 export function buildPendingPost({
   authorId,
+  author,
   channel,
   content,
   parentId,
 }: {
   authorId: string;
+  author?: types.Contact | null;
   channel: types.Channel;
   content: ub.Story;
   parentId?: string;
@@ -80,6 +82,7 @@ export function buildPendingPost({
 
   return {
     id,
+    author,
     authorId,
     channelId: channel.id,
     groupId: channel.groupId,

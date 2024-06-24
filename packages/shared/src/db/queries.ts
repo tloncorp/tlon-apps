@@ -9,7 +9,6 @@ import {
   count,
   desc,
   eq,
-  exists,
   getTableColumns,
   gt,
   gte,
@@ -24,7 +23,6 @@ import {
   notInArray,
   or,
   sql,
-  sum,
 } from 'drizzle-orm';
 
 import {
@@ -480,7 +478,7 @@ export const insertGroups = createWriteQuery(
           }
         }
       }
-      await setLastPosts(txCtx);
+      await setLastPosts(null, txCtx);
     });
   },
   [
@@ -1210,7 +1208,7 @@ export const insertChannels = createWriteQuery(
             .onConflictDoNothing();
         }
       }
-      await setLastPosts(txCtx);
+      await setLastPosts(null, txCtx);
     });
   },
   ['channels']
@@ -1413,14 +1411,15 @@ export const setJoinedGroupChannels = createWriteQuery(
         .some((r) => userRolesForGroup.includes(r));
       return isOpenChannel || isClosedButCanRead;
     });
-
-    if (channelsWhereMember.length === 0) return;
-    return await ctx.db
-      .update($channels)
-      .set({
-        currentUserIsMember: inArray($channels.id, channelsWhereMember),
-      })
-      .where(isNotNull($channels.groupId));
+    if (channelsWhereMember.length) {
+      logger.log('setJoinedGroupChannels', channelIds);
+      return await ctx.db
+        .update($channels)
+        .set({
+          currentUserIsMember: inArray($channels.id, channelsWhereMember),
+        })
+        .where(isNotNull($channels.groupId));
+    }
   },
   ['channels']
 );
@@ -1742,6 +1741,7 @@ export const insertChannelPosts = createWriteQuery(
     }
     return withTransactionCtx(ctx, async (txCtx) => {
       await insertPosts(posts, txCtx);
+      logger.log('inserted posts');
       // If these are non-reply posts, update group + channel last post as well as post windows.
       const topLevelPosts = posts.filter((p) => p.type !== 'reply');
       if (topLevelPosts.length) {
@@ -1754,6 +1754,7 @@ export const insertChannelPosts = createWriteQuery(
           },
           txCtx
         );
+        logger.log('updated windows');
       }
     });
   },
@@ -1773,7 +1774,12 @@ export const insertLatestPosts = createWriteQuery(
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
   await ctx.db
     .insert($posts)
-    .values(posts.map((p) => ({ ...p })))
+    .values(
+      posts.map((p) => ({
+        ...p,
+        groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+      }))
+    )
     .onConflictDoUpdate({
       target: $posts.id,
       set: conflictUpdateSetAll($posts),
@@ -1782,106 +1788,99 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
       target: [$posts.authorId, $posts.sentAt],
       set: conflictUpdateSetAll($posts),
     });
-  await setPostGroups(ctx);
-  await setLastPosts(ctx);
+  logger.log('inserted posts');
+  await setLastPosts(posts, ctx);
+  logger.log('set last posts');
   await clearMatchedPendingPosts(
     posts.filter((p) => p.deliveryStatus !== 'pending'),
     ctx
   );
+  logger.log('clear matched pending');
 }
 
-function setPostGroups(ctx: QueryCtx) {
-  return ctx.db
-    .update($posts)
+async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
+  const channelIds = newPosts?.map((p) => p.channelId) ?? [];
+
+  if (channelIds.length === 0) return;
+
+  // Combine channel and group updates in a single transaction
+  // Update channels
+  await ctx.db
+    .update($channels)
     .set({
-      groupId: sql`${ctx.db
-        .select({ groupId: $channels.groupId })
-        .from($channels)
+      lastPostId: sql`${ctx.db
+        .select({ id: $posts.id })
+        .from($posts)
         .where(
-          and(eq($channels.id, $posts.channelId), isNotNull($channels.groupId))
-        )}`,
+          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+        )
+        .orderBy(desc($posts.receivedAt))
+        .limit(1)}`,
+      lastPostAt: sql`${ctx.db
+        .select({ receivedAt: $posts.receivedAt })
+        .from($posts)
+        .where(
+          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+        )
+        .orderBy(desc($posts.receivedAt))
+        .limit(1)}`,
     })
     .where(
       and(
-        isNull($posts.groupId),
-        exists(
-          ctx.db
-            .select()
-            .from($channels)
-            .where(
-              and(eq($channels.id, $posts.id), isNotNull($channels.groupId))
-            )
-        )
-      )
-    );
-}
-
-async function setLastPosts(ctx: QueryCtx) {
-  const $lastPost = ctx.db.$with('lastPost').as(
-    ctx.db
-      .select({
-        id: $posts.id,
-        channelId: $posts.channelId,
-        receivedAt: $posts.receivedAt,
-      })
-      .from($posts)
-      .where(
-        and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
-      )
-      .orderBy(desc($posts.receivedAt))
-      .limit(1)
-  );
-
-  await ctx.db
-    .with($lastPost)
-    .update($channels)
-    .set({
-      lastPostId: sql`(select ${$lastPost.id} from ${$lastPost})`,
-      lastPostAt: sql`(select ${$lastPost.receivedAt} from ${$lastPost})`,
-    })
-    .where(
-      or(
-        isNull($channels.lastPostId),
-        lt(
-          $channels.lastPostId,
-          sql`${ctx.db
-            .select({ id: max($posts.id) })
-            .from($posts)
-            .where(eq($posts.channelId, $channels.id))}`
+        inArray($channels.id, channelIds),
+        or(
+          isNull($channels.lastPostId),
+          lt(
+            $channels.lastPostId,
+            ctx.db
+              .select({ maxId: max($posts.id) })
+              .from($posts)
+              .where(eq($posts.channelId, $channels.id))
+          )
         )
       )
     );
 
-  const $groupLastPost = ctx.db.$with('groupLastPost').as(
-    ctx.db
-      .select({
-        groupId: $channels.groupId,
-        lastPostId: max($channels.lastPostId).as('lastPostId'),
-        lastPostAt: max($channels.lastPostAt).as('lastPostAt'),
-      })
-      .from($channels)
-      .where(eq($channels.groupId, $groups.id))
-      .orderBy(desc($channels.lastPostAt))
-      .groupBy($channels.groupId)
-      .limit(1)
-  );
+  // Update groups
+  const updatedChannelIds = await ctx.db
+    .select({ id: $channels.id, groupId: $channels.groupId })
+    .from($channels)
+    .where(inArray($channels.id, channelIds));
+
+  const updatedGroupIds: string[] = [
+    ...new Set(updatedChannelIds.map((c) => c.groupId)),
+  ] as string[];
+
+  if (!updatedGroupIds.length) return;
 
   await ctx.db
-    .with($groupLastPost)
     .update($groups)
     .set({
-      lastPostId: sql`(select ${$groupLastPost.lastPostId} from ${$groupLastPost})`,
-      lastPostAt: sql`(select ${$groupLastPost.lastPostAt} from ${$groupLastPost})`,
+      lastPostId: sql`${ctx.db
+        .select({ lastPostId: $channels.lastPostId })
+        .from($channels)
+        .where(eq($channels.groupId, $groups.id))
+        .orderBy(desc($channels.lastPostAt))
+        .limit(1)}`,
+      lastPostAt: sql`${ctx.db
+        .select({ lastPostAt: $channels.lastPostAt })
+        .from($channels)
+        .where(eq($channels.groupId, $groups.id))
+        .orderBy(desc($channels.lastPostAt))
+        .limit(1)}`,
     })
     .where(
-      or(
-        isNull($groups.lastPostId),
-        lt(
-          $groups.lastPostId,
-          sql`${ctx.db
-            .select({ id: max($posts.id) })
-            .from($posts)
-            .where(eq($posts.groupId, $groups.id))}`
+      and(
+        inArray($groups.id, updatedGroupIds),
+        or(
+          isNull($groups.lastPostId),
+          lt(
+            $groups.lastPostId,
+            ctx.db
+              .select({ maxId: max($posts.id) })
+              .from($posts)
+              .where(eq($posts.groupId, $groups.id))
+          )
         )
       )
     );

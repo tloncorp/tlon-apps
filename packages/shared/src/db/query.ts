@@ -213,6 +213,7 @@ export async function withTransactionCtx<T>(
   ctx: QueryCtx,
   handler: (ctx: QueryCtx) => Promise<T>
 ): Promise<T> {
+  txLogger.log(ctx.meta.label, 'tx:enqueue');
   return new Promise((resolve, reject) =>
     enqueueTransaction(async () => {
       txLogger.log(ctx.meta.label, 'tx:handler');

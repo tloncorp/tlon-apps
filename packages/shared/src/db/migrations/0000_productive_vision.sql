@@ -292,5 +292,12 @@ CREATE TABLE `volume_settings` (
 	`is_noisy` integer DEFAULT false
 );
 --> statement-breakpoint
+CREATE INDEX `last_post_id` ON `channels` (`last_post_id`);--> statement-breakpoint
+CREATE INDEX `last_post_at` ON `channels` (`last_post_at`);--> statement-breakpoint
+CREATE INDEX `channel_id` ON `post_windows` (`channel_id`);--> statement-breakpoint
+CREATE INDEX `channel_oldest_post` ON `post_windows` (`channel_id`,`oldest_post_id`);--> statement-breakpoint
+CREATE INDEX `channel_newest_post` ON `post_windows` (`channel_id`,`newest_post_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
-CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);--> statement-breakpoint
+CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
+CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);
