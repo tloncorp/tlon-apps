@@ -97,7 +97,7 @@
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   ?>  ?=(%2 -.old)
   =.  state  old
-  cor
+  correct-dm-keys
   +$  versioned-state  $%(state-2 state-1)
   +$  state-2  current-state
   +$  state-1
@@ -106,60 +106,136 @@
     |=  old=state-1
     ^-  state-2
     [%2 %all +.old]
-  ++  correct-dm-reply-keys
-    ^+  cor
-    =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
-      %gx  (scry-path %chat /full/noun)
-    ==
-    =/  club-threads
-      %~  tap  by
-      %+  roll
-        ~(tap by indices)
-      |=  [[=source:a =index:a] dms=(jar whom:a [source:a index:a])]
-      ?.  ?=(?(%dm %dm-thread) -.source)  dms
-      =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
-      ?.  ?=(%club -.whom)  dms
-      (~(add ja dms) whom [source index])
+  --
+::
+++  correct-dm-keys
+  |^  ^+  cor
+  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+    %gx  (scry-path %chat /full/noun)
+  ==
+  =/  club-threads
+    %~  tap  by
+    %+  roll
+      ~(tap by indices)
+    |=  [[=source:a =index:a] dms=(jar whom:a [source:a index:a])]
+    ?.  ?=(?(%dm %dm-thread) -.source)  dms
+    =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
+    ?.  ?=(%club -.whom)  dms
+    (~(add ja dms) whom [source index])
+  ~&  ['got club sources' (turn club-threads |=([* srcs=(list [source:a index:a])] (turn srcs head)))]
+  |-
+  ?~  club-threads  cor
+  =/  [=whom:a =indexes]  -.club-threads
+  ~&  ['working' whom]
+  =*  next  $(club-threads +.club-threads)
+  ?.  ?=(%club -.whom)  next
+  =/  club  (~(get by clubs) p.whom)
+  ?~  club  next
+  =/  [threads=^indexes dms=^indexes]
+    %+  skid
+      indexes
+    |=  [=source:a *]
+    ?=(%dm-thread -.source)
+  ~&  ['separated: dms' (lent dms) ' threads' (lent threads)]
+  =;  indxs=^indexes
     |-
-    ?~  club-threads  cor
-    =/  [=whom:a indexes=(list [=source:a =index:a])]  -.club-threads
-    =*  next  $(club-threads +.club-threads)
-    ?.  ?=(%club -.whom)  next
-    =/  club  (~(get by clubs) p.whom)
-    ?~  club  next
-    =;  indxs=(list [=source:a =index:a])
-      |-
-      ?~  indxs  cor
-      =.  cor  (update-index source.i.indxs index.i.indxs &)
-      $(indxs t.indxs)
+    ?~  indxs  next
+    =*  source  source.i.indxs
+    ::  cleanup old bad keys
+    =?  cor  ?=(%dm-thread -.source)
+      ~&  ['deleting old source data' source]
+      =/  old-source  source(key [id.key.source q.id.key.source])
+      %=  cor
+        indices  (~(del by indices) old-source)
+        activity  (~(del by activity) old-source)
+        volume-settings  (~(del by volume-settings) old-source)
+      ==
+    ::  update source + index, if new key create new index
+    =.  cor  (update-index source index.i.indxs &)
+    $(indxs t.indxs)
+  =-  ~&  [(lent -) 'indexes']  -
+  %+  weld
+    (handle-dms u.club dms)
+  (handle-threads u.club threads)
+  ++  handle-dms
+    |=  [=club:ch =indexes]
+    ^-  ^indexes
     %+  turn
       indexes
     |=  [=source:a =index:a]
-    ?.  ?=(?(%dm %dm-thread) -.source)  [source index]
-    =;  new-stream=stream:a
-      [source index(stream new-stream)]
+    ?.  ?=(%dm -.source)  [source index]
+    :-  source
+    index(stream (clean-stream-keys club stream.index))
+  ++  handle-threads
+    |=  [=club:ch =indexes]
+    ^-  ^indexes
+    =/  collapsed
+      %+  roll
+        indexes
+      |=  [[=source:a =index:a] acc=(jar message-id:a [=source:a =index:a])]
+      ?.  ?=(%dm-thread -.source)  acc
+      (~(add ja acc) id.key.source [source index])
+    =;  [=indices:a *]
+      ~(tap by indices)
+    %+  roll
+      indexes
+    |=  [[=source:a =index:a] acc=[=indices:a keys=(map message-id:a message-key:a)]]
+    ?.  ?=(%dm-thread -.source)
+      ~&  'skipping, not dm-thread'
+      [(~(put by indices) source index) keys.acc]
+    =*  id  id.key.source
+    =/  key  (~(get by keys.acc) id)
+    ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))
+      ~&  ['already have key' key source]
+      acc
+    ?~  srcs=(~(get by collapsed) id)
+      ~&  ['somehow missing in collapsed' id]  acc
+    =/  post-time  (~(get by dex.pact.club) id)
+    ?~  post-time  ~&(['id missing' id] acc)
+    =/  new-key  [id u.post-time]
+    ~&  ['new key' new-key]
+    :_  (~(put by keys.acc) id new-key)
+    %-  ~(put by indices.acc)
+    ::  new source
+    :-  source(key new-key)
+    %+  roll
+      u.srcs
+    |=  [[=source:a =index:a] acc=index:a]
+    ?.  ?=(%dm-thread -.source)  acc
+    ~&  ['merging' source]
+    :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
+    ::  rectify reads
+    =/  floor  (max floor.reads.index floor.reads.acc)
+    :-  floor
+    =/  combined
+      (uni:on-read-items:a items.reads.index items.reads.acc)
+    (lot:on-read-items:a combined `floor ~)
+  ++  clean-stream-keys
+    |=  [=club:ch =stream:a]
+    ^-  stream:a
     %+  gas:on-event:a  *stream:a
     %+  turn
-      (tap:on-event:a stream.index)
+      (tap:on-event:a stream)
     |=  [=time =event:a]
+    =/  next  [time event]
     ::  skip any non post or reply events
-    ?.  ?=(?(%dm-post %dm-reply) -<.event)  [time event]
+    ?.  ?=(?(%dm-post %dm-reply) -<.event)  next
     =/  post-id  ?:(?=(%dm-post -<.event) id.key.event id.parent.event)
-    =/  post-time  (~(get by dex.pact.u.club) post-id)
-    ?~  post-time  [time event]
+    =/  post-time  (~(get by dex.pact.club) post-id)
+    ?~  post-time  next
     ?:  ?=(%dm-post -<.event)
       [time event(key [post-id u.post-time])]
-    =/  post  (get:on:writs:ch wit.pact.u.club u.post-time)
-    ?~  post  [time event]
+    =/  post  (get:on:writs:ch wit.pact.club u.post-time)
+    ?~  post  next
     =/  parent=message-key:a  [id time]:u.post
-    =/  reply-time  (~(get by dex.pact.u.club) id.key.event)
-    ?~  reply-time  [time event]
+    =/  reply-time  (~(get by dex.pact.club) id.key.event)
+    ?~  reply-time  next
     =/  reply  (get:on:replies:ch replies.u.post u.reply-time)
-    ?~  reply  [time event]
+    ?~  reply  next
     =/  key=message-key:a  [id time]:u.reply
     [time event(key key, parent parent)]
+  +$  indexes  (list [=source:a =index:a])
   --
-::
 ++  scry-path
   |=  [=dude:gall =path]
   %+  welp
@@ -342,6 +418,8 @@
       =.  state  *current-state
       =.  allowed  %all
       migrate
+        %clean-keys
+      correct-dm-keys
     ==
   ::
       %activity-action
@@ -663,6 +741,7 @@
 ++  refresh-summary
   |=  =source:a
   =/  summary  (summarize-unreads source (get-index source))
+  ~&  ['new summary' source summary]
   =.  activity
     (~(put by activity) source summary)
   (give-unreads source)
@@ -798,7 +877,10 @@
 ++  update-reads
   |=  [=source:a updater=$-(index:a index:a)]
   ^+  cor
-  =/  new  (updater (get-index source))
+  =/  index  (get-index source)
+  ~&  ?:(=(index *index:a) 'bad source' 'got index')
+  =/  new  (updater index)
+  ~&  ['old' reads.index 'new' reads.new]
   (update-index source new &)
 ++  give-unreads
   |=  =source:a
