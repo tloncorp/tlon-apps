@@ -122,11 +122,9 @@
     =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
     ?.  ?=(%club -.whom)  dms
     (~(add ja dms) whom [source index])
-  ~&  ['got club sources' (turn club-threads |=([* srcs=(list [source:a index:a])] (turn srcs head)))]
   |-
   ?~  club-threads  cor
   =/  [=whom:a =indexes]  -.club-threads
-  ~&  ['working' whom]
   =*  next  $(club-threads +.club-threads)
   ?.  ?=(%club -.whom)  next
   =/  club  (~(get by clubs) p.whom)
@@ -136,14 +134,12 @@
       indexes
     |=  [=source:a *]
     ?=(%dm-thread -.source)
-  ~&  ['separated: dms' (lent dms) ' threads' (lent threads)]
   =;  indxs=^indexes
     |-
     ?~  indxs  next
     =*  source  source.i.indxs
     ::  cleanup old bad keys
     =?  cor  ?=(%dm-thread -.source)
-      ~&  ['deleting old source data' source]
       =/  old-source  source(key [id.key.source q.id.key.source])
       %=  cor
         indices  (~(del by indices) old-source)
@@ -153,7 +149,6 @@
     ::  update source + index, if new key create new index
     =.  cor  (update-index source index.i.indxs &)
     $(indxs t.indxs)
-  =-  ~&  [(lent -) 'indexes']  -
   %+  weld
     (handle-dms u.club dms)
   (handle-threads u.club threads)
@@ -181,19 +176,14 @@
       indexes
     |=  [[=source:a =index:a] acc=[=indices:a keys=(map message-id:a message-key:a)]]
     ?.  ?=(%dm-thread -.source)
-      ~&  'skipping, not dm-thread'
       [(~(put by indices) source index) keys.acc]
     =*  id  id.key.source
     =/  key  (~(get by keys.acc) id)
-    ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))
-      ~&  ['already have key' key source]
-      acc
-    ?~  srcs=(~(get by collapsed) id)
-      ~&  ['somehow missing in collapsed' id]  acc
+    ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))  acc
+    ?~  srcs=(~(get by collapsed) id)  acc
     =/  post-time  (~(get by dex.pact.club) id)
-    ?~  post-time  ~&(['id missing' id] acc)
+    ?~  post-time  acc
     =/  new-key  [id u.post-time]
-    ~&  ['new key' new-key]
     :_  (~(put by keys.acc) id new-key)
     %-  ~(put by indices.acc)
     ::  new source
@@ -202,7 +192,6 @@
       u.srcs
     |=  [[=source:a =index:a] acc=index:a]
     ?.  ?=(%dm-thread -.source)  acc
-    ~&  ['merging' source]
     :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
     ::  rectify reads
     =/  floor  (max floor.reads.index floor.reads.acc)
@@ -741,7 +730,6 @@
 ++  refresh-summary
   |=  =source:a
   =/  summary  (summarize-unreads source (get-index source))
-  ~&  ['new summary' source summary]
   =.  activity
     (~(put by activity) source summary)
   (give-unreads source)
@@ -878,9 +866,7 @@
   |=  [=source:a updater=$-(index:a index:a)]
   ^+  cor
   =/  index  (get-index source)
-  ~&  ?:(=(index *index:a) 'bad source' 'got index')
   =/  new  (updater index)
-  ~&  ['old' reads.index 'new' reads.new]
   (update-index source new &)
 ++  give-unreads
   |=  =source:a
