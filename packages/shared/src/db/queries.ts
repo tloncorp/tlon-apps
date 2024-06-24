@@ -1765,8 +1765,16 @@ export const insertChannelPosts = createWriteQuery(
 export const insertLatestPosts = createWriteQuery(
   'insertLatestPosts',
   async (posts: Post[], ctx: QueryCtx) => {
-    withTransactionCtx(ctx, async (txCtx) => {
+    if (!posts.length) {
+      return;
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
       await insertPosts(posts, txCtx);
+      const postUpdates = posts.map((post) => ({
+        channelId: post.channelId,
+        newPosts: [post],
+      }));
+      await Promise.all(postUpdates.map((p) => updatePostWindows(p, txCtx)));
     });
   },
   ['posts']
