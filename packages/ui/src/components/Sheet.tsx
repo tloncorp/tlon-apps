@@ -1,4 +1,4 @@
-import React, { ComponentProps, PropsWithChildren, useRef } from 'react';
+import React, { ComponentProps, useRef } from 'react';
 import {
   Stack,
   StackProps,
