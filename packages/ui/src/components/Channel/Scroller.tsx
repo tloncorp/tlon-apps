@@ -242,7 +242,7 @@ function Scroller({
           // If we're in a gallery channel, we need to adjust the index to account
           // for the empty post we added after the first unread post.
           const galleryAdjustedIndex =
-            channelType === 'gallery' && firstUnreadId !== null
+            channelType === 'gallery' && firstUnreadId !== null && index > 0
               ? index - 1
               : index;
 
