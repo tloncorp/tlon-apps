@@ -152,46 +152,46 @@ const ReplyMessage = React.memo<
         () => isMessageHidden || isPostHidden,
         [isMessageHidden, isPostHidden]
       );
-      const { ref: viewRef } = useInView({
+      const { ref: viewRef, inView } = useInView({
         threshold: 1,
-        onChange: useCallback(
-          (inView: boolean) => {
-            // if no tracked unread we don't need to take any action
-            if (!unread) {
-              return;
-            }
-
-            const unseen = whomIsFlag(whom)
-              ? unread.status === 'unread'
-              : unread.combined.status === 'unread';
-            /* the first fire of this function
-               which we don't to do anything with. */
-            if (!inView && unseen) {
-              return;
-            }
-
-            const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
-
-            /* once the unseen marker comes into view we need to mark it
-               as seen and start a timer to mark it read so it goes away.
-               we ensure that the brief matches and hasn't changed before
-               doing so. we don't want to accidentally clear unreads when
-               the state has changed
-            */
-            if (inView && isUnread && unseen) {
-              markSeen(threadKey);
-              delayedRead(threadKey, () => {
-                if (isDMOrMultiDM) {
-                  markDmRead();
-                } else {
-                  markChannelRead();
-                }
-              });
-            }
-          },
-          [unread, whom, isDMOrMultiDM, markChannelRead, markDmRead, isUnread]
-        ),
       });
+
+      useEffect(() => {
+        // if no tracked unread we don't need to take any action
+        if (!inView || !unread) {
+          return;
+        }
+
+        const unseen = whomIsFlag(whom)
+          ? unread.status === 'unread'
+          : unread.combined.status === 'unread';
+        const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
+
+        /* once the unseen marker comes into view we need to mark it
+             as seen and start a timer to mark it read so it goes away.
+             we ensure that the brief matches and hasn't changed before
+             doing so. we don't want to accidentally clear unreads when
+             the state has changed
+          */
+        if (inView && isUnread && unseen) {
+          markSeen(threadKey);
+          delayedRead(threadKey, () => {
+            if (isDMOrMultiDM) {
+              markDmRead();
+            } else {
+              markChannelRead();
+            }
+          });
+        }
+      }, [
+        whom,
+        inView,
+        isUnread,
+        unread,
+        isDMOrMultiDM,
+        markChannelRead,
+        markDmRead,
+      ]);
 
       const msgStatus = useTrackedMessageStatus({
         author: window.our,
