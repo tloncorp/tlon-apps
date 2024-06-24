@@ -69,7 +69,6 @@ export default function MessagesList({
       : { main: 400, reverse: 400 },
   };
 
-  console.log('filter', filter, filters.broadcasts, broadcasts.data);
   const organizedUnreads = useMemo(() => {
     const filteredMsgs = sortMessages(
         filter === filters.broadcasts
