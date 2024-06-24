@@ -539,7 +539,7 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
 
   switch (update.type) {
     case 'addPost':
-      await handleAddPost(update.post);
+      await handleAddPost(update.post, update.replyMeta);
       break;
     case 'deletePost':
       await db.deletePosts({ ids: [update.postId] });
@@ -572,7 +572,10 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
 
 let lastAdded: string;
 
-export async function handleAddPost(post: db.Post) {
+export async function handleAddPost(
+  post: db.Post,
+  replyMeta?: db.ReplyMeta | null
+) {
   // We frequently get duplicate addPost events from the api,
   // so skip if we've just added this.
   if (post.id === lastAdded) {
@@ -593,6 +596,7 @@ export async function handleAddPost(post: db.Post) {
         parentId: post.parentId,
         replyAuthor: post.authorId,
         replyTime: post.sentAt,
+        replyMeta,
       });
     }
     await db.insertChannelPosts({

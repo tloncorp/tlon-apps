@@ -765,6 +765,16 @@ function getReplyData(
     toPostReplyData(channelId, postId, reply)
   );
 }
+export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
+  if (!meta) {
+    return null;
+  }
+  return {
+    replyCount: meta.replyCount,
+    replyTime: meta.lastReply,
+    replyContactIds: meta.lastRepliers,
+  };
+}
 
 export function toPostReplyData(
   channelId: string,

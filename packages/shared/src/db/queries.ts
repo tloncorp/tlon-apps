@@ -88,13 +88,14 @@ import {
   Post,
   PostWindow,
   Reaction,
+  ReplyMeta,
   Settings,
   TableName,
   ThreadUnreadState,
   VolumeSettings,
 } from './types';
 
-const logger = createDevLogger('queries', false);
+const logger = createDevLogger('queries', true);
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -2110,10 +2111,12 @@ export const addReplyToPost = createWriteQuery(
       parentId,
       replyAuthor,
       replyTime,
+      replyMeta,
     }: {
       parentId: string;
       replyAuthor: string;
       replyTime: number;
+      replyMeta?: ReplyMeta | null; // sometimes passed via API, preferred over derived values
     },
     ctx: QueryCtx
   ) => {
@@ -2131,9 +2134,10 @@ export const addReplyToPost = createWriteQuery(
         return txCtx.db
           .update($posts)
           .set({
-            replyCount: (parentPost.replyCount ?? 0) + 1,
-            replyTime,
-            replyContactIds: newReplyContacts,
+            replyCount:
+              replyMeta?.replyCount ?? (parentPost.replyCount ?? 0) + 1,
+            replyTime: replyMeta?.replyTime ?? replyTime,
+            replyContactIds: replyMeta?.replyContactIds ?? newReplyContacts,
           })
           .where(eq($posts.id, parentId));
       }
