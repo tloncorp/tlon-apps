@@ -304,6 +304,7 @@ export function Channel({
                               )}
                             </AnimatePresence>
                             {negotiationMatch &&
+                              !channel.isDmInvite &&
                               !editingPost &&
                               (isChatChannel ||
                                 (channel.type === 'gallery' &&
