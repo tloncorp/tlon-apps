@@ -48,12 +48,12 @@ export function GroupReference({ groupId }: { groupId: string }) {
         {group && (
           <ListItem pressable={false}>
             <ListItem.Icon
-              fallbackText={group.title?.[0]}
+              fallbackText={group.title?.[0] ?? group.id[0]}
               backgroundColor={group.iconImageColor ?? undefined}
               imageUrl={group.iconImage ?? undefined}
             />
             <ListItem.MainContent>
-              <ListItem.Title>{group.title}</ListItem.Title>
+              <ListItem.Title>{group.title ?? group.id}</ListItem.Title>
             </ListItem.MainContent>
           </ListItem>
         )}
