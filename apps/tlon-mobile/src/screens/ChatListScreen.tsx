@@ -240,8 +240,6 @@ export default function ChatListScreen(
     setScreenTitle(title);
   }, []);
 
-  console.log({ pinned });
-
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts ?? []}>
