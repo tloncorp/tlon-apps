@@ -91,6 +91,7 @@ export const ChannelFixture = (props: {
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => switcher.open()}
+        goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
@@ -127,6 +128,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => switcher.open()}
+        goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
@@ -183,6 +185,7 @@ const ChannelFixtureWithImage = () => {
         goToSearch={() => {}}
         goToChannels={switcher.open}
         goToPost={() => {}}
+        goToDm={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
         markRead={() => {}}

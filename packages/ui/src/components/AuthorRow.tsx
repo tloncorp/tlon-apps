@@ -1,12 +1,11 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { SizableText, SizeTokens, View, XStack } from '../core';
 import { Avatar } from './Avatar';
 import ContactName from './ContactName';
-import { ListItem } from './ListItem';
-import Pressable from './Pressable';
+import { ProfileSheet } from './ProfileSheet';
 
 const RoleBadge = ({ role }: { role: string }) => {
   return (
@@ -42,6 +41,7 @@ export default function AuthorRow({
   detailView?: boolean;
   width?: SizeTokens;
 }) {
+  const [showProfile, setShowProfile] = useState(false);
   const timeDisplay = useMemo(() => {
     const date = new Date(sent);
     return utils.makePrettyTime(date);
@@ -50,16 +50,24 @@ export default function AuthorRow({
 
   if (detailView) {
     return (
-      <XStack gap="$s" alignItems="center">
+      <XStack onPress={() => setShowProfile(true)} gap="$s" alignItems="center">
         <Avatar size="$2xl" contact={author} contactId={authorId} />
         <ContactName width="100%" showNickname userId={authorId} />
+        {showProfile && author && (
+          <ProfileSheet
+            open={showProfile}
+            contact={author}
+            contactId={authorId}
+            onOpenChange={setShowProfile}
+          />
+        )}
       </XStack>
     );
   }
 
   if (type === 'chat' || type === 'reply') {
     return (
-      <XStack gap="$l" alignItems="center">
+      <XStack onPress={() => setShowProfile(true)} gap="$l" alignItems="center">
         <Avatar size="$2xl" contact={author} contactId={authorId} />
         <ContactName showNickname userId={authorId} fontWeight="500" />
         <SizableText
@@ -71,6 +79,14 @@ export default function AuthorRow({
           {timeDisplay}
         </SizableText>
         {firstRole && <RoleBadge role={firstRole} />}
+        {showProfile && author && (
+          <ProfileSheet
+            open={showProfile}
+            contact={author}
+            contactId={authorId}
+            onOpenChange={setShowProfile}
+          />
+        )}
       </XStack>
     );
   }
@@ -94,9 +110,17 @@ export default function AuthorRow({
 
   if (type === 'note') {
     return (
-      <XStack gap="$s" alignItems="center">
+      <XStack onPress={() => setShowProfile(true)} gap="$s" alignItems="center">
         <Avatar size="$2xl" contact={author} contactId={authorId} />
         <ContactName width="100%" showNickname userId={authorId} />
+        {showProfile && author && (
+          <ProfileSheet
+            open={showProfile}
+            contact={author}
+            contactId={authorId}
+            onOpenChange={setShowProfile}
+          />
+        )}
       </XStack>
     );
   }

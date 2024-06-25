@@ -2196,6 +2196,7 @@ export const getGroup = createReadQuery(
           members: {
             with: {
               contact: true,
+              roles: true,
             },
           },
           navSections: {

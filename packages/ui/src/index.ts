@@ -23,6 +23,7 @@ export * from './components/WelcomeSheet';
 export * from './components/AddChats/AddDmSheet';
 export * from './components/GroupListItem';
 export * from './components/FloatingActionButton';
+export * from './components/ProfileSheet';
 export * from './components/ChatList';
 export * from './components/ChannelSwitcherSheet';
 export * from './components/SearchBar';
