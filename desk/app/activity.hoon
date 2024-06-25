@@ -734,6 +734,7 @@
   ::
       %all
     |=  =index:a
+    ?^  time.action  index(reads [u.time.action ~])
     =/  latest=(unit [=time event:a])
     ::REVIEW  is this taking the item from the correct end? lol
       (ram:on-event:a stream.index)
@@ -849,7 +850,7 @@
     |(is-msg ?=(?(%dm-invite %chan-init) -<.event))
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
-  =.  newest  time
+  =?  newest  (gth time newest)  time
   ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
     $(stream rest)
   =.  total  +(total)

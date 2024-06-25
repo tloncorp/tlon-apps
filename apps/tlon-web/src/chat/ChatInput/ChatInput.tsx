@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Editor } from '@tiptap/react';
-import { getKey } from '@tloncorp/shared/dist/urbit/activity';
+import { getKey, getThreadKey } from '@tloncorp/shared/dist/urbit/activity';
 import {
   CacheId,
   Cite,
@@ -61,7 +61,6 @@ import {
   useIsDmOrMultiDm,
   useThreadParentId,
 } from '@/logic/utils';
-import { useMyLastMessage } from '@/state/channel/channel';
 import {
   SendMessageVariables,
   SendReplyVariables,
@@ -393,8 +392,9 @@ export default function ChatInput({
       onUpdate.current.flush();
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
-        // TODO: chesterton's fence, but why execute a read here?
-        useUnreadsStore.getState().read(getKey(whom));
+        const key = replying ? getThreadKey(whom, replying) : getKey(whom);
+        useUnreadsStore.getState().read(key);
+        useUnreadsStore.getState().bump(key);
         clearAttachments();
       }, 0);
     },
