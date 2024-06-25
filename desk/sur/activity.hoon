@@ -154,15 +154,17 @@
 ::
 ::    $newest: the time of the latest activity read or unread
 ::    $count: the total number of unread events including children
+::    $notify-count: the number of unreads that are notifications including children
 ::    $notify: if there are any notifications here or in children
 ::    $unread: if the main stream of source is unread: which starting
 ::             message, how many there are, and if any are notifications
 ::    $children: the sources nested under this source
 ::
 +$  activity-summary
-  $~  [*@da 0 | ~ ~]
+  $~  [*@da 0 0 | ~ ~]
   $:  newest=time
       count=@ud
+      notify-count=@ud
       notify=_|
       unread=(unit unread-point)
       children=(unit (map source activity-summary))
@@ -209,6 +211,31 @@
 ++  on-event        ((on time event) lte)
 ++  ex-event        ((mp time event) lte)
 ++  on-read-items   ((on time ,~) lte)
++|  %old-types
+++  old
+  |%
+  +$  update-0
+    $%  [%add =source time-event]
+        [%del =source]
+        [%read =source =activity-summary-0]
+        [%adjust =source volume-map=(unit volume-map)]
+        [%allow-notifications allow=notifications-allowed]
+    ==
+  +$  full-info-0
+    $:  =indices
+        activity=activity-0
+        =volume-settings
+    ==
+  +$  activity-0  (map source activity-summary-0)
+  +$  activity-summary-0
+    $~  [*@da 0 | ~ ~]
+    $:  newest=time
+        count=@ud
+        notify=_|
+        unread=(unit unread-point)
+        children=(unit (map source activity-summary-0))
+    ==
+  --
 +|  %constants
 ++  default-volumes
   ^~

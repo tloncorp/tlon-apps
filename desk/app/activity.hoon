@@ -7,7 +7,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %2
+    $:  %3
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -95,13 +95,44 @@
   ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  ?>  ?=(%2 -.old)
+  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+  ?>  ?=(%3 -.old)
   =.  state  old
   cor
-  +$  versioned-state  $%(state-2 state-1)
-  +$  state-2  current-state
+  +$  versioned-state  $%(state-3 state-2 state-1)
+  +$  state-3  current-state
+  +$  state-2
+    $:  %2
+        allowed=notifications-allowed:a
+        =indices:a
+        activity=activity-0:old:a
+        =volume-settings:a
+    ==
+  ++  state-2-to-3
+    |=  old=state-2
+    ^-  state-3
+    :*  %3
+        allowed.old
+        indices.old
+        (activity-2-to-3 indices.old)
+        volume-settings.old
+    ==
+  ++  activity-2-to-3
+    |=  =indices:a
+    ^-  activity:a
+    =/  indexes
+      ::  sort children first in order so we only have to make one pass
+      ::  of summarization aka not repeatedly updating the same source
+      %+  sort
+        ~(tap by indices)
+      |=  [[asrc=source:a *] [bsrc=source:a *]]
+      (gth (get-order asrc) (get-order bsrc))
+    %+  roll  indexes
+    |=  [[=source:a =index:a] =activity:a]
+    %+  ~(put by activity)  source
+    (summarize-unreads source index)
   +$  state-1
-    [%1 =indices:a =activity:a =volume-settings:a]
+    [%1 =indices:a =activity-0:old:a =volume-settings:a]
   ++  state-1-to-2
     |=  old=state-1
     ^-  state-2
@@ -307,17 +338,24 @@
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-watch-path+pole !!)
-    ~  ?>(from-self cor)
-    [%notifications ~]  ?>(from-self cor)
-    [%unreads ~]  ?>(from-self cor)
+    ?(~ [%v0 ~])          ?>(from-self cor)
+    [%v1 ~]               ?>(from-self cor)
+    [%unreads ~]   ?>(from-self cor)
+    [%v0 %unreads ~]   ?>(from-self cor)
+    [%v1 %unreads ~]      ?>(from-self cor)
+    [%notifications ~]    ?>(from-self cor)
   ==
 ::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
-      [%x ~]
-    ``activity-full+!>([indices activity volume-settings])
+      [%x ?(~ [%v0 ~])]
+    =/  =activity-0:old:a  (activity-0:convert-to activity)
+    ``activity-full+!>([indices activity-0 volume-settings])
+  ::
+      [%x %v1 ~]
+    ``activity-full-1+!>([indices activity volume-settings])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
@@ -407,8 +445,11 @@
       [%x %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
-      [%x %activity ~]
-    ``activity-summary+!>(activity)
+      [%x ?(%activity [%v0 %activity]) ~]
+    ``activity-summary+!>((activity-0:convert-to activity))
+  ::
+      [%x %v1 %activity ~]
+    ``activity-summary-1+!>(activity)
   ::
       [%x %volume-settings ~]
     ``activity-settings+!>(volume-settings)
@@ -532,7 +573,7 @@
   =/  =event:a  [inc notify |]
   =/  =source:a  (determine-source inc)
   =?  cor  !importing
-    (give %fact ~[/] activity-update+!>([%add source time-id event]))
+    (give %fact ~[/ /v0 /v1] activity-update+!>([%add source time-id event]))
   =?  cor  &(!importing notify (is-allowed inc))
     (give %fact ~[/notifications] activity-event+!>([time-id event]))
   =.  indices
@@ -583,7 +624,7 @@
   =.  indices  (~(del by indices) source)
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
-  (give %fact ~[/] activity-update+!>([%del source]))
+  (give %fact ~[/ /v0 /v1] activity-update+!>([%del source]))
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -602,10 +643,14 @@
 ::
 ++  refresh-all-summaries
   ^+  cor
-  =/  sources  ~(tap in ~(key by indices))
+  =/  sources
+    %+  sort
+      ~(tap in ~(key by indices))
+    |=  [asrc=source:a bsrc=source:a]
+    (gth (get-order asrc) (get-order bsrc))
   |-
   ?~  sources  cor
-  =.  cor  (refresh i.sources)
+  =.  cor  (refresh-summary i.sources)
   $(sources t.sources)
 ::
 ++  refresh-summary
@@ -752,12 +797,16 @@
   |=  =source:a
   ^+  cor
   =/  summary  (~(got by activity) source)
-  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source summary]))
+  =/  =update:a  [%read source summary]
+  =/  v0-paths=(list path)  ~[/ /v0 /unreads /v0/unreads]
+  =/  v0-cage=cage  activity-update+!>((update-0:convert-to update))
+  =.  cor  (give %fact v0-paths v0-cage)
+  (give %fact ~[/v1 /v1/unreads] activity-update-1+!>(update))
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
   ^+  cor
-  =.  cor  (give %fact ~[/] activity-update+!>([%adjust source volume-map]))
+  =.  cor  (give %fact ~[/ /v0 /v1] activity-update+!>([%adjust source volume-map]))
   ?~  volume-map
     cor(volume-settings (~(del by volume-settings) source))
   =/  target  (~(gut by volume-settings) source *volume-map:a)
@@ -770,7 +819,7 @@
   |=  na=notifications-allowed:a
   ^+  cor
   =.  allowed  na
-  (give %fact ~[/] activity-update+!>([%allow-notifications na]))
+  (give %fact ~[/ /v0 /v1] activity-update+!>([%allow-notifications na]))
 ++  get-children
   |=  =source:a
   ^-  (list source:a)
@@ -828,9 +877,11 @@
       count  (^add count.sum count.as)
       notify  |(notify.sum notify.as)
       newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
+      notify-count  (^add notify-count.sum notify-count.as)
     ==
   =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
   =/  total  count.cs
+  =/  notify-count  notify-count.cs
   =/  main  0
   =/  notified=?  notify.cs
   =/  main-notified=?  |
@@ -840,7 +891,13 @@
   ::  if reply, update thread state
   |-
   ?~  stream
-    [newest total notified ?~(last ~ `[u.last main main-notified]) `child-map]
+    :*  newest
+        total
+        notify-count
+        notified
+        ?~(last ~ `[u.last main main-notified])
+        `child-map
+    ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
   ::TODO  support other event types
@@ -849,6 +906,7 @@
     |(is-msg ?=(?(%dm-invite %chan-init) -<.event))
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
+  =?  notify-count  &(notify.volume notified.event)  +(notify-count)
   =.  newest  time
   ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
     $(stream rest)
@@ -859,4 +917,42 @@
     ?~  last  `key.event
     last
   $(stream rest)
+++  get-order
+  |=  =source:a
+  %.  -.source
+  %~  got  by
+  ^~
+  %-  my
+  :~  [%thread 6]
+      [%dm-thread 5]
+      [%channel 4]
+      [%group 3]
+      [%dm 2]
+      [%base 1]
+  ==
+++  convert-to
+  |%
+  ++  activity-0
+    |=  =activity:a
+    ^-  activity-0:old:a
+    %-  ~(run by activity)
+    activity-summary-0
+  ++  activity-summary-0
+    |=  as=activity-summary:a
+    ^-  activity-summary-0:old:a
+    :*  newest.as
+        count.as
+        notify.as
+        unread.as
+        ?~  children.as  ~
+        `(activity-0 u.children.as)
+    ==
+  ++  update-0
+    |=  =update:a
+    ^-  update-0:old:a
+    ?+  -.update  update
+        %read
+      [%read source.update (activity-summary-0 activity-summary.update)]
+    ==
+  --
 --
