@@ -1,18 +1,24 @@
 import {
   InfiniteData,
-  replaceEqualDeep,
+  QueryKey,
+  UseInfiniteQueryResult,
   useInfiniteQuery,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
 import { queryClient } from './reactQuery';
 import * as sync from './sync';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
+type PostQueryData = InfiniteData<db.Post[], unknown>;
+type PostQuery = UseInfiniteQueryResult<PostQueryData, Error>;
+type PendingPost = [db.Post, string | undefined];
+
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
@@ -22,75 +28,17 @@ export const clearChannelPostsQueries = () => {
   queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
 
-/**
- * Adds a post to the query data for a given channel, if query exists.
- * Called from sync.handleAddPost when we send a post or receive a post event.
- */
-export const addToChannelPosts = (
-  newPost: db.Post,
-  previousPostId?: string
-) => {
-  queryClient.setQueriesData(
-    {
-      queryKey: [['channelPosts', newPost.channelId]],
-    },
-    (
-      currentData?: InfiniteData<db.Post[], db.GetChannelPostsOptions>
-    ): InfiniteData<db.Post[], db.GetChannelPostsOptions> => {
-      let setPost = false;
-      if (!currentData) {
-        currentData = {
-          pages: [[]],
-          pageParams: [{ channelId: newPost.channelId, mode: 'newest' }],
-        };
-      }
-      const nextPages = currentData?.pages?.map((p) => {
-        return p.flatMap((post) => {
-          // Check if there's a pending post to replace
-          if (post.sentAt === newPost.sentAt) {
-            setPost = true;
-            return [
-              {
-                ...post,
-                ...newPost,
-              },
-            ];
-          } else if (post.id === previousPostId) {
-            setPost = true;
-            return [newPost, post];
-          } else {
-            return [post];
-          }
-        });
-      });
-      if (!setPost) {
-        console.log('unable to place post', newPost, currentData);
-      }
-      return {
-        ...currentData,
-        pages: nextPages,
-      };
-    }
-  );
-};
-
 export const useChannelPosts = (options: UseChanelPostsParams) => {
-  useEffect(() => {
-    postsLogger.log('mount', options);
-    return () => {
-      postsLogger.log('unmount', options);
-    };
-  }, []);
-
-  useEffect(() => {
-    postsLogger.log('options', options);
-  }, [options]);
-
   const mountTime = useMemo(() => {
     return Date.now();
   }, []);
 
   const { enabled, firstPageCount, ...pageParam } = options;
+
+  const queryKey = useMemo(
+    () => [['channelPosts', options.channelId, options.cursor, mountTime]],
+    [options.channelId, options.cursor, mountTime]
+  );
 
   const query = useInfiniteQuery({
     enabled,
@@ -101,13 +49,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
-      postsLogger.log(
-        'loading posts',
-        queryOptions.channelId,
-        queryOptions.cursor,
-        queryOptions.mode,
-        queryOptions.count
-      );
+      postsLogger.log('loading posts', queryOptions);
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
@@ -124,7 +66,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       );
       return secondResult ?? [];
     },
-    queryKey: [['channelPosts', options.channelId, options.cursor, mountTime]],
+    queryKey,
     getNextPageParam: (
       lastPage,
       _allPages,
@@ -180,11 +122,30 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   );
   const posts = useOptimizedQueryResults(rawPosts);
 
-  // Using a ref here looks kind of stupid, but short circuits a bunch of
-  // renders. Maybe there's a better way?
-  const queryRef = useRef(query);
-  queryRef.current = query;
+  useAddNewPostsToQuery(queryKey, query);
 
+  const isLoading =
+    query.isPending ||
+    query.isPaused ||
+    query.isFetchingNextPage ||
+    query.isFetchingPreviousPage;
+
+  const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
+
+  return useMemo(
+    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
+    [posts, query, loadOlder, loadNewer, isLoading]
+  );
+};
+
+/**
+ * Creates loadNewer/loadOlder handlers that will queue up requests if called
+ * while a query is ongoing
+ */
+function useLoadActionsWithPendingHandlers(
+  query: UseInfiniteQueryResult<PostQueryData, Error>
+) {
+  const queryRef = useLiveRef(query);
   const olderPageLoadingPendingRef = useRef(false);
   const newerPageLoadingPendingRef = useRef(false);
 
@@ -219,38 +180,136 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     }
   }, [query.isFetching, loadOlder, loadNewer]);
 
-  const isLoading =
-    query.isPending ||
-    query.isPaused ||
-    query.isFetchingNextPage ||
-    query.isFetchingPreviousPage;
+  return { loadNewer, loadOlder };
+}
 
-  return useMemo(
-    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
-    [posts, query, loadOlder, loadNewer, isLoading]
-  );
+// New post listener:
+//
+// Used to proxy events from post subscription to the hook,
+// allowing us to manually add new posts to the query data.
+
+type NewPostListener = (...args: PendingPost) => void;
+
+const newPostListeners: NewPostListener[] = [];
+
+const useNewPostListener = (listener: NewPostListener) => {
+  useEffect(() => {
+    newPostListeners.push(listener);
+    return () => {
+      const index = newPostListeners.indexOf(listener);
+      if (index !== -1) {
+        newPostListeners.splice(index, 1);
+      }
+    };
+  }, [listener]);
 };
 
 /**
- * Minimizes churn for queries that return similar results repeatedly. Uses
- * react-query's `replaceEqualDeep` to ensure that we only return new objects
- * when the data belonging to those objects has changed.
+ * External interface for transmitting new post events to listener
  */
-function useOptimizedQueryResults<T extends { id: string }>(
-  value: T[] | null | undefined
-) {
-  const lastValueRef = useRef(value);
-  return useMemo(() => {
-    const lastPostsMap: Record<string, T> =
-      lastValueRef.current?.reduce<Record<string, T>>((memo, p) => {
-        memo[p.id] = p;
-        return memo;
-      }, {}) ?? {};
-    lastValueRef.current = value;
-    return (
-      value?.map((p) =>
-        lastPostsMap[p.id] ? replaceEqualDeep(lastPostsMap[p.id], p) : p
-      ) ?? null
+export const addToChannelPosts = (...args: PendingPost) => {
+  newPostListeners.forEach((listener) => listener(...args));
+};
+
+/**
+ * Attaches to new post listener to actually update query data when the listener
+ * triggers.
+ */
+function useAddNewPostsToQuery(queryKey: QueryKey, query: PostQuery) {
+  const queryRef = useLiveRef(query);
+  const pendingPostsRef = useRef<PendingPost[]>([]);
+
+  const updateQuery = useCallback(() => {
+    // Bail out if we don't have the data yet or if we're fetching, since updating in either of those cases can
+    if (
+      !queryRef.current.data ||
+      queryRef.current.isFetching ||
+      !pendingPostsRef.current.length
+    ) {
+      return;
+    }
+    const remainingPosts = addPendingPostsToQuery(
+      queryKey,
+      pendingPostsRef.current
     );
-  }, [value]);
+    pendingPostsRef.current = remainingPosts;
+  }, [queryKey, queryRef]);
+
+  // When we get a new post from the listener, add it to the pending list
+  // and attempt to update query data.
+  const handleNewPost = useCallback(
+    (...pendingPost: PendingPost) => {
+      pendingPostsRef.current.push(pendingPost);
+      updateQuery();
+    },
+    [updateQuery]
+  );
+  useNewPostListener(handleNewPost);
+
+  // Attempt to re-apply pending posts whenever the query finishes fetching.
+  useEffect(() => {
+    updateQuery();
+  }, [query.isFetching, updateQuery]);
+}
+
+function addPendingPostsToQuery(
+  queryKey: QueryKey,
+  pendingPosts: PendingPost[]
+): PendingPost[] {
+  const skippedPosts: PendingPost[] = [];
+
+  queryClient.setQueryData(queryKey, (oldData: PostQueryData) => {
+    const result = pendingPosts.reduce((workingData, pendingPost) => {
+      const [wasAdded, updatedData] = addPendingPostToQueryData(
+        pendingPost,
+        workingData
+      );
+      if (!wasAdded) {
+        skippedPosts.push(pendingPost);
+      }
+      return updatedData;
+    }, oldData);
+    return result;
+  });
+
+  return skippedPosts;
+}
+
+/**
+ * Attempts to update query data with each pending post in sequence.
+ */
+function addPendingPostToQueryData(
+  [newPost, previousPostId]: PendingPost,
+  data: PostQueryData
+): [boolean, PostQueryData] {
+  let addedPost = false;
+  const result = mapInfiniteData(data, (post: db.Post) => {
+    // Check if there's a pending post to replace
+    if (post.sentAt === newPost.sentAt) {
+      addedPost = true;
+      return [
+        {
+          ...post,
+          ...newPost,
+        },
+      ];
+    } else if (post.id === previousPostId) {
+      addedPost = true;
+      return [newPost, post];
+    } else if (post.id === newPost.id) {
+      addedPost = true;
+      return [{ ...post, ...newPost }];
+    } else {
+      return [post];
+    }
+  });
+  return [addedPost, result];
+}
+
+function mapInfiniteData<
+  TItem,
+  TInfiniteData extends InfiniteData<TItem[], any>,
+>(data: TInfiniteData, cb: (item: TItem) => TItem | TItem[]): TInfiniteData {
+  const nextPages = data?.pages?.map((p) => p.flatMap(cb));
+  return { ...data, pages: nextPages };
 }
