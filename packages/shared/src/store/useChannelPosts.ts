@@ -17,7 +17,7 @@ const postsLogger = createDevLogger('useChannelPosts', false);
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<db.Post[], unknown>;
 type PostQuery = UseInfiniteQueryResult<PostQueryData, Error>;
-type PendingPost = [db.Post, string | undefined];
+type SubscriptionPost = [db.Post, string | undefined];
 
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
@@ -188,17 +188,17 @@ function useLoadActionsWithPendingHandlers(
 // Used to proxy events from post subscription to the hook,
 // allowing us to manually add new posts to the query data.
 
-type NewPostListener = (...args: PendingPost) => void;
+type SubscriptionPostListener = (...args: SubscriptionPost) => void;
 
-const newPostListeners: NewPostListener[] = [];
+const subscriptionPostListeners: SubscriptionPostListener[] = [];
 
-const useNewPostListener = (listener: NewPostListener) => {
+const useSubscriptionPostListener = (listener: SubscriptionPostListener) => {
   useEffect(() => {
-    newPostListeners.push(listener);
+    subscriptionPostListeners.push(listener);
     return () => {
-      const index = newPostListeners.indexOf(listener);
+      const index = subscriptionPostListeners.indexOf(listener);
       if (index !== -1) {
-        newPostListeners.splice(index, 1);
+        subscriptionPostListeners.splice(index, 1);
       }
     };
   }, [listener]);
@@ -207,8 +207,8 @@ const useNewPostListener = (listener: NewPostListener) => {
 /**
  * External interface for transmitting new post events to listener
  */
-export const addToChannelPosts = (...args: PendingPost) => {
-  newPostListeners.forEach((listener) => listener(...args));
+export const addToChannelPosts = (...args: SubscriptionPost) => {
+  subscriptionPostListeners.forEach((listener) => listener(...args));
 };
 
 /**
@@ -217,34 +217,34 @@ export const addToChannelPosts = (...args: PendingPost) => {
  */
 function useAddNewPostsToQuery(queryKey: QueryKey, query: PostQuery) {
   const queryRef = useLiveRef(query);
-  const pendingPostsRef = useRef<PendingPost[]>([]);
+  const subscriptionPostsRef = useRef<SubscriptionPost[]>([]);
 
   const updateQuery = useCallback(() => {
     // Bail out if we don't have the data yet or if we're fetching, since updating in either of those cases can
     if (
       !queryRef.current.data ||
       queryRef.current.isFetching ||
-      !pendingPostsRef.current.length
+      !subscriptionPostsRef.current.length
     ) {
       return;
     }
-    const remainingPosts = addPendingPostsToQuery(
+    const remainingPosts = addSubscriptionPostsToQuery(
       queryKey,
-      pendingPostsRef.current
+      subscriptionPostsRef.current
     );
-    pendingPostsRef.current = remainingPosts;
+    subscriptionPostsRef.current = remainingPosts;
   }, [queryKey, queryRef]);
 
   // When we get a new post from the listener, add it to the pending list
   // and attempt to update query data.
   const handleNewPost = useCallback(
-    (...pendingPost: PendingPost) => {
-      pendingPostsRef.current.push(pendingPost);
+    (...subscriptionPost: SubscriptionPost) => {
+      subscriptionPostsRef.current.push(subscriptionPost);
       updateQuery();
     },
     [updateQuery]
   );
-  useNewPostListener(handleNewPost);
+  useSubscriptionPostListener(handleNewPost);
 
   // Attempt to re-apply pending posts whenever the query finishes fetching.
   useEffect(() => {
@@ -252,20 +252,20 @@ function useAddNewPostsToQuery(queryKey: QueryKey, query: PostQuery) {
   }, [query.isFetching, updateQuery]);
 }
 
-function addPendingPostsToQuery(
+function addSubscriptionPostsToQuery(
   queryKey: QueryKey,
-  pendingPosts: PendingPost[]
-): PendingPost[] {
-  const skippedPosts: PendingPost[] = [];
+  subscriptionPosts: SubscriptionPost[]
+): SubscriptionPost[] {
+  const skippedPosts: SubscriptionPost[] = [];
 
   queryClient.setQueryData(queryKey, (oldData: PostQueryData) => {
-    const result = pendingPosts.reduce((workingData, pendingPost) => {
-      const [wasAdded, updatedData] = addPendingPostToQueryData(
-        pendingPost,
+    const result = subscriptionPosts.reduce((workingData, subscriptionPost) => {
+      const [wasAdded, updatedData] = addSubscriptionPostToQueryData(
+        subscriptionPost,
         workingData
       );
       if (!wasAdded) {
-        skippedPosts.push(pendingPost);
+        skippedPosts.push(subscriptionPost);
       }
       return updatedData;
     }, oldData);
@@ -278,15 +278,15 @@ function addPendingPostsToQuery(
 /**
  * Attempts to update query data with each pending post in sequence.
  */
-function addPendingPostToQueryData(
-  [newPost, previousPostId]: PendingPost,
+function addSubscriptionPostToQueryData(
+  [newPost, previousPostId]: SubscriptionPost,
   data: PostQueryData
 ): [boolean, PostQueryData] {
-  let addedPost = false;
+  let subscriptionPost = false;
   const result = mapInfiniteData(data, (post: db.Post) => {
     // Check if there's a pending post to replace
     if (post.sentAt === newPost.sentAt) {
-      addedPost = true;
+      subscriptionPost = true;
       return [
         {
           ...post,
@@ -294,16 +294,16 @@ function addPendingPostToQueryData(
         },
       ];
     } else if (post.id === previousPostId) {
-      addedPost = true;
+      subscriptionPost = true;
       return [newPost, post];
     } else if (post.id === newPost.id) {
-      addedPost = true;
+      subscriptionPost = true;
       return [{ ...post, ...newPost }];
     } else {
       return [post];
     }
   });
-  return [addedPost, result];
+  return [subscriptionPost, result];
 }
 
 function mapInfiniteData<
