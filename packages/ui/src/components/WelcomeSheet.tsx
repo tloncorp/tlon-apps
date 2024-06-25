@@ -30,11 +30,11 @@ export function WelcomeSheet({
         <Sheet.Handle marginBottom="$l" />
         <View paddingHorizontal="$2xl">
           <YStack gap="$2xl">
-            <View>
+            <View borderRadius="$xl" overflow="hidden">
               <Image
                 style={{ width: '100%', height: 188 }}
-                resizeMode={'contain'}
-                source={require('../assets/raster/welcome-flowers.png')}
+                resizeMode={'cover'}
+                source={require('../assets/raster/welcome_flowers.jpg')}
               />
             </View>
             <YStack gap="$xs">
