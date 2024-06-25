@@ -18,6 +18,10 @@ type UseChanelPostsParams = UseChannelPostsPageParams & {
   firstPageCount?: number;
 };
 
+export const clearChannelPostsQueries = () => {
+  queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
+};
+
 /**
  * Adds a post to the query data for a given channel, if query exists.
  * Called from sync.handleAddPost when we send a post or receive a post event.
