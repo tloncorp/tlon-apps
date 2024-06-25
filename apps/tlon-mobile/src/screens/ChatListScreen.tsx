@@ -1,11 +1,16 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useIsFocused,
+  useNavigation,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   CalmProvider,
-  ChatList, // ChatOptionsSheet,
+  ChatList,
+  ChatOptionsSheet,
   ContactsProvider,
   FloatingActionButton,
   GroupPreviewSheet,
@@ -20,6 +25,7 @@ import ContextMenu from 'react-native-context-menu-view';
 import AddGroupSheet from '../components/AddGroupSheet';
 import { TLON_EMPLOYEE_GROUP } from '../constants';
 import { useCalmSettings } from '../hooks/useCalmSettings';
+import { useCurrentUserId } from '../hooks/useCurrentUser';
 import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
@@ -33,13 +39,13 @@ type ChatListScreenProps = NativeStackScreenProps<
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
+  const navigation = useNavigation();
   const [screenTitle, setScreenTitle] = useState('Home');
-  {
-    /* FIXME: Disabling long-press on ChatListScreen items for now */
-  }
-  // const [longPressedItem, setLongPressedItem] = useState<db.Channel | null>(
-  //   null
-  // );
+  const [longPressedChannel, setLongPressedChannel] =
+    useState<db.Channel | null>(null);
+  const [longPressedGroup, setLongPressedGroup] = useState<db.Group | null>(
+    null
+  );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -47,6 +53,8 @@ export default function ChatListScreen(
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+
+  const currentUser = useCurrentUserId();
 
   const { data: contacts } = store.useContacts();
   const resolvedChats = useMemo(() => {
@@ -105,12 +113,19 @@ export default function ChatListScreen(
     [props.navigation]
   );
 
-  {
-    /* FIXME: Disabling long-press on ChatListScreen items for now */
-  }
-  // const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
-  //   logic.isChannel(item) ? setLongPressedItem(item) : null;
-  // }, []);
+  const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
+    if (logic.isChannel(item)) {
+      if (
+        item.type === 'dm' ||
+        item.type === 'groupDm' ||
+        item.pin?.type === 'channel'
+      ) {
+        setLongPressedChannel(item);
+      } else if (item.group) {
+        setLongPressedGroup(item.group);
+      }
+    }
+  }, []);
 
   const handleDmOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -130,21 +145,84 @@ export default function ChatListScreen(
     }
   }, []);
 
-  {
-    /* FIXME: Disabling long-press on ChatListScreen items for now */
-  }
-  // const handleChatOptionsOpenChange = useCallback(
-  //   (open: boolean) => {
-  //     if (!open) {
-  //       setLongPressedItem(null);
-  //     }
-  //   },
-  //   [setLongPressedItem]
-  // );
+  const handleChatOptionsOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setLongPressedChannel(null);
+        setLongPressedGroup(null);
+      }
+    },
+    [setLongPressedChannel]
+  );
 
   const handleGroupCreated = useCallback(
     ({ channel }: { channel: db.Channel }) => goToChannel({ channel }),
     [goToChannel]
+  );
+
+  const handleGoToGroupMeta = useCallback(
+    (groupId: string) => {
+      // @ts-expect-error TODO fix nested navigator types
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMeta',
+        params: { groupId },
+      });
+
+      setLongPressedGroup(null);
+    },
+    [navigation]
+  );
+
+  const handleGoToGroupMembers = useCallback(
+    (groupId: string) => {
+      // @ts-expect-error TODO fix nested navigator types
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId },
+      });
+
+      setLongPressedGroup(null);
+    },
+    [navigation]
+  );
+
+  const handleGoToManageChannels = useCallback(
+    (groupId: string) => {
+      // @ts-expect-error TODO fix nested navigator types
+      navigation.navigate('GroupSettings', {
+        screen: 'ManageChannels',
+        params: { groupId },
+      });
+
+      setLongPressedGroup(null);
+    },
+    [navigation]
+  );
+
+  const handleGoToInvitesAndPrivacy = useCallback(
+    (groupId: string) => {
+      // @ts-expect-error TODO fix nested navigator types
+      navigation.navigate('GroupSettings', {
+        screen: 'InvitesAndPrivacy',
+        params: { groupId },
+      });
+
+      setLongPressedGroup(null);
+    },
+    [navigation]
+  );
+
+  const handleGoToRoles = useCallback(
+    (groupId: string) => {
+      // @ts-expect-error TODO fix nested navigator types
+      navigation.navigate('GroupSettings', {
+        screen: 'GroupRoles',
+        params: { groupId },
+      });
+
+      setLongPressedGroup(null);
+    },
+    [navigation]
   );
 
   const { pinned, unpinned } = resolvedChats;
@@ -178,8 +256,7 @@ export default function ChatListScreen(
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
               pendingChats={resolvedChats.pendingChats}
-              // FIXME: Disabling long-press on ChatListScreen items for now
-              // onLongPressItem={onLongPressItem}
+              onLongPressItem={onLongPressItem}
               onPressItem={onPressChat}
               onSectionChange={handleSectionChange}
             />
@@ -215,12 +292,20 @@ export default function ChatListScreen(
               />
             </ContextMenu>
           </View>
-          {/* FIXME: Disabling long-press on ChatListScreen items for now */}
-          {/* <ChatOptionsSheet
-          open={longPressedItem !== null}
-          onOpenChange={handleChatOptionsOpenChange}
-          channel={longPressedItem ?? undefined}
-        /> */}
+          <ChatOptionsSheet
+            open={longPressedChannel !== null || longPressedGroup !== null}
+            onOpenChange={handleChatOptionsOpenChange}
+            currentUser={currentUser}
+            pinned={pinned}
+            channel={longPressedChannel ?? undefined}
+            group={longPressedGroup ?? undefined}
+            useGroup={store.useGroup}
+            onPressGroupMeta={handleGoToGroupMeta}
+            onPressGroupMembers={handleGoToGroupMembers}
+            onPressManageChannels={handleGoToManageChannels}
+            onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
+            onPressRoles={handleGoToRoles}
+          />
           <StartDmSheet
             goToDm={goToDm}
             open={startDmOpen}
