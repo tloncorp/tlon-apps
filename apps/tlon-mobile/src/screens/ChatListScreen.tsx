@@ -12,8 +12,8 @@ import {
   Icon,
   ScreenHeader,
   StartDmSheet,
-  Text,
   View,
+  WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ContextMenu from 'react-native-context-menu-view';
@@ -25,7 +25,7 @@ import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
-import { isSplashDismissed } from '../utils/splash';
+import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
 
 type ChatListScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -175,6 +175,13 @@ export default function ChatListScreen(
     checkSplashDismissed();
   }, []);
 
+  const handleWelcomeOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setSplashVisible(false);
+      setSplashDismissed();
+    }
+  }, []);
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts ?? []}>
@@ -234,11 +241,10 @@ export default function ChatListScreen(
           onOpenChange={handleChatOptionsOpenChange}
           channel={longPressedItem ?? undefined}
         /> */}
-          {splashVisible && (
-            <View>
-              <Text>Welcome</Text>
-            </View>
-          )}
+          <WelcomeSheet
+            open={splashVisible}
+            onOpenChange={handleWelcomeOpenChange}
+          />
           <StartDmSheet
             goToDm={goToDm}
             open={startDmOpen}
