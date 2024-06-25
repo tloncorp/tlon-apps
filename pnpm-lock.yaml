@@ -6,7 +6,7 @@ settings:
 
 overrides:
   typescript: 5.4.5
-  '@urbit/http-api': 3.1.0-dev-2
+  '@urbit/http-api': 3.1.0-dev-3
 
 patchedDependencies:
   '@10play/tentap-editor@0.4.55':
@@ -18,9 +18,9 @@ patchedDependencies:
   '@types/testing-library__jest-dom@5.14.5':
     hash: n4thxxgg24py6nu2jafoa3v4pa
     path: patches/@types__testing-library__jest-dom@5.14.5.patch
-  '@urbit/http-api@3.1.0-dev-2':
+  '@urbit/http-api@3.1.0-dev-3':
     hash: a4psibisxhh5q6cyjn3nbiaogm
-    path: patches/@urbit__http-api@3.1.0-dev-2.patch
+    path: patches/@urbit__http-api@3.1.0-dev-3.patch
   any-ascii@0.3.2:
     hash: 5ofxtlxe6za2xqrbq5pqbz7wb4
     path: patches/any-ascii@0.3.2.patch
@@ -147,8 +147,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(big-integer@1.6.52)
       '@urbit/http-api':
-        specifier: 3.1.0-dev-2
-        version: 3.1.0-dev-2(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)
+        specifier: 3.1.0-dev-3
+        version: 3.1.0-dev-3(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
@@ -529,8 +529,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(big-integer@1.6.52)
       '@urbit/http-api':
-        specifier: 3.1.0-dev-2
-        version: 3.1.0-dev-2(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)
+        specifier: 3.1.0-dev-3
+        version: 3.1.0-dev-3(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)
       '@urbit/sigil-js':
         specifier: ^2.2.0
         version: 2.2.0
@@ -5554,8 +5554,8 @@ packages:
     peerDependencies:
       big-integer: ^1.6.51
 
-  '@urbit/http-api@3.1.0-dev-2':
-    resolution: {integrity: sha512-9hdleBOvrH3mfgj6GTGowLU91EKOLkLV8VRQAQ3AycPwckWvwgrxn561gn7QSM8YmcdneYnOBH0/zcINUa0A7w==}
+  '@urbit/http-api@3.1.0-dev-3':
+    resolution: {integrity: sha512-Gjik6915zPI+gwel+KsEsZck78ghZwqT25FWveESS3USzNhmR/N/kbHB5tNombseLrnyFcvFringjP0nhyvzJA==}
 
   '@urbit/sigil-js@2.2.0':
     resolution: {integrity: sha512-UNtRJ0K4CAXe+IP4wARNRMjuI5GTF2MNj9FL5l4RSMddCPJqSWSpkrYcREBI4AOB+80AEyN1kK/jtzhlm5WW+w==}
@@ -18489,7 +18489,7 @@ snapshots:
     dependencies:
       big-integer: 1.6.52
 
-  '@urbit/http-api@3.1.0-dev-2(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)':
+  '@urbit/http-api@3.1.0-dev-3(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)':
     dependencies:
       '@babel/runtime': 7.23.8
       browser-or-node: 1.3.0

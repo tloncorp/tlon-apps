@@ -89,7 +89,6 @@ export function configureClient({
     logger.log('client error', error);
   });
 
-  // @ts-expect-error until client is updated
   clientInstance.on('channel-reaped', () => {
     logger.log('client channel-reaped');
     onChannelReset?.();
