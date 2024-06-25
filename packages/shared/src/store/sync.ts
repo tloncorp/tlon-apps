@@ -865,7 +865,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncContacts().then(() => reporter.log(`finished syncing contacts`)),
       resetActivity().then(() => reporter.log(`finished resetting activity`)),
     ]);
-    await syncLatestPosts();
 
     if (!alreadySubscribed) {
       await setupSubscriptions();
