@@ -13,7 +13,7 @@ import {
 } from '../store/useActivityFetchers';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
-import { addToChannelPosts } from './useChannelPosts';
+import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 const logger = createDevLogger('sync', false);
 
@@ -840,8 +840,13 @@ export const initializeStorage = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
-  // drop potentially outdated newest post markers and resync
+  // drop potentially outdated newest post markers
   channelCursors.clear();
+
+  // clear any existing channel queries
+  clearChannelPostsQueries();
+
+  // finally, refetch start data
   await syncStart(true);
 };
 
