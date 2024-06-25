@@ -161,11 +161,11 @@ export default function ChatListScreen(
   );
 
   const handleGoToGroupMeta = useCallback(
-    (group: db.Group) => {
+    (groupId: string) => {
       // @ts-expect-error TODO fix nested navigator types
       navigation.navigate('GroupSettings', {
         screen: 'GroupMeta',
-        params: { group },
+        params: { groupId },
       });
 
       setLongPressedGroup(null);
@@ -174,11 +174,11 @@ export default function ChatListScreen(
   );
 
   const handleGoToGroupMembers = useCallback(
-    (group: db.Group) => {
+    (groupId: string) => {
       // @ts-expect-error TODO fix nested navigator types
       navigation.navigate('GroupSettings', {
         screen: 'GroupMembers',
-        params: { group },
+        params: { groupId },
       });
 
       setLongPressedGroup(null);
@@ -187,11 +187,11 @@ export default function ChatListScreen(
   );
 
   const handleGoToManageChannels = useCallback(
-    (group: db.Group) => {
+    (groupId: string) => {
       // @ts-expect-error TODO fix nested navigator types
       navigation.navigate('GroupSettings', {
         screen: 'ManageChannels',
-        params: { group },
+        params: { groupId },
       });
 
       setLongPressedGroup(null);
@@ -200,11 +200,11 @@ export default function ChatListScreen(
   );
 
   const handleGoToInvitesAndPrivacy = useCallback(
-    (group: db.Group) => {
+    (groupId: string) => {
       // @ts-expect-error TODO fix nested navigator types
       navigation.navigate('GroupSettings', {
         screen: 'InvitesAndPrivacy',
-        params: { group },
+        params: { groupId },
       });
 
       setLongPressedGroup(null);
@@ -213,11 +213,11 @@ export default function ChatListScreen(
   );
 
   const handleGoToRoles = useCallback(
-    (group: db.Group) => {
+    (groupId: string) => {
       // @ts-expect-error TODO fix nested navigator types
       navigation.navigate('GroupSettings', {
         screen: 'GroupRoles',
-        params: { group },
+        params: { groupId },
       });
 
       setLongPressedGroup(null);

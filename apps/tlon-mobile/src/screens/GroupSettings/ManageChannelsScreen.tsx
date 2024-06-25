@@ -11,9 +11,7 @@ type ManageChannelsScreenProps = NativeStackScreenProps<
 >;
 
 export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
-  const {
-    group: { id },
-  } = props.route.params;
+  const { groupId } = props.route.params;
 
   const {
     group,
@@ -27,7 +25,7 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
     createNavSection,
     deleteNavSection,
     updateNavSection,
-  } = useGroupContext({ groupId: id });
+  } = useGroupContext({ groupId });
 
   return (
     <SafeAreaView>

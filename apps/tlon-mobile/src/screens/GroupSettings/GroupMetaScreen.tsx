@@ -11,12 +11,10 @@ type GroupMetaScreenProps = NativeStackScreenProps<
 >;
 
 export function GroupMetaScreen(props: GroupMetaScreenProps) {
-  const {
-    group: { id },
-  } = props.route.params;
+  const { groupId } = props.route.params;
 
   const { group, currentUserIsAdmin, setGroupMetadata } = useGroupContext({
-    groupId: id,
+    groupId,
   });
 
   return (

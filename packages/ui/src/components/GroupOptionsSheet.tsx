@@ -18,11 +18,11 @@ interface Props {
   channel?: db.Channel;
   group?: db.Group;
   useGroup: typeof store.useGroup;
-  onPressGroupMeta: (group: db.Group) => void;
-  onPressGroupMembers: (group: db.Group) => void;
-  onPressManageChannels: (group: db.Group) => void;
-  onPressInvitesAndPrivacy: (group: db.Group) => void;
-  onPressRoles: (group: db.Group) => void;
+  onPressGroupMeta: (groupId: string) => void;
+  onPressGroupMembers: (groupId: string) => void;
+  onPressManageChannels: (groupId: string) => void;
+  onPressInvitesAndPrivacy: (groupId: string) => void;
+  onPressRoles: (groupId: string) => void;
 }
 
 export function ChatOptionsSheet({
@@ -67,17 +67,17 @@ export function ChatOptionsSheet({
     () => [
       {
         title: 'Manage Channels',
-        action: () => (groupData ? onPressManageChannels(groupData) : {}),
+        action: () => (groupData ? onPressManageChannels(groupData.id) : {}),
         icon: 'ChevronRight',
       },
       {
         title: 'Invites & Privacy',
-        action: () => (groupData ? onPressInvitesAndPrivacy(groupData) : {}),
+        action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
         icon: 'ChevronRight',
       },
       {
         title: 'Roles',
-        action: () => (groupData ? onPressRoles(groupData) : {}),
+        action: () => (groupData ? onPressRoles(groupData.id) : {}),
         icon: 'ChevronRight',
       },
     ],
@@ -123,12 +123,12 @@ export function ChatOptionsSheet({
     channel?.description ?? groupData?.description ?? undefined;
   const handleOnPressGroupMeta = useCallback(() => {
     if (groupData) {
-      onPressGroupMeta(groupData);
+      onPressGroupMeta(groupData.id);
     }
   }, [groupData, onPressGroupMeta]);
   const handleOnPressGroupMembers = useCallback(() => {
     if (groupData) {
-      onPressGroupMembers(groupData);
+      onPressGroupMembers(groupData.id);
     }
   }, [groupData, onPressGroupMembers]);
 

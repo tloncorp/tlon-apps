@@ -48,19 +48,19 @@ export type RootStackParamList = {
 
 export type GroupSettingsStackParamList = {
   GroupMeta: {
-    group: db.Group;
+    groupId: string;
   };
   GroupMembers: {
-    group: db.Group;
+    groupId: string;
   };
   ManageChannels: {
-    group: db.Group;
+    groupId: string;
   };
   InvitesAndPrivacy: {
-    group: db.Group;
+    groupId: string;
   };
   GroupRoles: {
-    group: db.Group;
+    groupId: string;
   };
 };
 
