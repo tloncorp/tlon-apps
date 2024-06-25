@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text, View, XStack, YStack } from '../core';
 import { Icon } from './Icon';
@@ -16,19 +17,25 @@ export function WelcomeSheet({
     onOpenChange(false);
   }, [onOpenChange]);
 
+  const inset = useSafeAreaInsets();
+
   return (
     <Sheet
       open={open}
       onOpenChange={handleDismiss}
-      snapPoints={[85]}
+      snapPointsMode="fit"
       modal
       dismissOnSnapToBottom
       animation="quick"
     >
       <Sheet.Overlay />
-      <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
+      <Sheet.LazyFrame
+        paddingTop="$s"
+        paddingBottom={inset.bottom}
+        paddingHorizontal="$2xl"
+      >
         <Sheet.Handle marginBottom="$l" />
-        <View paddingHorizontal="$2xl">
+        <View paddingHorizontal="$2xl" paddingBottom="$xl">
           <YStack gap="$2xl">
             <View borderRadius="$xl" overflow="hidden">
               <Image
