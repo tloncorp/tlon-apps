@@ -124,11 +124,13 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
 
   useAddNewPostsToQuery(queryKey, query);
 
-  const isLoading =
+  const isLoading = useDebouncedValue(
     query.isPending ||
-    query.isPaused ||
-    query.isFetchingNextPage ||
-    query.isFetchingPreviousPage;
+      query.isPaused ||
+      query.isFetchingNextPage ||
+      query.isFetchingPreviousPage,
+    100
+  );
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
