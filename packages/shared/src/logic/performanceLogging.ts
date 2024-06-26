@@ -1,4 +1,4 @@
-import perf from '@react-native-firebase/perf';
+let perfModule: any = null;
 
 export type PerformanceMonitor = {
   startTrace: (traceName: string) => Promise<void>;
@@ -8,9 +8,15 @@ export type PerformanceMonitor = {
 export class FirebasePerformanceMonitor implements PerformanceMonitor {
   private traces: { [key: string]: any } = {};
 
+  constructor() {
+    if (typeof window === 'undefined') {
+      perfModule = require('@react-native-firebase/perf').default;
+    }
+  }
+
   async startTrace(traceName: string) {
-    if (!this.traces[traceName]) {
-      this.traces[traceName] = perf().newTrace(traceName);
+    if (!this.traces[traceName] && perfModule) {
+      this.traces[traceName] = perfModule().newTrace(traceName);
       await this.traces[traceName].start();
     }
   }
