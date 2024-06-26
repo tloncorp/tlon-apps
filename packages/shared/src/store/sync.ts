@@ -13,7 +13,9 @@ import {
 } from '../store/useActivityFetchers';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
-import { addToChannelPosts } from './useChannelPosts';
+import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
+
+const logger = createDevLogger('sync', false);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -30,11 +32,15 @@ export function updateChannelCursor(channelId: string, cursor: string) {
   }
 }
 
-const logger = createDevLogger('sync', false);
+// Used to keep track of which groups/channels we're a part of. If we
+// see something new, we refetch init data. Fallback in case we miss
+// something over %channels or %groups
+const joinedGroupsAndChannels = new Set<string>();
 
 export const syncInitData = async (reporter?: ErrorReporter) => {
   const initData = await syncQueue.add('init', () => api.getInitData());
   reporter?.log('got init data from api');
+  initializeJoinedSet(initData.unreads);
   return batchEffects('init sync', async (ctx) => {
     return await Promise.all([
       db
@@ -55,17 +61,62 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
       db
         .insertChannelPerms(initData.channelPerms, ctx)
         .then(() => reporter?.log('inserted channel perms')),
+      db
+        .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, ctx)
+        .then(() => reporter?.log('set left groups')),
+      db
+        .setLeftGroupChannels({ joinedChannelIds: initData.joinedGroups }, ctx)
+        .then(() => reporter?.log('set left channels')),
     ]);
   });
 };
 
+function initializeJoinedSet({
+  channelUnreads,
+  groupUnreads,
+}: {
+  channelUnreads: db.ChannelUnread[];
+  groupUnreads: db.GroupUnread[];
+}) {
+  channelUnreads.forEach((u) => joinedGroupsAndChannels.add(u.channelId));
+  groupUnreads.forEach((u) => joinedGroupsAndChannels.add(u.groupId));
+}
+
+const debouncedSyncInit = _.debounce(syncInitData, 3000, {
+  leading: true,
+  trailing: true,
+});
+
+function checkForNewlyJoined({
+  channelUnreads,
+  groupUnreads,
+}: {
+  channelUnreads: db.ChannelUnread[];
+  groupUnreads: db.GroupUnread[];
+}) {
+  const unreadItems = [
+    ...channelUnreads.map((u) => u.channelId),
+    ...groupUnreads.map((u) => u.groupId),
+  ];
+  let atLeastOneNew = false;
+  for (const item of unreadItems) {
+    if (!joinedGroupsAndChannels.has(item)) {
+      joinedGroupsAndChannels.add(item);
+      atLeastOneNew = true;
+    }
+  }
+
+  if (atLeastOneNew) {
+    logger.log('found newly joined channel or group, resyncing init data');
+    debouncedSyncInit();
+  }
+}
+
 export const syncLatestPosts = async (reporter?: ErrorReporter) => {
-  const result = await syncQueue.add('latest-posts', async () =>
-    Promise.all([
-      api.getLatestPosts({ type: 'channels' }),
-      api.getLatestPosts({ type: 'chats' }),
-    ])
-  );
+  const result = await Promise.all([
+    api.getLatestPosts({ type: 'channels' }),
+    api.getLatestPosts({ type: 'chats' }),
+  ]);
   reporter?.log('got latest posts from api');
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
   allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
@@ -120,6 +171,7 @@ export const syncDms = async () => {
 
 export const syncUnreads = async () => {
   const unreads = await syncQueue.add('unreads', () => api.getUnreads());
+  checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
 
@@ -380,6 +432,12 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
         });
       }
+
+      // check for any newly joined groups and channels
+      checkForNewlyJoined({
+        groupUnreads: activitySnapshot.groupUnreads,
+        channelUnreads: activitySnapshot.channelUnreads,
+      });
     },
     queueDebounce,
     { leading: true, trailing: true }
@@ -475,9 +533,11 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
 };
 
 export const handleChatUpdate = async (update: api.ChatEvent) => {
+  logger.log('event: chat update', update);
+
   switch (update.type) {
     case 'addPost':
-      await handleAddPost(update.post);
+      await handleAddPost(update.post, update.replyMeta);
       break;
     case 'deletePost':
       await db.deletePosts({ ids: [update.postId] });
@@ -502,14 +562,26 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
     case 'addDmInvites':
       db.insertChannels(update.channels);
       break;
-
     case 'groupDmsUpdate':
       syncDms();
       break;
   }
 };
 
-export async function handleAddPost(post: db.Post) {
+let lastAdded: string;
+
+export async function handleAddPost(
+  post: db.Post,
+  replyMeta?: db.ReplyMeta | null
+) {
+  // We frequently get duplicate addPost events from the api,
+  // so skip if we've just added this.
+  if (post.id === lastAdded) {
+    logger.log('skipping duplicate post.');
+  } else {
+    lastAdded = post.id;
+  }
+
   // first check if it's a reply. If it is and we haven't already cached
   // it, we need to add it to the parent post
   if (post.parentId) {
@@ -522,6 +594,7 @@ export async function handleAddPost(post: db.Post) {
         parentId: post.parentId,
         replyAuthor: post.authorId,
         replyTime: post.sentAt,
+        replyMeta,
       });
     }
     await db.insertChannelPosts({
@@ -761,20 +834,44 @@ export const initializeStorage = () => {
   });
 };
 
-export const syncStart = async () => {
+/*
+  If there's a gap in time where we weren't subscribed to changes, we need to
+  make sure our local data remains up to date. For now, this focuses on immediate
+  concerns and punts on full correctness.
+*/
+export const handleDiscontinuity = async () => {
+  // drop potentially outdated newest post markers
+  channelCursors.clear();
+
+  // clear any existing channel queries
+  clearChannelPostsQueries();
+
+  // finally, refetch start data
+  await syncStart(true);
+};
+
+export const syncStart = async (alreadySubscribed?: boolean) => {
   const reporter = new ErrorReporter('sync start', logger);
   try {
-    reporter.log('sync start running');
+    reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
     // highest priority, do immediately
     await syncInitData(reporter);
     reporter.log(`finished syncing init data`);
+
+    await syncLatestPosts(reporter);
+    reporter.log(`finished syncing latest posts`);
+
     await Promise.all([
       syncContacts().then(() => reporter.log(`finished syncing contacts`)),
       resetActivity().then(() => reporter.log(`finished resetting activity`)),
     ]);
 
-    await setupSubscriptions();
-    reporter.log(`subscriptions setup`);
+    if (!alreadySubscribed) {
+      await setupSubscriptions();
+      reporter.log(`subscriptions setup`);
+    } else {
+      reporter.log(`already subscribed, skipping`);
+    }
 
     await Promise.all([
       syncSettings().then(() => reporter.log(`finished syncing settings`)),

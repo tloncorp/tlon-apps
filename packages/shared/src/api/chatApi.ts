@@ -7,7 +7,7 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
-import { toPostData, toPostReplyData } from './postsApi';
+import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('chatApi', true);
@@ -68,7 +68,7 @@ export const respondToDMInvite = ({
 export type ChatEvent =
   | { type: 'addDmInvites'; channels: db.Channel[] }
   | { type: 'groupDmsUpdate' }
-  | { type: 'addPost'; post: db.Post }
+  | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
   | { type: 'deletePost'; postId: string }
   | { type: 'addReaction'; postId: string; userId: string; react: string }
   | { type: 'deleteReaction'; postId: string; userId: string }
@@ -159,7 +159,12 @@ export function subscribeToChatUpdates(
             delta: replyDelta,
           });
           const post = toPostReplyData(channelId, id, writReply);
-          return eventHandler({ type: 'addPost', post });
+          const replyMeta = delta.reply.meta;
+          return eventHandler({
+            type: 'addPost',
+            post,
+            replyMeta: toReplyMeta(replyMeta),
+          });
         }
 
         if ('del' in replyDelta) {

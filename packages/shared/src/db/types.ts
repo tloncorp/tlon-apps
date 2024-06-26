@@ -77,6 +77,11 @@ export type PostFlags = Pick<
   | 'hasLink'
 >;
 export type PostMetadata = Pick<Post, 'title' | 'image'>;
+export type ReplyMeta = {
+  replyCount: number;
+  replyTime: number | null;
+  replyContactIds: string[];
+};
 export type PostImage = BaseModel<'postImages'>;
 export type PostDeliveryStatus = schema.PostDeliveryStatus;
 export type Reaction = BaseModel<'postReactions'>;

@@ -438,7 +438,10 @@
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
-    -:(need (ram:on-event:a stream:(get-index source)))
+    ?~  new=(ram:on-event:a stream:(get-index source))
+      ::  should never happen but -\_(ツ)_/-
+      (sub start 1)
+    -.u.new
   =.  sources.acc  (~(put by sources.acc) source src-info)
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
@@ -731,6 +734,7 @@
   ::
       %all
     |=  =index:a
+    ?^  time.action  index(reads [u.time.action ~])
     =/  latest=(unit [=time event:a])
     ::REVIEW  is this taking the item from the correct end? lol
       (ram:on-event:a stream.index)
@@ -846,7 +850,7 @@
     |(is-msg ?=(?(%dm-invite %chan-init) -<.event))
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
-  =.  newest  time
+  =?  newest  (gth time newest)  time
   ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
     $(stream rest)
   =.  total  +(total)

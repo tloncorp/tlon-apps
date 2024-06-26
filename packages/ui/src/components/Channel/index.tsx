@@ -60,6 +60,7 @@ export function Channel({
   goToSearch,
   goToImageViewer,
   goToPost,
+  goToDm,
   messageSender,
   onScrollEndReached,
   onScrollStartReached,
@@ -92,6 +93,7 @@ export function Channel({
   goBack: () => void;
   goToChannels: () => void;
   goToPost: (post: db.Post) => void;
+  goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => void;
@@ -189,10 +191,12 @@ export function Channel({
                 useChannel={useChannel}
                 useGroup={useGroup}
                 useApp={useApp}
+                // useBlockUser={() => {}}
               >
                 <NavigationProvider
                   onPressRef={onPressRef}
                   onPressGroupRef={onPressGroupRef}
+                  onPressGoToDm={goToDm}
                 >
                   <ReferencesProvider>
                     <View
@@ -304,6 +308,7 @@ export function Channel({
                               )}
                             </AnimatePresence>
                             {negotiationMatch &&
+                              !channel.isDmInvite &&
                               !editingPost &&
                               (isChatChannel ||
                                 (channel.type === 'gallery' &&

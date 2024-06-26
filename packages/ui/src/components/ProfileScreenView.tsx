@@ -1,19 +1,18 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
-import { PropsWithChildren, useCallback, useState } from 'react';
-import { Alert, Dimensions, ImageBackground } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, XStack, getTokens } from 'tamagui';
 
 import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
-import { Avatar } from './Avatar';
-import ContactName from './ContactName';
-import { DebugInfo } from './DebugInfo';
 import { Icon, IconType } from './Icon';
 import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
+import ProfileCover from './ProfileCover';
+import ProfileRow from './ProfileRow';
 
 interface Props {
   currentUserId: string;
@@ -227,65 +226,6 @@ export function ProfileDisplayWidget({
       contactId={contactId}
       contact={contact}
     />
-  );
-}
-
-function ProfileCover({ uri, children }: PropsWithChildren<{ uri: string }>) {
-  return (
-    <View borderRadius="$2xl" overflow="hidden">
-      <ImageBackground
-        source={{ uri, height: 1000, width: 1000 }}
-        resizeMode="cover"
-      >
-        {children}
-      </ImageBackground>
-    </View>
-  );
-}
-
-function ProfileRow({
-  contactId,
-  contact,
-  dark,
-  debugMessage,
-}: {
-  contactId: string;
-  contact?: db.Contact;
-  dark?: boolean;
-  debugMessage: string;
-}) {
-  const color = dark ? '$primaryText' : '$white';
-  return (
-    <XStack
-      padding="$2xl"
-      alignItems="center"
-      backgroundColor={dark ? '$secondaryBackground' : undefined}
-      borderRadius={dark ? '$xl' : undefined}
-    >
-      <DebugInfo debugMessage={debugMessage}>
-        <Avatar size="$5xl" contactId={contactId} contact={contact} />
-      </DebugInfo>
-      <View marginLeft="$l" flex={1}>
-        {contact?.nickname ? (
-          <YStack>
-            <ContactName
-              color={color}
-              fontWeight="500"
-              userId={contactId}
-              showNickname
-            />
-            <ContactName
-              fontFamily="$mono"
-              color={color}
-              opacity={dark ? 0.5 : 0.7}
-              userId={contactId}
-            />
-          </YStack>
-        ) : (
-          <ContactName color={color} fontWeight="500" userId={contactId} />
-        )}
-      </View>
-    </XStack>
   );
 }
 

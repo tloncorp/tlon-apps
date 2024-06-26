@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 
 import GroupList from '@/components/Sidebar/GroupList';
+import BroadcastInviteDialog from '@/dms/BroadcastInviteDialog';
 import useGroupSort from '@/logic/useGroupSort';
 import {
   useGangsWithClaim,
@@ -18,6 +19,7 @@ import {
   usePendingGangsWithoutClaim,
   usePinnedGroups,
 } from '@/state/groups';
+import { filters, useMessagesFilter } from '@/state/settings';
 
 import AddIcon16 from '../icons/Add16Icon';
 import X16Icon from '../icons/X16Icon';
@@ -45,6 +47,8 @@ const Sidebar = React.memo(() => {
   const searchRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeTab = useActiveTab();
+  const broadcastMode = useMessagesFilter() === filters.broadcasts;
+  const [broadcastIsOpen, setBroadcastIsOpen] = useState(false);
 
   const [searchInput, setSearchInput] = useState('');
   const hasSearch = searchInput.length > 0;
@@ -148,6 +152,15 @@ const Sidebar = React.memo(() => {
     <nav className="flex h-full w-full flex-none flex-col bg-white">
       {activeTab !== 'messages' ? (
         <AddGroupSidebarItem />
+      ) : broadcastMode ? (
+        <SidebarItem
+          className="group relative mx-2 mt-2 bg-blue text-white"
+          icon={<AddIcon16 className="m-1 h-4 w-4" />}
+          onClick={() => setBroadcastIsOpen(true)}
+          highlight="transparent"
+        >
+          <span className="text-white">New Broadcast</span>
+        </SidebarItem>
       ) : (
         <SidebarItem
           className="group relative mx-2 mt-2 bg-blue text-white"
@@ -256,6 +269,12 @@ const Sidebar = React.memo(() => {
           <MessagesSidebar searchQuery={searchInput} />
         )}
       </div>
+      <BroadcastInviteDialog
+        mode="add"
+        inviteIsOpen={broadcastIsOpen}
+        setInviteIsOpen={setBroadcastIsOpen}
+        create={true}
+      />
     </nav>
   );
 });

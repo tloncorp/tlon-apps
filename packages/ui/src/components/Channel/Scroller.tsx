@@ -69,7 +69,7 @@ export type ScrollAnchor = {
  * - If we're scrolling to an anchor, that anchor should be in the first page of posts
  * - The size of the first page of posts should match `initialNumToRender` here.
  */
-export default function Scroller({
+function Scroller({
   anchor,
   inverted,
   renderItem,
@@ -242,7 +242,7 @@ export default function Scroller({
           // If we're in a gallery channel, we need to adjust the index to account
           // for the empty post we added after the first unread post.
           const galleryAdjustedIndex =
-            channelType === 'gallery' && firstUnreadId !== null
+            channelType === 'gallery' && firstUnreadId !== null && index > 0
               ? index - 1
               : index;
 
@@ -484,6 +484,8 @@ export default function Scroller({
     </View>
   );
 }
+
+export default React.memo(Scroller);
 
 function getPostId(post: db.Post) {
   return post.id;

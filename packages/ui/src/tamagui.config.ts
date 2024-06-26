@@ -229,13 +229,19 @@ export const themes = {
 
 export const systemFont = createFont({
   family:
-    "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
+    // Previously used font stack
+    // '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    // did not work, threw errors in xcode console on iOS. Fortunately iOS
+    //defaulted to its system font anyway
+    'System',
   size: {
     xs: 12,
     s: 14,
     m: 16,
     true: 16,
     l: 17,
+    // TODO: resolve this with Ochre later, sorry for the inconsistency
+    l2: 32,
     // xl is used for emoji-only messages
     xl: 36,
     '2xl': 44,

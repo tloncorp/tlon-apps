@@ -52,6 +52,7 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups';
+import { deleteBroadcast } from '@/state/broadcasts';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -60,6 +61,7 @@ function ChatMessageOptions(props: {
   writ: Post;
   hideThreadReply?: boolean;
   hideReply?: boolean;
+  isBroadcast?: boolean;
   openReactionDetails: () => void;
 }) {
   const {
@@ -69,6 +71,7 @@ function ChatMessageOptions(props: {
     writ = emptyPost,
     hideThreadReply,
     hideReply,
+    isBroadcast = false,
     openReactionDetails,
   } = props;
   const { seal, essay } = writ;
@@ -107,7 +110,7 @@ function ChatMessageOptions(props: {
   const { mutateAsync: deleteChatMessage, isLoading: isDeleteLoading } =
     useDeletePostMutation();
   const isDeleting = isDeleteLoading || isDeleteDmLoading;
-  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const isDMorMultiDM = useIsDmOrMultiDm(whom) || isBroadcast;
   const {
     show: showPost,
     hide: hidePost,
@@ -131,6 +134,11 @@ function ChatMessageOptions(props: {
     }
 
     try {
+      if (isBroadcast) {
+        await new Promise<void>((resolve) => {
+          deleteBroadcast(whom, seal.id, resolve, resolve);
+        });
+      } else
       if (isDMorMultiDM) {
         await deleteDm({ whom, id: seal.id });
       } else {
@@ -245,9 +253,9 @@ function ChatMessageOptions(props: {
     }
   }, [isMobile, loadEmoji]);
 
-  const showReactAction = canWrite;
-  const showReplyAction = !hideReply;
-  const showCopyAction = !!groupFlag;
+  const showReactAction = canWrite && !isBroadcast;
+  const showReplyAction = !hideReply && !isBroadcast;
+  const showCopyAction = !!groupFlag && !isBroadcast;
   const showDeleteAction = isAdmin || window.our === essay.author;
   // don't allow editing of DM/Group DM messages until we support it
   // on the backend.
@@ -301,16 +309,18 @@ function ChatMessageOptions(props: {
     });
   }
 
-  actions.push({
-    key: 'thread',
-    content: (
-      <div className="flex items-center">
-        <HashIcon className="mr-2 h-6 w-6" />
-        Start Thread
-      </div>
-    ),
-    onClick: () => navigate(`message/${seal.id}`),
-  });
+  if (!isBroadcast) {
+    actions.push({
+      key: 'thread',
+      content: (
+        <div className="flex items-center">
+          <HashIcon className="mr-2 h-6 w-6" />
+          Start Thread
+        </div>
+      ),
+      onClick: () => navigate(`message/${seal.id}`),
+    });
+  }
 
   if (showCopyAction) {
     actions.push({
@@ -359,25 +369,27 @@ function ChatMessageOptions(props: {
     });
   }
 
-  actions.push({
-    key: 'hide',
-    onClick: isDMorMultiDM ? toggleMsg : togglePost,
-    content: (
-      <div className="flex items-center">
-        {isHidden ? (
-          <>
-            <VisibleIcon className="mr-2 h-6 w-6" />
-            Show Message
-          </>
-        ) : (
-          <>
-            <HiddenIcon className="mr-2 h-6 w-6" />
-            Hide Message
-          </>
-        )}
-      </div>
-    ),
-  });
+  if (!isBroadcast) {
+    actions.push({
+      key: 'hide',
+      onClick: isDMorMultiDM ? toggleMsg : togglePost,
+      content: (
+        <div className="flex items-center">
+          {isHidden ? (
+            <>
+              <VisibleIcon className="mr-2 h-6 w-6" />
+              Show Message
+            </>
+          ) : (
+            <>
+              <HiddenIcon className="mr-2 h-6 w-6" />
+              Hide Message
+            </>
+          )}
+        </div>
+      ),
+    });
+  }
 
   if (!isDMorMultiDM) {
     actions.push({
@@ -465,7 +477,7 @@ function ChatMessageOptions(props: {
                 action={reply}
               />
             )}
-            {!hideThreadReply && (
+            {!hideThreadReply && !isBroadcast && (
               <IconButton
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
@@ -498,18 +510,20 @@ function ChatMessageOptions(props: {
                 action={openReactionDetails}
               />
             )}
-            <IconButton
-              icon={
-                isHidden ? (
-                  <VisibleIcon className="h-6 w-6 text-gray-400" />
-                ) : (
-                  <HiddenIcon className="h-6 w-6 text-gray-400" />
-                )
-              }
-              label={isHidden ? 'Show Message' : 'Hide Message'}
-              showTooltip
-              action={isDMorMultiDM ? toggleMsg : togglePost}
-            />
+            {!isBroadcast && (
+              <IconButton
+                icon={
+                  isHidden ? (
+                    <VisibleIcon className="h-6 w-6 text-gray-400" />
+                  ) : (
+                    <HiddenIcon className="h-6 w-6 text-gray-400" />
+                  )
+                }
+                label={isHidden ? 'Show Message' : 'Hide Message'}
+                showTooltip
+                action={isDMorMultiDM ? toggleMsg : togglePost}
+              />
+            )}
             {!isDMorMultiDM && (
               <IconButton
                 icon={
