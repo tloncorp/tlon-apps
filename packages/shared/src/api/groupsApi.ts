@@ -187,6 +187,66 @@ export const getGroups = async (
   return toClientGroups(groupData, true);
 };
 
+export const updateGroup = async ({
+  groupId,
+  meta,
+}: {
+  groupId: string;
+  meta: ub.GroupMeta;
+}) => {
+  return await trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-action-3',
+      json: {
+        flag: groupId,
+        update: {
+          time: '',
+          diff: {
+            meta,
+          },
+        },
+      },
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return 'meta' in update.diff && event.flag === groupId;
+    }
+  );
+};
+
+export const deleteGroup = async (groupId: string) => {
+  return await trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-action-3',
+      json: {
+        flag: groupId,
+        update: {
+          time: '',
+          diff: {
+            del: null,
+          },
+        },
+      },
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return 'del' in update.diff && event.flag === groupId;
+    }
+  );
+};
+
 export type GroupDelete = {
   type: 'deleteGroup';
   groupId: string;

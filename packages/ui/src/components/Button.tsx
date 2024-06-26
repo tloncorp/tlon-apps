@@ -17,6 +17,7 @@ export const ButtonContext = createStyledContext<{
   color: ThemeTokens;
   minimal: boolean;
   hero: boolean;
+  heroDestructive: boolean;
   secondary: boolean;
   disabled: boolean;
   onPress?: () => void;
@@ -25,6 +26,7 @@ export const ButtonContext = createStyledContext<{
   color: '$primaryText',
   minimal: false,
   hero: false,
+  heroDestructive: false,
   secondary: false,
   disabled: false,
 });
@@ -85,6 +87,19 @@ export const ButtonFrame = styled(Stack, {
         },
       },
     } as const,
+    heroDestructive: {
+      true: {
+        backgroundColor: '$red',
+        padding: '$xl',
+        borderWidth: 0,
+        pressStyle: {
+          backgroundColor: '$redSoft',
+        },
+        disabledStyle: {
+          backgroundColor: '$gray600',
+        },
+      },
+    } as const,
     secondary: {
       true: {
         backgroundColor: '$border',
@@ -133,6 +148,14 @@ export const ButtonText = styled(Text, {
         fontWeight: '500',
       },
     },
+    heroDestructive: {
+      true: {
+        color: '$white',
+        width: '100%',
+        textAlign: 'center',
+        fontWeight: '500',
+      },
+    },
     secondary: {
       true: {
         width: '100%',
@@ -150,14 +173,19 @@ export const ButtonText = styled(Text, {
 });
 
 const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
-  const { size, color, hero } = useContext(ButtonContext.context);
+  const { size, color, hero, heroDestructive } = useContext(
+    ButtonContext.context
+  );
   const smaller = getSize(size, {
     shift: -1,
   });
   const theme = useTheme();
   return cloneElement(props.children, {
     size: smaller.val,
-    color: props.color ?? color ?? (hero ? '$white' : '$primaryText'),
+    color:
+      props.color ??
+      color ??
+      (hero || heroDestructive ? '$white' : '$primaryText'),
   });
 };
 

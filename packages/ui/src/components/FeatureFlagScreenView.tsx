@@ -2,7 +2,7 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScrollView, SizableText, View, XStack } from '../core';
-import { GenericHeader } from './Channel/ChannelHeader';
+import { GenericHeader } from './GenericHeader';
 
 export function FeatureFlagScreenView({
   features,

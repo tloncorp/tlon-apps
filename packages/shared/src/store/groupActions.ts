@@ -139,3 +139,46 @@ export async function markGroupVisited(group: db.Group) {
   logger.log('marking new group as visited', group.id);
   await db.updateGroup({ id: group.id, isNew: false });
 }
+
+export async function updateGroup(group: db.Group) {
+  logger.log('updating group', group.id);
+
+  const existingGroup = await db.getGroup({ id: group.id });
+
+  // optimistic update
+  await db.updateGroup(group);
+
+  try {
+    await api.updateGroup({
+      groupId: group.id,
+      meta: {
+        title: group.title ?? '',
+        description: group.description ?? '',
+        cover: group.coverImage ?? group.coverImageColor ?? '',
+        image: group.iconImage ?? group.iconImageColor ?? '',
+      },
+    });
+  } catch (e) {
+    console.error('Failed to update group', e);
+    // rollback optimistic update
+    await db.updateGroup({
+      id: group.id,
+      ...existingGroup,
+    });
+  }
+}
+
+export async function deleteGroup(group: db.Group) {
+  logger.log('deleting group', group.id);
+
+  // optimistic update
+  await db.deleteGroup(group.id);
+
+  try {
+    await api.deleteGroup(group.id);
+  } catch (e) {
+    console.error('Failed to delete group', e);
+    // rollback optimistic update
+    await db.insertGroups({ groups: [group] });
+  }
+}
