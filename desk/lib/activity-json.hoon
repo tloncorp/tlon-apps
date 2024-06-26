@@ -143,6 +143,7 @@
         notify+b+notify.sum
         unread/?~(unread.sum ~ (unread-point u.unread.sum))
         children+?~(children.sum ~ (activity u.children.sum))
+        reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
     ==
   ::
   ++  activity-bundle

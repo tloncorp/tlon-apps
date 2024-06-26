@@ -321,6 +321,8 @@
       =.  state  *current-state
       =.  allowed  %all
       migrate
+        %refresh-activity
+      refresh-all-summaries
     ==
   ::
       %activity-action
@@ -835,6 +837,7 @@
 ++  summarize-unreads
   |=  [=source:a index:a]
   ^-  activity-summary:a
+  =/  top=time  -:(fall (ram:on-event:a stream) [*@da ~])
   =.  stream  (lot:on-event:a stream `floor.reads ~)
   =/  read-items  items.reads
   ::  for each item in reads
@@ -849,7 +852,7 @@
   |-
   =;  unread-stream=stream:a
     =/  children  (get-children source)
-    (stream-to-unreads unread-stream floor.reads children source)
+    (stream-to-unreads unread-stream reads children source top)
   %+  gas:on-event:a  *stream:a
   %+  murn
     (tap:on-event:a stream)
@@ -858,7 +861,7 @@
   ?:  child.event  ~
   `[time event]
 ++  stream-to-unreads
-  |=  [=stream:a floor=time children=(list source:a) =source:a]
+  |=  [=stream:a =reads:a children=(list source:a) =source:a top=time]
   ^-  activity-summary:a
   =/  child-map
     %+  roll
@@ -876,10 +879,10 @@
     %=  sum
       count  (^add count.sum count.as)
       notify  |(notify.sum notify.as)
-      newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
+      newest  (max newest.as newest.sum)
       notify-count  (^add notify-count.sum notify-count.as)
     ==
-  =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
+  =/  newest=time  :(max newest.cs floor.reads top)
   =/  total  count.cs
   =/  notify-count  notify-count.cs
   =/  main  0
@@ -897,6 +900,7 @@
         notified
         ?~(last ~ `[u.last main main-notified])
         `child-map
+        reads
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
@@ -907,7 +911,7 @@
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
   =?  notify-count  &(notify.volume notified.event)  +(notify-count)
-  =.  newest  time
+  =.  newest  (max newest time)
   ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
     $(stream rest)
   =.  total  +(total)
