@@ -60,9 +60,10 @@ export function cohortToUnread(cohort: Cohort): Unread {
     count: 0,
     combined: { status: 'read', count: 0, notify: false },
     recency,
-    children: [],
+    children: null,
+    parents: [],
     readTimeout: 0,
-    summary: { recency, count: 0, notify: false, unread: null, children: [] }
+    summary: { recency, count: 0, notify: false, unread: null, children: null }
   };
 }
 
