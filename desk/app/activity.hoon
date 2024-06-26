@@ -97,7 +97,7 @@
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   ?>  ?=(%2 -.old)
   =.  state  old
-  correct-dm-keys
+  (emit %pass /clean-keys %agent [our.bowl dap.bowl] %poke noun+!>(%clean-keys))
   +$  versioned-state  $%(state-2 state-1)
   +$  state-2  current-state
   +$  state-1
