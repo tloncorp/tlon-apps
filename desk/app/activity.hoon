@@ -125,6 +125,7 @@
     =/  indexes
       ::  sort children first in order so we only have to make one pass
       ::  of summarization aka not repeatedly updating the same source
+      ::
       %+  sort
         ~(tap by indices)
       |=  [[asrc=source:a *] [bsrc=source:a *]]
@@ -343,20 +344,23 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
+  =?  pole  !?=([?(%v0 %v1) *] pole)
+    [%v0 pole]
   ?+  pole  ~|(bad-watch-path+pole !!)
-    ?(~ [%v0 ~])          ?>(from-self cor)
-    [%v1 ~]               ?>(from-self cor)
-    [%unreads ~]   ?>(from-self cor)
-    [%v0 %unreads ~]   ?>(from-self cor)
-    [%v1 %unreads ~]      ?>(from-self cor)
-    [%notifications ~]    ?>(from-self cor)
+    [%v0 ~]                 ?>(from-self cor)
+    [%v1 ~]                 ?>(from-self cor)
+    [%v0 %unreads ~]        ?>(from-self cor)
+    [%v1 %unreads ~]        ?>(from-self cor)
+    [%v0 %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  =?  pole  !?=([?(%v0 %v1) *] pole)
+    [%v0 pole]
   ?+  pole  [~ ~]
-      [%x ?(~ [%v0 ~])]
+      [%x %v0 ~]
     =/  =activity-0:old:a  (activity-0:convert-to activity)
     ``activity-full+!>([indices activity-0 volume-settings])
   ::
@@ -365,10 +369,10 @@
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
-      [%x %all ~]
+      [%x %v0 %all ~]
     ``activity-stream+!>(stream:base)
   ::
-      [%x %all count=@ start=?(~ [u=@ ~])]
+      [%x %v0 %all count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -377,7 +381,7 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (bat:ex-event:a stream:base `start count)
   ::
-      [%x %feed %init count=@ ~]
+      [%x %v0 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
     =;  init=[all=feed:a mentions=feed:a replies=feed:a]
@@ -387,7 +391,7 @@
         (feed %replies start count)
     ==
   ::
-      [%x %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+      [%x %v0 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -402,7 +406,7 @@
   ::      suffer from the "search range" "problem", where we want .count to
   ::      mean entries trawled, not entries returned...
   ::
-      [%x %each start=@ count=@ ~]
+      [%x %v0 %each start=@ count=@ ~]
     =;  =stream:a
       ``activity-stream+!>(-)
     =/  start  (slav %da start.pole)
@@ -414,7 +418,7 @@
   ::
   ::  /indexed: per-index
   ::
-      [%x %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+      [%x %v0 %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
     =/  =source:a
       ?-  -.concern.pole
           %dm
@@ -445,22 +449,22 @@
     ==
   ::  /event: individual events
   ::
-      [%u %event id=@ ~]
+      [%u %v0 %event id=@ ~]
     ``loob+!>((has:on-event:a stream:base (slav %da id.pole)))
   ::
-      [%x %event id=@ ~]
+      [%x %v0 %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
-      [%x ?(%activity [%v0 %activity]) ~]
+      [%x %v0 %activity ~]
     ``activity-summary+!>((activity-0:convert-to activity))
   ::
       [%x %v1 %activity ~]
     ``activity-summary-1+!>(activity)
   ::
-      [%x %volume-settings ~]
+      [%x %v0 %volume-settings ~]
     ``activity-settings+!>(volume-settings)
   ::
-      [%x %notifications-allowed ~]
+      [%x %v0 %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
   ==
 ::
@@ -566,6 +570,15 @@
 ++  base
   ^-  index:a
   (~(got by indices) [%base ~])
+++  give-update
+  |=  [=update:a path=(unit path)]
+  ^+  cor
+  =/  v0-paths  ?~(path ~[/ /v0] ~[/ /v0 u.path (weld /v0 u.path)])
+  =/  v0-cage=cage  activity-update+!>((update-0:convert-to update))
+  =/  v1-paths  ?~(path ~[/v1] ~[/v1 (weld /v1 u.path)])
+  =/  v1-cage=cage  activity-update-1+!>(update)
+  =.  cor  (give %fact v1-paths v1-cage)
+  (give %fact v0-paths v0-cage)
 ++  add
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
@@ -578,10 +591,11 @@
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
   =/  =source:a  (determine-source inc)
+  =/  =update:a  [%add source time-id event]
   =?  cor  !importing
-    (give %fact ~[/ /v0 /v1] activity-update+!>([%add source time-id event]))
+    (give-update update ~)
   =?  cor  &(!importing notify (is-allowed inc))
-    (give %fact ~[/notifications] activity-event+!>([time-id event]))
+    (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
@@ -630,7 +644,7 @@
   =.  indices  (~(del by indices) source)
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
-  (give %fact ~[/ /v0 /v1] activity-update+!>([%del source]))
+  (give-update [%del source] ~)
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -804,15 +818,12 @@
   ^+  cor
   =/  summary  (~(got by activity) source)
   =/  =update:a  [%read source summary]
-  =/  v0-paths=(list path)  ~[/ /v0 /unreads /v0/unreads]
-  =/  v0-cage=cage  activity-update+!>((update-0:convert-to update))
-  =.  cor  (give %fact v0-paths v0-cage)
-  (give %fact ~[/v1 /v1/unreads] activity-update-1+!>(update))
+  (give-update update `/unreads)
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
   ^+  cor
-  =.  cor  (give %fact ~[/ /v0 /v1] activity-update+!>([%adjust source volume-map]))
+  =.  cor  (give-update [%adjust source volume-map] ~)
   ?~  volume-map
     cor(volume-settings (~(del by volume-settings) source))
   =/  target  (~(gut by volume-settings) source *volume-map:a)
@@ -825,7 +836,7 @@
   |=  na=notifications-allowed:a
   ^+  cor
   =.  allowed  na
-  (give %fact ~[/ /v0 /v1] activity-update+!>([%allow-notifications na]))
+  (give-update [%allow-notifications na] ~)
 ++  get-children
   |=  =source:a
   ^-  (list source:a)
