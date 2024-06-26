@@ -222,6 +222,7 @@ function Scroller({
   );
 
   const userHasScrolledRef = useRef(false);
+  const renderedPostsRef = useRef(new Set());
   // Whether we've scrolled to the anchor post.
   const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
 
@@ -231,7 +232,14 @@ function Scroller({
   // true, revealing the Scroller.
   const handleItemLayout = useCallback(
     (post: db.Post, index: number) => {
-      if (anchor?.postId === post.id) {
+      renderedPostsRef.current.add(post.id);
+      if (
+        anchor?.postId === post.id ||
+        // if we've got at least a page of posts and we've rendered them all,
+        // reveal the scroller to prevent getting stuck when messages are
+        // deleted.
+        (posts?.length && renderedPostsRef.current.size >= posts?.length)
+      ) {
         if (!hasFoundAnchor) {
           setHasFoundAnchor(true);
         }
@@ -254,7 +262,7 @@ function Scroller({
         }
       }
     },
-    [anchor, hasFoundAnchor, channelType, firstUnreadId]
+    [anchor, hasFoundAnchor, channelType, firstUnreadId, posts?.length]
   );
 
   const theme = useTheme();
