@@ -108,12 +108,28 @@
     [%2 %all +.old]
   --
 ::
+::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
+::  with bad message/parent identifiers (respectively) got pushed into our
+::  streams. for the %dm-reply case, this made it impossible for clients (that
+::  use and expect the correct identifiers) to work with the sources these
+::  events got put into. for both cases, they were Wrong.
+::
+::  here, we iterate over all clubs and, for each of the known sources for a
+::  club, re-constitute the contents of that source's stream from scratch. this
+::  means _moving_ dm-thread streams to be under corrected source identifiers,
+::  and updating top-level streams _in-place_. for both, we update the contents
+::  of the stream by rewriting %dm-post and %dm-reply events to use corrected
+::  message identifiers.
+::
+::  to correct the message identifiers, we simply do the reverse time-id lookup
+::  in dex.pact, as is done across the chat codebase.
+::
 ++  correct-dm-keys
   |^  ^+  cor
   =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
     %gx  (scry-path %chat /full/noun)
   ==
-  =/  club-threads
+  =/  club-sources
     %~  tap  by
     %+  roll
       ~(tap by indices)
@@ -123,10 +139,10 @@
     ?.  ?=(%club -.whom)  dms
     (~(add ja dms) whom [source index])
   |-
-  ?~  club-threads  cor
-  =/  [=whom:a =indexes]  -.club-threads
-  =*  next  $(club-threads +.club-threads)
-  ?.  ?=(%club -.whom)  next
+  ?~  club-sources  cor
+  =/  [=whom:a =indexes]  -.club-sources
+  =*  next  $(club-sources +.club-sources)
+  ?>  ?=(%club -.whom)
   =/  club  (~(get by clubs) p.whom)
   ?~  club  next
   =/  [threads=^indexes dms=^indexes]
@@ -154,29 +170,28 @@
   (handle-threads u.club threads)
   ++  handle-dms
     |=  [=club:ch =indexes]
-    ^-  ^indexes
+    ^+  indexes
     %+  turn
       indexes
     |=  [=source:a =index:a]
-    ?.  ?=(%dm -.source)  [source index]
+    ?>  ?=(%dm -.source)
     :-  source
     index(stream (clean-stream-keys club stream.index))
   ++  handle-threads
     |=  [=club:ch =indexes]
-    ^-  ^indexes
+    ^+  indexes
     =/  collapsed
       %+  roll
         indexes
       |=  [[=source:a =index:a] acc=(jar message-id:a [=source:a =index:a])]
-      ?.  ?=(%dm-thread -.source)  acc
+      ?>  ?=(%dm-thread -.source)
       (~(add ja acc) id.key.source [source index])
     =;  [=indices:a *]
       ~(tap by indices)
     %+  roll
       indexes
     |=  [[=source:a =index:a] acc=[=indices:a keys=(map message-id:a message-key:a)]]
-    ?.  ?=(%dm-thread -.source)
-      [(~(put by indices) source index) keys.acc]
+    ?>  ?=(%dm-thread -.source)
     =*  id  id.key.source
     =/  key  (~(get by keys.acc) id)
     ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))  acc
@@ -191,7 +206,7 @@
     %+  roll
       u.srcs
     |=  [[=source:a =index:a] acc=index:a]
-    ?.  ?=(%dm-thread -.source)  acc
+    ?>  ?=(%dm-thread -.source)
     :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
     ::  rectify reads
     =/  floor  (max floor.reads.index floor.reads.acc)
@@ -206,23 +221,18 @@
     %+  turn
       (tap:on-event:a stream)
     |=  [=time =event:a]
-    =/  next  [time event]
+    =/  noop  [time event]
     ::  skip any non post or reply events
-    ?.  ?=(?(%dm-post %dm-reply) -<.event)  next
+    ?.  ?=(?(%dm-post %dm-reply) -<.event)  noop
     =/  post-id  ?:(?=(%dm-post -<.event) id.key.event id.parent.event)
     =/  post-time  (~(get by dex.pact.club) post-id)
-    ?~  post-time  next
+    ?~  post-time  noop
+    =/  post-key  [post-id u.post-time]
     ?:  ?=(%dm-post -<.event)
-      [time event(key [post-id u.post-time])]
-    =/  post  (get:on:writs:ch wit.pact.club u.post-time)
-    ?~  post  next
-    =/  parent=message-key:a  [id time]:u.post
+      [time event(key post-key)]
     =/  reply-time  (~(get by dex.pact.club) id.key.event)
-    ?~  reply-time  next
-    =/  reply  (get:on:replies:ch replies.u.post u.reply-time)
-    ?~  reply  next
-    =/  key=message-key:a  [id time]:u.reply
-    [time event(key key, parent parent)]
+    ?~  reply-time  noop
+    [time event(time.key u.reply-time, parent post-key)]
   +$  indexes  (list [=source:a =index:a])
   --
 ++  scry-path
@@ -865,8 +875,7 @@
 ++  update-reads
   |=  [=source:a updater=$-(index:a index:a)]
   ^+  cor
-  =/  index  (get-index source)
-  =/  new  (updater index)
+  =/  new  (updater (get-index source))
   (update-index source new &)
 ++  give-unreads
   |=  =source:a
