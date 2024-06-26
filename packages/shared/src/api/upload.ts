@@ -127,7 +127,8 @@ export interface Uploader {
 export type NativeUploader = (
   presignedUrl: string,
   file: RNFile,
-  withPolicyHeader?: boolean
+  withPolicyHeader?: boolean,
+  additionalHeaders?: Record<string, string>
 ) => Promise<void>;
 
 export interface FileStore {
