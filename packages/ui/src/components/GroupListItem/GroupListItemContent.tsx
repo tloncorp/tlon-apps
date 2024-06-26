@@ -35,7 +35,7 @@ export default function GroupListItemContent({
     >
       <View opacity={model.volumeSettings?.isMuted ? 0.2 : 1}>
         <ListItem.Icon
-          fallbackText={model.title?.[0]}
+          fallbackText={model.title?.[0] ?? model.id[0]}
           backgroundColor={getBackgroundColor({
             disableAvatars,
             colors,
@@ -50,7 +50,7 @@ export default function GroupListItemContent({
         <ListItem.Title
           color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
         >
-          {model.title}
+          {model.title ?? model.id}
         </ListItem.Title>
         {model.lastPost && (
           <ListItem.Subtitle color={'$tertiaryText'}>

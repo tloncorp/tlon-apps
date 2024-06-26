@@ -34,10 +34,18 @@ export function configureClient({
   shipName,
   shipUrl,
   onReset,
+  onChannelReset,
 }: {
   shipName: string;
   shipUrl: string;
   onReset?: () => void;
+  onChannelReset?: () => void;
 }) {
-  api.configureClient({ shipName, shipUrl, fetchFn: apiFetch, onReset });
+  api.configureClient({
+    shipName,
+    shipUrl,
+    fetchFn: apiFetch,
+    onReset,
+    onChannelReset,
+  });
 }

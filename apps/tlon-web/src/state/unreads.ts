@@ -45,11 +45,12 @@ export interface UnreadsStore {
   sources: Unreads;
   seen: (whom: string) => void;
   read: (whom: string) => void;
-  delayedRead: (whom: string, callback: () => void) => void;
+  bump: (whom: string) => void;
   update: (unreads: Activity) => void;
+  delayedRead: (whom: string, callback: () => void) => void;
 }
 
-export const unreadStoreLogger = createDevLogger('UnreadsStore', false);
+export const unreadStoreLogger = createDevLogger('UnreadsStore', true);
 
 function getUnreadStatus(count: number, notify: boolean): ReadStatus {
   if (count > 0 || notify) {
@@ -340,6 +341,22 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         };
         unreadStoreLogger.log('post read', JSON.stringify(draft.sources[key]));
         updateParents(source.parents, draft);
+      })
+    );
+  },
+  bump: (key) => {
+    set(
+      produce((draft: UnreadsStore) => {
+        const source = draft.sources[key];
+        if (!source) {
+          return;
+        }
+
+        unreadStoreLogger.log('bump', key);
+        draft.sources[key] = {
+          ...source,
+          recency: Date.now(),
+        };
       })
     );
   },

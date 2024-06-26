@@ -637,7 +637,6 @@ export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
   const threadActivity: db.ThreadUnreadState[] = [];
 
   Object.entries(activity).forEach(([sourceId, summary]) => {
-    logger.log(`parsing unreads for ${sourceId}`, summary);
     const [activityId, ...rest] = sourceId.split('/');
     if (activityId === 'ship' || activityId === 'club') {
       const channelId = rest.join('/');

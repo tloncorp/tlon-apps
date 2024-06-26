@@ -743,7 +743,9 @@
     ++  on-post
       |=  v-post:c
       ^+  ca-core
-      ?:  =(author our.bowl)  ca-core
+      ?:  =(author our.bowl)
+        =/  =source  [%channel nest group.perm.perm.channel]
+        (send ~[`action`[%read source [%all `now.bowl]]])
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  action
         [%add %post [[author id] id] nest group.perm.perm.channel content mention]
@@ -751,7 +753,10 @@
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
       ^+  ca-core
-      ?:  =(author our.bowl)  ca-core
+      =/  parent-key=message-key  [[author id]:parent id.parent]
+      ?:  =(author our.bowl)
+        =/  =source  [%thread parent-key nest group.perm.perm.channel]
+        (send ~[`action`[%read source [%all `now.bowl]]])
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
@@ -760,7 +765,6 @@
           =(author.u.reply our.bowl)
       =/  =path  (scry-path %activity /volume-settings/noun)
       =+  .^(settings=volume-settings %gx path)
-      =/  parent-key=message-key  [[author id]:parent id.parent]
       =/  =action
         :*  %add  %reply
             [[author id] id]

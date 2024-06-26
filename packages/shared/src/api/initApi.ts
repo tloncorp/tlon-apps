@@ -18,6 +18,8 @@ export interface InitData {
   activity: ActivityInit;
   channels: db.Channel[];
   channelPerms: ChannelInit[];
+  joinedGroups: string[];
+  joinedChannels: string[];
 }
 
 export const getInitData = async () => {
@@ -36,6 +38,11 @@ export const getInitData = async () => {
   const invitedDms = toClientDms(response.chat.invited, true);
   const unreads = toClientUnreads(response.activity ?? {});
 
+  const joinedGroups = groups.map((group) => group.id);
+  // Not fully reflective of which channels you're a member of, but if a channel is _not_
+  // in here, you're definitely not a member of it
+  const joinedChannels = channelsInit.map((channel) => channel.channelId);
+
   return {
     pins,
     groups,
@@ -43,5 +50,7 @@ export const getInitData = async () => {
     unreads,
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
+    joinedGroups,
+    joinedChannels,
   };
 };

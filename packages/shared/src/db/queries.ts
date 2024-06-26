@@ -88,6 +88,7 @@ import {
   Post,
   PostWindow,
   Reaction,
+  ReplyMeta,
   Settings,
   TableName,
   ThreadUnreadState,
@@ -141,6 +142,7 @@ export const getSettings = createReadQuery(
 export const getGroupPreviews = createReadQuery(
   'getGroupPreviews',
   async (groupIds: string[], ctx: QueryCtx) => {
+    if (groupIds.length === 0) return [];
     return ctx.db.query.groups.findMany({
       where: inArray($groups.id, groupIds),
     });
@@ -229,8 +231,11 @@ export const getChats = createReadQuery(
         ),
       })
       .from($channels)
-      .where(and(isNotNull($channels.groupId)))
+      .where(
+        and(isNotNull($channels.groupId), eq($groups.currentUserIsMember, true))
+      )
       .leftJoin($channelUnreads, eq($channelUnreads.channelId, $channels.id))
+      .leftJoin($groups, eq($groups.id, $channels.groupId))
       .as('q');
 
     const groupChannels = ctx.db
@@ -914,6 +919,7 @@ export const removeChatMembersFromRoles = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    if (contactIds.length === 0 || roleIds.length === 0) return;
     return ctx.db
       .delete($chatMemberGroupRoles)
       .where(
@@ -933,6 +939,7 @@ export const removeChatMembers = createWriteQuery(
     { chatId, contactIds }: { chatId: string; contactIds: string[] },
     ctx: QueryCtx
   ) => {
+    if (contactIds.length === 0) return;
     return ctx.db
       .delete($chatMembers)
       .where(
@@ -1453,15 +1460,44 @@ export const removeJoinedGroupChannel = createWriteQuery(
 
 export const setLeftGroupChannels = createWriteQuery(
   'setLeftGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
+  async (
+    { joinedChannelIds }: { joinedChannelIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    if (joinedChannelIds.length === 0) return;
     return await ctx.db
       .update($channels)
       .set({
-        currentUserIsMember: not(inArray($channels.id, channelIds)),
+        currentUserIsMember: false,
       })
-      .where(isNotNull($channels.groupId));
+      .where(
+        and(
+          notInArray($channels.id, joinedChannelIds),
+          isNotNull($channels.groupId),
+          eq($channels.currentUserIsMember, true)
+        )
+      );
   },
   ['channels']
+);
+
+export const setLeftGroups = createWriteQuery(
+  'setLeftGroups',
+  async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {
+    if (joinedGroupIds.length === 0) return;
+    return await ctx.db
+      .update($groups)
+      .set({
+        currentUserIsMember: false,
+      })
+      .where(
+        and(
+          notInArray($groups.id, joinedGroupIds),
+          eq($groups.currentUserIsMember, true)
+        )
+      );
+  },
+  ['groups', 'channels']
 );
 
 export type GetChannelPostsOptions = {
@@ -1565,23 +1601,27 @@ export const getChannelPosts = createReadQuery(
         .as('posts');
 
       // Get the row number of the cursor post
-      const cursorRow = await ctx.db
+      const position = await ctx.db
         .select({
-          id: $windowQuery.id,
-          rowNumber: $windowQuery.rowNumber,
+          // finds the highest row number for posts with IDs less than or equal to the cursor.
+          // If the cursor posts, exists, it will be the row number of that post.
+          index:
+            sql`coalesce(max(case when ${$windowQuery.id} <= ${cursor} then ${$windowQuery.rowNumber} end), 0)`
+              .mapWith(Number)
+              .as('index'),
         })
         .from($windowQuery)
-        .where(eq($windowQuery.id, cursor));
+        .get();
 
-      if (cursorRow.length === 0) {
+      if (!position) {
         return [];
       }
 
       // Calculate min and max rows
       const itemsBefore = Math.floor((count - 1) / 2);
       const itemsAfter = Math.ceil((count - 1) / 2);
-      const startRow = cursorRow[0].rowNumber - itemsBefore;
-      const endRow = cursorRow[0].rowNumber + itemsAfter;
+      const startRow = position.index - itemsBefore;
+      const endRow = position.index + itemsAfter;
 
       // Actually grab posts
       return await ctx.db.query.posts.findMany({
@@ -1729,8 +1769,16 @@ export const insertChannelPosts = createWriteQuery(
 export const insertLatestPosts = createWriteQuery(
   'insertLatestPosts',
   async (posts: Post[], ctx: QueryCtx) => {
-    withTransactionCtx(ctx, async (txCtx) => {
+    if (!posts.length) {
+      return;
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
       await insertPosts(posts, txCtx);
+      const postUpdates = posts.map((post) => ({
+        channelId: post.channelId,
+        newPosts: [post],
+      }));
+      await Promise.all(postUpdates.map((p) => updatePostWindows(p, txCtx)));
     });
   },
   ['posts']
@@ -2075,10 +2123,12 @@ export const addReplyToPost = createWriteQuery(
       parentId,
       replyAuthor,
       replyTime,
+      replyMeta,
     }: {
       parentId: string;
       replyAuthor: string;
       replyTime: number;
+      replyMeta?: ReplyMeta | null; // sometimes passed via API, preferred over derived values
     },
     ctx: QueryCtx
   ) => {
@@ -2096,9 +2146,10 @@ export const addReplyToPost = createWriteQuery(
         return txCtx.db
           .update($posts)
           .set({
-            replyCount: (parentPost.replyCount ?? 0) + 1,
-            replyTime,
-            replyContactIds: newReplyContacts,
+            replyCount:
+              replyMeta?.replyCount ?? (parentPost.replyCount ?? 0) + 1,
+            replyTime: replyMeta?.replyTime ?? replyTime,
+            replyContactIds: replyMeta?.replyContactIds ?? newReplyContacts,
           })
           .where(eq($posts.id, parentId));
       }
@@ -2157,6 +2208,7 @@ export const getGroup = createReadQuery(
           members: {
             with: {
               contact: true,
+              roles: true,
             },
           },
           navSections: {
@@ -2213,6 +2265,7 @@ export const getContacts = createReadQuery(
 export const getContactsBatch = createReadQuery(
   'getContactsBatch',
   async ({ contactIds }: { contactIds: string[] }, ctx: QueryCtx) => {
+    if (contactIds.length === 0) return [];
     return ctx.db.query.contacts.findMany({
       where: (contacts, { inArray }) => inArray(contacts.id, contactIds),
     });

@@ -199,7 +199,7 @@ function MigrationCheck({ children }: PropsWithChildren) {
     return null;
   }
   if (error) {
-    throw Error();
+    throw error;
   }
   return <>{children}</>;
 }

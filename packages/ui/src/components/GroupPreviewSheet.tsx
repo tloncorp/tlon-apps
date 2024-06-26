@@ -150,11 +150,11 @@ export function GroupPreviewPane({
           padding="$3xl"
         >
           <ListItem.Icon
-            fallbackText={group?.title?.[0]}
+            fallbackText={group?.title?.[0] ?? group?.id[0]}
             backgroundColor={group?.iconImageColor ?? undefined}
             imageUrl={group?.iconImage ?? undefined}
           />
-          <ActionSheet.Title>{group?.title}</ActionSheet.Title>
+          <ActionSheet.Title>{group?.title ?? group?.id}</ActionSheet.Title>
           {group?.description ? (
             <ActionSheet.Description fontSize="$s" textAlign="center">
               {group.description}
