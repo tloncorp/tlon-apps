@@ -6,6 +6,7 @@ import { setupServer } from 'msw/node';
 // Required for React 18+
 // See: https://reactjs.org/blog/2022/03/08/react-18-upgrade-guide.html
 declare global {
+  // eslint-disable-next-line no-var
   var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 
@@ -21,6 +22,15 @@ vi.mock('posthog-js', () => ({
     init: () => ({}),
     debug: () => ({}),
   },
+}));
+
+vi.mock('@react-native-firebase/perf', () => ({
+  default: () => ({
+    newTrace: (traceName: string) => ({
+      start: vi.fn(),
+      stop: vi.fn(),
+    }),
+  }),
 }));
 
 // Prevent vite from failing when resizeObserver is used
