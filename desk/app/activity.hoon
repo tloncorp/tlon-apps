@@ -108,133 +108,6 @@
     [%2 %all +.old]
   --
 ::
-::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
-::  with bad message/parent identifiers (respectively) got pushed into our
-::  streams. for the %dm-reply case, this made it impossible for clients (that
-::  use and expect the correct identifiers) to work with the sources these
-::  events got put into. for both cases, they were Wrong.
-::
-::  here, we iterate over all clubs and, for each of the known sources for a
-::  club, re-constitute the contents of that source's stream from scratch. this
-::  means _moving_ dm-thread streams to be under corrected source identifiers,
-::  and updating top-level streams _in-place_. for both, we update the contents
-::  of the stream by rewriting %dm-post and %dm-reply events to use corrected
-::  message identifiers.
-::
-::  to correct the message identifiers, we simply do the reverse time-id lookup
-::  in dex.pact, as is done across the chat codebase.
-::
-++  correct-dm-keys
-  |^  ^+  cor
-  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
-    %gx  (scry-path %chat /full/noun)
-  ==
-  =/  club-sources
-    %~  tap  by
-    %+  roll
-      ~(tap by indices)
-    |=  [[=source:a =index:a] dms=(jar whom:a [source:a index:a])]
-    ?.  ?=(?(%dm %dm-thread) -.source)  dms
-    =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
-    ?.  ?=(%club -.whom)  dms
-    (~(add ja dms) whom [source index])
-  |-
-  ?~  club-sources  cor
-  =/  [=whom:a =indexes]  -.club-sources
-  =*  next  $(club-sources +.club-sources)
-  ?>  ?=(%club -.whom)
-  =/  club  (~(get by clubs) p.whom)
-  ?~  club  next
-  =/  [threads=^indexes dms=^indexes]
-    %+  skid
-      indexes
-    |=  [=source:a *]
-    ?=(%dm-thread -.source)
-  =;  indxs=^indexes
-    |-
-    ?~  indxs  next
-    =*  source  source.i.indxs
-    ::  cleanup old bad keys
-    =?  cor  ?=(%dm-thread -.source)
-      =/  old-source  source(key [id.key.source q.id.key.source])
-      %=  cor
-        indices  (~(del by indices) old-source)
-        activity  (~(del by activity) old-source)
-        volume-settings  (~(del by volume-settings) old-source)
-      ==
-    ::  update source + index, if new key create new index
-    =.  cor  (update-index source index.i.indxs &)
-    $(indxs t.indxs)
-  %+  weld
-    (handle-dms u.club dms)
-  (handle-threads u.club threads)
-  ++  handle-dms
-    |=  [=club:ch =indexes]
-    ^+  indexes
-    %+  turn
-      indexes
-    |=  [=source:a =index:a]
-    ?>  ?=(%dm -.source)
-    :-  source
-    index(stream (clean-stream-keys club stream.index))
-  ++  handle-threads
-    |=  [=club:ch =indexes]
-    ^+  indexes
-    =/  collapsed
-      %+  roll
-        indexes
-      |=  [[=source:a =index:a] acc=(jar message-id:a [=source:a =index:a])]
-      ?>  ?=(%dm-thread -.source)
-      (~(add ja acc) id.key.source [source index])
-    =;  [=indices:a *]
-      ~(tap by indices)
-    %+  roll
-      indexes
-    |=  [[=source:a =index:a] acc=[=indices:a keys=(map message-id:a message-key:a)]]
-    ?>  ?=(%dm-thread -.source)
-    =*  id  id.key.source
-    =/  key  (~(get by keys.acc) id)
-    ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))  acc
-    ?~  srcs=(~(get by collapsed) id)  acc
-    =/  post-time  (~(get by dex.pact.club) id)
-    ?~  post-time  acc
-    =/  new-key  [id u.post-time]
-    :_  (~(put by keys.acc) id new-key)
-    %-  ~(put by indices.acc)
-    ::  new source
-    :-  source(key new-key)
-    %+  roll
-      u.srcs
-    |=  [[=source:a =index:a] acc=index:a]
-    ?>  ?=(%dm-thread -.source)
-    :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
-    ::  rectify reads
-    =/  floor  (max floor.reads.index floor.reads.acc)
-    :-  floor
-    =/  combined
-      (uni:on-read-items:a items.reads.index items.reads.acc)
-    (lot:on-read-items:a combined `floor ~)
-  ++  clean-stream-keys
-    |=  [=club:ch =stream:a]
-    ^-  stream:a
-    %+  gas:on-event:a  *stream:a
-    %+  turn
-      (tap:on-event:a stream)
-    |=  [=time =event:a]
-    =/  noop  [time event]
-    ::  skip any non post or reply events
-    ?.  ?=(?(%dm-post %dm-reply) -<.event)  noop
-    =/  post-id  ?:(?=(%dm-post -<.event) id.key.event id.parent.event)
-    =/  post-time  (~(get by dex.pact.club) post-id)
-    ?~  post-time  noop
-    =/  post-key  [post-id u.post-time]
-    ?:  ?=(%dm-post -<.event)
-      [time event(key post-key)]
-    =/  reply-time  (~(get by dex.pact.club) id.key.event)
-    ?~  reply-time  noop
-    [time event(time.key u.reply-time, parent post-key)]
-  +$  indexes  (list [=source:a =index:a])
-  --
 ++  scry-path
   |=  [=dude:gall =path]
   %+  welp
@@ -988,4 +861,132 @@
     ?~  last  `key.event
     last
   $(stream rest)
+::
+::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
+::  with bad message/parent identifiers (respectively) got pushed into our
+::  streams. for the %dm-reply case, this made it impossible for clients (that
+::  use and expect the correct identifiers) to work with the sources these
+::  events got put into. for both cases, they were Wrong.
+::
+::  here, we iterate over all clubs and, for each of the known sources for a
+::  club, re-constitute the contents of that source's stream from scratch. this
+::  means _moving_ dm-thread streams to be under corrected source identifiers,
+::  and updating top-level streams _in-place_. for both, we update the contents
+::  of the stream by rewriting %dm-post and %dm-reply events to use corrected
+::  message identifiers.
+::
+::  to correct the message identifiers, we simply do the reverse time-id lookup
+::  in dex.pact, as is done across the chat codebase.
+::
+++  correct-dm-keys
+  |^  ^+  cor
+  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+    %gx  (scry-path %chat /full/noun)
+  ==
+  =/  club-sources
+    %~  tap  by
+    %+  roll
+      ~(tap by indices)
+    |=  [[=source:a =index:a] dms=(jar whom:a [source:a index:a])]
+    ?.  ?=(?(%dm %dm-thread) -.source)  dms
+    =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
+    ?.  ?=(%club -.whom)  dms
+    (~(add ja dms) whom [source index])
+  |-
+  ?~  club-sources  cor
+  =/  [=whom:a =indexes]  -.club-sources
+  =*  next  $(club-sources +.club-sources)
+  ?>  ?=(%club -.whom)
+  =/  club  (~(get by clubs) p.whom)
+  ?~  club  next
+  =/  [threads=^indexes dms=^indexes]
+    %+  skid
+      indexes
+    |=  [=source:a *]
+    ?=(%dm-thread -.source)
+  =;  indxs=^indexes
+    |-
+    ?~  indxs  next
+    =*  source  source.i.indxs
+    ::  cleanup old bad keys
+    =?  cor  ?=(%dm-thread -.source)
+      =/  old-source  source(key [id.key.source q.id.key.source])
+      %=  cor
+        indices  (~(del by indices) old-source)
+        activity  (~(del by activity) old-source)
+        volume-settings  (~(del by volume-settings) old-source)
+      ==
+    ::  update source + index, if new key create new index
+    =.  cor  (update-index source index.i.indxs &)
+    $(indxs t.indxs)
+  %+  weld
+    (handle-dms u.club dms)
+  (handle-threads u.club threads)
+  ++  handle-dms
+    |=  [=club:ch =indexes]
+    ^+  indexes
+    %+  turn
+      indexes
+    |=  [=source:a =index:a]
+    ?>  ?=(%dm -.source)
+    :-  source
+    index(stream (clean-stream-keys club stream.index))
+  ++  handle-threads
+    |=  [=club:ch =indexes]
+    ^+  indexes
+    =/  collapsed
+      %+  roll
+        indexes
+      |=  [[=source:a =index:a] acc=(jar message-id:a [=source:a =index:a])]
+      ?>  ?=(%dm-thread -.source)
+      (~(add ja acc) id.key.source [source index])
+    =;  [=indices:a *]
+      ~(tap by indices)
+    %+  roll
+      indexes
+    |=  [[=source:a =index:a] acc=[=indices:a keys=(map message-id:a message-key:a)]]
+    ?>  ?=(%dm-thread -.source)
+    =*  id  id.key.source
+    =/  key  (~(get by keys.acc) id)
+    ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))  acc
+    ?~  srcs=(~(get by collapsed) id)  acc
+    =/  post-time  (~(get by dex.pact.club) id)
+    ?~  post-time  acc
+    =/  new-key  [id u.post-time]
+    :_  (~(put by keys.acc) id new-key)
+    %-  ~(put by indices.acc)
+    ::  new source
+    :-  source(key new-key)
+    %+  roll
+      u.srcs
+    |=  [[=source:a =index:a] acc=index:a]
+    ?>  ?=(%dm-thread -.source)
+    :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
+    ::  rectify reads
+    =/  floor  (max floor.reads.index floor.reads.acc)
+    :-  floor
+    =/  combined
+      (uni:on-read-items:a items.reads.index items.reads.acc)
+    (lot:on-read-items:a combined `floor ~)
+  ++  clean-stream-keys
+    |=  [=club:ch =stream:a]
+    ^-  stream:a
+    %+  gas:on-event:a  *stream:a
+    %+  turn
+      (tap:on-event:a stream)
+    |=  [=time =event:a]
+    =/  noop  [time event]
+    ::  skip any non post or reply events
+    ?.  ?=(?(%dm-post %dm-reply) -<.event)  noop
+    =/  post-id  ?:(?=(%dm-post -<.event) id.key.event id.parent.event)
+    =/  post-time  (~(get by dex.pact.club) post-id)
+    ?~  post-time  noop
+    =/  post-key  [post-id u.post-time]
+    ?:  ?=(%dm-post -<.event)
+      [time event(key post-key)]
+    =/  reply-time  (~(get by dex.pact.club) id.key.event)
+    ?~  reply-time  noop
+    [time event(time.key u.reply-time, parent post-key)]
+  +$  indexes  (list [=source:a =index:a])
+  --
 --
