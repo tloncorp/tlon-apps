@@ -233,16 +233,7 @@ function Scroller({
   const handleItemLayout = useCallback(
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
-      if (
-        anchor?.postId === post.id ||
-        // if we've got at least a page of posts and we've rendered them all,
-        // reveal the scroller to prevent getting stuck when messages are
-        // deleted.
-        (posts?.length && renderedPostsRef.current.size >= posts?.length)
-      ) {
-        if (!hasFoundAnchor) {
-          setHasFoundAnchor(true);
-        }
+      if (anchor?.postId === post.id) {
         // This gets called every time the anchor post changes size. If the user hasn't
         // scrolled yet, we should still be locked to the anchor post, so this
         // will re-scroll on subsequent layouts as well as the first.
@@ -260,6 +251,16 @@ function Scroller({
             viewPosition: 1,
           });
         }
+      }
+      if (
+        !hasFoundAnchor &&
+        (anchor?.postId === post.id ||
+          // if we've got at least a page of posts and we've rendered them all,
+          // reveal the scroller to prevent getting stuck when messages are
+          // deleted.
+          (posts?.length && renderedPostsRef.current.size >= posts?.length))
+      ) {
+        setHasFoundAnchor(true);
       }
     },
     [anchor, hasFoundAnchor, channelType, firstUnreadId, posts?.length]
