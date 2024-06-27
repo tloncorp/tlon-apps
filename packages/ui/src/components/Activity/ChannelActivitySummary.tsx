@@ -25,7 +25,7 @@ export function ChannelActivitySummary({
   const unreadCount =
     summary.type === 'post'
       ? newestPost.channel?.unread?.countWithoutThreads ?? 0
-      : newestPost.post?.threadUnread?.count ?? 0;
+      : newestPost.parent?.threadUnread?.count ?? 0;
 
   const newestIsBlockOrNote =
     (summary.type === 'post' && newestPost.channel?.type === 'gallery') ||

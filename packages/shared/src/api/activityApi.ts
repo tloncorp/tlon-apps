@@ -675,13 +675,9 @@ export const toGroupUnread = (
   groupId: string,
   summary: ub.ActivitySummary
 ): db.GroupUnread => {
-  const count = Object.values(summary.children ?? {}).reduce((acc, entry) => {
-    const childCount = entry.unread?.count ?? 0;
-    return acc + childCount;
-  }, 0);
   return {
     groupId,
-    count,
+    count: summary.count,
     notify: summary.notify,
     updatedAt: summary.recency,
   };
