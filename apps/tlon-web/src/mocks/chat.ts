@@ -142,6 +142,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~nocsyx-lassul': {
     recency: 1652302200000,
@@ -149,6 +154,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~fallyn-balfus': {
     recency: 0,
@@ -156,6 +166,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~finned-palmer': {
     recency: 1652302200000,
@@ -163,6 +178,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~datder-sonnet': {
     recency: 1652302200000,
@@ -170,6 +190,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~hastuc-dibtux': {
     recency: 0,
@@ -177,6 +202,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~rilfun-lidlen': {
     recency: 0,
@@ -184,6 +214,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   '~mister-dister-dozzod-dozzod': {
     recency: 0,
@@ -191,6 +226,11 @@ export const dmList: Activity = {
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
 };
 

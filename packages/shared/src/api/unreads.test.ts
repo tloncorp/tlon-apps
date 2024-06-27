@@ -19,6 +19,11 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
       },
       count: 5,
       recency: 1718513986192,
+      'notify-count': 0,
+      reads: {
+        floor: '0',
+        posts: {},
+      },
       children: {
         'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.591.089.314.701.116.289.581.056':
           {
@@ -27,6 +32,11 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
             recency: 1718483402625,
             children: null,
             notify: true,
+            'notify-count': 0,
+            reads: {
+              floor: '0',
+              posts: {},
+            },
           },
         'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.590.556.405.446.059.399.053.312':
           {
@@ -35,6 +45,11 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
             recency: 1718483869007,
             children: null,
             notify: false,
+            'notify-count': 0,
+            reads: {
+              floor: '0',
+              posts: {},
+            },
           },
       },
       notify: true,
@@ -75,6 +90,11 @@ const threadUnread: Record<string, ub.ActivitySummary> = {
       recency: 1718514344709,
       children: {},
       notify: false,
+      'notify-count': 0,
+      reads: {
+        floor: '0',
+        posts: {},
+      },
     },
 };
 
@@ -111,6 +131,11 @@ const dmUnread: Record<string, ub.ActivitySummary> = {
     recency: 1718523089789,
     children: {},
     notify: true,
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
 };
 
@@ -147,6 +172,11 @@ const dmThreadUnread: Record<string, ub.ActivitySummary> = {
       recency: 1718523494618,
       children: {},
       notify: true,
+      'notify-count': 0,
+      reads: {
+        floor: '0',
+        posts: {},
+      },
     },
 };
 
@@ -187,9 +217,19 @@ const groupUnread: Record<string, ub.ActivitySummary> = {
         recency: 946684800000,
         children: null,
         notify: false,
+        'notify-count': 0,
+        reads: {
+          floor: '0',
+          posts: {},
+        },
       },
     },
     notify: true,
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
 };
 

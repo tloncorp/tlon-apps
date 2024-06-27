@@ -168,9 +168,11 @@ export interface UnreadThread extends UnreadPoint {
 export interface ActivitySummary {
   recency: number;
   count: number;
+  'notify-count': number;
   notify: boolean;
   unread: UnreadPoint | null;
   children: Activity | null;
+  reads: Reads | null;
 }
 
 export interface ActivityBundle {
