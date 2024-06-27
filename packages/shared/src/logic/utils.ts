@@ -6,6 +6,7 @@ import {
   format,
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
+import { backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
 import * as api from '../api';
@@ -444,5 +445,17 @@ export const getCompositeGroups = (
   return groups.map((group) => {
     const baseGroup = baseIndex[group.id] ?? {};
     return { ...baseGroup, ...group };
+  });
+};
+
+interface RetryConfig {
+  startingDelay?: number;
+  numOfAttempts?: number;
+}
+export const withRetry = (fn: () => Promise<any>, config?: RetryConfig) => {
+  return backOff(fn, {
+    delayFirstAttempt: false,
+    startingDelay: config?.startingDelay ?? 1000,
+    numOfAttempts: config?.numOfAttempts ?? 4,
   });
 };

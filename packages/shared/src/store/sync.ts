@@ -5,7 +5,7 @@ import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
-import { ErrorReporter } from '../logic';
+import { ErrorReporter, withRetry } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -855,40 +855,45 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   try {
     reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
     // highest priority, do immediately
-    await syncInitData(reporter);
+    await withRetry(() => syncInitData(reporter));
     reporter.log(`finished syncing init data`);
 
-    await syncLatestPosts(reporter);
+    await withRetry(() => syncLatestPosts(reporter));
     reporter.log(`finished syncing latest posts`);
 
-    await Promise.all([
-      syncContacts().then(() => reporter.log(`finished syncing contacts`)),
-      resetActivity().then(() => reporter.log(`finished resetting activity`)),
-    ]);
+    await withRetry(() =>
+      Promise.all([
+        syncContacts().then(() => reporter.log(`finished syncing contacts`)),
+        resetActivity().then(() => reporter.log(`finished resetting activity`)),
+      ])
+    );
 
     if (!alreadySubscribed) {
-      await setupSubscriptions();
+      await withRetry(() => setupSubscriptions());
       reporter.log(`subscriptions setup`);
     } else {
       reporter.log(`already subscribed, skipping`);
     }
 
-    await Promise.all([
-      syncSettings().then(() => reporter.log(`finished syncing settings`)),
-      syncVolumeSettings().then(() =>
-        reporter.log(`finished syncing volume settings`)
-      ),
-      initializeStorage().then(() =>
-        reporter.log(`finished initializing storage`)
-      ),
-      syncPushNotificationsSetting().then(() =>
-        reporter.log(`finished syncing push notifications setting`)
-      ),
-    ]);
+    await withRetry(() =>
+      Promise.all([
+        syncSettings().then(() => reporter.log(`finished syncing settings`)),
+        syncVolumeSettings().then(() =>
+          reporter.log(`finished syncing volume settings`)
+        ),
+        initializeStorage().then(() =>
+          reporter.log(`finished initializing storage`)
+        ),
+        syncPushNotificationsSetting().then(() =>
+          reporter.log(`finished syncing push notifications setting`)
+        ),
+      ])
+    );
     reporter.log('sync start complete');
   } catch (e) {
     reporter.report(e);
     logger.warn('INITIAL SYNC FAILED', e);
+    throw e;
   }
 };
 
