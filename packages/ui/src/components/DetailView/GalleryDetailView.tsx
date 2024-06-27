@@ -21,6 +21,7 @@ export default function GalleryDetailView({
   clearDraft,
   getDraft,
   goBack,
+  markRead,
 }: DetailViewProps) {
   // We want the content of the detail view to take up 70% of the screen height
   const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.5;
@@ -70,6 +71,7 @@ export default function GalleryDetailView({
       clearDraft={clearDraft}
       getDraft={getDraft}
       goBack={goBack}
+      markRead={markRead}
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         <View paddingHorizontal="$xl" key={post.id} alignItems="center">

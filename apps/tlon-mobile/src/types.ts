@@ -41,12 +41,34 @@ export type RootStackParamList = {
     post: db.Post;
     uri?: string;
   };
+  GroupSettings: {
+    group: db.Group;
+  };
+};
+
+export type GroupSettingsStackParamList = {
+  GroupMeta: {
+    groupId: string;
+  };
+  GroupMembers: {
+    groupId: string;
+  };
+  ManageChannels: {
+    groupId: string;
+  };
+  InvitesAndPrivacy: {
+    groupId: string;
+  };
+  GroupRoles: {
+    groupId: string;
+  };
 };
 
 export type TabParamList = {
   Groups: NavigatorScreenParams<HomeStackParamList>;
   Activity: NavigatorScreenParams<WebViewStackParamList>;
   Settings: NavigatorScreenParams<SettingsStackParamList>;
+  Profile: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 export type TabName = keyof TabParamList;

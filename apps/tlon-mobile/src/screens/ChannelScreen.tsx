@@ -122,6 +122,22 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
+  const handleGoToDm = useCallback(
+    async (participants: string[]) => {
+      const dmChannel = await store.upsertDmChannel({
+        participants,
+      });
+      props.navigation.push('Channel', { channel: dmChannel });
+    },
+    [props.navigation]
+  );
+
+  const handleMarkRead = useCallback(() => {
+    if (channel) {
+      store.markChannelRead(channel);
+    }
+  }, [channel]);
+
   if (!channel) {
     return null;
   }
@@ -146,10 +162,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToImageViewer={navigateToImage}
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={navigateToSearch}
+        goToDm={handleGoToDm}
         uploadInfo={uploadInfo}
         onScrollEndReached={loadOlder}
         onScrollStartReached={loadNewer}
         onPressRef={navigateToRef}
+        markRead={handleMarkRead}
         usePost={usePostWithRelations}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}

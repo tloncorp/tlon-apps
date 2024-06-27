@@ -69,10 +69,17 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
-export const useSettings = (options: { userId: string }) => {
+export const useActivitySeenMarker = () => {
   return useQuery({
-    queryKey: ['settings'],
-    queryFn: () => db.getSettings(options.userId),
+    queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
+    queryFn: () => db.getActivitySeenMarker(),
+  });
+};
+
+export const usePushNotificationsSetting = () => {
+  return useQuery({
+    queryKey: db.PUSH_NOTIFICATIONS_SETTING_QUERY_KEY,
+    queryFn: db.getPushNotificationsSetting,
   });
 };
 
@@ -99,11 +106,21 @@ export const useUnreadsCount = () => {
   });
 };
 
-export const useUnreads = (options: db.GetUnreadsOptions) => {
+export const useLatestActivityEvent = () => {
+  const depsKey = useKeyFromQueryDeps(db.getLatestActivityEvent);
   return useQuery({
-    queryKey: ['unreads'],
-    queryFn: () => db.getUnreads(options),
+    queryKey: ['latestActivityEvent', depsKey],
+    queryFn: () => db.getLatestActivityEvent(),
   });
+};
+
+export const useHaveUnseenActivity = () => {
+  const { data: seenMarker } = useActivitySeenMarker();
+  const { data: latestEvent } = useLatestActivityEvent();
+  if (!latestEvent || seenMarker === null || seenMarker === undefined)
+    return false;
+
+  return latestEvent?.timestamp > seenMarker;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {
@@ -218,9 +235,23 @@ export const useChannel = (options: { id: string }) => {
   });
 };
 
-export const usePostWithRelations = (options: { id: string }) => {
+export const usePostWithThreadUnreads = (options: { id: string }) => {
+  const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
-    queryKey: [['post', options]],
+    queryKey: [['post', options], tableDeps],
+    staleTime: Infinity,
+    queryFn: () => db.getPostWithRelations(options),
+  });
+};
+
+export const usePostWithRelations = (
+  options: { id: string },
+  initialData?: db.Post
+) => {
+  return useQuery({
+    queryKey: ['post', options.id],
+    staleTime: Infinity,
+    ...(initialData ? { initialData } : {}),
     queryFn: () => db.getPostWithRelations(options),
   });
 };

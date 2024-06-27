@@ -2,21 +2,10 @@ import { beforeAll, beforeEach, expect, test } from 'vitest';
 
 import { toClientGroups } from '../api/groupsApi';
 import * as schema from '../db/schema';
-import {
-  syncContacts,
-  syncDms,
-  syncGroups,
-  syncPinnedItems,
-  syncUnreads,
-} from '../store/sync';
-import channelUnreadsResponse from '../test/channelUnreads.json';
-import clubsResponse from '../test/clubs.json';
-import contactsResponse from '../test/contacts.json';
-import dmUnreadsResponse from '../test/dmUnreads.json';
-import dmsResponse from '../test/dms.json';
+import { syncInitData } from '../store/sync';
 import groupsResponse from '../test/groups.json';
 import { getClient, resetDb, setScryOutputs, setupDb } from '../test/helpers';
-import pinsResponse from '../test/pins.json';
+import initResponse from '../test/init.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
 import { Post, PostWindow } from './types';
@@ -50,33 +39,20 @@ test('inserts all groups', async () => {
   expect(groups.length).toEqual(groupsData.length);
 });
 
-test('gets chat list', async () => {
-  setScryOutputs([
-    groupsResponse,
-    dmsResponse,
-    clubsResponse,
-    pinsResponse,
-    contactsResponse,
-    channelUnreadsResponse,
-    dmUnreadsResponse,
-  ]);
-
-  await syncGroups();
-  await syncDms();
-  await syncPinnedItems();
-  await syncContacts();
-  await syncUnreads();
+test('uses init data to get chat list', async () => {
+  setScryOutputs([initResponse]);
+  await syncInitData();
 
   const result = await queries.getChats();
   expect(result.map((r) => r.id).slice(0, 8)).toEqual([
-    'heap/~dabben-larbet/interface-1720',
-    'chat/~solfer-magfed/another',
-    'diary/~nocsyx-lassul/feedback-and-questions-2368',
-    '0v4.00000.qd4mk.d4htu.er4b8.eao21',
-    '~finned-palmer',
-    'chat/~dopzod/urbit-help',
-    'chat/~hiddev-dannut/hooniverse-chat--ask---learn-881',
-    '~rilfun-lidlen',
+    '0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2',
+    'chat/~nibset-napwyn/commons',
+    '0v4.00000.qd819.b3ubo.qjuv7.di5k7',
+    'chat/~bolbex-fogdys/watercooler-4926',
+    'diary/~pondus-watbel/books',
+    '~roslet-tanner',
+    '~solfer-magfed',
+    '~pondus-watbel',
   ]);
 });
 

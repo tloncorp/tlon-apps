@@ -2,8 +2,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
+import * as Application from 'expo-application';
 import { useCallback } from 'react';
+import { Platform } from 'react-native';
 
+import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
 import { clearShipInfo, useShip } from '../contexts/ship';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { purgeDb } from '../lib/nativeDb';
@@ -12,6 +15,17 @@ import { SettingsStackParamList } from '../types';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Profile'>;
+
+const DEBUG_MESSAGE = `
+  Version: 
+  ${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}
+  
+  Notify Provider: 
+  ${NOTIFY_PROVIDER}
+
+  Notify Service: 
+  ${NOTIFY_SERVICE}
+`;
 
 export default function ProfileScreen(props: Props) {
   const { clearShip } = useShip();
@@ -33,6 +47,7 @@ export default function ProfileScreen(props: Props) {
       <ProfileScreenView
         contacts={contacts ?? []}
         currentUserId={currentUserId}
+        debugMessage={DEBUG_MESSAGE}
         onAppSettingsPressed={() => props.navigation.navigate('FeatureFlags')}
         handleLogout={handleLogout}
       />

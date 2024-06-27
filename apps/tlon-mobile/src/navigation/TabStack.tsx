@@ -1,19 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View } from '@tloncorp/ui';
 
-import NavBar from '../navigation/NavBarView';
+import { ActivityScreen } from '../screens/ActivityScreen';
 import type { TabParamList } from '../types';
 import { HomeStack } from './HomeStack';
 import { SettingsStack } from './SettingsStack';
-
-const ActivityScreen = (props: any) => {
-  return (
-    <View backgroundColor="$background" flex={1}>
-      <View flex={1} />
-      <NavBar navigation={props.navigation} />
-    </View>
-  );
-};
 
 const Tab = createNativeStackNavigator<TabParamList>();
 

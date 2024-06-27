@@ -28,13 +28,10 @@ export async function sendPost({
   }
 
   // optimistic update
-  const cachePost = db.buildPendingPost({ authorId, channel, content });
-  await db.insertChannelPosts({
-    channelId: channel.id,
-    posts: [cachePost],
-    older: sync.channelCursors.get(channel.id),
-  });
-  sync.updateChannelCursor(channel.id, cachePost.id);
+  // TODO: make author available more efficiently
+  const author = await db.getContact({ id: authorId });
+  const cachePost = db.buildPendingPost({ authorId, author, channel, content });
+  sync.handleAddPost(cachePost);
   try {
     await api.sendPost({
       channelId: channel.id,
@@ -97,8 +94,11 @@ export async function sendReply({
   content: urbit.Story;
 }) {
   // optimistic update
+  // TODO: make author available more efficiently
+  const author = await db.getContact({ id: authorId });
   const cachePost = db.buildPendingPost({
     authorId,
+    author,
     channel: channel,
     content,
     parentId,

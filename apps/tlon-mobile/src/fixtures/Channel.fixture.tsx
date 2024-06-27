@@ -91,9 +91,11 @@ export const ChannelFixture = (props: {
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => switcher.open()}
+        goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        markRead={() => {}}
         editPost={() => {}}
         uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
@@ -126,9 +128,11 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goBack={() => {}}
         goToSearch={() => {}}
         goToChannels={() => switcher.open()}
+        goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        markRead={() => {}}
         editPost={() => {}}
         getDraft={async () => ({})}
         storeDraft={() => {}}
@@ -181,8 +185,10 @@ const ChannelFixtureWithImage = () => {
         goToSearch={() => {}}
         goToChannels={switcher.open}
         goToPost={() => {}}
+        goToDm={() => {}}
         goToImageViewer={() => {}}
         messageSender={() => {}}
+        markRead={() => {}}
         editPost={() => {}}
         negotiationMatch={true}
         isLoadingPosts={false}

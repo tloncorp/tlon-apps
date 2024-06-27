@@ -773,16 +773,19 @@
           mention=?
       ==
   ^+  cor
-  ?:  ?&  ?=(?(%post %reply) -.concern)
-          .=  our.bowl
-          p.id:?-(-.concern %post key.concern, %reply key.concern)
-      ==
-    cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
   =;  =cage
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  ?:  ?&  ?=(?(%post %reply) -.concern)
+          .=  our.bowl
+          p.id:?-(-.concern %post key.concern, %reply key.concern)
+      ==
+    =/  =source
+      ?:  ?=(%post -.concern)  [%dm whom]
+      [%dm-thread top.concern whom]
+    activity-action+!>(`action`[%read source [%all `now.bowl]])
   :-  %activity-action
   !>  ^-  action
   :-  %add
@@ -1346,7 +1349,7 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
-          =/  top-con  [. q]:p.diff.delta
+          =/  top-con  [id time]:op
           =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
           =/  mention  (was-mentioned:utils content.memo our.bowl)
           =.  cu-core  (cu-activity concern content.memo mention)

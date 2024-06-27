@@ -7,6 +7,13 @@ import { InlineEmptyPlaceholder } from '@/components/EmptyPlaceholder';
 import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSort from '@/logic/useMessageSort';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import {
+  Cohort,
+  Cohorts,
+  cohortToUnread,
+  useCohorts,
+} from '@/state/broadcasts';
 import { useChats } from '@/state/channel/channel';
 import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
@@ -47,9 +54,8 @@ export default function MessagesList({
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinnedChats();
   const { sortMessages } = useMessageSort();
+  const broadcasts = useCohorts();
   const unreads = useUnreads();
-  const contacts = useContacts();
-  const clubs = useMultiDms();
   const chats = useChats();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
@@ -64,8 +70,21 @@ export default function MessagesList({
   };
 
   const organizedUnreads = useMemo(() => {
-    const filteredMsgs = sortMessages(unreads)
-      .filter(([k]) => {
+    const filteredMsgs = sortMessages(
+        filter === filters.broadcasts
+          ? Object.fromEntries(
+              Object.entries(broadcasts.data || {}).map(
+                (v): [string, Unread] => {
+                  return [v[0], cohortToUnread(v[1] as Cohort)]; //REVIEW hax
+                }
+              )
+            )
+          : unreads
+      ).filter(([k]) => {
+        if (k.startsWith('~~') && filter === filters.broadcasts) {
+          return true;
+        }
+
         if (
           !(
             k.startsWith('ship/') ||
@@ -124,18 +143,7 @@ export default function MessagesList({
           .filter(searchQuery, filteredMsgs, { extract: (x) => x[0] })
           .sort((a, b) => b.score - a.score)
           .map((x) => x.original);
-  }, [
-    sortMessages,
-    unreads,
-    chats,
-    groups,
-    pinned,
-    searchQuery,
-    allPending,
-    filter,
-    contacts,
-    clubs,
-  ]);
+  }, [sortMessages, unreads, chats, groups, pinned, searchQuery, allPending, filter, broadcasts]);
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);

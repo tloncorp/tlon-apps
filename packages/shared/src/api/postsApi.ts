@@ -662,7 +662,7 @@ export function toPagedPostsData(
 
 export function toPostsData(
   channelId: string,
-  posts: ub.Posts | Record<string, ub.Reply>
+  posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
 ) {
   const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
     [string[], db.Post[]]
@@ -687,7 +687,7 @@ export function toPostsData(
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.PostDataResponse
+  post: ub.Post | ub.Writ | ub.PostDataResponse
 ): db.Post {
   const getPostType = (
     channelId: string,
@@ -714,16 +714,21 @@ export function toPostData(
   const [content, flags] = toPostContent(post?.essay.content);
   const metadata = parseKindData(kindData);
   const id = getCanonicalPostId(post.seal.id);
+  const backendTime =
+    post.seal && 'time' in post.seal
+      ? getCanonicalPostId(post.seal.time.toString())
+      : null;
 
   return {
     id,
     channelId,
     type,
+    backendTime,
     // Kind data will override
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     authorId: post.essay.author,
-    isEdited: !!post.revision && post.revision !== '0',
+    isEdited: 'revision' in post && post.revision !== '0',
     content: JSON.stringify(content),
     textContent: getTextContent(post?.essay.content),
     sentAt: post.essay.sent,
@@ -760,14 +765,28 @@ function getReplyData(
     toPostReplyData(channelId, postId, reply)
   );
 }
+export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
+  if (!meta) {
+    return null;
+  }
+  return {
+    replyCount: meta.replyCount,
+    replyTime: meta.lastReply,
+    replyContactIds: meta.lastRepliers,
+  };
+}
 
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply
+  reply: ub.Reply | ub.WritReply
 ): db.Post {
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
+  const backendTime =
+    reply.seal && 'time' in reply.seal
+      ? getCanonicalPostId(reply.seal.time.toString())
+      : null;
   return {
     id,
     channelId,
@@ -779,6 +798,7 @@ export function toPostReplyData(
     content: JSON.stringify(content),
     textContent: getTextContent(reply.memo.content),
     sentAt: reply.memo.sent,
+    backendTime,
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
     images: getContentImages(id, reply.memo.content),

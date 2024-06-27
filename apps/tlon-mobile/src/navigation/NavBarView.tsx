@@ -10,6 +10,7 @@ const NavBarView = (props: { navigation: any }) => {
     return state.routes[state.index].name === routeName;
   };
   const { data: unreadCount } = store.useUnreadsCount();
+  const haveUnseenActivity = store.useHaveUnseenActivity();
   const currentUserId = useCurrentUserId();
   const { data: contact } = store.useContact({ id: currentUserId });
 
@@ -19,13 +20,15 @@ const NavBarView = (props: { navigation: any }) => {
         type="Home"
         activeType="HomeFilled"
         isActive={isRouteActive('ChatList')}
-        hasUnreads={(unreadCount ?? 0) > 0}
+        // hasUnreads={(unreadCount?.channels ?? 0) > 0}
+        // intentionally leave undotted for now
+        hasUnreads={false}
         onPress={() => props.navigation.navigate('ChatList')}
       />
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
-        hasUnreads={false}
+        hasUnreads={haveUnseenActivity}
         isActive={isRouteActive('Activity')}
         onPress={() => props.navigation.navigate('Activity')}
       />

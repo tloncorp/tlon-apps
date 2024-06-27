@@ -13,10 +13,12 @@ export default function GalleryPost({
   post,
   onPress,
   onLongPress,
+  viewMode,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
+  viewMode?: 'activity';
 }) {
   // We want to show two posts per row in the gallery view, each with a margin of 16
   // and padding of 16 on all sides. This means that the width of each post should be
@@ -24,7 +26,9 @@ export default function GalleryPost({
   const postPadding = getTokenValue('$l');
   const postMargin = getTokenValue('$l');
   const HEIGHT_AND_WIDTH =
-    (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
+    viewMode === 'activity'
+      ? 100
+      : (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
 
   const {
     references,
@@ -60,6 +64,7 @@ export default function GalleryPost({
     <Pressable
       onPress={() => onPress?.(post)}
       onLongPress={() => onLongPress?.(post)}
+      disabled={viewMode === 'activity'}
     >
       <View padding="$m" key={post.id} position="relative" alignItems="center">
         {(isImage || isLinkedImage) && (
@@ -73,15 +78,17 @@ export default function GalleryPost({
               borderRadius: getTokenValue('$l', 'radius'),
             }}
           >
-            <View position="absolute" bottom="$l">
-              <AuthorRow
-                author={post.author}
-                authorId={post.authorId}
-                sent={post.sentAt}
-                type={post.type}
-                width={HEIGHT_AND_WIDTH}
-              />
-            </View>
+            {viewMode !== 'activity' && (
+              <View position="absolute" bottom="$l">
+                <AuthorRow
+                  author={post.author}
+                  authorId={post.authorId}
+                  sent={post.sentAt}
+                  type={post.type}
+                  width={HEIGHT_AND_WIDTH}
+                />
+              </View>
+            )}
           </ImageBackground>
         )}
         {isText && !isLinkedImage && !isRefInText && (

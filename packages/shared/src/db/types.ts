@@ -35,7 +35,10 @@ type BaseModel<T extends TableName> = InferModelFromColumns<
 
 export type Contact = BaseModel<'contacts'>;
 export type ContactPinnedGroups = Contact['pinnedGroups'];
-export type Unread = BaseModel<'unreads'>;
+export type ChannelUnread = BaseModel<'channelUnreads'>;
+export type GroupUnread = BaseModel<'groupUnreads'>;
+export type ActivityEvent = BaseModel<'activityEvents'>;
+export type ActivityBucket = schema.ActivityBucket;
 // TODO: We need to include unread count here because it's  returned by the chat
 // list query, but doesn't feel great.
 export type Group = BaseModel<'groups'> & {
@@ -74,6 +77,11 @@ export type PostFlags = Pick<
   | 'hasLink'
 >;
 export type PostMetadata = Pick<Post, 'title' | 'image'>;
+export type ReplyMeta = {
+  replyCount: number;
+  replyTime: number | null;
+  replyContactIds: string[];
+};
 export type PostImage = BaseModel<'postImages'>;
 export type PostDeliveryStatus = schema.PostDeliveryStatus;
 export type Reaction = BaseModel<'postReactions'>;
@@ -81,3 +89,4 @@ export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
 export type PostWindow = BaseModel<'postWindows'>;
+export type VolumeSettings = BaseModel<'volumeSettings'>;

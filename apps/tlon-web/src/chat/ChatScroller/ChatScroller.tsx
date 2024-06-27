@@ -51,9 +51,11 @@ const ChatScrollerItem = React.memo(
   ({
     item,
     isScrolling,
+    isBroadcast,
   }: {
     item: MessageListItemData | CustomScrollItemData;
     isScrolling: boolean;
+    isBroadcast?: boolean;
   }) => {
     if (item.type === 'custom') {
       return item.component;
@@ -89,6 +91,7 @@ const ChatScrollerItem = React.memo(
         isScrolling={isScrolling}
         writ={writ}
         time={time}
+        isBroadcast={isBroadcast}
         {...rest}
       />
     );
@@ -176,6 +179,7 @@ export interface ChatScrollerProps {
   whom: string;
   parent?: MessageKey;
   messages: PostTuple[] | WritTuple[] | ReplyTuple[];
+  isBroadcast?: boolean;
   onAtTop?: () => void;
   onAtBottom?: () => void;
   isLoadingOlder: boolean;
@@ -198,6 +202,7 @@ export default function ChatScroller({
   whom,
   parent,
   messages,
+  isBroadcast,
   onAtTop,
   onAtBottom,
   isLoadingOlder,
@@ -574,7 +579,11 @@ export default function ChatScroller({
                   transform: `scaleY(${scaleY})`,
                 }}
               >
-                <ChatScrollerItem item={item} isScrolling={isScrolling} />
+                <ChatScrollerItem
+                  item={item}
+                  isScrolling={isScrolling}
+                  isBroadcast={isBroadcast}
+                />
               </div>
             );
           })}

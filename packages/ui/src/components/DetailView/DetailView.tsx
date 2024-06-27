@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue, withStaticProperties } from 'tamagui';
 
 import { Text, View, YStack } from '../../core';
+import { useStickyUnread } from '../../hooks/useStickyUnread';
 import AuthorRow from '../AuthorRow';
 import Scroller from '../Channel/Scroller';
 import { ChatMessage } from '../ChatMessage';
@@ -30,6 +31,7 @@ export interface DetailViewProps {
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   goBack?: () => void;
+  markRead: (post: db.Post) => void;
 }
 
 const DetailViewMetaDataComponent = ({
@@ -112,10 +114,12 @@ const DetailViewFrameComponent = ({
   getDraft,
   children,
   goBack,
+  markRead,
 }: DetailViewProps) => {
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
   );
+  const threadUnread = useStickyUnread(post?.threadUnread);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
   return (
@@ -140,6 +144,13 @@ const DetailViewFrameComponent = ({
               posts={posts ?? null}
               showReplies={false}
               onPressImage={onPressImage}
+              firstUnreadId={
+                threadUnread?.count ?? 0 > 0
+                  ? threadUnread?.firstUnreadPostId
+                  : null
+              }
+              unreadCount={threadUnread?.count ?? 0}
+              onDividerSeen={markRead}
             />
           </View>
         )}

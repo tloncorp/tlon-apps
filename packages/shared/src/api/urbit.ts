@@ -50,12 +50,14 @@ export function configureClient({
   fetchFn,
   verbose,
   onReset,
+  onChannelReset,
 }: {
   shipName: string;
   shipUrl: string;
   fetchFn?: typeof fetch;
   verbose?: boolean;
   onReset?: () => void;
+  onChannelReset?: () => void;
 }) {
   logger.log('configuring client', shipName, shipUrl);
   clientInstance = new Urbit(shipUrl, undefined, undefined, fetchFn);
@@ -85,6 +87,11 @@ export function configureClient({
 
   clientInstance.on('error', (error) => {
     logger.log('client error', error);
+  });
+
+  clientInstance.on('channel-reaped', () => {
+    logger.log('client channel-reaped');
+    onChannelReset?.();
   });
 
   subWatchers = {};

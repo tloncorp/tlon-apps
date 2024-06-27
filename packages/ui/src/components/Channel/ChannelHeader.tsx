@@ -101,7 +101,7 @@ export function ChannelHeader({
 
   const postActions = useMemo(() => {
     if (!post || !channelType || !currentUserId) return [];
-    return getPostActions(post, channelType).filter((action) => {
+    return getPostActions({ post, channelType }).filter((action) => {
       switch (action.id) {
         case 'startThread':
           // if undelivered or already in a thread, don't show reply

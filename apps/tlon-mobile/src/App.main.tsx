@@ -21,6 +21,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import { config as tamaguiConfig } from '../tamagui.config';
+import ErrorBoundary from './ErrorBoundary';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { BranchProvider, useBranch } from './contexts/branch';
@@ -197,6 +198,9 @@ function MigrationCheck({ children }: PropsWithChildren) {
   if (!success && !error) {
     return null;
   }
+  if (error) {
+    throw error;
+  }
   return <>{children}</>;
 }
 
@@ -206,37 +210,39 @@ export default function ConnectedApp(props: Props) {
   const navigationContainerRef = useNavigationContainerRef();
 
   return (
-    <TamaguiProvider
-      defaultTheme={isDarkMode ? 'dark' : 'light'}
-      config={tamaguiConfig}
-    >
-      <ShipProvider>
-        <NavigationContainer
-          theme={isDarkMode ? DarkTheme : DefaultTheme}
-          ref={navigationContainerRef}
-        >
-          <BranchProvider>
-            <PostHogProvider client={posthogAsync} autocapture>
-              <GestureHandlerRootView style={tailwind('flex-1')}>
-                <SafeAreaProvider>
-                  <MigrationCheck>
-                    <QueryClientProvider client={queryClient}>
-                      <App {...props} />
+    <ErrorBoundary>
+      <TamaguiProvider
+        defaultTheme={isDarkMode ? 'dark' : 'light'}
+        config={tamaguiConfig}
+      >
+        <ShipProvider>
+          <NavigationContainer
+            theme={isDarkMode ? DarkTheme : DefaultTheme}
+            ref={navigationContainerRef}
+          >
+            <BranchProvider>
+              <PostHogProvider client={posthogAsync} autocapture>
+                <GestureHandlerRootView style={tailwind('flex-1')}>
+                  <SafeAreaProvider>
+                    <MigrationCheck>
+                      <QueryClientProvider client={queryClient}>
+                        <App {...props} />
 
-                      {__DEV__ && (
-                        <DevTools
-                          navigationContainerRef={navigationContainerRef}
-                        />
-                      )}
-                    </QueryClientProvider>
-                  </MigrationCheck>
-                </SafeAreaProvider>
-              </GestureHandlerRootView>
-            </PostHogProvider>
-          </BranchProvider>
-        </NavigationContainer>
-      </ShipProvider>
-    </TamaguiProvider>
+                        {__DEV__ && (
+                          <DevTools
+                            navigationContainerRef={navigationContainerRef}
+                          />
+                        )}
+                      </QueryClientProvider>
+                    </MigrationCheck>
+                  </SafeAreaProvider>
+                </GestureHandlerRootView>
+              </PostHogProvider>
+            </BranchProvider>
+          </NavigationContainer>
+        </ShipProvider>
+      </TamaguiProvider>
+    </ErrorBoundary>
   );
 }
 
