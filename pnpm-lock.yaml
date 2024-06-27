@@ -1087,6 +1087,9 @@ importers:
       react:
         specifier: '*'
         version: 18.2.0
+      react-hook-form:
+        specifier: ^7.52.0
+        version: 7.52.0(react@18.2.0)
       react-native-context-menu-view:
         specifier: ^1.15.0
         version: 1.15.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -10040,6 +10043,12 @@ packages:
     engines: {node: '>=12.22.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18
+
+  react-hook-form@7.52.0:
+    resolution: {integrity: sha512-mJX506Xc6mirzLsmXUJyqlAI3Kj9Ph2RhplYhUVffeOQSnubK2uVqBFOBJmvKikvbFV91pxVXmDiR+QMF19x6A==}
+    engines: {node: '>=12.22.0'}
+    peerDependencies:
+      react: ^16.8.0 || ^17 || ^18 || ^19
 
   react-image-size@2.0.0:
     resolution: {integrity: sha512-6wjalqkkRKnU8VslTOUPooP954lvD9G7zSo2zu9S3vvboN4WRDfFmnfm291Pl5wcXroobYrcVpywP8ijshMmeg==}
@@ -23717,6 +23726,10 @@ snapshots:
       react-side-effect: 2.1.2(react@18.2.0)
 
   react-hook-form@7.50.1(react@18.2.0):
+    dependencies:
+      react: 18.2.0
+
+  react-hook-form@7.52.0(react@18.2.0):
     dependencies:
       react: 18.2.0
 

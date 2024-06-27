@@ -4,6 +4,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useImageUpload } from '../../hooks/useImageUpload';
 
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();
@@ -12,6 +13,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   });
 
   const group = groupQuery.data;
+
+  const uploadInfo = useImageUpload({
+    uploaderKey: `group-${groupId}`,
+  });
 
   const currentUserIsAdmin = useMemo(() => {
     return group?.members.some(
@@ -49,7 +54,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const setGroupMetadata = useCallback(
     async (metadata: db.ClientMeta) => {
       if (group) {
-        // await store.updateGroupMetadata(group.id, metadata);
+        await store.updateGroup({
+          ...group,
+          ...metadata,
+        });
       }
     },
     [group]
@@ -67,7 +75,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   const deleteGroup = useCallback(async () => {
     if (group) {
-      // await store.deleteGroup(group.id);
+      await store.deleteGroup(group);
     }
   }, [group]);
 
@@ -229,6 +237,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   return {
     group,
+    uploadInfo,
     groupMembers,
     groupInvites,
     groupChannels,
