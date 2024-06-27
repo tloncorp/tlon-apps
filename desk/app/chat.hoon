@@ -1349,7 +1349,7 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
-          =/  top-con  [. q]:p.diff.delta
+          =/  top-con  [id time]:op
           =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
           =/  mention  (was-mentioned:utils content.memo our.bowl)
           =.  cu-core  (cu-activity concern content.memo mention)

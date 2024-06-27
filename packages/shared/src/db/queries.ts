@@ -1601,23 +1601,27 @@ export const getChannelPosts = createReadQuery(
         .as('posts');
 
       // Get the row number of the cursor post
-      const cursorRow = await ctx.db
+      const position = await ctx.db
         .select({
-          id: $windowQuery.id,
-          rowNumber: $windowQuery.rowNumber,
+          // finds the highest row number for posts with IDs less than or equal to the cursor.
+          // If the cursor posts, exists, it will be the row number of that post.
+          index:
+            sql`coalesce(max(case when ${$windowQuery.id} <= ${cursor} then ${$windowQuery.rowNumber} end), 0)`
+              .mapWith(Number)
+              .as('index'),
         })
         .from($windowQuery)
-        .where(eq($windowQuery.id, cursor));
+        .get();
 
-      if (cursorRow.length === 0) {
+      if (!position) {
         return [];
       }
 
       // Calculate min and max rows
       const itemsBefore = Math.floor((count - 1) / 2);
       const itemsAfter = Math.ceil((count - 1) / 2);
-      const startRow = cursorRow[0].rowNumber - itemsBefore;
-      const endRow = cursorRow[0].rowNumber + itemsAfter;
+      const startRow = position.index - itemsBefore;
+      const endRow = position.index + itemsAfter;
 
       // Actually grab posts
       return await ctx.db.query.posts.findMany({
