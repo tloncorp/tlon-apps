@@ -357,8 +357,8 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =?  pole  !?=([?(%v0 %v1) *] pole)
-    [%v0 pole]
+  =?  +.pole  !?=([?(%v0 %v1) *] +.pole)
+    [%v0 +.pole]
   ?+  pole  [~ ~]
       [%x %v0 ~]
     =/  =activity-0:old:a  (activity-0:convert-to activity)
