@@ -901,6 +901,7 @@
   =/  newest=time  :(max newest.cs floor.reads top)
   =/  total
     ::  if we're a channel, we only want thread notify counts, not totals
+    ::
     ?:  ?=(%channel -.source)
       notify-count.cs
     count.cs
