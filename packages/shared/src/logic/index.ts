@@ -4,4 +4,3 @@ export * from './embed';
 export * from './types';
 export * from './activity';
 export * from './errorReporting';
-export * from './performanceLogging';

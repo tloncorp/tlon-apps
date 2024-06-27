@@ -24,15 +24,6 @@ vi.mock('posthog-js', () => ({
   },
 }));
 
-vi.mock('@react-native-firebase/perf', () => ({
-  default: () => ({
-    newTrace: (traceName: string) => ({
-      start: vi.fn(),
-      stop: vi.fn(),
-    }),
-  }),
-}));
-
 // Prevent vite from failing when resizeObserver is used
 
 Object.defineProperty(global, 'ResizeObserver', {

@@ -1,6 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { setCrashReporter, sync } from '@tloncorp/shared';
-import { FirebasePerformanceMonitor } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { ZStack } from '@tloncorp/ui';
@@ -36,7 +35,6 @@ function AuthenticatedApp({
     });
 
     setCrashReporter(crashlytics());
-    logic.setPerformanceMonitor(new FirebasePerformanceMonitor());
 
     // TODO: remove, for use in Beta testing only
     if (currentUserId) {
