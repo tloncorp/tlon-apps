@@ -89,14 +89,14 @@ export const ButtonFrame = styled(Stack, {
     } as const,
     heroDestructive: {
       true: {
-        backgroundColor: '$red',
+        backgroundColor: '$background',
         padding: '$xl',
-        borderWidth: 0,
+        borderWidth: 1,
         pressStyle: {
-          backgroundColor: '$redSoft',
+          backgroundColor: '$negativeBackground',
         },
         disabledStyle: {
-          backgroundColor: '$gray600',
+          backgroundColor: '$secondaryText',
         },
       },
     } as const,
@@ -150,7 +150,7 @@ export const ButtonText = styled(Text, {
     },
     heroDestructive: {
       true: {
-        color: '$white',
+        color: '$negativeActionText',
         width: '100%',
         textAlign: 'center',
         fontWeight: '500',
