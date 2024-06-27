@@ -573,9 +573,9 @@
 ++  give-update
   |=  [=update:a path=(unit path)]
   ^+  cor
-  =/  v0-paths  ?~(path ~[/ /v0] ~[/ /v0 u.path (weld /v0 u.path)])
+  =/  v0-paths  ?~(path ~[/ /v0] ~[/ /v0 u.path [%v0 u.path]])
   =/  v0-cage=cage  activity-update+!>((update-0:convert-to update))
-  =/  v1-paths  ?~(path ~[/v1] ~[/v1 (weld /v1 u.path)])
+  =/  v1-paths  ?~(path ~[/v1] ~[/v1 [%v1 u.path]])
   =/  v1-cage=cage  activity-update-1+!>(update)
   =.  cor  (give %fact v1-paths v1-cage)
   (give %fact v0-paths v0-cage)
