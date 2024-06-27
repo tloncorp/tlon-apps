@@ -6,6 +6,7 @@ import { WritTuple } from 'packages/shared/dist/urbit/dms';
 import api from '@/api';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import queryClient from '@/queryClient';
+
 import { Unread } from './unreads';
 
 export const cohortsKey = () => ['broadcaster', 'cohorts'];
@@ -51,9 +52,8 @@ export function useCohort(k: CohortKey): Cohort {
 }
 
 export function cohortToUnread(cohort: Cohort): Unread {
-  const recency = cohort.logging.length === 0
-    ? 0
-    : daToDate(cohort.logging[0].wen).getTime();
+  const recency =
+    cohort.logging.length === 0 ? 0 : daToDate(cohort.logging[0].wen).getTime();
   return {
     status: 'read',
     notify: false,
@@ -63,7 +63,18 @@ export function cohortToUnread(cohort: Cohort): Unread {
     children: null,
     parents: [],
     readTimeout: 0,
-    summary: { recency, count: 0, notify: false, unread: null, children: null }
+    summary: {
+      recency,
+      count: 0,
+      notify: false,
+      unread: null,
+      children: null,
+      'notify-count': 0,
+      reads: {
+        floor: '0',
+        posts: {},
+      },
+    },
   };
 }
 
