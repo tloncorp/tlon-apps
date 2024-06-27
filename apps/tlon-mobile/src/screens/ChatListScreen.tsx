@@ -18,8 +18,9 @@ import {
   ScreenHeader,
   StartDmSheet,
   View,
+  WelcomeSheet,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ContextMenu from 'react-native-context-menu-view';
 
 import AddGroupSheet from '../components/AddGroupSheet';
@@ -30,6 +31,7 @@ import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
 import type { HomeStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
+import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
 
 type ChatListScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -114,17 +116,18 @@ export default function ChatListScreen(
   );
 
   const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
-    if (logic.isChannel(item)) {
-      if (
-        item.type === 'dm' ||
-        item.type === 'groupDm' ||
-        item.pin?.type === 'channel'
-      ) {
-        setLongPressedChannel(item);
-      } else if (item.group) {
-        setLongPressedGroup(item.group);
-      }
-    }
+    // noop for now
+    // if (logic.isChannel(item)) {
+    //   if (
+    //     item.type === 'dm' ||
+    //     item.type === 'groupDm' ||
+    //     item.pin?.type === 'channel'
+    //   ) {
+    //     setLongPressedChannel(item);
+    //   } else if (item.group) {
+    //     setLongPressedGroup(item.group);
+    //   }
+    // }
   }, []);
 
   const handleDmOpenChange = useCallback((open: boolean) => {
@@ -240,6 +243,24 @@ export default function ChatListScreen(
     setScreenTitle(title);
   }, []);
 
+  const [splashVisible, setSplashVisible] = useState(true);
+
+  useEffect(() => {
+    const checkSplashDismissed = async () => {
+      const dismissed = await isSplashDismissed();
+      setSplashVisible(!dismissed);
+    };
+
+    checkSplashDismissed();
+  }, []);
+
+  const handleWelcomeOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setSplashVisible(false);
+      setSplashDismissed();
+    }
+  }, []);
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts ?? []}>
@@ -292,6 +313,10 @@ export default function ChatListScreen(
               />
             </ContextMenu>
           </View>
+          <WelcomeSheet
+            open={splashVisible}
+            onOpenChange={handleWelcomeOpenChange}
+          />
           <ChatOptionsSheet
             open={longPressedChannel !== null || longPressedGroup !== null}
             onOpenChange={handleChatOptionsOpenChange}

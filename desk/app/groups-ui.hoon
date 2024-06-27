@@ -146,7 +146,24 @@
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
-    =+  .^(=activity:a (scry %gx %activity /activity/noun))
+    =+  .^(activity=activity-0:old:a (scry %gx %activity /activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  init=init-2:u
+      :*  groups-ui
+          gangs
+          channels
+          activity
+          pins
+          [clubs dms invited]:chat
+          profile
+      ==
+    ``ui-init-2+!>(init)
+  ::
+      [%x %v3 %init ~]
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
+    =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
+    =+  .^(=activity:a (scry %gx %activity /v1/activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  =init:u
       :*  groups-ui
@@ -157,7 +174,7 @@
           [clubs dms invited]:chat
           profile
       ==
-    ``ui-init-2+!>(init)
+    ``ui-init-3+!>(init)
   ==
 ::
 ++  poke

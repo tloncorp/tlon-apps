@@ -31,6 +31,7 @@ function AuthenticatedApp({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
       onReset: () => sync.syncStart(),
+      onChannelReset: () => sync.handleDiscontinuity(),
     });
 
     setCrashReporter(crashlytics());

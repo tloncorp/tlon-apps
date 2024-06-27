@@ -241,6 +241,8 @@ export const systemFont = createFont({
     m: 16,
     true: 16,
     l: 17,
+    // TODO: resolve this with Ochre later, sorry for the inconsistency
+    l2: 32,
     // xl is used for emoji-only messages
     xl: 36,
     '2xl': 44,

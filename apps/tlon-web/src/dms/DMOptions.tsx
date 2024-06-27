@@ -229,7 +229,7 @@ export default function DmOptions({
     actions.push({
       key: 'leave',
       type: 'destructive',
-      onClick: leaveMessage,
+      onClick: () => setDialog(true),
       content: 'Leave Message',
     });
   }

@@ -7,7 +7,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %2
+    $:  %3
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -95,13 +95,47 @@
   ?:  ?=([%0 *] q.vase)  init
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  ?>  ?=(%2 -.old)
+  =?  cor  ?=(%2 -.old)
+    (emit %pass /clean-keys %agent [our.bowl dap.bowl] %poke noun+!>(%clean-keys))
+  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+  ?>  ?=(%3 -.old)
   =.  state  old
   cor
-  +$  versioned-state  $%(state-2 state-1)
-  +$  state-2  current-state
+  +$  versioned-state  $%(state-3 state-2 state-1)
+  +$  state-3  current-state
+  +$  state-2
+    $:  %2
+        allowed=notifications-allowed:a
+        =indices:a
+        activity=activity-0:old:a
+        =volume-settings:a
+    ==
+  ++  state-2-to-3
+    |=  old=state-2
+    ^-  state-3
+    :*  %3
+        allowed.old
+        indices.old
+        (activity-2-to-3 indices.old)
+        volume-settings.old
+    ==
+  ++  activity-2-to-3
+    |=  =indices:a
+    ^-  activity:a
+    =/  indexes
+      ::  sort children first in order so we only have to make one pass
+      ::  of summarization aka not repeatedly updating the same source
+      ::
+      %+  sort
+        ~(tap by indices)
+      |=  [[asrc=source:a *] [bsrc=source:a *]]
+      (gth (get-order asrc) (get-order bsrc))
+    %+  roll  indexes
+    |=  [[=source:a =index:a] =activity:a]
+    %+  ~(put by activity)  source
+    (summarize-unreads source index)
   +$  state-1
-    [%1 =indices:a =activity:a =volume-settings:a]
+    [%1 =indices:a =activity-0:old:a =volume-settings:a]
   ++  state-1-to-2
     |=  old=state-1
     ^-  state-2
@@ -290,6 +324,10 @@
       =.  state  *current-state
       =.  allowed  %all
       migrate
+        %refresh-activity
+      refresh-all-summaries
+        %clean-keys
+      correct-dm-keys
     ==
   ::
       %activity-action
@@ -306,25 +344,35 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
+  =?  pole  !?=([?(%v0 %v1) *] pole)
+    [%v0 pole]
   ?+  pole  ~|(bad-watch-path+pole !!)
-    ~  ?>(from-self cor)
-    [%notifications ~]  ?>(from-self cor)
-    [%unreads ~]  ?>(from-self cor)
+    [%v0 ~]                 ?>(from-self cor)
+    [%v1 ~]                 ?>(from-self cor)
+    [%v0 %unreads ~]        ?>(from-self cor)
+    [%v1 %unreads ~]        ?>(from-self cor)
+    [%v0 %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  =?  +.pole  !?=([?(%v0 %v1) *] +.pole)
+    [%v0 +.pole]
   ?+  pole  [~ ~]
-      [%x ~]
-    ``activity-full+!>([indices activity volume-settings])
+      [%x %v0 ~]
+    =/  =activity-0:old:a  (activity-0:convert-to activity)
+    ``activity-full+!>([indices activity-0 volume-settings])
+  ::
+      [%x %v1 ~]
+    ``activity-full-1+!>([indices activity volume-settings])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
-      [%x %all ~]
+      [%x %v0 %all ~]
     ``activity-stream+!>(stream:base)
   ::
-      [%x %all count=@ start=?(~ [u=@ ~])]
+      [%x %v0 %all count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -333,7 +381,7 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (bat:ex-event:a stream:base `start count)
   ::
-      [%x %feed %init count=@ ~]
+      [%x %v0 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
     =;  init=[all=feed:a mentions=feed:a replies=feed:a]
@@ -343,7 +391,7 @@
         (feed %replies start count)
     ==
   ::
-      [%x %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+      [%x %v0 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -358,7 +406,7 @@
   ::      suffer from the "search range" "problem", where we want .count to
   ::      mean entries trawled, not entries returned...
   ::
-      [%x %each start=@ count=@ ~]
+      [%x %v0 %each start=@ count=@ ~]
     =;  =stream:a
       ``activity-stream+!>(-)
     =/  start  (slav %da start.pole)
@@ -370,7 +418,7 @@
   ::
   ::  /indexed: per-index
   ::
-      [%x %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+      [%x %v0 %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
     =/  =source:a
       ?-  -.concern.pole
           %dm
@@ -401,19 +449,22 @@
     ==
   ::  /event: individual events
   ::
-      [%u %event id=@ ~]
+      [%u %v0 %event id=@ ~]
     ``loob+!>((has:on-event:a stream:base (slav %da id.pole)))
   ::
-      [%x %event id=@ ~]
+      [%x %v0 %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
-      [%x %activity ~]
-    ``activity-summary+!>(activity)
+      [%x %v0 %activity ~]
+    ``activity-summary+!>((activity-0:convert-to activity))
   ::
-      [%x %volume-settings ~]
+      [%x %v1 %activity ~]
+    ``activity-summary-1+!>(activity)
+  ::
+      [%x %v0 %volume-settings ~]
     ``activity-settings+!>(volume-settings)
   ::
-      [%x %notifications-allowed ~]
+      [%x %v0 %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
   ==
 ::
@@ -519,6 +570,15 @@
 ++  base
   ^-  index:a
   (~(got by indices) [%base ~])
+++  give-update
+  |=  [=update:a path=(unit path)]
+  ^+  cor
+  =/  v0-paths  ?~(path ~[/ /v0] ~[/ /v0 u.path [%v0 u.path]])
+  =/  v0-cage=cage  activity-update+!>((update-0:convert-to update))
+  =/  v1-paths  ?~(path ~[/v1] ~[/v1 [%v1 u.path]])
+  =/  v1-cage=cage  activity-update-1+!>(update)
+  =.  cor  (give %fact v1-paths v1-cage)
+  (give %fact v0-paths v0-cage)
 ++  add
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
@@ -531,10 +591,11 @@
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
   =/  =source:a  (determine-source inc)
+  =/  =update:a  [%add source time-id event]
   =?  cor  !importing
-    (give %fact ~[/] activity-update+!>([%add source time-id event]))
+    (give-update update ~)
   =?  cor  &(!importing notify (is-allowed inc))
-    (give %fact ~[/notifications] activity-event+!>([time-id event]))
+    (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
   =.  indices
     =/  =stream:a  (put:on-event:a stream:base time-id event)
     (~(put by indices) [%base ~] [stream reads:base])
@@ -583,7 +644,7 @@
   =.  indices  (~(del by indices) source)
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
-  (give %fact ~[/] activity-update+!>([%del source]))
+  (give-update [%del source] ~)
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -602,10 +663,14 @@
 ::
 ++  refresh-all-summaries
   ^+  cor
-  =/  sources  ~(tap in ~(key by indices))
+  =/  sources
+    %+  sort
+      ~(tap in ~(key by indices))
+    |=  [asrc=source:a bsrc=source:a]
+    (gth (get-order asrc) (get-order bsrc))
   |-
   ?~  sources  cor
-  =.  cor  (refresh i.sources)
+  =.  cor  (refresh-summary i.sources)
   $(sources t.sources)
 ::
 ++  refresh-summary
@@ -753,12 +818,13 @@
   |=  =source:a
   ^+  cor
   =/  summary  (~(got by activity) source)
-  (give %fact ~[/ /unreads] activity-update+!>(`update:a`[%read source summary]))
+  =/  =update:a  [%read source summary]
+  (give-update update `/unreads)
 ::
 ++  adjust
   |=  [=source:a volume-map=(unit volume-map:a)]
   ^+  cor
-  =.  cor  (give %fact ~[/] activity-update+!>([%adjust source volume-map]))
+  =.  cor  (give-update [%adjust source volume-map] ~)
   ?~  volume-map
     cor(volume-settings (~(del by volume-settings) source))
   =/  target  (~(gut by volume-settings) source *volume-map:a)
@@ -771,7 +837,7 @@
   |=  na=notifications-allowed:a
   ^+  cor
   =.  allowed  na
-  (give %fact ~[/] activity-update+!>([%allow-notifications na]))
+  (give-update [%allow-notifications na] ~)
 ++  get-children
   |=  =source:a
   ^-  (list source:a)
@@ -787,6 +853,7 @@
 ++  summarize-unreads
   |=  [=source:a index:a]
   ^-  activity-summary:a
+  =/  top=time  -:(fall (ram:on-event:a stream) [*@da ~])
   =.  stream  (lot:on-event:a stream `floor.reads ~)
   =/  read-items  items.reads
   ::  for each item in reads
@@ -801,7 +868,7 @@
   |-
   =;  unread-stream=stream:a
     =/  children  (get-children source)
-    (stream-to-unreads unread-stream floor.reads children source)
+    (stream-to-unreads unread-stream reads children source top)
   %+  gas:on-event:a  *stream:a
   %+  murn
     (tap:on-event:a stream)
@@ -810,7 +877,7 @@
   ?:  child.event  ~
   `[time event]
 ++  stream-to-unreads
-  |=  [=stream:a floor=time children=(list source:a) =source:a]
+  |=  [=stream:a =reads:a children=(list source:a) =source:a top=time]
   ^-  activity-summary:a
   =/  child-map
     %+  roll
@@ -828,10 +895,12 @@
     %=  sum
       count  (^add count.sum count.as)
       notify  |(notify.sum notify.as)
-      newest  ?:((gth newest.as newest.sum) newest.as newest.sum)
+      newest  (max newest.as newest.sum)
+      notify-count  (^add notify-count.sum notify-count.as)
     ==
-  =/  newest=time  ?:((gth newest.cs floor) newest.cs floor)
+  =/  newest=time  :(max newest.cs floor.reads top)
   =/  total  count.cs
+  =/  notify-count  notify-count.cs
   =/  main  0
   =/  notified=?  notify.cs
   =/  main-notified=?  |
@@ -841,7 +910,14 @@
   ::  if reply, update thread state
   |-
   ?~  stream
-    [newest total notified ?~(last ~ `[u.last main main-notified]) `child-map]
+    :*  newest
+        total
+        notify-count
+        notified
+        ?~(last ~ `[u.last main main-notified])
+        `child-map
+        reads
+    ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume -.event)
   ::TODO  support other event types
@@ -850,7 +926,8 @@
     |(is-msg ?=(?(%dm-invite %chan-init) -<.event))
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
-  =?  newest  (gth time newest)  time
+  =?  notify-count  &(notify.volume notified.event)  +(notify-count)
+  =.  newest  (max newest time)
   ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
     $(stream rest)
   =.  total  +(total)
@@ -860,4 +937,170 @@
     ?~  last  `key.event
     last
   $(stream rest)
+++  get-order
+  |=  =source:a
+  %.  -.source
+  %~  got  by
+  ^~
+  %-  my
+  :~  [%thread 6]
+      [%dm-thread 5]
+      [%channel 4]
+      [%group 3]
+      [%dm 2]
+      [%base 1]
+  ==
+++  convert-to
+  |%
+  ++  activity-0
+    |=  =activity:a
+    ^-  activity-0:old:a
+    %-  ~(run by activity)
+    activity-summary-0
+  ++  activity-summary-0
+    |=  as=activity-summary:a
+    ^-  activity-summary-0:old:a
+    :*  newest.as
+        count.as
+        notify.as
+        unread.as
+        ?~  children.as  ~
+        `(activity-0 u.children.as)
+    ==
+  ++  update-0
+    |=  =update:a
+    ^-  update-0:old:a
+    ?+  -.update  update
+        %read
+      [%read source.update (activity-summary-0 activity-summary.update)]
+    ==
+  --
+::
+::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
+::  with bad message/parent identifiers (respectively) got pushed into our
+::  streams. for the %dm-reply case, this made it impossible for clients (that
+::  use and expect the correct identifiers) to work with the sources these
+::  events got put into. for both cases, they were Wrong.
+::
+::  here, we iterate over all clubs and, for each of the known sources for a
+::  club, re-constitute the contents of that source's stream from scratch. this
+::  means _moving_ dm-thread streams to be under corrected source identifiers,
+::  and updating top-level streams _in-place_. for both, we update the contents
+::  of the stream by rewriting %dm-post and %dm-reply events to use corrected
+::  message identifiers.
+::
+::  to correct the message identifiers, we simply do the reverse time-id lookup
+::  in dex.pact, as is done across the chat codebase.
+::
+++  correct-dm-keys
+  |^  ^+  cor
+  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+    %gx  (scry-path %chat /full/noun)
+  ==
+  =/  club-sources
+    %~  tap  by
+    %+  roll
+      ~(tap by indices)
+    |=  [[=source:a =index:a] dms=(jar whom:a [source:a index:a])]
+    ?.  ?=(?(%dm %dm-thread) -.source)  dms
+    =/  whom  ?-(-.source %dm whom.source, %dm-thread whom.source)
+    ?.  ?=(%club -.whom)  dms
+    (~(add ja dms) whom [source index])
+  |-
+  ?~  club-sources  cor
+  =/  [=whom:a =indexes]  -.club-sources
+  =*  next  $(club-sources +.club-sources)
+  ?>  ?=(%club -.whom)
+  =/  club  (~(get by clubs) p.whom)
+  ?~  club  next
+  =/  [threads=^indexes dms=^indexes]
+    %+  skid
+      indexes
+    |=  [=source:a *]
+    ?=(%dm-thread -.source)
+  =;  indxs=^indexes
+    |-
+    ?~  indxs  next
+    =*  source  source.i.indxs
+    ::  cleanup old bad keys
+    =?  cor  ?=(%dm-thread -.source)
+      =/  old-source  source(key [id.key.source q.id.key.source])
+      %=  cor
+        indices  (~(del by indices) old-source)
+        activity  (~(del by activity) old-source)
+        volume-settings  (~(del by volume-settings) old-source)
+      ==
+    ::  update source + index, if new key create new index
+    =.  cor  (update-index source index.i.indxs &)
+    $(indxs t.indxs)
+  %+  weld
+    (handle-dms u.club dms)
+  (handle-threads u.club threads)
+  ++  handle-dms
+    |=  [=club:ch =indexes]
+    ^+  indexes
+    %+  turn
+      indexes
+    |=  [=source:a =index:a]
+    ?>  ?=(%dm -.source)
+    :-  source
+    index(stream (clean-stream-keys club stream.index))
+  ++  handle-threads
+    |=  [=club:ch =indexes]
+    ^+  indexes
+    =/  collapsed
+      %+  roll
+        indexes
+      |=  [[=source:a =index:a] acc=(jar message-id:a [=source:a =index:a])]
+      ?>  ?=(%dm-thread -.source)
+      (~(add ja acc) id.key.source [source index])
+    =;  [=indices:a *]
+      ~(tap by indices)
+    %+  roll
+      indexes
+    |=  [[=source:a =index:a] acc=[=indices:a keys=(map message-id:a message-key:a)]]
+    ?>  ?=(%dm-thread -.source)
+    =*  id  id.key.source
+    =/  key  (~(get by keys.acc) id)
+    ?:  &(?=(^ key) (~(has by indices.acc) source(key u.key)))  acc
+    ?~  srcs=(~(get by collapsed) id)  acc
+    =/  post-time  (~(get by dex.pact.club) id)
+    ?~  post-time  acc
+    =/  new-key  [id u.post-time]
+    :_  (~(put by keys.acc) id new-key)
+    %-  ~(put by indices.acc)
+    ::  new source
+    :-  source(key new-key)
+    %+  roll
+      u.srcs
+    |=  [[=source:a =index:a] acc=index:a]
+    ?>  ?=(%dm-thread -.source)
+    :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
+    ::  rectify reads
+    =/  floor  (max floor.reads.index floor.reads.acc)
+    :-  floor
+    =/  combined
+      (uni:on-read-items:a items.reads.index items.reads.acc)
+    (lot:on-read-items:a combined `floor ~)
+  ++  clean-stream-keys
+    |=  [=club:ch =stream:a]
+    ^-  stream:a
+    %+  gas:on-event:a  *stream:a
+    %+  turn
+      (tap:on-event:a stream)
+    |=  [=time =event:a]
+    =/  noop  [time event]
+    ::  skip any non post or reply events
+    ?.  ?=(?(%dm-post %dm-reply) -<.event)  noop
+    =/  post-id  ?:(?=(%dm-post -<.event) id.key.event id.parent.event)
+    =/  post-time  (~(get by dex.pact.club) post-id)
+    ?~  post-time  noop
+    =/  post-key  [post-id u.post-time]
+    ?:  ?=(%dm-post -<.event)
+      [time event(key post-key)]
+    =/  reply-time  (~(get by dex.pact.club) id.key.event)
+    ?~  reply-time  noop
+    [time event(time.key u.reply-time, parent post-key)]
+  +$  indexes  (list [=source:a =index:a])
+  --
 --
