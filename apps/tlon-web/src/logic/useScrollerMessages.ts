@@ -9,79 +9,55 @@ import getKindDataFromEssay from './getKindData';
 
 export type WritArray = [BigInteger, Writ | Post | Reply | null][];
 
-const getMessageAuthor = (writ: Writ | Post | Reply) => {
+const getMessageAuthor = (writ: Writ | Post | Reply | null | undefined) => {
+  if (!writ) {
+    return null;
+  }
+
   if ('memo' in writ) {
     return writ.memo.author;
   }
   return writ.essay.author;
 };
 
-function getDay(
-  id: string,
-  time: bigInt.BigInteger,
-  messageDays: Map<string, number>
-) {
-  let day = messageDays.get(id);
+function getDay(time: bigInt.BigInteger, messageDays: Map<string, number>) {
+  let day = messageDays.get(time.toString());
   if (!day) {
     day = new Date(daToUnix(time)).setHours(0, 0, 0, 0);
-    messageDays.set(id, day);
+    messageDays.set(time.toString(), day);
   }
   return day;
 }
 
 const getNewDayAndNewAuthorFromLastWrit = (
-  messages: WritArray,
-  writ: Writ | Post | Reply,
+  author: string | null,
   key: bigInt.BigInteger,
-  messageDays: Map<string, number>,
-  index: number
+  lastWrit: [BigInteger, Writ | Post | Reply | null] | undefined,
+  messageDays: Map<string, number>
 ) => {
-  const lastWrit = index === 0 ? undefined : messages[index - 1];
-  const newAuthor =
-    lastWrit && lastWrit[1]
-      ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1]) ||
-        ('essay' in lastWrit[1] &&
-          !!getKindDataFromEssay(lastWrit[1].essay).notice)
-      : true;
-  const newDay =
-    !lastWrit ||
-    !(
-      lastWrit[1] &&
-      getDay(lastWrit[1]?.seal.id, lastWrit[0], messageDays) ===
-        getDay(writ.seal.id, key, messageDays)
-    );
+  const prevKey = lastWrit?.[0];
+  const prevWrit = lastWrit?.[1];
+  const prevAuthor = getMessageAuthor(prevWrit);
+  const prevIsNotice =
+    prevWrit &&
+    'essay' in prevWrit &&
+    !!getKindDataFromEssay(prevWrit.essay).notice;
+  const newAuthor = prevIsNotice
+    ? false
+    : !author || !prevAuthor
+      ? true
+      : author !== prevAuthor;
+  const newDay = !prevKey
+    ? true
+    : getDay(prevKey, messageDays) !== getDay(key, messageDays);
   return {
-    writ,
-    time: key,
     newAuthor,
     newDay,
   };
 };
 
-const emptyWrit = {
-  seal: {
-    id: '',
-    time: '',
-    replies: [],
-    reacts: {},
-    meta: {
-      replyCount: 0,
-      lastRepliers: [],
-      lastReply: null,
-    },
-  },
-  essay: {
-    content: [],
-    author: window.our,
-    sent: Date.now(),
-    'kind-data': {
-      chat: null,
-    },
-  },
-};
-
 export type MessageListItemData = {
-  writ: Writ | Post | Reply;
+  writ: Writ | Post | Reply | null;
   type: 'message';
   time: bigInt.BigInteger;
   newAuthor: boolean;
@@ -106,57 +82,31 @@ function useMessageItems({
     time: bigInt.BigInteger;
     newAuthor: boolean;
     newDay: boolean;
-    writ: Writ | Post | Reply;
+    writ: Writ | Post | Reply | null;
   }[],
   WritArray,
 ] {
   const messageDays = useRef(new Map<string, number>());
 
   const [keys, entries] = useMemo(() => {
-    const nonNullMessages = messages.filter(([_k, v]) => v !== null);
-    const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
-    const es = nonNullMessages.map(([key, writ], index) => {
-      if (!writ) {
-        return {
-          writ: emptyWrit,
-          hideReplies: true,
-          time: key,
-          newAuthor: false,
-          newDay: false,
-          isLast: false,
-          isLinked: false,
-        };
-      }
-
+    const ks: bigInt.BigInteger[] = messages.map(([k]) => k);
+    const es = messages.map(([key, writ], index) => {
+      const lastWrit = index === 0 ? undefined : messages[index - 1];
       const { newAuthor, newDay } = getNewDayAndNewAuthorFromLastWrit(
-        nonNullMessages,
-        writ,
+        getMessageAuthor(writ),
         key,
-        messageDays.current,
-        index
+        lastWrit,
+        messageDays.current
       );
-
-      if ('memo' in writ) {
-        return {
-          writ,
-          time: key,
-          newAuthor,
-          newDay,
-          parent,
-        };
-      }
-
-      const isNotice =
-        'chat' in writ.essay['kind-data'] &&
-        writ.essay['kind-data'].chat &&
-        'notice' in writ.essay['kind-data'].chat;
 
       return {
         writ,
         time: key,
-        newAuthor: isNotice ? false : newAuthor,
+        newAuthor,
         newDay,
-        replyCount: writ.seal.meta.replyCount,
+        parent: writ && 'memo' in writ ? parent : undefined,
+        replyCount:
+          writ && 'essay' in writ ? writ.seal.meta.replyCount : undefined,
       };
     }, []);
     return [ks, es];

@@ -37,6 +37,7 @@ import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { useShowDevTools } from '@/state/local';
 
+import DeletedChatMessage from '../ChatMessage/DeletedChatMessage';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
 const logger = createDevLogger('ChatScroller', false);
@@ -62,6 +63,10 @@ const ChatScrollerItem = React.memo(
     }
 
     const { writ, time, ...rest } = item;
+
+    if (!writ) {
+      return <DeletedChatMessage key={time.toString()} time={time} {...rest} />;
+    }
 
     if ('memo' in writ) {
       if (!rest.parent) {
