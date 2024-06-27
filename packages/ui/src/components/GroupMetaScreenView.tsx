@@ -31,7 +31,7 @@ interface GroupMetaScreenViewProps {
   uploadInfo: UploadInfo;
 }
 
-function SaveButton({ onPress }: { onPress: () => void }) {
+export function SaveButton({ onPress }: { onPress: () => void }) {
   return (
     <Button onPress={onPress} borderWidth="unset">
       <Button.Text>Save</Button.Text>
