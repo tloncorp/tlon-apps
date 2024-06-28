@@ -13,8 +13,10 @@ import {
 } from '../store/useActivityFetchers';
 import { updateSession } from './session';
 import { useStorage } from './storage';
-import { syncQueue } from './syncQueue';
+import { SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
+
+export { SyncPriority, syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
 
@@ -39,7 +41,9 @@ export function updateChannelCursor(channelId: string, cursor: string) {
 const joinedGroupsAndChannels = new Set<string>();
 
 export const syncInitData = async (reporter?: ErrorReporter) => {
-  const initData = await syncQueue.add('init', () => api.getInitData());
+  const initData = await syncQueue.highPriority('init', () =>
+    api.getInitData()
+  );
   reporter?.log('got init data from api');
   initializeJoinedSet(initData.unreads);
   return batchEffects('init sync', async (ctx) => {
@@ -113,10 +117,17 @@ function checkForNewlyJoined({
   }
 }
 
-export const syncLatestPosts = async (reporter?: ErrorReporter) => {
+export const syncChannelHeads = async (
+  reporter?: ErrorReporter,
+  priority = SyncPriority.High
+) => {
   const result = await Promise.all([
-    api.getLatestPosts({ type: 'channels' }),
-    api.getLatestPosts({ type: 'chats' }),
+    syncQueue.add('groupChannelHeads', priority, () =>
+      api.getLatestPosts({ type: 'channels' })
+    ),
+    syncQueue.add('chatChannelHeads', priority, () =>
+      api.getLatestPosts({ type: 'chats' })
+    ),
   ]);
   reporter?.log('got latest posts from api');
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
@@ -124,56 +135,93 @@ export const syncLatestPosts = async (reporter?: ErrorReporter) => {
   await db.insertLatestPosts(allPosts);
 };
 
-export const syncChanges = async (options: api.GetChangedPostsOptions) => {
-  const result = await syncQueue.add('changes', () =>
-    api.getChangedPosts(options)
+export const syncSettings = async (priority = SyncPriority.Medium) => {
+  const settings = await syncQueue.add('settings', priority, () =>
+    api.getSettings()
   );
-  await persistPagedPostData(options.channelId, result);
-};
-
-export const syncSettings = async () => {
-  const settings = await syncQueue.add('settings', () => api.getSettings());
   return db.insertSettings(settings);
 };
 
-export const syncVolumeSettings = async () => {
-  return syncQueue.add('volumeSettings', async (): Promise<void> => {
-    const volumeSettings = await api.getVolumeSettings();
-    const clientVolumes = extractClientVolumes(volumeSettings);
-    await db.setVolumes(clientVolumes);
-  });
+export const syncVolumeSettings = async (priority = SyncPriority.Medium) => {
+  const volumeSettings = await syncQueue.add('volumeSettings', priority, () =>
+    api.getVolumeSettings()
+  );
+  const clientVolumes = extractClientVolumes(volumeSettings);
+  await db.setVolumes(clientVolumes);
 };
 
-export const syncContacts = async () => {
-  const contacts = await syncQueue.add('contacts', () => api.getContacts());
+export const syncContacts = async (priority = SyncPriority.Medium) => {
+  const contacts = await syncQueue.add('contacts', priority, () =>
+    api.getContacts()
+  );
   await db.insertContacts(contacts);
 };
 
-export const syncPinnedItems = async () => {
-  const pinnedItems = await syncQueue.add('pinnedItems', () =>
+export const syncPinnedItems = async (priority = SyncPriority.Medium) => {
+  const pinnedItems = await syncQueue.add('pinnedItems', priority, () =>
     api.getPinnedItems()
   );
   await db.insertPinnedItems(pinnedItems);
 };
 
-export const syncGroups = async () => {
-  const groups = await syncQueue.add('groups', () =>
+export const syncGroups = async (priority = SyncPriority.Medium) => {
+  const groups = await syncQueue.add('groups', priority, () =>
     api.getGroups({ includeMembers: false })
   );
   await db.insertGroups({ groups: groups });
 };
 
-export const syncDms = async () => {
-  const [dms, groupDms] = await syncQueue.add('dms', () =>
+export const syncDms = async (priority = SyncPriority.Medium) => {
+  const [dms, groupDms] = await syncQueue.add('dms', priority, () =>
     Promise.all([api.getDms(), api.getGroupDms()])
   );
   await db.insertChannels([...dms, ...groupDms]);
 };
 
-export const syncUnreads = async () => {
-  const unreads = await syncQueue.add('unreads', () => api.getUnreads());
+export const syncUnreads = async (priority = SyncPriority.Medium) => {
+  const unreads = await syncQueue.add('unreads', priority, () =>
+    api.getUnreads()
+  );
   checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
+};
+
+export async function syncThreadPosts(
+  {
+    postId,
+    authorId,
+    channelId,
+  }: {
+    postId: string;
+    authorId: string;
+    channelId: string;
+  },
+  priority = SyncPriority.Medium
+) {
+  const response = await syncQueue.add('syncThreadPosts', priority, () =>
+    api.getPostWithReplies({
+      postId,
+      authorId,
+      channelId,
+    })
+  );
+  await db.insertChannelPosts({
+    channelId,
+    posts: [response, ...(response.replies ?? [])],
+  });
+}
+
+export async function syncGroup(id: string, priority = SyncPriority.High) {
+  const response = await syncQueue.add('syncGroup', priority, () =>
+    api.getGroup(id)
+  );
+  await db.insertGroups({ groups: [response] });
+}
+
+export const syncStorageSettings = (priority = SyncPriority.Medium) => {
+  return syncQueue.add('initialize storage', priority, () => {
+    return useStorage.getState().start();
+  });
 };
 
 const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
@@ -614,12 +662,17 @@ export async function handleAddPost(
   }
 }
 
-export async function syncPosts(options: api.GetChannelPostsOptions) {
+export async function syncPosts(
+  options: api.GetChannelPostsOptions,
+  priority = SyncPriority.Medium
+) {
   logger.log(
     'syncing posts',
     `${options.channelId}/${options.cursor}/${options.mode}`
   );
-  const response = await api.getChannelPosts(options);
+  const response = await syncQueue.add('channelPosts', priority, () =>
+    api.getChannelPosts(options)
+  );
   if (response.posts.length) {
     await db.insertChannelPosts({
       channelId: options.channelId,
@@ -635,92 +688,6 @@ export async function syncPosts(options: api.GetChannelPostsOptions) {
     });
   }
   return response;
-}
-
-type StaleChannel = db.Channel & { unread: db.ChannelUnread };
-
-export const syncStaleChannels = async () => {
-  const channels: StaleChannel[] = optimizeChannelLoadOrder(
-    await db.getStaleChannels()
-  );
-  for (const channel of channels) {
-    syncQueue.add(channel.id, () => {
-      return syncChannel(channel.id, channel.unread.updatedAt);
-    });
-  }
-};
-
-/**
- * Optimize load order for our current display. Starting with all channels
- * ordered by update time, sort so recently updated dms are synced before all but
- * the most recently updated channel of each group.
- */
-function optimizeChannelLoadOrder(channels: StaleChannel[]): StaleChannel[] {
-  const seenGroups = new Set<string>();
-  const topChannels: StaleChannel[] = [];
-  const skippedChannels: StaleChannel[] = [];
-  const restOfChannels: StaleChannel[] = [];
-  channels.forEach((c) => {
-    if (topChannels.length < 10) {
-      if (!c.groupId || !seenGroups.has(c.groupId)) {
-        topChannels.push(c);
-        if (c.groupId) seenGroups.add(c.groupId);
-      } else {
-        skippedChannels.push(c);
-      }
-    } else {
-      restOfChannels.push(c);
-    }
-  });
-  return [...topChannels, ...skippedChannels, ...restOfChannels];
-}
-
-export async function syncChannel(id: string, remoteUpdatedAt: number) {
-  const startTime = Date.now();
-  const channel = await db.getChannel({ id });
-  if (!channel) {
-    throw new Error('no local channel for' + id);
-  }
-  // If we don't have any posts, start loading backward from the current time
-  if ((channel.remoteUpdatedAt ?? 0) < remoteUpdatedAt) {
-    logger.log('loading posts for channel', id);
-    const postsResponse = await api.getChannelPosts({
-      channelId: id,
-      ...(channel.lastPostId
-        ? { mode: 'newer', cursor: channel.lastPostId }
-        : { mode: 'older', cursor: new Date() }),
-      includeReplies: false,
-    });
-    await persistPagedPostData(channel.id, postsResponse);
-    logger.log(
-      'loaded',
-      postsResponse.posts?.length,
-      `posts for channel ${id} in `,
-      Date.now() - startTime + 'ms'
-    );
-    await db.updateChannel({
-      id,
-      remoteUpdatedAt,
-      syncedAt: Date.now(),
-    });
-  }
-}
-
-export async function syncGroup(id: string) {
-  if (id === '') {
-    throw new Error('group id cannot be empty');
-  }
-  const group = await db.getGroup({ id });
-  if (!group) {
-    throw new Error('no local group for' + id);
-  }
-  const response = await api.getGroup(id);
-  await db.insertGroups({ groups: [response] });
-}
-
-export async function syncNewGroup(id: string) {
-  const response = await api.getGroup(id);
-  await db.insertGroups({ groups: [response] });
 }
 
 const currentPendingMessageSyncs = new Map<string, Promise<boolean>>();
@@ -763,7 +730,7 @@ export async function syncChannelWithBackoff({
     }
 
     logger.log(`still have undelivered messages, syncing...`);
-    await syncChannel(channelId, Date.now());
+    await syncPosts({ channelId, mode: 'newest' }, SyncPriority.High);
 
     if (await isStillPending()) {
       throw new Error('Keep going');
@@ -780,65 +747,10 @@ export async function syncChannelWithBackoff({
   });
 }
 
-export async function syncThreadPosts({
-  postId,
-  authorId,
-  channelId,
-}: {
-  postId: string;
-  authorId: string;
-  channelId: string;
-}) {
-  const response = await api.getPostWithReplies({
-    postId,
-    authorId,
-    channelId,
-  });
-  await db.insertChannelPosts({
-    channelId,
-    posts: [response, ...(response.replies ?? [])],
-  });
-}
-
-async function persistPagedPostData(
-  channelId: string,
-  data: api.GetChannelPostsResponse
-) {
-  batchEffects('pagedPostData', async (ctx) => {
-    if (data.posts.length) {
-      await db.insertChannelPosts(
-        {
-          channelId,
-          posts: data.posts,
-          newer: data.newer,
-          older: data.older,
-        },
-        ctx
-      );
-      const reactions = data.posts
-        .map((p) => p.reactions)
-        .flat()
-        .filter(Boolean) as db.Reaction[];
-      if (reactions.length) {
-        await db.insertPostReactions({ reactions }, ctx);
-      }
-    }
-    if (data.deletedPosts?.length) {
-      await db.deletePosts({ ids: data.deletedPosts }, ctx);
-    }
-  });
-}
-
 export const clearSyncQueue = () => {
   // TODO: Model all sync functions as syncQueue.add calls so that this works on
   // more than just `syncStaleChannels`
   syncQueue.clear();
-};
-
-export const initializeStorage = () => {
-  return syncQueue.add('initialize storage', async () => {
-    return useStorage.getState().start();
-  });
 };
 
 /*
@@ -867,7 +779,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     await withRetry(() => syncInitData(reporter));
     reporter.log(`finished syncing init data`);
 
-    await withRetry(() => syncLatestPosts(reporter));
+    await withRetry(() => syncChannelHeads(reporter));
     reporter.log(`finished syncing latest posts`);
 
     await withRetry(() =>
@@ -891,7 +803,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         syncVolumeSettings().then(() =>
           reporter.log(`finished syncing volume settings`)
         ),
-        initializeStorage().then(() =>
+        syncStorageSettings().then(() =>
           reporter.log(`finished initializing storage`)
         ),
         syncPushNotificationsSetting().then(() =>

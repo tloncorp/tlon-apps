@@ -19,7 +19,6 @@ type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
-      store.clearSyncQueue();
       if (props.route.params.channel.group?.isNew) {
         store.markGroupVisited(props.route.params.channel.group);
       }

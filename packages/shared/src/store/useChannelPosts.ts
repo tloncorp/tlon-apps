@@ -14,7 +14,9 @@ import {
   useOptimizedQueryResults,
 } from '../logic/utilHooks';
 import { queryClient } from './reactQuery';
+import { useCurrentSession } from './session';
 import * as sync from './sync';
+import { SyncPriority } from './syncQueue';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
@@ -56,7 +58,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
       if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
-        await sync.syncPosts(queryOptions);
+        await sync.syncPosts(queryOptions, SyncPriority.High);
       }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
@@ -64,10 +66,13 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
         return cached;
       }
       postsLogger.log('no posts found in database, loading from api...');
-      const res = await sync.syncPosts({
-        ...queryOptions,
-        count: options.count ?? 50,
-      });
+      const res = await sync.syncPosts(
+        {
+          ...queryOptions,
+          count: options.count ?? 50,
+        },
+        SyncPriority.High
+      );
       postsLogger.log('loaded', res.posts?.length, 'posts from api');
       const secondResult = await db.getChannelPosts(queryOptions);
       postsLogger.log(
@@ -131,7 +136,28 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     () => query.data?.pages.flatMap((p) => p) ?? null,
     [query.data]
   );
+  const session = useCurrentSession();
   const posts = useOptimizedQueryResults(rawPosts);
+  const pendingStalePosts = useRef(new Set());
+  useEffect(() => {
+    posts?.forEach((post) => {
+      if (
+        session &&
+        post.syncedAt < (session?.startTime ?? 0) &&
+        !pendingStalePosts.current.has(post.id)
+      ) {
+        sync.syncThreadPosts(
+          {
+            postId: post.id,
+            channelId: options.channelId,
+            authorId: post.authorId,
+          },
+          4
+        );
+        pendingStalePosts.current.add(post.id);
+      }
+    });
+  }, [options.channelId, posts, session]);
 
   useAddNewPostsToQuery(queryKey, query);
 

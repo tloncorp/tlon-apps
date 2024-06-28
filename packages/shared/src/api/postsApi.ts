@@ -742,6 +742,7 @@ export function toPostData(
       ? getReplyData(id, channelId, post)
       : null,
     deliveryStatus: null,
+    syncedAt: Date.now(),
     ...flags,
   };
 }
@@ -802,6 +803,7 @@ export function toPostReplyData(
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
     images: getContentImages(id, reply.memo.content),
+    syncedAt: Date.now(),
     ...flags,
   };
 }
