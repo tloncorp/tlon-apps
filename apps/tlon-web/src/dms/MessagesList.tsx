@@ -71,16 +71,15 @@ export default function MessagesList({
 
   const organizedUnreads = useMemo(() => {
     const filteredMsgs = sortMessages(
-        filter === filters.broadcasts
-          ? Object.fromEntries(
-              Object.entries(broadcasts.data || {}).map(
-                (v): [string, Unread] => {
-                  return [v[0], cohortToUnread(v[1] as Cohort)]; //REVIEW hax
-                }
-              )
-            )
-          : unreads
-      ).filter(([k]) => {
+      filter === filters.broadcasts
+        ? Object.fromEntries(
+            Object.entries(broadcasts.data || {}).map((v): [string, Unread] => {
+              return [v[0], cohortToUnread(v[1] as Cohort)]; //REVIEW hax
+            })
+          )
+        : unreads
+    )
+      .filter(([k]) => {
         if (k.startsWith('~~') && filter === filters.broadcasts) {
           return true;
         }
@@ -143,7 +142,17 @@ export default function MessagesList({
           .filter(searchQuery, filteredMsgs, { extract: (x) => x[0] })
           .sort((a, b) => b.score - a.score)
           .map((x) => x.original);
-  }, [sortMessages, unreads, chats, groups, pinned, searchQuery, allPending, filter, broadcasts]);
+  }, [
+    sortMessages,
+    unreads,
+    chats,
+    groups,
+    pinned,
+    searchQuery,
+    allPending,
+    filter,
+    broadcasts,
+  ]);
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
