@@ -128,7 +128,7 @@ enum NotificationCategory: String {
         if content.categoryIdentifier == NotificationCategory.message.rawValue,
            let senderShipName = yarn.senderShipName
         {
-            let sender = await INPerson.from(shipName: senderShipName, withImage: false)
+            let sender = await INPerson.from(shipName: senderShipName, withImage: true)
             let intent = INSendMessageIntent(
                 // Create empty recipient for groups because we don't need the OS creating the participant list
                 recipients: [INPerson.empty],
