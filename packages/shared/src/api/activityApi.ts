@@ -13,7 +13,7 @@ const logger = createDevLogger('activityApi', false);
 export async function getUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/activity',
+    path: '/v1/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
