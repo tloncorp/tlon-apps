@@ -461,6 +461,8 @@ function Scroller({
           onScrollToIndexFailed={handleScrollToIndexFailed}
           inverted={inverted}
           initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={10}
           maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
           numColumns={channelType === 'gallery' ? 2 : 1}
           style={style}
@@ -500,7 +502,7 @@ function getPostId(post: db.Post) {
   return post.id;
 }
 
-const ScrollerItem = ({
+const BaseScrollerItem = ({
   item,
   index,
   showUnreadDivider,
@@ -600,31 +602,34 @@ const ScrollerItem = ({
   );
 };
 
-const PressableMessage = forwardRef<
-  RNView,
-  PropsWithChildren<{ isActive: boolean }>
->(function PressableMessageComponent({ isActive, children }, ref) {
-  return isActive ? (
-    // need the extra React Native View for ref measurement
-    <MotiView
-      animate={{
-        scale: 0.95,
-      }}
-      transition={{
-        scale: {
-          type: 'timing',
-          duration: 50,
-        },
-      }}
-    >
-      <RNView ref={ref}>{children}</RNView>
-    </MotiView>
-  ) : (
-    // this fragment is necessary to avoid the TS error about not being able to
-    // return undefined
-    <>{children}</>
-  );
-});
+const ScrollerItem = React.memo(BaseScrollerItem);
+
+const PressableMessage = React.memo(
+  forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(
+    function PressableMessageComponent({ isActive, children }, ref) {
+      return isActive ? (
+        // need the extra React Native View for ref measurement
+        <MotiView
+          animate={{
+            scale: 0.95,
+          }}
+          transition={{
+            scale: {
+              type: 'timing',
+              duration: 50,
+            },
+          }}
+        >
+          <RNView ref={ref}>{children}</RNView>
+        </MotiView>
+      ) : (
+        // this fragment is necessary to avoid the TS error about not being able to
+        // return undefined
+        <>{children}</>
+      );
+    }
+  )
+);
 
 const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (
