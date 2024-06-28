@@ -81,7 +81,12 @@ export default function ChannelListItem({
         </ListItem.EndContent>
       ) : (
         <ListItem.EndContent>
-          {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
+          {model.lastPost && (
+            <ListItem.Time
+              color="$tertiaryText"
+              time={model.lastPost.receivedAt}
+            />
+          )}
           <ListItem.Count
             opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
             muted={model.volumeSettings?.isMuted ?? false}

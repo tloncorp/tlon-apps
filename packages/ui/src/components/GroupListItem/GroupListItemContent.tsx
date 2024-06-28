@@ -85,7 +85,7 @@ export default function GroupListItemContent({
         </ListItem.EndContent>
       ) : (
         <ListItem.EndContent>
-          <ListItem.Time time={model.lastPostAt} />
+          <ListItem.Time color="$tertiaryText" time={model.lastPostAt} />
           <ListItem.Count
             opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
             muted={model.volumeSettings?.isMuted ?? false}
