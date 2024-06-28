@@ -167,8 +167,6 @@ export function ManageChannelsScreenView({
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const draggedItemY = useSharedValue(0);
 
-  console.log('draggedItem', draggedItem);
-
   const handleSectionDragEnd = useCallback(
     (index: number, translateY: number) => {
       setSections((prevSections) => {
@@ -189,7 +187,6 @@ export function ManageChannelsScreenView({
 
   const handleChannelDragEnd = useCallback(
     (sectionId: string, channelIndex: number, translateY: number) => {
-      console.log('channel drag end', sectionId, channelIndex, translateY);
       setSections((prevSections) => {
         const newSections = [...prevSections];
         const currentSectionIndex = newSections.findIndex(
@@ -254,13 +251,10 @@ export function ManageChannelsScreenView({
 
   const handleDrag = useCallback(
     (translateY: number) => {
-      console.log('handleDrag', translateY, draggedItemY.value, draggedItem);
       if (!draggedItem) {
-        console.log('no dragged item, skipping drag event');
         return;
       }
 
-      console.log('dragging', translateY, draggedItem.layout.y);
       draggedItemY.value = translateY + draggedItem.layout.y;
     },
     [draggedItemY, draggedItem]

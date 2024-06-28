@@ -40,7 +40,6 @@ export function DraggableItem({
 
   const handleDragStart = useCallback(async () => {
     const layout = await measureView();
-    console.log('Drag started, measured layout:', layout);
     if (onDragStart) {
       onDragStart(layout);
     }
