@@ -1,10 +1,11 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps } from 'react';
-import { ColorProp } from 'tamagui';
+import { ColorProp, XStack } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
+import { Icon } from '../Icon';
 import {
   ListItem,
   ListItemIconContainer,
@@ -22,6 +23,7 @@ export default function ChannelListItem({
 } & ListItemProps<db.Channel>) {
   const countToShow = model.unread?.count ?? 0;
   const title = utils.getChannelTitle(model);
+  const memberCount = model.members?.length ?? 0;
 
   return (
     <ListItem
@@ -40,15 +42,31 @@ export default function ChannelListItem({
         >
           {title}
         </ListItem.Title>
+        {model.type === 'dm' || model.type === 'groupDm' ? (
+          <XStack gap="$xs" alignItems="center">
+            <Icon
+              type={'Profile'}
+              color={'$tertiaryText'}
+              size={'$s'}
+              marginTop={0.5}
+            />
+
+            <ListItem.Subtitle color={'$tertiaryText'}>
+              {model.members?.[0]?.contactId?.replace('~', '') ?? null}{' '}
+              {memberCount > 2 ? 'and ' + (memberCount - 1) + ' others' : null}
+            </ListItem.Subtitle>
+          </XStack>
+        ) : null}
+
         {model.lastPost && (
-          <ListItem.Subtitle>
+          <ListItem.Subtitle color="$tertiaryText">
             {model.type !== 'dm' ? (
               <>
                 <ContactName
                   showNickname
                   userId={model.lastPost.authorId}
                   size="$s"
-                  color="$secondaryText"
+                  color="$tertiaryText"
                 />
                 :{' '}
               </>
@@ -63,7 +81,12 @@ export default function ChannelListItem({
         </ListItem.EndContent>
       ) : (
         <ListItem.EndContent>
-          {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
+          {model.lastPost && (
+            <ListItem.Time
+              color="$tertiaryText"
+              time={model.lastPost.receivedAt}
+            />
+          )}
           <ListItem.Count
             opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
             muted={model.volumeSettings?.isMuted ?? false}
@@ -100,7 +123,6 @@ function ChannelListItemIcon({
         backgroundColor={'$transparent'}
         contact={model.members?.[0]?.contact}
         contactId={model.members?.[0]?.contactId ?? model.id}
-        rounded
         {...props}
       />
     );
@@ -126,7 +148,6 @@ function ChannelListItemIcon({
         <ListItem.TextIcon
           fallbackText={utils.getChannelTitle(model)}
           backgroundColor={backgroundColor ?? '$secondaryBackground'}
-          rounded={model.type === 'groupDm'}
           {...props}
         />
       );
