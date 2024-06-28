@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import {
+import React, {
   ComponentProps,
   PropsWithChildren,
   useCallback,
@@ -18,19 +18,21 @@ import { XStack } from '../core';
 import * as utils from '../utils';
 import { Icon, IconType } from './Icon';
 
-export function SwipableChatRow(
-  props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
-) {
+function BaseSwipableChatRow({
+  model,
+  jailBroken,
+  children,
+}: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>) {
   const swipeableRef = useRef<Swipeable | null>(null);
   const isMuted = useMemo(() => {
-    if (props.model.group) {
-      return props.model.group.volumeSettings?.isMuted ?? false;
-    } else if (props.model.type === 'dm' || props.model.type === 'groupDm') {
-      return props.model.volumeSettings?.isMuted ?? false;
+    if (model.group) {
+      return model.group.volumeSettings?.isMuted ?? false;
+    } else if (model.type === 'dm' || model.type === 'groupDm') {
+      return model.volumeSettings?.isMuted ?? false;
     }
 
     return false;
-  }, [props.model]);
+  }, [model]);
   // prevent color flicker when unmuting
   const [mutedState, setMutedState] = useState(isMuted);
   useEffect(() => {
@@ -47,50 +49,68 @@ export function SwipableChatRow(
       utils.triggerHaptic('swipeAction');
       switch (actionId) {
         case 'pin':
-          props.model.pin
-            ? store.unpinItem(props.model.pin)
-            : store.pinItem(props.model);
+          model.pin ? store.unpinItem(model.pin) : store.pinItem(model);
           break;
         case 'mute':
-          isMuted ? store.unmuteChat(props.model) : store.muteChat(props.model);
+          isMuted ? store.unmuteChat(model) : store.muteChat(model);
           break;
         default:
           break;
       }
       swipeableRef.current?.close();
     },
-    [props.model, isMuted]
+    [model, isMuted]
+  );
+
+  const renderLeftActions = useCallback(
+    (
+      progress: Animated.AnimatedInterpolation<string | number>,
+      drag: Animated.AnimatedInterpolation<string | number>
+    ) => {
+      return jailBroken ? (
+        <LeftActions progress={progress} drag={drag} model={model} />
+      ) : null;
+    },
+    [jailBroken, model]
+  );
+
+  const renderRightActions = useCallback(
+    (
+      progress: Animated.AnimatedInterpolation<string | number>,
+      drag: Animated.AnimatedInterpolation<string | number>
+    ) => {
+      return (
+        <RightActions
+          progress={progress}
+          drag={drag}
+          model={model}
+          isMuted={mutedState}
+          handleAction={handleAction}
+        />
+      );
+    },
+    [handleAction, mutedState, model]
   );
 
   return (
     <Swipeable
       ref={swipeableRef}
-      renderLeftActions={(progress, drag) =>
-        props.jailBroken ? (
-          <LeftActions progress={progress} drag={drag} model={props.model} />
-        ) : null
-      }
-      renderRightActions={(progress, drag) => (
-        <RightActions
-          progress={progress}
-          drag={drag}
-          model={props.model}
-          handleAction={handleAction}
-          isMuted={mutedState}
-        />
-      )}
+      renderLeftActions={renderLeftActions}
+      renderRightActions={renderRightActions}
       leftThreshold={1}
       rightThreshold={1}
       friction={1.5}
       overshootLeft={false}
       overshootRight={false}
     >
-      {props.children}
+      {children}
     </Swipeable>
   );
 }
 
-function LeftActions({
+export const SwipableChatRow = React.memo(BaseSwipableChatRow);
+
+function BaseLeftActions({
   model,
   progress,
   drag,
@@ -140,7 +160,9 @@ function LeftActions({
   );
 }
 
-function RightActions({
+export const LeftActions = React.memo(BaseLeftActions);
+
+function BaseRightActions({
   model,
   isMuted,
   progress,
@@ -184,6 +206,8 @@ function RightActions({
     </XStack>
   );
 }
+
+export const RightActions = React.memo(BaseRightActions);
 
 function Action(
   props: ComponentProps<typeof Stack> & {

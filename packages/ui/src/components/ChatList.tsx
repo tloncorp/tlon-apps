@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -55,20 +55,13 @@ export function ChatList({
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
-      const listItemElement = (
+      return (
         <ChatListItem
           model={item}
           onPress={onPressItem}
           onLongPress={onLongPressItem}
         />
       );
-      if (logic.isChannel(item)) {
-        return (
-          <SwipableChatRow model={item}>{listItemElement}</SwipableChatRow>
-        );
-      }
-      // Pending items not affected by swipe
-      return listItemElement;
     },
     [onPressItem, onLongPressItem]
   );
@@ -141,7 +134,7 @@ export function ChatList({
       keyExtractor={getChannelKey}
       stickySectionHeadersEnabled={false}
       renderItem={renderItem}
-      maxToRenderPerBatch={11}
+      maxToRenderPerBatch={6}
       initialNumToRender={11}
       windowSize={2}
       viewabilityConfig={viewabilityConfig}
@@ -151,7 +144,20 @@ export function ChatList({
     />
   );
 }
-const ChatListItem = React.memo(function ChatListItemComponent({
+
+const ChatListItem = React.memo(function ChatListItemComponent(
+  props: ListItemProps<ListItem>
+) {
+  return logic.isChannel(props.model) ? (
+    <SwipableChatRow model={props.model}>
+      <ChatListItemContent {...props} />
+    </SwipableChatRow>
+  ) : (
+    <ChatListItemContent {...props} />
+  );
+});
+
+const ChatListItemContent = React.memo(function ChatListItemContentComponent({
   model,
   onPress,
   onLongPress,
@@ -165,17 +171,20 @@ const ChatListItem = React.memo(function ChatListItemComponent({
     onLongPress?.(model);
   }, [model, onLongPress]);
 
+  const groupModel: db.Group | null | undefined = useMemo(() => {
+    return logic.isChannel(model) && model.group
+      ? ({
+          ...model.group,
+          unreadCount: model.unread?.count,
+          lastPost: model.lastPost,
+          lastChannel: model.title,
+        } as const)
+      : null;
+  }, [model]);
+
   // if the chat list item is a group, it's pending
   if (logic.isGroup(model)) {
-    return (
-      <GroupListItem
-        onPress={handlePress}
-        model={{
-          ...model,
-        }}
-        {...props}
-      />
-    );
+    return <GroupListItem onPress={handlePress} model={model} {...props} />;
   }
 
   if (logic.isChannel(model)) {
@@ -192,17 +201,12 @@ const ChatListItem = React.memo(function ChatListItemComponent({
           {...props}
         />
       );
-    } else if (model.group) {
+    } else if (groupModel) {
       return (
         <GroupListItem
           onPress={handlePress}
           onLongPress={handleLongPress}
-          model={{
-            ...model.group,
-            unreadCount: model.unread?.count,
-            lastPost: model.lastPost,
-            lastChannel: model.title,
-          }}
+          model={groupModel}
           {...props}
         />
       );
