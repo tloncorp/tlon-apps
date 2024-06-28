@@ -11,6 +11,7 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { updateSession } from './session';
 import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -627,6 +628,12 @@ export async function syncPosts(options: api.GetChannelPostsOptions) {
       older: response.older,
     });
   }
+  if (!response.newer) {
+    await db.updateChannel({
+      id: options.channelId,
+      syncedAt: Date.now(),
+    });
+  }
   return response;
 }
 
@@ -840,6 +847,8 @@ export const initializeStorage = () => {
   concerns and punts on full correctness.
 */
 export const handleDiscontinuity = async () => {
+  updateSession(null);
+
   // drop potentially outdated newest post markers
   channelCursors.clear();
 
@@ -874,6 +883,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     } else {
       reporter.log(`already subscribed, skipping`);
     }
+    updateSession({ startTime: Date.now() });
 
     await withRetry(() =>
       Promise.all([
@@ -889,6 +899,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         ),
       ])
     );
+
     reporter.log('sync start complete');
   } catch (e) {
     reporter.report(e);

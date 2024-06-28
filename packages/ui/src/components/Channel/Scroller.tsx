@@ -465,9 +465,9 @@ function Scroller({
           numColumns={channelType === 'gallery' ? 2 : 1}
           style={style}
           onEndReached={handleEndReached}
-          onEndReachedThreshold={2}
+          onEndReachedThreshold={0.25}
           onStartReached={handleStartReached}
-          onStartReachedThreshold={2}
+          onStartReachedThreshold={0.25}
           onScroll={handleScroll}
         />
       )}
