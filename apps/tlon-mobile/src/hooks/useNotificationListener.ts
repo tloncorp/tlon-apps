@@ -1,5 +1,5 @@
 import type { NavigationProp } from '@react-navigation/native';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
@@ -58,7 +58,7 @@ export default function useNotificationListener({
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
-          // TODO: Send reply
+          // TODO: this is unhandled, when is actionIdentifier = reply?
         } else if (data.channelId) {
           setGotoData({
             path: data.wer,
@@ -108,7 +108,17 @@ export default function useNotificationListener({
 
           // if we found the post, navigate to it. Otherwise fallback to channel
           if (postToNavigateTo) {
-            navigation.navigate('Post', { post: postToNavigateTo });
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 1,
+                routes: [
+                  { name: 'ChatList' },
+                  { name: 'Channel', params: { channel } },
+                  { name: 'Post', params: { post: postToNavigateTo } },
+                ],
+              })
+            );
+
             resetGotoData();
             return true;
           }
