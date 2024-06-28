@@ -53,27 +53,27 @@ export default function GroupListItemContent({
           {model.title ?? model.id}
         </ListItem.Title>
         {model.lastPost && (
-          <ListItem.Subtitle color={'$tertiaryText'}>
-            {model.lastChannel}
-          </ListItem.Subtitle>
-        )}
-        {!isPending && model.lastPost ? (
           <XStack gap="$xs" alignItems="center">
             <Icon
               type={getLastMessageIcon(model.lastPost.type)}
-              color={'$secondaryText'}
+              color={'$tertiaryText'}
               size={'$s'}
             />
-            <ListItem.Subtitle>
-              <ContactName
-                userId={model.lastPost.authorId}
-                showNickname
-                color={'$secondaryText'}
-                size={'$s'}
-              />
-              : {model.lastPost?.textContent ?? ''}
+            <ListItem.Subtitle color={'$tertiaryText'}>
+              {model.lastChannel}
             </ListItem.Subtitle>
           </XStack>
+        )}
+        {!isPending && model.lastPost ? (
+          <ListItem.Subtitle color="$tertiaryText">
+            <ContactName
+              userId={model.lastPost.authorId}
+              showNickname
+              color={'$tertiaryText'}
+              size={'$s'}
+            />
+            : {model.lastPost?.textContent ?? ''}
+          </ListItem.Subtitle>
         ) : null}
       </ListItem.MainContent>
       {statusDisplay ? (
@@ -85,7 +85,7 @@ export default function GroupListItemContent({
         </ListItem.EndContent>
       ) : (
         <ListItem.EndContent>
-          <ListItem.Time time={model.lastPostAt} />
+          <ListItem.Time color="$tertiaryText" time={model.lastPostAt} />
           <ListItem.Count
             opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
             muted={model.volumeSettings?.isMuted ?? false}
