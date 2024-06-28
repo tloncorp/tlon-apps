@@ -246,17 +246,21 @@ export function ManageChannelsScreenView({
       sectionId: string,
       channelId?: string
     ) => {
+      draggedItemY.value = layout.y;
       setDraggedItem({ type, sectionId, channelId, layout });
     },
-    []
+    [draggedItemY]
   );
 
   const handleDrag = useCallback(
     (translateY: number) => {
       console.log('handleDrag', translateY, draggedItemY.value, draggedItem);
       if (!draggedItem) {
+        console.log('no dragged item, skipping drag event');
         return;
       }
+
+      console.log('dragging', translateY, draggedItem.layout.y);
       draggedItemY.value = translateY + draggedItem.layout.y;
     },
     [draggedItemY, draggedItem]
@@ -359,7 +363,7 @@ export function ManageChannelsScreenView({
                   .channels.find((c) => c.id === draggedItem.channelId)!
               }
               onEdit={() => console.log('edit channel', draggedItem.channelId)}
-              onDrag={handleDrag}
+              onDrag={() => {}}
               onDragStart={() => {}}
               onDragEnd={() => {}}
             />
