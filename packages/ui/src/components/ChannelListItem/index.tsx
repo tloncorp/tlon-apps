@@ -20,7 +20,7 @@ export default function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
-  const countToShow = model.unread?.countWithoutThreads ?? 0;
+  const countToShow = model.unread?.count ?? 0;
   const title = utils.getChannelTitle(model);
 
   return (

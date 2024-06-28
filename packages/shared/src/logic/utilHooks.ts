@@ -1,5 +1,5 @@
 import { replaceEqualDeep } from '@tanstack/react-query';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Creates a ref whose current value is always the value as of last render.
@@ -33,4 +33,17 @@ export function useOptimizedQueryResults<T extends { id: string }>(
       ) ?? null
     );
   }, [value]);
+}
+
+export function useDebouncedValue<T>(value: T, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, [value, delay]);
+
+  return debouncedValue;
 }

@@ -39,6 +39,7 @@
     "expo-image-picker": "~14.7.1",
     "lodash": "^4.17.21",
     "moti": "^0.28.1",
+    "react-hook-form": "^7.52.0",
     "react-native-context-menu-view": "^1.15.0",
     "react-native-reanimated": "^3.8.1",
     "react-native-safe-area-context": "^4.9.0",

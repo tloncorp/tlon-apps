@@ -296,7 +296,7 @@ export const getChats = createReadQuery(
       .orderBy(
         ascNullsLast($pins.index),
         sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
-        sql`COALESCE(${allChannels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC`
+        sql`COALESCE(${$channelUnreads.updatedAt}, ${allChannels.lastPostAt}) DESC`
       );
 
     const [chatMembers, filteredChannels] = result.reduce<

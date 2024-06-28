@@ -1,6 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Text } from '@tloncorp/ui';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { GroupMetaScreenView } from '@tloncorp/ui';
 
 import { GroupSettingsStackParamList } from '../../types';
 import { useGroupContext } from './useGroupContext';
@@ -13,13 +12,24 @@ type GroupMetaScreenProps = NativeStackScreenProps<
 export function GroupMetaScreen(props: GroupMetaScreenProps) {
   const { groupId } = props.route.params;
 
-  const { group, currentUserIsAdmin, setGroupMetadata } = useGroupContext({
+  const {
+    group,
+    currentUserIsAdmin,
+    setGroupMetadata,
+    uploadInfo,
+    deleteGroup,
+  } = useGroupContext({
     groupId,
   });
 
   return (
-    <SafeAreaView>
-      <Text>GroupMeta</Text>
-    </SafeAreaView>
+    <GroupMetaScreenView
+      group={group ?? null}
+      currentUserIsAdmin={currentUserIsAdmin ?? false}
+      setGroupMetadata={setGroupMetadata}
+      goBack={props.navigation.goBack}
+      uploadInfo={uploadInfo}
+      deleteGroup={deleteGroup}
+    />
   );
 }

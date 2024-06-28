@@ -19,6 +19,15 @@ vi.mock('@react-native-firebase/crashlytics', () => {
   };
 });
 
+vi.mock('@react-native-firebase/perf', () => ({
+  default: () => ({
+    newTrace: (traceName: string) => ({
+      start: vi.fn(),
+      stop: vi.fn(),
+    }),
+  }),
+}));
+
 export function mockUrbit() {
   vi.mock('../api/urbit', async () => {
     return {
