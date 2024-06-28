@@ -122,6 +122,9 @@ importers:
       '@react-native-firebase/crashlytics':
         specifier: ^19.2.2
         version: 19.2.2(@react-native-firebase/app@19.2.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      '@react-native-firebase/perf':
+        specifier: ^19.2.2
+        version: 19.2.2(@react-native-firebase/app@19.2.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       '@react-navigation/bottom-tabs':
         specifier: ^6.5.12
         version: 6.5.12(@react-navigation/native@6.1.10(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.8.2(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native-screens@3.29.0(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
@@ -3877,6 +3880,15 @@ packages:
 
   '@react-native-firebase/crashlytics@19.2.2':
     resolution: {integrity: sha512-1dy8QkbFHNUVzlmU6zB99IQO/0rrWUHjiBJaOlWDYlVRoRuf/n7E/z2avpGqsYH52ujSfVhlYR2FBRXsVSzVcg==}
+    peerDependencies:
+      '@react-native-firebase/app': 19.2.2
+      expo: '>=47.0.0'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+
+  '@react-native-firebase/perf@19.2.2':
+    resolution: {integrity: sha512-4AZu+1AEYlwdFeop8o5Kac9iIfvd6frLHGa+U7xS+3pKdbVHZlUU2j7eiisOiILORVDaf/lkZ6yWzEDXqBeFjg==}
     peerDependencies:
       '@react-native-firebase/app': 19.2.2
       expo: '>=47.0.0'
@@ -15922,6 +15934,12 @@ snapshots:
     dependencies:
       '@react-native-firebase/app': 19.2.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       stacktrace-js: 2.0.2
+    optionalDependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  '@react-native-firebase/perf@19.2.2(@react-native-firebase/app@19.2.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))':
+    dependencies:
+      '@react-native-firebase/app': 19.2.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
     optionalDependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
 
