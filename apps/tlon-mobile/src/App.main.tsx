@@ -66,8 +66,6 @@ const App = ({
   const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
 
-  perf().startScreenTrace('App');
-
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
       ({ isConnected }) => {
