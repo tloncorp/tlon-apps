@@ -1,6 +1,8 @@
 ::
 /-  *notify, resource, a=activity, c=channels, h=hark
-/+  cu=channel-utils, default-agent, verb, dbug, agentio
+/+  cu=channel-utils, n=notify, default-agent, verb, dbug, agentio
+/$  activity-event-to-json  %activity-event  %json
+/$  hark-yarn-to-json       %hark-yarn       %json
 ::
 |%
 +$  card  card:agent:gall
@@ -45,12 +47,6 @@
       base-state-0
   ==
 ::
-+$  base-state-6
-  $:  last-timer=time
-      notifications=(map time-id:a event:a)
-      base-state-0
-  ==
-::
 +$  state-0
   [%0 base-state-0]
 ::
@@ -69,7 +65,24 @@
   [%5 base-state-4]
 ::
 +$  state-6
-  [%6 base-state-6]
+  $:  %6
+      last-timer=time
+      notifications=(map time-id:a event:a)
+      base-state-0
+  ==
+::
++$  state-7
+  $:  %7
+      last-timer=time
+      notifications=(map time-id:a event)
+      base-state-0
+  ==
+::
++$  event
+  $:  =event:a
+      ::TODO  if we poked the provider instead, we could track time-to-ack
+      first-req=(unit @da)
+  ==
 ::
 +$  versioned-state
   $%  state-0
@@ -79,9 +92,10 @@
       state-4
       state-5
       state-6
+      state-7
   ==
 ::
-+$  current-state  state-6
++$  current-state  state-7
 ::
 ++  migrate-state
   |=  old=versioned-state
@@ -93,7 +107,8 @@
     %3  $(old (migrate-3-to-4 old))
     %4  $(old (migrate-4-to-5 old))
     %5  $(old (migrate-5-to-6 old))
-    %6  old
+    %6  $(old (migrate-6-to-7 old))
+    %7  old
   ==
 ::
 ++  migrate-0-to-1
@@ -126,6 +141,11 @@
   ^-  state-6
   old(- %6, notifications ~)
 ::
+++  migrate-6-to-7
+  |=  old=state-6
+  ^-  state-7
+  old(- %7, notifications ~)
+::
 --
 ::
 =|  current-state
@@ -148,6 +168,7 @@
     :~  (~(watch-our pass:io /activity) %activity /notifications)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
+        [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
     ==
   ::
   ++  on-save   !>(state)
@@ -155,12 +176,16 @@
     |=  =vase
     ^-  (quip card _this)
     =+  !<([old-state=versioned-state] vase)
+    =/  caz=(list card)
+      ?.  (lth -.old-state %7)  ~
+      [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
     :_  this(state migrated)
     :-  [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
     ?:  (~(has by wex.bowl) [/activity our.bowl %activity])
-      ~
-    [(~(watch-our pass:io /activity) %activity /notifications)]~
+      caz
+    :_  caz
+    [(~(watch-our pass:io /activity) %activity /notifications)]
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -171,6 +196,7 @@
         %provider-state-message  provider-state-message
         %notify-provider-action  (handle-provider-action !<(provider-action vase))
         %notify-client-action    (handle-client-action !<(client-action vase))
+        %handle-http-request     (handle-http-request !<([@ta inbound-request:eyre] vase))
       ==
     [cards this]
     ::
@@ -281,6 +307,48 @@
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
       ==
     ::
+    ++  handle-http-request
+      |=  [eyre-id=@ta inbound-request:eyre]
+      ^-  (quip card _state)
+      ?.  ?=(%'GET' method.request)
+        [~ state]
+      =/  [[ext=(unit @ta) site=(pole @t)] args=*]
+        (rash url.request ;~(plug apat:de-purl:html yque:de-purl:html))
+      ?.  ?=([%apps %groups %'~' %notify %note uid=@ format=?(%activity-event %hark-yarn) ~] site)
+        [~ state]
+      ?.  ?=([~ %json] ext)
+        [~ state]
+      =/  =time-id:a
+        (need (mate (slaw %da uid.site) (slaw %uv uid.site)))
+      ?~  event=(~(get by notifications) time-id)
+        :_  state
+        (give-simple-payload eyre-id [[404 ~] ~])
+      =.  notifications
+        %+  ~(put by notifications)  time-id
+        =?  first-req.u.event  ?=(~ first-req.u.event)  `now.bowl
+        u.event
+      :_  state
+      %+  give-simple-payload  eyre-id
+      ?-  format.site
+          %activity-event
+        :-  [200 ['content-type' 'application-json'] ~]
+        %-  some
+        %-  as-octs:mimes:html
+        %-  en:json:html
+        (activity-event-to-json time-id event.u.event)
+      ::
+          %hark-yarn
+        =/  yarn=(unit yarn:h)
+          (event-to-yarn:n our.bowl now.bowl time-id event.u.event)
+        ?~  yarn
+          [[404 ~] ~]
+        :-  [200 ['content-type' 'application-json'] ~]
+        %-  some
+        %-  as-octs:mimes:html
+        %-  en:json:html
+        (hark-yarn-to-json u.yarn)
+      ==
+    ::
     ++  provider-state-message
       ^-  (quip card _state)
       ~&  "provider-state-message"
@@ -315,6 +383,8 @@
     |=  =path
     ^-  (quip card _this)
     ?+  path  (on-watch:def path)
+      [%http-response *]  [~ this]
+    ::
         [%notify @ @ ~]
       =*  service  i.t.t.path
       ?.  (~(has ju providers.client-state) src.bowl service)
@@ -335,8 +405,8 @@
     ::
         [%x %note uid=@ %activity-event ~]
       =/  =uid  (need (mate (slaw %da uid.pole) (slaw %uv uid.pole)))
-      =/  =event:a  (~(got by notifications) `@`uid)
-      ``activity-event+!>(event)
+      =/  =event  (~(got by notifications) `@`uid)
+      ``activity-event+!>(event.event)
     ::
         [%x %provider-state ~]  ``noun+!>(provider-state)
         [%x %client-state ~]    ``client-state+!>(client-state)
@@ -360,7 +430,7 @@
         ?.  ?=(%activity-event p.cage.sign)
           `this
         =+  !<([=time-id:a =event:a] q.cage.sign)
-        :_  this(notifications (~(put by notifications) time-id event))
+        :_  this(notifications (~(put by notifications) time-id [event ~]))
         =-  (zing (turn - drop))
         ^-  (list (unit card))
         :_  [(fact-all:io %notify-update !>(`update`[`@`time-id %notify]))]~
@@ -370,234 +440,11 @@
         ::  %notify-update above
         ::
         ^-  (unit card)
-        =;  yarn=(unit yarn:h)
-          ?~  yarn  ~
-          =/  =action:h  [%add-yarn & | u.yarn]
-          `[%pass /hark/copy %agent [our.bowl %hark] %poke %hark-action !>(action)]
-        ?:  ?=(%chan-init -<.event)
-          ~  ::  no hark precedent
-        ?:  ?=(?(%flag-post %flag-reply) -<.event)
-          ~  ::  not generated by any agent
-        %-  some
-        |^  =/  =rope:h
-              ?-  -<.event
-                  %post
-                =,  event
-                :^  `group  `channel  %groups
-                (channel-path channel q.id.key ~)
-              ::
-                  %reply
-                =,  event
-                :^  `group  `channel  %groups
-                (channel-path channel q.id.parent `q.id.key)
-              ::
-                  %dm-invite
-                [~ ~ %groups (whom-path whom.event)]
-              ::
-                  %dm-post
-                [~ ~ %groups (whom-path whom.event)]
-              ::
-                  %dm-reply
-                [~ ~ %groups (whom-path whom.event)]
-              ::
-                  %group-ask
-                =*  g  group.event
-                [`g ~ %groups /(scot %p p.g)/[q.g]/asks]
-              ::
-                  %group-invite
-                =*  g  group.event
-                [`g ~ %groups /(scot %p p.g)/[q.g]/invites]
-              ::
-                  %group-join
-                =*  g  group.event
-                [`g ~ %groups /(scot %p p.g)/[q.g]/joins]
-              ::
-                  %group-kick
-                =*  g  group.event
-                [`g ~ %groups /(scot %p p.g)/[q.g]/leaves]
-              ::
-                  %group-role
-                =*  g  group.event
-                [`g ~ %groups /(scot %p p.g)/[q.g]/add-roles]
-              ==
-            :*  `@`time-id
-                rope
-                time-id
-              ::
-                ^-  (list content:h)
-                ?-  -<.event
-                    %post
-                  =,  -.event
-                  :~  [%ship p.id.key]
-                      ?:(mention ' mentioned you: ' ' sent a message: ')
-                      (flatten:cu content)
-                  ==
-                ::
-                    %reply
-                  =,  -.event
-                  ?:  mention
-                    :~  [%ship p.id.key]
-                        ' mentioned you: '
-                        (flatten:cu content)
-                    ==
-                  =*  diary-contents
-                    :~  [%ship p.id.key]  ' commented on '
-                        [%emph 'a notebook post']   ': '  ::REVIEW  don't have access to title.kind-data
-                        [%ship p.id.key]  ': '
-                        (flatten:cu content)
-                    ==
-                  =*  heap-contents
-                    :~  [%ship p.id.key]  ' commented on '
-                        [%emph 'a collection item']   ': '  ::REVIEW  don't have access to title.kind-data
-                        [%ship p.id.key]  ': '
-                        (flatten:cu content)
-                    ==
-                  ?:  =(p.id.parent our.bowl)
-                    ?-  kind.channel.event
-                        %diary  diary-contents
-                        %heap   heap-contents
-                        %chat
-                      :~  [%ship p.id.key]
-                          ' replied to you: '
-                          (flatten:cu content)
-                      ==
-                    ==
-                  ?-  kind.channel.event
-                      %diary  diary-contents
-                      %heap   heap-contents
-                      %chat
-                    :~  [%ship p.id.key]
-                        ' sent a message: '
-                        (flatten:cu content)
-                    ==
-                  ==
-                ::
-                    %dm-invite
-                  ::REVIEW  'author.memo has invited you to a direct message'
-                  ::TODO    maybe want [%dm-invite =whom from=@p]
-                  :~  'Someone'
-                      ' has invited you to a direct message'
-                  ==
-                ::
-                    %dm-post
-                  ::REVIEW  should maybe not be rendered if you haven't accepted
-                  :~  [%ship p.id.key.event]
-                      ': '
-                      (flatten:cu content.event)
-                  ==
-                ::
-                    %dm-reply
-                  ::REVIEW  should maybe not be rendered if you haven't accepted
-                  :~  [%ship p.id.key.event]
-                      ': '
-                      (flatten:cu content.event)
-                  ==
-                ::
-                    ?(%group-ask %group-invite %group-join %group-kick %group-role)
-                  =+  .^  =group:g:a  %gx
-                        (scot %p our.bowl)
-                        %groups
-                        (scot %da now.bowl)
-                        /groups/(scot %p p.group.event)/[q.group.event]/group
-                      ==
-                  ?-  -<.event
-                      %group-ask
-                    :~  [%ship ship.event]
-                        ' has requested to join '
-                        [%emph title.meta.group]
-                    ==
-                  ::
-                      %group-invite
-                    :~  [%ship ship.event]
-                        ' sent you an invite to '
-                        [%emph title.meta.group]
-                    ==
-                  ::
-                      %group-join
-                    :~  [%ship ship.event]
-                        ' has joined '
-                        [%emph title.meta.group]
-                    ==
-                  ::
-                      %group-kick
-                    :~  [%ship ship.event]
-                        ' has left '
-                        [%emph title.meta.group]
-                    ==
-                  ::
-                      %group-role
-                    =;  role-list
-                      :~  [%ship ship.event]
-                          ' is now a(n) '
-                          [%emph role-list]
-                      ==
-                    %-  crip
-                    %+  join  ', '
-                    %+  turn
-                      ~(tap in roles.event)
-                    |=  =sect:g:a
-                    ?.  (~(has by cabals.group) sect)  sect
-                    =/  cabal  (~(got by cabals.group) sect)
-                    title.meta.cabal
-                  ==
-                ==
-              ::
-                ?-  -<.event
-                  %post   (welp (group-path group.event) %channels ted.rope)
-                  %reply  (welp (group-path group.event) %channels ted.rope)
-                ::
-                    %dm-invite
-                  (dm-path whom.event)
-                ::
-                  %dm-post  (dm-path whom.event)
-                ::
-                    %dm-reply
-                  ::REVIEW
-                  (weld (dm-path whom.event) /(rsh 4 (scot %ui time.key.event)))
-                ::
-                  %group-ask     (weld (group-path group.event) /edit/members)
-                  %group-invite  /find
-                  %group-join    (weld (group-path group.event) /edit/members)
-                  %group-kick    (weld (group-path group.event) /edit/members)
-                  %group-role    (weld (group-path group.event) /edit/members)
-                ==
-              ::
-                ~
-            ==
-        ::
-        ++  channel-path
-          |=  [=nest:c =id-post:c id-reply=(unit id-reply:c)]
-          ^-  ^path
-          %+  weld
-            `^path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
-          =;  base=^path
-            ?~  id-reply  base
-            (snoc base (rsh 4 (scot %ui u.id-reply)))
-          ?-  kind.nest  ::REVIEW  technically want the -.kind-data of the post...
-            %diary  /note/(rsh 4 (scot %ui id-post))
-            %heap   /curio/(rsh 4 (scot %ui id-post))
-            %chat   /message/(rsh 4 (scot %ui id-post))
-          ==
-        ::
-        ++  group-path
-          |=  group=flag:g:c
-          /groups/(scot %p p.group)/[q.group]
-        ::
-        ++  whom-path
-          |=  =whom:a
-          ?-  -.whom
-            %ship  /dm/(scot %p p.whom)
-            %club  /club/(scot %uv p.whom)
-          ==
-        ::
-        ++  dm-path
-          |=  =whom:a
-          =;  id=@ta  /dm/[id]
-          ?-  -.whom
-            %ship  (scot %p p.whom)
-            %club  (scot %uv p.whom)
-          ==
-        --
+        =/  yarn=(unit yarn:h)
+          (event-to-yarn:n our.bowl now.bowl time-id event)
+        ?~  yarn  ~
+        =/  =action:h  [%add-yarn & | u.yarn]
+        `[%pass /hark/copy %agent [our.bowl %hark] %poke %hark-action !>(action)]
       ::
           %kick
         :_  this
@@ -634,6 +481,8 @@
     |=  [=wire =sign-arvo]
     ^-  (quip card _this)
     ?+  wire  (on-arvo:def wire sign-arvo)
+      [%eyre ~]  [~ this]
+    ::
         [%daily-timer ~]
       ?>  ?=([%behn %wake *] sign-arvo)
       :_  this
@@ -682,8 +531,11 @@
     ::
         [%clear ~]
       ?>  ?=([%behn %wake *] sign-arvo)
-      =.  notifications  ~
-      ~&  "notify/debug: cleared notifications"
+      =.  notifications
+        %-  my
+        %+  skip  ~(tap by notifications)
+        |=  [=time-id:a *]
+        (lth time-id (sub now.bowl clear-interval))
       :_  this
       ~[(~(wait pass:io /clear) (add now.bowl clear-interval))]
     ==
@@ -811,5 +663,17 @@
       binding-endpoint.entry
       auth-token.entry
       params
+  ==
+::
+++  give-simple-payload
+  |=  [eyre-id=@ta =simple-payload:http]
+  ^-  (list card:agent:gall)
+  =/  header-cage
+    [%http-response-header !>(response-header.simple-payload)]
+  =/  data-cage
+    [%http-response-data !>(data.simple-payload)]
+  :~  [%give %fact ~[/http-response/[eyre-id]] header-cage]
+      [%give %fact ~[/http-response/[eyre-id]] data-cage]
+      [%give %kick ~[/http-response/[eyre-id]] ~]
   ==
 --
