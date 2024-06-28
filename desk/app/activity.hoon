@@ -596,9 +596,12 @@
     (give-update update ~)
   =?  cor  &(!importing notify (is-allowed inc))
     (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
-  =.  indices
-    =/  =stream:a  (put:on-event:a stream:base time-id event)
-    (~(put by indices) [%base ~] [stream reads:base])
+  ::  we always update sources in order, so make sure base is last
+  =;  co
+    =.  indices.co
+      =/  =stream:a  (put:on-event:a stream:base time-id event)
+      (~(put by indices) [%base ~] [stream reads:base])
+    co
   ?+  -<.event  (add-to-index source time-id event)
       %chan-init
     =/  group-src  [%group group.event]
@@ -659,7 +662,7 @@
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
-  (refresh source)
+  (refresh-summary source)
 ::
 ++  refresh-all-summaries
   ^+  cor
@@ -775,10 +778,9 @@
 ++  read
   |=  [=source:a action=read-action:a]
   ^+  cor
-  %+  update-reads  source
+  =/  =index:a  (get-index source)
   ?-  -.action
       %event
-    |=  =index:a
     ?>  ?=(%event -.action)
     =/  events
       %+  murn
@@ -786,34 +788,56 @@
       |=  [=time =event:a]
       ?.  =(-.event event.action)  ~
       `[time event]
-    ?~  events  index
-    =-  index(items.reads -)
-    %+  put:on-read-items:a  items.reads.index
-    [-<.events ~]
+    ?~  events  cor
+    (read source [%item -<.events])
   ::
       %item
-    |=  =index:a
-    =-  index(items.reads -)
-    %+  put:on-read-items:a  items.reads.index
-    [id.action ~]
+    =/  new-read  [id.action ~]
+    =/  read-items  (put:on-read-items:a items.reads.index new-read)
+    =.  cor  (update-parents source ~[new-read])
+    (update-index source index(items.reads read-items) &)
   ::
-      %all
-    |=  =index:a
-    ?^  time.action  index(reads [u.time.action ~])
-    =/  latest=(unit [=time event:a])
-    ::REVIEW  is this taking the item from the correct end? lol
-      (ram:on-event:a stream.index)
-    index(reads [?~(latest now.bowl time.u.latest) ~])
+      ?(%all %recursive)
+    =/  new-floor=time
+      ?^  time.action  u.time.action
+      =/  latest=(unit [=time event:a])
+        (ram:on-event:a stream.index)
+      ?~(latest now.bowl time.u.latest)
+    =/  new=index:a  index(reads [new-floor ~])
+    =/  subset
+      (lot:on-event:a stream.index `floor.reads.index `+(new-floor))
+    =/  reads
+      %+  turn
+        (tap:on-event:a subset)
+      |=  [=time-id:a *]
+      [time-id ~]
+    =.  cor  (update-parents source reads)
+    =/  children  (get-children source)
+    =<  (update-index source new &)
+    |-
+    ::  only update children if we're in recursive mode
+    ?:  ?=(%all -.action)  cor
+    ?~  children  cor
+    =/  =source:a  i.children
+    =/  =index:a  (get-index source)
+    =/  new=index:a  index(reads [new-floor ~])
+    (update-index source new &)
   ==
 ::
+++  update-parents
+  |=  [=source:a items=(list [=time-id:a ~])]
+  =/  parents  (get-parents source)
+  |-
+  ?~  parents  cor
+  =/  parent-index  (get-index i.parents)
+  =/  =read-items:a
+    (gas:on-read-items:a items.reads.parent-index items)
+  =.  cor
+    (update-index i.parents parent-index(items.reads read-items) &)
+  $(parents t.parents)
 ++  get-index
   |=  =source:a
   (~(gut by indices) source *index:a)
-++  update-reads
-  |=  [=source:a updater=$-(index:a index:a)]
-  ^+  cor
-  =/  new  (updater (get-index source))
-  (update-index source new &)
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -838,6 +862,21 @@
   ^+  cor
   =.  allowed  na
   (give-update [%allow-notifications na] ~)
+++  get-parents
+  |=  =source:a
+  ^-  (list source:a)
+  ?:  ?=(%base -.source)  ~
+  ?<  ?=(%base -.source)
+  :-  [%base ~]
+  ?+  -.source  ~
+    %channel  ~[[%group group.source]]
+    %dm-thread  ~[[%dm whom.source]]
+  ::
+      %thread
+    :~  [%channel channel.source group.source]
+        [%group group.source]
+    ==
+  ==
 ++  get-children
   |=  =source:a
   ^-  (list source:a)
