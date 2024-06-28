@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
 import type { HomeStackParamList } from '../types';
+import { getIsDmFromWer, getPostIdFromWer } from '../utils/string';
 
 export type Props = {
   notificationPath?: string;
@@ -20,14 +21,10 @@ export default function useNotificationListener({
   notificationChannelId,
 }: Props) {
   const navigation = useNavigation<NavigationProp<HomeStackParamList>>();
-  const [
-    {
-      // path,
-      channelId,
-    },
-    setGotoData,
-  ] = useState<{
+  const [{ postId, channelId, isDm }, setGotoData] = useState<{
     path?: string;
+    isDm?: boolean;
+    postId?: string | null;
     channelId?: string;
   }>({
     path: notificationPath,
@@ -56,6 +53,8 @@ export default function useNotificationListener({
             },
           },
         } = response;
+        const postId = getPostIdFromWer(data.wer);
+        const isDm = getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
@@ -63,6 +62,8 @@ export default function useNotificationListener({
         } else if (data.channelId) {
           setGotoData({
             path: data.wer,
+            isDm,
+            postId,
             channelId: data.channelId,
           });
         }
@@ -84,7 +85,34 @@ export default function useNotificationListener({
           return false;
         }
 
-        // TODO: parse path and convert it to Post ID to navigate to selected post or thread
+        // if we have a post id, try to navigate to the thread
+        if (postId) {
+          let postToNavigateTo: db.Post | null = null;
+          if (isDm) {
+            // for DMs, we get the backend ID (seal time) of the thread reply itself. So first we have to try to find that,
+            // then we grab the parent
+            const post = await db.getPostByBackendTime({ backendTime: postId });
+            if (post && post.parentId) {
+              const parentPost = await db.getPost({ postId: post.parentId });
+              if (parentPost) {
+                postToNavigateTo = parentPost;
+              }
+            }
+          } else {
+            // for group posts, we get the correct post ID and can just try to grab it
+            const post = await db.getPost({ postId });
+            if (post) {
+              postToNavigateTo = post;
+            }
+          }
+
+          // if we found the post, navigate to it. Otherwise fallback to channel
+          if (postToNavigateTo) {
+            navigation.navigate('Post', { post: postToNavigateTo });
+            resetGotoData();
+            return true;
+          }
+        }
 
         navigation.navigate('Channel', { channel });
         resetGotoData();
@@ -112,5 +140,5 @@ export default function useNotificationListener({
         }
       })();
     }
-  }, [channelId, navigation]);
+  }, [channelId, postId, navigation, isDm]);
 }

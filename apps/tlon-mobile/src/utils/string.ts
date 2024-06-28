@@ -1,3 +1,5 @@
+import { getCanonicalPostId } from '@tloncorp/shared/dist/api';
+
 /**
  * Returns a hex string of given length.
  *
@@ -117,4 +119,33 @@ export const getPathFromWer = (wer: string): string => {
 
   // all other posts should go to the post
   return path;
+};
+
+export const getPostIdFromWer = (wer: string): string | null => {
+  const parts = wer.split('/');
+  if (parts.length < 2) {
+    return null;
+  }
+  const type = parts[1];
+  const isDm = type === 'dm';
+  const isChannelPost = type === 'groups';
+
+  if (isDm && parts[3]) {
+    return getCanonicalPostId(parts[3]);
+  }
+
+  if (isChannelPost && parts.length >= 9 && parts[9]) {
+    return getCanonicalPostId(parts[9]);
+  }
+
+  return null;
+};
+
+export const getIsDmFromWer = (wer: string): boolean => {
+  const parts = wer.split('/');
+  if (parts.length < 2) {
+    return false;
+  }
+  const type = parts[1];
+  return type === 'dm';
 };
