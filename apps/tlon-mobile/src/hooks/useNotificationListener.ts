@@ -2,6 +2,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
+import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
@@ -9,7 +10,6 @@ import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
 import type { HomeStackParamList } from '../types';
-import { getIsDmFromWer, getPostIdFromWer } from '../utils/string';
 
 export type Props = {
   notificationPath?: string;
@@ -53,8 +53,8 @@ export default function useNotificationListener({
             },
           },
         } = response;
-        const postId = getPostIdFromWer(data.wer);
-        const isDm = getIsDmFromWer(data.wer);
+        const postId = api.getPostIdFromWer(data.wer);
+        const isDm = api.getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
