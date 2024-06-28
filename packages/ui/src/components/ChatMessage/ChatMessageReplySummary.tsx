@@ -48,7 +48,7 @@ export const ChatMessageReplySummary = React.memo(
             size="$s"
             color={
               threadUnread?.count
-                ? post.volumeSettings?.isMuted
+                ? post.volumeSettings?.isMuted || !threadUnread.notify
                   ? '$tertiaryText'
                   : '$positiveActionText'
                 : undefined
@@ -60,6 +60,7 @@ export const ChatMessageReplySummary = React.memo(
           <ThreadStatus
             unreadCount={threadUnread?.count ?? 0}
             isMuted={post.volumeSettings?.isMuted ?? false}
+            isNotify={post.threadUnread?.notify ?? false}
           />
         </XStack>
         <SizableText size="$s" color="$tertiaryText">
@@ -73,13 +74,18 @@ export const ChatMessageReplySummary = React.memo(
 function ThreadStatus({
   unreadCount,
   isMuted,
+  isNotify,
 }: {
   unreadCount: number;
   isMuted: boolean;
+  isNotify: boolean;
 }) {
   if (unreadCount) {
     return (
-      <UnreadDot marginLeft="$s" color={isMuted ? 'neutral' : 'primary'} />
+      <UnreadDot
+        marginLeft="$s"
+        color={isMuted || !isNotify ? 'neutral' : 'primary'}
+      />
     );
   }
 
