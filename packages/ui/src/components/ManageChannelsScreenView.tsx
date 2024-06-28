@@ -1,8 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo, useState } from 'react';
+import { LayoutRectangle } from 'react-native';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScrollView, Text, View, XStack, YStack } from '../core';
+import { Text, View, XStack, YStack } from '../core';
 import { Button } from './Button';
 import { DraggableItem } from './DraggableItem';
 import { GenericHeader } from './GenericHeader';
@@ -24,14 +26,25 @@ type Channel = {
 function DraggableChannel({
   channel,
   onEdit,
+  onDrag,
+  onDragStart,
   onDragEnd,
+  isDragging = false,
 }: {
   channel: Channel;
   onEdit: () => void;
+  onDrag: (translateY: number) => void;
+  onDragStart: (layout: LayoutRectangle) => void;
   onDragEnd: (translateY: number) => void;
+  isDragging?: boolean;
 }) {
   return (
-    <DraggableItem onDragEnd={onDragEnd}>
+    <DraggableItem
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
+      onDragStart={onDragStart}
+      zIndex={4}
+    >
       <XStack
         paddingHorizontal="$l"
         paddingLeft="$l"
@@ -46,19 +59,23 @@ function DraggableChannel({
         justifyContent="space-between"
         backgroundColor="$background"
       >
-        <XStack alignItems="center" gap="$l">
-          <Pressable onPress={() => console.log('edit')}>
-            <Icon color="$secondaryText" type="Dragger" />
-          </Pressable>
-          <Text fontSize="$l" paddingVertical="$s">
-            {channel.title}
-          </Text>
-        </XStack>
-        <Pressable onPress={onEdit}>
-          <View paddingVertical="$xs">
-            <Icon color="$secondaryText" type="Dots" size="$m" />
-          </View>
-        </Pressable>
+        {!isDragging && (
+          <>
+            <XStack alignItems="center" gap="$l">
+              <Pressable onPress={() => console.log('edit')}>
+                <Icon color="$secondaryText" type="Dragger" />
+              </Pressable>
+              <Text fontSize="$l" paddingVertical="$s">
+                {channel?.title}
+              </Text>
+            </XStack>
+            <Pressable onPress={onEdit}>
+              <View paddingVertical="$xs">
+                <Icon color="$secondaryText" type="Dots" size="$m" />
+              </View>
+            </Pressable>
+          </>
+        )}
       </XStack>
     </DraggableItem>
   );
@@ -66,19 +83,24 @@ function DraggableChannel({
 
 function DraggableNavSection({
   section,
+  onDrag,
+  onDragStart,
   onDragEnd,
-  onChannelDragEnd,
+  children,
 }: {
   section: Section;
+  onDrag: (translateY: number) => void;
+  onDragStart: (layout: LayoutRectangle) => void;
   onDragEnd: (translateY: number) => void;
-  onChannelDragEnd: (
-    sectionId: string,
-    channelIndex: number,
-    translateY: number
-  ) => void;
+  children: React.ReactNode;
 }) {
   return (
-    <DraggableItem onDragEnd={onDragEnd}>
+    <DraggableItem
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
+      onDragStart={onDragStart}
+      zIndex={3}
+    >
       <YStack
         padding="$xl"
         borderWidth={1}
@@ -94,16 +116,7 @@ function DraggableNavSection({
           </Pressable>
           <Text fontSize="$l">{section.title}</Text>
         </XStack>
-        {section.channels.map((channel, index) => (
-          <DraggableChannel
-            key={channel.id}
-            channel={channel}
-            onEdit={() => console.log('edit channel', channel.id)}
-            onDragEnd={(translateY) =>
-              onChannelDragEnd(section.id, index, translateY)
-            }
-          />
-        ))}
+        {children}
       </YStack>
     </DraggableItem>
   );
@@ -144,6 +157,18 @@ export function ManageChannelsScreenView({
     return [defaultSection, ...otherSections];
   });
 
+  type DraggedItem = {
+    type: 'section' | 'channel';
+    channelId?: string;
+    sectionId: string;
+    layout: LayoutRectangle;
+  };
+
+  const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
+  const draggedItemY = useSharedValue(0);
+
+  console.log('draggedItem', draggedItem);
+
   const handleSectionDragEnd = useCallback(
     (index: number, translateY: number) => {
       setSections((prevSections) => {
@@ -156,12 +181,15 @@ export function ManageChannelsScreenView({
         newSections.splice(newIndex, 0, movedSection);
         return newSections;
       });
+      setDraggedItem(null);
+      draggedItemY.value = 0;
     },
-    []
+    [draggedItemY]
   );
 
   const handleChannelDragEnd = useCallback(
     (sectionId: string, channelIndex: number, translateY: number) => {
+      console.log('channel drag end', sectionId, channelIndex, translateY);
       setSections((prevSections) => {
         const newSections = [...prevSections];
         const currentSectionIndex = newSections.findIndex(
@@ -205,14 +233,139 @@ export function ManageChannelsScreenView({
 
         return newSections;
       });
+      setDraggedItem(null);
+      draggedItemY.value = 0;
+    },
+    [draggedItemY]
+  );
+
+  const handleDragStart = useCallback(
+    (
+      type: 'section' | 'channel',
+      layout: LayoutRectangle,
+      sectionId: string,
+      channelId?: string
+    ) => {
+      setDraggedItem({ type, sectionId, channelId, layout });
     },
     []
   );
 
+  const handleDrag = useCallback(
+    (translateY: number) => {
+      console.log('handleDrag', translateY, draggedItemY.value, draggedItem);
+      if (!draggedItem) {
+        return;
+      }
+      draggedItemY.value = translateY + draggedItem.layout.y;
+    },
+    [draggedItemY, draggedItem]
+  );
+
   const { bottom } = useSafeAreaInsets();
+
+  const renderSectionsAndChannels = useMemo(() => {
+    return sections.map((section, index) => (
+      <DraggableNavSection
+        key={section.id}
+        section={section}
+        onDragStart={(layout) => handleDragStart('section', layout, section.id)}
+        onDrag={handleDrag}
+        onDragEnd={(translateY) => handleSectionDragEnd(index, translateY)}
+      >
+        {section.channels.length === 0 && (
+          <View width="100%">
+            <Text padding="$l" fontSize="$m" color="$secondaryText">
+              No channels
+            </Text>
+          </View>
+        )}
+        {section.channels.map((channel, index) => (
+          <DraggableChannel
+            key={channel.id}
+            channel={channel}
+            onEdit={() => console.log('edit channel', channel.id)}
+            onDrag={handleDrag}
+            onDragStart={(layout) =>
+              handleDragStart('channel', layout, section.id, channel.id)
+            }
+            onDragEnd={(translateY) =>
+              handleChannelDragEnd(section.id, index, translateY)
+            }
+            isDragging={
+              draggedItem?.type === 'channel' &&
+              draggedItem.channelId === channel.id
+            }
+          />
+        ))}
+      </DraggableNavSection>
+    ));
+  }, [
+    sections,
+    draggedItem,
+    handleSectionDragEnd,
+    handleChannelDragEnd,
+    handleDragStart,
+    handleDrag,
+  ]);
 
   return (
     <View backgroundColor="$background" flex={1}>
+      {draggedItem && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: draggedItemY ?? draggedItem.layout.y,
+            left: draggedItem.layout.x,
+            width: draggedItem.layout.width,
+            height: draggedItem.layout.height,
+            zIndex: 2000,
+            elevation: 2000,
+          }}
+        >
+          {draggedItem.type === 'section' ? (
+            <DraggableNavSection
+              section={sections.find((s) => s.id === draggedItem.sectionId)!}
+              onDragStart={() => {}}
+              onDrag={() => {}}
+              onDragEnd={() => {}}
+            >
+              {sections.find((s) => s.id === draggedItem.sectionId)?.channels
+                .length === 0 && (
+                <View width="100%">
+                  <Text padding="$l" fontSize="$m" color="$secondaryText">
+                    No channels
+                  </Text>
+                </View>
+              )}
+              {sections
+                .find((s) => s.id === draggedItem.sectionId)
+                ?.channels.map((channel) => (
+                  <DraggableChannel
+                    key={channel.id}
+                    channel={channel}
+                    onEdit={() => console.log('edit channel', channel.id)}
+                    onDrag={() => {}}
+                    onDragStart={() => {}}
+                    onDragEnd={() => {}}
+                  />
+                ))}
+            </DraggableNavSection>
+          ) : (
+            <DraggableChannel
+              channel={
+                sections
+                  .find((s) => s.id === draggedItem.sectionId)!
+                  .channels.find((c) => c.id === draggedItem.channelId)!
+              }
+              onEdit={() => console.log('edit channel', draggedItem.channelId)}
+              onDrag={handleDrag}
+              onDragStart={() => {}}
+              onDragEnd={() => {}}
+            />
+          )}
+        </Animated.View>
+      )}
       <YStack
         backgroundColor="$background"
         justifyContent="space-between"
@@ -230,23 +383,15 @@ export function ManageChannelsScreenView({
           alignItems="center"
           flex={1}
         >
-          <ScrollView
+          <Animated.ScrollView
             // 114.7 is the height of the buttons at the bottom
             contentContainerStyle={{ paddingBottom: bottom + 114.7 }}
+            style={{ zIndex: 1 }}
           >
             <YStack gap="$2xl" alignItems="center">
-              {sections.map((section, index) => (
-                <DraggableNavSection
-                  key={section.id}
-                  section={section}
-                  onDragEnd={(translateY) =>
-                    handleSectionDragEnd(index, translateY)
-                  }
-                  onChannelDragEnd={handleChannelDragEnd}
-                />
-              ))}
+              {renderSectionsAndChannels}
             </YStack>
-          </ScrollView>
+          </Animated.ScrollView>
           <YStack
             position="absolute"
             backgroundColor="$background"
@@ -254,6 +399,7 @@ export function ManageChannelsScreenView({
             gap="$l"
             width="100%"
             alignItems="center"
+            zIndex={5}
           >
             <Button hero>
               <Button.Text>Create a channel</Button.Text>

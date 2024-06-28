@@ -117,17 +117,17 @@ export default function ChatListScreen(
 
   const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
     // noop for now
-    // if (logic.isChannel(item)) {
-    //   if (
-    //     item.type === 'dm' ||
-    //     item.type === 'groupDm' ||
-    //     item.pin?.type === 'channel'
-    //   ) {
-    //     setLongPressedChannel(item);
-    //   } else if (item.group) {
-    //     setLongPressedGroup(item.group);
-    //   }
-    // }
+    if (logic.isChannel(item)) {
+      if (
+        item.type === 'dm' ||
+        item.type === 'groupDm' ||
+        item.pin?.type === 'channel'
+      ) {
+        setLongPressedChannel(item);
+      } else if (item.group) {
+        setLongPressedGroup(item.group);
+      }
+    }
   }, []);
 
   const handleDmOpenChange = useCallback((open: boolean) => {
