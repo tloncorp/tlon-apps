@@ -2100,6 +2100,19 @@ export const getPost = createReadQuery(
   ['posts']
 );
 
+export const getPostByBackendTime = createReadQuery(
+  'getPostByBackendTime',
+  async ({ backendTime }: { backendTime: string }, ctx: QueryCtx) => {
+    const postData = await ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.backendTime, backendTime));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
 export const getPostByCacheId = createReadQuery(
   'getPostByCacheId',
   async (
