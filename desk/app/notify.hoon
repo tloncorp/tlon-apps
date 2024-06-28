@@ -402,6 +402,8 @@
     ^-  (unit (unit cage))
     =/  =(pole knot)  path
     ?+  pole  [~ ~]
+        [%x %note ~]
+      ``noun+!>(notifications)
     ::
         [%x %note uid=@ %activity-event ~]
       =/  =uid  (need (mate (slaw %da uid.pole) (slaw %uv uid.pole)))
