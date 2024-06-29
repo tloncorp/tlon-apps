@@ -404,9 +404,13 @@ export function linkUrlFromContent(content: Story) {
   return undefined;
 }
 
-export function useMarkChannelRead(nest: string, thread?: MessageKey) {
+export function useMarkChannelRead(
+  nest: string,
+  thread?: MessageKey,
+  recursive = false
+) {
   const group = useRouteGroup();
-  const { mutateAsync, ...rest } = useMarkReadMutation();
+  const { mutateAsync, ...rest } = useMarkReadMutation(recursive);
   const markRead = useCallback(() => {
     const source: Source = thread
       ? {

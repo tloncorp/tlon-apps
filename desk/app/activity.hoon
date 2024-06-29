@@ -79,16 +79,6 @@
   ^+  cor
   (emit %pass /migrate %agent [our.bowl dap.bowl] %poke noun+!>(%migrate))
 ::
-++  migrate
-  =.  importing  &
-  =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
-  =.  cor  set-chat-reads
-  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
-  =.  cor  (set-volumes channels)
-  =.  cor  (set-channel-reads channels)
-  =.  cor  refresh-all-summaries
-  cor(importing |)
-::
 ++  load
   |=  =vase
   |^  ^+  cor
@@ -100,7 +90,7 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   ?>  ?=(%3 -.old)
   =.  state  old
-  refresh-all-summaries
+  sync-reads
   +$  versioned-state  $%(state-3 state-2 state-1)
   +$  state-3  current-state
   +$  state-2
@@ -147,173 +137,6 @@
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
-++  set-channel-reads
-  |=  =channels:c
-  ^+  cor
-  =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
-  =/  entries  ~(tap by unreads)
-  =;  events=(list [time incoming-event:a])
-    |-
-    ?~  events  cor
-    =.  cor  (%*(. add start-time -.i.events) +.i.events)
-    $(events t.events)
-  |-  ^-  (list [time incoming-event:a])
-  ?~  entries  ~
-  =/  head  i.entries
-  =*  next  $(entries t.entries)
-  =/  [=nest:c =unread:c]  head
-  =/  channel  (~(get by channels) nest)
-  ?~  channel  next
-  =/  group  group.perm.u.channel
-  =;  events=(list [time incoming-event:a])
-    (weld events next)
-  =/  posts=(list [time incoming-event:a])
-    ?~  unread.unread  ~
-    %+  murn
-      (tab:on-posts:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
-    |=  [=time post=(unit post:c)]
-    ?~  post  ~
-    =/  key=message-key:a
-      :_  time
-      [author.u.post time]
-    =/  mention
-      (was-mentioned:ch-utils content.u.post our.bowl)
-    `[time %post key nest group content.u.post mention]
-  =/  replies=(list [time incoming-event:a])
-    %-  zing
-    %+  murn
-      ~(tap by threads.unread)
-    |=  [=id-post:c [id=id-reply:c count=@ud]]
-    ^-  (unit (list [time incoming-event:a]))
-    =/  post=(unit (unit post:c))  (get:on-posts:c posts.u.channel id-post)
-    ?~  post  ~
-    ?~  u.post  ~
-    %-  some
-    %+  turn
-      (tab:on-replies:c replies.u.u.post `(sub id 1) count)
-    |=  [=time =reply:c]
-    =/  key=message-key:a
-      :_  time
-      [author.reply time]
-    =/  parent=message-key:a
-      :_  id-post
-      [author.u.u.post id-post]
-    =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
-    [time %reply key parent nest group content.reply mention]
-  =/  init-time
-    ?:  &(=(posts ~) =(replies ~))  recency.unread
-    *@da
-  :-  [init-time %chan-init nest group]
-  (welp posts replies)
-++  set-chat-reads
-  ^+  cor
-  =+  .^(=unreads:ch %gx (scry-path %chat /unreads/noun))
-  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
-      %gx  (scry-path %chat /full/noun)
-    ==
-  =/  entries  ~(tap by unreads)
-  =;  events=(list [time incoming-event:a])
-    |-
-    ?~  events  cor
-    =.  cor  (%*(. add start-time -.i.events) +.i.events)
-    $(events t.events)
-  |-  ^-  (list [time incoming-event:a])
-  ?~  entries  ~
-  =/  head  i.entries
-  =*  next  $(entries t.entries)
-  =/  [=whom:ch =unread:unreads:ch]  head
-  =/  =pact:ch
-    ?-  -.whom
-      %ship  pact:(~(gut by dms) p.whom *dm:ch)
-      %club  pact:(~(gut by clubs) p.whom *club:ch)
-    ==
-  =;  events=(list [time incoming-event:a])
-    (weld events next)
-  =/  writs=(list [time incoming-event:a])
-    ?~  unread.unread  ~
-    %+  murn
-      (tab:on:writs:ch wit.pact `(sub time.u.unread.unread 1) count.u.unread.unread)
-    |=  [=time =writ:ch]
-    =/  key=message-key:a  [id.writ time]
-    =/  mention
-      (was-mentioned:ch-utils content.writ our.bowl)
-    `[time %dm-post key whom content.writ mention]
-  =/  replies=(list [time incoming-event:a])
-    %-  zing
-    %+  murn
-      ~(tap by threads.unread)
-    |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
-    ^-  (unit (list [time incoming-event:a]))
-    =/  writ=(unit writ:ch)  (get:on:writs:ch wit.pact time.parent)
-    ?~  writ  ~
-    %-  some
-    %+  turn
-      (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
-    |=  [=time =reply:ch]
-    =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
-    [time %dm-reply key parent whom content.reply mention]
-  =/  init-time
-    ?:  &(=(writs ~) =(replies ~))  recency.unread
-    *@da
-  :-  [init-time %dm-invite whom]
-  (welp writs replies)
-++  set-volumes
-  |=  =channels:c
-  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
-  ::  set all existing channels to old default since new default is different
-  =^  checkers  cor
-    =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
-    =/  entries  ~(tap by channels)
-    |-
-    ?~  entries  [checkers cor]
-    =/  [=nest:c =channel:c]  i.entries
-    =*  group  group.perm.channel
-    =+  .^(exists=? %gx (scry-path %groups /exists/(scot %p p.group)/[q.group]/noun))
-    ?.  exists  $(entries t.entries)
-    =^  can-read  checkers
-      ?^  gate=(~(get by checkers) group)  [u.gate checkers]
-      =/  =path
-        %+  scry-path  %groups
-        /groups/(scot %p p.group)/[q.group]/can-read/noun
-      =/  test=$-([ship nest:g] ?)
-        =>  [path=path nest=nest:g ..zuse]  ~+
-        .^($-([ship nest] ?) %gx path)
-      [test (~(put by checkers) group test)]
-    =.  cor
-      ::  don't set channel default if group above it has setting
-      ?:  (~(has by area.volume) group)  cor
-      %+  adjust  [%channel nest group]
-      ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
-      `mute:a
-    $(entries t.entries)
-  ::  set any overrides from previous volume settings
-  =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
-  =.  cor
-    =/  entries  ~(tap by chan.volume)
-    |-
-    ?~  entries  cor
-    =/  [=nest:g =level:v]  i.entries
-    =*  next  $(entries t.entries)
-    ?.  ?=(?(%chat %diary %heap) -.nest)  next
-    =/  channel  (~(get by channels) nest)
-    ?~  channel  next
-    ?~  can-read=(~(get by checkers) group.perm.u.channel)  next
-    ::  don't override previously set mute from channel migration
-    ?.  (u.can-read our.bowl nest)  next
-    =.  cor
-      %+  adjust  [%channel nest group.perm.u.channel]
-      `(~(got by old-volumes:a) level)
-    next
-  =/  entries  ~(tap by area.volume)
-  |-
-  ?~  entries  cor
-  =*  head  i.entries
-  =.  cor
-    %+  adjust  [%group -.head]
-    `(~(got by old-volumes:a) +.head)
-  $(entries t.entries)
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -335,7 +158,7 @@
     ?-  -.action
       %add      (add +.action)
       %del      (del +.action)
-      %read     (read +.action)
+      %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
@@ -600,7 +423,7 @@
   =;  co
     =.  indices.co
       =/  =stream:a  (put:on-event:a stream:base time-id event)
-      (~(put by indices) [%base ~] [stream reads:base])
+      (~(put by indices.co) [%base ~] [stream reads:base])
     co
   ?+  -<.event  (add-to-index source time-id event)
       %chan-init
@@ -776,7 +599,7 @@
   index(floor.reads u.new-floor)
 ::
 ++  read
-  |=  [=source:a action=read-action:a]
+  |=  [=source:a action=read-action:a from-parent=?]
   ^+  cor
   =/  =index:a  (get-index source)
   ?-  -.action
@@ -789,7 +612,7 @@
       ?.  =(-.event event.action)  ~
       `[time event]
     ?~  events  cor
-    (read source [%item -<.events])
+    (read source [%item -<.events] |)
   ::
       %item
     =/  new-read  [id.action ~]
@@ -804,23 +627,24 @@
         (ram:on-event:a stream.index)
       ?~(latest now.bowl time.u.latest)
     =/  new=index:a  index(reads [new-floor ~])
-    =/  subset
-      (lot:on-event:a stream.index `floor.reads.index `+(new-floor))
-    =/  reads
+    ~&  [source floor.reads.index new-floor]
+    =?  cor  !from-parent
+      %+  update-parents  source
       %+  turn
-        (tap:on-event:a subset)
+        %-  tap:on-event:a
+        %^  lot:on-event:a  stream.index  `floor.reads.index
+        ?:((gte new-floor floor.reads.index) `+(new-floor) ~)
       |=  [=time-id:a *]
       [time-id ~]
-    =.  cor  (update-parents source reads)
-    =/  children  (get-children source)
-    =<  (update-index source new &)
-    |-
-    ::  only update children if we're in recursive mode
-    ?:  ?=(%all -.action)  cor
-    ?~  children  cor
-    =/  =source:a  i.children
-    =/  =index:a  (get-index source)
-    =/  new=index:a  index(reads [new-floor ~])
+    =.  cor
+      =/  children  (get-children source)
+      |-
+      ::  only update children if we're in recursive mode
+      ?:  ?=(%all -.action)  cor
+      ?~  children  cor
+      =/  =source:a  i.children
+      =.  cor  (read source action &)
+      $(children t.children)
     (update-index source new &)
   ==
 ::
@@ -1020,6 +844,58 @@
     ==
   --
 ::
+::  previously each source had independent read states that did not get
+::  synced across sources. we set out to rectify that here
+::
+++  sync-reads
+  =/  oldest-floors=(map source:a time)  ~
+  =/  indexes
+    ::  sort children first in order so we only have to make one pass
+    ::  of summarization aka not repeatedly updating the same source
+    ::
+    %+  sort
+      ~(tap by indices)
+    |=  [[asrc=source:a *] [bsrc=source:a *]]
+    (gth (get-order asrc) (get-order bsrc))
+  |-
+  ?~  indexes  cor
+  =/  [=source:a =index:a]  i.indexes
+  =^  min-floors  indices
+    =/  parents  (get-parents source)
+    =/  floors=(map source:a time)  ~
+    |-
+    ?~  parents  [floors indices]
+    =/  parent-index  (get-index i.parents)
+    =/  parent-reads
+      :-  floor.reads.parent-index
+      (uni:on-read-items:a items.reads.parent-index items.reads.index)
+    ::  keep track of oldest child floor
+    =.  floors
+      %+  ~(put by floors)  i.parents
+      (min floor.reads.index (~(gut by oldest-floors) source now.bowl))
+    ::  update parents with aggregated reads and move floor if appropriate
+    =.  indices  (~(put by indices) i.parents index(reads parent-reads))
+    $(parents t.parents)
+  =.  oldest-floors  (~(uni by oldest-floors) min-floors)
+  =.  reads.index
+    ::  if we have no children then the reads are accurate
+    ?~  min-floor=(~(get by oldest-floors) source)  reads.index
+    ::  if we have children, but our floor is oldest, then we're good
+    ?:  (lth floor.reads.index u.min-floor)  reads.index
+    ::  otherwise, we need to adjust our reads
+    =;  main-reads=read-items:a
+      [u.min-floor main-reads]
+    %+  gas:on-read-items:a  items.reads.index
+    %+  murn
+      ::  take all events between our floor and the oldest child floor
+      (tap:on-event:a (lot:on-event:a stream.index `u.min-floor `floor.reads.index))
+    |=  [=time =event:a]
+    ::  ignore child events
+    ?:  child.event  ~
+    `[time ~]
+  =.  cor  (update-index source index &)
+  $(indexes t.indexes)
+::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
 ::  with bad message/parent identifiers (respectively) got pushed into our
 ::  streams. for the %dm-reply case, this made it impossible for clients (that
@@ -1147,4 +1023,182 @@
     [time event(time.key u.reply-time, parent post-key)]
   +$  indexes  (list [=source:a =index:a])
   --
+::
+++  migrate
+  =.  importing  &
+  =.  indices   (~(put by indices) [%base ~] [*stream:a *reads:a])
+  =.  cor  set-chat-reads
+  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
+  =.  cor  (set-volumes channels)
+  =.  cor  (set-channel-reads channels)
+  =.  cor  refresh-all-summaries
+  cor(importing |)
+::
+++  set-channel-reads
+  |=  =channels:c
+  ^+  cor
+  =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
+  =/  entries  ~(tap by unreads)
+  =;  events=(list [time incoming-event:a])
+    |-
+    ?~  events  cor
+    =.  cor  (%*(. add start-time -.i.events) +.i.events)
+    $(events t.events)
+  |-  ^-  (list [time incoming-event:a])
+  ?~  entries  ~
+  =/  head  i.entries
+  =*  next  $(entries t.entries)
+  =/  [=nest:c =unread:c]  head
+  =/  channel  (~(get by channels) nest)
+  ?~  channel  next
+  =/  group  group.perm.u.channel
+  =;  events=(list [time incoming-event:a])
+    (weld events next)
+  =/  posts=(list [time incoming-event:a])
+    ?~  unread.unread  ~
+    %+  murn
+      (tab:on-posts:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
+    |=  [=time post=(unit post:c)]
+    ?~  post  ~
+    =/  key=message-key:a
+      :_  time
+      [author.u.post time]
+    =/  mention
+      (was-mentioned:ch-utils content.u.post our.bowl)
+    `[time %post key nest group content.u.post mention]
+  =/  replies=(list [time incoming-event:a])
+    %-  zing
+    %+  murn
+      ~(tap by threads.unread)
+    |=  [=id-post:c [id=id-reply:c count=@ud]]
+    ^-  (unit (list [time incoming-event:a]))
+    =/  post=(unit (unit post:c))  (get:on-posts:c posts.u.channel id-post)
+    ?~  post  ~
+    ?~  u.post  ~
+    %-  some
+    %+  turn
+      (tab:on-replies:c replies.u.u.post `(sub id 1) count)
+    |=  [=time =reply:c]
+    =/  key=message-key:a
+      :_  time
+      [author.reply time]
+    =/  parent=message-key:a
+      :_  id-post
+      [author.u.u.post id-post]
+    =/  mention
+      (was-mentioned:ch-utils content.reply our.bowl)
+    [time %reply key parent nest group content.reply mention]
+  =/  init-time
+    ?:  &(=(posts ~) =(replies ~))  recency.unread
+    *@da
+  :-  [init-time %chan-init nest group]
+  (welp posts replies)
+++  set-chat-reads
+  ^+  cor
+  =+  .^(=unreads:ch %gx (scry-path %chat /unreads/noun))
+  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+      %gx  (scry-path %chat /full/noun)
+    ==
+  =/  entries  ~(tap by unreads)
+  =;  events=(list [time incoming-event:a])
+    |-
+    ?~  events  cor
+    =.  cor  (%*(. add start-time -.i.events) +.i.events)
+    $(events t.events)
+  |-  ^-  (list [time incoming-event:a])
+  ?~  entries  ~
+  =/  head  i.entries
+  =*  next  $(entries t.entries)
+  =/  [=whom:ch =unread:unreads:ch]  head
+  =/  =pact:ch
+    ?-  -.whom
+      %ship  pact:(~(gut by dms) p.whom *dm:ch)
+      %club  pact:(~(gut by clubs) p.whom *club:ch)
+    ==
+  =;  events=(list [time incoming-event:a])
+    (weld events next)
+  =/  writs=(list [time incoming-event:a])
+    ?~  unread.unread  ~
+    %+  murn
+      (tab:on:writs:ch wit.pact `(sub time.u.unread.unread 1) count.u.unread.unread)
+    |=  [=time =writ:ch]
+    =/  key=message-key:a  [id.writ time]
+    =/  mention
+      (was-mentioned:ch-utils content.writ our.bowl)
+    `[time %dm-post key whom content.writ mention]
+  =/  replies=(list [time incoming-event:a])
+    %-  zing
+    %+  murn
+      ~(tap by threads.unread)
+    |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
+    ^-  (unit (list [time incoming-event:a]))
+    =/  writ=(unit writ:ch)  (get:on:writs:ch wit.pact time.parent)
+    ?~  writ  ~
+    %-  some
+    %+  turn
+      (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
+    |=  [=time =reply:ch]
+    =/  mention
+      (was-mentioned:ch-utils content.reply our.bowl)
+    [time %dm-reply key parent whom content.reply mention]
+  =/  init-time
+    ?:  &(=(writs ~) =(replies ~))  recency.unread
+    *@da
+  :-  [init-time %dm-invite whom]
+  (welp writs replies)
+++  set-volumes
+  |=  =channels:c
+  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
+  ::  set all existing channels to old default since new default is different
+  =^  checkers  cor
+    =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
+    =/  entries  ~(tap by channels)
+    |-
+    ?~  entries  [checkers cor]
+    =/  [=nest:c =channel:c]  i.entries
+    =*  group  group.perm.channel
+    =+  .^(exists=? %gx (scry-path %groups /exists/(scot %p p.group)/[q.group]/noun))
+    ?.  exists  $(entries t.entries)
+    =^  can-read  checkers
+      ?^  gate=(~(get by checkers) group)  [u.gate checkers]
+      =/  =path
+        %+  scry-path  %groups
+        /groups/(scot %p p.group)/[q.group]/can-read/noun
+      =/  test=$-([ship nest:g] ?)
+        =>  [path=path nest=nest:g ..zuse]  ~+
+        .^($-([ship nest] ?) %gx path)
+      [test (~(put by checkers) group test)]
+    =.  cor
+      ::  don't set channel default if group above it has setting
+      ?:  (~(has by area.volume) group)  cor
+      %+  adjust  [%channel nest group]
+      ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
+      `mute:a
+    $(entries t.entries)
+  ::  set any overrides from previous volume settings
+  =.  cor  (adjust [%base ~] `(~(got by old-volumes:a) base.volume))
+  =.  cor
+    =/  entries  ~(tap by chan.volume)
+    |-
+    ?~  entries  cor
+    =/  [=nest:g =level:v]  i.entries
+    =*  next  $(entries t.entries)
+    ?.  ?=(?(%chat %diary %heap) -.nest)  next
+    =/  channel  (~(get by channels) nest)
+    ?~  channel  next
+    ?~  can-read=(~(get by checkers) group.perm.u.channel)  next
+    ::  don't override previously set mute from channel migration
+    ?.  (u.can-read our.bowl nest)  next
+    =.  cor
+      %+  adjust  [%channel nest group.perm.u.channel]
+      `(~(got by old-volumes:a) level)
+    next
+  =/  entries  ~(tap by area.volume)
+  |-
+  ?~  entries  cor
+  =*  head  i.entries
+  =.  cor
+    %+  adjust  [%group -.head]
+    `(~(got by old-volumes:a) +.head)
+  $(entries t.entries)
 --

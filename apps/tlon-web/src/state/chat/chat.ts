@@ -661,8 +661,12 @@ export function useDmIsPending(ship: string) {
   return pending.includes(ship);
 }
 
-export function useMarkDmReadMutation(whom: string, thread?: MessageKey) {
-  const { mutateAsync, ...rest } = useMarkReadMutation();
+export function useMarkDmReadMutation(
+  whom: string,
+  thread?: MessageKey,
+  recursive = false
+) {
+  const { mutateAsync, ...rest } = useMarkReadMutation(recursive);
   const markDmRead = useCallback(() => {
     const whomObj = whomIsDm(whom) ? { ship: whom } : { club: whom };
     const source: Source = thread
