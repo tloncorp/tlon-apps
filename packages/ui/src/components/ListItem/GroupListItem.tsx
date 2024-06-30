@@ -1,15 +1,16 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo } from 'react';
 
 import { useCalm } from '../../contexts/calm';
-import { View, XStack } from '../../core';
-import * as utils from '../../utils';
 import { getBackgroundColor } from '../../utils/colorUtils';
 import { Badge } from '../Badge';
-import ContactName from '../ContactName';
-import { Icon } from '../Icon';
 import type { ListItemProps } from './ListItem';
 import { ListItem } from './ListItem';
+import {
+  getGroupStatus,
+  getPostTypeIcon,
+  isMuted,
+  useBoundHandler,
+} from './listItemUtils';
 
 export const GroupListItem = ({
   model,
@@ -17,148 +18,59 @@ export const GroupListItem = ({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) => {
-  const handlePress = useCallback(() => {
-    onPress?.(model);
-  }, [onPress, model]);
-
-  const handleLongPress = useCallback(() => {
-    onLongPress?.(model);
-  }, [onLongPress, model]);
-
-  return (
-    <GroupListItemContent
-      model={model}
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      {...props}
-    />
-  );
-};
-
-export default function GroupListItemContent({
-  model,
-  onPress,
-  onLongPress,
-  ...props
-}: ListItemProps<db.Group>) {
-  const countToShow = model.unread?.count ?? 0;
+  const unreadCount = model.unread?.count ?? 0;
   const { disableAvatars } = useCalm();
   // Fallback color for calm mode or unset colors
   const colors = { backgroundColor: '$secondaryBackground' };
-
-  const { isPending, statusDisplay, isErrored } = useMemo(
-    () => getDisplayInfo(model),
-    [model]
-  );
+  const title = model.title ?? model.id;
+  const iconFallbackText = model.title?.[0] ?? model.id[0];
+  const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
 
   return (
     <ListItem
       {...props}
       alignItems={isPending ? 'center' : 'stretch'}
-      onPress={() => onPress?.(model)}
-      onLongPress={() => onLongPress?.(model)}
+      onPress={useBoundHandler(model, onPress)}
+      onLongPress={useBoundHandler(model, onLongPress)}
     >
-      <View opacity={model.volumeSettings?.isMuted ? 0.2 : 1}>
-        <ListItem.Icon
-          fallbackText={model.title?.[0] ?? model.id[0]}
-          backgroundColor={getBackgroundColor({
-            disableAvatars,
-            colors,
-            model,
-          })}
-          imageUrl={
-            !disableAvatars && model.iconImage ? model.iconImage : undefined
-          }
-        />
-      </View>
+      <ListItem.Icon
+        opacity={isMuted(model) ? 0.2 : 1}
+        fallbackText={iconFallbackText}
+        backgroundColor={getBackgroundColor({
+          disableAvatars,
+          colors,
+          model,
+        })}
+        imageUrl={
+          !disableAvatars && model.iconImage ? model.iconImage : undefined
+        }
+      />
       <ListItem.MainContent>
-        <ListItem.Title
-          color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
-        >
-          {model.title ?? model.id}
+        <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
+          {title}
         </ListItem.Title>
         {model.lastPost && (
-          <XStack gap="$xs" alignItems="center">
-            <Icon
-              type={getLastMessageIcon(model.lastPost.type)}
-              color={'$tertiaryText'}
-              size={'$s'}
-            />
-            <ListItem.Subtitle color={'$tertiaryText'}>
-              {model.lastChannel}
-            </ListItem.Subtitle>
-          </XStack>
+          <ListItem.SubtitleWithIcon
+            icon={getPostTypeIcon(model.lastPost.type)}
+          >
+            {model.lastChannel}
+          </ListItem.SubtitleWithIcon>
         )}
         {!isPending && model.lastPost ? (
-          <ListItem.Subtitle color="$tertiaryText">
-            <ContactName
-              userId={model.lastPost.authorId}
-              showNickname
-              color={'$tertiaryText'}
-              size={'$s'}
-            />
-            : {model.lastPost?.textContent ?? ''}
-          </ListItem.Subtitle>
+          <ListItem.PostPreview post={model.lastPost} />
         ) : null}
       </ListItem.MainContent>
-      {statusDisplay ? (
-        <ListItem.EndContent>
-          <Badge
-            text={statusDisplay}
-            type={isErrored ? 'warning' : 'positive'}
-          />
-        </ListItem.EndContent>
-      ) : (
-        <ListItem.EndContent>
-          <ListItem.Time color="$tertiaryText" time={model.lastPostAt} />
-          <ListItem.Count
-            opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
-            muted={model.volumeSettings?.isMuted ?? false}
-          >
-            {utils.displayableUnreadCount(countToShow)}
-          </ListItem.Count>
-        </ListItem.EndContent>
-      )}
+
+      <ListItem.EndContent>
+        {statusLabel ? (
+          <Badge text={statusLabel} type={isErrored ? 'warning' : 'positive'} />
+        ) : (
+          <>
+            <ListItem.Time time={model.lastPostAt} />
+            <ListItem.Count count={unreadCount} muted={isMuted(model)} />
+          </>
+        )}
+      </ListItem.EndContent>
     </ListItem>
   );
-}
-
-function getLastMessageIcon(type: db.Post['type']) {
-  switch (type) {
-    case 'chat':
-      return 'ChannelTalk';
-    case 'block':
-      return 'ChannelGalleries';
-    case 'note':
-      return 'ChannelNotebooks';
-    default:
-      return 'Channel';
-  }
-}
-
-type DisplayInfo = {
-  statusDisplay: string;
-  isPending: boolean;
-  isErrored: boolean;
-  isNew: boolean;
 };
-
-function getDisplayInfo(group: db.Group): DisplayInfo {
-  return {
-    isPending: group.currentUserIsMember === false,
-    isErrored: group.joinStatus === 'errored',
-    isNew: group.currentUserIsMember && !!group.isNew,
-    statusDisplay:
-      group.currentUserIsMember && group.isNew
-        ? 'NEW'
-        : group.haveRequestedInvite
-          ? 'Requested'
-          : group.haveInvite
-            ? 'Invite'
-            : group.joinStatus === 'errored'
-              ? 'Errored'
-              : group.joinStatus === 'joining'
-                ? 'Joining'
-                : '',
-  };
-}

@@ -1,10 +1,11 @@
 import * as logic from '@tloncorp/shared/dist/logic';
-import React, { useCallback } from 'react';
+import React from 'react';
 
 import { Chat } from '../ChatList';
 import { ChannelListItem } from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
 import { ListItemProps } from './ListItem';
+import { useBoundHandler } from './listItemUtils';
 
 export const ChatListItem = React.memo(function ChatListItemComponent({
   model,
@@ -12,19 +13,15 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
   onLongPress,
   ...props
 }: ListItemProps<Chat>) {
-  const handlePress = useCallback(() => {
-    onPress?.(model);
-  }, [model, onPress]);
-
-  const handleLongPress = useCallback(() => {
-    onLongPress?.(model);
-  }, [model, onLongPress]);
+  const handlePress = useBoundHandler(model, onPress);
+  const handleLongPress = useBoundHandler(model, onLongPress);
 
   // if the chat list item is a group, it's pending
   if (logic.isGroup(model)) {
     return (
       <GroupListItem
         onPress={handlePress}
+        onLongPress={handleLongPress}
         model={{
           ...model,
         }}

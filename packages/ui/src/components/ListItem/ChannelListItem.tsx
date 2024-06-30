@@ -1,16 +1,16 @@
 import type * as db from '@tloncorp/shared/dist/db';
-import { ComponentProps } from 'react';
-import { ColorProp, XStack } from 'tamagui';
+import { useMemo } from 'react';
 
+import { ColorProp } from '../../types';
 import * as utils from '../../utils';
+import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
-import ContactName from '../ContactName';
-import { Icon } from '../Icon';
 import {
   ListItem,
-  ListItemIconContainer,
+  ListItemIconContainerProps,
   type ListItemProps,
 } from './ListItem';
+import { isMuted, useBoundHandler } from './listItemUtils';
 
 export function ChannelListItem({
   model,
@@ -21,80 +21,67 @@ export function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
-  const countToShow = model.unread?.count ?? 0;
+  const unreadCount = model.unread?.count ?? 0;
   const title = utils.getChannelTitle(model);
+  const firstMemberId = model.members?.[0]?.contactId?.replace('~', '') ?? '';
   const memberCount = model.members?.length ?? 0;
+
+  const { subtitle, subtitleIcon } = useMemo(() => {
+    if (model.type === 'dm' || model.type === 'groupDm') {
+      return {
+        subtitle: [
+          firstMemberId,
+          memberCount > 2 && `and ${memberCount - 1} others`,
+        ]
+          .filter((v) => !!v)
+          .join(' '),
+        subtitleIcon: 'Profile',
+      } as const;
+    } else {
+      return {
+        subtitle: capitalize(model.type),
+        subtitleIcon: utils.getChannelTypeIcon(model.type),
+      } as const;
+    }
+  }, [model, firstMemberId, memberCount]);
 
   return (
     <ListItem
       {...props}
-      onPress={() => onPress?.(model)}
-      onLongPress={() => onLongPress?.(model)}
+      onPress={useBoundHandler(model, onPress)}
+      onLongPress={useBoundHandler(model, onLongPress)}
     >
       <ChannelListItemIcon
         model={model}
         useTypeIcon={useTypeIcon}
-        opacity={model.volumeSettings?.isMuted ? 0.2 : 1}
+        opacity={isMuted(model) ? 0.2 : 1}
       />
       <ListItem.MainContent>
-        <ListItem.Title
-          color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
-        >
+        <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
           {title}
         </ListItem.Title>
-        {model.type === 'dm' || model.type === 'groupDm' ? (
-          <XStack gap="$xs" alignItems="center">
-            <Icon
-              type={'Profile'}
-              color={'$tertiaryText'}
-              size={'$s'}
-              marginTop={0.5}
-            />
-
-            <ListItem.Subtitle color={'$tertiaryText'}>
-              {model.members?.[0]?.contactId?.replace('~', '') ?? null}{' '}
-              {memberCount > 2 ? 'and ' + (memberCount - 1) + ' others' : null}
-            </ListItem.Subtitle>
-          </XStack>
-        ) : null}
-
+        <ListItem.SubtitleWithIcon icon={subtitleIcon}>
+          {subtitle}
+        </ListItem.SubtitleWithIcon>
         {model.lastPost && (
-          <ListItem.Subtitle color="$tertiaryText">
-            {model.type !== 'dm' ? (
-              <>
-                <ContactName
-                  showNickname
-                  userId={model.lastPost.authorId}
-                  size="$s"
-                  color="$tertiaryText"
-                />
-                :{' '}
-              </>
-            ) : null}
-            {model.lastPost.textContent ?? ''}
-          </ListItem.Subtitle>
+          <ListItem.PostPreview
+            post={model.lastPost}
+            showAuthor={model.type !== 'dm'}
+          />
         )}
       </ListItem.MainContent>
-      {model.isDmInvite ? (
-        <ListItem.EndContent justifyContent="center">
+
+      <ListItem.EndContent>
+        {model.lastPost?.receivedAt ? (
+          <ListItem.Time time={model.lastPost.receivedAt} />
+        ) : null}
+
+        {model.isDmInvite ? (
           <Badge text="Invite" />
-        </ListItem.EndContent>
-      ) : (
-        <ListItem.EndContent>
-          {model.lastPost && (
-            <ListItem.Time
-              color="$tertiaryText"
-              time={model.lastPost.receivedAt}
-            />
-          )}
-          <ListItem.Count
-            opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
-            muted={model.volumeSettings?.isMuted ?? false}
-          >
-            {utils.displayableUnreadCount(countToShow)}
-          </ListItem.Count>
-        </ListItem.EndContent>
-      )}
+        ) : (
+          <ListItem.Count count={unreadCount} muted={isMuted(model)} />
+        )}
+      </ListItem.EndContent>
     </ListItem>
   );
 }
@@ -106,7 +93,7 @@ function ChannelListItemIcon({
 }: {
   model: db.Channel;
   useTypeIcon?: boolean;
-} & ComponentProps<typeof ListItemIconContainer>) {
+} & ListItemIconContainerProps) {
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
@@ -120,7 +107,7 @@ function ChannelListItemIcon({
   } else if (model.type === 'dm') {
     return (
       <ListItem.AvatarIcon
-        backgroundColor={'$transparent'}
+        backgroundColor={'transparent'}
         contact={model.members?.[0]?.contact}
         contactId={model.members?.[0]?.contactId ?? model.id}
         {...props}
