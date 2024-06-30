@@ -14,13 +14,11 @@ import {
 } from 'react-native';
 
 import { useStyle } from '../core';
-import ChannelListItem from './ChannelListItem';
-import { GroupListItem } from './GroupListItem';
-import { ListItemProps } from './ListItem';
+import { ChannelListItem, GroupListItem, ListItemProps } from './ListItem';
+import { SwipableChatRow } from './ListItem/SwipableChatListItem';
 import { SectionListHeader } from './SectionList';
-import { SwipableChatRow } from './SwipableChatListItem';
 
-type ListItem = db.Channel | db.Group;
+export type Chat = db.Channel | db.Group;
 
 export function ChatList({
   pinned,
@@ -30,8 +28,8 @@ export function ChatList({
   onPressItem,
   onSectionChange,
 }: store.CurrentChats & {
-  onPressItem?: (chat: ListItem) => void;
-  onLongPressItem?: (chat: ListItem) => void;
+  onPressItem?: (chat: Chat) => void;
+  onLongPressItem?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
 }) {
   const data = useMemo(() => {
@@ -54,7 +52,7 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
+    ({ item }: SectionListRenderItemInfo<Chat, { title: string }>) => {
       return (
         <ChatListItem
           model={item}
@@ -67,11 +65,7 @@ export function ChatList({
   );
 
   const renderSectionHeader = useCallback(
-    ({
-      section,
-    }: {
-      section: SectionListData<ListItem, { title: string }>;
-    }) => {
+    ({ section }: { section: SectionListData<Chat, { title: string }> }) => {
       return (
         <SectionListHeader>
           <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
@@ -116,7 +110,7 @@ export function ChatList({
     }
   ).current;
 
-  const getChannelKey = useCallback((item: ListItem) => {
+  const getChannelKey = useCallback((item: Chat) => {
     if (!item || typeof item !== 'object' || !item.id) {
       return 'invalid-item';
     }
@@ -146,7 +140,7 @@ export function ChatList({
 }
 
 const ChatListItem = React.memo(function ChatListItemComponent(
-  props: ListItemProps<ListItem>
+  props: ListItemProps<Chat>
 ) {
   return logic.isChannel(props.model) ? (
     <SwipableChatRow model={props.model}>
@@ -162,7 +156,7 @@ const ChatListItemContent = React.memo(function ChatListItemContentComponent({
   onPress,
   onLongPress,
   ...props
-}: ListItemProps<ListItem>) {
+}: ListItemProps<Chat>) {
   const handlePress = useCallback(() => {
     onPress?.(model);
   }, [model, onPress]);

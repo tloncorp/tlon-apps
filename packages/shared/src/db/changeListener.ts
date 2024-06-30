@@ -40,4 +40,11 @@ export function handleChange({
       queryKey: ['post', row.post_id],
     });
   }
+
+  // Same for changes to that post's thread unread
+  if (table === 'thread_unreads' && row) {
+    queryClient.refetchQueries({
+      queryKey: ['post', row.thread_id],
+    });
+  }
 }

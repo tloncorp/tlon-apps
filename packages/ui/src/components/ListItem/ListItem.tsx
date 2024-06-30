@@ -8,9 +8,17 @@ import {
 } from 'react';
 import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
 
-import { Image, SizableText, Stack, Text, View, XStack, YStack } from '../core';
-import { Avatar, AvatarSize } from './Avatar';
-import { Icon, IconType } from './Icon';
+import {
+  Image,
+  SizableText,
+  Stack,
+  Text,
+  View,
+  XStack,
+  YStack,
+} from '../../core';
+import { Avatar, AvatarSize } from '../Avatar';
+import { Icon, IconType } from '../Icon';
 
 export interface BaseListItemProps<T> {
   model: T;

@@ -10,9 +10,9 @@ import {
   ListItem,
   ListItemIconContainer,
   type ListItemProps,
-} from '../ListItem';
+} from './ListItem';
 
-export default function ChannelListItem({
+export function ChannelListItem({
   model,
   useTypeIcon,
   onPress,

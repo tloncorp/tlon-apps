@@ -13,4 +13,4 @@ export * from './initApi';
 export * from './upload';
 export * from './settingsApi';
 export * from './activityApi';
-export { getCanonicalPostId } from './apiUtils';
+export * from './harkApi';

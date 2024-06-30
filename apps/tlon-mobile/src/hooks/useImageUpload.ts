@@ -84,10 +84,6 @@ export function useImageUpload(props: UploadParams): UploadInfo {
         width: mostRecentFile.size[1],
       };
       setUploadedImage(uploadedImage);
-
-      if (mostRecentFile.status === 'success' && mostRecentFile.url !== '') {
-        uploader?.clear();
-      }
     }
   }, [mostRecentFile, uploader]);
 
