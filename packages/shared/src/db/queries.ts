@@ -296,7 +296,7 @@ export const getChats = createReadQuery(
       .orderBy(
         ascNullsLast($pins.index),
         sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
-        sql`COALESCE(${allChannels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC`
+        sql`COALESCE(${$channelUnreads.updatedAt}, ${allChannels.lastPostAt}) DESC`
       );
 
     const [chatMembers, filteredChannels] = result.reduce<
@@ -1601,23 +1601,27 @@ export const getChannelPosts = createReadQuery(
         .as('posts');
 
       // Get the row number of the cursor post
-      const cursorRow = await ctx.db
+      const position = await ctx.db
         .select({
-          id: $windowQuery.id,
-          rowNumber: $windowQuery.rowNumber,
+          // finds the highest row number for posts with IDs less than or equal to the cursor.
+          // If the cursor posts, exists, it will be the row number of that post.
+          index:
+            sql`coalesce(max(case when ${$windowQuery.id} <= ${cursor} then ${$windowQuery.rowNumber} end), 0)`
+              .mapWith(Number)
+              .as('index'),
         })
         .from($windowQuery)
-        .where(eq($windowQuery.id, cursor));
+        .get();
 
-      if (cursorRow.length === 0) {
+      if (!position) {
         return [];
       }
 
       // Calculate min and max rows
       const itemsBefore = Math.floor((count - 1) / 2);
       const itemsAfter = Math.ceil((count - 1) / 2);
-      const startRow = cursorRow[0].rowNumber - itemsBefore;
-      const endRow = cursorRow[0].rowNumber + itemsAfter;
+      const startRow = position.index - itemsBefore;
+      const endRow = position.index + itemsAfter;
 
       // Actually grab posts
       return await ctx.db.query.posts.findMany({
@@ -2090,6 +2094,19 @@ export const getPost = createReadQuery(
       .select()
       .from($posts)
       .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByBackendTime = createReadQuery(
+  'getPostByBackendTime',
+  async ({ backendTime }: { backendTime: string }, ctx: QueryCtx) => {
+    const postData = await ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.backendTime, backendTime));
     if (!postData.length) return null;
     return postData[0];
   },

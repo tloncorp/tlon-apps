@@ -13,7 +13,7 @@ const logger = createDevLogger('activityApi', false);
 export async function getUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/activity',
+    path: '/v1/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
@@ -675,13 +675,9 @@ export const toGroupUnread = (
   groupId: string,
   summary: ub.ActivitySummary
 ): db.GroupUnread => {
-  const count = Object.values(summary.children ?? {}).reduce((acc, entry) => {
-    const childCount = entry.unread?.count ?? 0;
-    return acc + childCount;
-  }, 0);
   return {
     groupId,
-    count,
+    count: summary.count,
     notify: summary.notify,
     updatedAt: summary.recency,
   };

@@ -222,6 +222,7 @@ function Scroller({
   );
 
   const userHasScrolledRef = useRef(false);
+  const renderedPostsRef = useRef(new Set());
   // Whether we've scrolled to the anchor post.
   const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
 
@@ -231,10 +232,8 @@ function Scroller({
   // true, revealing the Scroller.
   const handleItemLayout = useCallback(
     (post: db.Post, index: number) => {
+      renderedPostsRef.current.add(post.id);
       if (anchor?.postId === post.id) {
-        if (!hasFoundAnchor) {
-          setHasFoundAnchor(true);
-        }
         // This gets called every time the anchor post changes size. If the user hasn't
         // scrolled yet, we should still be locked to the anchor post, so this
         // will re-scroll on subsequent layouts as well as the first.
@@ -253,8 +252,18 @@ function Scroller({
           });
         }
       }
+      if (
+        !hasFoundAnchor &&
+        (anchor?.postId === post.id ||
+          // if we've got at least a page of posts and we've rendered them all,
+          // reveal the scroller to prevent getting stuck when messages are
+          // deleted.
+          (posts?.length && renderedPostsRef.current.size >= posts?.length))
+      ) {
+        setHasFoundAnchor(true);
+      }
     },
-    [anchor, hasFoundAnchor, channelType, firstUnreadId]
+    [anchor, hasFoundAnchor, channelType, firstUnreadId, posts?.length]
   );
 
   const theme = useTheme();
@@ -452,13 +461,15 @@ function Scroller({
           onScrollToIndexFailed={handleScrollToIndexFailed}
           inverted={inverted}
           initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={10}
           maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
           numColumns={channelType === 'gallery' ? 2 : 1}
           style={style}
           onEndReached={handleEndReached}
-          onEndReachedThreshold={2}
+          onEndReachedThreshold={0.25}
           onStartReached={handleStartReached}
-          onStartReachedThreshold={2}
+          onStartReachedThreshold={0.25}
           onScroll={handleScroll}
         />
       )}
@@ -491,7 +502,7 @@ function getPostId(post: db.Post) {
   return post.id;
 }
 
-const ScrollerItem = ({
+const BaseScrollerItem = ({
   item,
   index,
   showUnreadDivider,
@@ -591,31 +602,34 @@ const ScrollerItem = ({
   );
 };
 
-const PressableMessage = forwardRef<
-  RNView,
-  PropsWithChildren<{ isActive: boolean }>
->(function PressableMessageComponent({ isActive, children }, ref) {
-  return isActive ? (
-    // need the extra React Native View for ref measurement
-    <MotiView
-      animate={{
-        scale: 0.95,
-      }}
-      transition={{
-        scale: {
-          type: 'timing',
-          duration: 50,
-        },
-      }}
-    >
-      <RNView ref={ref}>{children}</RNView>
-    </MotiView>
-  ) : (
-    // this fragment is necessary to avoid the TS error about not being able to
-    // return undefined
-    <>{children}</>
-  );
-});
+const ScrollerItem = React.memo(BaseScrollerItem);
+
+const PressableMessage = React.memo(
+  forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(
+    function PressableMessageComponent({ isActive, children }, ref) {
+      return isActive ? (
+        // need the extra React Native View for ref measurement
+        <MotiView
+          animate={{
+            scale: 0.95,
+          }}
+          transition={{
+            scale: {
+              type: 'timing',
+              duration: 50,
+            },
+          }}
+        >
+          <RNView ref={ref}>{children}</RNView>
+        </MotiView>
+      ) : (
+        // this fragment is necessary to avoid the TS error about not being able to
+        // return undefined
+        <>{children}</>
+      );
+    }
+  )
+);
 
 const UnreadsButton = ({ onPress }: { onPress: () => void }) => {
   return (

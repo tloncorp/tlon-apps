@@ -9,7 +9,12 @@ import ShipName from '../components/ShipName';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import GroupAvatar from '../groups/GroupAvatar';
 import useMedia, { useIsMobile } from '../logic/useMedia';
-import { nestToFlag, whomIsBroadcast, whomIsDm, whomIsMultiDm } from '../logic/utils';
+import {
+  nestToFlag,
+  whomIsBroadcast,
+  whomIsDm,
+  whomIsMultiDm,
+} from '../logic/utils';
 import { useMultiDm } from '../state/chat';
 import { useGroup, useGroupChannel, useGroups } from '../state/groups/groups';
 import BroadcastOptions from './BroadcastOptions';

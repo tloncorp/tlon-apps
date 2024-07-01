@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo } from 'react';
 
 import { SizableText, YStack } from '../core';
-import ChannelListItem from './ChannelListItem';
+import { ChannelListItem } from './ListItem';
 
 export default function ChannelNavSection({
   section,

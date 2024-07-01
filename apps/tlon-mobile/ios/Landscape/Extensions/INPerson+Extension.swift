@@ -49,17 +49,19 @@ extension INPerson {
             if image == nil, let ship = Sigil.Ship(rawValue: shipName) {
                 let imageSize = CGSize(width: 512, height: 512)
                 let sigilSize = CGSize(width: imageSize.width / 2, height: imageSize.height / 2)
-                let sigil = Sigil(
-                    ship: ship,
-                    color: backgroundColor.contrastedForegroundColor
-                )
-                let sigilImage = sigil.image(with: sigilSize)
+                // TODO: Prevent this from blowing up
+                // let sigil = Sigil(
+                // ship: ship,
+                // color: backgroundColor.contrastedForegroundColor
+                // )
+                // let sigilImage = sigil.image(with: sigilSize)
                 UIGraphicsBeginImageContextWithOptions(imageSize, false, 1)
                 if let ctx = UIGraphicsGetCurrentContext() {
                     defer { UIGraphicsEndImageContext() }
                     ctx.setFillColor(backgroundColor.cgColor)
                     ctx.fill(CGRect(origin: .zero, size: imageSize))
-                    sigilImage.draw(at: CGPoint(x: (imageSize.width - sigilSize.width) / 2, y: (imageSize.height - sigilSize.height) / 2))
+                    // TODO: Prevent this from blowing up
+                    // sigilImage.draw(at: CGPoint(x: (imageSize.width - sigilSize.width) / 2, y: (imageSize.height - sigilSize.height) / 2))
                     if let imageData = UIGraphicsGetImageFromCurrentImageContext()?.pngData() {
                         image = INImage(imageData: imageData)
                     }

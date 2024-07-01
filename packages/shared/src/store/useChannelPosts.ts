@@ -8,7 +8,11 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
+import {
+  useDebouncedValue,
+  useLiveRef,
+  useOptimizedQueryResults,
+} from '../logic/utilHooks';
 import { queryClient } from './reactQuery';
 import * as sync from './sync';
 
@@ -22,6 +26,7 @@ type SubscriptionPost = [db.Post, string | undefined];
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
+  hasCachedNewest?: boolean;
 };
 
 export const clearChannelPostsQueries = () => {
@@ -50,13 +55,19 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
+      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
+        await sync.syncPosts(queryOptions);
+      }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
         return cached;
       }
       postsLogger.log('no posts found in database, loading from api...');
-      const res = await sync.syncPosts(queryOptions);
+      const res = await sync.syncPosts({
+        ...queryOptions,
+        count: options.count ?? 50,
+      });
       postsLogger.log('loaded', res.posts?.length, 'posts from api');
       const secondResult = await db.getChannelPosts(queryOptions);
       postsLogger.log(
@@ -99,7 +110,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       _firstPageParam
     ): UseChannelPostsPageParams | undefined => {
       const firstPageIsEmpty = !firstPage[0]?.id;
-      if (firstPageIsEmpty) {
+      if (firstPageIsEmpty || options.hasCachedNewest) {
         return undefined;
       }
       return {
@@ -124,11 +135,13 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
 
   useAddNewPostsToQuery(queryKey, query);
 
-  const isLoading =
+  const isLoading = useDebouncedValue(
     query.isPending ||
-    query.isPaused ||
-    query.isFetchingNextPage ||
-    query.isFetchingPreviousPage;
+      query.isPaused ||
+      query.isFetchingNextPage ||
+      query.isFetchingPreviousPage,
+    100
+  );
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 

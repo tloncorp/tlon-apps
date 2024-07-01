@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
 
 import { SizableText, SizeTokens, View, XStack } from '../core';
-import { Avatar } from './Avatar';
+import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { ProfileSheet } from './ProfileSheet';
 
@@ -51,7 +51,7 @@ export default function AuthorRow({
   if (detailView) {
     return (
       <XStack onPress={() => setShowProfile(true)} gap="$s" alignItems="center">
-        <Avatar size="$2xl" contact={author} contactId={authorId} />
+        <ContactAvatar size="$2xl" contactId={authorId} />
         <ContactName width="100%" showNickname userId={authorId} />
         {showProfile && author && (
           <ProfileSheet
@@ -68,7 +68,7 @@ export default function AuthorRow({
   if (type === 'chat' || type === 'reply') {
     return (
       <XStack onPress={() => setShowProfile(true)} gap="$l" alignItems="center">
-        <Avatar size="$2xl" contact={author} contactId={authorId} />
+        <ContactAvatar size="$2xl" contactId={authorId} />
         <ContactName showNickname userId={authorId} fontWeight="500" />
         <SizableText
           color="$secondaryText"
@@ -102,7 +102,7 @@ export default function AuthorRow({
         justifyContent="space-between"
       >
         <XStack gap="$s" alignItems="center">
-          <Avatar size="$2xl" contact={author} contactId={authorId} />
+          <ContactAvatar size="$2xl" contactId={authorId} />
         </XStack>
       </XStack>
     );
@@ -111,7 +111,7 @@ export default function AuthorRow({
   if (type === 'note') {
     return (
       <XStack onPress={() => setShowProfile(true)} gap="$s" alignItems="center">
-        <Avatar size="$2xl" contact={author} contactId={authorId} />
+        <ContactAvatar size="$2xl" contactId={authorId} />
         <ContactName width="100%" showNickname userId={authorId} />
         {showProfile && author && (
           <ProfileSheet

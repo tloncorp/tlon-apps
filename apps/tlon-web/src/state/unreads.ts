@@ -193,6 +193,11 @@ export const emptyUnread = (): Unread => ({
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   recency: 0,
   status: 'read',

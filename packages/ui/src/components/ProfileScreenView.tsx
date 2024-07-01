@@ -242,15 +242,16 @@ function ProfileAction({
 }) {
   return (
     <ListItem onPress={onPress}>
-      <ListItem.Icon
-        icon={icon}
-        backgroundColor="$secondaryBackground"
-        rounded
-      />
+      <ListItem.SystemIcon icon={icon} rounded />
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
       </ListItem.MainContent>
-      {!hideCaret && <ListItem.Icon icon="ChevronRight" />}
+      {!hideCaret && (
+        <ListItem.SystemIcon
+          icon="ChevronRight"
+          backgroundColor={'transparent'}
+        />
+      )}
     </ListItem>
   );
 }

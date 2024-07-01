@@ -1210,10 +1210,9 @@
       =?  recency.remark.channel  ?=(^ post.u-post)
         (max recency.remark.channel id-post)
       =?  ca-core  ?&  ?=(^ post.u-post)
-                       |(?=(~ post) (gth rev.u.post.u-post rev.u.u.post))
+                       ?=(~ post)
                    ==
-        ::REVIEW  this might re-submit on edits. is that what we want?
-        ::        it looks like %activity inserts even if it's a duplicate.
+        ::  we don't send an activity event for edits or deletes
         (on-post:ca-activity u.post.u-post)
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)

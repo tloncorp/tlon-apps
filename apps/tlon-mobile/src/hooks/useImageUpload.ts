@@ -37,6 +37,17 @@ export function useImageUpload(props: UploadParams): UploadInfo {
   }, [uploader]);
 
   useEffect(() => {
+    // if the most recent file is null, but we have an uploaded image, it means
+    // that the image was successfully uploaded and we should reset the state
+    // This is a bit of a hack to get around the fact that
+    // some race condition can cause the uploadedImage to stick around after
+    // resetImageAttachment is called from a consumer of the hook
+    if (mostRecentFile === null && uploadedImage !== null) {
+      resetImageAttachment();
+    }
+  }, [mostRecentFile, uploadedImage, resetImageAttachment]);
+
+  useEffect(() => {
     const getResizedImage = async (uri: string) => {
       const manipulated = await resizeImage(uri);
       if (manipulated) {

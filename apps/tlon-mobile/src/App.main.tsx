@@ -2,6 +2,7 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
+import perf from '@react-native-firebase/perf';
 import {
   DarkTheme,
   DefaultTheme,

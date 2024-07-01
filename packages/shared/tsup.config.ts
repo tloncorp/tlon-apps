@@ -20,6 +20,7 @@ export default defineConfig({
     '@aws-sdk/client-s3',
     '@aws-sdk/s3-request-presigner',
     '@react-native-firebase/crashlytics',
+    '@react-native-firebase/perf',
   ],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {
