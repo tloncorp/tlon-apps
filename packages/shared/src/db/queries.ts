@@ -402,6 +402,7 @@ export const insertGroups = createWriteQuery(
             .values(
               group.navSections.map((s) => ({
                 id: s.id,
+                sectionId: s.sectionId,
                 groupId: group.id,
                 title: s.title,
                 description: s.description,
@@ -1256,7 +1257,8 @@ export const addNavSectionToGroup = createWriteQuery(
     return ctx.db
       .insert($groupNavSections)
       .values({
-        id,
+        id: `${groupId}-${id}`,
+        sectionId: id,
         title: meta.title,
         description: meta.description,
         iconImage: meta.iconImage,

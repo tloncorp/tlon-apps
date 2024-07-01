@@ -51,15 +51,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     }));
   }, [groupNavSections, groupChannels]);
 
-  const channelsWithoutNavSection = useMemo(() => {
-    return groupChannels.filter(
-      (channel) =>
-        !groupNavSections.some((section) =>
-          section.channels.map((c) => c.channelId).includes(channel.id)
-        )
-    );
-  }, [groupChannels, groupNavSections]);
-
   const setGroupMetadata = useCallback(
     async (metadata: db.ClientMeta) => {
       if (group) {
@@ -298,7 +289,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     groupChannels,
     groupNavSections,
     groupNavSectionsWithChannels,
-    channelsWithoutNavSection,
     currentUserId,
     currentUserIsAdmin,
     setGroupMetadata,

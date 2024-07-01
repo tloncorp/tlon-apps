@@ -307,7 +307,9 @@ export async function addChannelToNavSection({
   const existingGroup = await db.getGroup({ id: group.id });
 
   const navSections = group.navSections ?? [];
-  const navSection = navSections.find((section) => section.id === navSectionId);
+  const navSection = navSections.find(
+    (section) => section.sectionId === navSectionId
+  );
 
   if (!navSection && navSectionId !== 'default') {
     console.error('Nav section not found', navSectionId);
@@ -315,7 +317,7 @@ export async function addChannelToNavSection({
   }
 
   const newNavSections = navSections.map((section) => {
-    if (section.id !== navSectionId) {
+    if (section.sectionId !== navSectionId) {
       return section;
     }
 
@@ -372,7 +374,9 @@ export async function moveChannel({
   const existingGroup = await db.getGroup({ id: group.id });
 
   const navSections = group.navSections ?? [];
-  const navSection = navSections.find((section) => section.id === navSectionId);
+  const navSection = navSections.find(
+    (section) => section.sectionId === navSectionId
+  );
 
   if (!navSection && navSectionId !== 'default') {
     console.error('Nav section not found', navSectionId);
@@ -380,7 +384,7 @@ export async function moveChannel({
   }
 
   const newNavSections = navSections.map((section) => {
-    if (section.id !== navSectionId) {
+    if (section.sectionId !== navSectionId) {
       return section;
     }
 

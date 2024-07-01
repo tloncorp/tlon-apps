@@ -13,7 +13,6 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
   const { groupId } = props.route.params;
 
   const {
-    channelsWithoutNavSection,
     groupNavSectionsWithChannels,
     moveNavSection,
     createChannel,
@@ -31,7 +30,6 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
     <ManageChannelsScreenView
       goBack={props.navigation.goBack}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
-      channelsWithoutNavSection={channelsWithoutNavSection}
       moveNavSection={moveNavSection}
       createChannel={createChannel}
       updateChannel={updateChannel}

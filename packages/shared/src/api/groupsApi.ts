@@ -1109,7 +1109,8 @@ export function toClientGroup(
           return;
         }
         const data: db.GroupNavSection = {
-          id: zoneId,
+          id: `${id}-${zoneId}`,
+          sectionId: zoneId,
           groupId: id,
           ...toClientMeta(zone.meta),
           index: i,
@@ -1117,7 +1118,7 @@ export function toClientGroup(
             const data: db.GroupNavSectionChannel = {
               index: ci,
               channelId: channelId,
-              groupNavSectionId: zoneId,
+              groupNavSectionId: `${id}-${zoneId}`,
             };
             return data;
           }),

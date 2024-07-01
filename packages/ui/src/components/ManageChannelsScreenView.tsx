@@ -134,7 +134,6 @@ type GroupNavSectionWithChannels = Omit<db.GroupNavSection, 'channels'> & {
 
 export function ManageChannelsScreenView({
   groupNavSectionsWithChannels,
-  channelsWithoutNavSection,
   goBack,
   moveNavSection,
   createChannel,
@@ -149,7 +148,6 @@ export function ManageChannelsScreenView({
 }: {
   goBack: () => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
-  channelsWithoutNavSection: db.Channel[];
   moveNavSection: (navSectionId: string, newIndex: number) => Promise<void>;
   createChannel: (channel: db.Channel) => void;
   updateChannel: (channel: db.Channel) => void;
@@ -168,27 +166,16 @@ export function ManageChannelsScreenView({
   deleteNavSection: (navSectionId: string) => void;
   updateNavSection: (navSection: db.GroupNavSection) => void;
 }) {
-  const [sections, setSections] = useState<Section[]>(() => {
-    const defaultSection: Section = {
-      id: 'default',
-      title: 'Default',
-      channels: channelsWithoutNavSection.map((c) => ({
-        id: c.id,
-        title: c.title ?? 'Untitled Channel',
-      })),
-    };
-
-    const otherSections: Section[] = groupNavSectionsWithChannels.map((s) => ({
-      id: s.id,
+  const [sections, setSections] = useState<Section[]>(() =>
+    groupNavSectionsWithChannels.map((s) => ({
+      id: s.sectionId,
       title: s.title ?? 'Untitled Section',
       channels: s.channels.map((c) => ({
         id: c.id,
         title: c.title ?? 'Untitled Channel',
       })),
-    }));
-
-    return [defaultSection, ...otherSections];
-  });
+    }))
+  );
 
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const draggedItemY = useSharedValue(0);

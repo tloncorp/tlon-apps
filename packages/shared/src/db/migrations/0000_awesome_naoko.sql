@@ -136,6 +136,7 @@ CREATE TABLE `group_nav_section_channels` (
 --> statement-breakpoint
 CREATE TABLE `group_nav_sections` (
 	`id` text PRIMARY KEY NOT NULL,
+	`section_id` text NOT NULL,
 	`group_id` text,
 	`icon_image` text,
 	`icon_image_color` text,
