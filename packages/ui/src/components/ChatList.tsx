@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { useStyle } from '../core';
-import { ChatListItem } from './ListItem';
+import { ChatListItem, SwipableChatListItem } from './ListItem';
 import { SectionListHeader } from './SectionList';
 
 export type Chat = db.Channel | db.Group;
@@ -52,12 +52,17 @@ export function ChatList({
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<Chat, { title: string }>) => {
-      return (
+      const baseListItem = (
         <ChatListItem
           model={item}
           onPress={onPressItem}
           onLongPress={onLongPressItem}
         />
+      );
+      return logic.isChannel(item) ? (
+        <SwipableChatListItem model={item}>{baseListItem}</SwipableChatListItem>
+      ) : (
+        baseListItem
       );
     },
     [onPressItem, onLongPressItem]

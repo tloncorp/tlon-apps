@@ -108,7 +108,7 @@ function BaseSwipableChatRow({
   );
 }
 
-export const SwipableChatRow = React.memo(BaseSwipableChatRow);
+export const SwipableChatListItem = React.memo(BaseSwipableChatRow);
 
 function BaseLeftActions({
   model,
