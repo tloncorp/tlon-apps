@@ -1,6 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
@@ -45,7 +44,7 @@ export const useChannelContext = ({
 
   useEffect(() => {
     if (channelQuery.data?.groupId) {
-      sync.syncGroup(channelQuery.data?.groupId);
+      store.syncGroup(channelQuery.data?.groupId, store.SyncPriority.Low);
     }
   }, [channelQuery.data?.groupId]);
 

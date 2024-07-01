@@ -27,7 +27,7 @@ export async function createGroup({
       currentUserId,
     });
 
-    await sync.syncNewGroup(groupId);
+    await sync.syncGroup(groupId);
     await sync.syncUnreads(); // ensure current user gets registered as a member of the channel
     const group = await db.getGroup({ id: groupId });
 

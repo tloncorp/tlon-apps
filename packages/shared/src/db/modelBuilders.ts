@@ -47,6 +47,7 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
     reactions: [],
     replies: [],
     hidden: false,
+    syncedAt: 0,
   };
 
   return post;
@@ -101,6 +102,7 @@ export function buildPendingPost({
     hidden: false,
     parentId,
     deliveryStatus,
+    syncedAt: Date.now(),
     ...postFlags,
   };
 }

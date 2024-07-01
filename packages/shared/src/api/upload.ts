@@ -190,7 +190,7 @@ export interface StorageState {
     credentials: StorageCredentials | null;
   };
   [ref: string]: unknown;
-  start: () => void;
+  start: () => Promise<void>;
   getCredentials: () => Promise<StorageCredentials> | undefined;
   getConfiguration: () => Promise<StorageConfiguration> | undefined;
   set: SetState<StorageState>;

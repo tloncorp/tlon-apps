@@ -1763,7 +1763,7 @@ export const insertChannelPosts = createWriteQuery(
       }
     });
   },
-  ['posts', 'channels', 'groups', 'postWindows']
+  ['posts', 'postWindows']
 );
 
 export const insertLatestPosts = createWriteQuery(
