@@ -36,5 +36,7 @@ test('single post responses', async () => {
       rawGroupDmPostWithRepliesData,
   };
   const result = toPostsData('testChannelId', postsData as unknown as Posts);
-  expect(result).toMatchSnapshot();
+  expect(
+    result.posts.map(({ syncedAt: _syncedAt, ...post }) => post)
+  ).toMatchSnapshot();
 });
