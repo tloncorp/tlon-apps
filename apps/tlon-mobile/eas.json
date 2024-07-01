@@ -14,7 +14,7 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "preview",
-        "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
+        "NOTIFY_PROVIDER": "rivfur-livmet",
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
       "android": {
