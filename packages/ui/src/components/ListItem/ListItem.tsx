@@ -1,23 +1,17 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import {
-  ComponentProps,
-  PropsWithChildren,
-  ReactElement,
-  useMemo,
-} from 'react';
-import { ColorProp, SizeTokens, styled, withStaticProperties } from 'tamagui';
+import { ComponentProps, ReactElement, useMemo } from 'react';
+import { styled, withStaticProperties } from 'tamagui';
 
+import { SizableText, Stack, View, XStack, YStack } from '../../core';
+import { numberWithMax } from '../../utils';
 import {
-  Image,
-  SizableText,
-  Stack,
-  Text,
-  View,
-  XStack,
-  YStack,
-} from '../../core';
-import { Avatar, AvatarSize } from '../Avatar';
+  ChannelAvatar,
+  ContactAvatar,
+  GroupAvatar,
+  SystemIconAvatar,
+} from '../Avatar';
+import ContactName from '../ContactName';
 import { Icon, IconType } from '../Icon';
 
 export interface BaseListItemProps<T> {
@@ -57,173 +51,33 @@ export const ListItemFrame = styled(XStack, {
   },
 });
 
-function ListItemIcon({
-  imageUrl,
-  icon,
-  rounded,
-  contactId,
-  contact,
-  backgroundColor,
-  fallbackText,
-}: {
-  imageUrl?: string;
-  icon?: IconType;
-  contactId?: string | null;
-  contact?: db.Contact | null;
-  backgroundColor?: ColorProp;
-  rounded?: boolean;
-  /**
-   * Text to display when there's no image set. Should be a single character.
-   */
-  fallbackText?: string;
-}) {
-  if (imageUrl) {
-    return (
-      <ListItemImageIcon
-        imageUrl={imageUrl}
-        backgroundColor={backgroundColor}
-      />
-    );
-  } else if (icon) {
-    return (
-      <ListItemTypeIcon
-        icon={icon}
-        backgroundColor={backgroundColor}
-        rounded={rounded}
-      />
-    );
-  } else if (contactId) {
-    return (
-      <ListItemAvatarIcon
-        contactId={contactId}
-        contact={contact ?? undefined}
-        backgroundColor={backgroundColor}
-      />
-    );
-  } else {
-    return (
-      <ListItemTextIcon
-        backgroundColor={backgroundColor}
-        fallbackText={fallbackText ?? ''}
-      />
-    );
-  }
-}
+const ListItemIconContainer = styled(View, {
+  backgroundColor: '$secondaryBackground',
+  width: '$4xl',
+  height: '$4xl',
+  borderRadius: '$s',
+  overflow: 'hidden',
+  flex: 0,
+  variants: {
+    rounded: {
+      true: {
+        borderRadius: '$2xl',
+      },
+    },
+  } as const,
+});
 
-const ListItemImageIcon = ({
-  imageUrl,
-  backgroundColor,
-}: {
-  imageUrl: string;
-  backgroundColor?: ColorProp;
-}) => {
-  return (
-    <ListItemIconContainer backgroundColor={backgroundColor}>
-      <Image
-        width={'100%'}
-        height={'100%'}
-        contentFit="cover"
-        source={{
-          uri: imageUrl,
-        }}
-      />
-    </ListItemIconContainer>
-  );
-};
+export type ListItemIconContainerProps = ComponentProps<
+  typeof ListItemIconContainer
+>;
 
-const ListItemTextIcon = ({
-  fallbackText,
-  backgroundColor,
-  rounded,
-}: {
-  fallbackText: string;
-  backgroundColor?: ColorProp;
-  rounded?: boolean;
-}) => {
-  return (
-    <ListItemIconContainer backgroundColor={backgroundColor} rounded={rounded}>
-      <View flex={1} alignItems="center" justifyContent="center">
-        <Text fontSize={16} color="$primaryText">
-          {fallbackText.slice(0, 1).toUpperCase()}
-        </Text>
-      </View>
-    </ListItemIconContainer>
-  );
-};
+const ListItemGroupIcon = GroupAvatar;
 
-const ListItemAvatarIcon = ({
-  backgroundColor,
-  contact,
-  contactId,
-  rounded = false,
-  size = '$4xl',
-  ...props
-}: {
-  backgroundColor?: ColorProp;
-  contact?: db.Contact | null;
-  contactId: string;
-  rounded?: boolean;
-  size?: AvatarSize;
-} & ComponentProps<typeof ListItemIconContainer>) => {
-  return (
-    <ListItemIconContainer {...props} backgroundColor={backgroundColor}>
-      <Avatar
-        rounded={rounded}
-        size={size}
-        contactId={contactId}
-        contact={contact}
-      />
-    </ListItemIconContainer>
-  );
-};
+const ListItemChannelIcon = ChannelAvatar;
 
-const ListItemTypeIcon = ({
-  icon,
-  backgroundColor,
-  rounded,
-}: {
-  icon?: IconType;
-  backgroundColor?: ColorProp;
-  rounded?: boolean;
-}) => {
-  return (
-    <ListItemIconContainer
-      backgroundColor={backgroundColor ?? 'transparent'}
-      rounded={rounded}
-    >
-      <Icon type={icon || 'Channel'} width="$4xl" height="$4xl" />
-    </ListItemIconContainer>
-  );
-};
+const ListItemContactIcon = ContactAvatar;
 
-export const ListItemIconContainer = ({
-  backgroundColor = '$secondaryBackground',
-  rounded,
-  width = '$4xl',
-  height = '$4xl',
-  children,
-  ...rest
-}: PropsWithChildren<{
-  backgroundColor?: ColorProp;
-  width?: SizeTokens;
-  height?: SizeTokens;
-  rounded?: boolean;
-}> &
-  Omit<ComponentProps<typeof View>, 'backgroundColor'>) => {
-  return (
-    <View
-      width={width}
-      height={height}
-      borderRadius={rounded ? '$2xl' : '$s'}
-      overflow="hidden"
-      flex={0}
-      backgroundColor={backgroundColor as any}
-      {...rest}
-    >
-      {children}
-    </View>
-  );
-};
+const ListItemSystemIcon = SystemIconAvatar;
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
@@ -234,46 +88,35 @@ const ListItemMainContent = styled(YStack, {
 const ListItemTitle = styled(SizableText, {
   color: '$primaryText',
   numberOfLines: 1,
-
-  // TODO: is there an easy way to do something like this?
-  // $native: {
-  //   numberOfLines: 1,
-  // },
-
-  // $web: {
-  //   whiteSpace: "nowrap",
-  //   overflow: "hidden",
-  //   textOverflow: "ellipsis",
-  // },
 });
 
-function ListItemTitleAttribute({ children }: PropsWithChildren) {
-  return (
-    <Stack
-      paddingHorizontal="$s"
-      backgroundColor="$positiveBackground"
-      borderRadius="$xl"
-      paddingTop={2}
-      paddingBottom={1}
-      borderWidth={1}
-      borderColor="$positiveBorder"
-    >
-      <SizableText fontSize="$s" lineHeight={0} color="$secondaryText">
-        {children}
-      </SizableText>
-    </Stack>
-  );
-}
+const ListItemSubtitleWithIcon = XStack.styleable<{ icon?: IconType }>(
+  (props, ref) => {
+    return (
+      <XStack gap="$xs" alignItems="center" {...props} ref={ref}>
+        {props.icon && (
+          <Icon type={props.icon} color={'$tertiaryText'} size="$s" />
+        )}
+        <ListItemSubtitle>{props.children}</ListItemSubtitle>
+      </XStack>
+    );
+  }
+);
+
+const ListItemSubtitleIcon = styled(Icon, {
+  color: '$tertiaryText',
+  size: '$s',
+});
 
 const ListItemSubtitle = styled(SizableText, {
   numberOfLines: 1,
   size: '$s',
-  color: '$secondaryText',
+  color: '$tertiaryText',
 });
 
-const ListItemTimeText = styled(SizableText, {
+export const ListItemTimeText = styled(SizableText, {
   numberOfLines: 1,
-  color: '$secondaryText',
+  color: '$tertiaryText',
   size: '$s',
   lineHeight: '$xs',
 });
@@ -303,17 +146,15 @@ const ListItemTime = ListItemTimeText.styleable<{
 });
 
 const ListItemCount = ({
-  children,
   muted,
-  notUnread,
+  count,
   ...rest
-}: PropsWithChildren<{ muted?: boolean; notUnread?: boolean }> &
-  ComponentProps<typeof Stack>) => {
+}: { muted?: boolean; count: number } & ComponentProps<typeof Stack>) => {
   return (
     <Stack
       paddingHorizontal={'$m'}
       backgroundColor={
-        notUnread ? undefined : muted ? undefined : '$secondaryBackground'
+        count < 1 ? undefined : muted ? undefined : '$secondaryBackground'
       }
       borderRadius="$l"
       {...rest}
@@ -321,8 +162,13 @@ const ListItemCount = ({
       {muted ? (
         <Icon type="Mute" customSize={[18, 18]} color="$tertiaryText" />
       ) : (
-        <SizableText size="$s" textAlign="center" color="$secondaryText">
-          {children}
+        <SizableText
+          size="$s"
+          textAlign="center"
+          color="$secondaryText"
+          opacity={muted || count < 1 ? 0 : 1}
+        >
+          {numberWithMax(count, 99)}
         </SizableText>
       )}
     </Stack>
@@ -348,6 +194,31 @@ const ListItemComponent = ({
   );
 };
 
+export const ListItemPostPreview = ({
+  post,
+  showAuthor = true,
+}: {
+  post: db.Post;
+  showAuthor?: boolean;
+}) => {
+  return (
+    <ListItemSubtitle>
+      {showAuthor ? (
+        <>
+          <ContactName
+            userId={post.authorId}
+            showNickname
+            color={'$tertiaryText'}
+            size={'$s'}
+          />
+          {': '}
+        </>
+      ) : null}
+      {post.textContent ?? ''}
+    </ListItemSubtitle>
+  );
+};
+
 const Dragger = () => {
   return (
     <YStack alignItems="center" justifyContent="center">
@@ -367,17 +238,18 @@ const ListItemEndContent = styled(YStack, {
 export type ListItem = typeof ListItemComponent;
 
 export const ListItem = withStaticProperties(ListItemComponent, {
-  Icon: ListItemIcon,
-  ImageIcon: ListItemImageIcon,
-  AvatarIcon: ListItemAvatarIcon,
-  SystemIcon: ListItemTypeIcon,
-  TextIcon: ListItemTextIcon,
+  GroupIcon: ListItemGroupIcon,
+  ChannelIcon: ListItemChannelIcon,
+  ContactIcon: ListItemContactIcon,
+  SystemIcon: ListItemSystemIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,
   Title: ListItemTitle,
-  TitleAttribute: ListItemTitleAttribute,
   Subtitle: ListItemSubtitle,
+  SubtitleWithIcon: ListItemSubtitleWithIcon,
+  SubtitleIcon: ListItemSubtitleIcon,
+  PostPreview: ListItemPostPreview,
   EndContent: ListItemEndContent,
   Time: ListItemTime,
 });

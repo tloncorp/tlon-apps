@@ -1,28 +1,24 @@
-import { Contact } from '@tloncorp/shared/dist/db';
-
 import { Circle } from '../../core/tamagui';
-import { Avatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import { Icon, IconType } from '../Icon';
 import { View } from '../View';
 
 export function AvatarNavIcon({
   id,
   focused,
-  contact,
   onPress,
 }: {
   id: string;
   focused: boolean;
-  contact?: Contact | null;
   onPress?: () => void;
 }) {
   return (
     <View flex={1} onPress={onPress} alignItems="center" paddingTop={'$s'}>
-      <Avatar
+      <ContactAvatar
+        size={'custom'}
         width={20}
         height={20}
         borderRadius={3}
-        contact={contact}
         contactId={id}
         opacity={focused ? 1 : 0.6}
       />

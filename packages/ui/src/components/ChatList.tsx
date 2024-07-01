@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -14,8 +14,7 @@ import {
 } from 'react-native';
 
 import { useStyle } from '../core';
-import { ChannelListItem, GroupListItem, ListItemProps } from './ListItem';
-import { SwipableChatRow } from './ListItem/SwipableChatListItem';
+import { ChatListItem } from './ListItem';
 import { SectionListHeader } from './SectionList';
 
 export type Chat = db.Channel | db.Group;
@@ -138,75 +137,3 @@ export function ChatList({
     />
   );
 }
-
-const ChatListItem = React.memo(function ChatListItemComponent(
-  props: ListItemProps<Chat>
-) {
-  return logic.isChannel(props.model) ? (
-    <SwipableChatRow model={props.model}>
-      <ChatListItemContent {...props} />
-    </SwipableChatRow>
-  ) : (
-    <ChatListItemContent {...props} />
-  );
-});
-
-const ChatListItemContent = React.memo(function ChatListItemContentComponent({
-  model,
-  onPress,
-  onLongPress,
-  ...props
-}: ListItemProps<Chat>) {
-  const handlePress = useCallback(() => {
-    onPress?.(model);
-  }, [model, onPress]);
-
-  const handleLongPress = useCallback(() => {
-    onLongPress?.(model);
-  }, [model, onLongPress]);
-
-  const groupModel: db.Group | null | undefined = useMemo(() => {
-    return logic.isChannel(model) && model.group
-      ? ({
-          ...model.group,
-          unreadCount: model.unread?.count,
-          lastPost: model.lastPost,
-          lastChannel: model.title,
-        } as const)
-      : null;
-  }, [model]);
-
-  // if the chat list item is a group, it's pending
-  if (logic.isGroup(model)) {
-    return <GroupListItem onPress={handlePress} model={model} {...props} />;
-  }
-
-  if (logic.isChannel(model)) {
-    if (
-      model.type === 'dm' ||
-      model.type === 'groupDm' ||
-      model.pin?.type === 'channel'
-    ) {
-      return (
-        <ChannelListItem
-          model={model}
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          {...props}
-        />
-      );
-    } else if (groupModel) {
-      return (
-        <GroupListItem
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          model={groupModel}
-          {...props}
-        />
-      );
-    }
-  }
-
-  console.warn('unable to render chat list item', model.id, model);
-  return null;
-});
