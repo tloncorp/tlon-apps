@@ -289,7 +289,11 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
 }
 
 export function whomIsDm(whom: string): boolean {
-  return whom.startsWith('~') && !whom.match('/');
+  return whom.startsWith('~') && !whom.match('/') && !whom.startsWith('~~');
+}
+
+export function whomIsBroadcast(whom: string): boolean {
+  return whom.startsWith('~~');
 }
 
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens

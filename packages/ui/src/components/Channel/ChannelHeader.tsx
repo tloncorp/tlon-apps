@@ -1,74 +1,12 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ChevronLeft, Dots, Search } from '../../assets/icons';
-import { SizableText, View, XStack } from '../../core';
+import { Dots, Search } from '../../assets/icons';
 import { ActionSheet } from '../ActionSheet';
 import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
+import { GenericHeader } from '../GenericHeader';
 import { IconButton } from '../IconButton';
 import { BaubleHeader } from './BaubleHeader';
-
-// TODO: break this out, use for all headers.
-export function GenericHeader({
-  title,
-  goBack,
-  showSpinner,
-  rightContent,
-}: {
-  title?: string;
-  goBack?: () => void;
-  showSpinner?: boolean;
-  rightContent?: React.ReactNode;
-}) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <View paddingTop={insets.top}>
-      <XStack
-        alignItems="center"
-        gap="$m"
-        height="$4xl"
-        justifyContent="space-between"
-        paddingHorizontal="$xl"
-        paddingVertical="$m"
-      >
-        <XStack
-          alignItems="center"
-          justifyContent={!goBack ? 'center' : undefined}
-          gap="$m"
-          flex={1}
-        >
-          {goBack && (
-            <IconButton onPress={goBack}>
-              <ChevronLeft />
-            </IconButton>
-          )}
-          <Animated.View
-            key={showSpinner?.toString()}
-            entering={FadeInDown}
-            exiting={FadeOutUp}
-            style={{ flex: 1 }}
-          >
-            <SizableText
-              flexShrink={1}
-              numberOfLines={1}
-              color="$primaryText"
-              size="$m"
-              fontWeight="500"
-            >
-              {showSpinner ? 'Loading…' : title}
-            </SizableText>
-          </Animated.View>
-        </XStack>
-        <XStack gap="$m" alignItems="center">
-          {rightContent}
-        </XStack>
-      </XStack>
-    </View>
-  );
-}
 
 export function ChannelHeader({
   title,
@@ -101,7 +39,7 @@ export function ChannelHeader({
 
   const postActions = useMemo(() => {
     if (!post || !channelType || !currentUserId) return [];
-    return getPostActions(post, channelType).filter((action) => {
+    return getPostActions({ post, channelType }).filter((action) => {
       switch (action.id) {
         case 'startThread':
           // if undelivered or already in a thread, don't show reply

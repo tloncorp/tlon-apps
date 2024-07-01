@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
-import { GenericHeader } from './Channel/ChannelHeader';
 import ChannelNavSections from './ChannelNavSections';
+import { GenericHeader } from './GenericHeader';
 import { Icon } from './Icon';
 
 const ChannelSortOptions = ({

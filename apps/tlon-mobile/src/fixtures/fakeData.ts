@@ -224,6 +224,7 @@ export const roles: db.GroupRole[] = [
 const basicUnread = {
   type: 'channel',
   count: 10,
+  notify: false,
   countWithoutThreads: 5,
   channelId: '~nibset-napwyn/intros',
   updatedAt: getRandomTimeOnSameDay(),

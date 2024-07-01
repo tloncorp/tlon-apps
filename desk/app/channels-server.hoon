@@ -279,7 +279,8 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+    pole  ~|(bad-watch-path+pole !!)
+  ~|  watch-path=`path`pole
+  ?+    pole  ~|(%bad-watch-path !!)
       [=kind:c name=@ %create ~]
     ?>  =(our src):bowl
     =*  nest  [kind.pole our.bowl name.pole]
@@ -288,7 +289,8 @@
   ::
       [=kind:c name=@ %updates ~]
     =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
-    ?>  (can-read:ca-perms:ca src.bowl)
+    ?.  (can-read:ca-perms:ca src.bowl)
+      ~|(%permission-denied !!)
     cor
   ::
       [=kind:c name=@ %updates after=@ ~]
@@ -425,6 +427,7 @@
   ::
   ++  ca-abed
     |=  n=nest:c
+    ~|  nest=n
     ca-core(nest n, channel (~(got by v-channels) n))
   ::
   ++  ca-area  `path`/[kind.nest]/[name.nest]
@@ -436,7 +439,8 @@
   ++  ca-watch-updates
     |=  =@da
     ^+  ca-core
-    ?>  (can-read:ca-perms src.bowl)
+    ?.  (can-read:ca-perms src.bowl)
+      ~|(%permission-denied !!)
     =/  =log:c  (lot:log-on:c log.channel `da ~)
     =.  ca-core  (give %fact ~ %channel-logs !>(log))
     ca-core
@@ -444,7 +448,8 @@
   ++  ca-watch-checkpoint
     |=  [from=@da to=(unit @da)]
     ^+  ca-core
-    ?>  (can-read:ca-perms src.bowl)
+    ?.  (can-read:ca-perms src.bowl)
+      ~|(%permission-denied !!)
     =/  posts=v-posts:c  (lot:on-v-posts:c posts.channel `from to)
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
@@ -453,7 +458,8 @@
   ++  ca-watch-checkpoint-page
     |=  n=@
     ^+  ca-core
-    ?>  (can-read:ca-perms src.bowl)
+    ?.  (can-read:ca-perms src.bowl)
+      ~|(%permission-denied !!)
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c (bat:mo-v-posts:c posts.channel ~ n))
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))

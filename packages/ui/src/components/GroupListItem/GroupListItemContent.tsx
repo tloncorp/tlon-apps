@@ -2,7 +2,8 @@ import type * as db from '@tloncorp/shared/dist/db';
 import { useMemo } from 'react';
 
 import { useCalm } from '../../contexts/calm';
-import { XStack } from '../../core';
+import { View, XStack } from '../../core';
+import * as utils from '../../utils';
 import { getBackgroundColor } from '../../utils/colorUtils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
@@ -15,6 +16,7 @@ export default function GroupListItemContent({
   onLongPress,
   ...props
 }: ListItemProps<db.Group>) {
+  const countToShow = model.unread?.count ?? 0;
   const { disableAvatars } = useCalm();
   // Fallback color for calm mode or unset colors
   const colors = { backgroundColor: '$secondaryBackground' };
@@ -31,15 +33,25 @@ export default function GroupListItemContent({
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
-      <ListItem.Icon
-        fallbackText={model.title?.[0]}
-        backgroundColor={getBackgroundColor({ disableAvatars, colors, model })}
-        imageUrl={
-          !disableAvatars && model.iconImage ? model.iconImage : undefined
-        }
-      />
+      <View opacity={model.volumeSettings?.isMuted ? 0.2 : 1}>
+        <ListItem.Icon
+          fallbackText={model.title?.[0] ?? model.id[0]}
+          backgroundColor={getBackgroundColor({
+            disableAvatars,
+            colors,
+            model,
+          })}
+          imageUrl={
+            !disableAvatars && model.iconImage ? model.iconImage : undefined
+          }
+        />
+      </View>
       <ListItem.MainContent>
-        <ListItem.Title>{model.title}</ListItem.Title>
+        <ListItem.Title
+          color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
+        >
+          {model.title ?? model.id}
+        </ListItem.Title>
         {model.lastPost && (
           <ListItem.Subtitle color={'$tertiaryText'}>
             {model.lastChannel}
@@ -74,8 +86,11 @@ export default function GroupListItemContent({
       ) : (
         <ListItem.EndContent>
           <ListItem.Time time={model.lastPostAt} />
-          <ListItem.Count opacity={model.unreadCount ? 1 : 0}>
-            {(model.unreadCount ?? 0) > 99 ? '99+' : model.unreadCount ?? 0}
+          <ListItem.Count
+            opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
+            muted={model.volumeSettings?.isMuted ?? false}
+          >
+            {utils.displayableUnreadCount(countToShow)}
           </ListItem.Count>
         </ListItem.EndContent>
       )}

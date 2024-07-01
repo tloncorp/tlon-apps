@@ -57,6 +57,20 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     uploaderKey: `${currentChannelId}`,
   });
 
+  const session = store.useCurrentSession();
+  const hasCachedNewest = useMemo(() => {
+    if (!session || !channel) {
+      return false;
+    }
+    const { syncedAt, lastPostAt } = channel;
+    if (syncedAt && session.startTime < syncedAt) {
+      return true;
+    } else if (lastPostAt && syncedAt && syncedAt > lastPostAt) {
+      return true;
+    }
+    return false;
+  }, [channel, session]);
+
   const selectedPostId = props.route.params.selectedPostId;
   const cursor = useMemo(() => {
     if (!channel) {
@@ -81,6 +95,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     enabled: !!channel,
     channelId: currentChannelId,
     count: 50,
+    hasCachedNewest,
     ...(cursor
       ? {
           mode: 'around',
@@ -122,6 +137,22 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     setChannelNavOpen(false);
   }, []);
 
+  const handleGoToDm = useCallback(
+    async (participants: string[]) => {
+      const dmChannel = await store.upsertDmChannel({
+        participants,
+      });
+      props.navigation.push('Channel', { channel: dmChannel });
+    },
+    [props.navigation]
+  );
+
+  const handleMarkRead = useCallback(() => {
+    if (channel) {
+      store.markChannelRead(channel);
+    }
+  }, [channel]);
+
   if (!channel) {
     return null;
   }
@@ -146,10 +177,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToImageViewer={navigateToImage}
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={navigateToSearch}
+        goToDm={handleGoToDm}
         uploadInfo={uploadInfo}
         onScrollEndReached={loadOlder}
         onScrollStartReached={loadNewer}
         onPressRef={navigateToRef}
+        markRead={handleMarkRead}
         usePost={usePostWithRelations}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}

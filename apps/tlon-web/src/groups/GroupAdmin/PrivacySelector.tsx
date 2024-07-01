@@ -176,37 +176,46 @@ export function PrivacySelectorForm() {
           describe(values);
         }
 
-        const privacyChanged = newPrivacy !== privacy;
-        if (privacyChanged) {
+        const oldPrivacy = privacy;
+        if (newPrivacy === oldPrivacy) {
+          return;
+        }
+
+        if (newPrivacy === 'public') {
           swapCordonMutation({
             flag: groupFlag,
-            cordon:
-              newPrivacy === 'public'
-                ? {
-                    open: {
-                      ships: [],
-                      ranks: [],
-                    },
-                  }
-                : {
-                    shut: {
-                      pending: [],
-                      ask: [],
-                    },
-                  },
+            cordon: {
+              open: {
+                ships: [],
+                ranks: [],
+              },
+            },
           });
+        } else {
+          // if we're swapping between private and secret, we need to
+          // keep the cordon else we risk losing the pending requests
+          if (oldPrivacy === 'public') {
+            swapCordonMutation({
+              flag: groupFlag,
+              cordon: {
+                shut: {
+                  pending: [],
+                  ask: [],
+                },
+              },
+            });
+          }
+        }
 
-          setSecretMutation({
-            flag: groupFlag,
-            isSecret: newPrivacy === 'secret',
-          });
-        }
-        if (privacyChanged) {
-          form.reset({
-            ...values,
-            privacy: newPrivacy,
-          });
-        }
+        setSecretMutation({
+          flag: groupFlag,
+          isSecret: newPrivacy === 'secret',
+        });
+
+        form.reset({
+          ...values,
+          privacy: newPrivacy,
+        });
       } catch (e) {
         console.log("GroupInfoEditor: couldn't edit group", e);
       }

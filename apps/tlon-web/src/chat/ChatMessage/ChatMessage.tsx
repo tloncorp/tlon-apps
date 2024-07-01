@@ -68,8 +68,6 @@ import {
   useChatDialogs,
   useChatHovering,
   useChatInfo,
-  useChatKeys,
-  useChatStore,
 } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -82,7 +80,7 @@ export interface ChatMessageProps {
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
-  hideOptions?: boolean;
+  isBroadcast?: boolean;
   isLast?: boolean;
   isLinked?: boolean;
   isScrolling?: boolean;
@@ -152,7 +150,7 @@ const ChatMessage = React.memo<
         newAuthor = false,
         newDay = false,
         hideReplies = false,
-        hideOptions = false,
+        isBroadcast = false,
         isLast = false,
         isLinked = false,
         isScrolling = false,
@@ -334,20 +332,8 @@ const ChatMessage = React.memo<
 
         // If we're the thread op, don't show options.
         // Options are shown for the threadOp in the main scroll window.
-        setOptionsOpen(
-          (hovering || pickerOpen) &&
-            !hideOptions &&
-            !isScrolling &&
-            !isThreadOp
-        );
-      }, [
-        isMobile,
-        hovering,
-        pickerOpen,
-        hideOptions,
-        isScrolling,
-        isThreadOp,
-      ]);
+        setOptionsOpen((hovering || pickerOpen) && !isScrolling && !isThreadOp);
+      }, [isMobile, hovering, pickerOpen, isScrolling, isThreadOp]);
 
       const onSubmit = useCallback(
         async (editor: Editor) => {
@@ -453,6 +439,7 @@ const ChatMessage = React.memo<
                 open={optionsOpen || (hasDialogsOpen && !isMobile)}
                 onOpenChange={setOptionsOpen}
                 hideThreadReply={hideReplies}
+                isBroadcast={isBroadcast}
                 whom={whom}
                 writ={writ}
                 hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}

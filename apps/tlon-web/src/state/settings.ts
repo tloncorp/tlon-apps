@@ -58,12 +58,14 @@ interface SettingsEvent {
 export type SidebarFilter =
   | 'Direct Messages'
   | 'All Messages'
-  | 'Group Channels';
+  | 'Group Channels'
+  | 'Broadcasts';
 
 export const filters: Record<string, SidebarFilter> = {
   dms: 'Direct Messages',
   all: 'All Messages',
   groups: 'Group Channels',
+  broadcasts: 'Broadcasts',
 };
 
 export type Theme = 'light' | 'dark' | 'auto';

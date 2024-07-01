@@ -5,6 +5,7 @@ import { Platform, StatusBar } from 'react-native';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
 import type { RootStackParamList } from '../types';
+import { GroupSettingsStack } from './GroupSettingsStack';
 import { TabStack } from './TabStack';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
@@ -31,6 +32,7 @@ export function RootStack() {
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
+      <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
     </Root.Navigator>
   );
 }

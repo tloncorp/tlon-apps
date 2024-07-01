@@ -26,6 +26,7 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
+import { PostContent } from 'packages/shared/dist/api';
 import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
 import {
   ComponentProps,
@@ -44,6 +45,7 @@ import {
   ColorTokens,
   Image,
   ScrollView,
+  SizableText,
   Text,
   View,
   XStack,
@@ -429,7 +431,7 @@ export function InlineContent({
       <Text
         color={color}
         lineHeight="$m"
-        fontSize={viewMode === 'block' ? '$s' : '$m'}
+        fontSize={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
         fontFamily={serif ? '$serif' : '$body'}
       >
         {inline}
@@ -529,8 +531,9 @@ export function InlineContent({
   if (isShip(inline)) {
     return (
       <ShipMention
-        fontFamily={serif ? '$serif' : '$body'}
         userId={inline.ship}
+        fontSize={viewMode === 'activity' ? '$s' : undefined}
+        fontFamily={serif ? '$serif' : '$body'}
       />
     );
   }
@@ -680,7 +683,11 @@ const LineRenderer = memo(
             <Text
               key={`string-${inline}-${index}`}
               color={isNotice ? '$secondaryText' : color}
-              fontSize={viewMode === 'block' || isNotice ? '$s' : '$m'}
+              fontSize={
+                viewMode === 'block' || viewMode === 'activity' || isNotice
+                  ? '$s'
+                  : '$m'
+              }
               lineHeight="$m"
               fontFamily={serif ? '$serif' : '$body'}
             >
@@ -719,7 +726,7 @@ const LineRenderer = memo(
           <ShipMention
             key={`ship-${index}`}
             userId={inline.ship}
-            fontSize={isNotice ? '$s' : 'unset'}
+            fontSize={isNotice || viewMode === 'activity' ? '$s' : 'unset'}
             fontFamily={serif ? '$serif' : '$body'}
           />
         );
@@ -764,7 +771,9 @@ const LineRenderer = memo(
 
           return (
             <Text
-              fontSize={viewMode === 'block' ? '$s' : '$m'}
+              fontSize={
+                viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'
+              }
               key={`line-${index}`}
               flexWrap="wrap"
               lineHeight="$m"
@@ -781,7 +790,7 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
-export type PostViewMode = 'chat' | 'block' | 'note';
+export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
 
 export default function ContentRenderer({
   post,
@@ -793,7 +802,7 @@ export default function ContentRenderer({
   isEdited = false,
   viewMode = 'chat',
 }: {
-  post: Post;
+  post: Post | { type: 'chat' | 'diary' | 'gallery'; id: string; content: any };
   shortened?: boolean;
   isNotice?: boolean;
   deliveryStatus?: PostDeliveryStatus | null;

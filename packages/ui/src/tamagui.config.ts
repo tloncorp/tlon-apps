@@ -112,6 +112,7 @@ export const themes = {
     darkBackground: '#4C4C4C',
     overlayBackground: '#FFFFFF',
     overlayBlurTint: 'light',
+    neutralUnreadDot: '#808080',
   },
   light: {
     primaryText: '#1A1818',
@@ -134,6 +135,7 @@ export const themes = {
     darkBackground: '#333333',
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
+    neutralUnreadDot: '#B3B3B3',
   },
   ocean: {
     primaryText: '#D2F1F9',
@@ -155,6 +157,7 @@ export const themes = {
     darkBackground: '#024E6C',
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
+    neutralUnreadDot: '#B3B3B3',
   },
   desert: {
     primaryText: '#4A3F35',
@@ -176,6 +179,7 @@ export const themes = {
     darkBackground: '#C9B79C',
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
+    neutralUnreadDot: '#B3B3B3',
   },
   forest: {
     primaryText: '#A3BFA8',
@@ -197,6 +201,7 @@ export const themes = {
     darkBackground: '#335233',
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
+    neutralUnreadDot: '#B3B3B3',
   },
   mountain: {
     primaryText: '#D9D5C3',
@@ -218,18 +223,25 @@ export const themes = {
     darkBackground: '#2E3130',
     overlayBackground: '#000000',
     overlayBlurTint: 'light',
+    neutralUnreadDot: '#B3B3B3',
   },
 };
 
 export const systemFont = createFont({
   family:
-    "System, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif",
+    // Previously used font stack
+    // '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    // did not work, threw errors in xcode console on iOS. Fortunately iOS
+    //defaulted to its system font anyway
+    'System',
   size: {
     xs: 12,
     s: 14,
     m: 16,
     true: 16,
     l: 17,
+    // TODO: resolve this with Ochre later, sorry for the inconsistency
+    l2: 32,
     // xl is used for emoji-only messages
     xl: 36,
     '2xl': 44,

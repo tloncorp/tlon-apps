@@ -1,0 +1,186 @@
+[
+  {
+    "source": {
+      "channel": {
+        "nest": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+        "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library"
+      }
+    },
+    "events": [
+      {
+        "event": {
+          "post": {
+            "channel": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+            "key": {
+              "id": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.853.155.647.879.036.981.225.717.760",
+              "time": "170.141.184.506.853.155.647.879.036.981.225.717.760"
+            },
+            "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library",
+            "content": [
+              {
+                "inline": [
+                  "sorry, i was trying it out",
+                  {
+                    "break": null
+                  }
+                ]
+              }
+            ],
+            "mention": false
+          },
+          "notified": true
+        },
+        "time": "170.141.184.506.853.155.647.879.036.981.225.717.760"
+      },
+      {
+        "event": {
+          "post": {
+            "channel": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+            "key": {
+              "id": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.852.945.128.471.446.410.112.270.336",
+              "time": "170.141.184.506.852.945.128.471.446.410.112.270.336"
+            },
+            "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library",
+            "content": [
+              {
+                "inline": [
+                  {
+                    "code": "|= a=@ud\n/= var (mul a .8)\nvar"
+                  }
+                ]
+              }
+            ],
+            "mention": false
+          },
+          "notified": true
+        },
+        "time": "170.141.184.506.852.945.128.471.446.410.112.270.336"
+      },
+      {
+        "event": {
+          "post": {
+            "channel": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+            "key": {
+              "id": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.852.941.140.267.419.570.593.071.104",
+              "time": "170.141.184.506.852.941.140.267.419.570.593.071.104"
+            },
+            "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library",
+            "content": [
+              {
+                "inline": [
+                  "but i do like these ones",
+                  {
+                    "break": null
+                  }
+                ]
+              },
+              {
+                "block": {
+                  "cite": {
+                    "chan": {
+                      "nest": "heap/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/new-books",
+                      "where": "/curio/170141184506852940559878402492195667968"
+                    }
+                  }
+                }
+              }
+            ],
+            "mention": false
+          },
+          "notified": true
+        },
+        "time": "170.141.184.506.852.941.140.267.419.570.593.071.104"
+      },
+      {
+        "event": {
+          "post": {
+            "channel": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+            "key": {
+              "id": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.852.613.519.639.575.172.887.871.488",
+              "time": "170.141.184.506.852.613.519.639.575.172.887.871.488"
+            },
+            "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library",
+            "content": [
+              {
+                "block": {
+                  "cite": {
+                    "chan": {
+                      "nest": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+                      "where": "/msg/170141184506852608649148293184143491072"
+                    }
+                  }
+                }
+              },
+              {
+                "inline": [
+                  {
+                    "ship": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod"
+                  },
+                  ": wait these are actually sold out",
+                  {
+                    "break": null
+                  }
+                ]
+              }
+            ],
+            "mention": false
+          },
+          "notified": true
+        },
+        "time": "170.141.184.506.852.613.519.639.575.172.887.871.488"
+      },
+      {
+        "event": {
+          "post": {
+            "channel": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+            "key": {
+              "id": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.852.612.609.375.677.663.460.458.496",
+              "time": "170.141.184.506.852.612.609.375.677.663.460.458.496"
+            },
+            "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library",
+            "content": [
+              {
+                "inline": [
+                  "For sure. The current ones are looking pretty beat up. Maybe something more modern?",
+                  {
+                    "break": null
+                  }
+                ]
+              }
+            ],
+            "mention": false
+          },
+          "notified": true
+        },
+        "time": "170.141.184.506.852.612.609.375.677.663.460.458.496"
+      },
+      {
+        "event": {
+          "post": {
+            "channel": "chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+            "key": {
+              "id": "~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.852.608.649.148.293.184.143.491.072",
+              "time": "170.141.184.506.852.608.649.148.293.184.143.491.072"
+            },
+            "group": "~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/little-library",
+            "content": [
+              {
+                "inline": [
+                  "Yeah, let’s shift them closer to the walls to free up some space in the middle",
+                  {
+                    "break": null
+                  }
+                ]
+              }
+            ],
+            "mention": false
+          },
+          "notified": true
+        },
+        "time": "170.141.184.506.852.608.649.148.293.184.143.491.072"
+      }
+    ],
+    "source-key": "channel/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870",
+    "latest": "170.141.184.506.853.155.647.879.036.981.225.717.760"
+  }
+]

@@ -153,12 +153,7 @@ const ChatMessage = ({
       post.replyCount &&
       post.replyTime &&
       post.replyContactIds ? (
-        <ChatMessageReplySummary
-          onPress={handleRepliesPressed}
-          replyCount={post.replyCount}
-          replyTime={post.replyTime}
-          replyContactIds={post.replyContactIds}
-        />
+        <ChatMessageReplySummary post={post} onPress={handleRepliesPressed} />
       ) : null}
     </YStack>
   );

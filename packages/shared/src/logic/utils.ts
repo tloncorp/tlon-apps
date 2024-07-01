@@ -6,9 +6,11 @@ import {
   format,
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
+import { backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
 import * as api from '../api';
+import { isDmChannelId, isGroupDmChannelId } from '../api/apiUtils';
 import * as db from '../db';
 import * as ub from '../urbit';
 
@@ -194,8 +196,21 @@ export function getPinPartial(channel: db.Channel): {
   return { type: 'channel', itemId: channel.id };
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;
+
+/**
+ * Returns true if the two dates happened on current calendar day, in local
+ * timezone.
+ *
+ * TODO: Currently this calculation will be off by an hour when crossing
+ * daylight savings time. We're doing it this way because date operations are
+ * quite slow in RN/Hermes.
+ */
 export const isSameDay = (a: number, b: number) => {
-  return differenceInCalendarDays(a, b) === 0;
+  const dayA = Math.floor((a - timezoneOffset) / MS_PER_DAY);
+  const dayB = Math.floor((b - timezoneOffset) / MS_PER_DAY);
+  return dayA === dayB;
 };
 
 export const isToday = (date: number) => {
@@ -264,23 +279,25 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: string
+  content: string | api.PostContent
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
-  const story = JSON.parse(content as string) as api.PostContent;
+  const story = typeof content === 'string' ? JSON.parse(content) : content;
   const inlines = extractInlinesFromContent(story);
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);
+
+  // console.log(`extracted inlines:`, inlines);
 
   return { inlines, references, blocks, story };
 };
 
 export const extractContentTypesFromPost = (
-  post: db.Post
+  post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
@@ -362,6 +379,22 @@ export const textPostIsReference = (post: db.Post): boolean => {
   return false;
 };
 
+export const getPostTypeFromChannelId = ({
+  channelId,
+  parentId,
+}: {
+  channelId?: string | null;
+  parentId?: string | null;
+}): db.PostType => {
+  if (!channelId) return 'chat';
+  const isDm = isDmChannelId(channelId) || isGroupDmChannelId(channelId);
+  return parentId
+    ? 'reply'
+    : isDm
+      ? 'chat'
+      : (channelId.split('/')[0] as db.PostType);
+};
+
 export const usePostMeta = (post: db.Post) => {
   const { inlines, references, blocks } = useMemo(
     () => extractContentTypesFromPost(post),
@@ -412,5 +445,17 @@ export const getCompositeGroups = (
   return groups.map((group) => {
     const baseGroup = baseIndex[group.id] ?? {};
     return { ...baseGroup, ...group };
+  });
+};
+
+interface RetryConfig {
+  startingDelay?: number;
+  numOfAttempts?: number;
+}
+export const withRetry = (fn: () => Promise<any>, config?: RetryConfig) => {
+  return backOff(fn, {
+    delayFirstAttempt: false,
+    startingDelay: config?.startingDelay ?? 1000,
+    numOfAttempts: config?.numOfAttempts ?? 4,
   });
 };

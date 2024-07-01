@@ -29,13 +29,77 @@ export async function unpinItem(pin: db.Pin) {
   }
 }
 
-export async function markChannelRead(
-  channel: db.Channel | { id: string; type: db.ChannelType }
-) {
-  if (channel.type === 'dm' || channel.type === 'groupDm') {
-    await api.markChatRead(channel.id);
-  } else {
-    await api.markChannelRead(channel.id);
+export async function markChannelRead(channel: db.Channel) {
+  // optimistic update
+  const existingUnread = await db.getChannelUnread({ channelId: channel.id });
+  if (existingUnread) {
+    await db.clearChannelUnread(channel.id);
+  }
+
+  const existingCount = existingUnread?.count ?? 0;
+  if (channel.groupId && existingCount > 0) {
+    // optimitically update group unread count
+    await db.updateGroupUnreadCount({
+      groupId: channel.groupId,
+      decrement: existingCount,
+    });
+  }
+
+  try {
+    await api.readChannel(channel);
+  } catch (e) {
+    console.error('Failed to read channel', e);
+    // rollback optimistic update
+    if (existingUnread) {
+      await db.insertChannelUnreads([existingUnread]);
+    }
+  }
+}
+
+export async function markThreadRead({
+  parentPost,
+  post,
+  channel,
+}: {
+  post: db.Post;
+  parentPost: db.Post;
+  channel: db.Channel;
+}) {
+  // optimistic update
+  const existingUnread = await db.getThreadActivity({
+    channelId: channel.id,
+    postId: parentPost.id,
+  });
+  if (existingUnread) {
+    await db.clearThreadUnread({
+      channelId: channel.id,
+      threadId: parentPost.id,
+    });
+
+    const existingCount = existingUnread.count ?? 0;
+    if (existingCount > 0) {
+      // optimistic updately update channel & group counts
+      await db.updateChannelUnreadCount({
+        channelId: channel.id,
+        decrement: existingCount,
+      });
+      if (channel.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount,
+        });
+      }
+    }
+  }
+
+  try {
+    await api.readThread({ parentPost, post, channel });
+  } catch (e) {
+    console.error('Failed to read thread', e);
+    // rollback optimistic update
+    if (existingUnread) {
+      await db.insertThreadUnreads([existingUnread]);
+    }
   }
 }
 

@@ -2,15 +2,22 @@ import React, { useEffect, useState } from 'react';
 
 import ClubName from '@/components/ClubName';
 import useLongPress from '@/logic/useLongPress';
+import { useCohort } from '@/state/broadcasts';
 
 import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import GroupAvatar from '../groups/GroupAvatar';
 import useMedia, { useIsMobile } from '../logic/useMedia';
-import { nestToFlag, whomIsDm, whomIsMultiDm } from '../logic/utils';
+import {
+  nestToFlag,
+  whomIsBroadcast,
+  whomIsDm,
+  whomIsMultiDm,
+} from '../logic/utils';
 import { useMultiDm } from '../state/chat';
 import { useGroup, useGroupChannel, useGroups } from '../state/groups/groups';
+import BroadcastOptions from './BroadcastOptions';
 import DmOptions from './DMOptions';
 import { useMessagesScrolling } from './MessagesScrollingContext';
 import MultiDmAvatar, { MultiDmAvatarSize } from './MultiDmAvatar';
@@ -73,6 +80,45 @@ function ChannelSidebarItem({
       {...props}
     >
       {channel.meta.title}
+    </SidebarItem>
+  );
+}
+
+function BroadcastSidebarItem({
+  whom,
+  optionsOpen,
+  onOptionsOpenChange,
+  ...props
+}: MessagesSidebarItemWithOptionsProps) {
+  const cohort = useCohort(whom);
+  const to = `/dm/broadcasts/${whom}`;
+
+  return (
+    <SidebarItem
+      inexact
+      to={to}
+      icon={
+        <MultiDmAvatar
+          title={cohort.title}
+          image={''}
+          color={''}
+          className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
+          loadImage={false}
+        />
+      }
+      actions={({ hover }) => (
+        <BroadcastOptions
+          open={optionsOpen}
+          onOpenChange={onOptionsOpenChange}
+          whom={whom}
+          pending={false}
+          isHovered={hover}
+          triggerDisabled={false}
+        />
+      )}
+      {...props}
+    >
+      {cohort.title}
     </SidebarItem>
   );
 }
@@ -209,6 +255,10 @@ function MessagesSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
 
   if (whomIsMultiDm(whom)) {
     ResolvedSidebarItem = MultiDMSidebarItem;
+  }
+
+  if (whomIsBroadcast(whom)) {
+    ResolvedSidebarItem = BroadcastSidebarItem;
   }
 
   return (

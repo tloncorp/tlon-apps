@@ -340,27 +340,6 @@ export interface Channels {
   [key: string]: Channel;
 }
 
-export interface Unread {
-  recency: number;
-  count: number;
-  unread: UnreadPoint | null;
-  threads: Record<string, UnreadPoint>;
-}
-
-export interface UnreadPoint {
-  id: string;
-  count: number;
-}
-
-export interface Unreads {
-  [nest: Nest]: Unread;
-}
-
-export interface UnreadUpdate {
-  nest: Nest;
-  unread: Unread;
-}
-
 export interface Create {
   kind: Kind;
   group: Flag;
@@ -395,7 +374,6 @@ export interface Said {
 }
 
 export interface Init {
-  unreads: Unreads;
   channels: Channels;
 }
 

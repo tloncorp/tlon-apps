@@ -1,36 +1,49 @@
-import { replaceEqualDeep, useInfiniteQuery } from '@tanstack/react-query';
+import {
+  InfiniteData,
+  QueryKey,
+  UseInfiniteQueryResult,
+  useInfiniteQuery,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import {
+  useDebouncedValue,
+  useLiveRef,
+  useOptimizedQueryResults,
+} from '../logic/utilHooks';
+import { queryClient } from './reactQuery';
 import * as sync from './sync';
-import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
+type PostQueryData = InfiniteData<db.Post[], unknown>;
+type PostQuery = UseInfiniteQueryResult<PostQueryData, Error>;
+type SubscriptionPost = [db.Post, string | undefined];
+
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
+  hasCachedNewest?: boolean;
+};
+
+export const clearChannelPostsQueries = () => {
+  queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
 
 export const useChannelPosts = (options: UseChanelPostsParams) => {
-  useEffect(() => {
-    postsLogger.log('mount', options);
-    return () => {
-      postsLogger.log('unmount', options);
-    };
-  }, []);
-
-  useEffect(() => {
-    postsLogger.log('options', options);
-  }, [options]);
-
   const mountTime = useMemo(() => {
     return Date.now();
   }, []);
 
   const { enabled, firstPageCount, ...pageParam } = options;
+
+  const queryKey = useMemo(
+    () => [['channelPosts', options.channelId, options.cursor, mountTime]],
+    [options.channelId, options.cursor, mountTime]
+  );
 
   const query = useInfiniteQuery({
     enabled,
@@ -41,20 +54,20 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     refetchOnMount: false,
     queryFn: async (ctx): Promise<db.Post[]> => {
       const queryOptions = ctx.pageParam || options;
-      postsLogger.log(
-        'loading posts',
-        queryOptions.channelId,
-        queryOptions.cursor,
-        queryOptions.mode,
-        queryOptions.count
-      );
+      postsLogger.log('loading posts', queryOptions);
+      if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
+        await sync.syncPosts(queryOptions);
+      }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
         return cached;
       }
       postsLogger.log('no posts found in database, loading from api...');
-      const res = await sync.syncPosts(queryOptions);
+      const res = await sync.syncPosts({
+        ...queryOptions,
+        count: options.count ?? 50,
+      });
       postsLogger.log('loaded', res.posts?.length, 'posts from api');
       const secondResult = await db.getChannelPosts(queryOptions);
       postsLogger.log(
@@ -64,10 +77,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       );
       return secondResult ?? [];
     },
-    queryKey: [
-      ['channelPosts', options.channelId, options.cursor, mountTime],
-      useKeyFromQueryDeps(db.getChannelPosts, options),
-    ],
+    queryKey,
     getNextPageParam: (
       lastPage,
       _allPages,
@@ -97,10 +107,10 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     getPreviousPageParam: (
       firstPage,
       _allPages,
-      firstPageParam
+      _firstPageParam
     ): UseChannelPostsPageParams | undefined => {
       const firstPageIsEmpty = !firstPage[0]?.id;
-      if (firstPageParam.mode === 'newest' || firstPageIsEmpty) {
+      if (firstPageIsEmpty || options.hasCachedNewest) {
         return undefined;
       }
       return {
@@ -123,11 +133,32 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
   );
   const posts = useOptimizedQueryResults(rawPosts);
 
-  // Using a ref here looks kind of stupid, but short circuits a bunch of
-  // renders. Maybe there's a better way?
-  const queryRef = useRef(query);
-  queryRef.current = query;
+  useAddNewPostsToQuery(queryKey, query);
 
+  const isLoading = useDebouncedValue(
+    query.isPending ||
+      query.isPaused ||
+      query.isFetchingNextPage ||
+      query.isFetchingPreviousPage,
+    100
+  );
+
+  const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
+
+  return useMemo(
+    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
+    [posts, query, loadOlder, loadNewer, isLoading]
+  );
+};
+
+/**
+ * Creates loadNewer/loadOlder handlers that will queue up requests if called
+ * while a query is ongoing
+ */
+function useLoadActionsWithPendingHandlers(
+  query: UseInfiniteQueryResult<PostQueryData, Error>
+) {
+  const queryRef = useLiveRef(query);
   const olderPageLoadingPendingRef = useRef(false);
   const newerPageLoadingPendingRef = useRef(false);
 
@@ -162,38 +193,136 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     }
   }, [query.isFetching, loadOlder, loadNewer]);
 
-  const isLoading =
-    query.isPending ||
-    query.isPaused ||
-    query.isFetchingNextPage ||
-    query.isFetchingPreviousPage;
+  return { loadNewer, loadOlder };
+}
 
-  return useMemo(
-    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
-    [posts, query, loadOlder, loadNewer, isLoading]
-  );
+// New post listener:
+//
+// Used to proxy events from post subscription to the hook,
+// allowing us to manually add new posts to the query data.
+
+type SubscriptionPostListener = (...args: SubscriptionPost) => void;
+
+const subscriptionPostListeners: SubscriptionPostListener[] = [];
+
+const useSubscriptionPostListener = (listener: SubscriptionPostListener) => {
+  useEffect(() => {
+    subscriptionPostListeners.push(listener);
+    return () => {
+      const index = subscriptionPostListeners.indexOf(listener);
+      if (index !== -1) {
+        subscriptionPostListeners.splice(index, 1);
+      }
+    };
+  }, [listener]);
 };
 
 /**
- * Minimizes churn for queries that return similar results repeatedly. Uses
- * react-query's `replaceEqualDeep` to ensure that we only return new objects
- * when the data belonging to those objects has changed.
+ * External interface for transmitting new post events to listener
  */
-function useOptimizedQueryResults<T extends { id: string }>(
-  value: T[] | null | undefined
-) {
-  const lastValueRef = useRef(value);
-  return useMemo(() => {
-    const lastPostsMap: Record<string, T> =
-      lastValueRef.current?.reduce<Record<string, T>>((memo, p) => {
-        memo[p.id] = p;
-        return memo;
-      }, {}) ?? {};
-    lastValueRef.current = value;
-    return (
-      value?.map((p) =>
-        lastPostsMap[p.id] ? replaceEqualDeep(lastPostsMap[p.id], p) : p
-      ) ?? null
+export const addToChannelPosts = (...args: SubscriptionPost) => {
+  subscriptionPostListeners.forEach((listener) => listener(...args));
+};
+
+/**
+ * Attaches to new post listener to actually update query data when the listener
+ * triggers.
+ */
+function useAddNewPostsToQuery(queryKey: QueryKey, query: PostQuery) {
+  const queryRef = useLiveRef(query);
+  const subscriptionPostsRef = useRef<SubscriptionPost[]>([]);
+
+  const updateQuery = useCallback(() => {
+    // Bail out if we don't have the data yet or if we're fetching, since updating in either of those cases can
+    if (
+      !queryRef.current.data ||
+      queryRef.current.isFetching ||
+      !subscriptionPostsRef.current.length
+    ) {
+      return;
+    }
+    const remainingPosts = addSubscriptionPostsToQuery(
+      queryKey,
+      subscriptionPostsRef.current
     );
-  }, [value]);
+    subscriptionPostsRef.current = remainingPosts;
+  }, [queryKey, queryRef]);
+
+  // When we get a new post from the listener, add it to the pending list
+  // and attempt to update query data.
+  const handleNewPost = useCallback(
+    (...subscriptionPost: SubscriptionPost) => {
+      subscriptionPostsRef.current.push(subscriptionPost);
+      updateQuery();
+    },
+    [updateQuery]
+  );
+  useSubscriptionPostListener(handleNewPost);
+
+  // Attempt to re-apply pending posts whenever the query finishes fetching.
+  useEffect(() => {
+    updateQuery();
+  }, [query.isFetching, updateQuery]);
+}
+
+function addSubscriptionPostsToQuery(
+  queryKey: QueryKey,
+  subscriptionPosts: SubscriptionPost[]
+): SubscriptionPost[] {
+  const skippedPosts: SubscriptionPost[] = [];
+
+  queryClient.setQueryData(queryKey, (oldData: PostQueryData) => {
+    const result = subscriptionPosts.reduce((workingData, subscriptionPost) => {
+      const [wasAdded, updatedData] = addSubscriptionPostToQueryData(
+        subscriptionPost,
+        workingData
+      );
+      if (!wasAdded) {
+        skippedPosts.push(subscriptionPost);
+      }
+      return updatedData;
+    }, oldData);
+    return result;
+  });
+
+  return skippedPosts;
+}
+
+/**
+ * Attempts to update query data with each pending post in sequence.
+ */
+function addSubscriptionPostToQueryData(
+  [newPost, previousPostId]: SubscriptionPost,
+  data: PostQueryData
+): [boolean, PostQueryData] {
+  let subscriptionPost = false;
+  const result = mapInfiniteData(data, (post: db.Post) => {
+    // Check if there's a pending post to replace
+    if (post.sentAt === newPost.sentAt) {
+      subscriptionPost = true;
+      return [
+        {
+          ...post,
+          ...newPost,
+        },
+      ];
+    } else if (post.id === previousPostId) {
+      subscriptionPost = true;
+      return [newPost, post];
+    } else if (post.id === newPost.id) {
+      subscriptionPost = true;
+      return [{ ...post, ...newPost }];
+    } else {
+      return [post];
+    }
+  });
+  return [subscriptionPost, result];
+}
+
+function mapInfiniteData<
+  TItem,
+  TInfiniteData extends InfiniteData<TItem[], any>,
+>(data: TInfiniteData, cb: (item: TItem) => TItem | TItem[]): TInfiniteData {
+  const nextPages = data?.pages?.map((p) => p.flatMap(cb));
+  return { ...data, pages: nextPages };
 }

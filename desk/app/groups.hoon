@@ -379,7 +379,8 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+  pole  ~|(bad-watch/pole !!)
+  ~|  watch-path=`path`pole
+  ?+  pole  ~|(%bad-watch-path !!)
     [%init ~]             (give %kick ~ ~)
     [%groups ~]           cor
     [%groups %ui ~]       cor
@@ -799,6 +800,7 @@
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
+    ~|  flag=f
     =/  [n=net:g gr=group:g]  (~(got by groups) f)
     go-core(flag f, group gr, net n)
   ::

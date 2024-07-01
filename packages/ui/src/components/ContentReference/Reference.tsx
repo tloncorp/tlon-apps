@@ -3,6 +3,7 @@ import { Dimensions } from 'react-native';
 import { createStyledContext, styled, withStaticProperties } from 'tamagui';
 
 import { View, XStack, YStack } from '../../core';
+import { PostViewMode } from '../ContentRenderer';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 
@@ -12,7 +13,7 @@ export type ReferenceProps = {
 
 export const ReferenceContext = createStyledContext<{
   asAttachment?: boolean;
-  viewMode?: 'block' | 'chat' | 'note';
+  viewMode?: PostViewMode;
 }>({
   asAttachment: false,
   viewMode: 'chat',
@@ -41,6 +42,9 @@ const ReferenceFrame = styled(YStack, {
         marginLeft: 0,
       },
       note: {
+        marginLeft: 0,
+      },
+      activity: {
         marginLeft: 0,
       },
     },

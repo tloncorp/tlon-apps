@@ -39,4 +39,7 @@
 /$  act-stream  %activity-stream      %json
 /$  act-feed    %activity-feed        %json
 /$  act-fe-it   %activity-feed-init   %json
+/$  full-info-1   %activity-full-1      %json
+/$  act-update-1  %activity-update-1    %json
+/$  act-sum-1     %activity-summary-1   %json
 ~

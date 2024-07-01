@@ -1,107 +1,116 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { ComponentProps, PropsWithChildren, useCallback, useRef } from 'react';
+import React, {
+  ComponentProps,
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Animated, TouchableOpacity } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { ColorTokens, Stack } from 'tamagui';
 
 import { XStack } from '../core';
+import * as utils from '../utils';
 import { Icon, IconType } from './Icon';
 
-export function SwipableChatRow(
-  props: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>
-) {
-  const swipeAnim = useRef(new Animated.Value(0)).current;
-
-  async function handleAction(actionId: 'pin' | 'placeholder') {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    switch (actionId) {
-      case 'pin':
-        props.model.pin
-          ? store.unpinItem(props.model.pin)
-          : store.pinItem(props.model);
-        break;
-      default:
-        break;
+function BaseSwipableChatRow({
+  model,
+  jailBroken,
+  children,
+}: PropsWithChildren<{ model: db.Channel; jailBroken?: boolean }>) {
+  const swipeableRef = useRef<Swipeable | null>(null);
+  const isMuted = useMemo(() => {
+    if (model.group) {
+      return model.group.volumeSettings?.isMuted ?? false;
+    } else if (model.type === 'dm' || model.type === 'groupDm') {
+      return model.volumeSettings?.isMuted ?? false;
     }
-  }
 
-  const opacity = swipeAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.5],
-  });
+    return false;
+  }, [model]);
+  // prevent color flicker when unmuting
+  const [mutedState, setMutedState] = useState(isMuted);
+  useEffect(() => {
+    if (mutedState === false && isMuted === true) {
+      setTimeout(() => setMutedState(isMuted), 500);
+    } else {
+      setMutedState(isMuted);
+    }
+  }, [isMuted, mutedState]);
 
-  const onSwipeableWillOpen = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 1,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  const onSwipeableOpen = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 1,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  const onSwipeableWillClose = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 0.5,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  const onSwipeableClose = useCallback(() => {
-    Animated.timing(swipeAnim, {
-      toValue: 0,
-      duration: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [swipeAnim]);
-
-  return (
-    <Swipeable
-      onSwipeableWillOpen={onSwipeableWillOpen}
-      onSwipeableOpen={onSwipeableOpen}
-      onSwipeableWillClose={onSwipeableWillClose}
-      onSwipeableClose={onSwipeableClose}
-      renderLeftActions={(progress, drag) =>
-        props.jailBroken ? (
-          <LeftActions progress={progress} drag={drag} model={props.model} />
-        ) : null
+  const handleAction = useCallback(
+    async (actionId: 'pin' | 'mute') => {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      utils.triggerHaptic('swipeAction');
+      switch (actionId) {
+        case 'pin':
+          model.pin ? store.unpinItem(model.pin) : store.pinItem(model);
+          break;
+        case 'mute':
+          isMuted ? store.unmuteChat(model) : store.muteChat(model);
+          break;
+        default:
+          break;
       }
-      renderRightActions={(progress, drag) => (
+      swipeableRef.current?.close();
+    },
+    [model, isMuted]
+  );
+
+  const renderLeftActions = useCallback(
+    (
+      progress: Animated.AnimatedInterpolation<string | number>,
+      drag: Animated.AnimatedInterpolation<string | number>
+    ) => {
+      return jailBroken ? (
+        <LeftActions progress={progress} drag={drag} model={model} />
+      ) : null;
+    },
+    [jailBroken, model]
+  );
+
+  const renderRightActions = useCallback(
+    (
+      progress: Animated.AnimatedInterpolation<string | number>,
+      drag: Animated.AnimatedInterpolation<string | number>
+    ) => {
+      return (
         <RightActions
           progress={progress}
           drag={drag}
-          model={props.model}
+          model={model}
+          isMuted={mutedState}
           handleAction={handleAction}
-          jailBroken={props.jailBroken ?? false}
         />
-      )}
+      );
+    },
+    [handleAction, mutedState, model]
+  );
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderLeftActions={renderLeftActions}
+      renderRightActions={renderRightActions}
       leftThreshold={1}
       rightThreshold={1}
       friction={1.5}
       overshootLeft={false}
       overshootRight={false}
     >
-      <Animated.View
-        style={{
-          opacity,
-        }}
-      >
-        {props.children}
-      </Animated.View>
+      {children}
     </Swipeable>
   );
 }
 
-function LeftActions({
+export const SwipableChatRow = React.memo(BaseSwipableChatRow);
+
+function BaseLeftActions({
   model,
   progress,
   drag,
@@ -151,18 +160,20 @@ function LeftActions({
   );
 }
 
-function RightActions({
+export const LeftActions = React.memo(BaseLeftActions);
+
+function BaseRightActions({
   model,
+  isMuted,
   progress,
   drag,
   handleAction,
-  jailBroken,
 }: {
-  jailBroken?: boolean;
+  isMuted: boolean;
   model: db.Channel;
   progress: Animated.AnimatedInterpolation<string | number>;
   drag: Animated.AnimatedInterpolation<string | number>;
-  handleAction: (actionId: 'pin') => void;
+  handleAction: (actionId: 'pin' | 'mute') => void;
 }) {
   return (
     <XStack
@@ -170,32 +181,33 @@ function RightActions({
       borderTopRightRadius="$m"
       overflow="hidden"
       justifyContent="space-around"
-      width={jailBroken ? 120 : 80}
+      width={160}
     >
       <Action
         side="right"
-        backgroundColor={model.pin ? '$yellowSoft' : '$yellow'}
-        color="$black"
+        backgroundColor="$blueSoft"
+        color="$darkBackground"
         iconType="Pin"
-        xOffset={120}
+        xOffset={160}
         progress={progress}
         drag={drag}
         handleAction={() => handleAction('pin')}
       />
-      {jailBroken && (
-        <Action
-          side="right"
-          backgroundColor="$green"
-          color="$black"
-          iconType="Channel"
-          xOffset={60}
-          progress={progress}
-          drag={drag}
-        />
-      )}
+      <Action
+        side="right"
+        backgroundColor={isMuted ? '$darkBackground' : '$secondaryBackground'}
+        color={isMuted ? '$secondaryText' : '$secondaryText'}
+        iconType={isMuted ? 'Notifications' : 'Mute'}
+        xOffset={80}
+        progress={progress}
+        drag={drag}
+        handleAction={() => handleAction('mute')}
+      />
     </XStack>
   );
 }
+
+export const RightActions = React.memo(BaseRightActions);
 
 function Action(
   props: ComponentProps<typeof Stack> & {

@@ -1,10 +1,15 @@
 import type * as db from '@tloncorp/shared/dist/db';
+import { ComponentProps } from 'react';
 import { ColorProp } from 'tamagui';
 
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import ContactName from '../ContactName';
-import { ListItem, type ListItemProps } from '../ListItem';
+import {
+  ListItem,
+  ListItemIconContainer,
+  type ListItemProps,
+} from '../ListItem';
 
 export default function ChannelListItem({
   model,
@@ -15,6 +20,7 @@ export default function ChannelListItem({
 }: {
   useTypeIcon?: boolean;
 } & ListItemProps<db.Channel>) {
+  const countToShow = model.unread?.count ?? 0;
   const title = utils.getChannelTitle(model);
 
   return (
@@ -23,9 +29,17 @@ export default function ChannelListItem({
       onPress={() => onPress?.(model)}
       onLongPress={() => onLongPress?.(model)}
     >
-      <ChannelListItemIcon model={model} useTypeIcon={useTypeIcon} />
+      <ChannelListItemIcon
+        model={model}
+        useTypeIcon={useTypeIcon}
+        opacity={model.volumeSettings?.isMuted ? 0.2 : 1}
+      />
       <ListItem.MainContent>
-        <ListItem.Title>{title}</ListItem.Title>
+        <ListItem.Title
+          color={model.volumeSettings?.isMuted ? '$tertiaryText' : undefined}
+        >
+          {title}
+        </ListItem.Title>
         {model.lastPost && (
           <ListItem.Subtitle>
             {model.type !== 'dm' ? (
@@ -50,8 +64,11 @@ export default function ChannelListItem({
       ) : (
         <ListItem.EndContent>
           {model.lastPost && <ListItem.Time time={model.lastPost.receivedAt} />}
-          <ListItem.Count opacity={model.unread?.count ? 1 : 0}>
-            {(model.unread?.count ?? 0) > 99 ? '99+' : model.unread?.count ?? 0}
+          <ListItem.Count
+            opacity={countToShow > 0 || model.volumeSettings?.isMuted ? 1 : 0}
+            muted={model.volumeSettings?.isMuted ?? false}
+          >
+            {utils.displayableUnreadCount(countToShow)}
           </ListItem.Count>
         </ListItem.EndContent>
       )}
@@ -62,10 +79,11 @@ export default function ChannelListItem({
 function ChannelListItemIcon({
   model,
   useTypeIcon,
+  ...props
 }: {
   model: db.Channel;
   useTypeIcon?: boolean;
-}) {
+} & ComponentProps<typeof ListItemIconContainer>) {
   const backgroundColor = model.iconImageColor as ColorProp;
   if (useTypeIcon) {
     const icon = utils.getChannelTypeIcon(model.type);
@@ -73,6 +91,7 @@ function ChannelListItemIcon({
       <ListItem.SystemIcon
         icon={icon}
         backgroundColor={'$secondaryBackground'}
+        {...props}
       />
     );
   } else if (model.type === 'dm') {
@@ -82,6 +101,7 @@ function ChannelListItemIcon({
         contact={model.members?.[0]?.contact}
         contactId={model.members?.[0]?.contactId ?? model.id}
         rounded
+        {...props}
       />
     );
   } else {
@@ -90,6 +110,7 @@ function ChannelListItemIcon({
         <ListItem.ImageIcon
           imageUrl={model.iconImage}
           backgroundColor={backgroundColor}
+          {...props}
         />
       );
     } else if (hasGroup(model) && model.group.iconImage) {
@@ -97,6 +118,7 @@ function ChannelListItemIcon({
         <ListItem.ImageIcon
           imageUrl={model.group.iconImage}
           backgroundColor={backgroundColor}
+          {...props}
         />
       );
     } else {
@@ -105,6 +127,7 @@ function ChannelListItemIcon({
           fallbackText={utils.getChannelTitle(model)}
           backgroundColor={backgroundColor ?? '$secondaryBackground'}
           rounded={model.type === 'groupDm'}
+          {...props}
         />
       );
     }

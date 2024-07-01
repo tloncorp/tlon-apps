@@ -1,21 +1,22 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { isToday, makePrettyDay } from '@tloncorp/shared/dist/logic';
-import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useMemo } from 'react';
 import { useWindowDimensions } from 'tamagui';
 
 import { SizableText, View, XStack } from '../../core';
 
 export function ChannelDivider({
-  timestamp,
+  post,
   unreadCount,
   isFirstPostOfDay,
+  onSeen,
   channelInfo,
   index,
 }: {
-  timestamp: number;
+  post: db.Post;
   unreadCount: number;
   isFirstPostOfDay?: boolean;
+  onSeen?: (post: db.Post) => void;
   channelInfo?: {
     id: string;
     type: db.ChannelType;
@@ -23,18 +24,17 @@ export function ChannelDivider({
   index: number;
 }) {
   const color = unreadCount ? '$positiveActionText' : '$border';
-  const hideTime = unreadCount && isToday(timestamp) && !isFirstPostOfDay;
+  const hideTime = unreadCount && isToday(post.receivedAt) && !isFirstPostOfDay;
   const time = useMemo(() => {
-    return makePrettyDay(new Date(timestamp));
-  }, [timestamp]);
+    return makePrettyDay(new Date(post.receivedAt));
+  }, [post.receivedAt]);
   const { width } = useWindowDimensions();
 
-  // for now, trigger a simple delayed read when the unread divider is displayed
-  const handleLayout = useCallback(() => {
-    if (unreadCount && channelInfo) {
-      setTimeout(() => store.markChannelRead(channelInfo), 10000);
+  const handleSeen = useCallback(() => {
+    if (unreadCount) {
+      onSeen?.(post);
     }
-  }, [channelInfo, unreadCount]);
+  }, [onSeen, post, unreadCount]);
 
   const isEven = index % 2 === 0;
 
@@ -56,7 +56,7 @@ export function ChannelDivider({
       }
       alignItems="center"
       padding="$l"
-      onLayout={handleLayout}
+      onLayout={handleSeen}
     >
       <View width={'$2xl'} flex={1} height={1} backgroundColor={color} />
       <View

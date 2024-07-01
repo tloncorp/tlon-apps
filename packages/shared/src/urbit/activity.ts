@@ -78,7 +78,7 @@ export interface DmPostEvent {
   'dm-post': {
     key: MessageKey;
     whom: Whom;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -88,7 +88,7 @@ export interface DmReplyEvent {
     parent: MessageKey;
     key: MessageKey;
     whom: Whom;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -98,7 +98,7 @@ export interface PostEvent {
     key: MessageKey;
     group: string;
     channel: string;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -109,7 +109,7 @@ export interface ReplyEvent {
     key: MessageKey;
     group: string;
     channel: string;
-    content: Story[];
+    content: Story;
     mention: boolean;
   };
 }
@@ -168,17 +168,26 @@ export interface UnreadThread extends UnreadPoint {
 export interface ActivitySummary {
   recency: number;
   count: number;
+  'notify-count': number;
   notify: boolean;
   unread: UnreadPoint | null;
   children: Activity | null;
+  reads: Reads | null;
 }
 
 export interface ActivityBundle {
   source: Source;
   latest: string;
-  events: ActivityEvent[];
+  events: { event: ActivityEvent; time: string }[];
   'source-key': string;
 }
+
+export type ActivityFeed = ActivityBundle[];
+export type InitActivityFeeds = {
+  all: ActivityBundle[];
+  mentions: ActivityBundle[];
+  replies: ActivityBundle[];
+};
 
 export type Activity = Record<string, ActivitySummary>;
 
@@ -187,8 +196,6 @@ export type Indices = Record<string, IndexData>;
 export type Stream = Record<string, ActivityEvent>;
 
 export type VolumeMap = Partial<Record<ExtendedEventType, Volume>>;
-
-export type ActivityFeed = ActivityBundle[];
 
 export type ReadAction =
   | { event: ActivityIncomingEvent }
@@ -205,11 +212,14 @@ export interface ActivityVolumeAction {
   volume: VolumeMap | null;
 }
 
+export type PushNotificationsSetting = 'all' | 'some' | 'none';
+
 export type ActivityAction =
   | { add: ActivityIncomingEvent }
   | { del: Source }
   | { read: ActivityReadAction }
-  | { adjust: ActivityVolumeAction };
+  | { adjust: ActivityVolumeAction }
+  | { 'allow-notifications': PushNotificationsSetting };
 
 export interface ActivityReadUpdate {
   read: {
@@ -227,10 +237,10 @@ export interface ActivityVolumeUpdate {
 
 export interface ActivityAddUpdate {
   add: {
+    ['source-key']: string;
     source: Source;
     time: string;
     event: ActivityEvent;
-    'source-key': string;
   };
 }
 
@@ -238,11 +248,16 @@ export interface ActivityDeleteUpdate {
   del: Source;
 }
 
+export interface ActivityPushNotificationsSettingUpdate {
+  'allow-notifications': PushNotificationsSetting;
+}
+
 export type ActivityUpdate =
   | ActivityReadUpdate
   | ActivityVolumeUpdate
   | ActivityDeleteUpdate
-  | ActivityAddUpdate;
+  | ActivityAddUpdate
+  | ActivityPushNotificationsSettingUpdate;
 
 export interface FullActivity {
   indices: Indices;

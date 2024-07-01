@@ -15,7 +15,13 @@ export default defineConfig({
   ],
   format: ['esm'],
   minify: false,
-  external: ['react', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+  external: [
+    'react',
+    '@aws-sdk/client-s3',
+    '@aws-sdk/s3-request-presigner',
+    '@react-native-firebase/crashlytics',
+    '@react-native-firebase/perf',
+  ],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {
     '.sql': 'text',

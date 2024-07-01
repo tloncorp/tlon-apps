@@ -45,11 +45,12 @@ export interface UnreadsStore {
   sources: Unreads;
   seen: (whom: string) => void;
   read: (whom: string) => void;
-  delayedRead: (whom: string, callback: () => void) => void;
+  bump: (whom: string) => void;
   update: (unreads: Activity) => void;
+  delayedRead: (whom: string, callback: () => void) => void;
 }
 
-export const unreadStoreLogger = createDevLogger('UnreadsStore', false);
+export const unreadStoreLogger = createDevLogger('UnreadsStore', true);
 
 function getUnreadStatus(count: number, notify: boolean): ReadStatus {
   if (count > 0 || notify) {
@@ -94,14 +95,18 @@ function sumChildren(
   const { count, notify, status } = Object.entries(
     children
   ).reduce<ShortSummary>(
-    (acc, [key, child]) => {
+    (acc, [key, summary]) => {
       let status = acc.status;
-      const childStatus = unreads[key]?.status;
+      const child = unreads[key];
+      const childCount = child?.combined.count || summary.unread?.count || 0;
+      const childNotify =
+        child?.combined.notify || Boolean(summary.unread?.notify);
+      const childStatus = child?.combined.status;
 
       // if we don't care about summing counts then we can skip aggregating
       // but if any child is notify then we need to take into account it's
       // status and notify values
-      if (!(sumCounts || child.notify)) {
+      if (!(sumCounts || childNotify)) {
         return acc;
       }
 
@@ -112,8 +117,8 @@ function sumChildren(
       }
 
       return {
-        count: !sumCounts ? acc.count : acc.count + (child.unread?.count || 0),
-        notify: acc.notify || Boolean(child.notify),
+        count: acc.count + (childCount || 0),
+        notify: acc.notify || Boolean(childNotify),
         status,
       };
     },
@@ -188,6 +193,11 @@ export const emptyUnread = (): Unread => ({
     notify: false,
     unread: null,
     children: {},
+    'notify-count': 0,
+    reads: {
+      floor: '0',
+      posts: {},
+    },
   },
   recency: 0,
   status: 'read',
@@ -336,6 +346,22 @@ export const useUnreadsStore = create<UnreadsStore>((set, get) => ({
         };
         unreadStoreLogger.log('post read', JSON.stringify(draft.sources[key]));
         updateParents(source.parents, draft);
+      })
+    );
+  },
+  bump: (key) => {
+    set(
+      produce((draft: UnreadsStore) => {
+        const source = draft.sources[key];
+        if (!source) {
+          return;
+        }
+
+        unreadStoreLogger.log('bump', key);
+        draft.sources[key] = {
+          ...source,
+          recency: Date.now(),
+        };
       })
     );
   },

@@ -8,6 +8,7 @@ import MessagesList from '@/dms/MessagesList';
 import { MessagesScrollingContext } from '@/dms/MessagesScrollingContext';
 import MessagesSidebarItem from '@/dms/MessagesSidebarItem';
 import TalkHead from '@/dms/TalkHead';
+import { useCohorts } from '@/state/broadcasts';
 import { usePinnedChats } from '@/state/pins';
 import {
   SidebarFilter,
@@ -30,8 +31,12 @@ export default function MessagesSidebar({
     key: 'messagesFilter',
   });
   const pinned = usePinnedChats();
+  const { refetch: refetchCohorts, data: cohorts } = useCohorts();
 
   const setFilterMode = (mode: SidebarFilter) => {
+    if (mode === filters.broadcasts) {
+      refetchCohorts();
+    }
     mutate({ val: mode });
   };
 
@@ -70,6 +75,16 @@ export default function MessagesSidebar({
       ),
     },
   ];
+  if (cohorts)
+    filterActions.push({
+      key: 'broadcasts',
+      onClick: () => setFilterMode(filters.broadcasts),
+      content: 'Broadcasts',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.broadcasts && 'bg-gray-50 text-gray-800'
+      ),
+    });
 
   return (
     <MessagesScrollingContext.Provider value={isScrolling}>

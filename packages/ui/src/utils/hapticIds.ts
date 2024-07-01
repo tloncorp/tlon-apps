@@ -1,1 +1,5 @@
-export type HapticAction = 'baseButtonClick' | 'sheetOpen' | 'success';
+export type HapticAction =
+  | 'baseButtonClick'
+  | 'sheetOpen'
+  | 'success'
+  | 'swipeAction';

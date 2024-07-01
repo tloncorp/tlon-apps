@@ -11,6 +11,23 @@ const loggers = process.env.ENABLED_LOGGERS?.split(',') ?? [];
 
 addCustomEnabledLoggers(loggers);
 
+vi.mock('@react-native-firebase/crashlytics', () => {
+  return {
+    log: vi.fn(),
+    recordError: vi.fn(),
+    setUserId: vi.fn(),
+  };
+});
+
+vi.mock('@react-native-firebase/perf', () => ({
+  default: () => ({
+    newTrace: (traceName: string) => ({
+      start: vi.fn(),
+      stop: vi.fn(),
+    }),
+  }),
+}));
+
 export function mockUrbit() {
   vi.mock('../api/urbit', async () => {
     return {

@@ -9,6 +9,15 @@
       =chat
       profile=?
   ==
++$  init-2
+  $:  groups=groups-ui:g
+      =gangs:g
+      =channels:d
+      activity=activity-0:old:a
+      pins=(list whom)
+      =chat
+      profile=?
+  ==
 ::
 +$  init-1
   $:  groups=groups-ui:g

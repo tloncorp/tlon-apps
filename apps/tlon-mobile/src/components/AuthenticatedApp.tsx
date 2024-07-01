@@ -1,5 +1,7 @@
-import { sync } from '@tloncorp/shared';
+import crashlytics from '@react-native-firebase/crashlytics';
+import { setCrashReporter, sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
+import * as logic from '@tloncorp/shared/dist/logic';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -28,8 +30,18 @@ function AuthenticatedApp({
     configureClient({
       shipName: ship ?? '',
       shipUrl: shipUrl ?? '',
-      onReset: () => sync.setupSubscriptions(),
+      onReset: () => sync.syncStart(),
+      onChannelReset: () => sync.handleDiscontinuity(),
     });
+
+    setCrashReporter(crashlytics());
+
+    // TODO: remove, for use in Beta testing only
+    if (currentUserId) {
+      logic.setErrorTrackingUserId(currentUserId);
+    }
+
+    sync.syncStart();
   }, [currentUserId, ship, shipUrl]);
 
   return (

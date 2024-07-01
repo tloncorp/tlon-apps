@@ -102,6 +102,7 @@ import ReportContent from './components/ReportContent';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import UpdateNoticeSheet from './components/UpdateNotices';
+import BroadcastDm from './dms/BroadcastDm';
 import DMThread from './dms/DMThread';
 import MobileDmSearch from './dms/MobileDmSearch';
 import EyrieMenu from './eyrie/EyrieMenu';
@@ -197,6 +198,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
             />
             <Route path="/dm/" element={<Dms />}>
               <Route index element={<DMHome />} />
+              <Route path="broadcasts/:cohort" element={<BroadcastDm />} />
               <Route path="new">
                 <Route index element={<NewDM />} />
                 <Route path=":ship" element={<Message />} />

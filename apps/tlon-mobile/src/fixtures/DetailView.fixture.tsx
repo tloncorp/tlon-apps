@@ -42,6 +42,7 @@ const NotebookDetailViewFixture = () => {
         clearDraft={() => {}}
         getDraft={async () => ({})}
         goBack={() => {}}
+        markRead={() => {}}
       />
     </FixtureWrapper>
   );
@@ -72,6 +73,7 @@ const GalleryDetailViewFixture = () => {
         clearDraft={() => {}}
         getDraft={async () => ({})}
         goBack={() => {}}
+        markRead={() => {}}
       />
     </FixtureWrapper>
   );
