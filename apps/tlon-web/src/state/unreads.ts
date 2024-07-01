@@ -1,6 +1,7 @@
 import {
   Activity,
   ActivitySummary,
+  stripSourcePrefix,
 } from '@tloncorp/shared/dist/urbit/activity';
 import produce from 'immer';
 import { useCallback, useMemo } from 'react';
@@ -438,35 +439,12 @@ export function useAllGroupUnreads() {
 export function useMarkAllGroupsRead() {
   const allGroupUnreads = useAllGroupUnreads();
   const { read } = useUnreadsStore();
-  const { mutate } = useMarkReadMutation();
+  const { mutate } = useMarkReadMutation(true);
 
   const markAllRead = useCallback(() => {
-    allGroupUnreads.forEach(([sourceId, groupUnread]) => {
-      if (groupUnread.status === 'unread') {
-        read(sourceId);
-        mutate({ source: { group: sourceId } });
-      }
-
-      const groupId = sourceId.split('/').slice(1).join('/');
-
-      const unreadChildrenIds = Object.entries(groupUnread.children ?? {})
-        .filter(([_, childUnread]) => childUnread.count > 0)
-        .map(([childId]) => childId);
-
-      unreadChildrenIds.forEach((childId) => {
-        read(childId);
-        if (childId.startsWith('channel')) {
-          const channelId = childId.split('/').slice(1).join('/');
-          mutate({
-            source: {
-              channel: {
-                group: groupId,
-                nest: channelId,
-              },
-            },
-          });
-        }
-      });
+    allGroupUnreads.forEach(([sourceId]) => {
+      read(sourceId);
+      mutate({ source: { group: stripSourcePrefix(sourceId) } });
     });
   }, [allGroupUnreads, read, mutate]);
 

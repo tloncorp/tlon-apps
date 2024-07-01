@@ -14,15 +14,11 @@ import ChannelTitleButton from './ChannelTitleButton';
 export type ChannelHeaderProps = PropsWithChildren<{
   groupFlag: string;
   nest: string;
-  prettyAppName: string;
-  leave: ({ nest }: { nest: string }) => Promise<void>;
 }>;
 
 export default function ChannelHeader({
   groupFlag,
   nest,
-  prettyAppName,
-  leave,
   children,
 }: ChannelHeaderProps) {
   const isMobile = useIsMobile();
@@ -31,10 +27,8 @@ export default function ChannelHeader({
 
   const actionProps: ChannelActionsProps = {
     nest,
-    prettyAppName,
     channel,
     isAdmin,
-    leave,
   };
 
   if (isMobile) {

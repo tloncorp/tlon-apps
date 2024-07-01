@@ -55,7 +55,6 @@ const ChatChannel = React.memo(({ title }: ViewProps) => {
   const inDmSearch = useMatch(
     `/dm/groups/${groupFlag}/channels/${nest}/search/*`
   );
-  const { mutateAsync: leaveChat } = useLeaveMutation();
   const { mutate: sendMessage } = useAddPostMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
@@ -120,12 +119,7 @@ const ChatChannel = React.memo(({ title }: ViewProps) => {
             <Route
               path="*"
               element={
-                <ChannelHeader
-                  groupFlag={groupFlag}
-                  nest={nest}
-                  prettyAppName="Chat"
-                  leave={leaveChat}
-                >
+                <ChannelHeader groupFlag={groupFlag} nest={nest}>
                   <Link
                     to="search/"
                     className={cn(

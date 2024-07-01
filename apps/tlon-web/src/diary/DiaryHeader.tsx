@@ -40,7 +40,6 @@ export default function DiaryHeader({
   const isMobile = useIsMobile();
   const { compatible } = useChannelCompatibility(nest);
   const settings = useDiarySettings();
-  const { mutateAsync: leaveDiary } = useLeaveMutation();
   const { mutate } = usePutEntryMutation({
     bucket: 'diary',
     key: 'settings',
@@ -110,12 +109,7 @@ export default function DiaryHeader({
   ];
 
   return (
-    <ChannelHeader
-      groupFlag={groupFlag}
-      nest={nest}
-      prettyAppName="Notebook"
-      leave={(ch) => leaveDiary({ nest: `diary/${ch}` })}
-    >
+    <ChannelHeader groupFlag={groupFlag} nest={nest}>
       <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
         <ActionMenu open={isOpen} onOpenChange={setIsOpen} actions={actions}>
           <button>

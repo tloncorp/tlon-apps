@@ -417,23 +417,7 @@
         allow-notifications/(su (perk %all %some %none ~))
     ==
   ::
-  ++  add
-    ^-  $-(json incoming-event:a)
-    %-  of
-    :~  post/post-event
-        reply/reply-event
-        chan-init/chan-init-event
-        dm-invite/whom
-        dm-post/dm-post-event
-        dm-reply/dm-reply-event
-        flag-post/flag-post-event
-        flag-reply/flag-reply-event
-        group-ask/group-event
-        group-join/group-event
-        group-kick/group-event
-        group-invite/group-event
-        group-role/group-role-event
-    ==
+  ++  add  incoming-event
   ::
   ++  adjust
     %-  ot
@@ -450,8 +434,10 @@
   ::
   ++  read-action
     %-  of
-    :~  all/ul
-        item/id
+    :~  item/id
+        all/(mu (se %ud))
+        event/incoming-event
+        recursive/(mu (se %ud))
     ==
   ::
   +|  %basics
@@ -503,6 +489,23 @@
         notify/bo
     ==
   ::
+  ++  incoming-event
+    ^-  $-(json incoming-event:a)
+    %-  of
+    :~  post/post-event
+        reply/reply-event
+        chan-init/chan-init-event
+        dm-invite/whom
+        dm-post/dm-post-event
+        dm-reply/dm-reply-event
+        flag-post/flag-post-event
+        flag-reply/flag-reply-event
+        group-ask/group-event
+        group-join/group-event
+        group-kick/group-event
+        group-invite/group-event
+        group-role/group-role-event
+    ==
   ++  chan-init-event
     %-  ot
     :~  channel/nest:dejs:cj

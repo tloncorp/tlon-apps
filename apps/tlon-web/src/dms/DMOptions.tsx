@@ -80,8 +80,12 @@ export default function DmOptions({
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
-  const { markRead: markReadChannel } = useMarkChannelRead(key);
-  const { markDmRead } = useMarkDmReadMutation(whom);
+  const { markRead: markReadChannel } = useMarkChannelRead(
+    key,
+    undefined,
+    true
+  );
+  const { markDmRead } = useMarkDmReadMutation(whom, undefined, true);
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
 

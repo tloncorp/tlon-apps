@@ -200,7 +200,8 @@ export type VolumeMap = Partial<Record<ExtendedEventType, Volume>>;
 export type ReadAction =
   | { event: ActivityIncomingEvent }
   | { item: string }
-  | { all: null };
+  | { all: null }
+  | { recursive: null };
 
 export interface ActivityReadAction {
   source: Source;

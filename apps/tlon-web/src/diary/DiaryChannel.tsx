@@ -46,7 +46,7 @@ function DiaryChannel({ title }: ViewProps) {
     hasNextPage,
     fetchNextPage,
   } = useInfinitePosts(nest);
-  const { markRead, isLoading: isMarking } = useMarkChannelRead(nest);
+  const { markRead } = useMarkChannelRead(nest);
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
@@ -130,11 +130,9 @@ function DiaryChannel({ title }: ViewProps) {
     };
   }, [newNote, location, navigate]);
 
-  useDismissChannelNotifications({
-    nest,
-    markRead,
-    isMarking,
-  });
+  useEffect(() => {
+    markRead();
+  }, []);
 
   const sortedNotes = notes
     .filter(([k, v]) => v !== null)

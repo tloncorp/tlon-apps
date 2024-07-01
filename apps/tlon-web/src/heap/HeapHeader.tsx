@@ -58,7 +58,6 @@ const HeapHeader = React.memo(
       bucket: 'heaps',
       key: 'heapSettings',
     });
-    const { mutateAsync: leave } = useLeaveMutation();
 
     const setDisplayMode = (setting: DisplayMode) => {
       const newSettings = setChannelSetting<HeapSetting>(
@@ -118,12 +117,7 @@ const HeapHeader = React.memo(
     ];
 
     return (
-      <ChannelHeader
-        groupFlag={groupFlag}
-        nest={nest}
-        prettyAppName="Gallery"
-        leave={leave}
-      >
+      <ChannelHeader groupFlag={groupFlag} nest={nest}>
         {isMobile ? (
           <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
             <ActionMenu
