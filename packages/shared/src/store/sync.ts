@@ -784,7 +784,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     await withRetry(() =>
       Promise.all([
-        syncContacts().then(() => reporter.log(`finished syncing contacts`)),
+        syncContacts(SyncPriority.High).then(() =>
+          reporter.log(`finished syncing contacts`)
+        ),
         resetActivity().then(() => reporter.log(`finished resetting activity`)),
       ])
     );
