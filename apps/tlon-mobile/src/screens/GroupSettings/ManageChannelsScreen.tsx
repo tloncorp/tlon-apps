@@ -13,16 +13,15 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
   const { groupId } = props.route.params;
 
   const {
-    group,
-    currentUserIsAdmin,
-    groupChannels,
     channelsWithoutNavSection,
     groupNavSectionsWithChannels,
-    groupNavSections,
-    setGroupMetadata,
-    setGroupPrivacy,
+    moveNavSection,
     createChannel,
+    updateChannel,
     deleteChannel,
+    addChannelToNavSection,
+    moveChannel,
+    moveChannelToNavSection,
     createNavSection,
     deleteNavSection,
     updateNavSection,
@@ -33,6 +32,16 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
       goBack={props.navigation.goBack}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       channelsWithoutNavSection={channelsWithoutNavSection}
+      moveNavSection={moveNavSection}
+      createChannel={createChannel}
+      updateChannel={updateChannel}
+      deleteChannel={deleteChannel}
+      addChannelToNavSection={addChannelToNavSection}
+      moveChannelWithinNavSection={moveChannel}
+      moveChannelToNavSection={moveChannelToNavSection}
+      createNavSection={createNavSection}
+      deleteNavSection={deleteNavSection}
+      updateNavSection={updateNavSection}
     />
   );
 }

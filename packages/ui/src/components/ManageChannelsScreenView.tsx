@@ -8,7 +8,6 @@ import { Text, View, XStack, YStack } from '../core';
 import { Button } from './Button';
 import { DraggableItem } from './DraggableItem';
 import { GenericHeader } from './GenericHeader';
-import { SaveButton } from './GroupMetaScreenView';
 import { Icon } from './Icon';
 import Pressable from './Pressable';
 
@@ -21,6 +20,13 @@ type Section = {
 type Channel = {
   id: string;
   title?: string | null;
+};
+
+type DraggedItem = {
+  type: 'section' | 'channel';
+  channelId?: string;
+  sectionId: string;
+  layout: LayoutRectangle;
 };
 
 function DraggableChannel({
@@ -130,10 +136,37 @@ export function ManageChannelsScreenView({
   groupNavSectionsWithChannels,
   channelsWithoutNavSection,
   goBack,
+  moveNavSection,
+  createChannel,
+  updateChannel,
+  deleteChannel,
+  addChannelToNavSection,
+  moveChannelWithinNavSection,
+  moveChannelToNavSection,
+  createNavSection,
+  deleteNavSection,
+  updateNavSection,
 }: {
   goBack: () => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   channelsWithoutNavSection: db.Channel[];
+  moveNavSection: (navSectionId: string, newIndex: number) => Promise<void>;
+  createChannel: (channel: db.Channel) => void;
+  updateChannel: (channel: db.Channel) => void;
+  addChannelToNavSection: (channelId: string, navSectionId: string) => void;
+  moveChannelWithinNavSection: (
+    channelId: string,
+    navSectionId: string,
+    newIndex: number
+  ) => Promise<void>;
+  moveChannelToNavSection: (
+    channelId: string,
+    navSectionId: string
+  ) => Promise<void>;
+  deleteChannel: (channelId: string) => void;
+  createNavSection: (navSection: db.GroupNavSection) => void;
+  deleteNavSection: (navSectionId: string) => void;
+  updateNavSection: (navSection: db.GroupNavSection) => void;
 }) {
   const [sections, setSections] = useState<Section[]>(() => {
     const defaultSection: Section = {
@@ -157,38 +190,37 @@ export function ManageChannelsScreenView({
     return [defaultSection, ...otherSections];
   });
 
-  type DraggedItem = {
-    type: 'section' | 'channel';
-    channelId?: string;
-    sectionId: string;
-    layout: LayoutRectangle;
-  };
-
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const draggedItemY = useSharedValue(0);
 
   const handleSectionDragEnd = useCallback(
-    (index: number, translateY: number) => {
+    async (index: number, translateY: number) => {
+      const newIndex = Math.min(
+        Math.max(0, Math.round(index + translateY / 40)),
+        sections.length - 1
+      );
+
       setSections((prevSections) => {
         const newSections = [...prevSections];
-        const newIndex = Math.min(
-          Math.max(0, Math.round(index + translateY / 40)),
-          newSections.length - 1
-        );
         const [movedSection] = newSections.splice(index, 1);
         newSections.splice(newIndex, 0, movedSection);
+
         return newSections;
       });
       setDraggedItem(null);
       draggedItemY.value = 0;
+      await moveNavSection(sections[index].id, newIndex);
     },
-    [draggedItemY]
+    [draggedItemY, moveNavSection, sections]
   );
 
   const handleChannelDragEnd = useCallback(
-    (sectionId: string, channelIndex: number, translateY: number) => {
+    async (sectionId: string, channelIndex: number, translateY: number) => {
+      let newSections: Section[] = [];
+      let newChannelIndex;
+      let targetSectionIndex;
       setSections((prevSections) => {
-        const newSections = [...prevSections];
+        newSections = [...prevSections];
         const currentSectionIndex = newSections.findIndex(
           (s) => s.id === sectionId
         );
@@ -196,7 +228,7 @@ export function ManageChannelsScreenView({
         const [movedChannel] = currentSection.channels.splice(channelIndex, 1);
 
         // Calculate the target section index
-        let targetSectionIndex = currentSectionIndex;
+        targetSectionIndex = currentSectionIndex;
         const sectionHeight = 150; // Approximate height of a section
         const direction = Math.sign(translateY);
         const sectionsMoved = Math.floor(Math.abs(translateY) / sectionHeight);
@@ -215,7 +247,6 @@ export function ManageChannelsScreenView({
         // Calculate new index within the target section
         const targetSection = newSections[targetSectionIndex];
         const channelHeight = 72; // Approximate height of a channel
-        let newChannelIndex;
         if (targetSectionIndex === currentSectionIndex) {
           newChannelIndex = Math.min(
             Math.max(0, Math.round(channelIndex + translateY / channelHeight)),
@@ -230,10 +261,35 @@ export function ManageChannelsScreenView({
 
         return newSections;
       });
+
+      if (
+        newChannelIndex !== undefined &&
+        targetSectionIndex !== undefined &&
+        newSections.length > 0
+      ) {
+        if (sections[targetSectionIndex].id !== sectionId) {
+          await moveChannelToNavSection(
+            newSections[targetSectionIndex].channels[newChannelIndex].id,
+            newSections[targetSectionIndex].id
+          );
+        } else {
+          await moveChannelWithinNavSection(
+            newSections[targetSectionIndex].channels[newChannelIndex].id,
+            newSections[targetSectionIndex].id,
+            newChannelIndex
+          );
+        }
+      }
+
       setDraggedItem(null);
       draggedItemY.value = 0;
     },
-    [draggedItemY]
+    [
+      draggedItemY,
+      moveChannelWithinNavSection,
+      sections,
+      moveChannelToNavSection,
+    ]
   );
 
   const handleDragStart = useCallback(
@@ -369,11 +425,7 @@ export function ManageChannelsScreenView({
         justifyContent="space-between"
         flex={1}
       >
-        <GenericHeader
-          title="Manage channels"
-          goBack={goBack}
-          rightContent={<SaveButton onPress={() => console.log('save')} />}
-        />
+        <GenericHeader title="Manage channels" goBack={goBack} />
         <YStack
           backgroundColor="$background"
           gap="$2xl"

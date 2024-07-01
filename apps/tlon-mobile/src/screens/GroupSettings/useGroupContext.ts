@@ -63,10 +63,19 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const setGroupMetadata = useCallback(
     async (metadata: db.ClientMeta) => {
       if (group) {
-        await store.updateGroup({
+        await store.updateGroupMeta({
           ...group,
           ...metadata,
         });
+      }
+    },
+    [group]
+  );
+
+  const moveNavSection = useCallback(
+    async (navSectionId: string, newIndex: number) => {
+      if (group) {
+        await store.moveNavSection(group, navSectionId, newIndex);
       }
     },
     [group]
@@ -152,9 +161,46 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   );
 
   const moveChannel = useCallback(
+    async (channelId: string, navSectionId: string, index: number) => {
+      if (group) {
+        await store.moveChannel({
+          group,
+          channelId,
+          navSectionId,
+          index,
+        });
+      }
+    },
+    [group]
+  );
+
+  const addChannelToNavSection = useCallback(
     async (channelId: string, navSectionId: string) => {
       if (group) {
-        // await store.moveChannel(group.id, channelId, navSectionId);
+        await store.addChannelToNavSection({
+          group,
+          channelId,
+          navSectionId,
+        });
+      }
+    },
+    [group]
+  );
+
+  const moveChannelToNavSection = useCallback(
+    async (channelId: string, navSectionId: string) => {
+      if (group) {
+        await store.addChannelToNavSection({
+          group,
+          channelId,
+          navSectionId,
+        });
+        await store.moveChannel({
+          group,
+          channelId,
+          navSectionId,
+          index: 0,
+        });
       }
     },
     [group]
@@ -264,8 +310,11 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     createNavSection,
     deleteNavSection,
     updateNavSection,
+    moveNavSection,
     setChannelOrder,
+    addChannelToNavSection,
     moveChannel,
+    moveChannelToNavSection,
     inviteUsers,
     getPublicInviteUrl,
     createGroupRole,
