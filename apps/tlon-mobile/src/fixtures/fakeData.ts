@@ -474,7 +474,8 @@ const tlonLocalChannels: db.Channel[] = [
 const tlonLocalNavSections: db.GroupNavSection[] = [
   {
     index: 0,
-    id: 'welcome-zone-id',
+    id: '~nibset-napwyn/tlon-welcome-zone-id',
+    sectionId: 'welcome-zone-id',
     groupId: '~nibset-napwyn/tlon',
     title: 'Welcome',
     coverImage: null,
@@ -497,7 +498,8 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
   },
   {
     index: 1,
-    id: 'discuss-zone-id',
+    id: `~nibset-napwyn/tlon-discuss-zone-id`,
+    sectionId: 'discuss-zone-id',
     groupId: '~nibset-napwyn/tlon',
     title: 'Discuss',
     coverImage: null,
@@ -520,7 +522,8 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
   },
   {
     index: 2,
-    id: 'catalog-zone-id',
+    id: '~nibset-napwyn/tlon-catalog-zone-id',
+    sectionId: 'catalog-zone-id',
     groupId: '~nibset-napwyn/tlon',
     title: 'Catalog',
     coverImage: null,

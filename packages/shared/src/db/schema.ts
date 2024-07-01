@@ -557,6 +557,7 @@ export const chatMemberRolesRelations = relations(
 
 export const groupNavSections = sqliteTable('group_nav_sections', {
   id: text('id').primaryKey(),
+  sectionId: text('section_id').notNull(),
   groupId: text('group_id').references(() => groups.id, {
     onDelete: 'cascade',
   }),

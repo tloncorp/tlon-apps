@@ -266,6 +266,7 @@ const testGroupData: db.Group = {
   navSections: [
     {
       id: 'abc',
+      sectionId: `${groupId}-abc`,
       groupId,
       channels: [{ index: 0, channelId, groupNavSectionId: 'abc' }],
     },

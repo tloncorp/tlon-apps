@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "5b22f005-5d8a-445c-83fa-2c8ad5f2e8dc",
+  "id": "429bd8a0-55e3-4987-904f-613ef9568d5b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -894,6 +894,13 @@
           "name": "id",
           "type": "text",
           "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "section_id": {
+          "name": "section_id",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
