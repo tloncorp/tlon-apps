@@ -107,11 +107,7 @@ function GroupPreviewListItem({ model, onPress }: ListItemProps<db.Group>) {
 
   return (
     <ListItem onPress={() => onPress?.(model)}>
-      <ListItem.Icon
-        fallbackText={model.title?.[0]}
-        backgroundColor={model.iconImageColor ?? undefined}
-        imageUrl={model.iconImage ?? undefined}
-      />
+      <ListItem.GroupIcon model={model} />
       <ListItem.MainContent>
         <ListItem.Title>{model.title}</ListItem.Title>
       </ListItem.MainContent>

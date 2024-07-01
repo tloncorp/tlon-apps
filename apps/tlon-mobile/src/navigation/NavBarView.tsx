@@ -9,10 +9,8 @@ const NavBarView = (props: { navigation: any }) => {
   const isRouteActive = (routeName: string) => {
     return state.routes[state.index].name === routeName;
   };
-  const { data: unreadCount } = store.useUnreadsCount();
   const haveUnseenActivity = store.useHaveUnseenActivity();
   const currentUserId = useCurrentUserId();
-  const { data: contact } = store.useContact({ id: currentUserId });
 
   return (
     <NavBar>
@@ -34,7 +32,6 @@ const NavBarView = (props: { navigation: any }) => {
       />
       <AvatarNavIcon
         id={currentUserId}
-        contact={contact}
         focused={isRouteActive('Settings')}
         onPress={() => props.navigation.navigate('Settings')}
       />

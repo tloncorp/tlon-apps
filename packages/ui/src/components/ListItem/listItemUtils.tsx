@@ -57,7 +57,3 @@ export function getGroupStatus(group: db.Group) {
     label: labels[state],
   };
 }
-
-export function isMuted(model: db.Group | db.Channel) {
-  return model.volumeSettings?.isMuted ?? false;
-}

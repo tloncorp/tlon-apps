@@ -1,11 +1,9 @@
 import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 
-import { useContactGetter } from '../../contexts';
 import { SizableText, View, XStack } from '../../core';
-import { Avatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';
 
 export const ChatMessageReplySummary = React.memo(
@@ -18,7 +16,6 @@ export const ChatMessageReplySummary = React.memo(
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
 
-    const contactGetter = useContactGetter();
     const time = useMemo(() => {
       return formatDistanceToNow(replyTime!);
     }, [replyTime]);
@@ -34,12 +31,7 @@ export const ChatMessageReplySummary = React.memo(
               borderWidth={2}
               borderRadius={'$2xs'}
             >
-              <Avatar
-                key={c}
-                contactId={c}
-                contact={contactGetter(c)}
-                size="$xl"
-              />
+              <ContactAvatar key={c} contactId={c} size="$xl" />
             </View>
           ))}
         </XStack>

@@ -3,17 +3,14 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 
-import {
-  Image,
-  SizableText,
-  Stack,
-  Text,
-  View,
-  XStack,
-  YStack,
-} from '../../core';
+import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import { numberWithMax } from '../../utils';
-import { Avatar, AvatarSize } from '../Avatar';
+import {
+  ChannelAvatar,
+  ContactAvatar,
+  GroupAvatar,
+  SystemIconAvatar,
+} from '../Avatar';
 import ContactName from '../ContactName';
 import { Icon, IconType } from '../Icon';
 
@@ -74,100 +71,13 @@ export type ListItemIconContainerProps = ComponentProps<
   typeof ListItemIconContainer
 >;
 
-const ListItemIcon = ListItemIconContainer.styleable<{
-  imageUrl?: string;
-  icon?: IconType;
-  contactId?: string | null;
-  contact?: db.Contact | null;
-  fallbackText?: string;
-}>(({ imageUrl, icon, contactId, contact, fallbackText, ...props }, ref) => {
-  if (imageUrl) {
-    return <ListItemImageIcon imageUrl={imageUrl} {...props} ref={ref} />;
-  } else if (icon) {
-    return <ListItemTypeIcon icon={icon} {...props} ref={ref} />;
-  } else if (contactId) {
-    return (
-      <ListItemAvatarIcon
-        ref={ref}
-        contactId={contactId}
-        contact={contact ?? undefined}
-        {...props}
-      />
-    );
-  } else {
-    return <ListItemTextIcon fallbackText={fallbackText ?? ''} {...props} />;
-  }
-});
+const ListItemGroupIcon = GroupAvatar;
 
-const ListItemImageIcon = ({
-  imageUrl,
-  ...props
-}: {
-  imageUrl: string;
-} & ListItemIconContainerProps) => {
-  return (
-    <ListItemIconContainer {...props}>
-      <Image
-        width={'100%'}
-        height={'100%'}
-        contentFit="cover"
-        source={{
-          uri: imageUrl,
-        }}
-      />
-    </ListItemIconContainer>
-  );
-};
+const ListItemChannelIcon = ChannelAvatar;
 
-const ListItemTextIcon = ({
-  fallbackText,
-  ...props
-}: {
-  fallbackText: string;
-} & ListItemIconContainerProps) => {
-  return (
-    <ListItemIconContainer {...props}>
-      <View flex={1} alignItems="center" justifyContent="center">
-        <Text fontSize={16} color="$primaryText">
-          {fallbackText.slice(0, 1).toUpperCase()}
-        </Text>
-      </View>
-    </ListItemIconContainer>
-  );
-};
+const ListItemContactIcon = ContactAvatar;
 
-const ListItemAvatarIcon = ({
-  contact,
-  contactId,
-  size = '$4xl',
-  ...props
-}: {
-  contact?: db.Contact | null;
-  contactId: string;
-  size?: AvatarSize;
-} & ListItemIconContainerProps) => {
-  return (
-    <ListItemIconContainer {...props}>
-      <Avatar
-        rounded={props.rounded}
-        size={size}
-        contactId={contactId}
-        contact={contact}
-      />
-    </ListItemIconContainer>
-  );
-};
-
-const ListItemTypeIcon = ({
-  icon,
-  ...props
-}: { icon?: IconType } & ListItemIconContainerProps) => {
-  return (
-    <ListItemIconContainer {...props}>
-      <Icon type={icon || 'Channel'} width="$4xl" height="$4xl" />
-    </ListItemIconContainer>
-  );
-};
+const ListItemSystemIcon = SystemIconAvatar;
 
 const ListItemMainContent = styled(YStack, {
   flex: 1,
@@ -328,11 +238,10 @@ const ListItemEndContent = styled(YStack, {
 export type ListItem = typeof ListItemComponent;
 
 export const ListItem = withStaticProperties(ListItemComponent, {
-  Icon: ListItemIcon,
-  ImageIcon: ListItemImageIcon,
-  AvatarIcon: ListItemAvatarIcon,
-  SystemIcon: ListItemTypeIcon,
-  TextIcon: ListItemTextIcon,
+  GroupIcon: ListItemGroupIcon,
+  ChannelIcon: ListItemChannelIcon,
+  ContactIcon: ListItemContactIcon,
+  SystemIcon: ListItemSystemIcon,
   Dragger,
   Count: ListItemCount,
   MainContent: ListItemMainContent,

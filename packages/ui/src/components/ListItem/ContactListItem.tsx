@@ -32,15 +32,7 @@ export const ContactListItem = ({
     padding="$s"
     {...props}
   >
-    {showIcon && (
-      <ListItem.AvatarIcon
-        size="$2xl"
-        width="$2xl"
-        height="$2xl"
-        contactId={contact.id}
-        contact={contact}
-      />
-    )}
+    {showIcon && <ListItem.ContactIcon size="$2xl" contactId={contact.id} />}
     <ListItem.Title>
       <ContactName
         matchText={matchText}

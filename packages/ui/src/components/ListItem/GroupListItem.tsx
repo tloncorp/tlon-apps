@@ -1,14 +1,12 @@
 import type * as db from '@tloncorp/shared/dist/db';
 
-import { useCalm } from '../../contexts/calm';
-import { getBackgroundColor } from '../../utils/colorUtils';
 import { Badge } from '../Badge';
 import type { ListItemProps } from './ListItem';
 import { ListItem } from './ListItem';
+import { isMuted } from './isMuted';
 import {
   getGroupStatus,
   getPostTypeIcon,
-  isMuted,
   useBoundHandler,
 } from './listItemUtils';
 
@@ -19,11 +17,7 @@ export const GroupListItem = ({
   ...props
 }: ListItemProps<db.Group>) => {
   const unreadCount = model.unread?.count ?? 0;
-  const { disableAvatars } = useCalm();
-  // Fallback color for calm mode or unset colors
-  const colors = { backgroundColor: '$secondaryBackground' };
   const title = model.title ?? model.id;
-  const iconFallbackText = model.title?.[0] ?? model.id[0];
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
 
   return (
@@ -33,18 +27,7 @@ export const GroupListItem = ({
       onPress={useBoundHandler(model, onPress)}
       onLongPress={useBoundHandler(model, onLongPress)}
     >
-      <ListItem.Icon
-        opacity={isMuted(model) ? 0.2 : 1}
-        fallbackText={iconFallbackText}
-        backgroundColor={getBackgroundColor({
-          disableAvatars,
-          colors,
-          model,
-        })}
-        imageUrl={
-          !disableAvatars && model.iconImage ? model.iconImage : undefined
-        }
-      />
+      <ListItem.GroupIcon model={model} opacity={isMuted(model) ? 0.2 : 1} />
       <ListItem.MainContent>
         <ListItem.Title color={isMuted(model) ? '$tertiaryText' : undefined}>
           {title}
