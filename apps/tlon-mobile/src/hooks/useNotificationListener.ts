@@ -9,7 +9,7 @@ import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 
 export type Props = {
   notificationPath?: string;
@@ -20,7 +20,7 @@ export default function useNotificationListener({
   notificationPath,
   notificationChannelId,
 }: Props) {
-  const navigation = useNavigation<NavigationProp<HomeStackParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [{ postId, channelId, isDm }, setGotoData] = useState<{
     path?: string;
     isDm?: boolean;

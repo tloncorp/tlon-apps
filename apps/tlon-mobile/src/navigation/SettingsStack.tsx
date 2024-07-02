@@ -1,12 +1,16 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useContacts } from '@tloncorp/shared/dist';
+import { ContactsProvider } from '@tloncorp/ui';
 
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import type { SettingsStackParamList, TabParamList } from '../types';
+import { RootStackParamList, SettingsStackParamList } from '../types';
 
-type Props = BottomTabScreenProps<TabParamList, 'Settings'>;
+// import type { SettingsStackParamList, TabParamList } from '../types';
+
+type Props = BottomTabScreenProps<RootStackParamList, 'Profile'>;
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
 export const SettingsStack = ({ navigation }: Props) => {
@@ -16,10 +20,17 @@ export const SettingsStack = ({ navigation }: Props) => {
     },
   });
 
+  const { data: contacts } = useContacts();
+
   return (
-    <Stack.Navigator initialRouteName="Profile" screenOptions={screenOptions}>
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="FeatureFlags" component={FeatureFlagScreen} />
-    </Stack.Navigator>
+    <ContactsProvider contacts={contacts ?? []}>
+      <Stack.Navigator
+        initialRouteName="Settings"
+        screenOptions={screenOptions}
+      >
+        <Stack.Screen name="Settings" component={ProfileScreen} />
+        <Stack.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+      </Stack.Navigator>
+    </ContactsProvider>
   );
 };

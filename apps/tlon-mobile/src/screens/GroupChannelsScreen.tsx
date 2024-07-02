@@ -4,10 +4,10 @@ import * as store from '@tloncorp/shared/dist/store';
 import { ContactsProvider, GroupChannelsScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 
 type GroupChannelsScreenProps = NativeStackScreenProps<
-  HomeStackParamList,
+  RootStackParamList,
   'GroupChannels'
 >;
 

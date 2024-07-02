@@ -32,8 +32,8 @@ const NavBarView = (props: { navigation: any }) => {
       />
       <AvatarNavIcon
         id={currentUserId}
-        focused={isRouteActive('Settings')}
-        onPress={() => props.navigation.navigate('Settings')}
+        focused={isRouteActive('Profile')}
+        onPress={() => props.navigation.navigate('Profile')}
       />
     </NavBar>
   );

@@ -11,10 +11,10 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
-type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
+type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
