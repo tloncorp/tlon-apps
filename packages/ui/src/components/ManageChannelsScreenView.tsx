@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { omit } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
@@ -7,11 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from '../core';
 import { Button } from './Button';
 import { DraggableItem } from './DraggableItem';
+import { EditSectionSheet } from './EditSectionSheet';
 import { GenericHeader } from './GenericHeader';
 import { Icon } from './Icon';
 import Pressable from './Pressable';
 
-type Section = {
+export type Section = {
   id: string;
   title: string;
   channels: Channel[];
@@ -92,12 +94,14 @@ function DraggableNavSection({
   onDrag,
   onDragStart,
   onDragEnd,
+  editSection,
   children,
 }: {
   section: Section;
   onDrag: (translateY: number) => void;
   onDragStart: (layout: LayoutRectangle) => void;
   onDragEnd: (translateY: number) => void;
+  editSection: (section: Section) => void;
   children: React.ReactNode;
 }) {
   return (
@@ -116,11 +120,23 @@ function DraggableNavSection({
         gap="$2xl"
         backgroundColor="$background"
       >
-        <XStack alignItems="center" gap="$l">
-          <Pressable onPress={() => console.log('edit')}>
-            <Icon color="$secondaryText" type="Dragger" />
-          </Pressable>
-          <Text fontSize="$l">{section.title}</Text>
+        <XStack
+          width="100%"
+          justifyContent="space-between"
+          alignItems="center"
+          gap="$l"
+        >
+          <XStack alignItems="center" gap="$l">
+            <Pressable>
+              <Icon color="$secondaryText" type="Dragger" />
+            </Pressable>
+            <Text fontSize="$l">{section.title}</Text>
+          </XStack>
+          {section.id !== 'default' && (
+            <Pressable onPress={() => editSection(section)}>
+              <Icon color="$secondaryText" type="Draw" size="$m" />
+            </Pressable>
+          )}
         </XStack>
         {children}
       </YStack>
@@ -149,9 +165,12 @@ export function ManageChannelsScreenView({
   goBack: () => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   moveNavSection: (navSectionId: string, newIndex: number) => Promise<void>;
-  createChannel: (channel: db.Channel) => void;
-  updateChannel: (channel: db.Channel) => void;
-  addChannelToNavSection: (channelId: string, navSectionId: string) => void;
+  createChannel: (channel: db.Channel) => Promise<void>;
+  updateChannel: (channel: db.Channel) => Promise<void>;
+  addChannelToNavSection: (
+    channelId: string,
+    navSectionId: string
+  ) => Promise<void>;
   moveChannelWithinNavSection: (
     channelId: string,
     navSectionId: string,
@@ -161,10 +180,10 @@ export function ManageChannelsScreenView({
     channelId: string,
     navSectionId: string
   ) => Promise<void>;
-  deleteChannel: (channelId: string) => void;
-  createNavSection: (navSection: db.GroupNavSection) => void;
-  deleteNavSection: (navSectionId: string) => void;
-  updateNavSection: (navSection: db.GroupNavSection) => void;
+  deleteChannel: (channelId: string) => Promise<void>;
+  createNavSection: (navSection: db.GroupNavSection) => Promise<void>;
+  deleteNavSection: (navSectionId: string) => Promise<void>;
+  updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
 }) {
   const [sections, setSections] = useState<Section[]>(() =>
     groupNavSectionsWithChannels.map((s) => ({
@@ -176,6 +195,7 @@ export function ManageChannelsScreenView({
       })),
     }))
   );
+  const [editSection, setEditSection] = useState<Section | null>(null);
 
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const draggedItemY = useSharedValue(0);
@@ -303,6 +323,28 @@ export function ManageChannelsScreenView({
     [draggedItemY, draggedItem]
   );
 
+  const handleUpdateSection = useCallback(
+    async (sectionId: string, title: string) => {
+      const navSection = groupNavSectionsWithChannels.find(
+        (s) => s.sectionId === sectionId
+      );
+
+      if (!navSection) {
+        return;
+      }
+
+      await updateNavSection({
+        ...omit(navSection, 'channels'),
+        title,
+      });
+
+      setSections((prevSections) =>
+        prevSections.map((s) => (s.id === sectionId ? { ...s, title } : s))
+      );
+    },
+    [groupNavSectionsWithChannels, updateNavSection]
+  );
+
   const { bottom } = useSafeAreaInsets();
 
   const renderSectionsAndChannels = useMemo(() => {
@@ -313,6 +355,7 @@ export function ManageChannelsScreenView({
         onDragStart={(layout) => handleDragStart('section', layout, section.id)}
         onDrag={handleDrag}
         onDragEnd={(translateY) => handleSectionDragEnd(index, translateY)}
+        editSection={setEditSection}
       >
         {section.channels.length === 0 && (
           <View width="100%">
@@ -370,6 +413,7 @@ export function ManageChannelsScreenView({
               onDragStart={() => {}}
               onDrag={() => {}}
               onDragEnd={() => {}}
+              editSection={() => {}}
             >
               {sections.find((s) => s.id === draggedItem.sectionId)?.channels
                 .length === 0 && (
@@ -447,6 +491,14 @@ export function ManageChannelsScreenView({
           </YStack>
         </YStack>
       </YStack>
+      {editSection && (
+        <EditSectionSheet
+          onOpenChange={(open) => setEditSection(open ? editSection : null)}
+          title={editSection?.title ?? ''}
+          deleteSection={() => {}}
+          updateSection={(title) => handleUpdateSection(editSection.id, title)}
+        />
+      )}
     </View>
   );
 }

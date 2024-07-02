@@ -333,13 +333,14 @@ export const updateNavSection = async ({
         time: '',
         diff: {
           zone: {
-            zone: navSection.id,
+            zone: navSection.sectionId,
             delta: {
               edit: {
                 title: navSection.title,
                 description: navSection.description,
-                image: navSection.iconImage ?? navSection.coverImageColor,
-                cover: navSection.coverImage ?? navSection.coverImageColor,
+                image: navSection.iconImage ?? navSection.coverImageColor ?? '',
+                cover:
+                  navSection.coverImage ?? navSection.coverImageColor ?? '',
               },
             },
           },
@@ -543,6 +544,7 @@ export type GroupNavSectionDelete = {
 export type GroupNavSectionEdit = {
   type: 'editNavSection';
   navSectionId: string;
+  sectionId: string;
   clientMeta: db.ClientMeta;
 };
 
@@ -942,7 +944,8 @@ export const toGroupUpdate = (
     if ('edit' in zoneDelta) {
       return {
         type: 'editNavSection',
-        navSectionId: zoneId,
+        navSectionId: `${groupId}-${zoneId}`,
+        sectionId: zoneId,
         clientMeta: toClientMeta(zoneDelta.edit),
       };
     }

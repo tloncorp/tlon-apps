@@ -425,6 +425,44 @@ export async function moveChannel({
   }
 }
 
+export async function updateNavSection({
+  group,
+  navSection,
+}: {
+  group: db.Group;
+  navSection: db.GroupNavSection;
+}) {
+  logger.log('updating nav section', group.id, navSection.id);
+
+  const existingGroup = await db.getGroup({ id: group.id });
+
+  const newNavSections = (group.navSections ?? []).map((section) =>
+    section.id === navSection.id ? navSection : section
+  );
+
+  logger.log('newNavSections', newNavSections);
+
+  // optimistic update
+  await db.updateGroup({
+    ...group,
+    navSections: newNavSections,
+  });
+
+  try {
+    await api.updateNavSection({
+      groupId: group.id,
+      navSection,
+    });
+  } catch (e) {
+    console.error('Failed to update nav section', e);
+    // rollback optimistic update
+    await db.updateGroup({
+      id: group.id,
+      ...existingGroup,
+    });
+  }
+}
+
 export async function deleteNavSection(group: db.Group, navSectionId: string) {
   logger.log('deleting nav section', group.id, navSectionId);
 

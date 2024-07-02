@@ -136,7 +136,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const updateNavSection = useCallback(
     async (navSection: db.GroupNavSection) => {
       if (group) {
-        // await store.updateNavSection(group.id, navSection);
+        await store.updateNavSection({
+          navSection,
+          group,
+        });
       }
     },
     [group]
