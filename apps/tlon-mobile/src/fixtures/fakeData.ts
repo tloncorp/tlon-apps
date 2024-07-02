@@ -473,7 +473,7 @@ const tlonLocalChannels: db.Channel[] = [
 
 const tlonLocalNavSections: db.GroupNavSection[] = [
   {
-    index: 0,
+    sectionIndex: 0,
     id: '~nibset-napwyn/tlon-welcome-zone-id',
     sectionId: 'welcome-zone-id',
     groupId: '~nibset-napwyn/tlon',
@@ -486,18 +486,18 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
     channels: [
       {
         channelId: tlonLocalIntros.id,
-        index: 1,
+        channelIndex: 1,
         groupNavSectionId: 'welcome-zone-id',
       },
       {
         channelId: tlonLocalGettingStarted.id,
-        index: 0,
+        channelIndex: 0,
         groupNavSectionId: 'welcome-zone-id',
       },
     ],
   },
   {
-    index: 1,
+    sectionIndex: 1,
     id: `~nibset-napwyn/tlon-discuss-zone-id`,
     sectionId: 'discuss-zone-id',
     groupId: '~nibset-napwyn/tlon',
@@ -510,18 +510,18 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
     channels: [
       {
         channelId: tlonLocalWaterCooler.id,
-        index: 0,
+        channelIndex: 0,
         groupNavSectionId: 'discuss-zone-id',
       },
       {
         channelId: tlonLocalSupport.id,
-        index: 1,
+        channelIndex: 1,
         groupNavSectionId: 'discuss-zone-id',
       },
     ],
   },
   {
-    index: 2,
+    sectionIndex: 2,
     id: '~nibset-napwyn/tlon-catalog-zone-id',
     sectionId: 'catalog-zone-id',
     groupId: '~nibset-napwyn/tlon',
@@ -534,12 +534,12 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
     channels: [
       {
         channelId: tlonLocalBulletinBoard.id,
-        index: 0,
+        channelIndex: 0,
         groupNavSectionId: 'catalog-zone-id',
       },
       {
         channelId: tlonLocalCommunityCatalog.id,
-        index: 1,
+        channelIndex: 1,
         groupNavSectionId: 'catalog-zone-id',
       },
     ],

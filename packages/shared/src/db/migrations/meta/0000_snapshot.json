@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "429bd8a0-55e3-4987-904f-613ef9568d5b",
+  "id": "0b2af794-fe8e-413b-a87b-3a3632d4b13e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -839,8 +839,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "channel_index": {
+          "name": "channel_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -953,8 +953,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "section_index": {
+          "name": "section_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

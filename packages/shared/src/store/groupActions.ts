@@ -1,3 +1,6 @@
+import { formatUv } from '@urbit/aura';
+import bigInt from 'big-integer';
+
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -185,22 +188,39 @@ export async function deleteGroup(group: db.Group) {
 
 export async function addNavSection(
   group: db.Group,
-  navSection: db.GroupNavSection
+  navSectionMeta: db.ClientMeta
 ) {
-  logger.log('adding nav section', group.id, navSection.id);
+  const idParts = formatUv(bigInt(Date.now())).split('.');
+  const newSectionId = `z${idParts[idParts.length - 1]}`;
+  const groupNavSectionId = `${group.id}-${newSectionId}`;
+
+  logger.log('adding nav section', group.id, groupNavSectionId);
+
+  const newNavSection: db.GroupNavSection = {
+    id: groupNavSectionId,
+    sectionId: newSectionId,
+    title: navSectionMeta.title,
+  };
 
   const existingGroup = await db.getGroup({ id: group.id });
 
   // optimistic update
   await db.updateGroup({
     ...group,
-    navSections: [...(group.navSections ?? []), navSection],
+    navSections: [...(group.navSections ?? []), newNavSection],
+  });
+
+  await db.addNavSectionToGroup({
+    id: groupNavSectionId,
+    sectionId: newSectionId,
+    groupId: group.id,
+    meta: navSectionMeta,
   });
 
   try {
     await api.addNavSection({
       groupId: group.id,
-      navSection,
+      navSection: newNavSection,
     });
   } catch (e) {
     console.error('Failed to add nav section', e);
@@ -254,7 +274,7 @@ export async function moveNavSection(
 
   const navSections = group.navSections ?? [];
   const sectionIndex = navSections.findIndex(
-    (section) => section.id === navSectionId
+    (section) => section.sectionId === navSectionId
   );
 
   if (sectionIndex === -1) {

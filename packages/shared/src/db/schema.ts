@@ -567,7 +567,8 @@ export const groupNavSections = sqliteTable('group_nav_sections', {
     onDelete: 'cascade',
   }),
   ...metaFields,
-  index: integer('index'),
+  // a column cannot be named "index" because it's a reserved word in SQLite
+  sectionIndex: integer('section_index'),
 });
 
 export const groupNavSectionRelations = relations(
@@ -588,7 +589,7 @@ export const groupNavSectionChannels = sqliteTable(
       () => groupNavSections.id
     ),
     channelId: text('channel_id').references(() => channels.id),
-    index: integer('index'),
+    channelIndex: integer('channel_index'),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.groupNavSectionId, table.channelId] }),

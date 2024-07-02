@@ -128,7 +128,7 @@ CREATE TABLE `group_member_invites` (
 CREATE TABLE `group_nav_section_channels` (
 	`group_nav_section_id` text,
 	`channel_id` text,
-	`index` integer,
+	`channel_index` integer,
 	PRIMARY KEY(`channel_id`, `group_nav_section_id`),
 	FOREIGN KEY (`group_nav_section_id`) REFERENCES `group_nav_sections`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
@@ -144,7 +144,7 @@ CREATE TABLE `group_nav_sections` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
-	`index` integer,
+	`section_index` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

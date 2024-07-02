@@ -95,7 +95,7 @@ import {
   VolumeSettings,
 } from './types';
 
-const logger = createDevLogger('queries', false);
+const logger = createDevLogger('queries', true);
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -406,7 +406,7 @@ export const insertGroups = createWriteQuery(
                 groupId: group.id,
                 title: s.title,
                 description: s.description,
-                index: s.index,
+                sectionIndex: s.sectionIndex,
               }))
             )
             .onConflictDoUpdate({
@@ -427,7 +427,7 @@ export const insertGroups = createWriteQuery(
               .insert($groupNavSectionChannels)
               .values(
                 navSectionChannels.map((s) => ({
-                  index: s?.index,
+                  channelIndex: s?.channelIndex,
                   groupNavSectionId: s?.groupNavSectionId,
                   channelId: s?.channelId,
                 }))
@@ -1245,20 +1245,24 @@ export const addNavSectionToGroup = createWriteQuery(
   async (
     {
       id,
+      sectionId,
       groupId,
       meta,
     }: {
       id: string;
+      sectionId: string;
       groupId: string;
       meta: ClientMeta;
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addNavSectionToGroup', id, sectionId, groupId, meta);
+
     return ctx.db
       .insert($groupNavSections)
       .values({
-        id: `${groupId}-${id}`,
-        sectionId: id,
+        id,
+        sectionId: sectionId,
         title: meta.title,
         description: meta.description,
         iconImage: meta.iconImage,
@@ -1318,7 +1322,7 @@ export const addChannelToNavSection = createWriteQuery(
       .values({
         channelId,
         groupNavSectionId,
-        index,
+        channelIndex: index,
       })
       .onConflictDoNothing();
   },

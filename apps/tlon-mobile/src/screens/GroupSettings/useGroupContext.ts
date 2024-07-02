@@ -35,6 +35,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   }, [group?.channels]);
 
   const groupNavSections = useMemo(() => {
+    console.log('group?.navSections', group?.navSections);
     return group?.navSections ?? [];
   }, [group?.navSections]);
 
@@ -43,6 +44,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   }, [group?.members]);
 
   const groupNavSectionsWithChannels = useMemo(() => {
+    console.log('groupNavSections', groupNavSections);
     return groupNavSections.map((section) => ({
       ...section,
       channels: groupChannels.filter((channel) =>
@@ -116,9 +118,9 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   );
 
   const createNavSection = useCallback(
-    async (navSection: db.GroupNavSection) => {
+    async ({ title }: { title: string }) => {
       if (group) {
-        // await store.createNavSection(group.id, navSection);
+        await store.addNavSection(group, { title });
       }
     },
     [group]

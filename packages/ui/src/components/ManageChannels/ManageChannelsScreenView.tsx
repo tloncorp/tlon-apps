@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { omit } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { DraggableItem } from '../DraggableItem';
 import { GenericHeader } from '../GenericHeader';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
+import { AddSectionSheet } from './AddSectionSheet';
 import { EditSectionSheet } from './EditSectionSheet';
 
 export type Section = {
@@ -194,10 +195,12 @@ export function ManageChannelsScreenView({
     navSectionId: string
   ) => Promise<void>;
   deleteChannel: (channelId: string) => Promise<void>;
-  createNavSection: (navSection: db.GroupNavSection) => Promise<void>;
+  createNavSection: ({ title }: { title: string }) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
 }) {
+  console.log('groupNavSectionsWithChannels', groupNavSectionsWithChannels);
+
   const [sections, setSections] = useState<Section[]>(() =>
     groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
@@ -208,7 +211,22 @@ export function ManageChannelsScreenView({
       })),
     }))
   );
+
+  useEffect(() => {
+    setSections(
+      groupNavSectionsWithChannels.map((s) => ({
+        id: s.sectionId,
+        title: s.title ?? 'Untitled Section',
+        channels: s.channels.map((c) => ({
+          id: c.id,
+          title: c.title ?? 'Untitled Channel',
+        })),
+      }))
+    );
+  }, [groupNavSectionsWithChannels]);
+
   const [editSection, setEditSection] = useState<Section | null>(null);
+  const [showAddSection, setShowAddSection] = useState(false);
 
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const draggedItemY = useSharedValue(0);
@@ -487,11 +505,23 @@ export function ManageChannelsScreenView({
               <Button.Text>Create a channel</Button.Text>
             </Button>
             <Button secondary>
-              <Button.Text>Add a section</Button.Text>
+              <Button.Text onPress={() => setShowAddSection(true)}>
+                Add a section
+              </Button.Text>
             </Button>
           </YStack>
         </YStack>
       </YStack>
+      {showAddSection && (
+        <AddSectionSheet
+          onOpenChange={(open) => setShowAddSection(open)}
+          createSection={(title) =>
+            createNavSection({
+              title,
+            })
+          }
+        />
+      )}
       {editSection && (
         <EditSectionSheet
           onOpenChange={(open) => setEditSection(open ? editSection : null)}

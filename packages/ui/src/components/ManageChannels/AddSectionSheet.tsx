@@ -6,16 +6,12 @@ import { ActionSheet } from '../ActionSheet';
 import { Button } from '../Button';
 import { FormInput } from '../FormInput';
 
-export function EditSectionSheet({
+export function AddSectionSheet({
   onOpenChange,
-  title,
-  updateSection,
-  deleteSection,
+  createSection,
 }: {
   onOpenChange: (open: boolean) => void;
-  title: string;
-  updateSection: (title: string) => void;
-  deleteSection: () => void;
+  createSection: (title: string) => void;
 }) {
   const {
     control,
@@ -23,23 +19,22 @@ export function EditSectionSheet({
     formState: { errors },
   } = useForm({
     defaultValues: {
-      title,
+      title: '',
     },
   });
 
   const handlePressSave = useCallback(
     async (data: { title: string }) => {
-      updateSection(data.title);
+      createSection(data.title);
       onOpenChange(false);
     },
-    [updateSection, onOpenChange]
+    [createSection, onOpenChange]
   );
 
   return (
-    <ActionSheet open={true} onOpenChange={onOpenChange}>
+    <ActionSheet moveOnKeyboardChange open={true} onOpenChange={onOpenChange}>
       <ActionSheet.Header>
-        <ActionSheet.Title>Edit section</ActionSheet.Title>
-        <ActionSheet.Description>"{title}"</ActionSheet.Description>
+        <ActionSheet.Title>Create section</ActionSheet.Title>
         <XStack
           alignItems="center"
           justifyContent="space-between"

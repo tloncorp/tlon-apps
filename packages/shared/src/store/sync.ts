@@ -15,7 +15,7 @@ import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -346,8 +346,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.removeJoinedGroupChannel({ channelId: update.channelId });
       break;
     case 'addNavSection':
+      logger.log('adding nav section', update);
       await db.addNavSectionToGroup({
         id: update.navSectionId,
+        sectionId: update.sectionId,
         groupId: update.groupId,
         meta: update.clientMeta,
       });
@@ -364,7 +366,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'moveNavSection':
       await db.updateNavSection({
         id: update.navSectionId,
-        index: update.index,
+        sectionIndex: update.index,
       });
       break;
     case 'moveChannel':

@@ -264,13 +264,15 @@ export const addNavSection = async ({
           time: '',
           diff: {
             zone: {
-              zone: navSection.id,
+              zone: navSection.sectionId,
               delta: {
                 add: {
                   title: navSection.title,
-                  description: navSection.description,
-                  image: navSection.iconImage ?? navSection.coverImageColor,
-                  cover: navSection.coverImage ?? navSection.coverImageColor,
+                  description: navSection.description ?? '',
+                  image:
+                    navSection.iconImage ?? navSection.coverImageColor ?? '',
+                  cover:
+                    navSection.coverImage ?? navSection.coverImageColor ?? '',
                 },
               },
             },
@@ -1125,10 +1127,10 @@ export function toClientGroup(
           sectionId: zoneId,
           groupId: id,
           ...toClientMeta(zone.meta),
-          index: i,
+          sectionIndex: i,
           channels: zone.idx.map((channelId, ci) => {
             const data: db.GroupNavSectionChannel = {
-              index: ci,
+              channelIndex: ci,
               channelId: channelId,
               groupNavSectionId: `${id}-${zoneId}`,
             };

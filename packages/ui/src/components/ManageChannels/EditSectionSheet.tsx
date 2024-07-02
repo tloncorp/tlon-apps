@@ -34,7 +34,7 @@ export function EditSectionSheet({
   );
 
   return (
-    <ActionSheet open={true} onOpenChange={onOpenChange}>
+    <ActionSheet moveOnKeyboardChange open={true} onOpenChange={onOpenChange}>
       <ActionSheet.Header>
         <ActionSheet.Title>Edit section</ActionSheet.Title>
         <ActionSheet.Description>"{title}"</ActionSheet.Description>
