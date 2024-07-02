@@ -156,7 +156,7 @@
       %activity-action
     =+  !<(=action:a vase)
     ?-  -.action
-      %add      (add +.action)
+      %add      (add-event +.action)
       %del      (del +.action)
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
@@ -402,7 +402,7 @@
   =/  v1-cage=cage  activity-update-1+!>(update)
   =.  cor  (give %fact v1-paths v1-cage)
   (give %fact v0-paths v0-cage)
-++  add
+++  add-event
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
   ^+  cor
@@ -596,7 +596,9 @@
   ^-  index:a
   =/  new-floor=(unit time)  (find-floor index)
   ?~  new-floor  index
-  index(floor.reads u.new-floor)
+  =/  new-reads=read-items:a
+    (lot:on-read-items:a items.reads.index new-floor ~)
+  index(reads [u.new-floor new-reads])
 ::
 ++  read
   |=  [=source:a action=read-action:a from-parent=?]
@@ -620,7 +622,20 @@
     =.  cor  (update-parents source ~[new-read])
     (update-index source index(items.reads read-items) &)
   ::
-      ?(%all %recursive)
+      %all
+    =/  new-reads=(list [=time-id:a ~])
+      %+  murn
+        %-  tap:on-event:a
+        (lot:on-event:a stream.index `floor.reads.index ~)
+      |=  [=time =event:a]
+      ?:  child.event  ~
+      `[time ~]
+    =/  new  index(items.reads (malt new-reads))
+    =?  cor  !from-parent
+      (update-parents source new-reads)
+    (update-index source new &)
+  ::
+      %recursive
     =/  new-floor=time
       ?^  time.action  u.time.action
       =/  latest=(unit [=time event:a])
@@ -639,8 +654,6 @@
     =.  cor
       =/  children  (get-children source)
       |-
-      ::  only update children if we're in recursive mode
-      ?:  ?=(%all -.action)  cor
       ?~  children  cor
       =/  =source:a  i.children
       =.  cor  (read source action &)
@@ -756,10 +769,10 @@
     %-  ~(rep by child-map)
     |=  [[=source:a as=activity-summary:a] sum=activity-summary:a]
     %=  sum
-      count  (^add count.sum count.as)
+      count  (add count.sum count.as)
       notify  |(notify.sum notify.as)
       newest  (max newest.as newest.sum)
-      notify-count  (^add notify-count.sum notify-count.as)
+      notify-count  (add notify-count.sum notify-count.as)
     ==
   =/  newest=time  :(max newest.cs floor.reads top)
   =/  total
@@ -849,17 +862,19 @@
 ::
 ++  sync-reads
   =/  oldest-floors=(map source:a time)  ~
-  =/  indexes
+  =/  sources
     ::  sort children first in order so we only have to make one pass
     ::  of summarization aka not repeatedly updating the same source
     ::
     %+  sort
-      ~(tap by indices)
-    |=  [[asrc=source:a *] [bsrc=source:a *]]
+      ~(tap in ~(key by indices))
+    |=  [asrc=source:a bsrc=source:a]
     (gth (get-order asrc) (get-order bsrc))
   |-
-  ?~  indexes  cor
-  =/  [=source:a =index:a]  i.indexes
+  ?~  sources  cor
+  =/  =source:a  i.sources
+  =/  =index:a  (~(got by indices) source)
+  =/  our-reads  (get-reads stream.index ~ `floor.reads.index)
   =^  min-floors  indices
     =/  parents  (get-parents source)
     =/  floors=(map source:a time)  ~
@@ -868,13 +883,15 @@
     =/  parent-index  (get-index i.parents)
     =/  parent-reads
       :-  floor.reads.parent-index
-      (uni:on-read-items:a items.reads.parent-index items.reads.index)
+      %+  gas:on-read-items:a
+        (uni:on-read-items:a items.reads.parent-index items.reads.index)
+      our-reads
     ::  keep track of oldest child floor
     =.  floors
       %+  ~(put by floors)  i.parents
-      (min floor.reads.index (~(gut by oldest-floors) source now.bowl))
+      (min floor.reads.index (~(gut by oldest-floors) i.parents now.bowl))
     ::  update parents with aggregated reads and move floor if appropriate
-    =.  indices  (~(put by indices) i.parents index(reads parent-reads))
+    =.  indices  (~(put by indices) i.parents parent-index(reads parent-reads))
     $(parents t.parents)
   =.  oldest-floors  (~(uni by oldest-floors) min-floors)
   =.  reads.index
@@ -886,15 +903,22 @@
     =;  main-reads=read-items:a
       [u.min-floor main-reads]
     %+  gas:on-read-items:a  items.reads.index
-    %+  murn
-      ::  take all events between our floor and the oldest child floor
-      (tap:on-event:a (lot:on-event:a stream.index `u.min-floor `floor.reads.index))
-    |=  [=time =event:a]
-    ::  ignore child events
-    ?:  child.event  ~
-    `[time ~]
+    (get-reads stream.index `u.min-floor `floor.reads.index)
   =.  cor  (update-index source index &)
-  $(indexes t.indexes)
+  $(sources t.sources)
+::
+++  get-reads
+  |=  [=stream:a start=(unit time) end=(unit time)]
+  %+  murn
+    ::  take all events between our floor and the oldest child floor
+    %-  tap:on-event:a
+    %^  lot:on-event:a  stream
+      ?~(start ~ `(sub u.start 1))
+    ?~(end ~ `(add u.end 1))
+  |=  [=time =event:a]
+  ::  ignore child events
+  ?:  child.event  ~
+  `[time ~]
 ::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
 ::  with bad message/parent identifiers (respectively) got pushed into our
@@ -1042,7 +1066,7 @@
   =;  events=(list [time incoming-event:a])
     |-
     ?~  events  cor
-    =.  cor  (%*(. add start-time -.i.events) +.i.events)
+    =.  cor  (%*(. add-event start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
   ?~  entries  ~
@@ -1103,7 +1127,7 @@
   =;  events=(list [time incoming-event:a])
     |-
     ?~  events  cor
-    =.  cor  (%*(. add start-time -.i.events) +.i.events)
+    =.  cor  (%*(. add-event start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
   ?~  entries  ~
