@@ -556,7 +556,12 @@ export const chatMemberRolesRelations = relations(
 );
 
 export const groupNavSections = sqliteTable('group_nav_sections', {
+  // `{groupId}-{sectionId}` is the primary key
   id: text('id').primaryKey(),
+  // this separate ID is necessary for the groupNavSectionChannels table
+  // because every group has a `default` section/zone, so we can't use that as
+  // the primary key, but we still need to use the sectionId when communicating
+  // with the backend
   sectionId: text('section_id').notNull(),
   groupId: text('group_id').references(() => groups.id, {
     onDelete: 'cascade',
