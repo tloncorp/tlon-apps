@@ -193,6 +193,21 @@
     |^
     =^  cards  state
       ?+  mark  (on-poke:def mark vase)
+          %noun
+        |-
+        ?+  q.vase  !!
+          [%clear ~]  $(vase !>([%clear (sub now.bowl clear-interval)]))
+        ::
+            [%clear @]
+          =+  !<([%clear before=@da] vase)
+          =.  notifications
+            %-  my
+            %+  skip  ~(tap by notifications)
+            |=  [=time-id:a *]
+            (lth time-id before)
+          [~ state]
+        ==
+      ::
         %provider-state-message  provider-state-message
         %notify-provider-action  (handle-provider-action !<(provider-action vase))
         %notify-client-action    (handle-client-action !<(client-action vase))
