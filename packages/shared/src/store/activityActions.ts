@@ -3,7 +3,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 
-const logger = createDevLogger('activityActions', true);
+const logger = createDevLogger('activityActions', false);
 
 export async function muteChat(channel: db.Channel) {
   const initialSettings = await getChatVolumeSettings(channel);
