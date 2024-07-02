@@ -352,6 +352,7 @@ export const insertGroups = createWriteQuery(
     ctx: QueryCtx
   ) => {
     return withTransactionCtx(ctx, async (txCtx) => {
+      if (groups.length === 0) return;
       for (const group of groups) {
         if (overWrite) {
           await txCtx.db
@@ -396,7 +397,7 @@ export const insertGroups = createWriteQuery(
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
-        if (group.navSections) {
+        if (group.navSections?.length) {
           await txCtx.db
             .insert($groupNavSections)
             .values(
@@ -434,7 +435,7 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
-        if (group.roles) {
+        if (group.roles?.length) {
           await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
@@ -449,7 +450,7 @@ export const insertGroups = createWriteQuery(
               ),
             });
         }
-        if (group.members) {
+        if (group.members?.length) {
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
