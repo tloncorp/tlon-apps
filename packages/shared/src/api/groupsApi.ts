@@ -527,11 +527,13 @@ export type GroupChannelNavSectionAdd = {
   type: 'addChannelToNavSection';
   channelId: string;
   navSectionId: string;
+  sectionId: string;
 };
 
 export type GroupNavSectionAdd = {
   type: 'addNavSection';
   navSectionId: string;
+  sectionId: string;
   groupId: string;
   clientMeta: db.ClientMeta;
 };
@@ -551,12 +553,14 @@ export type GroupNavSectionEdit = {
 export type GroupNavSectionMove = {
   type: 'moveNavSection';
   navSectionId: string;
+  sectionId: string;
   index: number;
 };
 
 export type GroupnavSectionMoveChannel = {
   type: 'moveChannel';
   navSectionId: string;
+  sectionId: string;
   channelId: string;
   index: number;
 };
@@ -926,26 +930,28 @@ export const toGroupUpdate = (
 
   if ('zone' in updateDiff) {
     const zoneDelta = updateDiff.zone.delta;
-    const zoneId = updateDiff.zone.zone;
+    const sectionId = updateDiff.zone.zone;
+    const navSectionId = `${groupId}-${sectionId}`;
 
     if ('add' in zoneDelta) {
       return {
         type: 'addNavSection',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         groupId,
         clientMeta: toClientMeta(zoneDelta.add),
       };
     }
 
     if ('del' in zoneDelta) {
-      return { type: 'deleteNavSection', navSectionId: zoneId };
+      return { type: 'deleteNavSection', navSectionId };
     }
 
     if ('edit' in zoneDelta) {
       return {
         type: 'editNavSection',
-        navSectionId: `${groupId}-${zoneId}`,
-        sectionId: zoneId,
+        navSectionId,
+        sectionId,
         clientMeta: toClientMeta(zoneDelta.edit),
       };
     }
@@ -953,7 +959,8 @@ export const toGroupUpdate = (
     if ('mov' in zoneDelta) {
       return {
         type: 'moveNavSection',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         index: zoneDelta.mov,
       };
     }
@@ -961,7 +968,8 @@ export const toGroupUpdate = (
     if ('mov-nest' in zoneDelta) {
       return {
         type: 'moveChannel',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         channelId: zoneDelta['mov-nest'].nest,
         index: zoneDelta['mov-nest'].idx,
       };
@@ -1019,7 +1027,8 @@ export const toGroupUpdate = (
       return {
         type: 'addChannelToNavSection',
         channelId,
-        navSectionId: zoneId,
+        navSectionId: `${groupId}-${zoneId}`,
+        sectionId: zoneId,
       };
     }
   }
