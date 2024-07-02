@@ -9,7 +9,7 @@ const NavBarView = (props: { navigation: any }) => {
   const isRouteActive = (routeName: string) => {
     return state.routes[state.index].name === routeName;
   };
-  const haveUnseenActivity = store.useHaveUnseenActivity();
+  const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const currentUserId = useCurrentUserId();
 
   return (
@@ -26,14 +26,14 @@ const NavBarView = (props: { navigation: any }) => {
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
-        hasUnreads={haveUnseenActivity}
+        hasUnreads={haveUnreadUnseenActivity}
         isActive={isRouteActive('Activity')}
         onPress={() => props.navigation.navigate('Activity')}
       />
       <AvatarNavIcon
         id={currentUserId}
-        focused={isRouteActive('Settings')}
-        onPress={() => props.navigation.navigate('Settings')}
+        focused={isRouteActive('Profile')}
+        onPress={() => props.navigation.navigate('Profile')}
       />
     </NavBar>
   );

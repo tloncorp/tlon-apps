@@ -507,7 +507,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         queue.volumeUpdates.push(event.volumeUpdate);
         break;
       case 'addActivityEvent':
-        queue.activityEvents.push(event.event);
+        queue.activityEvents.push(...event.events);
         break;
       case 'updatePushNotificationsSetting':
         db.setPushNotificationsSetting(event.value);

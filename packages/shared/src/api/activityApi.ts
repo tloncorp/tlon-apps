@@ -232,7 +232,7 @@ export type ActivityEvent =
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
     }
-  | { type: 'addActivityEvent'; event: db.ActivityEvent };
+  | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
@@ -355,8 +355,26 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           bucketId: 'all',
           event: rawEvent,
         });
+
+        const events = [];
         if (activityEvent) {
-          return handler({ type: 'addActivityEvent', event: activityEvent });
+          events.push(activityEvent);
+          if (activityEvent?.isMention) {
+            events.push({
+              ...activityEvent,
+              bucketId: 'mentions' as db.ActivityBucket,
+            });
+          }
+          if (activityEvent?.type === 'reply') {
+            events.push({
+              ...activityEvent,
+              bucketId: 'replies' as db.ActivityBucket,
+            });
+          }
+        }
+
+        if (events.length > 0) {
+          return handler({ type: 'addActivityEvent', events });
         }
       }
 

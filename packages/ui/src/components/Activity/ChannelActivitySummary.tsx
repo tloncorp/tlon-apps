@@ -34,7 +34,9 @@ export function ChannelActivitySummary({
       padding="$l"
       marginBottom="$l"
       backgroundColor={
-        newestPost.timestamp > seenMarker ? '$positiveBackground' : 'unset'
+        newestPost.timestamp > seenMarker && unreadCount > 0
+          ? '$positiveBackground'
+          : 'unset'
       }
       borderRadius="$l"
       onPress={newestIsBlockOrNote ? undefined : pressHandler}

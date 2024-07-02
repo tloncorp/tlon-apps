@@ -2562,6 +2562,34 @@ export const getLatestActivityEvent = createReadQuery(
   ['activityEvents']
 );
 
+export const getUnreadUnseenActivityEvents = createReadQuery(
+  'getUnreadUnseenActivityEvents',
+  async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    return ctx.db
+      .select()
+      .from($activityEvents)
+      .leftJoin(
+        $channelUnreads,
+        eq($activityEvents.channelId, $channelUnreads.channelId)
+      )
+      .leftJoin(
+        $threadUnreads,
+        eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .where(
+        and(
+          gt($activityEvents.timestamp, seenMarker),
+          eq($activityEvents.shouldNotify, true),
+          or(
+            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
+            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0))
+          )
+        )
+      );
+  },
+  ['activityEvents']
+);
+
 export type BucketedActivity = {
   all: ActivityEvent[];
   threads: ActivityEvent[];
