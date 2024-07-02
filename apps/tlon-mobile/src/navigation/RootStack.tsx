@@ -42,17 +42,17 @@ export function RootStack() {
       <Root.Screen
         name="ChatList"
         component={ChatListScreen}
-        options={{ animation: 'none' }}
+        options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
         name="Activity"
         component={ActivityScreen}
-        options={{ animation: 'none' }}
+        options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
         name="Profile"
         component={SettingsStack}
-        options={{ animation: 'none' }}
+        options={{ animation: 'none', gestureEnabled: false }}
       />
 
       {/* individual screens */}
