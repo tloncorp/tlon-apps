@@ -282,6 +282,9 @@ export function ManageChannelsScreenView({
         return newSections;
       });
 
+      setDraggedItem(null);
+      draggedItemY.value = 0;
+
       if (
         newChannelIndex !== undefined &&
         targetSectionIndex !== undefined &&
@@ -300,9 +303,6 @@ export function ManageChannelsScreenView({
           );
         }
       }
-
-      setDraggedItem(null);
-      draggedItemY.value = 0;
     },
     [
       draggedItemY,
