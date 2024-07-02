@@ -139,14 +139,14 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p) ?? null;
-    if (!query.hasPreviousPage) {
-      const newestQueryPostId = queryPosts?.[0]?.id;
-      const newerPosts = newPosts.filter(
-        (p) => !newestQueryPostId || p.id > newestQueryPostId
-      );
-      return newestQueryPostId ? [...newerPosts, ...queryPosts] : newPosts;
+    if (!newPosts.length || query.hasPreviousPage) {
+      return queryPosts;
     }
-    return queryPosts;
+    const newestQueryPostId = queryPosts?.[0]?.id;
+    const newerPosts = newPosts.filter(
+      (p) => !newestQueryPostId || p.id > newestQueryPostId
+    );
+    return newestQueryPostId ? [...newerPosts, ...queryPosts] : newPosts;
   }, [query.data, query.hasPreviousPage, newPosts]);
 
   const posts = useOptimizedQueryResults(rawPosts);
