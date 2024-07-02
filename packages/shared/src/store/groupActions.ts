@@ -229,6 +229,8 @@ export async function addNavSection(
       id: group.id,
       ...existingGroup,
     });
+
+    await db.deleteNavSection(groupNavSectionId);
   }
 }
 
@@ -455,6 +457,14 @@ export async function updateNavSection({
   logger.log('updating nav section', group.id, navSection.id);
 
   const existingGroup = await db.getGroup({ id: group.id });
+  const existingNavSection = group.navSections?.find(
+    (section) => section.id === navSection.id
+  );
+
+  if (!existingNavSection) {
+    console.error('Nav section not found', navSection.id);
+    return;
+  }
 
   const newNavSections = (group.navSections ?? []).map((section) =>
     section.id === navSection.id ? navSection : section
@@ -466,6 +476,10 @@ export async function updateNavSection({
   await db.updateGroup({
     ...group,
     navSections: newNavSections,
+  });
+
+  await db.updateNavSection({
+    ...navSection,
   });
 
   try {
@@ -480,6 +494,10 @@ export async function updateNavSection({
       id: group.id,
       ...existingGroup,
     });
+
+    await db.updateNavSection({
+      ...existingNavSection,
+    });
   }
 }
 
@@ -487,6 +505,14 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
   logger.log('deleting nav section', group.id, navSectionId);
 
   const existingGroup = await db.getGroup({ id: group.id });
+  const existingNavSection = group.navSections?.find(
+    (section) => section.id === navSectionId
+  );
+
+  if (!existingNavSection) {
+    console.error('Nav section not found', navSectionId);
+    return;
+  }
 
   // optimistic update
   await db.updateGroup({
@@ -496,10 +522,12 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
     ),
   });
 
+  await db.deleteNavSection(existingNavSection.id);
+
   try {
     await api.deleteNavSection({
       groupId: group.id,
-      navSectionId,
+      sectionId: existingNavSection.sectionId,
     });
   } catch (e) {
     console.error('Failed to delete nav section', e);
@@ -507,6 +535,15 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
     await db.updateGroup({
       id: group.id,
       ...existingGroup,
+    });
+
+    await db.addNavSectionToGroup({
+      id: existingNavSection.id,
+      sectionId: existingNavSection.sectionId,
+      groupId: group.id,
+      meta: {
+        title: existingNavSection.title,
+      },
     });
   }
 }

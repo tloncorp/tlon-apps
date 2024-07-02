@@ -15,7 +15,7 @@ import { useStorage } from './storage';
 import { syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
-const logger = createDevLogger('sync', true);
+const logger = createDevLogger('sync', false);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:

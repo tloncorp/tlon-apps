@@ -32,13 +32,17 @@ type DraggedItem = {
   layout: LayoutRectangle;
 };
 
-function EmptySection() {
+function EmptySection({
+  deleteSection,
+}: {
+  deleteSection: () => Promise<void>;
+}) {
   return (
     <YStack width="100%">
       <Text padding="$l" fontSize="$m" color="$secondaryText">
         No channels
       </Text>
-      <Button heroDestructive>
+      <Button heroDestructive onPress={deleteSection}>
         <Button.Text>Delete section</Button.Text>
       </Button>
     </YStack>
@@ -199,8 +203,6 @@ export function ManageChannelsScreenView({
   deleteNavSection: (navSectionId: string) => Promise<void>;
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
 }) {
-  console.log('groupNavSectionsWithChannels', groupNavSectionsWithChannels);
-
   const [sections, setSections] = useState<Section[]>(() =>
     groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
@@ -376,6 +378,20 @@ export function ManageChannelsScreenView({
     [groupNavSectionsWithChannels, updateNavSection]
   );
 
+  const handleDeleteSection = useCallback(
+    async (sectionId: string) => {
+      const navSection = groupNavSectionsWithChannels.find(
+        (s) => s.sectionId === sectionId
+      );
+
+      if (!navSection) {
+        return;
+      }
+      await deleteNavSection(navSection.id);
+    },
+    [deleteNavSection, groupNavSectionsWithChannels]
+  );
+
   const { bottom } = useSafeAreaInsets();
 
   const renderSectionsAndChannels = useMemo(() => {
@@ -388,7 +404,9 @@ export function ManageChannelsScreenView({
         onDragEnd={(translateY) => handleSectionDragEnd(index, translateY)}
         editSection={setEditSection}
       >
-        {section.channels.length === 0 && <EmptySection />}
+        {section.channels.length === 0 && (
+          <EmptySection deleteSection={() => handleDeleteSection(section.id)} />
+        )}
         {section.channels.map((channel, index) => (
           <DraggableChannel
             key={channel.id}
@@ -416,6 +434,7 @@ export function ManageChannelsScreenView({
     handleChannelDragEnd,
     handleDragStart,
     handleDrag,
+    handleDeleteSection,
   ]);
 
   return (
@@ -441,7 +460,9 @@ export function ManageChannelsScreenView({
               editSection={() => {}}
             >
               {sections.find((s) => s.id === draggedItem.sectionId)?.channels
-                .length === 0 && <EmptySection />}
+                .length === 0 && (
+                <EmptySection deleteSection={async () => {}} />
+              )}
               {sections
                 .find((s) => s.id === draggedItem.sectionId)
                 ?.channels.map((channel) => (

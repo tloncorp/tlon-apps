@@ -293,10 +293,10 @@ export const addNavSection = async ({
 };
 
 export const deleteNavSection = async ({
-  navSectionId,
+  sectionId,
   groupId,
 }: {
-  navSectionId: string;
+  sectionId: string;
   groupId: string;
 }) => {
   return await poke({
@@ -308,7 +308,7 @@ export const deleteNavSection = async ({
         time: '',
         diff: {
           zone: {
-            zone: navSectionId,
+            zone: sectionId,
             delta: {
               del: null,
             },
