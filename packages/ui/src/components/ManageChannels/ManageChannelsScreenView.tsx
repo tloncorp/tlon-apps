@@ -5,13 +5,13 @@ import { LayoutRectangle } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Text, View, XStack, YStack } from '../core';
-import { Button } from './Button';
-import { DraggableItem } from './DraggableItem';
+import { Text, View, XStack, YStack } from '../../core';
+import { Button } from '../Button';
+import { DraggableItem } from '../DraggableItem';
+import { GenericHeader } from '../GenericHeader';
+import { Icon } from '../Icon';
+import Pressable from '../Pressable';
 import { EditSectionSheet } from './EditSectionSheet';
-import { GenericHeader } from './GenericHeader';
-import { Icon } from './Icon';
-import Pressable from './Pressable';
 
 export type Section = {
   id: string;
@@ -30,6 +30,19 @@ type DraggedItem = {
   sectionId: string;
   layout: LayoutRectangle;
 };
+
+function EmptySection() {
+  return (
+    <YStack width="100%">
+      <Text padding="$l" fontSize="$m" color="$secondaryText">
+        No channels
+      </Text>
+      <Button heroDestructive>
+        <Button.Text>Delete section</Button.Text>
+      </Button>
+    </YStack>
+  );
+}
 
 function DraggableChannel({
   channel,
@@ -357,13 +370,7 @@ export function ManageChannelsScreenView({
         onDragEnd={(translateY) => handleSectionDragEnd(index, translateY)}
         editSection={setEditSection}
       >
-        {section.channels.length === 0 && (
-          <View width="100%">
-            <Text padding="$l" fontSize="$m" color="$secondaryText">
-              No channels
-            </Text>
-          </View>
-        )}
+        {section.channels.length === 0 && <EmptySection />}
         {section.channels.map((channel, index) => (
           <DraggableChannel
             key={channel.id}
@@ -416,13 +423,7 @@ export function ManageChannelsScreenView({
               editSection={() => {}}
             >
               {sections.find((s) => s.id === draggedItem.sectionId)?.channels
-                .length === 0 && (
-                <View width="100%">
-                  <Text padding="$l" fontSize="$m" color="$secondaryText">
-                    No channels
-                  </Text>
-                </View>
-              )}
+                .length === 0 && <EmptySection />}
               {sections
                 .find((s) => s.id === draggedItem.sectionId)
                 ?.channels.map((channel) => (
@@ -495,7 +496,6 @@ export function ManageChannelsScreenView({
         <EditSectionSheet
           onOpenChange={(open) => setEditSection(open ? editSection : null)}
           title={editSection?.title ?? ''}
-          deleteSection={() => {}}
           updateSection={(title) => handleUpdateSection(editSection.id, title)}
         />
       )}

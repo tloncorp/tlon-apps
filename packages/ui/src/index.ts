@@ -2,7 +2,7 @@ export * from './core';
 export * from './utils';
 export * from './components/PostScreenView';
 export * from './components/GroupMetaScreenView';
-export * from './components/ManageChannelsScreenView';
+export * from './components/ManageChannels/ManageChannelsScreenView';
 export * from './components/ImageViewerScreenView';
 export * from './components/ProfileScreenView';
 export * from './components/Activity/ActivityScreenView';

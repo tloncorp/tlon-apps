@@ -1,21 +1,19 @@
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { View, XStack } from '../core';
-import { ActionSheet } from './ActionSheet';
-import { Button } from './Button';
-import { FormInput } from './FormInput';
+import { View, XStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
+import { Button } from '../Button';
+import { FormInput } from '../FormInput';
 
 export function EditSectionSheet({
   onOpenChange,
   title,
   updateSection,
-  deleteSection,
 }: {
   onOpenChange: (open: boolean) => void;
   title: string;
   updateSection: (title: string) => void;
-  deleteSection: () => void;
 }) {
   const {
     control,
