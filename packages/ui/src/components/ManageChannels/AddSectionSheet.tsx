@@ -49,6 +49,7 @@ export function AddSectionSheet({
               name="title"
               label="Title"
               placeholder="Section title"
+              rules={{ required: 'Section title is required' }}
             />
           </View>
           <Button onPress={handleSubmit(handlePressSave)}>

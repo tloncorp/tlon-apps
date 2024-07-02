@@ -108,11 +108,23 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   const updateChannel = useCallback(
     async (channel: db.Channel) => {
-      if (group) {
-        // await store.updateChannel(group.id, channel);
+      const navSection = groupNavSections.find((section) =>
+        section.channels.map((c) => c.channelId).includes(channel.id)
+      );
+
+      if (!navSection || !group) {
+        return;
       }
+
+      await store.updateChannel({
+        groupId: group.id,
+        channel,
+        sectionId: navSection.sectionId,
+        readers: channel.readerRoles?.map((r) => r.roleId) ?? [],
+        join: true,
+      });
     },
-    [group]
+    [group, groupNavSections]
   );
 
   const createNavSection = useCallback(

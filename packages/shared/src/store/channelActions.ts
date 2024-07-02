@@ -1,6 +1,49 @@
 import * as api from '../api';
 import * as db from '../db';
 import * as logic from '../logic';
+import { GroupChannel } from '../urbit';
+
+export async function updateChannel({
+  groupId,
+  sectionId,
+  readers,
+  join,
+  channel,
+}: {
+  groupId: string;
+  sectionId: string;
+  readers: string[];
+  join: boolean;
+  channel: db.Channel;
+}) {
+  // optimistic update
+  db.updateChannel(channel);
+
+  const groupChannel: GroupChannel = {
+    added: channel.addedToGroupAt ?? 0,
+    readers,
+    zone: sectionId,
+    join,
+    meta: {
+      title: channel.title ?? '',
+      description: channel.description ?? '',
+      image: channel.coverImage ?? '',
+      cover: channel.coverImage ?? '',
+    },
+  };
+
+  try {
+    await api.updateChannel({
+      groupId,
+      channelId: channel.id,
+      channel: groupChannel,
+    });
+  } catch (e) {
+    console.error('Failed to update channel', e);
+    // rollback optimistic update
+    db.updateChannel(channel);
+  }
+}
 
 export async function pinItem(channel: db.Channel) {
   // optimistic update

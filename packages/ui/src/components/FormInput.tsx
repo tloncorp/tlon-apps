@@ -28,7 +28,7 @@ export function FormInput({
   placeholder?: string;
 }) {
   return (
-    <YStack gap="$s">
+    <YStack width="100%" gap="$s">
       <Controller
         name={name}
         control={control}

@@ -166,29 +166,11 @@ type GroupNavSectionWithChannels = Omit<db.GroupNavSection, 'channels'> & {
   channels: db.Channel[];
 };
 
-export function ManageChannelsScreenView({
-  groupNavSectionsWithChannels,
-  goBack,
-  moveNavSection,
-  createChannel,
-  updateChannel,
-  deleteChannel,
-  addChannelToNavSection,
-  moveChannelWithinNavSection,
-  moveChannelToNavSection,
-  createNavSection,
-  deleteNavSection,
-  updateNavSection,
-}: {
+interface ManageChannelsScreenViewProps {
   goBack: () => void;
+  goToEditChannel: (channelId: string) => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   moveNavSection: (navSectionId: string, newIndex: number) => Promise<void>;
-  createChannel: (channel: db.Channel) => Promise<void>;
-  updateChannel: (channel: db.Channel) => Promise<void>;
-  addChannelToNavSection: (
-    channelId: string,
-    navSectionId: string
-  ) => Promise<void>;
   moveChannelWithinNavSection: (
     channelId: string,
     navSectionId: string,
@@ -198,11 +180,22 @@ export function ManageChannelsScreenView({
     channelId: string,
     navSectionId: string
   ) => Promise<void>;
-  deleteChannel: (channelId: string) => Promise<void>;
   createNavSection: ({ title }: { title: string }) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
-}) {
+}
+
+export function ManageChannelsScreenView({
+  groupNavSectionsWithChannels,
+  goBack,
+  goToEditChannel,
+  moveNavSection,
+  moveChannelWithinNavSection,
+  moveChannelToNavSection,
+  createNavSection,
+  deleteNavSection,
+  updateNavSection,
+}: ManageChannelsScreenViewProps) {
   const [sections, setSections] = useState<Section[]>(() =>
     groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
@@ -411,7 +404,7 @@ export function ManageChannelsScreenView({
           <DraggableChannel
             key={channel.id}
             channel={channel}
-            onEdit={() => console.log('edit channel', channel.id)}
+            onEdit={() => goToEditChannel(channel.id)}
             onDrag={handleDrag}
             onDragStart={(layout) =>
               handleDragStart('channel', layout, section.id, channel.id)
@@ -435,6 +428,7 @@ export function ManageChannelsScreenView({
     handleDragStart,
     handleDrag,
     handleDeleteSection,
+    goToEditChannel,
   ]);
 
   return (
@@ -469,7 +463,7 @@ export function ManageChannelsScreenView({
                   <DraggableChannel
                     key={channel.id}
                     channel={channel}
-                    onEdit={() => console.log('edit channel', channel.id)}
+                    onEdit={() => {}}
                     onDrag={() => {}}
                     onDragStart={() => {}}
                     onDragEnd={() => {}}
@@ -483,7 +477,7 @@ export function ManageChannelsScreenView({
                   .find((s) => s.id === draggedItem.sectionId)!
                   .channels.find((c) => c.id === draggedItem.channelId)!
               }
-              onEdit={() => console.log('edit channel', draggedItem.channelId)}
+              onEdit={() => {}}
               onDrag={() => {}}
               onDragStart={() => {}}
               onDragEnd={() => {}}
@@ -525,10 +519,8 @@ export function ManageChannelsScreenView({
             <Button hero>
               <Button.Text>Create a channel</Button.Text>
             </Button>
-            <Button secondary>
-              <Button.Text onPress={() => setShowAddSection(true)}>
-                Add a section
-              </Button.Text>
+            <Button secondary onPress={() => setShowAddSection(true)}>
+              <Button.Text>Add a section</Button.Text>
             </Button>
           </YStack>
         </YStack>

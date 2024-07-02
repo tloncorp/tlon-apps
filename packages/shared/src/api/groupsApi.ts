@@ -3,6 +3,7 @@ import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
+  GroupChannel,
   Rank,
   extractGroupPrivacy,
   getChannelType,
@@ -420,6 +421,35 @@ export const addChannelToNavSection = async ({
       return 'channel' in update.diff && update.diff.channel.nest === channelId;
     }
   );
+};
+
+export const updateChannel = async ({
+  groupId,
+  channelId,
+  channel,
+}: {
+  groupId: string;
+  channelId: string;
+  channel: GroupChannel;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          channel: {
+            nest: channelId,
+            diff: {
+              edit: channel,
+            },
+          },
+        },
+      },
+    },
+  });
 };
 
 export const deleteChannel = async ({

@@ -15,10 +15,6 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
   const {
     groupNavSectionsWithChannels,
     moveNavSection,
-    createChannel,
-    updateChannel,
-    deleteChannel,
-    addChannelToNavSection,
     moveChannel,
     moveChannelToNavSection,
     createNavSection,
@@ -29,12 +25,11 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
   return (
     <ManageChannelsScreenView
       goBack={props.navigation.goBack}
+      goToEditChannel={(channelId) => {
+        props.navigation.navigate('EditChannel', { groupId, channelId });
+      }}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       moveNavSection={moveNavSection}
-      createChannel={createChannel}
-      updateChannel={updateChannel}
-      deleteChannel={deleteChannel}
-      addChannelToNavSection={addChannelToNavSection}
       moveChannelWithinNavSection={moveChannel}
       moveChannelToNavSection={moveChannelToNavSection}
       createNavSection={createNavSection}
