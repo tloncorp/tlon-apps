@@ -286,6 +286,7 @@ export const tlonLocalIntros: db.Channel = {
     hasGroupReference: null,
     hasLink: null,
     hidden: false,
+    syncedAt: 0,
   },
 };
 
@@ -321,6 +322,7 @@ export const tlonLocalWaterCooler: db.Channel = {
     hasGroupReference: null,
     hasLink: null,
     hidden: false,
+    syncedAt: 0,
   },
 };
 
@@ -356,6 +358,7 @@ export const tlonLocalSupport: db.Channel = {
     hasGroupReference: null,
     hasLink: null,
     hidden: false,
+    syncedAt: 0,
   },
 };
 
@@ -391,6 +394,7 @@ export const tlonLocalBulletinBoard: db.Channel = {
     hasGroupReference: null,
     hasLink: null,
     hidden: false,
+    syncedAt: 0,
   },
 };
 
@@ -425,6 +429,7 @@ export const tlonLocalCommunityCatalog: db.Channel = {
     hasGroupReference: null,
     hasLink: null,
     hidden: false,
+    syncedAt: 0,
   },
 };
 
@@ -459,6 +464,7 @@ export const tlonLocalGettingStarted: db.Channel = {
     hasGroupReference: null,
     hasLink: null,
     hidden: false,
+    syncedAt: 0,
   },
 };
 
@@ -689,6 +695,7 @@ export const createFakePost = (
     hasLink: null,
     reactions: createFakeReactions(randInt(0, 10)),
     hidden: false,
+    syncedAt: 0,
   };
 };
 

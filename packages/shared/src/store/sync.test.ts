@@ -21,7 +21,6 @@ import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
 import { Group as UrbitGroup } from '../urbit/groups';
 import {
-  syncChannel,
   syncContacts,
   syncDms,
   syncGroups,
@@ -255,7 +254,6 @@ test('syncs dms', async () => {
 
 const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
-const unreadTime = 1712091148002;
 
 const testGroupData: db.Group = {
   ...toClientGroup(
@@ -272,33 +270,6 @@ const testGroupData: db.Group = {
   ],
   channels: [{ id: channelId, groupId, type: 'chat' }],
 };
-
-test('sync channel', async () => {
-  await db.insertGroups({ groups: [testGroupData] });
-  const insertedChannel = await db.getChannel({ id: channelId });
-  expect(insertedChannel).toBeTruthy();
-  setScryOutput(rawChannelPostsData);
-  await syncChannel(channelId, unreadTime);
-  const convertedPosts = toPagedPostsData(
-    channelId,
-    rawChannelPostsData as unknown as PagedPosts
-  );
-  const lastPost = convertedPosts.posts[convertedPosts.posts.length - 1]!;
-  const channel = await db.getChannel({ id: channelId });
-  expect(channel?.remoteUpdatedAt).toEqual(unreadTime);
-  expect(channel?.lastPostAt).toEqual(lastPost.receivedAt);
-  expect(channel?.lastPostId).toEqual(lastPost.id);
-
-  const posts = await db.getPosts();
-  expect(posts.length).toEqual(convertedPosts.posts.length);
-
-  const groups = await db.getGroups({ includeLastPost: true });
-  expect(groups[0].id).toEqual(groupId);
-  expect(groups[0].lastPostAt).toEqual(lastPost.receivedAt);
-  expect(groups[0].lastPostId).toEqual(lastPost.id);
-  expect(groups[0].lastPost?.id).toEqual(groups[0].lastPostId);
-  expect(groups[0].lastPost?.textContent).toEqual(lastPost.textContent);
-});
 
 test('sync posts', async () => {
   const channelId = 'chat/~solfer-magfed/test-channel';
@@ -332,7 +303,7 @@ test('deletes removed posts', async () => {
   );
   const deleteResponse = { ...rawChannelPostsData, posts: deletedPosts };
   setScryOutput(deleteResponse as PagedPosts);
-  await syncChannel(channelId, unreadTime);
+  await syncPosts({ channelId, mode: 'newest' });
   const posts = await db.getPosts();
   expect(posts.length).toEqual(0);
 });

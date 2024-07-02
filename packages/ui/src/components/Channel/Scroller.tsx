@@ -153,6 +153,7 @@ function Scroller({
         sentAt: 0,
         type: 'block',
         replyCount: 0,
+        syncedAt: 0,
       };
 
       postsWithContent.push(emptyPost);
@@ -189,6 +190,7 @@ function Scroller({
       sentAt: 0,
       type: 'block',
       replyCount: 0,
+      syncedAt: 0,
     };
 
     return [...before, emptyPost, ...after];

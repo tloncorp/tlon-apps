@@ -69,8 +69,7 @@ export default function ChatListScreen(
 
   useFocusEffect(
     useCallback(() => {
-      store.syncUnreads();
-      return () => store.clearSyncQueue();
+      store.syncUnreads(store.SyncPriority.High);
     }, [])
   );
 
