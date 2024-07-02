@@ -338,10 +338,9 @@
       ?~  event=(~(get by notifications) time-id)
         :_  state
         (give-simple-payload eyre-id [[404 ~] ~])
-      =.  notifications
+      =?  notifications  ?=(~ first-req.u.event)
         %+  ~(put by notifications)  time-id
-        =?  first-req.u.event  ?=(~ first-req.u.event)  `now.bowl
-        u.event
+        u.event(first-req `now.bowl)
       :_  state
       %+  give-simple-payload  eyre-id
       ?-  format.site
