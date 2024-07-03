@@ -152,7 +152,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const deleteChannel = useCallback(
     async (channelId: string) => {
       if (group) {
-        // await store.deleteChannel(group.id, channelId);
+        store.deleteChannel({ groupId: group.id, channelId });
       }
     },
     [group]
