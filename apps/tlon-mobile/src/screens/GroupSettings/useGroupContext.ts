@@ -1,8 +1,7 @@
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
+import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { getChannelKindFromType } from '@tloncorp/shared/dist/urbit';
-import anyAscii from 'any-ascii';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -102,44 +101,18 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
       description: string;
       channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
     }) => {
-      const exsitingChannels = [
-        ...(currentChatData?.pendingChats ?? []),
-        ...(currentChatData?.pinned ?? []),
-        ...(currentChatData?.unpinned ?? []),
-      ];
-
-      // do we have this available in the shared package? it's not in @urbit/aura
-      const strToSym = (str: string) => {
-        const ascii = anyAscii(str);
-        return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
-      };
-
-      const titleIsNumber = Number.isInteger(Number(title));
-      // we need unique channel names that are valid for urbit's @tas type
-      const tempChannelName = titleIsNumber
-        ? `channel-${title}`
-        : strToSym(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
-      // @ts-expect-error this is fine
-      const channelKind = getChannelKindFromType(channelType);
-      const tempNewChannelFlag = `${channelKind}/${currentUserId}/${tempChannelName}`;
-      const existingChannel = () => {
-        return exsitingChannels.find(
-          (channel) => channel.id === tempNewChannelFlag
-        );
-      };
-
-      const randomSmallNumber = Math.floor(Math.random() * 100);
-      const channelName = existingChannel()
-        ? `${tempChannelName}-${randomSmallNumber}`
-        : tempChannelName;
-      const newChannelFlag = `${currentUserId}/${channelName}`;
-      const newChannelNest = `${channelType}/${newChannelFlag}`;
+      const { name, id } = assembleNewChannelIdAndName({
+        title,
+        channelType,
+        currentChatData,
+        currentUserId,
+      });
 
       if (group) {
         await store.createChannel({
           groupId: group.id,
-          name: channelName,
-          channelId: newChannelNest,
+          name,
+          channelId: id,
           title,
           description,
           channelType,

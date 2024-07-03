@@ -227,7 +227,6 @@ export const useChannel = (options: { id: string }) => {
   return useQuery({
     queryKey: [['channel', options]],
     queryFn: () => db.getChannelWithLastPostAndMembers(options),
-    enabled: !!options.id,
   });
 };
 

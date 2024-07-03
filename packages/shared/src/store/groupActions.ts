@@ -1,9 +1,7 @@
-import { formatUv } from '@urbit/aura';
-import bigInt from 'big-integer';
-
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { createSectionId } from '../urbit';
 import * as sync from './sync';
 
 const logger = createDevLogger('groupActions', true);
@@ -190,8 +188,7 @@ export async function addNavSection(
   group: db.Group,
   navSectionMeta: db.ClientMeta
 ) {
-  const idParts = formatUv(bigInt(Date.now())).split('.');
-  const newSectionId = `z${idParts[idParts.length - 1]}`;
+  const newSectionId = createSectionId();
   const groupNavSectionId = `${group.id}-${newSectionId}`;
 
   logger.log('adding nav section', group.id, groupNavSectionId);

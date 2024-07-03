@@ -12,16 +12,16 @@ interface EditChannelScreenViewProps {
   goBack: () => void;
   isLoading: boolean;
   channel?: db.Channel;
-  submit: (title: string, description?: string) => void;
-  deleteChannel: () => void;
+  onSubmit: (title: string, description?: string) => void;
+  onDeleteChannel: () => void;
 }
 
 export function EditChannelScreenView({
   goBack,
   isLoading,
-  submit,
+  onSubmit,
   channel,
-  deleteChannel,
+  onDeleteChannel,
 }: EditChannelScreenViewProps) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const {
@@ -53,9 +53,9 @@ export function EditChannelScreenView({
       if (!data.title) {
         return;
       }
-      submit(data.title, data.description ?? undefined);
+      onSubmit(data.title, data.description ?? undefined);
     },
-    [submit]
+    [onSubmit]
   );
 
   return (
@@ -108,7 +108,7 @@ export function EditChannelScreenView({
             onOpenChange={(show) => setShowDeleteSheet(show)}
             title={channel?.title ?? 'channel'}
             itemTypeDescription="channel"
-            deleteAction={deleteChannel}
+            deleteAction={onDeleteChannel}
           />
         </YStack>
       </YStack>
