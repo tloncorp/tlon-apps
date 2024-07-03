@@ -31,7 +31,7 @@ export function ChannelListItem({
         ]
           .filter((v) => !!v)
           .join(' '),
-        subtitleIcon: 'ChannelDM',
+        subtitleIcon: memberCount > 2 ? 'ChannelMultiDM' : 'ChannelDM',
       } as const;
     } else {
       return {
