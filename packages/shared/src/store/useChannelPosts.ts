@@ -110,10 +110,13 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
     getPreviousPageParam: (
       firstPage,
       _allPages,
-      _firstPageParam
+      firstPageParam
     ): UseChannelPostsPageParams | undefined => {
       const firstPageIsEmpty = !firstPage[0]?.id;
-      if (firstPageIsEmpty || options.hasCachedNewest) {
+      if (
+        firstPageIsEmpty ||
+        (firstPageParam.mode === 'newest' && options.hasCachedNewest)
+      ) {
         return undefined;
       }
       return {
