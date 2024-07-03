@@ -1,8 +1,8 @@
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import { getChannelKindFromType } from '@tloncorp/shared/dist/urbit';
 import anyAscii from 'any-ascii';
-import { getChannelKindFromType } from 'packages/shared/dist/urbit';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
