@@ -31,7 +31,7 @@ export function ChannelListItem({
         ]
           .filter((v) => !!v)
           .join(' '),
-        subtitleIcon: 'ChannelTalk',
+        subtitleIcon: 'ChannelDM',
       } as const;
     } else {
       return {
