@@ -249,6 +249,7 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`delivery_status` text,
+	`synced_at` integer NOT NULL,
 	`backend_time` text
 );
 --> statement-breakpoint

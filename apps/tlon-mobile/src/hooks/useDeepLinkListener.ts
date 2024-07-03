@@ -7,11 +7,11 @@ import { Alert } from 'react-native';
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
 import { inviteShipWithLure } from '../lib/hostingApi';
-import type { TabParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { trackError } from '../utils/posthog';
 
 export const useDeepLinkListener = () => {
-  const navigation = useNavigation<NavigationProp<TabParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { ship } = useShip();
   const { lure, deepLinkPath, clearLure, clearDeepLink } = useBranch();
 

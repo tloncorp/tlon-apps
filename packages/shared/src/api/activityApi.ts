@@ -13,7 +13,7 @@ const logger = createDevLogger('activityApi', false);
 export async function getUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/activity',
+    path: '/v1/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
@@ -232,7 +232,7 @@ export type ActivityEvent =
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
     }
-  | { type: 'addActivityEvent'; event: db.ActivityEvent };
+  | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
@@ -355,8 +355,26 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           bucketId: 'all',
           event: rawEvent,
         });
+
+        const events = [];
         if (activityEvent) {
-          return handler({ type: 'addActivityEvent', event: activityEvent });
+          events.push(activityEvent);
+          if (activityEvent?.isMention) {
+            events.push({
+              ...activityEvent,
+              bucketId: 'mentions' as db.ActivityBucket,
+            });
+          }
+          if (activityEvent?.type === 'reply') {
+            events.push({
+              ...activityEvent,
+              bucketId: 'replies' as db.ActivityBucket,
+            });
+          }
+        }
+
+        if (events.length > 0) {
+          return handler({ type: 'addActivityEvent', events });
         }
       }
 
@@ -675,13 +693,9 @@ export const toGroupUnread = (
   groupId: string,
   summary: ub.ActivitySummary
 ): db.GroupUnread => {
-  const count = Object.values(summary.children ?? {}).reduce((acc, entry) => {
-    const childCount = entry.unread?.count ?? 0;
-    return acc + childCount;
-  }, 0);
   return {
     groupId,
-    count,
+    count: summary.count,
     notify: summary.notify,
     updatedAt: summary.recency,
   };

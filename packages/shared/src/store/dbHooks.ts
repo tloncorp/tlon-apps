@@ -106,21 +106,16 @@ export const useUnreadsCount = () => {
   });
 };
 
-export const useLatestActivityEvent = () => {
-  const depsKey = useKeyFromQueryDeps(db.getLatestActivityEvent);
-  return useQuery({
-    queryKey: ['latestActivityEvent', depsKey],
-    queryFn: () => db.getLatestActivityEvent(),
-  });
-};
-
-export const useHaveUnseenActivity = () => {
+export const useHaveUnreadUnseenActivity = () => {
+  const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
   const { data: seenMarker } = useActivitySeenMarker();
-  const { data: latestEvent } = useLatestActivityEvent();
-  if (!latestEvent || seenMarker === null || seenMarker === undefined)
-    return false;
+  const { data: meaningfulUnseenActivity } = useQuery({
+    queryKey: ['unseenUnreadActivity', depsKey, seenMarker],
+    queryFn: () =>
+      db.getUnreadUnseenActivityEvents({ seenMarker: seenMarker ?? Infinity }),
+  });
 
-  return latestEvent?.timestamp > seenMarker;
+  return (meaningfulUnseenActivity?.length ?? 0) > 0;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {

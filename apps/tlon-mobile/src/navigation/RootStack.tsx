@@ -1,12 +1,19 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { ActivityScreen } from '../screens/ActivityScreen';
+import ChannelScreen from '../screens/ChannelScreen';
+import ChannelSearch from '../screens/ChannelSearchScreen';
+import ChatListScreen from '../screens/ChatListScreen';
+import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
+import PostScreen from '../screens/PostScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
-import { TabStack } from './TabStack';
+import { SettingsStack } from './SettingsStack';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
 
@@ -21,18 +28,44 @@ export function RootStack() {
     }
   });
 
+  const theme = useTheme();
+
   return (
     <Root.Navigator
-      initialRouteName="Tabs"
-      screenOptions={{ headerShown: false }}
+      initialRouteName="ChatList"
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: theme.background.val },
+      }}
     >
-      <Root.Screen name="Tabs" component={TabStack} />
+      {/* top level tabs */}
+      <Root.Screen
+        name="ChatList"
+        component={ChatListScreen}
+        options={{ animation: 'none', gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="Activity"
+        component={ActivityScreen}
+        options={{ animation: 'none', gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="Profile"
+        component={SettingsStack}
+        options={{ animation: 'none', gestureEnabled: false }}
+      />
+
+      {/* individual screens */}
+      <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
+      <Root.Screen name="Channel" component={ChannelScreen} />
+      <Root.Screen name="ChannelSearch" component={ChannelSearch} />
+      <Root.Screen name="Post" component={PostScreen} />
+      <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
         name="ImageViewer"
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
-      <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
     </Root.Navigator>
   );
 }

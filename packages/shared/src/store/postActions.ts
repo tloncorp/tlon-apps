@@ -190,7 +190,6 @@ export async function addPostReaction(
       our: currentUserId,
       postAuthor: post.authorId,
     });
-    sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
     console.error('Failed to add post reaction', e);
 
@@ -215,7 +214,6 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
       our: currentUserId,
       postAuthor: post.authorId,
     });
-    sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
     console.error('Failed to remove post reaction', e);
 

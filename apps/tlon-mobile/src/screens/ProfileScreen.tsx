@@ -14,7 +14,7 @@ import NavBar from '../navigation/NavBarView';
 import { SettingsStackParamList } from '../types';
 import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
-type Props = NativeStackScreenProps<SettingsStackParamList, 'Profile'>;
+type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 const DEBUG_MESSAGE = `
   Version: 

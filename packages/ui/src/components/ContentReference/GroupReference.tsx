@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { SizableText } from 'tamagui';
 
-import { useContact, useNavigation } from '../../contexts';
+import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
 import { getGroupHost } from '../../utils';
-import { Avatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 import { ListItem } from '../ListItem';
 import { LoadingSpinner } from '../LoadingSpinner';
@@ -16,7 +16,6 @@ export function GroupReference({ groupId }: { groupId: string }) {
   const { data: group, isLoading, isError } = useGroup(groupId);
 
   const host = useMemo(() => getGroupHost(groupId), [groupId]);
-  const contact = useContact(host);
 
   const onPress = useCallback(() => {
     if (group) {
@@ -28,7 +27,7 @@ export function GroupReference({ groupId }: { groupId: string }) {
     <Reference onPress={onPress}>
       <Reference.Header>
         <Reference.Title>
-          <Avatar contact={contact} contactId={host} size="$xl" />
+          <ContactAvatar contactId={host} size="$xl" />
           <ContactName
             color="$tertiaryText"
             size="$s"
@@ -47,11 +46,7 @@ export function GroupReference({ groupId }: { groupId: string }) {
         )}
         {group && (
           <ListItem pressable={false}>
-            <ListItem.Icon
-              fallbackText={group.title?.[0] ?? group.id[0]}
-              backgroundColor={group.iconImageColor ?? undefined}
-              imageUrl={group.iconImage ?? undefined}
-            />
+            <ListItem.GroupIcon model={group} />
             <ListItem.MainContent>
               <ListItem.Title>{group.title ?? group.id}</ListItem.Title>
             </ListItem.MainContent>

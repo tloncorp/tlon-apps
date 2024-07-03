@@ -18,8 +18,10 @@ export type WebViewStackParamList = {
   ExternalWebView: ExternalWebViewScreenParams;
 };
 
-export type HomeStackParamList = {
+export type RootStackParamList = {
   ChatList: undefined;
+  Activity: undefined;
+  Profile: NavigatorScreenParams<SettingsStackParamList>;
   Channel: {
     channel: db.Channel;
     selectedPostId?: string | null;
@@ -33,10 +35,6 @@ export type HomeStackParamList = {
   Post: {
     post: db.Post;
   };
-};
-
-export type RootStackParamList = {
-  Tabs: NavigatorScreenParams<TabParamList>;
   ImageViewer: {
     post: db.Post;
     uri?: string;
@@ -68,17 +66,8 @@ export type GroupSettingsStackParamList = {
   };
 };
 
-export type TabParamList = {
-  Groups: NavigatorScreenParams<HomeStackParamList>;
-  Activity: NavigatorScreenParams<WebViewStackParamList>;
-  Settings: NavigatorScreenParams<SettingsStackParamList>;
-  Profile: NavigatorScreenParams<SettingsStackParamList>;
-};
-
-export type TabName = keyof TabParamList;
-
 export type SettingsStackParamList = {
-  Profile: undefined;
+  Settings: undefined;
   FeatureFlags: undefined;
 };
 

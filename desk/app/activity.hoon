@@ -100,7 +100,7 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   ?>  ?=(%3 -.old)
   =.  state  old
-  cor
+  refresh-all-summaries
   +$  versioned-state  $%(state-3 state-2 state-1)
   +$  state-3  current-state
   +$  state-2
@@ -587,7 +587,7 @@
     =/  t  start-time
     |-
     ?.  (has:on-event:a stream:base t)  t
-    $(t +(t))
+    $(t (^add t ~s0..0001))
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
   =/  =source:a  (determine-source inc)
@@ -899,7 +899,12 @@
       notify-count  (^add notify-count.sum notify-count.as)
     ==
   =/  newest=time  :(max newest.cs floor.reads top)
-  =/  total  count.cs
+  =/  total
+    ::  if we're a channel, we only want thread notify counts, not totals
+    ::
+    ?:  ?=(%channel -.source)
+      notify-count.cs
+    count.cs
   =/  notify-count  notify-count.cs
   =/  main  0
   =/  notified=?  notify.cs

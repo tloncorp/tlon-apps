@@ -326,7 +326,12 @@ export const config = createTamagui({
   fonts,
   themes,
   settings: {
-    allowedStyleValues: 'somewhat-strict',
+    allowedStyleValues: {
+      space: 'somewhat-strict',
+      size: 'somewhat-strict',
+      radius: 'somewhat-strict',
+      zIndex: 'somewhat-strict',
+    },
   },
   animations: animations,
 });

@@ -68,8 +68,6 @@ import {
   useChatDialogs,
   useChatHovering,
   useChatInfo,
-  useChatKeys,
-  useChatStore,
 } from '../useChatStore';
 
 export interface ChatMessageProps {
@@ -334,18 +332,8 @@ const ChatMessage = React.memo<
 
         // If we're the thread op, don't show options.
         // Options are shown for the threadOp in the main scroll window.
-        setOptionsOpen(
-          (hovering || pickerOpen) &&
-            !isScrolling &&
-            !isThreadOp
-        );
-      }, [
-        isMobile,
-        hovering,
-        pickerOpen,
-        isScrolling,
-        isThreadOp,
-      ]);
+        setOptionsOpen((hovering || pickerOpen) && !isScrolling && !isThreadOp);
+      }, [isMobile, hovering, pickerOpen, isScrolling, isThreadOp]);
 
       const onSubmit = useCallback(
         async (editor: Editor) => {

@@ -206,6 +206,7 @@ function insertPostsForWindow(
         authorId: 'test',
         receivedAt: 0,
         sentAt: 0,
+        syncedAt: 0,
       },
       {
         id: window.newestPostId,
@@ -214,6 +215,7 @@ function insertPostsForWindow(
         authorId: 'test',
         receivedAt: 0,
         sentAt: 0,
+        syncedAt: 0,
       },
     ],
   });
@@ -369,6 +371,7 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
       receivedAt: refDate + i,
       sentAt: refDate + i,
       authorId: 'test',
+      syncedAt: 0,
     });
   }
   return posts;
