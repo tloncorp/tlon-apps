@@ -1,3 +1,42 @@
+::  activity: tracking what's happening and how we alert you
+::
+::    the main goal of the agent is to keep track of every event you are
+::    aware of, and which ones you've read and interacted with. by doing
+::    this, we have a centralized place to keep your read state and
+::    notifications/alerts in sync.
+::
+::    at its core, activity is composed of a few key parts:
+::      - events: things that happen in other agents
+::      - sources: where the events happen or their parents
+::      - streams: a collection of all events from a source and its
+::           children. each stream represents a source's activity.
+::      - reads: metadata about what's been read in this source and all
+::           its children
+::      - summaries: a summary of the activity in a source, used to
+::             display badges, alerts, and counts about unread events
+::      - volume settings: how should we badge/alert/notify you about
+::         each event type
+::
+::    this means that the streams form a tree structure.
+::      - base: the root of the tree, where all events are stored
+::        - group
+::          - channel
+::            - thread
+::        - dm
+::          - dm-thread
+::
+::    with this structure that means that data flows upwards from the
+::    leaves to the root, and that we can easily keep the read state
+::    in sync by propagating read data up. similarly we can have a feed
+::    of events at any point in the tree, because the children's events
+::    are always included in the parent's stream.
+::
+::    to make sure we stay in sync, we always process sources in leaf-
+::    first order, aka threads/dm-threads first, then channels, then
+::    groups, then dms, and then finally the base. this way we can
+::    always be sure that we have the most up-to-date information about
+::    the children and save ourselves from having to do extra work.
+::
 ::
 /-  a=activity, c=channels, ch=chat, g=groups
 /+  default-agent, verb, dbug, ch-utils=channel-utils, v=volume
