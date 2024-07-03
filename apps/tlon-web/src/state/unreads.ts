@@ -426,27 +426,18 @@ export function useCombinedChatUnreads(messagesFilter: SidebarFilter) {
   );
 }
 
-export function useAllGroupUnreads() {
-  const sources = useUnreadsStore(useCallback((s) => s.sources, []));
-  return Object.entries(sources).filter(
-    ([key, source]) =>
-      key.startsWith('group') &&
-      source.combined.count > 0 &&
-      source.combined.status === 'unread'
-  );
-}
-
 export function useMarkAllGroupsRead() {
-  const allGroupUnreads = useAllGroupUnreads();
-  const { read } = useUnreadsStore();
+  const { read, sources } = useUnreadsStore();
   const { mutate } = useMarkReadMutation(true);
 
   const markAllRead = useCallback(() => {
-    allGroupUnreads.forEach(([sourceId]) => {
-      read(sourceId);
-      mutate({ source: { group: stripSourcePrefix(sourceId) } });
-    });
-  }, [allGroupUnreads, read, mutate]);
+    Object.entries(sources)
+      .filter(([key]) => key.startsWith('group'))
+      .forEach(([sourceId]) => {
+        read(sourceId);
+        mutate({ source: { group: stripSourcePrefix(sourceId) } });
+      });
+  }, [sources, read, mutate]);
 
   return markAllRead;
 }

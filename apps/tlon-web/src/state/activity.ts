@@ -159,8 +159,7 @@ export function useMarkReadMutation(recursive = false) {
       activityAction({
         read: {
           source: variables.source,
-          action:
-            variables.action || recursive ? { recursive: null } : { all: null },
+          action: variables.action || { all: { time: null, deep: recursive } },
         },
       })
     );

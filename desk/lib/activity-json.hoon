@@ -435,9 +435,13 @@
   ++  read-action
     %-  of
     :~  item/id
-        all/(mu (se %ud))
+        all/all-read
         event/incoming-event
-        recursive/(mu (se %ud))
+    ==
+  ++  all-read
+    %-  ou
+    :~  time/(un (mu (se %ud)))
+        deep/(uf | bo)
     ==
   ::
   +|  %basics

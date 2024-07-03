@@ -47,8 +47,7 @@
 +$  read-action
   $%  [%item id=time-id]
       [%event event=incoming-event]
-      [%all time=(unit time)]
-      [%recursive time=(unit time)]
+      [%all time=(unit time) deep=?]
   ==
 ::
 +|  %updates

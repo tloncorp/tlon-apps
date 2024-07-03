@@ -157,7 +157,7 @@
     =+  !<(=action:a vase)
     ?-  -.action
       %add      (add-event +.action)
-      %del      (del +.action)
+      %del      (del-source +.action)
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
@@ -410,7 +410,7 @@
     =/  t  start-time
     |-
     ?.  (has:on-event:a stream:base t)  t
-    $(t (^add t ~s0..0001))
+    $(t (add t ~s0..0001))
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
   =/  =source:a  (determine-source inc)
@@ -419,7 +419,7 @@
     (give-update update ~)
   =?  cor  &(!importing notify (is-allowed inc))
     (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
-  ::  we always update sources in order, so make sure base is last
+  ::  we always update sources in order, so make sure base is processed last
   =;  co
     =.  indices.co
       =/  =stream:a  (put:on-event:a stream:base time-id event)
@@ -464,7 +464,7 @@
     %dm-post-mention  &
     %dm-reply-mention  &
   ==
-++  del
+++  del-source
   |=  =source:a
   ^+  cor
   =.  indices  (~(del by indices) source)
@@ -477,8 +477,8 @@
   =/  =index:a  (~(gut by indices) source *index:a)
   =/  new=_stream.index
     (put:on-event:a stream.index time-id event)
-  (update-index source index(stream new) |)
-++  update-index
+  (refresh-index source index(stream new) |)
+++  refresh-index
   |=  [=source:a new=index:a new-floor=?]
   =?  new  new-floor
     (update-floor new)
@@ -619,49 +619,57 @@
       %item
     =/  new-read  [id.action ~]
     =/  read-items  (put:on-read-items:a items.reads.index new-read)
-    =.  cor  (update-parents source ~[new-read])
-    (update-index source index(items.reads read-items) &)
+    =.  cor  (propagate-read-items source ~[new-read])
+    (refresh-index source index(items.reads read-items) &)
   ::
       %all
-    =/  new-reads=(list [=time-id:a ~])
-      %+  murn
-        %-  tap:on-event:a
-        (lot:on-event:a stream.index `floor.reads.index ~)
-      |=  [=time =event:a]
-      ?:  child.event  ~
-      `[time ~]
-    =/  new  index(items.reads (malt new-reads))
-    =?  cor  !from-parent
-      (update-parents source new-reads)
-    (update-index source new &)
-  ::
-      %recursive
-    =/  new-floor=time
+    =/  new=index:a
+      ::  if we're only marking at our level, then we only want to grab
+      ::  read items from our level, because we can't move the floor in
+      ::  case children have older unread items
+      ?:  !deep.action
+        =-  index(items.reads (malt -))
+        %+  murn
+          %-  tap:on-event:a
+          (lot:on-event:a stream.index `floor.reads.index ~)
+        |=  [=time =event:a]
+        ?:  child.event  ~
+        `[time ~]
+      ::  otherwise, we can short circuit and just mark everything read,
+      ::  because we're going to also mark all children read
+      =-  index(reads [- ~])
       ?^  time.action  u.time.action
       =/  latest=(unit [=time event:a])
         (ram:on-event:a stream.index)
       ?~(latest now.bowl time.u.latest)
-    =/  new=index:a  index(reads [new-floor ~])
-    ~&  [source floor.reads.index new-floor]
-    =?  cor  !from-parent
-      %+  update-parents  source
-      %+  turn
-        %-  tap:on-event:a
-        %^  lot:on-event:a  stream.index  `floor.reads.index
-        ?:((gte new-floor floor.reads.index) `+(new-floor) ~)
-      |=  [=time-id:a *]
-      [time-id ~]
-    =.  cor
+    ::  if we're marking deep then we need to recursively read all children
+    =?  cor  deep.action
       =/  children  (get-children source)
       |-
       ?~  children  cor
       =/  =source:a  i.children
       =.  cor  (read source action &)
       $(children t.children)
-    (update-index source new &)
+    ::  we need to refresh our own index to reflect new reads
+    =.  cor  (refresh-index source new &)
+    ::  if this isn't a recursive read, we need to propagate the new read
+    ::  items up the tree so that parents can keep accurate counts
+    =?  cor  !from-parent
+      %+  propagate-read-items  source
+      ::  if we're not marking deep, we already have the items to send up
+      ?:  !deep.action  (tap:on-read-items:a items.reads.new)
+      ::  if not, we need to generate the new items based on the floor
+      ::  we just came up with
+      %+  turn
+        %-  tap:on-event:a
+        %^  lot:on-event:a  stream.index  `floor.reads.index
+        ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
+      |=  [=time-id:a *]
+      [time-id ~]
+    cor
   ==
 ::
-++  update-parents
+++  propagate-read-items
   |=  [=source:a items=(list [=time-id:a ~])]
   =/  parents  (get-parents source)
   |-
@@ -670,7 +678,7 @@
   =/  =read-items:a
     (gas:on-read-items:a items.reads.parent-index items)
   =.  cor
-    (update-index i.parents parent-index(items.reads read-items) &)
+    (refresh-index i.parents parent-index(items.reads read-items) &)
   $(parents t.parents)
 ++  get-index
   |=  =source:a
@@ -704,7 +712,8 @@
   ^-  (list source:a)
   ?:  ?=(%base -.source)  ~
   ?<  ?=(%base -.source)
-  :-  [%base ~]
+  =-  (snoc - [%base ~])
+  ^-  (list source:a)
   ?+  -.source  ~
     %channel  ~[[%group group.source]]
     %dm-thread  ~[[%dm whom.source]]
@@ -904,7 +913,7 @@
       [u.min-floor main-reads]
     %+  gas:on-read-items:a  items.reads.index
     (get-reads stream.index `u.min-floor `floor.reads.index)
-  =.  cor  (update-index source index &)
+  =.  cor  (refresh-index source index &)
   $(sources t.sources)
 ::
 ++  get-reads
@@ -975,7 +984,7 @@
         volume-settings  (~(del by volume-settings) old-source)
       ==
     ::  update source + index, if new key create new index
-    =.  cor  (update-index source index.i.indxs &)
+    =.  cor  (refresh-index source index.i.indxs &)
     $(indxs t.indxs)
   %+  weld
     (handle-dms u.club dms)

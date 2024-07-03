@@ -785,7 +785,7 @@
     =/  =source
       ?:  ?=(%post -.concern)  [%dm whom]
       [%dm-thread top.concern whom]
-    activity-action+!>(`action`[%read source [%all `now.bowl]])
+    activity-action+!>(`action`[%read source [%all `now.bowl |]])
   :-  %activity-action
   !>  ^-  action
   :-  %add
