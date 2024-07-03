@@ -281,14 +281,50 @@ export async function moveNavSection(
     return;
   }
 
-  const newNavSections = [...navSections];
-  const [section] = newNavSections.splice(sectionIndex, 1);
-  newNavSections.splice(newIndex, 0, section);
+  // we need to update sectionIndex on all sections
+  const newNavSections = navSections.map((section, index) => {
+    if (index === sectionIndex) {
+      return section;
+    }
+
+    if (index < newIndex && index >= sectionIndex) {
+      if (!section.sectionIndex) {
+        console.error('sectionIndex not found', section);
+        return section;
+      }
+
+      return {
+        ...section,
+        index: section.sectionIndex - 1,
+      };
+    }
+
+    if (index > newIndex && index <= sectionIndex) {
+      if (!section.sectionIndex) {
+        console.error('sectionIndex not found', section);
+        return section;
+      }
+
+      return {
+        ...section,
+        index: section.sectionIndex + 1,
+      };
+    }
+
+    return section;
+  });
 
   // optimistic update
   await db.updateGroup({
     ...group,
     navSections: newNavSections,
+  });
+
+  newNavSections.forEach(async (section, index) => {
+    await db.updateNavSection({
+      ...section,
+      sectionIndex: index,
+    });
   });
 
   try {
@@ -303,6 +339,13 @@ export async function moveNavSection(
     await db.updateGroup({
       id: group.id,
       ...existingGroup,
+    });
+
+    navSections.forEach(async (section, index) => {
+      await db.updateNavSection({
+        ...section,
+        sectionIndex: index,
+      });
     });
   }
 }
