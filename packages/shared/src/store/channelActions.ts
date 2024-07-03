@@ -17,7 +17,7 @@ export async function updateChannel({
   channel: db.Channel;
 }) {
   // optimistic update
-  db.updateChannel(channel);
+  await db.updateChannel(channel);
 
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
@@ -41,7 +41,7 @@ export async function updateChannel({
   } catch (e) {
     console.error('Failed to update channel', e);
     // rollback optimistic update
-    db.updateChannel(channel);
+    await db.updateChannel(channel);
   }
 }
 

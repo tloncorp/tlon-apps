@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { Text, View, XStack, YStack } from '../../core';
+import { View, YStack } from '../../core';
 import { Button } from '../Button';
 import { DeleteSheet } from '../DeleteSheet';
 import { FormInput } from '../FormInput';
@@ -26,6 +26,7 @@ export function EditChannelScreenView({
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const {
     control,
+    reset,
     handleSubmit,
     formState: { errors },
   } = useForm({
@@ -34,6 +35,15 @@ export function EditChannelScreenView({
       description: channel?.description,
     },
   });
+
+  useEffect(() => {
+    if (channel) {
+      reset({
+        title: channel.title,
+        description: channel.description,
+      });
+    }
+  }, [channel, reset]);
 
   const handleSave = useCallback(
     (data: {
@@ -68,7 +78,7 @@ export function EditChannelScreenView({
           alignItems="center"
           flex={1}
         >
-          {isLoading ? null : (
+          {isLoading || !channel ? null : (
             <>
               <FormInput
                 control={control}

@@ -34,7 +34,6 @@ export function EditChannelScreen(props: ManageChannelsScreenProps) {
       }}
       submit={(name, description) => {
         const prevChannel = data;
-        console.log('prevChannel', prevChannel);
         if (prevChannel) {
           updateChannel({
             ...prevChannel,

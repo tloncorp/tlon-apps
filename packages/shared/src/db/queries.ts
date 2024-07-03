@@ -2226,7 +2226,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads', 'volumeSettings']
+  ['groups', 'channelUnreads', 'volumeSettings', 'channels']
 );
 
 export const getGroupByChannel = createReadQuery(
