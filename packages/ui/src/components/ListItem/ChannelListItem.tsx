@@ -19,7 +19,7 @@ export function ChannelListItem({
 } & ListItemProps<db.Channel>) {
   const unreadCount = model.unread?.count ?? 0;
   const title = utils.getChannelTitle(model);
-  const firstMemberId = model.members?.[0]?.contactId?.replace('~', '') ?? '';
+  const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
   const { subtitle, subtitleIcon } = useMemo(() => {
@@ -31,7 +31,7 @@ export function ChannelListItem({
         ]
           .filter((v) => !!v)
           .join(' '),
-        subtitleIcon: 'Profile',
+        subtitleIcon: 'ChannelTalk',
       } as const;
     } else {
       return {
