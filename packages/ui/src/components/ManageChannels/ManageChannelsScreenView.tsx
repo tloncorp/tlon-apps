@@ -70,7 +70,6 @@ function DraggableChannel({
       onDrag={onDrag}
       onDragEnd={onDragEnd}
       onDragStart={onDragStart}
-      zIndex={4}
     >
       <XStack
         paddingHorizontal="$l"
@@ -128,7 +127,6 @@ function DraggableNavSection({
       onDrag={onDrag}
       onDragEnd={onDragEnd}
       onDragStart={onDragStart}
-      zIndex={3}
     >
       <YStack
         padding="$xl"
@@ -513,7 +511,7 @@ export function ManageChannelsScreenView({
           <Animated.ScrollView
             // 114.7 is the height of the buttons at the bottom
             contentContainerStyle={{ paddingBottom: bottom + 114.7 }}
-            style={{ zIndex: 1 }}
+            style={{ zIndex: 1, elevation: 1 }}
           >
             <YStack gap="$2xl" alignItems="center">
               {renderSectionsAndChannels}

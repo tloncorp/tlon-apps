@@ -13,7 +13,6 @@ type DraggableItemProps = {
   onDragStart: (layout: LayoutRectangle) => void;
   onDragEnd: (translateY: number) => void;
   onDrag: (translateY: number) => void;
-  zIndex?: number;
 };
 
 export function DraggableItem({
