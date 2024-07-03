@@ -296,7 +296,7 @@ export const getChats = createReadQuery(
       .orderBy(
         ascNullsLast($pins.index),
         sql`(CASE WHEN ${$groups.isNew} = 1 THEN 1 ELSE 0 END) DESC`,
-        sql`COALESCE(${allChannels.lastPostAt}, ${$channelUnreads.updatedAt}) DESC`
+        sql`COALESCE(${$channelUnreads.updatedAt}, ${allChannels.lastPostAt}) DESC`
       );
 
     const [chatMembers, filteredChannels] = result.reduce<
@@ -352,6 +352,7 @@ export const insertGroups = createWriteQuery(
     ctx: QueryCtx
   ) => {
     return withTransactionCtx(ctx, async (txCtx) => {
+      if (groups.length === 0) return;
       for (const group of groups) {
         if (overWrite) {
           await txCtx.db
@@ -396,7 +397,7 @@ export const insertGroups = createWriteQuery(
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
-        if (group.navSections) {
+        if (group.navSections?.length) {
           await txCtx.db
             .insert($groupNavSections)
             .values(
@@ -434,7 +435,7 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
-        if (group.roles) {
+        if (group.roles?.length) {
           await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
@@ -449,7 +450,7 @@ export const insertGroups = createWriteQuery(
               ),
             });
         }
-        if (group.members) {
+        if (group.members?.length) {
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
@@ -1763,7 +1764,7 @@ export const insertChannelPosts = createWriteQuery(
       }
     });
   },
-  ['posts', 'channels', 'groups', 'postWindows']
+  ['posts', 'postWindows']
 );
 
 export const insertLatestPosts = createWriteQuery(
@@ -2094,6 +2095,19 @@ export const getPost = createReadQuery(
       .select()
       .from($posts)
       .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByBackendTime = createReadQuery(
+  'getPostByBackendTime',
+  async ({ backendTime }: { backendTime: string }, ctx: QueryCtx) => {
+    const postData = await ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.backendTime, backendTime));
     if (!postData.length) return null;
     return postData[0];
   },
@@ -2545,6 +2559,34 @@ export const getLatestActivityEvent = createReadQuery(
         ),
       })
       .then(returnNullIfUndefined);
+  },
+  ['activityEvents']
+);
+
+export const getUnreadUnseenActivityEvents = createReadQuery(
+  'getUnreadUnseenActivityEvents',
+  async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    return ctx.db
+      .select()
+      .from($activityEvents)
+      .leftJoin(
+        $channelUnreads,
+        eq($activityEvents.channelId, $channelUnreads.channelId)
+      )
+      .leftJoin(
+        $threadUnreads,
+        eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .where(
+        and(
+          gt($activityEvents.timestamp, seenMarker),
+          eq($activityEvents.shouldNotify, true),
+          or(
+            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
+            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0))
+          )
+        )
+      );
   },
   ['activityEvents']
 );

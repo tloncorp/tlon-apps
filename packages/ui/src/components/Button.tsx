@@ -179,7 +179,6 @@ const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
   const smaller = getSize(size, {
     shift: -1,
   });
-  const theme = useTheme();
   return cloneElement(props.children, {
     size: smaller.val,
     color:

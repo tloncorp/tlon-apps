@@ -161,6 +161,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           method: 'PUT',
           headers: {
             'Content-Type': compressedFile.type,
+            'Cache-Control': 'public, max-age=3600',
           },
           body: compressedFile,
         };

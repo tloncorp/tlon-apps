@@ -236,7 +236,7 @@ const groupUnread: Record<string, ub.ActivitySummary> = {
 const expectedGroupUnread = {
   groupId: '~latter-bolden/woodshop',
   updatedAt: 946684800000,
-  count: 5,
+  count: 6,
   notify: true,
 };
 

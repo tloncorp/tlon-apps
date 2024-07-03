@@ -6,10 +6,10 @@ import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 
 type ChannelSearchProps = NativeStackScreenProps<
-  HomeStackParamList,
+  RootStackParamList,
   'ChannelSearch'
 >;
 

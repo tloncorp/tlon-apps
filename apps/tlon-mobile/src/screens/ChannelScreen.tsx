@@ -11,15 +11,14 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
-type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
+type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
-      store.clearSyncQueue();
       if (props.route.params.channel.group?.isNew) {
         store.markGroupVisited(props.route.params.channel.group);
       }
@@ -57,6 +56,20 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     uploaderKey: `${currentChannelId}`,
   });
 
+  const session = store.useCurrentSession();
+  const hasCachedNewest = useMemo(() => {
+    if (!session || !channel) {
+      return false;
+    }
+    const { syncedAt, lastPostAt } = channel;
+    if (syncedAt && session.startTime < syncedAt) {
+      return true;
+    } else if (lastPostAt && syncedAt && syncedAt > lastPostAt) {
+      return true;
+    }
+    return false;
+  }, [channel, session]);
+
   const selectedPostId = props.route.params.selectedPostId;
   const cursor = useMemo(() => {
     if (!channel) {
@@ -81,6 +94,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     enabled: !!channel,
     channelId: currentChannelId,
     count: 50,
+    hasCachedNewest,
     ...(cursor
       ? {
           mode: 'around',

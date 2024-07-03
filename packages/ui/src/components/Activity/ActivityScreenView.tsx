@@ -18,7 +18,7 @@ export function ActivityScreenView({
   refresh,
 }: {
   isFocused: boolean;
-  goToChannel: (channel: db.Channel) => void;
+  goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
   goToThread: (post: db.Post) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
@@ -52,17 +52,28 @@ export function ActivityScreenView({
   }, [moveSeenMarker, newestTimestamp, isFocused, activitySeenMarker]);
 
   const handlePressEvent = useCallback(
-    (event: db.ActivityEvent) => {
+    async (event: db.ActivityEvent) => {
       switch (event.type) {
         case 'post':
           if (event.channel) {
             goToChannel(event.channel);
+          } else if (event.channelId) {
+            const channel = await db.getChannel({ id: event.channelId });
+            if (channel) {
+              goToChannel(channel, event.postId!);
+            }
+          } else {
+            console.warn('No channel found for post', event);
           }
           break;
         case 'reply':
-          if (event.parentId && event.channelId && event.authorId) {
-            const post = event.post ?? db.assemblePostFromActivityEvent(event);
-            goToThread(post);
+          if (event.parent) {
+            goToThread(event.parent);
+          } else if (event.parentId) {
+            const parentPost = db.assembleParentPostFromActivityEvent(event);
+            goToThread(parentPost);
+          } else {
+            console.warn('No parent found for reply', event);
           }
           break;
         default:

@@ -161,7 +161,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
         if (isHostedUpload) {
           // first hit memex to obtain a presigned URL
           const presignedUrl = await getMemexUploadUrl(key);
-          await nativeUploader(presignedUrl, file);
+          await nativeUploader(presignedUrl, file, undefined, {
+            'Cache-Control': 'public, max-age=3600',
+          });
           // after the upload succeeds, we have to query memex again with the
           // same key to obtain the final location of the object
           const finalUrl = await getFinalMemexUrl(presignedUrl);
@@ -214,6 +216,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           method: 'PUT',
           headers: {
             'Content-Type': file.type,
+            'Cache-Control': 'public, max-age=3600',
           },
           body: file.blob,
         };

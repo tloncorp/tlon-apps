@@ -29,12 +29,12 @@ import { useCalmSettings } from '../hooks/useCalmSettings';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import * as featureFlags from '../lib/featureFlags';
 import NavBar from '../navigation/NavBarView';
-import type { HomeStackParamList } from '../types';
+import { RootStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
 
 type ChatListScreenProps = NativeStackScreenProps<
-  HomeStackParamList,
+  RootStackParamList,
   'ChatList'
 >;
 
@@ -69,8 +69,7 @@ export default function ChatListScreen(
 
   useFocusEffect(
     useCallback(() => {
-      store.syncUnreads();
-      return () => store.clearSyncQueue();
+      store.syncUnreads(store.SyncPriority.High);
     }, [])
   );
 

@@ -410,7 +410,7 @@
     =/  t  start-time
     |-
     ?.  (has:on-event:a stream:base t)  t
-    $(t +(t))
+    $(t (^add t ~s0..0001))
   =/  notify  notify:(get-volume inc)
   =/  =event:a  [inc notify |]
   =/  =source:a  (determine-source inc)

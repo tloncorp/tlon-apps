@@ -2,13 +2,11 @@ import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useMemo } from 'react';
 
-import { useCalm } from '../contexts';
 import { Text, View, XStack, YStack } from '../core';
-import { getBackgroundColor } from '../utils/colorUtils';
 import { ActionSheet } from './ActionSheet';
+import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { Icon } from './Icon';
-import { ListItem } from './ListItem';
 
 interface Props {
   open: boolean;
@@ -107,16 +105,6 @@ export function ChatOptionsSheet({
     actions.splice(actions.length - 2, 0, ...adminActions);
   }
 
-  const { disableAvatars } = useCalm();
-  const colors = { backgroundColor: '$secondaryBackground' };
-  const iconFallbackText = groupData?.title?.[0] ?? groupData?.id[0];
-  const iconBackgroundColor = getBackgroundColor({
-    disableAvatars,
-    colors,
-    model: groupData ?? {},
-  });
-  const iconImageUrl =
-    !disableAvatars && groupData?.iconImage ? groupData.iconImage : undefined;
   const memberCount = groupData?.members?.length ?? 0;
   const title = channel?.title ?? groupData?.title ?? 'Loading…';
   const description =
@@ -143,11 +131,7 @@ export function ChatOptionsSheet({
           alignItems="center"
         >
           <YStack alignItems="center" space="$m">
-            <ListItem.Icon
-              fallbackText={iconFallbackText}
-              backgroundColor={iconBackgroundColor}
-              imageUrl={iconImageUrl}
-            />
+            {groupData && <GroupAvatar model={groupData} />}
 
             <Text fontSize="$l">{title}</Text>
             {description && (

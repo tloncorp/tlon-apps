@@ -33,6 +33,7 @@ import { inlineSummary } from '@/logic/tiptap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
+import { deleteBroadcast } from '@/state/broadcasts';
 import {
   useAddPostReactMutation,
   useDeletePostMutation,
@@ -52,7 +53,6 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups';
-import { deleteBroadcast } from '@/state/broadcasts';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -138,8 +138,7 @@ function ChatMessageOptions(props: {
         await new Promise<void>((resolve) => {
           deleteBroadcast(whom, seal.id, resolve, resolve);
         });
-      } else
-      if (isDMorMultiDM) {
+      } else if (isDMorMultiDM) {
         await deleteDm({ whom, id: seal.id });
       } else {
         await deleteChatMessage({

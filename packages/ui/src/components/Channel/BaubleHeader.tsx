@@ -17,7 +17,7 @@ import {
 
 import { useScrollContext } from '../../contexts/scroll';
 import { Image, LinearGradient, Spinner, Text, View } from '../../core';
-import { Avatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import { Icon } from '../Icon';
 
 export function BaubleHeader({
@@ -101,8 +101,7 @@ export function BaubleHeader({
                   exiting={FadeOut.duration(128)}
                 >
                   <View margin="$s">
-                    <Avatar
-                      contact={channel.members?.[0].contact}
+                    <ContactAvatar
                       contactId={channel.members?.[0].contactId}
                       borderRadius="$xs"
                       size="$3xl"

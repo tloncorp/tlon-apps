@@ -5,10 +5,10 @@ import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
-type PostScreenProps = NativeStackScreenProps<HomeStackParamList, 'Post'>;
+type PostScreenProps = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: PostScreenProps) {
   const postParam = props.route.params.post;

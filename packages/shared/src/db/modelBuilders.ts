@@ -11,6 +11,42 @@ import * as logic from '../logic';
 import * as ub from '../urbit';
 import * as types from './types';
 
+export function assembleParentPostFromActivityEvent(event: db.ActivityEvent) {
+  if (!['post', 'reply'].includes(event.type)) {
+    console.warn(
+      `assembling parent post from activity event that isn't a message`,
+      event.id,
+      event
+    );
+  }
+
+  if (!event.parentAuthorId || !event.channelId) {
+    console.warn(
+      `assembling parent post from activity event with missing data`,
+      event.id,
+      event
+    );
+  }
+  const post: types.Post = {
+    id: event.parentId ?? '',
+    type: logic.getPostTypeFromChannelId({
+      channelId: event.channelId,
+      parentId: event.parentId,
+    }),
+    authorId: event.parentAuthorId ?? '',
+    channelId: event.channelId ?? '',
+    groupId: event.groupId,
+    sentAt: event.timestamp,
+    receivedAt: event.timestamp,
+    reactions: [],
+    replies: [],
+    hidden: false,
+    syncedAt: 0,
+  };
+
+  return post;
+}
+
 export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
   if (!['post', 'reply'].includes(event.type)) {
     console.warn(
@@ -47,6 +83,7 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
     reactions: [],
     replies: [],
     hidden: false,
+    syncedAt: 0,
   };
 
   return post;
@@ -101,6 +138,7 @@ export function buildPendingPost({
     hidden: false,
     parentId,
     deliveryStatus,
+    syncedAt: Date.now(),
     ...postFlags,
   };
 }
