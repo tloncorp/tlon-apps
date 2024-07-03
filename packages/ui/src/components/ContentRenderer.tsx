@@ -1,4 +1,8 @@
-import { extractContentTypesFromPost, utils } from '@tloncorp/shared';
+import {
+  extractContentTypesFromPost,
+  useContact,
+  utils,
+} from '@tloncorp/shared';
 import {
   Block,
   Code,
@@ -26,14 +30,14 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
-import { PostContent } from 'packages/shared/dist/api';
 import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
-import {
+import React, {
   ComponentProps,
   ReactElement,
   ReactNode,
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -45,7 +49,6 @@ import {
   ColorTokens,
   Image,
   ScrollView,
-  SizableText,
   Text,
   View,
   XStack,
@@ -55,18 +58,80 @@ import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
 import ContentReference from './ContentReference';
+import { ProfileSheet } from './ProfileSheet';
 
 refractor.register(hoon);
 
-function ShipMention(props: ComponentProps<typeof ContactName>) {
+const ProfileSheetWrapper = React.memo(
+  ({
+    userId,
+    children,
+    showProfileOnTap = false,
+    onPress = () => {},
+  }: {
+    userId: string;
+    children: React.ReactNode;
+    showProfileOnTap?: boolean;
+    onPress?: () => void;
+  }) => {
+    const { data: contact, refetch } = useContact({ id: userId });
+    const [showProfile, setShowProfile] = useState(false);
+
+    const handlePress = useCallback(() => {
+      setShowProfile(true);
+      if (typeof onPress === 'function') {
+        onPress();
+      }
+    }, [onPress]);
+
+    useEffect(() => {
+      if (showProfileOnTap && userId) {
+        refetch();
+      }
+    }, [userId, showProfileOnTap, refetch]);
+
+    useEffect(() => {
+      if (showProfile) {
+        refetch();
+      }
+    }, [showProfile, refetch]);
+
+    return showProfileOnTap && contact ? (
+      <>
+        <ProfileSheet
+          contact={contact}
+          contactId={contact.id}
+          open={showProfile}
+          onOpenChange={() => setShowProfile(!showProfile)}
+        />
+        <Text onPress={handlePress}>{children}</Text>
+      </>
+    ) : (
+      <>{children}</>
+    );
+  }
+);
+
+ProfileSheetWrapper.displayName = 'ProfileSheetWrapper';
+
+function ShipMention(
+  props: ComponentProps<typeof ContactName>,
+  onPress: () => void
+) {
   return (
-    <ContactName
-      onPress={() => {}}
-      fontWeight={'500'}
-      color="$positiveActionText"
-      showNickname
-      {...props}
-    />
+    <ProfileSheetWrapper
+      userId={props.userId}
+      onPress={onPress}
+      showProfileOnTap
+    >
+      <ContactName
+        onPress={() => {}}
+        fontWeight={'500'}
+        color="$positiveActionText"
+        showNickname
+        {...props}
+      />
+    </ProfileSheetWrapper>
   );
 }
 
@@ -405,6 +470,7 @@ export function InlineContent({
   inline,
   color = '$primaryText',
   viewMode = 'chat',
+  onPress,
   onPressImage,
   onLongPress,
   serif = false,
@@ -412,6 +478,7 @@ export function InlineContent({
   inline: Inline | null;
   color?: ColorTokens;
   viewMode?: PostViewMode;
+  onPress?: () => void;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   serif?: boolean;
@@ -531,6 +598,7 @@ export function InlineContent({
   if (isShip(inline)) {
     return (
       <ShipMention
+        onPress={onPress}
         userId={inline.ship}
         fontSize={viewMode === 'activity' ? '$s' : undefined}
         fontFamily={serif ? '$serif' : '$body'}
@@ -645,6 +713,7 @@ export function BlockContent({
 const LineRenderer = memo(
   ({
     inlines,
+    onPress,
     onPressImage,
     onLongPress,
     color = '$primaryText',
@@ -653,6 +722,7 @@ const LineRenderer = memo(
     serif = false,
   }: {
     inlines: Inline[];
+    onPress?: () => void;
     onLongPress?: () => void;
     onPressImage?: (src: string) => void;
     color?: ColorTokens;
@@ -724,6 +794,7 @@ const LineRenderer = memo(
       } else if (isShip(inline)) {
         currentLine.push(
           <ShipMention
+            onPress={onPress}
             key={`ship-${index}`}
             userId={inline.ship}
             fontSize={isNotice || viewMode === 'activity' ? '$s' : 'unset'}
