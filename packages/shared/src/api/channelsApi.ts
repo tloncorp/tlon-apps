@@ -71,6 +71,26 @@ export type ChannelsUpdate =
   // | MarkChannelReadUpdate
   | WritersUpdate;
 
+export const createChannel = async (channelPayload: ub.Create) => {
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        create: channelPayload,
+      },
+    },
+    { app: 'channels', path: '/v1' },
+    (event) => {
+      return (
+        'create' in event.response &&
+        event.nest ===
+          `${channelPayload.kind}/${channelPayload.group}/${channelPayload.name}`
+      );
+    }
+  );
+};
+
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {

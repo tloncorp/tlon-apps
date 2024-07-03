@@ -101,7 +101,7 @@ export function EditChannelScreenView({
             <Button.Text>Save</Button.Text>
           </Button>
           <Button heroDestructive onPress={() => setShowDeleteSheet(true)}>
-            <Button.Text>Delete channel</Button.Text>
+            <Button.Text>Delete channel for everyone</Button.Text>
           </Button>
           <DeleteSheet
             open={showDeleteSheet}

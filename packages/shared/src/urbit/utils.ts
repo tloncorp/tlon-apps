@@ -194,6 +194,18 @@ export function getChannelType(channelId: string) {
   }
 }
 
+export function getChannelKindFromType(type: 'chat' | 'gallery' | 'notebook') {
+  if (type === 'chat') {
+    return 'chat';
+  } else if (type === 'gallery') {
+    return 'heap';
+  } else if (type === 'notebook') {
+    return 'diary';
+  } else {
+    return 'chat';
+  }
+}
+
 export function getTextContent(story?: ub.Story | undefined) {
   if (!story) {
     return;

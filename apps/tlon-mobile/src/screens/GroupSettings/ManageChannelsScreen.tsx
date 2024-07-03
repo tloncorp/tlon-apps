@@ -17,6 +17,7 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
     moveNavSection,
     moveChannel,
     moveChannelToNavSection,
+    createChannel,
     createNavSection,
     deleteNavSection,
     updateNavSection,
@@ -32,6 +33,7 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
       moveNavSection={moveNavSection}
       moveChannelWithinNavSection={moveChannel}
       moveChannelToNavSection={moveChannelToNavSection}
+      createChannel={createChannel}
       createNavSection={createNavSection}
       deleteNavSection={deleteNavSection}
       updateNavSection={updateNavSection}

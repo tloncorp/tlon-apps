@@ -1,7 +1,74 @@
 import * as api from '../api';
 import * as db from '../db';
 import * as logic from '../logic';
-import { GroupChannel } from '../urbit';
+import { GroupChannel, getChannelKindFromType } from '../urbit';
+
+export async function createChannel({
+  groupId,
+  channelId,
+  name,
+  title,
+  description,
+  channelType,
+}: {
+  groupId: string;
+  channelId: string;
+  name: string;
+  title: string;
+  description: string;
+  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+}) {
+  // optimistic update
+  const newChannel: db.Channel = {
+    id: channelId,
+    title,
+    description,
+    type: channelType as db.ChannelType,
+    groupId,
+    addedToGroupAt: Date.now(),
+  };
+  await db.insertChannels([newChannel]);
+
+  try {
+    await api.addChannelToGroup({ groupId, channelId, sectionId: 'default' });
+    await api.createChannel({
+      // @ts-expect-error this is fine
+      kind: getChannelKindFromType(channelType),
+      group: groupId,
+      name,
+      title,
+      description,
+      readers: [],
+      writers: [],
+    });
+  } catch (e) {
+    console.error('Failed to create channel', e);
+    // rollback optimistic update
+    await db.deleteChannel(channelId);
+  }
+}
+
+export async function deleteChannel({
+  channelId,
+  groupId,
+}: {
+  channelId: string;
+  groupId: string;
+}) {
+  // optimistic update
+  await db.deleteChannel(channelId);
+
+  try {
+    await api.deleteChannel({ channelId, groupId });
+  } catch (e) {
+    console.error('Failed to delete channel', e);
+    // rollback optimistic update
+    const channel = await db.getChannel({ id: channelId });
+    if (channel) {
+      await db.insertChannels([channel]);
+    }
+  }
+}
 
 export async function updateChannel({
   groupId,

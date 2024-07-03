@@ -423,6 +423,46 @@ export const addChannelToNavSection = async ({
   );
 };
 
+export const addChannelToGroup = async ({
+  channelId,
+  groupId,
+  sectionId,
+}: {
+  channelId: string;
+  groupId: string;
+  sectionId: string;
+}) => {
+  return await trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-action-3',
+      json: {
+        flag: groupId,
+        update: {
+          time: '',
+          diff: {
+            channel: {
+              nest: channelId,
+              diff: {
+                zone: sectionId,
+              },
+            },
+          },
+        },
+      },
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+    }
+  );
+};
+
 export const updateChannel = async ({
   groupId,
   channelId,

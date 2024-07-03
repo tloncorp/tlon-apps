@@ -1,6 +1,8 @@
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
+import anyAscii from 'any-ascii';
+import { getChannelKindFromType } from 'packages/shared/dist/urbit';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -88,13 +90,63 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     }
   }, [group]);
 
+  const { data: currentChatData } = store.useCurrentChats();
+
   const createChannel = useCallback(
-    async (channel: db.Channel) => {
+    async ({
+      title,
+      description,
+      channelType,
+    }: {
+      title: string;
+      description: string;
+      channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+    }) => {
+      const exsitingChannels = [
+        ...(currentChatData?.pendingChats ?? []),
+        ...(currentChatData?.pinned ?? []),
+        ...(currentChatData?.unpinned ?? []),
+      ];
+
+      // do we have this available in the shared package? it's not in @urbit/aura
+      const strToSym = (str: string) => {
+        const ascii = anyAscii(str);
+        return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
+      };
+
+      const titleIsNumber = Number.isInteger(Number(title));
+      // we need unique channel names that are valid for urbit's @tas type
+      const tempChannelName = titleIsNumber
+        ? `channel-${title}`
+        : strToSym(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
+      // @ts-expect-error this is fine
+      const channelKind = getChannelKindFromType(channelType);
+      const tempNewChannelFlag = `${channelKind}/${currentUserId}/${tempChannelName}`;
+      const existingChannel = () => {
+        return exsitingChannels.find(
+          (channel) => channel.id === tempNewChannelFlag
+        );
+      };
+
+      const randomSmallNumber = Math.floor(Math.random() * 100);
+      const channelName = existingChannel()
+        ? `${tempChannelName}-${randomSmallNumber}`
+        : tempChannelName;
+      const newChannelFlag = `${currentUserId}/${channelName}`;
+      const newChannelNest = `${channelType}/${newChannelFlag}`;
+
       if (group) {
-        // await store.createChannel(group.id, channel);
+        await store.createChannel({
+          groupId: group.id,
+          name: channelName,
+          channelId: newChannelNest,
+          title,
+          description,
+          channelType,
+        });
       }
     },
-    [group]
+    [group, currentUserId, currentChatData]
   );
 
   const deleteChannel = useCallback(

@@ -12,6 +12,7 @@ import { GenericHeader } from '../GenericHeader';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 import { AddSectionSheet } from './AddSectionSheet';
+import { ChannelTypeName, CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionSheet } from './EditSectionSheet';
 
 export type Section = {
@@ -180,6 +181,15 @@ interface ManageChannelsScreenViewProps {
     channelId: string,
     navSectionId: string
   ) => Promise<void>;
+  createChannel: ({
+    title,
+    description,
+    channelType,
+  }: {
+    title: string;
+    description: string;
+    channelType: ChannelTypeName;
+  }) => Promise<void>;
   createNavSection: ({ title }: { title: string }) => Promise<void>;
   deleteNavSection: (navSectionId: string) => Promise<void>;
   updateNavSection: (navSection: db.GroupNavSection) => Promise<void>;
@@ -192,6 +202,7 @@ export function ManageChannelsScreenView({
   moveNavSection,
   moveChannelWithinNavSection,
   moveChannelToNavSection,
+  createChannel,
   createNavSection,
   deleteNavSection,
   updateNavSection,
@@ -222,6 +233,7 @@ export function ManageChannelsScreenView({
 
   const [editSection, setEditSection] = useState<Section | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
 
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const draggedItemY = useSharedValue(0);
@@ -516,7 +528,7 @@ export function ManageChannelsScreenView({
             alignItems="center"
             zIndex={5}
           >
-            <Button hero>
+            <Button hero onPress={() => setShowCreateChannel(true)}>
               <Button.Text>Create a channel</Button.Text>
             </Button>
             <Button secondary onPress={() => setShowAddSection(true)}>
@@ -525,10 +537,22 @@ export function ManageChannelsScreenView({
           </YStack>
         </YStack>
       </YStack>
+      {showCreateChannel && (
+        <CreateChannelSheet
+          onOpenChange={(open) => setShowCreateChannel(open)}
+          createChannel={async ({ title, description, channelType }) =>
+            createChannel({
+              title,
+              description,
+              channelType,
+            })
+          }
+        />
+      )}
       {showAddSection && (
         <AddSectionSheet
           onOpenChange={(open) => setShowAddSection(open)}
-          createSection={(title) =>
+          createSection={async (title) =>
             createNavSection({
               title,
             })
