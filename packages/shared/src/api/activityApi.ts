@@ -401,7 +401,9 @@ export const readChannel = async (channel: db.Channel) => {
     source = { channel: { nest: channel.id, group: channel.groupId! } };
   }
 
-  const action = activityAction({ read: { source, action: { all: null } } });
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
   logger.log(`reading channel ${channel.id}`, action);
 
   // simple retry logic to avoid failed read leading to lingering unread state
@@ -472,7 +474,9 @@ export const readThread = async ({
     };
   }
 
-  const action = activityAction({ read: { source, action: { all: null } } });
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
 
   // simple retry logic to avoid failed read leading to lingering unread state
   return backOff(() => poke(action), {

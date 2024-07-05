@@ -31,6 +31,17 @@ export function isValidUrl(str?: string): boolean {
   return str ? !!URL_REGEX.test(str) : false;
 }
 
+export function getPrettyAppName(kind: 'chat' | 'diary' | 'heap') {
+  switch (kind) {
+    case 'chat':
+      return 'Chat';
+    case 'diary':
+      return 'Notebook';
+    case 'heap':
+      return 'Gallery';
+  }
+}
+
 export async function jsonFetch<T>(
   info: RequestInfo,
   init?: RequestInit
