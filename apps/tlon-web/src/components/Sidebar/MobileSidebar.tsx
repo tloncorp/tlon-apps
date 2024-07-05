@@ -14,6 +14,7 @@ import { useLocalState } from '@/state/local';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
+  useUnread,
 } from '@/state/unreads';
 
 import Avatar from '../Avatar';
@@ -110,7 +111,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { count } = useNotifications('', 'all');
+  const unread = useUnread('base');
 
   return (
     <DoubleClickableNavTab
@@ -130,7 +131,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         <div
           className={cn(
             'mb-0.5 h-1.5 w-1.5 rounded-full',
-            count > 0 && 'bg-blue'
+            (unread?.combined.count || 0) > 0 && 'bg-blue'
           )}
         />
       </div>

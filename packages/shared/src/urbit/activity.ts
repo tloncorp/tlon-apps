@@ -1,3 +1,5 @@
+import { unixToDa } from '@urbit/api';
+import { parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
 import { Story } from './channel';
@@ -66,9 +68,33 @@ export interface GroupJoinEvent {
   };
 }
 
-export interface FlagEvent {
-  flag: {
+export interface GroupRoleEvent {
+  'group-role': {
+    ship: string;
+    group: string;
+    role: string;
+  };
+}
+
+export interface GroupInviteEvent {
+  'group-invite': {
+    ship: string;
+    group: string;
+  };
+}
+
+export interface FlagPostEvent {
+  'flag-post': {
     key: MessageKey;
+    channel: string;
+    group: string;
+  };
+}
+
+export interface FlagReplyEvent {
+  'flag-reply': {
+    key: MessageKey;
+    parent: MessageKey;
     channel: string;
     group: string;
   };
@@ -115,10 +141,13 @@ export interface ReplyEvent {
 }
 
 export type ActivityIncomingEvent =
-  | DmInviteEvent
   | GroupKickEvent
   | GroupJoinEvent
-  | FlagEvent
+  | GroupRoleEvent
+  | GroupInviteEvent
+  | FlagPostEvent
+  | FlagReplyEvent
+  | DmInviteEvent
   | DmPostEvent
   | DmReplyEvent
   | PostEvent
@@ -134,7 +163,7 @@ export interface PostRead {
 }
 
 export interface Reads {
-  floor: string;
+  floor: number;
   posts: Record<string, PostRead>;
 }
 
@@ -500,4 +529,165 @@ export function getKey(whom: string) {
 export function getThreadKey(whom: string, id: string) {
   const prefix = whomIsFlag(whom) ? 'thread/chat' : 'dm-thread';
   return `${prefix}/${whom}/${id}`;
+}
+
+export const isMessage = (event: ActivityEvent) => {
+  return (
+    'post' in event ||
+    'reply' in event ||
+    'dm-post' in event ||
+    'dm-reply' in event
+  );
+};
+
+export const isNote = (event: ActivityEvent) => {
+  if ('post' in event) {
+    return event.post.channel.startsWith('diary');
+  }
+
+  return false;
+};
+
+export const isBlock = (event: ActivityEvent) => {
+  if ('post' in event) {
+    return event.post.channel.startsWith('heap');
+  }
+
+  return false;
+};
+
+export const isMention = (event: ActivityEvent) => {
+  if ('post' in event) {
+    return event.post.mention;
+  }
+
+  if ('reply' in event) {
+    return event.reply.mention;
+  }
+
+  if ('dm-post' in event) {
+    return event['dm-post'].mention;
+  }
+
+  if ('dm-reply' in event) {
+    return event['dm-reply'].mention;
+  }
+
+  return false;
+};
+
+export const isComment = (event: ActivityEvent) => {
+  if ('reply' in event) {
+    return (
+      event.reply.channel.startsWith('heap') ||
+      event.reply.channel.startsWith('diary')
+    );
+  }
+
+  return false;
+};
+
+export const isReply = (event: ActivityEvent) => {
+  if ('dm-reply' in event) {
+    return true;
+  }
+
+  if ('reply' in event) {
+    return !isComment(event);
+  }
+
+  return false;
+};
+
+export const isInvite = (event: ActivityEvent) => 'group-invite' in event;
+
+export const isJoin = (event: ActivityEvent) => 'group-join' in event;
+
+export const isLeave = (event: ActivityEvent) => 'group-leave' in event;
+
+export const isRoleChange = (event: ActivityEvent) => 'group-role' in event;
+
+export const isGroupMeta = (event: ActivityEvent) =>
+  isJoin(event) || isRoleChange(event) || isLeave(event);
+
+export function getTop(bundle: ActivityBundle): ActivityEvent {
+  return bundle.events.find(({ time }) => time === bundle.latest)!.event;
+}
+
+export function getSource(bundle: ActivityBundle): Source {
+  const top = getTop(bundle);
+
+  if ('post' in top) {
+    return { channel: { nest: top.post.channel, group: top.post.group } };
+  }
+
+  if ('reply' in top) {
+    return {
+      thread: {
+        key: top.reply.parent,
+        channel: top.reply.channel,
+        group: top.reply.group,
+      },
+    };
+  }
+
+  if ('dm-post' in top) {
+    return { dm: top['dm-post'].whom };
+  }
+
+  if ('dm-reply' in top) {
+    return {
+      'dm-thread': { key: top['dm-reply'].parent, whom: top['dm-reply'].whom },
+    };
+  }
+
+  if ('group-join' in top) {
+    return { group: top['group-join'].group };
+  }
+
+  if ('group-role' in top) {
+    return { group: top['group-role'].group };
+  }
+
+  if ('group-kick' in top) {
+    return { group: top['group-kick'].group };
+  }
+
+  if ('group-invite' in top) {
+    return { group: top['group-invite'].group };
+  }
+
+  if ('flag-post' in top) {
+    return {
+      channel: {
+        nest: top['flag-post'].channel,
+        group: top['flag-post'].group,
+      },
+    };
+  }
+
+  if ('flag-reply' in top) {
+    return {
+      thread: {
+        key: top['flag-reply'].parent,
+        channel: top['flag-reply'].channel,
+        group: top['flag-reply'].group,
+      },
+    };
+  }
+
+  return { base: null };
+}
+
+export function isUnread(time: string, summary: ActivitySummary): boolean {
+  const reads = summary.reads;
+  if (!reads) {
+    return false;
+  }
+
+  if (parseUd(time).gt(unixToDa(reads.floor))) {
+    return !(time in reads.posts);
+  }
+
+  return false;
 }

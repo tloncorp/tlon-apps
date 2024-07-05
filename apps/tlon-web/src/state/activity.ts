@@ -1,7 +1,8 @@
-import { useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Activity,
   ActivityAction,
+  ActivityBundle,
   ActivityDeleteUpdate,
   ActivityReadUpdate,
   ActivitySummary,
@@ -18,9 +19,8 @@ import _ from 'lodash';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import api from '@/api';
-import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { createDevLogger, nestToFlag } from '@/logic/utils';
+import { createDevLogger } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { useUnreadsStore } from './unreads';
@@ -29,6 +29,7 @@ const actLogger = createDevLogger('activity', false);
 
 export const unreadsKey = ['activity', 'unreads'];
 export const volumeKey = ['activity', 'volume'];
+export const allKey = ['activity', 'all'];
 
 export function activityAction(action: ActivityAction) {
   return {
@@ -148,6 +149,28 @@ export function useActivityFirehose() {
     actLogger.log('attempting to process queue', eventQueue.length);
     processQueue.current(eventQueue);
   }, [eventQueue]);
+}
+
+type PageParam = string | null;
+
+export function useAllEvents() {
+  const queryFn = useCallback(({ pageParam }: { pageParam?: PageParam }) => {
+    return api.scry<ActivityBundle[]>({
+      app: 'activity',
+      path: `/v0/feed/all/100${pageParam ? `/${pageParam}` : ''}`,
+    });
+  }, []);
+  return useInfiniteQuery({
+    queryKey: allKey,
+    queryFn,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length === 0) {
+        return null;
+      }
+
+      return lastPage[lastPage.length - 1].latest;
+    },
+  });
 }
 
 export function useMarkReadMutation(recursive = false) {

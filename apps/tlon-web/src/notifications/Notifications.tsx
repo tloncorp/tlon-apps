@@ -1,26 +1,22 @@
+import { ActivityBundle } from '@tloncorp/shared/dist/urbit';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
-import { Skein } from '@tloncorp/shared/dist/urbit/hark';
 import cn from 'classnames';
-import { ComponentType, PropsWithChildren, useCallback, useState } from 'react';
+import { ComponentType, PropsWithChildren, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link, useLocation } from 'react-router-dom';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import ToggleGroup from '@/components/ToggleGroup';
 import WelcomeCard from '@/components/WelcomeCard';
-import GroupSummary from '@/groups/GroupSummary';
 import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
-import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups';
-import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
+import { useMarkReadMutation } from '@/state/activity';
 
-import { NotificationFilterType, useNotifications } from './useNotifications';
+import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
-  child: ComponentType<{ bin: Skein }>;
+  child: ComponentType<{ bundle: ActivityBundle }>;
   title?: ViewProps['title'];
 }
 
@@ -68,59 +64,16 @@ export default function Notifications({
   child: Notification,
   title,
 }: NotificationsProps) {
-  const flag = useRouteGroup();
-  const group = useGroup(flag);
   const isMobile = useIsMobile();
   const { paddingBottom } = useBottomPadding();
-  const isAdmin = useAmAdmin(flag);
-  const location = useLocation();
-  const [notificationFilter, setNotificationFilter] =
-    useState<NotificationFilterType>('all');
-  const {
-    loaded,
-    notifications,
-    unreadReplies,
-    unreadInvites,
-    count,
-    inviteCount,
-    replyCount,
-  } = useNotifications(flag, notificationFilter);
-  const { mutateAsync: sawRopeMutation, status: sawRopeStatus } =
-    useSawRopeMutation();
-  const { mutate: sawSeamMutation, status: sawSeamStatus } =
-    useSawSeamMutation();
-  const isMarkReadPending =
-    sawRopeStatus === 'loading' || sawSeamStatus === 'loading';
-  const hasUnreads = count > 0;
+  const { loaded, notifications, unread } = useNotifications();
+  const { mutate, isLoading } = useMarkReadMutation();
+  const isMarkReadPending = isLoading;
+  const hasUnreads = unread.combined.status === 'unread';
 
   const markAllRead = useCallback(async () => {
-    if (notificationFilter === 'invites' && unreadInvites) {
-      unreadInvites?.forEach((invite, index) => {
-        sawRopeMutation({
-          rope: invite.top.rope,
-          update: index === unreadInvites.length - 1,
-        });
-      });
-    } else if (notificationFilter === 'replies' && unreadReplies) {
-      await Promise.all(
-        unreadReplies.map(async (reply, index) =>
-          sawRopeMutation({
-            rope: reply.top.rope,
-            update: index === unreadReplies.length - 1,
-          })
-        )
-      );
-    } else {
-      sawSeamMutation({ seam: flag ? { group: flag } : { desk: 'groups' } });
-    }
-  }, [
-    flag,
-    sawSeamMutation,
-    notificationFilter,
-    sawRopeMutation,
-    unreadInvites,
-    unreadReplies,
-  ]);
+    mutate({ source: { base: null } });
+  }, []);
 
   const MarkAsRead = (
     <button
@@ -169,61 +122,8 @@ export default function Notifications({
         data-testid="notifications-screen"
       >
         <Helmet>
-          <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
+          <title>{title}</title>
         </Helmet>
-
-        {isMobile && (
-          <div className="absolute inset-x-0 top-0 z-10 w-full py-2">
-            <ToggleGroup
-              value={notificationFilter}
-              // @ts-expect-error NotificationFilterType is a string
-              setValue={setNotificationFilter}
-              options={[
-                {
-                  label: `All${count > 0 ? ` (${count})` : ''}`,
-                  value: 'all',
-                  ariaLabel: 'Show all notifications',
-                },
-                {
-                  label: `Invites${
-                    inviteCount && inviteCount > 0 ? ` (${inviteCount})` : ''
-                  }`,
-                  value: 'invites',
-                  ariaLabel: 'Show only invites',
-                },
-                {
-                  label: `Threads${
-                    replyCount && replyCount > 0 ? ` (${replyCount})` : ''
-                  } `,
-                  value: 'replies',
-                  ariaLabel: 'Show only threads',
-                },
-              ]}
-              defaultOption="all"
-            />
-          </div>
-        )}
-
-        {group && (
-          <div className="card">
-            <div className="flex w-full items-center justify-between">
-              <h2 className="mb-6 text-lg font-bold">Group Info</h2>
-              {isAdmin && (
-                <Link
-                  to={`/groups/${flag}/edit`}
-                  state={{ backgroundLocation: location }}
-                  className="small-button"
-                >
-                  Edit Group Details
-                </Link>
-              )}
-            </div>
-            <GroupSummary flag={flag} preview={{ ...group, flag }} />
-            <p className="prose-sm mt-4 leading-5 lg:max-w-sm">
-              {group?.meta.description}
-            </p>
-          </div>
-        )}
 
         <div className="card pt-6">
           {!isMobile && (
@@ -249,9 +149,9 @@ export default function Notifications({
                     {grouping.date}
                   </h2>
                   <ul className="mb-4 space-y-2">
-                    {grouping.skeins.map((b) => (
-                      <li key={b.time}>
-                        <Notification bin={b} />
+                    {grouping.bundles.map((b) => (
+                      <li key={b.latest}>
+                        <Notification bundle={b} />
                       </li>
                     ))}
                   </ul>

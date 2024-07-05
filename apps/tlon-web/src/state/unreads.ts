@@ -461,8 +461,9 @@ export function useUnreads() {
   return useUnreadsStore(useCallback((s) => s.sources, []));
 }
 
-export function useUnread(key: string): Unread | undefined {
-  return useUnreadsStore(useCallback((s) => s.sources[key], [key]));
+const empty = emptyUnread();
+export function useUnread(key: string): Unread {
+  return useUnreadsStore(useCallback((s) => s.sources[key] || empty, [key]));
 }
 
 window.unread = useUnreadsStore;
