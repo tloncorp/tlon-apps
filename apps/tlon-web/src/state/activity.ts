@@ -150,7 +150,7 @@ export function useActivityFirehose() {
   }, [eventQueue]);
 }
 
-export function useMarkReadMutation() {
+export function useMarkReadMutation(recursive = false) {
   const mutationFn = async (variables: {
     source: Source;
     action?: ReadAction;
@@ -159,7 +159,7 @@ export function useMarkReadMutation() {
       activityAction({
         read: {
           source: variables.source,
-          action: variables.action || { all: null },
+          action: variables.action || { all: { time: null, deep: recursive } },
         },
       })
     );

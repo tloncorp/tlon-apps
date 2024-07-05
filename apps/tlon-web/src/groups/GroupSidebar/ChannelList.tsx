@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
+import ChannelActions from '@/channels/ChannelActions';
 import ChannelIcon from '@/channels/ChannelIcon';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Divider from '@/components/Divider';
@@ -16,6 +17,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
+import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import SortIcon from '@/components/icons/SortIcon';
 import { DEFAULT_SORT } from '@/constants';
@@ -30,6 +32,7 @@ import {
 import useFilteredSections from '@/logic/useFilteredSections';
 import { useIsMobile } from '@/logic/useMedia';
 import {
+  useAmAdmin,
   useGroup,
   useGroupConnection,
   useGroupFlag,
@@ -134,6 +137,7 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const filteredSections = useFilteredSections(flag, true);
   const isMobile = useIsMobile();
   const vessel = useVessel(flag, window.our);
+  const isAdmin = useAmAdmin(flag);
   const isChannelJoined = useCheckChannelJoined();
   const { isChannelUnread, getUnread } = useCheckChannelUnread();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -226,6 +230,9 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
         ) : (
           <ChannelIcon nest={nest} className="h-6 w-6" />
         );
+      const unread = getUnread(nest);
+      const isUnread = unread?.combined.status === 'unread';
+      const hasNotify = unread?.combined.notify;
 
       return (
         <SidebarItem
@@ -234,12 +241,26 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
           icon={icon}
           to={channelHref(flag, nest)}
           actions={
-            isChannelUnread(nest) ? (
-              <UnreadIndicator
-                count={getUnread(nest)?.combined.count || 0}
-                notify={getUnread(nest)?.combined.notify}
-              />
-            ) : null
+            <ChannelActions nest={nest} channel={channel} isAdmin={isAdmin}>
+              <div className={cn('relative h-6 w-6 text-gray-600')}>
+                {isUnread ? (
+                  <UnreadIndicator
+                    count={unread?.combined.count || 0}
+                    notify={unread?.combined.notify}
+                    className="group-focus-within:opacity-0 group-hover:opacity-0"
+                  />
+                ) : null}
+                <button
+                  className={cn(
+                    'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity opacity-0 focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                    isUnread && hasNotify && 'text-blue'
+                  )}
+                  aria-label="Open Message Options"
+                >
+                  <EllipsisIcon className="h-6 w-6 text-inherit" />
+                </button>
+              </div>
+            </ChannelActions>
           }
         >
           {channel.meta.title || nest}

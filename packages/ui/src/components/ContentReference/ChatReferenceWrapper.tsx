@@ -7,11 +7,13 @@ import ReferenceSkeleton from './ReferenceSkeleton';
 export default function ChatReferenceWrapper({
   channelId,
   postId,
+  replyId,
   asAttachment = false,
   viewMode = 'chat',
 }: {
   channelId: string;
   postId: string;
+  replyId?: string;
   asAttachment?: boolean;
   viewMode?: PostViewMode;
 }) {
@@ -21,7 +23,10 @@ export default function ChatReferenceWrapper({
     isError,
     error,
     isLoading,
-  } = usePostReference({ postId: postId, channelId: channelId });
+  } = usePostReference({
+    postId: replyId ? replyId : postId,
+    channelId: channelId,
+  });
   const { data: channel } = useChannel({ id: channelId });
   const { onPressRef } = useNavigation();
 

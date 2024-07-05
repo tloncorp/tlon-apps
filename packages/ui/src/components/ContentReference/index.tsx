@@ -20,6 +20,7 @@ export default function ContentReference({
       <ChannelReference
         channelId={reference.channelId}
         postId={reference.postId}
+        replyId={reference.replyId}
         asAttachment={asAttachment}
         viewMode={viewMode}
       />
