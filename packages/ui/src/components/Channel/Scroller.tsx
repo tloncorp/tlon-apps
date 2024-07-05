@@ -160,8 +160,8 @@ function Scroller({
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
       if (
-        (!userHasScrolledRef.current && post.id === anchor?.postId) ||
-        (hasFoundAnchor && anchorIndex !== -1)
+        !userHasScrolledRef.current &&
+        (post.id === anchor?.postId || (hasFoundAnchor && anchorIndex !== -1))
       ) {
         flatListRef.current?.scrollToIndex({
           index: anchorIndex,
