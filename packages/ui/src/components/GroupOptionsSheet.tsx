@@ -1,3 +1,4 @@
+import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -40,6 +41,16 @@ export function ChatOptionsSheet({
   const { data: groupData } = useGroup({
     id: group?.id ?? channel?.groupId ?? '',
   });
+
+  useEffect(() => {
+    if (group?.id) {
+      sync.syncGroup(group.id, store.SyncPriority.High);
+    }
+
+    if (channel?.groupId) {
+      sync.syncGroup(channel.groupId, store.SyncPriority.High);
+    }
+  }, [group?.id, channel?.groupId]);
 
   const isPinned = useMemo(
     () =>

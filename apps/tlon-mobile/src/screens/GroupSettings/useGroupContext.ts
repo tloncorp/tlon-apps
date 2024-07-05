@@ -13,7 +13,11 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     id: groupId,
   });
 
-  const group = groupQuery.data;
+  useEffect(() => {
+    sync.syncGroup(groupId, store.SyncPriority.High);
+  }, [groupId]);
+
+  const group = groupQuery.data ?? null;
 
   const uploadInfo = useImageUpload({
     uploaderKey: `group-${groupId}`,
@@ -314,12 +318,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     },
     [group]
   );
-
-  useEffect(() => {
-    if (group) {
-      sync.syncGroup(group.id);
-    }
-  }, [group, group?.id]);
 
   return {
     group,
