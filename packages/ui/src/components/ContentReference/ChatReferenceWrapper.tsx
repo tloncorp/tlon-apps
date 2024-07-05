@@ -17,15 +17,17 @@ export default function ChatReferenceWrapper({
   asAttachment?: boolean;
   viewMode?: PostViewMode;
 }) {
-  const { usePost, useChannel } = useRequests();
+  const { usePostReference, useChannel } = useRequests();
   const {
     data: post,
     isError,
     error,
     isLoading,
-  } = usePost({ id: replyId ? replyId : postId });
+  } = usePostReference({
+    postId: replyId ? replyId : postId,
+    channelId: channelId,
+  });
   const { data: channel } = useChannel({ id: channelId });
-
   const { onPressRef } = useNavigation();
 
   if (isError) {
@@ -37,9 +39,9 @@ export default function ChatReferenceWrapper({
     );
   }
 
-  if (!post || !channel) {
+  if (!post) {
     if (isLoading) {
-      return <ReferenceSkeleton />;
+      return <ReferenceSkeleton messageType="loading" />;
     }
     return (
       <ReferenceSkeleton
@@ -52,7 +54,7 @@ export default function ChatReferenceWrapper({
   return (
     <ChatReference
       post={post}
-      channel={channel}
+      channel={channel ?? undefined}
       onPress={onPressRef}
       asAttachment={asAttachment}
       viewMode={viewMode}

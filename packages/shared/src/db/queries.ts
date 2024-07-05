@@ -1130,8 +1130,8 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
   async (
     { id }: GetChannelWithLastPostAndMembersOptions,
     ctx: QueryCtx
-  ): Promise<Channel | undefined> => {
-    return await ctx.db.query.channels.findFirst({
+  ): Promise<Channel | null> => {
+    const result = await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
         lastPost: true,
@@ -1148,6 +1148,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
         },
       },
     });
+    return returnNullIfUndefined(result);
   },
   ['channels']
 );

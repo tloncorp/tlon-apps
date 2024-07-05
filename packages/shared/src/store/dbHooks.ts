@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import { syncPostReference } from './sync';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
@@ -177,6 +178,29 @@ export const useGroupPreview = (groupId: string) => {
       return groupPreview;
     },
   });
+};
+
+export const usePostReference = ({
+  channelId,
+  postId,
+  replyId,
+}: {
+  channelId: string;
+  postId: string;
+  replyId?: string;
+}) => {
+  const postQuery = useQuery({
+    queryKey: ['postReference', postId],
+    queryFn: async () => {
+      const post = await db.getPostWithRelations({ id: postId });
+      if (post) {
+        return post;
+      }
+      await syncPostReference({ postId, channelId, replyId });
+      return db.getPostWithRelations({ id: postId });
+    },
+  });
+  return postQuery;
 };
 
 export const useGroupsHostedBy = (userId: string) => {

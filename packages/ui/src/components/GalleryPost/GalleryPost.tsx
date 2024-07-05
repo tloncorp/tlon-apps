@@ -1,13 +1,40 @@
 import { usePostMeta } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { Dimensions, ImageBackground } from 'react-native';
-import { getTokenValue } from 'tamagui';
+import { PropsWithChildren } from 'react';
+import { SizableText, styled } from 'tamagui';
 
-import { LinearGradient, Text, View } from '../../core';
+import { ImageWithFallback, View } from '../../core';
 import AuthorRow from '../AuthorRow';
 import ContentReference from '../ContentReference';
 import ContentRenderer from '../ContentRenderer';
-import Pressable from '../Pressable';
+import { useBoundHandler } from '../ListItem/listItemUtils';
+
+const GalleryPostFrame = styled(View, {
+  name: 'GalleryPostFrame',
+  borderWidth: 1,
+  borderColor: '$border',
+  position: 'relative',
+  borderRadius: '$m',
+  overflow: 'hidden',
+  flex: 1,
+  backgroundColor: '$background',
+  variants: {
+    previewType: {
+      image: {
+        borderWidth: 0,
+      },
+      text: {},
+      reference: {
+        borderWidth: 0,
+        backgroundColor: '$secondaryBackground',
+      },
+      unsupported: {
+        borderWidth: 0,
+        backgroundColor: '$secondaryBackground',
+      },
+    },
+  } as const,
+});
 
 export default function GalleryPost({
   post,
@@ -20,16 +47,6 @@ export default function GalleryPost({
   onLongPress?: (post: db.Post) => void;
   viewMode?: 'activity';
 }) {
-  // We want to show two posts per row in the gallery view, each with a margin of 16
-  // and padding of 16 on all sides. This means that the width of each post should be
-  // (windowWidth - 2 * padding - 2 * margin) / 2 = (windowWidth - 64) / 2
-  const postPadding = getTokenValue('$l');
-  const postMargin = getTokenValue('$l');
-  const HEIGHT_AND_WIDTH =
-    viewMode === 'activity'
-      ? 100
-      : (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
-
   const {
     references,
     isText,
@@ -41,137 +58,87 @@ export default function GalleryPost({
     linkedImage,
   } = usePostMeta(post);
 
-  if (!isImage && !isText && !isReference && !isRefInText) {
-    // This should never happen, but if it does, we should log it
-    const content = JSON.parse(post.content as string);
-    console.log('Unsupported post type', {
-      post,
-      content,
-      postIsJustText: isText,
-      postIsJustImage: isImage,
-      postIsJustReference: isReference,
-      textPostIsJustReference: isRefInText,
-    });
+  const handlePress = useBoundHandler(post, onPress);
+  const handleLongPress = useBoundHandler(post, onLongPress);
 
-    return (
-      <View padding="$m" key={post.id} position="relative" alignItems="center">
-        <Text>Unsupported post type</Text>
-      </View>
-    );
-  }
+  const previewType =
+    isImage || isLinkedImage
+      ? 'image'
+      : isText && !isLinkedImage && !isRefInText
+        ? 'text'
+        : isReference || isRefInText
+          ? 'reference'
+          : 'unsupported';
 
   return (
-    <Pressable
-      onPress={() => onPress?.(post)}
-      onLongPress={() => onLongPress?.(post)}
+    <GalleryPostFrame
+      previewType={previewType}
       disabled={viewMode === 'activity'}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
     >
-      <View padding="$m" key={post.id} position="relative" alignItems="center">
+      <View flex={1} pointerEvents="none">
+        {/** Image post */}
         {(isImage || isLinkedImage) && (
-          <ImageBackground
+          <ImageWithFallback
+            contentFit="cover"
+            flex={1}
+            fallback={
+              <ErrorPlaceholder>
+                Failed to load {isImage ? image!.src : linkedImage}
+              </ErrorPlaceholder>
+            }
             source={{ uri: isImage ? image!.src : linkedImage }}
-            style={{
-              width: HEIGHT_AND_WIDTH,
-              height: HEIGHT_AND_WIDTH,
-            }}
-            imageStyle={{
-              borderRadius: getTokenValue('$l', 'radius'),
-            }}
-          >
-            {viewMode !== 'activity' && (
-              <View position="absolute" bottom="$l">
-                <AuthorRow
-                  author={post.author}
-                  authorId={post.authorId}
-                  sent={post.sentAt}
-                  type={post.type}
-                  width={HEIGHT_AND_WIDTH}
-                />
-              </View>
-            )}
-          </ImageBackground>
+          />
         )}
+
+        {/** Text post */}
         {isText && !isLinkedImage && !isRefInText && (
-          <View
-            backgroundColor="$secondaryBackground"
-            borderRadius="$l"
-            padding="$l"
-            width={HEIGHT_AND_WIDTH}
-            height={HEIGHT_AND_WIDTH}
-          >
-            <View
-              height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
-              width="100%"
-              overflow="hidden"
-              paddingBottom="$xs"
-              position="relative"
-            >
-              <ContentRenderer viewMode="block" post={post} />
-              <LinearGradient
-                colors={['$transparentBackground', '$secondaryBackground']}
-                start={{ x: 0, y: 0.4 }}
-                end={{ x: 0, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
-                }}
-              />
-            </View>
-            <View position="absolute" bottom="$l">
-              <AuthorRow
-                author={post.author}
-                authorId={post.authorId}
-                sent={post.sentAt}
-                type={post.type}
-                width={HEIGHT_AND_WIDTH}
-              />
-            </View>
+          <View padding="$m" flex={1}>
+            <ContentRenderer viewMode="block" post={post} />
           </View>
         )}
+
+        {/** Reference post */}
         {(isReference || isRefInText) && (
+          <View flex={1}>
+            <ContentReference viewMode="block" reference={references[0]} />
+          </View>
+        )}
+
+        {/** Unsupported post */}
+        {!isImage && !isText && !isReference && !isRefInText ? (
+          <ErrorPlaceholder>Unable to parse content</ErrorPlaceholder>
+        ) : null}
+
+        {viewMode !== 'activity' && (
           <View
-            width={HEIGHT_AND_WIDTH}
-            height={HEIGHT_AND_WIDTH}
-            borderRadius="$l"
-            padding="$m"
-            overflow="hidden"
+            position="absolute"
+            bottom={0}
+            left={0}
+            right={0}
+            width="100%"
+            pointerEvents="none"
           >
-            <View
-              height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
-              width="100%"
-              overflow="hidden"
-              paddingBottom="$xs"
-              position="relative"
-            >
-              <ContentReference viewMode="block" reference={references[0]} />
-              <LinearGradient
-                colors={['$transparentBackground', '$background']}
-                start={{ x: 0, y: 0.4 }}
-                end={{ x: 0, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
-                }}
-              />
-            </View>
-            <View position="absolute" bottom="$l">
-              <AuthorRow
-                author={post.author}
-                authorId={post.authorId}
-                sent={post.sentAt}
-                type={post.type}
-                width={HEIGHT_AND_WIDTH}
-              />
-            </View>
+            <AuthorRow
+              author={post.author}
+              authorId={post.authorId}
+              sent={post.sentAt}
+              type={post.type}
+            />
           </View>
         )}
       </View>
-    </Pressable>
+    </GalleryPostFrame>
+  );
+}
+
+function ErrorPlaceholder({ children }: PropsWithChildren) {
+  return (
+    <View backgroundColor={'$secondaryBackground'} padding="$m" flex={1}>
+      <SizableText size="$s" color="$tertiaryText" textAlign="center">
+        {children}
+      </SizableText>
+    </View>
   );
 }
