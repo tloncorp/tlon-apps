@@ -18,7 +18,7 @@ import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -185,6 +185,21 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
   checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
+
+export async function syncPostReference(options: {
+  postId: string;
+  channelId: string;
+  replyId?: string;
+}) {
+  // We exclude this from the sync queue as these operations can take quite a
+  // while; they're also not blocking as we're just waiting on a subscription
+  // event.
+  const response = await api.getPostReference(options);
+  await db.insertChannelPosts({
+    channelId: options.channelId,
+    posts: [response],
+  });
+}
 
 export async function syncThreadPosts(
   {

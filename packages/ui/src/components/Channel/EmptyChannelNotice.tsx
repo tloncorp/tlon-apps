@@ -16,7 +16,7 @@ export function EmptyChannelNotice({
 
   return (
     <View alignItems="center" paddingHorizontal="$2xl">
-      <SizableText textAlign="center" color="$secondaryText">
+      <SizableText textAlign="center" color="$tertiaryText">
         {noticeText}
       </SizableText>
     </View>

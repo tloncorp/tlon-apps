@@ -9,6 +9,10 @@ export const featureMeta = {
 
 export type FeatureName = keyof typeof featureMeta;
 
+export type FeatureState = {
+  [K in FeatureName]: boolean;
+};
+
 const featureState: { [K in FeatureName]: boolean } = {
   channelSwitcher: false,
 };
@@ -25,7 +29,12 @@ export function isEnabled(name: FeatureName) {
 const storageKey = 'featureFlags';
 
 async function loadInitialState() {
-  const state = await storage.load({ key: storageKey });
+  let state: FeatureState | null = null;
+  try {
+    state = await storage.load({ key: storageKey });
+  } catch (e) {
+    // ignore
+  }
   if (state) {
     Object.assign(featureState, state);
   }

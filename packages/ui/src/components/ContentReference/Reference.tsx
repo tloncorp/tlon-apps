@@ -35,11 +35,11 @@ const ReferenceFrame = styled(YStack, {
       },
     },
     viewMode: {
-      block: {
-        marginLeft: '$m',
-      },
       chat: {
         marginLeft: 0,
+      },
+      block: {
+        backgroundColor: '$secondaryBackground',
       },
       note: {
         marginLeft: 0,

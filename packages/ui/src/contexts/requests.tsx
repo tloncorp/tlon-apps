@@ -1,6 +1,7 @@
 import {
   useChannel as useChannelFromStore,
   useGroupPreview,
+  usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import * as db from 'packages/shared/dist/db';
@@ -11,6 +12,7 @@ type State = {
   useChannel: typeof useChannelFromStore;
   useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
+  usePostReference: typeof usePostReference;
 };
 
 type ContextValue = State;
@@ -20,6 +22,7 @@ const Context = createContext<ContextValue>({
   useChannel: useChannelFromStore,
   useGroup: useGroupPreview,
   useApp: () => {},
+  usePostReference: usePostReference,
 });
 
 export const useRequests = () => {
@@ -37,18 +40,20 @@ type RequestProviderProps = {
   useChannel: typeof useChannelFromStore;
   useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
+  usePostReference: typeof usePostReference;
 };
 
 export const RequestsProvider = ({
   children,
   usePost,
+  usePostReference,
   useChannel,
   useGroup,
   useApp,
 }: PropsWithChildren<RequestProviderProps>) => {
   const value = useMemo(
-    () => ({ usePost, useChannel, useGroup, useApp }),
-    [usePost, useChannel, useGroup, useApp]
+    () => ({ usePost, useChannel, useGroup, useApp, usePostReference }),
+    [usePost, useChannel, useGroup, useApp, usePostReference]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };
