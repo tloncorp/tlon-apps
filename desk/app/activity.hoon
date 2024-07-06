@@ -669,7 +669,8 @@
         ::  without "losing" any unreads, and the call to +refresh-index
         ::  below will clean up unnecessary items.reads entries.
         ::
-        =-  index(items.reads (malt -))
+        =-  index(items.reads -)
+        %+  gas:on-read-items:a  *read-items:a
         %+  murn
           %-  tap:on-event:a
           (lot:on-event:a stream.index `floor.reads.index ~)
