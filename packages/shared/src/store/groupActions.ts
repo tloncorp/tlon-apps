@@ -4,7 +4,7 @@ import { createDevLogger } from '../debug';
 import { createSectionId } from '../urbit';
 import * as sync from './sync';
 
-const logger = createDevLogger('groupActions', true);
+const logger = createDevLogger('groupActions', false);
 
 export async function createGroup({
   title,
@@ -397,11 +397,24 @@ export async function addChannelToNavSection({
 
   logger.log('newNavSections', newNavSections);
 
-  // optimistic update
-  await db.updateGroup({
-    ...group,
-    navSections: newNavSections,
+  const previousNavSection = navSections.find(
+    (section) =>
+      section.channels?.find((channel) => channel.channelId === channelId) !==
+      undefined
+  );
+
+  await db.addChannelToNavSection({
+    channelId,
+    groupNavSectionId: navSectionId,
+    index: (navSection?.channels?.length ?? 0) + 1,
   });
+
+  if (previousNavSection) {
+    await db.deleteChannelFromNavSection({
+      channelId,
+      groupNavSectionId: previousNavSection.id,
+    });
+  }
 
   try {
     await api.addChannelToNavSection({
@@ -411,12 +424,21 @@ export async function addChannelToNavSection({
     });
     logger.log('added channel to nav section');
   } catch (e) {
+    logger.log('failed to add channel to nav section', e);
     console.error('Failed to add channel', e);
     // rollback optimistic update
-    await db.updateGroup({
-      id: group.id,
-      ...existingGroup,
+    await db.deleteChannelFromNavSection({
+      channelId,
+      groupNavSectionId: navSectionId,
     });
+
+    if (previousNavSection) {
+      await db.addChannelToNavSection({
+        channelId,
+        groupNavSectionId: previousNavSection.sectionId,
+        index: (previousNavSection.channels?.length ?? 0) + 1,
+      });
+    }
   }
 }
 

@@ -1286,6 +1286,7 @@ export const updateNavSection = createWriteQuery(
     navSection: Partial<GroupNavSection> & { id: string },
     ctx: QueryCtx
   ) => {
+    logger.log('updateNavSection', navSection);
     return ctx.db
       .update($groupNavSections)
       .set(navSection)
@@ -1318,6 +1319,7 @@ export const addChannelToNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
     return ctx.db
       .insert($groupNavSectionChannels)
       .values({
@@ -1342,6 +1344,7 @@ export const deleteChannelFromNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('deleteChannelFromNavSection', channelId, groupNavSectionId);
     return ctx.db
       .delete($groupNavSectionChannels)
       .where(

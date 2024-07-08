@@ -186,15 +186,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
-  const setChannelOrder = useCallback(
-    async (channelIds: string[], navSectionId: string) => {
-      if (group) {
-        // await store.setChannelOrder(group.id, channelIds);
-      }
-    },
-    [group]
-  );
-
   const moveChannel = useCallback(
     async (channelId: string, navSectionId: string, index: number) => {
       if (group) {
@@ -209,19 +200,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
-  const addChannelToNavSection = useCallback(
-    async (channelId: string, navSectionId: string) => {
-      if (group) {
-        await store.addChannelToNavSection({
-          group,
-          channelId,
-          navSectionId,
-        });
-      }
-    },
-    [group]
-  );
-
   const moveChannelToNavSection = useCallback(
     async (channelId: string, navSectionId: string) => {
       if (group) {
@@ -229,12 +207,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
           group,
           channelId,
           navSectionId,
-        });
-        await store.moveChannel({
-          group,
-          channelId,
-          navSectionId,
-          index: 0,
         });
       }
     },
@@ -339,8 +311,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     deleteNavSection,
     updateNavSection,
     moveNavSection,
-    setChannelOrder,
-    addChannelToNavSection,
     moveChannel,
     moveChannelToNavSection,
     inviteUsers,
