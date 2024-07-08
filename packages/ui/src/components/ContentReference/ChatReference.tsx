@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback } from 'react';
 
-import { Avatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 import ChatContent, { PostViewMode } from '../ContentRenderer';
 import { Reference } from './Reference';
@@ -13,7 +13,7 @@ export default function ChatReference({
   asAttachment = false,
   viewMode = 'chat',
 }: {
-  channel: db.Channel;
+  channel?: db.Channel;
   post: db.Post;
   onPress: (channel: db.Channel, post: db.Post) => void;
   asAttachment?: boolean;
@@ -40,7 +40,7 @@ export default function ChatReference({
     >
       <Reference.Header>
         <Reference.Title>
-          <Avatar contact={post.author} contactId={post.authorId} size="$xl" />
+          <ContactAvatar contactId={post.authorId} size="$xl" />
           <ContactName
             color="$tertiaryText"
             size="$s"

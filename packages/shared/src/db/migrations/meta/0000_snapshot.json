@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "5b22f005-5d8a-445c-83fa-2c8ad5f2e8dc",
+  "id": "c25041ca-efef-491c-9869-b3763f16f213",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -839,8 +839,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "channel_index": {
+          "name": "channel_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -897,6 +897,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "section_id": {
+          "name": "section_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "group_id": {
           "name": "group_id",
           "type": "text",
@@ -946,8 +953,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "section_index": {
+          "name": "section_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1637,6 +1644,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false
+        },
+        "synced_at": {
+          "name": "synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false
         },
         "backend_time": {

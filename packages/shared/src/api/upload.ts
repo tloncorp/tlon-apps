@@ -127,7 +127,8 @@ export interface Uploader {
 export type NativeUploader = (
   presignedUrl: string,
   file: RNFile,
-  withPolicyHeader?: boolean
+  withPolicyHeader?: boolean,
+  additionalHeaders?: Record<string, string>
 ) => Promise<void>;
 
 export interface FileStore {
@@ -189,7 +190,7 @@ export interface StorageState {
     credentials: StorageCredentials | null;
   };
   [ref: string]: unknown;
-  start: () => void;
+  start: () => Promise<void>;
   getCredentials: () => Promise<StorageCredentials> | undefined;
   getConfiguration: () => Promise<StorageConfiguration> | undefined;
   set: SetState<StorageState>;

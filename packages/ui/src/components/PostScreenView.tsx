@@ -3,7 +3,7 @@ import type * as api from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
@@ -51,7 +51,7 @@ export function PostScreenView({
   parentPost: db.Post | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => void;
-  markRead: (post: db.Post) => void;
+  markRead: () => void;
   goBack?: () => void;
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
@@ -79,6 +79,15 @@ export function PostScreenView({
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
     : 'Post';
+
+  const hasLoaded = !!(posts && channel && parentPost);
+  useEffect(() => {
+    if (hasLoaded) {
+      markRead();
+    }
+    // Only want to trigger once per set of params
+    // eslint-disable-next-line
+  }, [hasLoaded]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -119,7 +128,6 @@ export function PostScreenView({
                     clearDraft={clearDraft}
                     getDraft={getDraft}
                     goBack={goBack}
-                    markRead={markRead}
                   />
                 )}
                 {parentPost && channel.type === 'notebook' && (
@@ -138,7 +146,6 @@ export function PostScreenView({
                     clearDraft={clearDraft}
                     getDraft={getDraft}
                     goBack={goBack}
-                    markRead={markRead}
                   />
                 )}
                 {uploadInfo.imageAttachment ? (
@@ -169,7 +176,6 @@ export function PostScreenView({
                             : null
                         }
                         unreadCount={threadUnread?.count ?? 0}
-                        onDividerSeen={markRead}
                       />
                     </View>
                   )

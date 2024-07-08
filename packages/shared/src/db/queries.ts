@@ -352,6 +352,7 @@ export const insertGroups = createWriteQuery(
     ctx: QueryCtx
   ) => {
     return withTransactionCtx(ctx, async (txCtx) => {
+      if (groups.length === 0) return;
       for (const group of groups) {
         if (overWrite) {
           await txCtx.db
@@ -396,16 +397,17 @@ export const insertGroups = createWriteQuery(
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
-        if (group.navSections) {
+        if (group.navSections?.length) {
           await txCtx.db
             .insert($groupNavSections)
             .values(
               group.navSections.map((s) => ({
                 id: s.id,
+                sectionId: s.sectionId,
                 groupId: group.id,
                 title: s.title,
                 description: s.description,
-                index: s.index,
+                sectionIndex: s.sectionIndex,
               }))
             )
             .onConflictDoUpdate({
@@ -426,7 +428,7 @@ export const insertGroups = createWriteQuery(
               .insert($groupNavSectionChannels)
               .values(
                 navSectionChannels.map((s) => ({
-                  index: s?.index,
+                  channelIndex: s?.channelIndex,
                   groupNavSectionId: s?.groupNavSectionId,
                   channelId: s?.channelId,
                 }))
@@ -434,7 +436,7 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
-        if (group.roles) {
+        if (group.roles?.length) {
           await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
@@ -449,7 +451,7 @@ export const insertGroups = createWriteQuery(
               ),
             });
         }
-        if (group.members) {
+        if (group.members?.length) {
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
@@ -1129,8 +1131,8 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
   async (
     { id }: GetChannelWithLastPostAndMembersOptions,
     ctx: QueryCtx
-  ): Promise<Channel | undefined> => {
-    return await ctx.db.query.channels.findFirst({
+  ): Promise<Channel | null> => {
+    const result = await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
         lastPost: true,
@@ -1147,6 +1149,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
         },
       },
     });
+    return returnNullIfUndefined(result);
   },
   ['channels']
 );
@@ -1244,19 +1247,24 @@ export const addNavSectionToGroup = createWriteQuery(
   async (
     {
       id,
+      sectionId,
       groupId,
       meta,
     }: {
       id: string;
+      sectionId: string;
       groupId: string;
       meta: ClientMeta;
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addNavSectionToGroup', id, sectionId, groupId, meta);
+
     return ctx.db
       .insert($groupNavSections)
       .values({
         id,
+        sectionId: sectionId,
         title: meta.title,
         description: meta.description,
         iconImage: meta.iconImage,
@@ -1279,6 +1287,7 @@ export const updateNavSection = createWriteQuery(
     navSection: Partial<GroupNavSection> & { id: string },
     ctx: QueryCtx
   ) => {
+    logger.log('updateNavSection', navSection);
     return ctx.db
       .update($groupNavSections)
       .set(navSection)
@@ -1311,12 +1320,13 @@ export const addChannelToNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
     return ctx.db
       .insert($groupNavSectionChannels)
       .values({
         channelId,
         groupNavSectionId,
-        index,
+        channelIndex: index,
       })
       .onConflictDoNothing();
   },
@@ -1335,6 +1345,7 @@ export const deleteChannelFromNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('deleteChannelFromNavSection', channelId, groupNavSectionId);
     return ctx.db
       .delete($groupNavSectionChannels)
       .where(
@@ -1763,7 +1774,7 @@ export const insertChannelPosts = createWriteQuery(
       }
     });
   },
-  ['posts', 'channels', 'groups', 'postWindows']
+  ['posts', 'postWindows']
 );
 
 export const insertLatestPosts = createWriteQuery(
@@ -2100,6 +2111,19 @@ export const getPost = createReadQuery(
   ['posts']
 );
 
+export const getPostByBackendTime = createReadQuery(
+  'getPostByBackendTime',
+  async ({ backendTime }: { backendTime: string }, ctx: QueryCtx) => {
+    const postData = await ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.backendTime, backendTime));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
 export const getPostByCacheId = createReadQuery(
   'getPostByCacheId',
   async (
@@ -2220,7 +2244,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads', 'volumeSettings']
+  ['groups', 'channelUnreads', 'volumeSettings', 'channels']
 );
 
 export const getGroupByChannel = createReadQuery(
@@ -2545,6 +2569,34 @@ export const getLatestActivityEvent = createReadQuery(
         ),
       })
       .then(returnNullIfUndefined);
+  },
+  ['activityEvents']
+);
+
+export const getUnreadUnseenActivityEvents = createReadQuery(
+  'getUnreadUnseenActivityEvents',
+  async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    return ctx.db
+      .select()
+      .from($activityEvents)
+      .leftJoin(
+        $channelUnreads,
+        eq($activityEvents.channelId, $channelUnreads.channelId)
+      )
+      .leftJoin(
+        $threadUnreads,
+        eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .where(
+        and(
+          gt($activityEvents.timestamp, seenMarker),
+          eq($activityEvents.shouldNotify, true),
+          or(
+            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
+            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0))
+          )
+        )
+      );
   },
   ['activityEvents']
 );

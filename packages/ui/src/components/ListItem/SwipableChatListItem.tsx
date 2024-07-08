@@ -14,9 +14,9 @@ import { Animated, TouchableOpacity } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { ColorTokens, Stack } from 'tamagui';
 
-import { XStack } from '../core';
-import * as utils from '../utils';
-import { Icon, IconType } from './Icon';
+import { XStack } from '../../core';
+import * as utils from '../../utils';
+import { Icon, IconType } from '../Icon';
 
 function BaseSwipableChatRow({
   model,
@@ -108,7 +108,7 @@ function BaseSwipableChatRow({
   );
 }
 
-export const SwipableChatRow = React.memo(BaseSwipableChatRow);
+export const SwipableChatListItem = React.memo(BaseSwipableChatRow);
 
 function BaseLeftActions({
   model,

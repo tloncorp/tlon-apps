@@ -13,7 +13,7 @@ const logger = createDevLogger('activityApi', false);
 export async function getUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/activity',
+    path: '/v1/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
@@ -232,7 +232,7 @@ export type ActivityEvent =
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
     }
-  | { type: 'addActivityEvent'; event: db.ActivityEvent };
+  | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
@@ -355,8 +355,26 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           bucketId: 'all',
           event: rawEvent,
         });
+
+        const events = [];
         if (activityEvent) {
-          return handler({ type: 'addActivityEvent', event: activityEvent });
+          events.push(activityEvent);
+          if (activityEvent?.isMention) {
+            events.push({
+              ...activityEvent,
+              bucketId: 'mentions' as db.ActivityBucket,
+            });
+          }
+          if (activityEvent?.type === 'reply') {
+            events.push({
+              ...activityEvent,
+              bucketId: 'replies' as db.ActivityBucket,
+            });
+          }
+        }
+
+        if (events.length > 0) {
+          return handler({ type: 'addActivityEvent', events });
         }
       }
 
@@ -383,7 +401,9 @@ export const readChannel = async (channel: db.Channel) => {
     source = { channel: { nest: channel.id, group: channel.groupId! } };
   }
 
-  const action = activityAction({ read: { source, action: { all: null } } });
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
   logger.log(`reading channel ${channel.id}`, action);
 
   // simple retry logic to avoid failed read leading to lingering unread state
@@ -454,7 +474,9 @@ export const readThread = async ({
     };
   }
 
-  const action = activityAction({ read: { source, action: { all: null } } });
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
 
   // simple retry logic to avoid failed read leading to lingering unread state
   return backOff(() => poke(action), {

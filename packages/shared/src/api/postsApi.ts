@@ -30,7 +30,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { poke, scry } from './urbit';
+import { poke, scry, subscribeOnce } from './urbit';
 
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
@@ -87,6 +87,41 @@ export function chatAction(
   };
 
   return action;
+}
+
+export async function getPostReference({
+  channelId,
+  postId,
+  replyId,
+}: {
+  channelId: string;
+  postId: string;
+  replyId?: string;
+}) {
+  const path = `/said/${channelId}/post/${postId}${
+    replyId ? '/' + replyId : ''
+  }`;
+  const data = await subscribeOnce<ub.Said>({ app: 'channels', path }, 3000);
+  const post = toPostReference(data);
+  // The returned post id can be different than the postId we requested?? But the
+  // post is going to be requested by the original id, so set manually :/
+  post.id = postId;
+  return post;
+}
+
+function toPostReference(said: ub.Said) {
+  const channelId = said.nest;
+  if ('reply' in said.reference) {
+    return toPostReplyData(
+      channelId,
+      said.reference.reply['id-post'],
+      said.reference.reply.reply
+    );
+  } else if ('post' in said.reference) {
+    return toPostData(channelId, said.reference.post);
+  } else {
+    throw new Error('invalid response' + JSON.stringify(said, null, 2));
+  }
 }
 
 export function channelPostAction(nest: ub.Nest, action: ub.PostAction) {
@@ -742,6 +777,7 @@ export function toPostData(
       ? getReplyData(id, channelId, post)
       : null,
     deliveryStatus: null,
+    syncedAt: Date.now(),
     ...flags,
   };
 }
@@ -802,6 +838,7 @@ export function toPostReplyData(
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
     images: getContentImages(id, reply.memo.content),
+    syncedAt: Date.now(),
     ...flags,
   };
 }
@@ -839,12 +876,20 @@ export function toPostContent(story?: ub.Story): PostContentAndFlags {
 export function toContentReference(cite: ub.Cite): ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
-    const postId = cite.chan.where.split('/')[2];
+    // I've seen these forms of reference path:
+    // /msg/170141184506828851385935487131294105600
+    // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
+    // /msg/~sogrum-savluc/170.141.184.505.979.681.243.072.382.329.337.971.474
+    const messageIdRegex = /\/([0-9\.]+(?=[$\/]?))/g;
+    const [postId, replyId] = Array.from(
+      cite.chan.where.matchAll(messageIdRegex)
+    ).map((m) => {
+      return m[1].replace(/\./g, '');
+    });
     if (!postId) {
       console.error('found invalid ref', cite);
       return null;
     }
-    const replyId = cite.chan.where.split('/')[3];
     return {
       type: 'reference',
       referenceType: 'channel',

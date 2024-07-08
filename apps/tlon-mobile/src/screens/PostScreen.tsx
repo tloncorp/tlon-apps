@@ -1,14 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
-type PostScreenProps = NativeStackScreenProps<HomeStackParamList, 'Post'>;
+type PostScreenProps = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: PostScreenProps) {
   const postParam = props.route.params.post;
@@ -48,18 +47,15 @@ export default function PostScreen(props: PostScreenProps) {
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);
 
-  const markRead = useCallback(
-    (threadPost: db.Post) => {
-      if (channel && post) {
-        store.markThreadRead({
-          channel,
-          parentPost: post,
-          post: threadPost,
-        });
-      }
-    },
-    [channel, post]
-  );
+  const markRead = useCallback(() => {
+    if (channel && post && threadPosts) {
+      store.markThreadRead({
+        channel,
+        parentPost: post,
+        post: threadPosts[0],
+      });
+    }
+  }, [channel, post, threadPosts]);
 
   const sendReply = useCallback(
     async (content: urbit.Story) => {

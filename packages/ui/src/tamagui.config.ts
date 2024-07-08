@@ -67,6 +67,7 @@ export const tokens = createTokens({
     '3xl': 32,
     '4xl': 48,
     '5xl': 64,
+    '6xl': 72,
   },
   radius: {
     '2xs': 2,
@@ -325,7 +326,12 @@ export const config = createTamagui({
   fonts,
   themes,
   settings: {
-    allowedStyleValues: 'somewhat-strict',
+    allowedStyleValues: {
+      space: 'somewhat-strict',
+      size: 'somewhat-strict',
+      radius: 'somewhat-strict',
+      zIndex: 'somewhat-strict',
+    },
   },
   animations: animations,
 });

@@ -1,10 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { Post } from '@tloncorp/shared/dist/db';
-import {
-  extractContentTypesFromPost,
-  isSameDay,
-} from '@tloncorp/shared/dist/logic';
+import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { MotiView } from 'moti';
 import React, {
@@ -21,12 +17,15 @@ import React, {
 } from 'react';
 import {
   FlatList,
+  LayoutChangeEvent,
   ListRenderItem,
+  Platform,
   View as RNView,
   StyleProp,
   ViewStyle,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../contexts/requests';
@@ -57,6 +56,8 @@ type RenderItemType =
 
 const logger = createDevLogger('scroller', false);
 
+export const INITIAL_POSTS_PER_PAGE = 30;
+
 export type ScrollAnchor = {
   type: 'unread' | 'selected';
   postId: string;
@@ -85,7 +86,6 @@ function Scroller({
   onPressPost,
   onPressImage,
   onPressReplies,
-  onDividerSeen,
   showReplies = true,
   editingPost,
   setEditingPost,
@@ -108,7 +108,6 @@ function Scroller({
   onPressPost?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
-  onDividerSeen?: (post: db.Post) => void;
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -117,82 +116,6 @@ function Scroller({
   hasOlderPosts?: boolean;
 }) {
   const [isAtBottom, setIsAtBottom] = useState(true);
-
-  const filteredPosts = useMemo(() => {
-    const postsWithContent = posts?.filter((post) => {
-      const { blocks, inlines, references } = extractContentTypesFromPost(post);
-
-      if (
-        blocks.length === 0 &&
-        inlines.length === 0 &&
-        references.length === 0 &&
-        post.title === '' &&
-        post.image === ''
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-
-    if (!postsWithContent || channelType !== 'gallery') {
-      return postsWithContent;
-    }
-
-    // if we're in a gallery channel and we have an uneven number of posts, we
-    // need to add an empty post at the end to make sure that the last post is
-    // displayed correctly
-
-    if (postsWithContent.length % 2 !== 0) {
-      const emptyPost: Post = {
-        id: '',
-        authorId: '~zod',
-        channelId: '',
-        content: JSON.stringify([{ inline: '' }]),
-        receivedAt: 0,
-        sentAt: 0,
-        type: 'block',
-        replyCount: 0,
-      };
-
-      postsWithContent.push(emptyPost);
-    }
-
-    if (!firstUnreadId) {
-      return postsWithContent;
-    }
-
-    // for gallery channels we want to make sure that we separate unreads from
-    // the other posts, we do that by adding an empty post after the first unread
-    // post if it's at an even index
-    const firstUnreadIndex = postsWithContent.findIndex(
-      (post) => post.id === firstUnreadId
-    );
-
-    if (firstUnreadIndex === -1) {
-      return postsWithContent;
-    }
-
-    // if first unread is at an odd index, we don't need to add an empty post
-    if (firstUnreadIndex % 2 !== 0) {
-      return postsWithContent;
-    }
-
-    const before = postsWithContent.slice(0, firstUnreadIndex + 1);
-    const after = postsWithContent.slice(firstUnreadIndex + 1);
-    const emptyPost: Post = {
-      id: '',
-      authorId: '~zod',
-      channelId: '',
-      content: JSON.stringify([{ inline: '' }]),
-      receivedAt: 0,
-      sentAt: 0,
-      type: 'block',
-      replyCount: 0,
-    };
-
-    return [...before, emptyPost, ...after];
-  }, [firstUnreadId, posts, channelType]);
 
   const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
   const flatListRef = useRef<FlatList<db.Post>>(null);
@@ -225,6 +148,9 @@ function Scroller({
   const renderedPostsRef = useRef(new Set());
   // Whether we've scrolled to the anchor post.
   const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
+  const anchorIndex = useMemo(() => {
+    return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
+  }, [posts, anchor]);
 
   // We use this function to manage autoscrolling to the anchor post. We need
   // the post to be rendered before we're able to scroll to it, so we wait for
@@ -233,24 +159,15 @@ function Scroller({
   const handleItemLayout = useCallback(
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
-      if (anchor?.postId === post.id) {
-        // This gets called every time the anchor post changes size. If the user hasn't
-        // scrolled yet, we should still be locked to the anchor post, so this
-        // will re-scroll on subsequent layouts as well as the first.
-        if (!userHasScrolledRef.current) {
-          // If we're in a gallery channel, we need to adjust the index to account
-          // for the empty post we added after the first unread post.
-          const galleryAdjustedIndex =
-            channelType === 'gallery' && firstUnreadId !== null && index > 0
-              ? index - 1
-              : index;
-
-          flatListRef.current?.scrollToIndex({
-            index: galleryAdjustedIndex,
-            animated: false,
-            viewPosition: 1,
-          });
-        }
+      if (
+        !userHasScrolledRef.current &&
+        (post.id === anchor?.postId || (hasFoundAnchor && anchorIndex !== -1))
+      ) {
+        flatListRef.current?.scrollToIndex({
+          index: anchorIndex,
+          animated: false,
+          viewPosition: 1,
+        });
       }
       if (
         !hasFoundAnchor &&
@@ -263,7 +180,7 @@ function Scroller({
         setHasFoundAnchor(true);
       }
     },
-    [anchor, hasFoundAnchor, channelType, firstUnreadId, posts?.length]
+    [anchor?.postId, anchorIndex, hasFoundAnchor, posts?.length]
   );
 
   const theme = useTheme();
@@ -278,7 +195,7 @@ function Scroller({
 
   const listRenderItem: ListRenderItem<db.Post> = useCallback(
     ({ item, index }) => {
-      const previousItem = filteredPosts?.[index + 1];
+      const previousItem = posts?.[index + 1];
       const isFirstPostOfDay = !isSameDay(
         item.receivedAt ?? 0,
         previousItem?.receivedAt ?? 0
@@ -292,13 +209,8 @@ function Scroller({
 
       const isFirstUnread = item.id === firstUnreadId;
 
-      if (item.id === '' && item.type === 'block') {
-        return <View height={1} width="50%" backgroundColor="$background" />;
-      }
-
       return (
         <ScrollerItem
-          onDividerSeen={onDividerSeen}
           item={item}
           index={index}
           showUnreadDivider={isFirstUnread}
@@ -324,8 +236,7 @@ function Scroller({
       );
     },
     [
-      onDividerSeen,
-      filteredPosts,
+      posts,
       firstUnreadId,
       renderItem,
       currentUserId,
@@ -349,10 +260,35 @@ function Scroller({
     console.log('scroll to index failed');
   }, []);
 
-  const contentContainerStyle = useStyle({
-    paddingHorizontal: '$m',
-    alignItems: channelType === 'gallery' ? 'center' : undefined,
-  }) as StyleProp<ViewStyle>;
+  const insets = useSafeAreaInsets();
+
+  const contentContainerStyle = useStyle(
+    !posts?.length
+      ? { flex: 1 }
+      : channelType === 'gallery'
+        ? {
+            paddingHorizontal: '$l',
+            paddingBottom: insets.bottom,
+            gap: '$l',
+          }
+        : channelType === 'notebook'
+          ? {
+              paddingHorizontal: '$xl',
+              gap: '$xl',
+            }
+          : {
+              paddingHorizontal: '$m',
+            }
+  ) as StyleProp<ViewStyle>;
+
+  const columnWrapperStyle = useStyle(
+    channelType === 'gallery'
+      ? {
+          gap: '$l',
+          width: '100%',
+        }
+      : {}
+  ) as StyleProp<ViewStyle>;
 
   const handleScrollBeginDrag = useCallback(() => {
     userHasScrolledRef.current = true;
@@ -406,8 +342,11 @@ function Scroller({
         flex={1}
         // Flatlist doesn't handle inverting this component, so we do it manually.
         scaleY={inverted ? -1 : 1}
+        rotateY={inverted && Platform.OS === 'android' ? '180deg' : undefined}
         paddingBottom={'$l'}
         paddingHorizontal="$l"
+        alignItems="center"
+        justifyContent="center"
       >
         {renderEmptyComponentFn?.()}
       </View>
@@ -415,62 +354,64 @@ function Scroller({
   }, [renderEmptyComponentFn, inverted]);
 
   const maintainVisibleContentPositionConfig = useMemo(() => {
-    return {
-      minIndexForVisible: 0,
-      // If this is set to a number, the list will scroll to the bottom (or top,
-      // if not inverted) when the list height changes. This is undesirable when
-      // we're starting at an older post and scrolling down towards newer ones,
-      // as it will trigger on every new page load, causing jumping. Instead, we
-      // only enable it when there's nothing newer left to load (so, for new incoming messages only).
-      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
-    };
-  }, [hasNewerPosts]);
+    return channelType === 'chat' ||
+      channelType === 'dm' ||
+      channelType === 'groupDm'
+      ? {
+          minIndexForVisible: 0,
+          // If this is set to a number, the list will scroll to the bottom (or top,
+          // if not inverted) when the list height changes. This is undesirable when
+          // we're starting at an older post and scrolling down towards newer ones,
+          // as it will trigger on every new page load, causing jumping. Instead, we
+          // only enable it when there's nothing newer left to load (so, for new incoming messages only).
+          autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+        }
+      : undefined;
+  }, [hasNewerPosts, channelType]);
 
   const handleScroll = useScrollDirectionTracker(setIsAtBottom);
 
-  const scrollToBottom = useCallback(() => {
-    if (flatListRef.current && isAtBottom) {
-      logger.log('scrolling to bottom');
-      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
-    }
-  }, [isAtBottom]);
-
-  // Scroll to bottom when new messages are received
-  useEffect(() => {
-    scrollToBottom();
-  }, [filteredPosts?.length, scrollToBottom]);
+  const scrollIndicatorInsets = useMemo(() => {
+    return {
+      top: 0,
+      bottom: insets.bottom,
+    };
+  }, [insets.bottom]);
 
   return (
     <View flex={1}>
       {/* {unreadCount && !hasPressedGoToBottom ? (
         <UnreadsButton onPress={pressedGoToBottom} />
       ) : null} */}
-      {filteredPosts && (
+      {posts && (
         <Animated.FlatList<db.Post>
           ref={flatListRef}
           // This is needed so that we can force a refresh of the list when
           // we need to switch from 1 to 2 columns or vice versa.
           key={channelType}
-          data={filteredPosts}
+          data={posts}
           renderItem={listRenderItem}
           ListEmptyComponent={renderEmptyComponent}
           keyExtractor={getPostId}
           keyboardDismissMode="on-drag"
           contentContainerStyle={contentContainerStyle}
+          columnWrapperStyle={channelType === 'gallery' && columnWrapperStyle}
           onScrollBeginDrag={handleScrollBeginDrag}
           onScrollToIndexFailed={handleScrollToIndexFailed}
           inverted={inverted}
-          initialNumToRender={10}
+          initialNumToRender={INITIAL_POSTS_PER_PAGE}
           maxToRenderPerBatch={8}
-          windowSize={10}
+          windowSize={8}
           maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
           numColumns={channelType === 'gallery' ? 2 : 1}
           style={style}
           onEndReached={handleEndReached}
-          onEndReachedThreshold={0.25}
+          onEndReachedThreshold={0.5}
           onStartReached={handleStartReached}
-          onStartReachedThreshold={0.25}
+          onStartReachedThreshold={0.1}
           onScroll={handleScroll}
+          scrollIndicatorInsets={scrollIndicatorInsets}
+          automaticallyAdjustsScrollIndicatorInsets={false}
         />
       )}
       <Modal
@@ -513,7 +454,6 @@ const BaseScrollerItem = ({
   unreadCount,
   editingPost,
   onLayout,
-  onDividerSeen,
   channelId,
   channelType,
   setEditingPost,
@@ -534,7 +474,7 @@ const BaseScrollerItem = ({
   Component: RenderItemType;
   currentUserId: string;
   unreadCount?: number | null;
-  onLayout: (post: db.Post, index: number) => void;
+  onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
   channelId: string;
   channelType: db.ChannelType;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
@@ -545,20 +485,21 @@ const BaseScrollerItem = ({
   editPost?: (post: db.Post, content: Story) => void;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
-  onDividerSeen?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
 }) => {
   const post = useLivePost(item);
 
-  const handleLayout = useCallback(() => {
-    onLayout?.(post, index);
-  }, [onLayout, post, index]);
+  const handleLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      onLayout?.(post, index, e);
+    },
+    [onLayout, post, index]
+  );
 
   const unreadDivider = showUnreadDivider ? (
     <ChannelDivider
       post={post}
-      onSeen={onDividerSeen}
       unreadCount={unreadCount ?? 0}
       isFirstPostOfDay={showDayDivider}
       channelInfo={{ id: channelId, type: channelType }}
@@ -568,17 +509,19 @@ const BaseScrollerItem = ({
 
   const dayDivider =
     showDayDivider && !showUnreadDivider && channelType === 'chat' ? (
-      <ChannelDivider
-        unreadCount={0}
-        post={post}
-        onSeen={onDividerSeen}
-        index={index}
-      />
+      <ChannelDivider unreadCount={0} post={post} index={index} />
     ) : null;
 
   return (
-    <View onLayout={handleLayout}>
-      {channelType !== 'gallery' ? unreadDivider ?? dayDivider : null}
+    <View
+      onLayout={handleLayout}
+      {...(channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {})}
+    >
+      {channelType === 'chat' ||
+      channelType === 'dm' ||
+      channelType === 'groupDm'
+        ? unreadDivider ?? dayDivider
+        : null}
       <PressableMessage
         ref={messageRef}
         isActive={activeMessage?.id === post.id}
@@ -597,7 +540,6 @@ const BaseScrollerItem = ({
           onPress={onPressPost}
         />
       </PressableMessage>
-      {channelType === 'gallery' ? unreadDivider : null}
     </View>
   );
 };

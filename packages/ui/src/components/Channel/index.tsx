@@ -2,13 +2,13 @@ import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
   useGroupPreview,
+  usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
@@ -43,6 +43,8 @@ import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
 
+export { INITIAL_POSTS_PER_PAGE } from './Scroller';
+
 //TODO implement usePost and useChannel
 const useApp = () => {};
 
@@ -70,6 +72,7 @@ export function Channel({
   onPressRef,
   usePost,
   useGroup,
+  usePostReference,
   onGroupAction,
   useChannel,
   storeDraft,
@@ -102,9 +105,10 @@ export function Channel({
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
-  markRead: (post: db.Post) => void;
+  markRead: () => void;
   usePost: typeof usePostWithRelations;
   useGroup: typeof useGroupPreview;
+  usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: string, group: db.Group) => void;
   useChannel: typeof useChannelFromStore;
   storeDraft: (draft: JSONContent) => void;
@@ -132,19 +136,9 @@ export function Channel({
     : channel.type === 'notebook'
       ? NotebookPost
       : GalleryPost;
+
   const renderEmptyComponent = useCallback(() => {
-    return (
-      <View
-        // hack to fix inverted Flatlist empty component being erroneously rotated on Android
-        style={
-          Platform.OS === 'android'
-            ? { transform: [{ rotateY: '180deg' }] }
-            : {}
-        }
-      >
-        <EmptyChannelNotice channel={channel} userId={currentUserId} />
-      </View>
-    );
+    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
@@ -159,12 +153,20 @@ export function Channel({
     [onGroupAction]
   );
 
+  const hasLoaded = !!(posts && channel);
+  useEffect(() => {
+    if (hasLoaded) {
+      markRead();
+    }
+  }, [hasLoaded, markRead]);
+
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
     if (channel.type === 'notebook') {
       return null;
     } else if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
     } else if (
+      channel.type !== 'gallery' &&
       channelUnread?.countWithoutThreads &&
       channelUnread.firstUnreadPostId
     ) {
@@ -188,6 +190,7 @@ export function Channel({
             <ChannelProvider value={{ channel }}>
               <RequestsProvider
                 usePost={usePost}
+                usePostReference={usePostReference}
                 useChannel={useChannel}
                 useGroup={useGroup}
                 useApp={useApp}
@@ -296,7 +299,6 @@ export function Channel({
                                       unreadCount={
                                         channelUnread?.countWithoutThreads ?? 0
                                       }
-                                      onDividerSeen={markRead}
                                       onPressPost={goToPost}
                                       onPressReplies={goToPost}
                                       onPressImage={goToImageViewer}

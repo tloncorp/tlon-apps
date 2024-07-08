@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import React, { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -14,13 +14,10 @@ import {
 } from 'react-native';
 
 import { useStyle } from '../core';
-import ChannelListItem from './ChannelListItem';
-import { GroupListItem } from './GroupListItem';
-import { ListItemProps } from './ListItem';
+import { ChatListItem, SwipableChatListItem } from './ListItem';
 import { SectionListHeader } from './SectionList';
-import { SwipableChatRow } from './SwipableChatListItem';
 
-type ListItem = db.Channel | db.Group;
+export type Chat = db.Channel | db.Group;
 
 export function ChatList({
   pinned,
@@ -30,8 +27,8 @@ export function ChatList({
   onPressItem,
   onSectionChange,
 }: store.CurrentChats & {
-  onPressItem?: (chat: ListItem) => void;
-  onLongPressItem?: (chat: ListItem) => void;
+  onPressItem?: (chat: Chat) => void;
+  onLongPressItem?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
 }) {
   const data = useMemo(() => {
@@ -54,24 +51,25 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<ListItem, { title: string }>) => {
-      return (
+    ({ item }: SectionListRenderItemInfo<Chat, { title: string }>) => {
+      const baseListItem = (
         <ChatListItem
           model={item}
           onPress={onPressItem}
           onLongPress={onLongPressItem}
         />
       );
+      return logic.isChannel(item) ? (
+        <SwipableChatListItem model={item}>{baseListItem}</SwipableChatListItem>
+      ) : (
+        baseListItem
+      );
     },
     [onPressItem, onLongPressItem]
   );
 
   const renderSectionHeader = useCallback(
-    ({
-      section,
-    }: {
-      section: SectionListData<ListItem, { title: string }>;
-    }) => {
+    ({ section }: { section: SectionListData<Chat, { title: string }> }) => {
       return (
         <SectionListHeader>
           <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
@@ -116,7 +114,7 @@ export function ChatList({
     }
   ).current;
 
-  const getChannelKey = useCallback((item: ListItem) => {
+  const getChannelKey = useCallback((item: Chat) => {
     if (!item || typeof item !== 'object' || !item.id) {
       return 'invalid-item';
     }
@@ -144,75 +142,3 @@ export function ChatList({
     />
   );
 }
-
-const ChatListItem = React.memo(function ChatListItemComponent(
-  props: ListItemProps<ListItem>
-) {
-  return logic.isChannel(props.model) ? (
-    <SwipableChatRow model={props.model}>
-      <ChatListItemContent {...props} />
-    </SwipableChatRow>
-  ) : (
-    <ChatListItemContent {...props} />
-  );
-});
-
-const ChatListItemContent = React.memo(function ChatListItemContentComponent({
-  model,
-  onPress,
-  onLongPress,
-  ...props
-}: ListItemProps<ListItem>) {
-  const handlePress = useCallback(() => {
-    onPress?.(model);
-  }, [model, onPress]);
-
-  const handleLongPress = useCallback(() => {
-    onLongPress?.(model);
-  }, [model, onLongPress]);
-
-  const groupModel: db.Group | null | undefined = useMemo(() => {
-    return logic.isChannel(model) && model.group
-      ? ({
-          ...model.group,
-          unreadCount: model.unread?.count,
-          lastPost: model.lastPost,
-          lastChannel: model.title,
-        } as const)
-      : null;
-  }, [model]);
-
-  // if the chat list item is a group, it's pending
-  if (logic.isGroup(model)) {
-    return <GroupListItem onPress={handlePress} model={model} {...props} />;
-  }
-
-  if (logic.isChannel(model)) {
-    if (
-      model.type === 'dm' ||
-      model.type === 'groupDm' ||
-      model.pin?.type === 'channel'
-    ) {
-      return (
-        <ChannelListItem
-          model={model}
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          {...props}
-        />
-      );
-    } else if (groupModel) {
-      return (
-        <GroupListItem
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          model={groupModel}
-          {...props}
-        />
-      );
-    }
-  }
-
-  console.warn('unable to render chat list item', model.id, model);
-  return null;
-});

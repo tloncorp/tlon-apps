@@ -26,7 +26,6 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
-import { PostContent } from 'packages/shared/dist/api';
 import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
 import {
   ComponentProps,
@@ -40,12 +39,12 @@ import {
 import { StyleSheet, TextStyle, TouchableOpacity } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
+import { SizableText } from 'tamagui';
 
 import {
   ColorTokens,
   Image,
   ScrollView,
-  SizableText,
   Text,
   View,
   XStack,
@@ -517,7 +516,7 @@ export function InlineContent({
       <ChatEmbedContent
         viewMode={viewMode}
         url={inline.link.href}
-        content={inline.link.content}
+        content={inline.link.content ?? inline.link.href}
         onPressImage={onPressImage}
         onLongPress={onLongPress}
       />
@@ -611,8 +610,8 @@ export function BlockContent({
           borderRadius="$m"
           onLoad={handleImageLoaded}
           width={200}
+          aspectRatio={aspect ?? 1}
           backgroundColor={'$secondaryBackground'}
-          height={aspect ? 200 / aspect : 100}
         />
       </TouchableOpacity>
     );
@@ -680,19 +679,18 @@ const LineRenderer = memo(
           );
         } else {
           currentLine.push(
-            <Text
-              key={`string-${inline}-${index}`}
-              color={isNotice ? '$secondaryText' : color}
-              fontSize={
+            <SizableText
+              size={
                 viewMode === 'block' || viewMode === 'activity' || isNotice
                   ? '$s'
                   : '$m'
               }
-              lineHeight="$m"
+              key={`string-${inline}-${index}`}
+              color={isNotice ? '$secondaryText' : color}
               fontFamily={serif ? '$serif' : '$body'}
             >
               {inline}
-            </Text>
+            </SizableText>
           );
         }
       } else if (isBlockquote(inline)) {
@@ -770,17 +768,16 @@ const LineRenderer = memo(
           }
 
           return (
-            <Text
-              fontSize={
+            <SizableText
+              size={
                 viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'
               }
               key={`line-${index}`}
               flexWrap="wrap"
-              lineHeight="$m"
               fontFamily={serif ? '$serif' : '$body'}
             >
               {line}
-            </Text>
+            </SizableText>
           );
         })}
       </>

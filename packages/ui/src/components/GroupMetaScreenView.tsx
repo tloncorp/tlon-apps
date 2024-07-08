@@ -11,11 +11,11 @@ import { getTokenValue } from 'tamagui';
 
 import { Text, View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
+import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { DeleteSheet } from './DeleteSheet';
 import { FormInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
-import { GroupIcon } from './GroupIcon';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { LoadingSpinner } from './LoadingSpinner';
 import Pressable from './Pressable';
@@ -31,7 +31,7 @@ interface GroupMetaScreenViewProps {
   uploadInfo: UploadInfo;
 }
 
-function SaveButton({ onPress }: { onPress: () => void }) {
+export function SaveButton({ onPress }: { onPress: () => void }) {
   return (
     <Button onPress={onPress} borderWidth="unset">
       <Button.Text>Save</Button.Text>
@@ -93,13 +93,15 @@ function GroupIconPressable({
 
   return (
     <Pressable onPress={onPress}>
-      <GroupIcon
-        group={{
+      <GroupAvatar
+        model={{
           ...group,
           iconImage,
         }}
-        size={100}
-        fontSize="$2xl"
+        ignoreCalm={true}
+        size={'custom'}
+        width={100}
+        height={100}
         borderRadius="$xl"
       />
     </Pressable>

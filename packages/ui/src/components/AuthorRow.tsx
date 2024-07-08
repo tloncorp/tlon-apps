@@ -1,9 +1,10 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
-import { useMemo, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { GestureResponderEvent } from 'react-native';
 
 import { SizableText, SizeTokens, View, XStack } from '../core';
-import { Avatar } from './Avatar';
+import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { ProfileSheet } from './ProfileSheet';
 
@@ -23,15 +24,7 @@ const RoleBadge = ({ role }: { role: string }) => {
 
 export const AUTHOR_ROW_HEIGHT_DETAIL_VIEW = '$4xl';
 
-export default function AuthorRow({
-  author,
-  authorId,
-  sent,
-  roles,
-  type,
-  detailView,
-  width,
-}: {
+type AuthorRowProps = ComponentProps<typeof XStack> & {
   author?: db.Contact | null;
   authorId: string;
   sent: number;
@@ -39,93 +32,97 @@ export default function AuthorRow({
   deliveryStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
   detailView?: boolean;
-  width?: SizeTokens;
-}) {
+};
+
+export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
   const [showProfile, setShowProfile] = useState(false);
+
+  const handlePress = useCallback(
+    (e: GestureResponderEvent) => {
+      if (props.type !== 'block') {
+        setShowProfile(true);
+        onPress?.(e);
+      }
+    },
+    [props.type, onPress]
+  );
+
+  return (
+    <>
+      {props.detailView ? (
+        <DetailViewAuthorRow {...props} onPress={handlePress} />
+      ) : props.type === 'block' ? (
+        <BlockAuthorRow {...props} onPress={handlePress} />
+      ) : props.type === 'note' ? (
+        <NotebookAuthorRow {...props} onPress={handlePress} />
+      ) : (
+        <ChatAuthorRow {...props} onPress={handlePress} />
+      )}
+      {showProfile && props.author && (
+        <ProfileSheet
+          open={showProfile}
+          contact={props.author}
+          contactId={props.authorId}
+          onOpenChange={setShowProfile}
+        />
+      )}
+    </>
+  );
+}
+
+function DetailViewAuthorRow({ authorId, ...props }: AuthorRowProps) {
+  return (
+    <XStack gap="$s" alignItems="center" {...props}>
+      <ContactAvatar size="$2xl" contactId={authorId} />
+      <ContactName width="100%" showNickname userId={authorId} />
+    </XStack>
+  );
+}
+
+function ChatAuthorRow({ authorId, sent, roles, ...props }: AuthorRowProps) {
   const timeDisplay = useMemo(() => {
     const date = new Date(sent);
     return utils.makePrettyTime(date);
   }, [sent]);
   const firstRole = roles?.[0];
 
-  if (detailView) {
-    return (
-      <XStack onPress={() => setShowProfile(true)} gap="$s" alignItems="center">
-        <Avatar size="$2xl" contact={author} contactId={authorId} />
-        <ContactName width="100%" showNickname userId={authorId} />
-        {showProfile && author && (
-          <ProfileSheet
-            open={showProfile}
-            contact={author}
-            contactId={authorId}
-            onOpenChange={setShowProfile}
-          />
-        )}
-      </XStack>
-    );
-  }
+  return (
+    <XStack gap="$l" alignItems="center" {...props}>
+      <ContactAvatar size="$2xl" contactId={authorId} />
+      <ContactName showNickname userId={authorId} fontWeight="500" />
+      <SizableText color="$secondaryText" size="$s" position="relative" top={1}>
+        {timeDisplay}
+      </SizableText>
+      {firstRole && <RoleBadge role={firstRole} />}
+    </XStack>
+  );
+}
 
-  if (type === 'chat' || type === 'reply') {
-    return (
-      <XStack onPress={() => setShowProfile(true)} gap="$l" alignItems="center">
-        <Avatar size="$2xl" contact={author} contactId={authorId} />
-        <ContactName showNickname userId={authorId} fontWeight="500" />
-        <SizableText
-          color="$secondaryText"
-          size="$s"
-          position="relative"
-          top={1}
-        >
-          {timeDisplay}
-        </SizableText>
-        {firstRole && <RoleBadge role={firstRole} />}
-        {showProfile && author && (
-          <ProfileSheet
-            open={showProfile}
-            contact={author}
-            contactId={authorId}
-            onOpenChange={setShowProfile}
-          />
-        )}
-      </XStack>
-    );
-  }
+function NotebookAuthorRow({ authorId, ...props }: AuthorRowProps) {
+  return (
+    <XStack gap="$l" alignItems="center" {...props}>
+      <ContactAvatar size="$2xl" contactId={authorId} />
+      <ContactName
+        width="100%"
+        showNickname
+        fontWeight={'500'}
+        userId={authorId}
+      />
+    </XStack>
+  );
+}
 
-  if (type === 'block') {
-    return (
-      <XStack
-        paddingHorizontal="$l"
-        width={width}
-        overflow="hidden"
-        gap="$s"
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <XStack gap="$s" alignItems="center">
-          <Avatar size="$2xl" contact={author} contactId={authorId} />
-        </XStack>
-      </XStack>
-    );
-  }
-
-  if (type === 'note') {
-    return (
-      <XStack onPress={() => setShowProfile(true)} gap="$s" alignItems="center">
-        <Avatar size="$2xl" contact={author} contactId={authorId} />
-        <ContactName width="100%" showNickname userId={authorId} />
-        {showProfile && author && (
-          <ProfileSheet
-            open={showProfile}
-            contact={author}
-            contactId={authorId}
-            onOpenChange={setShowProfile}
-          />
-        )}
-      </XStack>
-    );
-  }
-
-  console.log('AuthorRow: unknown post type');
-
-  return null;
+function BlockAuthorRow({ authorId, ...props }: AuthorRowProps) {
+  return (
+    <XStack
+      padding="$m"
+      overflow="hidden"
+      gap="$s"
+      alignItems="center"
+      justifyContent="space-between"
+      {...props}
+    >
+      <ContactAvatar size="$2xl" contactId={authorId} />
+    </XStack>
+  );
 }

@@ -745,7 +745,7 @@
       ^+  ca-core
       ?:  =(author our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
-        (send ~[`action`[%read source [%all `now.bowl]]])
+        (send ~[`action`[%read source [%all `now.bowl |]]])
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  action
         [%add %post [[author id] id] nest group.perm.perm.channel content mention]
@@ -756,7 +756,7 @@
       =/  parent-key=message-key  [[author id]:parent id.parent]
       ?:  =(author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
-        (send ~[`action`[%read source [%all `now.bowl]]])
+        (send ~[`action`[%read source [%all `now.bowl |]]])
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
