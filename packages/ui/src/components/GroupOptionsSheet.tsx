@@ -1,6 +1,7 @@
+import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { Text, View, XStack, YStack } from '../core';
 import { ActionSheet } from './ActionSheet';
@@ -41,6 +42,16 @@ export function ChatOptionsSheet({
     id: group?.id ?? channel?.groupId ?? '',
   });
 
+  useEffect(() => {
+    if (group?.id) {
+      sync.syncGroup(group.id, store.SyncPriority.High);
+    }
+
+    if (channel?.groupId) {
+      sync.syncGroup(channel.groupId, store.SyncPriority.High);
+    }
+  }, [group?.id, channel?.groupId]);
+
   const isPinned = useMemo(
     () =>
       channel
@@ -68,24 +79,29 @@ export function ChatOptionsSheet({
         action: () => (groupData ? onPressManageChannels(groupData.id) : {}),
         icon: 'ChevronRight',
       },
-      {
-        title: 'Invites & Privacy',
-        action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
-        icon: 'ChevronRight',
-      },
-      {
-        title: 'Roles',
-        action: () => (groupData ? onPressRoles(groupData.id) : {}),
-        icon: 'ChevronRight',
-      },
+      // {
+      // title: 'Invites & Privacy',
+      // action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
+      // icon: 'ChevronRight',
+      // },
+      // {
+      // title: 'Roles',
+      // action: () => (groupData ? onPressRoles(groupData.id) : {}),
+      // icon: 'ChevronRight',
+      // },
     ],
-    [groupData, onPressManageChannels, onPressInvitesAndPrivacy, onPressRoles]
+    [
+      groupData,
+      onPressManageChannels,
+      // onPressInvitesAndPrivacy,
+      // onPressRoles
+    ]
   );
 
   const actions = useMemo(
     () => [
       { title: 'Copy group reference', action: () => {}, icon: 'ArrowRef' },
-      { title: isPinned ? 'Unpin' : 'Pin', action: () => {} },
+      { title: isPinned ? 'Unpin' : 'Pin', action: () => {}, icon: 'Pin' },
       {
         title: 'Notifications',
         action: () => {},
@@ -100,7 +116,7 @@ export function ChatOptionsSheet({
     [isPinned]
   );
 
-  if (group && currentUserIsAdmin) {
+  if (group && currentUserIsAdmin && actions.length === 4) {
     // we want to show the admin actions before leave group and notifications
     actions.splice(actions.length - 2, 0, ...adminActions);
   }

@@ -1,5 +1,6 @@
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
+import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
@@ -12,7 +13,11 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     id: groupId,
   });
 
-  const group = groupQuery.data;
+  useEffect(() => {
+    sync.syncGroup(groupId, store.SyncPriority.High);
+  }, [groupId]);
+
+  const group = groupQuery.data ?? null;
 
   const uploadInfo = useImageUpload({
     uploaderKey: `group-${groupId}`,
@@ -54,10 +59,19 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const setGroupMetadata = useCallback(
     async (metadata: db.ClientMeta) => {
       if (group) {
-        await store.updateGroup({
+        await store.updateGroupMeta({
           ...group,
           ...metadata,
         });
+      }
+    },
+    [group]
+  );
+
+  const moveNavSection = useCallback(
+    async (navSectionId: string, newIndex: number) => {
+      if (group) {
+        await store.moveNavSection(group, navSectionId, newIndex);
       }
     },
     [group]
@@ -79,19 +93,43 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     }
   }, [group]);
 
+  const { data: currentChatData } = store.useCurrentChats();
+
   const createChannel = useCallback(
-    async (channel: db.Channel) => {
+    async ({
+      title,
+      description,
+      channelType,
+    }: {
+      title: string;
+      description: string;
+      channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+    }) => {
+      const { name, id } = assembleNewChannelIdAndName({
+        title,
+        channelType,
+        currentChatData,
+        currentUserId,
+      });
+
       if (group) {
-        // await store.createChannel(group.id, channel);
+        await store.createChannel({
+          groupId: group.id,
+          name,
+          channelId: id,
+          title,
+          description,
+          channelType,
+        });
       }
     },
-    [group]
+    [group, currentUserId, currentChatData]
   );
 
   const deleteChannel = useCallback(
     async (channelId: string) => {
       if (group) {
-        // await store.deleteChannel(group.id, channelId);
+        store.deleteChannel({ groupId: group.id, channelId });
       }
     },
     [group]
@@ -99,17 +137,29 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   const updateChannel = useCallback(
     async (channel: db.Channel) => {
-      if (group) {
-        // await store.updateChannel(group.id, channel);
+      const navSection = groupNavSections.find((section) =>
+        section.channels.map((c) => c.channelId).includes(channel.id)
+      );
+
+      if (!navSection || !group) {
+        return;
       }
+
+      await store.updateChannel({
+        groupId: group.id,
+        channel,
+        sectionId: navSection.sectionId,
+        readers: channel.readerRoles?.map((r) => r.roleId) ?? [],
+        join: true,
+      });
     },
-    [group]
+    [group, groupNavSections]
   );
 
   const createNavSection = useCallback(
-    async (navSection: db.GroupNavSection) => {
+    async ({ title }: { title: string }) => {
       if (group) {
-        // await store.createNavSection(group.id, navSection);
+        await store.addNavSection(group, { title });
       }
     },
     [group]
@@ -118,7 +168,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const deleteNavSection = useCallback(
     async (navSectionId: string) => {
       if (group) {
-        // await store.deleteNavSection(group.id, navSectionId);
+        await store.deleteNavSection(group, navSectionId);
       }
     },
     [group]
@@ -127,25 +177,37 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const updateNavSection = useCallback(
     async (navSection: db.GroupNavSection) => {
       if (group) {
-        // await store.updateNavSection(group.id, navSection);
-      }
-    },
-    [group]
-  );
-
-  const setChannelOrder = useCallback(
-    async (channelIds: string[], navSectionId: string) => {
-      if (group) {
-        // await store.setChannelOrder(group.id, channelIds);
+        await store.updateNavSection({
+          navSection,
+          group,
+        });
       }
     },
     [group]
   );
 
   const moveChannel = useCallback(
+    async (channelId: string, navSectionId: string, index: number) => {
+      if (group) {
+        await store.moveChannel({
+          group,
+          channelId,
+          navSectionId,
+          index,
+        });
+      }
+    },
+    [group]
+  );
+
+  const moveChannelToNavSection = useCallback(
     async (channelId: string, navSectionId: string) => {
       if (group) {
-        // await store.moveChannel(group.id, channelId, navSectionId);
+        await store.addChannelToNavSection({
+          group,
+          channelId,
+          navSectionId,
+        });
       }
     },
     [group]
@@ -229,12 +291,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
-  useEffect(() => {
-    if (group) {
-      sync.syncGroup(group.id);
-    }
-  }, [group, group?.id]);
-
   return {
     group,
     uploadInfo,
@@ -254,8 +310,9 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     createNavSection,
     deleteNavSection,
     updateNavSection,
-    setChannelOrder,
+    moveNavSection,
     moveChannel,
+    moveChannelToNavSection,
     inviteUsers,
     getPublicInviteUrl,
     createGroupRole,
