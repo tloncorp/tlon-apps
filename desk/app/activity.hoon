@@ -558,23 +558,42 @@
     (refresh-index source index(items.reads read-items) &)
   ::
       %all
+    ?:  !deep.action
+      =/  new=index:a
+        ::  take every event between the floor and now, and put it into
+        ::  the index's items.reads. this way, the floor can be moved
+        ::  without "losing" any unreads, and the call to +refresh-index
+        ::  below will clean up unnecessary items.reads entries.
+        ::
+        =-  index(items.reads -)
+        %+  gas:on-read-items:a  *read-items:a
+        %+  murn
+          %-  tap:on-event:a
+          (lot:on-event:a stream.index `floor.reads.index ~)
+        |=  [=time =event:a]
+        ?:  child.event  ~
+        `[time ~]
+      ::  we need to refresh our own index to reflect new reads
+      =.  cor  (refresh-index source new &)
+      ::  since we're not marking deep, we already have the items to
+      ::  send up to parents
+      %+  propagate-read-items  source
+      (tap:on-read-items:a items.reads.new)
+    ::
+    ::  marking read "deeply"
+    ::
     =/  new=index:a
-      ::  if we're only marking at our level, then we only want to grab
-      ::  read items from our level, because we can't move the floor in
-      ::  case children have older unread items
-      ?:  !deep.action
-        =-  index(items.reads (malt -))
-        (get-reads-from-stream stream.index `floor.reads.index ~ &)
-      ::  otherwise, we can short circuit and just mark everything read,
-      ::  because we're going to also mark all children read
+      ::  we can short circuit and just mark everything read, because
+      ::  we're going to also mark all children read
       =-  index(reads [- ~])
       ?^  time.action  u.time.action
       =/  latest=(unit [=time event:a])
         (ram:on-event:a stream.index)
       ?~(latest now.bowl time.u.latest)
-    ::  if we're marking deep then we need to recursively read all children
-    =?  cor  deep.action
-      =/  children  (get-children indices source)
+    ::  since we're marking deeply we need to recursively read all
+    ::  children
+    =.  cor
+      =/  children  (get-children source)
       |-
       ?~  children  cor
       =/  =source:a  i.children
@@ -582,21 +601,19 @@
       $(children t.children)
     ::  we need to refresh our own index to reflect new reads
     =.  cor  (refresh-index source new &)
-    ::  if this isn't a recursive read, we need to propagate the new read
-    ::  items up the tree so that parents can keep accurate counts
-    =?  cor  !from-parent
-      %+  propagate-read-items  source
-      ::  if we're not marking deep, we already have the items to send up
-      ?:  !deep.action  (tap:on-read-items:a items.reads.new)
-      ::  if not, we need to generate the new items based on the floor
-      ::  we just came up with
-      %-  get-reads-from-stream
-      :*  stream.index
-          `floor.reads.index
-          ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
-          |
-      ==
-    cor
+    ::  if this isn't a recursive read (see 4 lines above), we need to
+    ::  propagate the new read items up the tree so that parents can
+    ::  keep accurate counts, otherwise we can no-op
+    ?:  from-parent  cor
+    %+  propagate-read-items  source
+    ::  if not, we need to generate the new items based on the floor
+    ::  we just came up with
+    %-  get-reads-from-stream
+    :*  stream.index
+        `floor.reads.index
+        ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
+        |
+    ==
   ==
 ::
 ++  propagate-read-items

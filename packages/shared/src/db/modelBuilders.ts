@@ -8,8 +8,55 @@ import {
 } from '../api/apiUtils';
 import * as db from '../db';
 import * as logic from '../logic';
+import { convertToAscii } from '../logic';
+import { CurrentChats } from '../store';
 import * as ub from '../urbit';
+import { getChannelKindFromType } from '../urbit';
 import * as types from './types';
+
+export function assembleNewChannelIdAndName({
+  title,
+  channelType,
+  currentChatData,
+  currentUserId,
+}: {
+  title: string;
+  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+  currentChatData?: CurrentChats | null;
+  currentUserId: string;
+}) {
+  const existingChannels = [
+    ...(currentChatData?.pendingChats ?? []),
+    ...(currentChatData?.pinned ?? []),
+    ...(currentChatData?.unpinned ?? []),
+  ];
+
+  const titleIsNumber = Number.isInteger(Number(title));
+  // we need unique channel names that are valid for urbit's @tas type
+  const tempChannelName = titleIsNumber
+    ? `channel-${title}`
+    : convertToAscii(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
+  // @ts-expect-error this is fine
+  const channelKind = getChannelKindFromType(channelType);
+  const tempNewChannelFlag = `${channelKind}/${currentUserId}/${tempChannelName}`;
+  const existingChannel = () => {
+    return existingChannels.find(
+      (channel) => channel.id === tempNewChannelFlag
+    );
+  };
+
+  const randomSmallNumber = Math.floor(Math.random() * 100);
+  const channelName = existingChannel()
+    ? `${tempChannelName}-${randomSmallNumber}`
+    : tempChannelName;
+  const newChannelFlag = `${currentUserId}/${channelName}`;
+  const newChannelNest = `${channelType}/${newChannelFlag}`;
+
+  return {
+    name: channelName,
+    id: newChannelNest,
+  };
+}
 
 export function assembleParentPostFromActivityEvent(event: db.ActivityEvent) {
   if (!['post', 'reply'].includes(event.type)) {

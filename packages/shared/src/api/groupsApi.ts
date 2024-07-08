@@ -3,6 +3,7 @@ import { createDevLogger } from '../debug';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
+  GroupChannel,
   Rank,
   extractGroupPrivacy,
   getChannelType,
@@ -11,7 +12,7 @@ import {
 import { toClientMeta } from './apiUtils';
 import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
-const logger = createDevLogger('groupsApi', false);
+const logger = createDevLogger('groupsApi', true);
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -187,7 +188,7 @@ export const getGroups = async (
   return toClientGroups(groupData, true);
 };
 
-export const updateGroup = async ({
+export const updateGroupMeta = async ({
   groupId,
   meta,
 }: {
@@ -247,6 +248,311 @@ export const deleteGroup = async (groupId: string) => {
   );
 };
 
+export const addNavSection = async ({
+  groupId,
+  navSection,
+}: {
+  groupId: string;
+  navSection: db.GroupNavSection;
+}) => {
+  return await trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-action-3',
+      json: {
+        flag: groupId,
+        update: {
+          time: '',
+          diff: {
+            zone: {
+              zone: navSection.sectionId,
+              delta: {
+                add: {
+                  title: navSection.title,
+                  description: navSection.description ?? '',
+                  image:
+                    navSection.iconImage ?? navSection.coverImageColor ?? '',
+                  cover:
+                    navSection.coverImage ?? navSection.coverImageColor ?? '',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return 'zone' in update.diff && event.flag === groupId;
+    }
+  );
+};
+
+export const deleteNavSection = async ({
+  sectionId,
+  groupId,
+}: {
+  sectionId: string;
+  groupId: string;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          zone: {
+            zone: sectionId,
+            delta: {
+              del: null,
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const updateNavSection = async ({
+  groupId,
+  navSection,
+}: {
+  groupId: string;
+  navSection: db.GroupNavSection;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          zone: {
+            zone: navSection.sectionId,
+            delta: {
+              edit: {
+                title: navSection.title,
+                description: navSection.description,
+                image: navSection.iconImage ?? navSection.coverImageColor ?? '',
+                cover:
+                  navSection.coverImage ?? navSection.coverImageColor ?? '',
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const moveNavSection = async ({
+  groupId,
+  navSectionId,
+  index,
+}: {
+  groupId: string;
+  navSectionId: string;
+  index: number;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          zone: {
+            zone: navSectionId,
+            delta: {
+              mov: index,
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const addChannelToNavSection = async ({
+  groupId,
+  navSectionId,
+  channelId,
+}: {
+  groupId: string;
+  navSectionId: string;
+  channelId: string;
+}) => {
+  logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
+  return await trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-action-3',
+      json: {
+        flag: groupId,
+        update: {
+          time: '',
+          diff: {
+            channel: {
+              nest: channelId,
+              diff: {
+                zone: navSectionId,
+              },
+            },
+          },
+        },
+      },
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+    }
+  );
+};
+
+export const addChannelToGroup = async ({
+  channelId,
+  groupId,
+  sectionId,
+}: {
+  channelId: string;
+  groupId: string;
+  sectionId: string;
+}) => {
+  return await trackedPoke<ub.GroupAction>(
+    {
+      app: 'groups',
+      mark: 'group-action-3',
+      json: {
+        flag: groupId,
+        update: {
+          time: '',
+          diff: {
+            channel: {
+              nest: channelId,
+              diff: {
+                zone: sectionId,
+              },
+            },
+          },
+        },
+      },
+    },
+    { app: 'groups', path: '/groups/ui' },
+    (event) => {
+      if (!('update' in event)) {
+        return false;
+      }
+
+      const { update } = event;
+      return 'channel' in update.diff && update.diff.channel.nest === channelId;
+    }
+  );
+};
+
+export const updateChannel = async ({
+  groupId,
+  channelId,
+  channel,
+}: {
+  groupId: string;
+  channelId: string;
+  channel: GroupChannel;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          channel: {
+            nest: channelId,
+            diff: {
+              edit: channel,
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const deleteChannel = async ({
+  groupId,
+  channelId,
+}: {
+  groupId: string;
+  channelId: string;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          channel: {
+            nest: channelId,
+            diff: {
+              del: null,
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
+export const moveChannel = async ({
+  groupId,
+  channelId,
+  navSectionId,
+  index,
+}: {
+  groupId: string;
+  channelId: string;
+  navSectionId: string;
+  index: number;
+}) => {
+  return await poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          zone: {
+            zone: navSectionId,
+            delta: {
+              'mov-nest': {
+                nest: channelId,
+                idx: index,
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
 export type GroupDelete = {
   type: 'deleteGroup';
   groupId: string;
@@ -293,11 +599,13 @@ export type GroupChannelNavSectionAdd = {
   type: 'addChannelToNavSection';
   channelId: string;
   navSectionId: string;
+  sectionId: string;
 };
 
 export type GroupNavSectionAdd = {
   type: 'addNavSection';
   navSectionId: string;
+  sectionId: string;
   groupId: string;
   clientMeta: db.ClientMeta;
 };
@@ -310,18 +618,21 @@ export type GroupNavSectionDelete = {
 export type GroupNavSectionEdit = {
   type: 'editNavSection';
   navSectionId: string;
+  sectionId: string;
   clientMeta: db.ClientMeta;
 };
 
 export type GroupNavSectionMove = {
   type: 'moveNavSection';
   navSectionId: string;
+  sectionId: string;
   index: number;
 };
 
 export type GroupnavSectionMoveChannel = {
   type: 'moveChannel';
   navSectionId: string;
+  sectionId: string;
   channelId: string;
   index: number;
 };
@@ -691,25 +1002,28 @@ export const toGroupUpdate = (
 
   if ('zone' in updateDiff) {
     const zoneDelta = updateDiff.zone.delta;
-    const zoneId = updateDiff.zone.zone;
+    const sectionId = updateDiff.zone.zone;
+    const navSectionId = `${groupId}-${sectionId}`;
 
     if ('add' in zoneDelta) {
       return {
         type: 'addNavSection',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         groupId,
         clientMeta: toClientMeta(zoneDelta.add),
       };
     }
 
     if ('del' in zoneDelta) {
-      return { type: 'deleteNavSection', navSectionId: zoneId };
+      return { type: 'deleteNavSection', navSectionId };
     }
 
     if ('edit' in zoneDelta) {
       return {
         type: 'editNavSection',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         clientMeta: toClientMeta(zoneDelta.edit),
       };
     }
@@ -717,7 +1031,8 @@ export const toGroupUpdate = (
     if ('mov' in zoneDelta) {
       return {
         type: 'moveNavSection',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         index: zoneDelta.mov,
       };
     }
@@ -725,7 +1040,8 @@ export const toGroupUpdate = (
     if ('mov-nest' in zoneDelta) {
       return {
         type: 'moveChannel',
-        navSectionId: zoneId,
+        navSectionId,
+        sectionId,
         channelId: zoneDelta['mov-nest'].nest,
         index: zoneDelta['mov-nest'].idx,
       };
@@ -783,7 +1099,8 @@ export const toGroupUpdate = (
       return {
         type: 'addChannelToNavSection',
         channelId,
-        navSectionId: zoneId,
+        navSectionId: `${groupId}-${zoneId}`,
+        sectionId: zoneId,
       };
     }
   }
@@ -876,15 +1193,16 @@ export function toClientGroup(
           return;
         }
         const data: db.GroupNavSection = {
-          id: zoneId,
+          id: `${id}-${zoneId}`,
+          sectionId: zoneId,
           groupId: id,
           ...toClientMeta(zone.meta),
-          index: i,
+          sectionIndex: i,
           channels: zone.idx.map((channelId, ci) => {
             const data: db.GroupNavSectionChannel = {
-              index: ci,
+              channelIndex: ci,
               channelId: channelId,
-              groupNavSectionId: zoneId,
+              groupNavSectionId: `${id}-${zoneId}`,
             };
             return data;
           }),

@@ -72,3 +72,5 @@ export { default as Settings } from './Settings.svg';
 export { default as Stop } from './Stop.svg';
 export { default as TBlock } from './TBlock.svg';
 export { default as Mute } from './Mute.svg';
+export { default as ChannelDM } from './ChannelDM.svg';
+export { default as ChannelMultiDM } from './ChannelMultiDM.svg';

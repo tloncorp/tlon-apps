@@ -1,11 +1,11 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
-import { TouchableOpacity } from 'react-native';
-import { Linking } from 'react-native';
+import { Linking, TouchableOpacity } from 'react-native';
 
 import { useCalm } from '../../contexts';
-import { Image, Text } from '../../core';
+import { ImageWithFallback, SizableText, View } from '../../core';
 import { PostViewMode } from '../ContentRenderer';
 import { AudioEmbed, OutsideEmbed, VideoEmbed } from '../Embed';
+import { Icon } from '../Icon';
 
 const trustedProviders = [
   {
@@ -60,12 +60,20 @@ export default function ChatEmbedContent({
           onLongPress={onLongPress}
           activeOpacity={0.9}
         >
-          <Image
+          <ImageWithFallback
             source={{
               uri: url,
             }}
             borderRadius="$m"
             width={200}
+            fallback={
+              <View width={200} alignItems="center" justifyContent="center">
+                <Icon type="Placeholder" color="$tertiaryText" />
+                <SizableText color="$tertiaryText">
+                  Unable to load image
+                </SizableText>
+              </View>
+            }
             backgroundColor={'$secondaryBackground'}
           />
         </TouchableOpacity>
@@ -82,13 +90,12 @@ export default function ChatEmbedContent({
   }
 
   return (
-    <Text
+    <SizableText
       textDecorationLine="underline"
-      fontSize={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
-      lineHeight="$m"
+      size={viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'}
       onPress={openLink}
     >
-      {content}
-    </Text>
+      {content || url}
+    </SizableText>
   );
 }

@@ -403,10 +403,11 @@ export const insertGroups = createWriteQuery(
             .values(
               group.navSections.map((s) => ({
                 id: s.id,
+                sectionId: s.sectionId,
                 groupId: group.id,
                 title: s.title,
                 description: s.description,
-                index: s.index,
+                sectionIndex: s.sectionIndex,
               }))
             )
             .onConflictDoUpdate({
@@ -427,7 +428,7 @@ export const insertGroups = createWriteQuery(
               .insert($groupNavSectionChannels)
               .values(
                 navSectionChannels.map((s) => ({
-                  index: s?.index,
+                  channelIndex: s?.channelIndex,
                   groupNavSectionId: s?.groupNavSectionId,
                   channelId: s?.channelId,
                 }))
@@ -1130,8 +1131,8 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
   async (
     { id }: GetChannelWithLastPostAndMembersOptions,
     ctx: QueryCtx
-  ): Promise<Channel | undefined> => {
-    return await ctx.db.query.channels.findFirst({
+  ): Promise<Channel | null> => {
+    const result = await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
         lastPost: true,
@@ -1148,6 +1149,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
         },
       },
     });
+    return returnNullIfUndefined(result);
   },
   ['channels']
 );
@@ -1245,19 +1247,24 @@ export const addNavSectionToGroup = createWriteQuery(
   async (
     {
       id,
+      sectionId,
       groupId,
       meta,
     }: {
       id: string;
+      sectionId: string;
       groupId: string;
       meta: ClientMeta;
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addNavSectionToGroup', id, sectionId, groupId, meta);
+
     return ctx.db
       .insert($groupNavSections)
       .values({
         id,
+        sectionId: sectionId,
         title: meta.title,
         description: meta.description,
         iconImage: meta.iconImage,
@@ -1280,6 +1287,7 @@ export const updateNavSection = createWriteQuery(
     navSection: Partial<GroupNavSection> & { id: string },
     ctx: QueryCtx
   ) => {
+    logger.log('updateNavSection', navSection);
     return ctx.db
       .update($groupNavSections)
       .set(navSection)
@@ -1312,12 +1320,13 @@ export const addChannelToNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
     return ctx.db
       .insert($groupNavSectionChannels)
       .values({
         channelId,
         groupNavSectionId,
-        index,
+        channelIndex: index,
       })
       .onConflictDoNothing();
   },
@@ -1336,6 +1345,7 @@ export const deleteChannelFromNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('deleteChannelFromNavSection', channelId, groupNavSectionId);
     return ctx.db
       .delete($groupNavSectionChannels)
       .where(
@@ -2234,7 +2244,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads', 'volumeSettings']
+  ['groups', 'channelUnreads', 'volumeSettings', 'channels']
 );
 
 export const getGroupByChannel = createReadQuery(

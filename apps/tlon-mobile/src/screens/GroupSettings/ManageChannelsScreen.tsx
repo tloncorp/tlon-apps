@@ -1,6 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Text } from '@tloncorp/ui';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ManageChannelsScreenView } from '@tloncorp/ui';
 
 import { GroupSettingsStackParamList } from '../../types';
 import { useGroupContext } from './useGroupContext';
@@ -14,22 +13,30 @@ export function ManageChannelsScreen(props: ManageChannelsScreenProps) {
   const { groupId } = props.route.params;
 
   const {
-    group,
-    currentUserIsAdmin,
-    groupChannels,
     groupNavSectionsWithChannels,
-    setGroupMetadata,
-    setGroupPrivacy,
+    moveNavSection,
+    moveChannel,
+    moveChannelToNavSection,
     createChannel,
-    deleteChannel,
     createNavSection,
     deleteNavSection,
     updateNavSection,
   } = useGroupContext({ groupId });
 
   return (
-    <SafeAreaView>
-      <Text>ManageChannels</Text>
-    </SafeAreaView>
+    <ManageChannelsScreenView
+      goBack={props.navigation.goBack}
+      goToEditChannel={(channelId) => {
+        props.navigation.navigate('EditChannel', { groupId, channelId });
+      }}
+      groupNavSectionsWithChannels={groupNavSectionsWithChannels}
+      moveNavSection={moveNavSection}
+      moveChannelWithinNavSection={moveChannel}
+      moveChannelToNavSection={moveChannelToNavSection}
+      createChannel={createChannel}
+      createNavSection={createNavSection}
+      deleteNavSection={deleteNavSection}
+      updateNavSection={updateNavSection}
+    />
   );
 }

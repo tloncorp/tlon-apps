@@ -54,11 +54,13 @@ export function getTabPath(ogPath: string, locationPath: string) {
   const isActive = (path: string) => locationPath.startsWith(path);
 
   let path = ogPath;
+  const groupsOnly =
+    path.includes('channels/diary') || path.includes('channels/heap');
   if (isActive('/groups') || location.pathname === '/') {
     path = path.replace(/^\/dm/, '');
   }
 
-  if (isActive('/messages') || isActive('/dm')) {
+  if ((isActive('/messages') || isActive('/dm')) && !groupsOnly) {
     path = path.replace(/^\/groups/, '/dm/groups');
   }
 
