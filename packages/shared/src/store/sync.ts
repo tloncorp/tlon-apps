@@ -158,9 +158,11 @@ export const syncContacts = async (priority = SyncPriority.Medium) => {
 };
 
 export const syncPinnedItems = async (priority = SyncPriority.Medium) => {
+  logger.log('syncing pinned items');
   const pinnedItems = await syncQueue.add('pinnedItems', priority, () =>
     api.getPinnedItems()
   );
+  logger.log('got pinned items from api', pinnedItems.length);
   await db.insertPinnedItems(pinnedItems);
 };
 
