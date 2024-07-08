@@ -11,7 +11,7 @@ import { GenericHeader } from '../GenericHeader';
 interface EditChannelScreenViewProps {
   goBack: () => void;
   isLoading: boolean;
-  channel?: db.Channel;
+  channel?: db.Channel | null;
   onSubmit: (title: string, description?: string) => void;
   onDeleteChannel: () => void;
 }
