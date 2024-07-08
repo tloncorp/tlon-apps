@@ -552,8 +552,7 @@
                   %dm-post  (dm-path whom.event)
                 ::
                     %dm-reply
-                  ::REVIEW
-                  (weld (dm-path whom.event) /(rsh 4 (scot %ui time.key.event)))
+                  (weld (dm-path whom.event) /message/(scot %p p.id.parent.event)/(scot %ud q.id.parent.event))
                 ::
                   %group-ask     (weld (group-path group.event) /edit/members)
                   %group-invite  /find
@@ -774,6 +773,7 @@
     :~  identity+(rsh [3 1] (scot %p who))
         action+`@t`action.update
         uid+(scot %uv uid.update)
+        id+(scot %da uid.update)
     ==
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))

@@ -1340,7 +1340,7 @@
           =*  op  writ.u.entry
           =/  new-yarn
             %^  cu-spin
-              /(rsh 4 (scot %ui time.u.entry))
+              /message/(scot %p p.id.op)/(scot %ud q.id.op)
               :~  [%ship author.memo]  ' replied to '
                   [%emph (flatten:utils content.op)]  ': '
                   [%ship author.memo]  ': '
@@ -1697,7 +1697,7 @@
         ?~  entry  (di-give-writs-diff diff)
         =*  op  writ.u.entry
         =/  new-yarn
-          %^  di-spin  /(rsh 4 (scot %ui time.u.entry))
+          %^  di-spin  /message/(scot %p p.id.op)/(scot %ud q.id.op)
             :~  [%ship author.memo]  ' replied to '
                 [%emph (flatten:utils content.op)]  ': '
                 [%ship author.memo]  ': '
