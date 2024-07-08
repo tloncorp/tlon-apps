@@ -858,8 +858,42 @@ export default function ContentRenderer({
     [blocks]
   );
 
-  if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
+  if (!story) {
     return null;
+  }
+
+  if (shortened) {
+    return (
+      <YStack width="100%">
+        {post.type === 'note' && post.image ? (
+          <Image
+            source={{ uri: post.image }}
+            aspectRatio={16 / 9}
+            width="100%"
+            backgroundColor="$secondaryBackground"
+          />
+        ) : null}
+        {post.type === 'note' && post.title ? (
+          <HeaderText
+            serif
+            header={{
+              header: {
+                tag: 'h1',
+                content: [post.title],
+              },
+            }}
+          />
+        ) : null}
+        <LineRenderer
+          inlines={shortenedInlines}
+          isNotice={isNotice}
+          onPressImage={onPressImage}
+          onLongPress={onLongPress}
+          viewMode={viewMode}
+          serif
+        />
+      </YStack>
+    );
   }
 
   if (post.type === 'note' && story) {
@@ -896,14 +930,14 @@ export default function ContentRenderer({
 
   return (
     <YStack width="100%">
-      {!shortened && references.length > 0 ? (
+      {references.length > 0 ? (
         <YStack gap="$s" paddingBottom="$l">
           {references.map((ref, key) => {
             return <ContentReference key={key} reference={ref} />;
           })}
         </YStack>
       ) : null}
-      {!shortened && blocks.length > 0 ? (
+      {blocks.length > 0 ? (
         <YStack>
           {blockContent
             .filter((a) => !!a)
@@ -923,7 +957,7 @@ export default function ContentRenderer({
         {inlines.length > 0 ? (
           <View flexGrow={1} flexShrink={1}>
             <LineRenderer
-              inlines={shortened ? shortenedInlines : inlines}
+              inlines={inlines}
               isNotice={isNotice}
               onPressImage={onPressImage}
               onLongPress={onLongPress}
