@@ -14,6 +14,7 @@ fakeGroup.channels[fakeNest] = createChannel('Fake Channel');
 const fakeVessel = fakeGroup.fleet['~hastuc-dibtux'];
 
 vi.mock('@/state/groups', () => ({
+  useAmAdmin: () => true,
   useGroup: () => fakeGroup,
   useRouteGroup: () => fakeFlag,
   useGroupFlag: () => fakeFlag,

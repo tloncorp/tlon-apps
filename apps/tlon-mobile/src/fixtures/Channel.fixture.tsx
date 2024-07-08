@@ -1,6 +1,7 @@
 import {
   useChannel,
   useGroupPreview,
+  usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
@@ -100,6 +101,7 @@ export const ChannelFixture = (props: {
         uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useChannel={useChannel}
         useGroup={useGroupPreview}
         onGroupAction={() => {}}
@@ -140,6 +142,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useChannel={useChannel}
         useGroup={useGroupPreview}
         onGroupAction={() => {}}
@@ -201,6 +204,7 @@ const ChannelFixtureWithImage = () => {
         }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useChannel={useChannel}
         getDraft={async () => ({})}
         storeDraft={() => {}}

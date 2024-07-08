@@ -1,7 +1,7 @@
 import { GroupChannel } from '@tloncorp/shared/dist/urbit/groups';
+import { getPrettyAppName } from '@tloncorp/shared/src/logic/utils';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import useActiveTab, { useNavWithinTab } from '@/components/Sidebar/util';
@@ -13,32 +13,25 @@ import { useIsChannelHost } from '@/logic/channel';
 import { Status } from '@/logic/status';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
+import { useMarkReadMutation } from '@/state/activity';
+import { useLeaveMutation } from '@/state/channel/channel';
 import { useDeleteChannelMutation, useRouteGroup } from '@/state/groups';
 
 import ChannelHostConnection from './ChannelHostConnection';
 
 export type ChannelActionsProps = PropsWithChildren<{
   nest: string;
-  prettyAppName: string;
   channel: GroupChannel | undefined;
   isAdmin: boolean | undefined;
-  leave: ({ nest }: { nest: string }) => Promise<void>;
   className?: string;
 }>;
 
 const ChannelActions = React.memo(
-  ({
-    nest,
-    prettyAppName,
-    channel,
-    isAdmin,
-    leave,
-    className,
-    children,
-  }: ChannelActionsProps) => {
+  ({ nest, channel, isAdmin, className, children }: ChannelActionsProps) => {
     const { navigate } = useNavWithinTab();
     const isMobile = useIsMobile();
     const [_app, flag] = nestToFlag(nest);
+    const prettyAppName = getPrettyAppName(_app);
     const groupFlag = useRouteGroup();
     const { ship, name } = getFlagParts(groupFlag);
     const [isOpen, setIsOpen] = useState(false);
@@ -47,7 +40,9 @@ const ChannelActions = React.memo(
     const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
     const [showNotifications, setShowNotifications] = useState(false);
     const isChannelHost = useIsChannelHost(flag);
+    const { mutate: markRead } = useMarkReadMutation(true);
     const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
+    const { mutate: leave } = useLeaveMutation();
     const hasChildren = !!children;
     const activeTab = useActiveTab();
 
@@ -128,6 +123,14 @@ const ChannelActions = React.memo(
         ),
       });
     }
+
+    actions.push({
+      key: 'mark-read',
+      type: 'prominent',
+      onClick: () =>
+        markRead({ source: { channel: { nest, group: groupFlag } } }),
+      content: 'Mark as Read',
+    });
 
     actions.push({
       key: 'notifications',

@@ -5,10 +5,15 @@ import * as store from '@tloncorp/shared/dist/store';
 import {
   useChannel,
   useGroupPreview,
+  usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist/store';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
+import {
+  Channel,
+  ChannelSwitcherSheet,
+  INITIAL_POSTS_PER_PAGE,
+} from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
 
 import type { RootStackParamList } from '../types';
@@ -99,7 +104,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       ? {
           mode: 'around',
           cursor,
-          firstPageCount: 10,
+          firstPageCount: INITIAL_POSTS_PER_PAGE,
         }
       : {
           mode: 'newest',
@@ -183,6 +188,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onPressRef={navigateToRef}
         markRead={handleMarkRead}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}
         useChannel={useChannel}

@@ -23,7 +23,6 @@ export default function NotebookDetailView({
   clearDraft,
   getDraft,
   goBack,
-  markRead,
 }: DetailViewProps) {
   const handleImagePressed = useCallback(() => {
     if (post.image) {
@@ -51,7 +50,6 @@ export default function NotebookDetailView({
       clearDraft={clearDraft}
       getDraft={getDraft}
       goBack={goBack}
-      markRead={markRead}
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         {post.image && (

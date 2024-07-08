@@ -7,11 +7,13 @@ import ReferenceSkeleton from './ReferenceSkeleton';
 export default function ChannelReference({
   channelId,
   postId,
+  replyId,
   asAttachment = false,
   viewMode = 'chat',
 }: {
   channelId: string;
   postId: string;
+  replyId?: string;
   asAttachment?: boolean;
   viewMode?: PostViewMode;
 }) {
@@ -24,6 +26,7 @@ export default function ChannelReference({
         viewMode={viewMode}
         channelId={channelId}
         postId={postId}
+        replyId={replyId}
       />
     );
   }

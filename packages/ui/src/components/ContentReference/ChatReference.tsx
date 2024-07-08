@@ -13,7 +13,7 @@ export default function ChatReference({
   asAttachment = false,
   viewMode = 'chat',
 }: {
-  channel: db.Channel;
+  channel?: db.Channel;
   post: db.Post;
   onPress: (channel: db.Channel, post: db.Post) => void;
   asAttachment?: boolean;

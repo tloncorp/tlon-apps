@@ -186,6 +186,21 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
 
+export async function syncPostReference(options: {
+  postId: string;
+  channelId: string;
+  replyId?: string;
+}) {
+  // We exclude this from the sync queue as these operations can take quite a
+  // while; they're also not blocking as we're just waiting on a subscription
+  // event.
+  const response = await api.getPostReference(options);
+  await db.insertChannelPosts({
+    channelId: options.channelId,
+    posts: [response],
+  });
+}
+
 export async function syncThreadPosts(
   {
     postId,

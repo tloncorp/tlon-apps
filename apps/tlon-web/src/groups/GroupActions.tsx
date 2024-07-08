@@ -19,6 +19,7 @@ import {
   preSig,
   useCopy,
 } from '@/logic/utils';
+import { useMarkReadMutation } from '@/state/activity';
 import {
   useAmAdmin,
   useGang,
@@ -123,6 +124,7 @@ const GroupActions = React.memo(
     const privacy = group ? getPrivacyFromGroup(group) : undefined;
     const isAdmin = useAmAdmin(flag);
     const isMobile = useIsMobile();
+    const { mutate: markRead } = useMarkReadMutation(true);
     const { mutate: cancelJoinMutation } = useGroupCancelMutation();
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
       useGroupActions({ flag, open, onOpenChange });
@@ -179,6 +181,15 @@ const GroupActions = React.memo(
         ),
       });
     }
+
+    actions.push({
+      key: 'mark-read',
+      type: 'prominent',
+      onClick: () => {
+        markRead({ source: { group: flag } });
+      },
+      content: 'Mark as Read',
+    });
 
     if (isAdmin) {
       actions.push({
