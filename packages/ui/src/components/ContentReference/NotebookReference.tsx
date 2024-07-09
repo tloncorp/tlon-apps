@@ -6,7 +6,7 @@ import ContactName from '../ContactName';
 import ContentRenderer, { PostViewMode } from '../ContentRenderer';
 import { Reference } from './Reference';
 
-export default function ChatReference({
+export default function NotebookReference({
   channel,
   post,
   onPress,
@@ -51,11 +51,7 @@ export default function ChatReference({
         <Reference.Icon type="ArrowRef" />
       </Reference.Header>
       <Reference.Body>
-        <ContentRenderer
-          viewMode={viewMode}
-          shortened={asAttachment || viewMode === 'block'}
-          post={post}
-        />
+        <ContentRenderer viewMode={viewMode} shortened={true} post={post} />
       </Reference.Body>
     </Reference>
   );

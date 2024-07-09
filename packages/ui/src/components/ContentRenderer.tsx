@@ -851,16 +851,33 @@ export default function ContentRenderer({
   if (shortened) {
     return (
       <YStack width="100%">
-        {shortenedInlines.length > 0 ? (
-          <LineRenderer
-            inlines={shortenedInlines}
-            isNotice={isNotice}
-            onPressImage={onPressImage}
-            onLongPress={onLongPress}
-            viewMode={viewMode}
-            serif
+        {post.type === 'note' && post.image ? (
+          <Image
+            source={{ uri: post.image }}
+            aspectRatio={16 / 9}
+            width="100%"
+            backgroundColor="$secondaryBackground"
           />
         ) : null}
+        {post.type === 'note' && post.title ? (
+          <HeaderText
+            serif
+            header={{
+              header: {
+                tag: 'h1',
+                content: [post.title],
+              },
+            }}
+          />
+        ) : null}
+        <LineRenderer
+          inlines={shortenedInlines}
+          isNotice={isNotice}
+          onPressImage={onPressImage}
+          onLongPress={onLongPress}
+          viewMode={viewMode}
+          serif={post.type === 'note'}
+        />
       </YStack>
     );
   }
