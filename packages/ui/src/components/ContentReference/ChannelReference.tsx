@@ -33,7 +33,6 @@ export default function ChannelReference({
   }
 
   if (channelType === 'notebook') {
-    // TODO: Implement notebook reference
     return (
       <NotebookReferenceWrapper
         asAttachment={asAttachment}
