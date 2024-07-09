@@ -16,8 +16,8 @@ export * from './useChannelSearch';
 // Can break em out as they get bigger.
 
 export interface CurrentChats {
-  pinned: db.Channel[];
-  unpinned: db.Channel[];
+  pinned: db.ChannelWithContact[];
+  unpinned: db.ChannelWithContact[];
   pendingChats: (db.Group | db.Channel)[];
 }
 

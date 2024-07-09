@@ -10,9 +10,15 @@ import { backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
 import * as api from '../api';
-import { isDmChannelId, isGroupDmChannelId } from '../api/apiUtils';
+import {
+  isDmChannelId,
+  isGroupChannelId,
+  isGroupDmChannelId,
+} from '../api/apiUtils';
 import * as db from '../db';
 import * as ub from '../urbit';
+
+export { isDmChannelId, isGroupDmChannelId, isGroupChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;

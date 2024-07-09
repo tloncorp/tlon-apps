@@ -64,6 +64,7 @@ export type ChatMemberGroupRole = BaseModel<'chatMemberGroupRoles'>;
 export type GroupNavSection = BaseModel<'groupNavSections'>;
 export type GroupNavSectionChannel = BaseModel<'groupNavSectionChannels'>;
 export type Channel = BaseModel<'channels'>;
+export type ChannelWithContact = Channel & { contact?: Contact | null };
 export type ChannelType = schema.ChannelType;
 export type ThreadUnreadState = BaseModel<'threadUnreads'>;
 export type Post = BaseModel<'posts'>;

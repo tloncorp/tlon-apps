@@ -76,6 +76,7 @@ import {
   ActivityEvent,
   Channel,
   ChannelUnread,
+  ChannelWithContact,
   ChatMember,
   ClientMeta,
   Contact,
@@ -222,7 +223,7 @@ export const getPendingChats = createReadQuery(
 
 export const getChats = createReadQuery(
   'getChats',
-  async (ctx: QueryCtx): Promise<Channel[]> => {
+  async (ctx: QueryCtx): Promise<ChannelWithContact[]> => {
     const partitionedGroupsQuery = ctx.db
       .select({
         ...getTableColumns($channels),
