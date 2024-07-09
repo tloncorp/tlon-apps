@@ -876,7 +876,7 @@ export default function ContentRenderer({
           onPressImage={onPressImage}
           onLongPress={onLongPress}
           viewMode={viewMode}
-          serif
+          serif={post.type === 'note'}
         />
       </YStack>
     );
