@@ -70,7 +70,7 @@
     (gth (get-order:src asrc) (get-order:src bsrc))
   ::
   --
-++  strm
+++  stm
   |%
   ++  get-reads
     |=  [=stream:a start=(unit time) end=(unit time) ignore-children=?]
@@ -85,7 +85,7 @@
     `[time ~]
   ::
   --
-++  indx
+++  idx
   |_  =index:a
   ++  update-reads
     |=  =index:a

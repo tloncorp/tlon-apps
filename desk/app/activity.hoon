@@ -503,7 +503,7 @@
 ++  refresh-index
   |=  [=source:a new=index:a new-floor=?]
   =?  new  new-floor
-    (update-reads:indx new)
+    (update-reads:idx new)
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -565,8 +565,9 @@
         ::  without "losing" any unreads, and the call to +refresh-index
         ::  below will clean up unnecessary items.reads entries.
         ::
-      =-  index(items.reads -)
-      (get-reads:strm stream.index `floor.reads.index ~ &)
+        =-  index(items.reads -)
+        %+  gas:on-read-items:a  *read-items:a
+        (get-reads:stm stream.index `floor.reads.index ~ &)
       ::  we need to refresh our own index to reflect new reads
       =.  cor  (refresh-index source new &)
       ::  since we're not marking deep, we already have the items to
@@ -602,7 +603,7 @@
     %+  propagate-read-items  source
     ::  if not, we need to generate the new items based on the floor
     ::  we just came up with
-    %-  get-reads:strm
+    %-  get-reads:stm
     :*  stream.index
         `floor.reads.index
         ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
@@ -749,7 +750,7 @@
   ?~  sources  cor
   =/  =source:a  i.sources
   =/  =index:a  (~(got by indices) source)
-  =/  our-reads  (get-reads:strm stream.index ~ `floor.reads.index &)
+  =/  our-reads  (get-reads:stm stream.index ~ `floor.reads.index &)
   =^  min-floors  indices
     =/  parents  (get-parents:src source)
     =/  floors=(map source:a time)  ~
@@ -778,7 +779,7 @@
     =;  main-reads=read-items:a
       [u.min-floor main-reads]
     %+  gas:on-read-items:a  items.reads.index
-    (get-reads:strm stream.index `u.min-floor `floor.reads.index &)
+    (get-reads:stm stream.index `u.min-floor `floor.reads.index &)
   =.  cor  (refresh-index source index &)
   $(sources t.sources)
 ::
@@ -824,10 +825,10 @@
       indexes
     |=  [=source:a *]
     ?=(%dm-thread -.source)
-  =;  indxs=^indexes
+  =;  idxs=^indexes
     |-
-    ?~  indxs  next
-    =*  source  source.i.indxs
+    ?~  idxs  next
+    =*  source  source.i.idxs
     ::  cleanup old bad keys
     =?  cor  ?=(%dm-thread -.source)
       =/  old-source  source(key [id.key.source q.id.key.source])
@@ -837,8 +838,8 @@
         volume-settings  (~(del by volume-settings) old-source)
       ==
     ::  update source + index, if new key create new index
-    =.  cor  (refresh-index source index.i.indxs &)
-    $(indxs t.indxs)
+    =.  cor  (refresh-index source index.i.idxs &)
+    $(idxs t.idxs)
   %+  weld
     (handle-dms u.club dms)
   (handle-threads u.club threads)
