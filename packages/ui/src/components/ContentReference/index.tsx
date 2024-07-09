@@ -42,10 +42,9 @@ export default function ContentReference({
   }
 
   return (
-    <Pressable>
-      <Text fontSize="$m" color="$primaryText" marginLeft="$s">
-        Unhandled reference type
-      </Text>
-    </Pressable>
+    <ReferenceSkeleton
+      message="Unsupported reference type"
+      messageType="error"
+    />
   );
 }
