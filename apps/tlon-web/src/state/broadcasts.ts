@@ -71,8 +71,8 @@ export function cohortToUnread(cohort: Cohort): Unread {
       children: null,
       'notify-count': 0,
       reads: {
-        floor: '0',
-        posts: {},
+        floor: 0,
+        items: {},
       },
     },
   };
