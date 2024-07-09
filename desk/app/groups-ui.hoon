@@ -146,7 +146,7 @@
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
-    =+  .^(activity=activity-0:old:a (scry %gx %activity /activity/noun))
+    =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
     =/  init=init-2:u
       :*  groups-ui

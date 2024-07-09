@@ -142,7 +142,10 @@
         notify-count+(numb notify-count.sum)
         notify+b+notify.sum
         unread/?~(unread.sum ~ (unread-point u.unread.sum))
-        children+?~(children.sum ~ (activity u.children.sum))
+      ::
+        :-  %children
+        a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
+      ::
         reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
     ==
   ::
@@ -327,40 +330,82 @@
         volume+?~(v ~ (volume-map u.v))
     ==
   +|  %old-types
-  ++  update-0
-    |=  u=update-0:old:a
-    ?+  -.u  (update u)
-      %read  (frond -.u (read-0 +.u))
-    ==
-  ++  read-0
-    |=  [s=source:a as=activity-summary-0:old:a]
-    %-  pairs
-    :~  source+(source s)
-        activity+(activity-summary-0 as)
-    ==
-  ++  full-info-0
-    |=  fi=full-info-0:old:a
-    %-  pairs
-    :~  indices+(indices indices.fi)
-        activity+(activity-0 activity.fi)
-        settings+(volume-settings volume-settings.fi)
-    ==
-  ++  activity-0
-    |=  ac=activity-0:old:a
-    %-  pairs
-    %+  turn  ~(tap by ac)
-    |=  [s=source:a sum=activity-summary-0:old:a]
-    [(string-source s) (activity-summary-0 sum)]
-  ++  activity-summary-0
-    |=  sum=activity-summary-0:old:a
-    %-  pairs
-    :~  recency+(time newest.sum)
-        count+(numb count.sum)
-        notify+b+notify.sum
-        unread/?~(unread.sum ~ (unread-point u.unread.sum))
-        children+?~(children.sum ~ (activity-0 u.children.sum))
-    ==
-  ::
+  ++  v2
+    |%
+    ++  update
+      |=  u=update:v2:old:a
+      ?+  -.u  (update u)
+        %read  (frond -.u (read +.u))
+      ==
+    ++  read
+      |=  [s=source:a as=activity-summary:v2:old:a]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ++  full-info
+      |=  fi=full-info:v2:old:a
+      %-  pairs
+      :~  indices+(indices indices.fi)
+          activity+(activity activity.fi)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  activity
+      |=  ac=activity:v2:old:a
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:a sum=activity-summary:v2:old:a]
+      [(string-source s) (activity-summary sum)]
+    ++  activity-summary
+      |=  sum=activity-summary:v2:old:a
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+          children+?~(children.sum ~ (activity u.children.sum))
+      ==
+    ::
+    --
+  ++  v3
+    |%
+    ++  update
+      |=  u=update:v3:old:a
+      ?+  -.u  (update u)
+        %read  (frond -.u (read +.u))
+      ==
+    ++  read
+      |=  [s=source:a as=activity-summary:v3:old:a]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ++  full-info
+      |=  fi=full-info:v3:old:a
+      %-  pairs
+      :~  indices+(indices indices.fi)
+          activity+(activity activity.fi)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  activity
+      |=  ac=activity:v3:old:a
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:a sum=activity-summary:v3:old:a]
+      [(string-source s) (activity-summary sum)]
+    ++  activity-summary
+      |=  sum=activity-summary:v3:old:a
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify+b+notify.sum
+          notify-count+(numb notify-count.sum)
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+          children+?~(children.sum ~ (activity u.children.sum))
+          reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
+      ==
+    ::
+    --
   --
 ::
 ++  dejs

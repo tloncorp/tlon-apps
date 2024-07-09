@@ -168,7 +168,7 @@
       notify-count=@ud
       notify=_|
       unread=(unit unread-point)
-      children=(unit (map source activity-summary))
+      children=(set source)
       =reads
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
@@ -216,27 +216,56 @@
 +|  %old-types
 ++  old
   |%
-  +$  update-0
-    $%  [%add =source time-event]
-        [%del =source]
-        [%read =source =activity-summary-0]
-        [%adjust =source volume-map=(unit volume-map)]
-        [%allow-notifications allow=notifications-allowed]
-    ==
-  +$  full-info-0
-    $:  =indices
-        activity=activity-0
-        =volume-settings
-    ==
-  +$  activity-0  (map source activity-summary-0)
-  +$  activity-summary-0
-    $~  [*@da 0 | ~ ~]
-    $:  newest=time
-        count=@ud
-        notify=_|
-        unread=(unit unread-point)
-        children=(unit (map source activity-summary-0))
-    ==
+  ++  v3
+    |%
+    +$  update
+      $%  [%add =source time-event]
+          [%del =source]
+          [%read =source =activity-summary]
+          [%adjust =source volume-map=(unit volume-map)]
+          [%allow-notifications allow=notifications-allowed]
+      ==
+    +$  full-info
+      $:  =indices
+          =activity
+          =volume-settings
+      ==
+    +$  activity  (map source activity-summary)
+    +$  activity-summary
+      $~  [*@da 0 0 | ~ ~ [*@da ~]]
+      $:  newest=time
+          count=@ud
+          notify-count=@ud
+          notify=_|
+          unread=(unit unread-point)
+          children=(unit activity)
+          =reads
+      ==
+    --
+  ++  v2
+    |%
+    +$  update
+      $%  [%add =source time-event]
+          [%del =source]
+          [%read =source =activity-summary]
+          [%adjust =source volume-map=(unit volume-map)]
+          [%allow-notifications allow=notifications-allowed]
+      ==
+    +$  full-info
+      $:  =indices
+          activity=activity
+          =volume-settings
+      ==
+    +$  activity  (map source activity-summary)
+    +$  activity-summary
+      $~  [*@da 0 | ~ ~]
+      $:  newest=time
+          count=@ud
+          notify=_|
+          unread=(unit unread-point)
+          children=(unit activity)
+      ==
+    --
   --
 +|  %constants
 ++  default-volumes

@@ -13,7 +13,7 @@
   $:  groups=groups-ui:g
       =gangs:g
       =channels:d
-      activity=activity-0:old:a
+      activity=activity:v2:old:a
       pins=(list whom)
       =chat
       profile=?

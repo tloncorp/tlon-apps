@@ -46,7 +46,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %3
+    $:  %4
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -127,28 +127,29 @@
   =?  cor  ?=(%2 -.old)
     (emit %pass /clean-keys %agent [our.bowl dap.bowl] %poke noun+!>(%clean-keys))
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  ?>  ?=(%3 -.old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+  ?>  ?=(%4 -.old)
   =.  state  old
   sync-reads
-  +$  versioned-state  $%(state-3 state-2 state-1)
-  +$  state-3  current-state
-  +$  state-2
-    $:  %2
+  +$  versioned-state  $%(state-4 state-3 state-2 state-1)
+  +$  state-4  current-state
+  +$  state-3
+    $:  %3
         allowed=notifications-allowed:a
         =indices:a
-        activity=activity-0:old:a
+        =activity:v3:old:a
         =volume-settings:a
     ==
-  ++  state-2-to-3
-    |=  old=state-2
-    ^-  state-3
-    :*  %3
+  ++  state-3-to-4
+    |=  old=state-3
+    ^-  state-4
+    :*  %4
         allowed.old
         indices.old
-        (activity-2-to-3 indices.old)
+        (activity-3-to-4 indices.old)
         volume-settings.old
     ==
-  ++  activity-2-to-3
+  ++  activity-3-to-4
     |=  =indices:a
     ^-  activity:a
     =/  indexes
@@ -163,8 +164,24 @@
     |=  [[=source:a =index:a] =activity:a]
     %+  ~(put by activity)  source
     (summarize-unreads source index)
+  +$  state-2
+    $:  %2
+        allowed=notifications-allowed:a
+        =indices:a
+        =activity:v2:old:a
+        =volume-settings:a
+    ==
+  ++  state-2-to-3
+    |=  old=state-2
+    ^-  state-3
+    :*  %3
+        allowed.old
+        indices.old
+        ~  ::  this will just get re-derived when we do v3 -> v4
+        volume-settings.old
+    ==
   +$  state-1
-    [%1 =indices:a =activity-0:old:a =volume-settings:a]
+    [%1 =indices:a =activity:v2:old:a =volume-settings:a]
   ++  state-1-to-2
     |=  old=state-1
     ^-  state-2
@@ -211,30 +228,37 @@
   ?+  pole  ~|(bad-watch-path+pole !!)
     [%v0 ~]                 ?>(from-self cor)
     [%v1 ~]                 ?>(from-self cor)
+    [%v4 ~]                 ?>(from-self cor)
     [%v0 %unreads ~]        ?>(from-self cor)
     [%v1 %unreads ~]        ?>(from-self cor)
+    [%v4 %unreads ~]        ?>(from-self cor)
     [%v0 %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =?  +.pole  !?=([?(%v0 %v1) *] +.pole)
+  =/  any  ?(%v0 %v1 %v2 %v3 %v4)
+  =?  +.pole  !?=([any *] +.pole)
     [%v0 +.pole]
   ?+  pole  [~ ~]
-      [%x %v0 ~]
-    =/  =activity-0:old:a  (activity-0:convert-to activity)
-    ``activity-full+!>([indices activity-0 volume-settings])
+      [%x ?(%v0 %v2) ~]
+    =/  =activity:v2:old:a  (activity:v2:convert-to activity)
+    ``activity-full+!>([indices activity volume-settings])
   ::
-      [%x %v1 ~]
+      [%x ?(%v1 %v3) ~]
+    =/  =activity:v3:old:a  (activity:v3:convert-to activity)
     ``activity-full-1+!>([indices activity volume-settings])
+  ::
+      [%x %v4 ~]
+    ``activity-full-4+!>([indices activity volume-settings])
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
-      [%x %v0 %all ~]
+      [%x any %all ~]
     ``activity-stream+!>(stream:base)
   ::
-      [%x %v0 %all count=@ start=?(~ [u=@ ~])]
+      [%x any %all count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -243,7 +267,7 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (bat:ex-event:a stream:base `start count)
   ::
-      [%x %v0 %feed %init count=@ ~]
+      [%x any %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
     =;  init=[all=feed:a mentions=feed:a replies=feed:a]
@@ -253,7 +277,7 @@
         (feed %replies start count)
     ==
   ::
-      [%x %v0 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+      [%x any %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
@@ -268,7 +292,7 @@
   ::      suffer from the "search range" "problem", where we want .count to
   ::      mean entries trawled, not entries returned...
   ::
-      [%x %v0 %each start=@ count=@ ~]
+      [%x any %each start=@ count=@ ~]
     =;  =stream:a
       ``activity-stream+!>(-)
     =/  start  (slav %da start.pole)
@@ -280,7 +304,7 @@
   ::
   ::  /indexed: per-index
   ::
-      [%x %v0 %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+      [%x any %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
     =/  =source:a
       ?-  -.concern.pole
           %dm
@@ -311,22 +335,57 @@
     ==
   ::  /event: individual events
   ::
-      [%u %v0 %event id=@ ~]
+      [%u any %event id=@ ~]
     ``loob+!>((has:on-event:a stream:base (slav %da id.pole)))
   ::
-      [%x %v0 %event id=@ ~]
+      [%x any %event id=@ ~]
     ``activity-event+!>([id.pole (got:on-event:a stream:base (slav %da id.pole))])
   ::
-      [%x %v0 %activity ~]
-    ``activity-summary+!>((activity-0:convert-to activity))
+      [%x ?(%v0 %v2) %activity ~]
+    ``activity-summary+!>((activity:v2:convert-to activity))
   ::
-      [%x %v1 %activity ~]
-    ``activity-summary-1+!>(activity)
+      [%x ?(%v1 %v3) %activity ~]
+    ``activity-summary-1+!>((activity:v3:convert-to activity))
   ::
-      [%x %v0 %volume-settings ~]
+      [%x %v4 %activity ~]
+    ``activity-summary-4+!>((strip-threads activity))
+  ::
+      [%x %v4 %activity %full ~]
+    ``activity-summary-4+!>(activity)
+  ::
+      [%x %v4 %activity %threads host=@ group=@ kind=?(%chat %heap %diary) ship=@ name=@ ~]
+    =/  =flag:g  [(slav %p host.pole) group.pole]
+    =/  =nest:c  [kind.pole (slav %p ship.pole) name.pole]
+    =/  =source:a  [%channel nest flag]
+    =/  sum  (~(got by activity) source)
+    =/  threads=activity:a
+      %+  roll
+        ~(tap in children.sum)
+      |=  [=source:a out=activity:a]
+      (~(put by out) source (~(got by activity) source))
+    ``activity-summary-4+!>(threads)
+  ::
+      [%x %v4 %activity %dm-threads id=@ ~]
+    =/  ship  (slaw %p id.pole)
+    =/  club  (slaw %uv id.pole)
+    =/  =source:a
+      :-  %dm
+      ?~  ship
+        ?~  club  ~|("bad dm thread source: {<pole>}" !!)
+        club/u.club
+      ship/u.ship
+    =/  sum  (~(got by activity) source)
+    =/  threads=activity:a
+      %+  roll
+        ~(tap in children.sum)
+      |=  [=source:a out=activity:a]
+      (~(put by out) source (~(got by activity) source))
+    ``activity-summary-4+!>(threads)
+  ::
+      [%x any %volume-settings ~]
     ``activity-settings+!>(volume-settings)
   ::
-      [%x %v0 %notifications-allowed ~]
+      [%x any %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
   ==
 ::
@@ -429,18 +488,27 @@
     ==
   --
 ::
+++  strip-threads
+  |=  =activity:a
+  %-  ~(rep by activity)
+  |=  [[=source:a as=activity-summary:a] out=activity:a]
+  ?:  ?=(?(%thread %dm-thread) -.source)  out
+  (~(put by out) source as)
 ++  base
   ^-  index:a
   (~(got by indices) [%base ~])
 ++  give-update
   |=  [=update:a path=(unit path)]
   ^+  cor
-  =/  v0-paths  ?~(path ~[/ /v0] ~[/ /v0 u.path [%v0 u.path]])
-  =/  v0-cage=cage  activity-update+!>((update-0:convert-to update))
-  =/  v1-paths  ?~(path ~[/v1] ~[/v1 [%v1 u.path]])
-  =/  v1-cage=cage  activity-update-1+!>(update)
+  =/  v0-paths  ?~(path ~[/ /v0 /v2] ~[/ /v0 /v2 u.path [%v0 u.path] [%v2 u.path]])
+  =/  v0-cage=cage  activity-update+!>((update:v2:convert-to update))
+  =/  v1-paths  ?~(path ~[/v1 /v3] ~[/v1 /v3 [%v1 u.path] [%v3 u.path]])
+  =/  v1-cage=cage  activity-update-1+!>((update:v3:convert-to update))
+  =/  v4-paths  ?~(path ~[/v4] ~[/v4 [%v4 u.path]])
+  =/  v4-cage=cage  activity-update-4+!>(update)
+  =.  cor  (give %fact v0-paths v0-cage)
   =.  cor  (give %fact v1-paths v1-cage)
-  (give %fact v0-paths v0-cage)
+  (give %fact v4-paths v4-cage)
 ++  add-event
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
@@ -856,7 +924,7 @@
         notify-count
         notified
         ?~(last ~ `[u.last main main-notified])
-        `child-map
+        ?:(?=(%base -.source) ~ ~(key by child-map))
         reads
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
@@ -893,28 +961,73 @@
   ==
 ++  convert-to
   |%
-  ++  activity-0
-    |=  =activity:a
-    ^-  activity-0:old:a
-    %-  ~(run by activity)
-    activity-summary-0
-  ++  activity-summary-0
-    |=  as=activity-summary:a
-    ^-  activity-summary-0:old:a
-    :*  newest.as
-        count.as
-        notify.as
-        unread.as
-        ?~  children.as  ~
-        `(activity-0 u.children.as)
-    ==
-  ++  update-0
-    |=  =update:a
-    ^-  update-0:old:a
-    ?+  -.update  update
-        %read
-      [%read source.update (activity-summary-0 activity-summary.update)]
-    ==
+  ++  v3
+    |%
+    ++  activity
+      |=  =activity:a
+      ^-  activity:v3:old:a
+      %-  ~(run by activity)
+      activity-summary
+    ++  activity-summary
+      |=  as=activity-summary:a
+      ^-  activity-summary:v3:old:a
+      :*  newest.as
+          count.as
+          notify-count.as
+          notify.as
+          unread.as
+        ::
+          :-  ~
+          %-  ~(gas by *activity:v3:old:a)
+          %+  turn
+            ~(tap in children.as)
+          |=  =source:a
+          =/  sum  (~(got by ^activity) source)
+          :-  source
+          (activity-summary sum(children ~))
+        ::
+          reads.as
+      ==
+    ++  update
+      |=  =update:a
+      ^-  update:v3:old:a
+      ?+  -.update  update
+          %read
+        [%read source.update (activity-summary activity-summary.update)]
+      ==
+    --
+  ++  v2
+    |%
+    ++  activity
+      |=  =activity:a
+      ^-  activity:v2:old:a
+      %-  ~(run by activity)
+      activity-summary
+    ++  activity-summary
+      |=  as=activity-summary:a
+      ^-  activity-summary:v2:old:a
+      :*  newest.as
+          count.as
+          notify.as
+          unread.as
+        ::
+          :-  ~
+          %-  ~(gas by *activity:v2:old:a)
+          %+  turn
+            ~(tap in children.as)
+          |=  =source:a
+          =/  sum  (~(got by ^activity) source)
+          :-  source
+          (activity-summary sum(children ~))
+      ==
+    ++  update
+      |=  =update:a
+      ^-  update:v2:old:a
+      ?+  -.update  update
+          %read
+        [%read source.update (activity-summary activity-summary.update)]
+      ==
+    --
   --
 ::
 ::  previously each source had independent read states that did not get
