@@ -39,7 +39,8 @@
 ::
 ::
 /-  a=activity, c=channels, ch=chat, g=groups
-/+  default-agent, verb, dbug, ch-utils=channel-utils, v=volume
+/+  *activity, ch-utils=channel-utils, v=volume
+/+  default-agent, verb, dbug
 ::
 =>
   |%
@@ -152,16 +153,10 @@
   ++  activity-3-to-4
     |=  =indices:a
     ^-  activity:a
-    =/  indexes
-      ::  sort children first in order so we only have to make one pass
-      ::  of summarization aka not repeatedly updating the same source
-      ::
-      %+  sort
-        ~(tap by indices)
-      |=  [[asrc=source:a *] [bsrc=source:a *]]
-      (gth (get-order asrc) (get-order bsrc))
-    %+  roll  indexes
-    |=  [[=source:a =index:a] =activity:a]
+    =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
+    %+  roll  sources
+    |=  [=source:a =activity:a]
+    =/  index  (~(got by indices) source)
     %+  ~(put by activity)  source
     (summarize-unreads source index)
   +$  state-2
@@ -406,7 +401,7 @@
   ::  we only care about events older than start
   ?:  (gth time real-start)  [~ | acc]
   :-  ~   :-  |
-  =/  =source:a  (determine-source -.event)
+  =/  =source:a  (source:evt -.event)
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
@@ -497,13 +492,20 @@
 ++  base
   ^-  index:a
   (~(got by indices) [%base ~])
+++  get-index
+  |=  =source:a
+  (~(gut by indices) source *index:a)
 ++  give-update
   |=  [=update:a path=(unit path)]
   ^+  cor
-  =/  v0-paths  ?~(path ~[/ /v0 /v2] ~[/ /v0 /v2 u.path [%v0 u.path] [%v2 u.path]])
-  =/  v0-cage=cage  activity-update+!>((update:v2:convert-to update))
-  =/  v1-paths  ?~(path ~[/v1 /v3] ~[/v1 /v3 [%v1 u.path] [%v3 u.path]])
-  =/  v1-cage=cage  activity-update-1+!>((update:v3:convert-to update))
+  =/  v0-paths
+    ?~(path ~[/ /v0 /v2] ~[/ /v0 /v2 u.path [%v0 u.path] [%v2 u.path]])
+  =/  v0-cage=cage
+    activity-update+!>((update:v2:convert-to update activity))
+  =/  v1-paths
+    ?~(path ~[/v1 /v3] ~[/v1 /v3 [%v1 u.path] [%v3 u.path]])
+  =/  v1-cage=cage
+    activity-update-1+!>((update:v3:convert-to update activity))
   =/  v4-paths  ?~(path ~[/v4] ~[/v4 [%v4 u.path]])
   =/  v4-cage=cage  activity-update-4+!>(update)
   =.  cor  (give %fact v0-paths v0-cage)
@@ -518,13 +520,13 @@
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t (add t ~s0..0001))
-  =/  notify  notify:(get-volume inc)
+  =/  notify  notify:(get-volume:evt volume-settings inc)
   =/  =event:a  [inc notify |]
-  =/  =source:a  (determine-source inc)
+  =/  =source:a  (source:evt inc)
   =/  =update:a  [%add source time-id event]
   =?  cor  !importing
     (give-update update ~)
-  =?  cor  &(!importing notify (is-allowed inc))
+  =?  cor  &(!importing notify (is-allowed:evt allowed inc))
     (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
   ::  we always update sources in order, so make sure base is processed last
   =;  co
@@ -556,21 +558,6 @@
     (add-to-index group-src time-id event(child &))
   ==
 ::
-++  is-allowed
-  |=  =incoming-event:a
-  ?:  ?=(%all allowed)  &
-  ?:  ?=(%none allowed)  |
-  =/  type  (determine-event-type incoming-event)
-  ?+  type  |
-    %reply  &
-    %dm-invite  &
-    %dm-post    &
-    %dm-reply   &
-    %post-mention  &
-    %reply-mention  &
-    %dm-post-mention  &
-    %dm-reply-mention  &
-  ==
 ++  del-source
   |=  =source:a
   ^+  cor
@@ -588,7 +575,7 @@
 ++  refresh-index
   |=  [=source:a new=index:a new-floor=?]
   =?  new  new-floor
-    (update-floor new)
+    (update-reads:idx new)
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -596,11 +583,7 @@
 ::
 ++  refresh-all-summaries
   ^+  cor
-  =/  sources
-    %+  sort
-      ~(tap in ~(key by indices))
-    |=  [asrc=source:a bsrc=source:a]
-    (gth (get-order asrc) (get-order bsrc))
+  =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  cor
   =.  cor  (refresh-summary i.sources)
@@ -624,89 +607,6 @@
     =.  cor  (refresh-summary [%channel channel.source group.source])
     (refresh-summary [%group group.source])
   ==
-++  get-volumes
-  |=  =source:a
-  ^-  volume-map:a
-  =/  target  (~(get by volume-settings) source)
-  ?^  target  u.target
-  ?-  -.source
-    %base       *volume-map:a
-    %group      (get-volumes %base ~)
-    %dm         (get-volumes %base ~)
-    %dm-thread  (get-volumes %dm whom.source)
-    %channel    (get-volumes %group group.source)
-    %thread     (get-volumes %channel channel.source group.source)
-  ==
-++  get-volume
-  |=  event=incoming-event:a
-  ^-  volume:a
-  =/  source  (determine-source event)
-  =/  loudness=volume-map:a  (get-volumes source)
-  (~(gut by loudness) (determine-event-type event) [unreads=& notify=|])
-++  determine-source
-  |=  event=incoming-event:a
-  ^-  source:a
-  ?-  -.event
-    %chan-init      [%channel channel.event group.event]
-    %post           [%channel channel.event group.event]
-    %reply          [%thread parent.event channel.event group.event]
-    %dm-invite          [%dm whom.event]
-    %dm-post            [%dm whom.event]
-    %dm-reply           [%dm-thread parent.event whom.event]
-    %group-invite   [%group group.event]
-    %group-kick     [%group group.event]
-    %group-join     [%group group.event]
-    %group-role     [%group group.event]
-    %group-ask      [%group group.event]
-    %flag-post      [%group group.event]
-    %flag-reply     [%group group.event]
-  ==
-++  determine-event-type
-  |=  event=incoming-event:a
-  ^-  event-type:a
-  ?+  -.event  -.event
-      %post      ?:(mention.event %post-mention %post)
-      %reply     ?:(mention.event %reply-mention %reply)
-      %dm-post   ?:(mention.event %dm-post-mention %dm-post)
-      %dm-reply  ?:(mention.event %dm-reply-mention %dm-reply)
-  ==
-::
-++  find-floor
-  |=  [orig=stream:a =reads:a]
-  ^-  (unit time)
-  ::  starting at the last-known first-unread location (floor), walk towards
-  ::  the present, to find the new first-unread location (new floor)
-  ::
-  ::  slice off the earlier part of the stream, for efficiency
-  ::
-  =/  =stream:a  (lot:on-event:a orig `floor.reads ~)
-  =|  new-floor=(unit time)
-  |-
-  ?~  stream  new-floor
-  ::
-  =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
-  =;  is-read=?
-    ::  if we found something that's unread, we need look no further
-    ::
-    ?.  is-read  $(stream ~)
-    ::  otherwise, continue our walk towards the present
-    ::
-    $(new-floor `time, stream rest)
-  ::  treat all other events as read
-  ?+  -<.event  &
-      ?(%dm-post %dm-reply %post %reply)
-    ?=(^ (get:on-read-items:a items.reads time))
-  ==
-::
-++  update-floor
-  |=  =index:a
-  ^-  index:a
-  =/  new-floor=(unit time)  (find-floor index)
-  ?~  new-floor  index
-  =/  new-reads=read-items:a
-    (lot:on-read-items:a items.reads.index new-floor ~)
-  index(reads [u.new-floor new-reads])
-::
 ++  read
   |=  [=source:a action=read-action:a from-parent=?]
   ^+  cor
@@ -739,12 +639,7 @@
         ::
         =-  index(items.reads -)
         %+  gas:on-read-items:a  *read-items:a
-        %+  murn
-          %-  tap:on-event:a
-          (lot:on-event:a stream.index `floor.reads.index ~)
-        |=  [=time =event:a]
-        ?:  child.event  ~
-        `[time ~]
+        (get-reads:stm stream.index `floor.reads.index ~ &)
       ::  we need to refresh our own index to reflect new reads
       =.  cor  (refresh-index source new &)
       ::  since we're not marking deep, we already have the items to
@@ -765,7 +660,7 @@
     ::  since we're marking deeply we need to recursively read all
     ::  children
     =.  cor
-      =/  children  (get-children source)
+      =/  children  (get-children:src indices source)
       |-
       ?~  children  cor
       =/  =source:a  i.children
@@ -780,17 +675,17 @@
     %+  propagate-read-items  source
     ::  if not, we need to generate the new items based on the floor
     ::  we just came up with
-    %+  turn
-      %-  tap:on-event:a
-      %^  lot:on-event:a  stream.index  `floor.reads.index
-      ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
-    |=  [=time-id:a *]
-    [time-id ~]
+    %-  get-reads:stm
+    :*  stream.index
+        `floor.reads.index
+        ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
+        |
+    ==
   ==
 ::
 ++  propagate-read-items
   |=  [=source:a items=(list [=time-id:a ~])]
-  =/  parents  (get-parents source)
+  =/  parents  (get-parents:src source)
   |-
   ?~  parents  cor
   =/  parent-index  (get-index i.parents)
@@ -799,9 +694,6 @@
   =.  cor
     (refresh-index i.parents parent-index(items.reads read-items) &)
   $(parents t.parents)
-++  get-index
-  |=  =source:a
-  (~(gut by indices) source *index:a)
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -826,34 +718,6 @@
   ^+  cor
   =.  allowed  na
   (give-update [%allow-notifications na] ~)
-++  get-parents
-  |=  =source:a
-  ^-  (list source:a)
-  ?:  ?=(%base -.source)  ~
-  ?<  ?=(%base -.source)
-  =-  (snoc - [%base ~])
-  ^-  (list source:a)
-  ?+  -.source  ~
-    %channel  ~[[%group group.source]]
-    %dm-thread  ~[[%dm whom.source]]
-  ::
-      %thread
-    :~  [%channel channel.source group.source]
-        [%group group.source]
-    ==
-  ==
-++  get-children
-  |=  =source:a
-  ^-  (list source:a)
-  %+  skim
-    ~(tap in ~(key by indices))
-  |=  src=source:a
-  ?+  -.source  |
-      %base  ?!(?=(%base -.src))
-      %group  &(?=(%channel -.src) =(flag.source group.src))
-      %channel  &(?=(%thread -.src) =(nest.source channel.src))
-      %dm  &(?=(%dm-thread -.src) =(whom.source whom.src))
-  ==
 ++  summarize-unreads
   |=  [=source:a index:a]
   ^-  activity-summary:a
@@ -871,7 +735,7 @@
   ::        and segment replies for unread threads tracking
   |-
   =;  unread-stream=stream:a
-    =/  children  (get-children source)
+    =/  children  (get-children:src indices source)
     (stream-to-unreads unread-stream reads children source top)
   %+  gas:on-event:a  *stream:a
   %+  murn
@@ -928,7 +792,7 @@
         reads
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
-  =/  volume  (get-volume -.event)
+  =/  volume  (get-volume:evt volume-settings -.event)
   ::TODO  support other event types
   =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
   =*  supported
@@ -946,110 +810,21 @@
     ?~  last  `key.event
     last
   $(stream rest)
-++  get-order
-  |=  =source:a
-  %.  -.source
-  %~  got  by
-  ^~
-  %-  my
-  :~  [%thread 6]
-      [%dm-thread 5]
-      [%channel 4]
-      [%group 3]
-      [%dm 2]
-      [%base 1]
-  ==
-++  convert-to
-  |%
-  ++  v3
-    |%
-    ++  activity
-      |=  =activity:a
-      ^-  activity:v3:old:a
-      %-  ~(run by activity)
-      activity-summary
-    ++  activity-summary
-      |=  as=activity-summary:a
-      ^-  activity-summary:v3:old:a
-      :*  newest.as
-          count.as
-          notify-count.as
-          notify.as
-          unread.as
-        ::
-          :-  ~
-          %-  ~(gas by *activity:v3:old:a)
-          %+  turn
-            ~(tap in children.as)
-          |=  =source:a
-          =/  sum  (~(got by ^activity) source)
-          :-  source
-          (activity-summary sum(children ~))
-        ::
-          reads.as
-      ==
-    ++  update
-      |=  =update:a
-      ^-  update:v3:old:a
-      ?+  -.update  update
-          %read
-        [%read source.update (activity-summary activity-summary.update)]
-      ==
-    --
-  ++  v2
-    |%
-    ++  activity
-      |=  =activity:a
-      ^-  activity:v2:old:a
-      %-  ~(run by activity)
-      activity-summary
-    ++  activity-summary
-      |=  as=activity-summary:a
-      ^-  activity-summary:v2:old:a
-      :*  newest.as
-          count.as
-          notify.as
-          unread.as
-        ::
-          :-  ~
-          %-  ~(gas by *activity:v2:old:a)
-          %+  turn
-            ~(tap in children.as)
-          |=  =source:a
-          =/  sum  (~(got by ^activity) source)
-          :-  source
-          (activity-summary sum(children ~))
-      ==
-    ++  update
-      |=  =update:a
-      ^-  update:v2:old:a
-      ?+  -.update  update
-          %read
-        [%read source.update (activity-summary activity-summary.update)]
-      ==
-    --
-  --
+::
 ::
 ::  previously each source had independent read states that did not get
 ::  synced across sources. we set out to rectify that here
 ::
 ++  sync-reads
   =/  oldest-floors=(map source:a time)  ~
-  =/  sources
-    ::  sort children first in order so we only have to make one pass
-    ::  of summarization aka not repeatedly updating the same source
-    ::
-    %+  sort
-      ~(tap in ~(key by indices))
-    |=  [asrc=source:a bsrc=source:a]
-    (gth (get-order asrc) (get-order bsrc))
+  =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  cor
   =/  =source:a  i.sources
   =/  =index:a  (~(got by indices) source)
-  =/  our-reads  (get-reads stream.index ~ `floor.reads.index)
+  =/  our-reads  (get-reads:stm stream.index ~ `floor.reads.index &)
   =^  min-floors  indices
-    =/  parents  (get-parents source)
+    =/  parents  (get-parents:src source)
     =/  floors=(map source:a time)  ~
     |-
     ?~  parents  [floors indices]
@@ -1076,22 +851,9 @@
     =;  main-reads=read-items:a
       [u.min-floor main-reads]
     %+  gas:on-read-items:a  items.reads.index
-    (get-reads stream.index `u.min-floor `floor.reads.index)
+    (get-reads:stm stream.index `u.min-floor `floor.reads.index &)
   =.  cor  (refresh-index source index &)
   $(sources t.sources)
-::
-++  get-reads
-  |=  [=stream:a start=(unit time) end=(unit time)]
-  %+  murn
-    ::  take all events between our floor and the oldest child floor
-    %-  tap:on-event:a
-    %^  lot:on-event:a  stream
-      ?~(start ~ `(sub u.start 1))
-    ?~(end ~ `(add u.end 1))
-  |=  [=time =event:a]
-  ::  ignore child events
-  ?:  child.event  ~
-  `[time ~]
 ::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
 ::  with bad message/parent identifiers (respectively) got pushed into our
@@ -1135,10 +897,10 @@
       indexes
     |=  [=source:a *]
     ?=(%dm-thread -.source)
-  =;  indxs=^indexes
+  =;  idxs=^indexes
     |-
-    ?~  indxs  next
-    =*  source  source.i.indxs
+    ?~  idxs  next
+    =*  source  source.i.idxs
     ::  cleanup old bad keys
     =?  cor  ?=(%dm-thread -.source)
       =/  old-source  source(key [id.key.source q.id.key.source])
@@ -1148,8 +910,8 @@
         volume-settings  (~(del by volume-settings) old-source)
       ==
     ::  update source + index, if new key create new index
-    =.  cor  (refresh-index source index.i.indxs &)
-    $(indxs t.indxs)
+    =.  cor  (refresh-index source index.i.idxs &)
+    $(idxs t.idxs)
   %+  weld
     (handle-dms u.club dms)
   (handle-threads u.club threads)
@@ -1220,6 +982,8 @@
     [time event(time.key u.reply-time, parent post-key)]
   +$  indexes  (list [=source:a =index:a])
   --
+::
+::  the original migration from old unreads and volume mgmt to %activity
 ::
 ++  migrate
   =.  importing  &

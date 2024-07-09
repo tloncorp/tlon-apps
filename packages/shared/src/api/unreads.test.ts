@@ -21,8 +21,8 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
       recency: 1718513986192,
       'notify-count': 0,
       reads: {
-        floor: '0',
-        posts: {},
+        floor: 0,
+        items: {},
       },
       children: {
         'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.591.089.314.701.116.289.581.056':
@@ -34,8 +34,8 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
             notify: true,
             'notify-count': 0,
             reads: {
-              floor: '0',
-              posts: {},
+              floor: 0,
+              items: {},
             },
           },
         'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.590.556.405.446.059.399.053.312':
@@ -47,8 +47,8 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
             notify: false,
             'notify-count': 0,
             reads: {
-              floor: '0',
-              posts: {},
+              floor: 0,
+              items: {},
             },
           },
       },
@@ -92,8 +92,8 @@ const threadUnread: Record<string, ub.ActivitySummary> = {
       notify: false,
       'notify-count': 0,
       reads: {
-        floor: '0',
-        posts: {},
+        floor: 0,
+        items: {},
       },
     },
 };
@@ -133,8 +133,8 @@ const dmUnread: Record<string, ub.ActivitySummary> = {
     notify: true,
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
 };
@@ -174,8 +174,8 @@ const dmThreadUnread: Record<string, ub.ActivitySummary> = {
       notify: true,
       'notify-count': 0,
       reads: {
-        floor: '0',
-        posts: {},
+        floor: 0,
+        items: {},
       },
     },
 };
@@ -219,16 +219,16 @@ const groupUnread: Record<string, ub.ActivitySummary> = {
         notify: false,
         'notify-count': 0,
         reads: {
-          floor: '0',
-          posts: {},
+          floor: 0,
+          items: {},
         },
       },
     },
     notify: true,
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
 };
