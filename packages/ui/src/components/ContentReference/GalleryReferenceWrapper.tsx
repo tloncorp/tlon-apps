@@ -2,7 +2,6 @@ import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
 import { PostViewMode } from '../ContentRenderer';
 import GalleryReference from './GalleryReference';
-import NotebookReference from './NotebookReference';
 import ReferenceSkeleton from './ReferenceSkeleton';
 
 export default function GalleryReferenceWrapper({
