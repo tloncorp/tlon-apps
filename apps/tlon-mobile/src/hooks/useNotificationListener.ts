@@ -1,9 +1,11 @@
+import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
@@ -21,6 +23,8 @@ export default function useNotificationListener({
   notificationChannelId,
 }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { data: isTlonEmployee } = store.useIsTlonEmployee();
+
   const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
     path?: string;
     isDm?: boolean;
@@ -93,14 +97,11 @@ export default function useNotificationListener({
             channelId: string;
           } | null = null;
 
-          console.log(`bl: grabbing post`, postInfo.id);
           const post = await db.getPost({ postId: postInfo.id });
 
           if (post) {
-            console.log(`bl: got it, trying`, post);
             postToNavigateTo = post;
           } else {
-            console.log(`bl: didnt find the post, using stub`);
             postToNavigateTo = { ...postInfo, channelId };
           }
 
@@ -139,6 +140,15 @@ export default function useNotificationListener({
 
           // If still not found, clear out the requested channel ID
           if (!didNavigate) {
+            if (isTlonEmployee) {
+              crashlytics().log(`failed channel ID: ${channelId}`);
+              crashlytics().log(`failed post ID: ${postInfo?.id}`);
+            }
+            crashlytics().recordError(
+              new Error(
+                `Notification listener: failed to navigate to ${isDm ? 'DM ' : ''}channel ${postInfo?.id ? ' thread' : ''}`
+              )
+            );
             resetGotoData();
           }
         }
