@@ -727,9 +727,6 @@
     last
   $(stream rest)
 ::
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-::  repent ye, for the sins of the past have come to haunt us         ::
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::
 ::  previously each source had independent read states that did not get
 ::  synced across sources. we set out to rectify that here
