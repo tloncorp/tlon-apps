@@ -134,16 +134,19 @@ export function ChatList({
   ) as StyleProp<ViewStyle>;
 
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<Chat, { title: string }>) => {
+    ({ item }: SectionListRenderItemInfo<unknown, unknown>) => {
+      const itemModel = item as Chat;
       const baseListItem = (
         <ChatListItem
-          model={item}
+          model={itemModel}
           onPress={onPressItem}
           onLongPress={onLongPressItem}
         />
       );
-      return logic.isChannel(item) ? (
-        <SwipableChatListItem model={item}>{baseListItem}</SwipableChatListItem>
+      return logic.isChannel(itemModel) ? (
+        <SwipableChatListItem model={itemModel}>
+          {baseListItem}
+        </SwipableChatListItem>
       ) : (
         baseListItem
       );
@@ -152,10 +155,11 @@ export function ChatList({
   );
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: SectionListData<Chat, { title: string }> }) => {
+    ({ section }: { section: SectionListData<unknown, unknown> }) => {
+      const sectionItem = section as SectionListData<Chat, { title: string }>;
       return (
         <SectionListHeader>
-          <SectionListHeader.Text>{section.title}</SectionListHeader.Text>
+          <SectionListHeader.Text>{sectionItem.title}</SectionListHeader.Text>
         </SectionListHeader>
       );
     },
@@ -248,15 +252,17 @@ export function ChatList({
     },
   });
 
-  const getChannelKey = useCallback((item: Chat) => {
-    if (!item || typeof item !== 'object' || !item.id) {
+  const getChannelKey = useCallback((item: unknown) => {
+    const chatItem = item as Chat;
+
+    if (!chatItem || typeof chatItem !== 'object' || !chatItem.id) {
       return 'invalid-item';
     }
 
-    if (logic.isGroup(item)) {
-      return item.id;
+    if (logic.isGroup(chatItem)) {
+      return chatItem.id;
     }
-    return `${item.id}-${item.pin?.itemId ?? ''}`;
+    return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
   }, []);
 
   return (
