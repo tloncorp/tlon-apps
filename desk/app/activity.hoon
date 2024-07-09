@@ -152,7 +152,7 @@
   ++  activity-2-to-3
     |=  =indices:a
     ^-  activity:a
-    =/  sources  (sort-sources ~(tap in ~(key by indices)))
+    =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
     %+  roll  sources
     |=  [=source:a =activity:a]
     =/  index  (~(got by indices) source)
@@ -342,7 +342,7 @@
   ::  we only care about events older than start
   ?:  (gth time real-start)  [~ | acc]
   :-  ~   :-  |
-  =/  =source:a  (determine-source -.event)
+  =/  =source:a  (source:evt -.event)
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
@@ -448,13 +448,13 @@
     |-
     ?.  (has:on-event:a stream:base t)  t
     $(t (add t ~s0..0001))
-  =/  notify  notify:(get-volume volume-settings inc)
+  =/  notify  notify:(get-volume:evt volume-settings inc)
   =/  =event:a  [inc notify |]
-  =/  =source:a  (determine-source inc)
+  =/  =source:a  (source:evt inc)
   =/  =update:a  [%add source time-id event]
   =?  cor  !importing
     (give-update update ~)
-  =?  cor  &(!importing notify (is-allowed allowed inc))
+  =?  cor  &(!importing notify (is-allowed:evt allowed inc))
     (give %fact ~[/notifications /v0/notifications] activity-event+!>([time-id event]))
   ::  we always update sources in order, so make sure base is processed last
   =;  co
@@ -503,7 +503,7 @@
 ++  refresh-index
   |=  [=source:a new=index:a new-floor=?]
   =?  new  new-floor
-    (update-reads new)
+    (update-reads:indx new)
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -511,7 +511,7 @@
 ::
 ++  refresh-all-summaries
   ^+  cor
-  =/  sources  (sort-sources ~(tap in ~(key by indices)))
+  =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  cor
   =.  cor  (refresh-summary i.sources)
@@ -564,7 +564,7 @@
       ::  case children have older unread items
       ?:  !deep.action
         =-  index(items.reads (malt -))
-        (get-reads-from-stream stream.index `floor.reads.index ~ &)
+        (get-reads:strm stream.index `floor.reads.index ~ &)
       ::  otherwise, we can short circuit and just mark everything read,
       ::  because we're going to also mark all children read
       =-  index(reads [- ~])
@@ -574,7 +574,7 @@
       ?~(latest now.bowl time.u.latest)
     ::  if we're marking deep then we need to recursively read all children
     =?  cor  deep.action
-      =/  children  (get-children indices source)
+      =/  children  (get-children:src indices source)
       |-
       ?~  children  cor
       =/  =source:a  i.children
@@ -590,7 +590,7 @@
       ?:  !deep.action  (tap:on-read-items:a items.reads.new)
       ::  if not, we need to generate the new items based on the floor
       ::  we just came up with
-      %-  get-reads-from-stream
+      %-  get-reads:strm
       :*  stream.index
           `floor.reads.index
           ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
@@ -601,7 +601,7 @@
 ::
 ++  propagate-read-items
   |=  [=source:a items=(list [=time-id:a ~])]
-  =/  parents  (get-parents source)
+  =/  parents  (get-parents:src source)
   |-
   ?~  parents  cor
   =/  parent-index  (get-index i.parents)
@@ -651,7 +651,7 @@
   ::        and segment replies for unread threads tracking
   |-
   =;  unread-stream=stream:a
-    =/  children  (get-children indices source)
+    =/  children  (get-children:src indices source)
     (stream-to-unreads unread-stream reads children source top)
   %+  gas:on-event:a  *stream:a
   %+  murn
@@ -708,7 +708,7 @@
         reads
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
-  =/  volume  (get-volume volume-settings -.event)
+  =/  volume  (get-volume:evt volume-settings -.event)
   ::TODO  support other event types
   =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
   =*  supported
@@ -733,14 +733,14 @@
 ::
 ++  sync-reads
   =/  oldest-floors=(map source:a time)  ~
-  =/  sources  (sort-sources ~(tap in ~(key by indices)))
+  =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  cor
   =/  =source:a  i.sources
   =/  =index:a  (~(got by indices) source)
-  =/  our-reads  (get-reads-from-stream stream.index ~ `floor.reads.index &)
+  =/  our-reads  (get-reads:strm stream.index ~ `floor.reads.index &)
   =^  min-floors  indices
-    =/  parents  (get-parents source)
+    =/  parents  (get-parents:src source)
     =/  floors=(map source:a time)  ~
     |-
     ?~  parents  [floors indices]
@@ -767,7 +767,7 @@
     =;  main-reads=read-items:a
       [u.min-floor main-reads]
     %+  gas:on-read-items:a  items.reads.index
-    (get-reads-from-stream stream.index `u.min-floor `floor.reads.index &)
+    (get-reads:strm stream.index `u.min-floor `floor.reads.index &)
   =.  cor  (refresh-index source index &)
   $(sources t.sources)
 ::
