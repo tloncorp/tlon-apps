@@ -808,7 +808,7 @@ export default function ContentRenderer({
   isEdited?: boolean;
   viewMode?: PostViewMode;
 }) {
-  const { inlines, blocks, references, story } = useMemo(
+  const { inlines, story } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
   );
@@ -842,20 +842,6 @@ export default function ContentRenderer({
               .concat('...')
         : [],
     [firstInlineIsMention, inlines]
-  );
-  const blockContent = useMemo(
-    () =>
-      blocks.sort((a, b) => {
-        // Sort images to the end
-        if (isImage(a) && !isImage(b)) {
-          return 1;
-        }
-        if (!isImage(a) && isImage(b)) {
-          return -1;
-        }
-        return 0;
-      }),
-    [blocks]
   );
 
   if (!story) {
@@ -896,86 +882,51 @@ export default function ContentRenderer({
     );
   }
 
-  if (post.type === 'note' && story) {
-    // Notes are always rendered with interleaved content
-
-    return (
-      <YStack width="100%">
-        {story.map((s, k) => {
-          if ('block' in s) {
-            return <BlockContent serif key={k} block={s.block} />;
-          }
-
-          if ('type' in s && s.type === 'reference') {
-            return <ContentReference key={k} reference={s} />;
-          }
-
-          if ('inline' in s) {
-            return (
-              <LineRenderer
-                key={k}
-                inlines={s.inline}
-                isNotice={isNotice}
-                onPressImage={onPressImage}
-                onLongPress={onLongPress}
-                viewMode={viewMode}
-                serif
-              />
-            );
-          }
-        })}
-      </YStack>
-    );
-  }
-
   return (
     <YStack width="100%">
-      {references.length > 0 ? (
-        <YStack gap="$s" paddingBottom="$l">
-          {references.map((ref, key) => {
-            return <ContentReference key={key} reference={ref} />;
-          })}
-        </YStack>
-      ) : null}
-      {blocks.length > 0 ? (
-        <YStack>
-          {blockContent
-            .filter((a) => !!a)
-            .map((block, key) => {
-              return (
-                <BlockContent
-                  key={key}
-                  block={block}
-                  onPressImage={onPressImage}
-                  onLongPress={onLongPress}
-                />
-              );
-            })}
-        </YStack>
-      ) : null}
-      <XStack justifyContent="space-between" alignItems="flex-start">
-        {inlines.length > 0 ? (
-          <View flexGrow={1} flexShrink={1}>
+      {story.map((s, k) => {
+        if ('block' in s) {
+          return (
+            <BlockContent
+              serif={post.type === 'note'}
+              key={k}
+              block={s.block}
+            />
+          );
+        }
+
+        if ('type' in s && s.type === 'reference') {
+          return <ContentReference key={k} reference={s} />;
+        }
+
+        if ('inline' in s) {
+          return (
             <LineRenderer
-              inlines={inlines}
+              key={k}
+              inlines={s.inline}
               isNotice={isNotice}
               onPressImage={onPressImage}
               onLongPress={onLongPress}
               viewMode={viewMode}
+              serif={post.type === 'note'}
             />
-          </View>
-        ) : null}
-        {isEdited ? (
-          <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
-            Edited
-          </Text>
-        ) : null}
-        {deliveryStatus ? (
-          <View flexShrink={1}>
-            <ChatMessageDeliveryStatus status={deliveryStatus} />
-          </View>
-        ) : null}
-      </XStack>
+          );
+        }
+      })}
+      {post.type === 'chat' && (
+        <View position="absolute" bottom={0} right={0}>
+          {isEdited ? (
+            <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+              Edited
+            </Text>
+          ) : null}
+          {deliveryStatus ? (
+            <View flexShrink={1}>
+              <ChatMessageDeliveryStatus status={deliveryStatus} />
+            </View>
+          ) : null}
+        </View>
+      )}
     </YStack>
   );
 }
