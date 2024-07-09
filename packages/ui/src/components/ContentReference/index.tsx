@@ -5,6 +5,7 @@ import { PostViewMode } from '../ContentRenderer';
 import Pressable from '../Pressable';
 import ChannelReference from './ChannelReference';
 import { GroupReference } from './GroupReference';
+import ReferenceSkeleton from './ReferenceSkeleton';
 
 export default function ContentReference({
   reference,
@@ -33,11 +34,10 @@ export default function ContentReference({
 
   if (reference.referenceType === 'app') {
     return (
-      <Pressable>
-        <Text fontSize="$m" color="$primaryText" marginLeft="$s">
-          App
-        </Text>
-      </Pressable>
+      <ReferenceSkeleton
+        message="App references are not yet supported"
+        messageType="error"
+      />
     );
   }
 
