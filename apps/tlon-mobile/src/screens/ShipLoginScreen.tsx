@@ -47,12 +47,15 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   const { setShip } = useShip();
 
   const isValidUrl = useCallback((url: string) => {
-    try {
-      new URL(url);
-      return true;
-    } catch (err) {
+    const urlPattern = /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(\/\S*)?$/i;
+    const hostedPattern = /tlon\.network/i;
+    if (!urlPattern.test(url)) {
       return false;
     }
+    if (hostedPattern.test(url)) {
+      return 'hosted';
+    }
+    return true;
   }, []);
 
   const onSubmit = handleSubmit(async ({ shipUrl: rawShipUrl, accessCode }) => {
@@ -128,10 +131,11 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           rules={{
             required: 'Please enter a valid URL.',
             validate: (value) => {
-              if (!isValidUrl(value)) {
+              const urlValidation = isValidUrl(value);
+              if (urlValidation === false) {
                 return 'Please enter a valid URL.';
               }
-              if (value.toLowerCase().endsWith('.tlon.network')) {
+              if (urlValidation === 'hosted') {
                 return 'Please log in to your hosted Tlon ship using email and password.';
               }
               return true;
