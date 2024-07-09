@@ -158,9 +158,11 @@ export const syncContacts = async (priority = SyncPriority.Medium) => {
 };
 
 export const syncPinnedItems = async (priority = SyncPriority.Medium) => {
+  logger.log('syncing pinned items');
   const pinnedItems = await syncQueue.add('pinnedItems', priority, () =>
     api.getPinnedItems()
   );
+  logger.log('got pinned items from api', pinnedItems.length);
   await db.insertPinnedItems(pinnedItems);
 };
 
@@ -185,6 +187,21 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
   checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
+
+export async function syncPostReference(options: {
+  postId: string;
+  channelId: string;
+  replyId?: string;
+}) {
+  // We exclude this from the sync queue as these operations can take quite a
+  // while; they're also not blocking as we're just waiting on a subscription
+  // event.
+  const response = await api.getPostReference(options);
+  await db.insertChannelPosts({
+    channelId: options.channelId,
+    posts: [response],
+  });
+}
 
 export async function syncThreadPosts(
   {
@@ -395,8 +412,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       await db.removeJoinedGroupChannel({ channelId: update.channelId });
       break;
     case 'addNavSection':
+      logger.log('adding nav section', update);
       await db.addNavSectionToGroup({
         id: update.navSectionId,
+        sectionId: update.sectionId,
         groupId: update.groupId,
         meta: update.clientMeta,
       });
@@ -413,7 +432,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'moveNavSection':
       await db.updateNavSection({
         id: update.navSectionId,
-        index: update.index,
+        sectionIndex: update.index,
       });
       break;
     case 'moveChannel':

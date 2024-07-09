@@ -1,6 +1,5 @@
 import bigInt from 'big-integer';
 import React, { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';

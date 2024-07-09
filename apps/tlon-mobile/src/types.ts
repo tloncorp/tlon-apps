@@ -45,6 +45,10 @@ export type RootStackParamList = {
 };
 
 export type GroupSettingsStackParamList = {
+  EditChannel: {
+    channelId: string;
+    groupId: string;
+  };
   GroupMeta: {
     groupId: string;
   };

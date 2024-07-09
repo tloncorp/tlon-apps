@@ -58,7 +58,6 @@ export default function NotebookPost({
         borderWidth={1}
         borderRadius="$xl"
         borderColor="$shadow"
-        marginVertical="$xl"
         overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
         {post.image && (

@@ -40,7 +40,6 @@ export function GenericHeader({
             </IconButton>
           )}
           <Animated.View
-            key={showSpinner?.toString()}
             entering={FadeInDown}
             exiting={FadeOutUp}
             style={{ flex: 1 }}

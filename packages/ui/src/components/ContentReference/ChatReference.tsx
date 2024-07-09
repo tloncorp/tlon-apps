@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 import { ContactAvatar } from '../Avatar';
 import ContactName from '../ContactName';
-import ChatContent, { PostViewMode } from '../ContentRenderer';
+import ContentRenderer, { PostViewMode } from '../ContentRenderer';
 import { Reference } from './Reference';
 
 export default function ChatReference({
@@ -13,7 +13,7 @@ export default function ChatReference({
   asAttachment = false,
   viewMode = 'chat',
 }: {
-  channel: db.Channel;
+  channel?: db.Channel;
   post: db.Post;
   onPress: (channel: db.Channel, post: db.Post) => void;
   asAttachment?: boolean;
@@ -51,7 +51,7 @@ export default function ChatReference({
         <Reference.Icon type="ArrowRef" />
       </Reference.Header>
       <Reference.Body>
-        <ChatContent
+        <ContentRenderer
           viewMode={viewMode}
           shortened={asAttachment || viewMode === 'block'}
           post={post}

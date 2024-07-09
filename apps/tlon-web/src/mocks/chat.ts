@@ -144,8 +144,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~nocsyx-lassul': {
@@ -156,8 +156,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~fallyn-balfus': {
@@ -168,8 +168,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~finned-palmer': {
@@ -180,8 +180,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~datder-sonnet': {
@@ -192,8 +192,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~hastuc-dibtux': {
@@ -204,8 +204,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~rilfun-lidlen': {
@@ -216,8 +216,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   '~mister-dister-dozzod-dozzod': {
@@ -228,8 +228,8 @@ export const dmList: Activity = {
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
 };

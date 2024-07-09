@@ -264,8 +264,9 @@ const testGroupData: db.Group = {
   navSections: [
     {
       id: 'abc',
+      sectionId: `${groupId}-abc`,
       groupId,
-      channels: [{ index: 0, channelId, groupNavSectionId: 'abc' }],
+      channels: [{ channelIndex: 0, channelId, groupNavSectionId: 'abc' }],
     },
   ],
   channels: [{ id: channelId, groupId, type: 'chat' }],
