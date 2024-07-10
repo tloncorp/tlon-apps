@@ -62,7 +62,7 @@ export async function blockUser(userId: string) {
 }
 
 export async function unblockUser(userId: string) {
-  logger.log(`blocking user`, userId);
+  logger.log(`unblocking user`, userId);
   // optimistic update
   const existingContact = await db.getContact({ id: userId });
   if (existingContact) {
