@@ -745,7 +745,7 @@
       ^+  ca-core
       ?:  =(author our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
-        (send ~[`action`[%read source [%all `now.bowl |]]])
+        (send [%read source [%all `now.bowl |]] ~)
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  action
         [%add %post [[author id] id] nest group.perm.perm.channel content mention]
@@ -756,7 +756,7 @@
       =/  parent-key=message-key  [[author id]:parent id.parent]
       ?:  =(author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
-        (send ~[`action`[%read source [%all `now.bowl |]]])
+        (send [%read source [%all `now.bowl |]] ~)
       =/  mention=?  (was-mentioned:utils content our.bowl)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
@@ -808,7 +808,7 @@
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group.create
     =.  last-read.remark.channel  now.bowl
-    =.  ca-core  (send:ca-activity ~[[%add %chan-init nest group.create]])
+    =.  ca-core  (send:ca-activity [%add %chan-init nest group.create] ~)
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld ca-area /create) %agent [our.bowl server] %poke cage)
   ::
@@ -840,6 +840,15 @@
       %join       !!  ::  handled elsewhere
       %leave      ca-leave
       ?(%read %read-at %watch %unwatch)  (ca-a-remark a-channel)
+    ::
+        %post
+      =/  =source:activity
+        ?.  ?=(%reply -.c-post.a-channel)
+          [%channel nest group.perm.perm.channel]
+        =/  id  id.c-post.a-channel
+        [%thread [[our.bowl id] id] nest group.perm.perm.channel]
+      =.  ca-core  (send:ca-activity [%bump source] ~)
+      (ca-send-command [%channel nest a-channel])
     ==
   ::
   ++  ca-a-remark
@@ -2146,7 +2155,7 @@
       ::  if they have a setting that's not mute, retain it otherwise
       ::  delete setting if it's mute so it defaults
       ?.  =(setting mute:activity)  ca-core
-      (send:ca-activity ~[[%adjust source ~]])
+      (send:ca-activity [%adjust source ~] ~)
     ::  if our read permissions restored, re-subscribe
     (ca-safe-sub |)
   ::

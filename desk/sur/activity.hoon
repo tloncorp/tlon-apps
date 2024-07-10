@@ -24,6 +24,7 @@
 ::    actions are only ever performed for and by our selves
 ::
 ::    $add: add an event to the stream
+::    $bump: mark a source as having new activity from myself
 ::    $del: remove a source and all its activity
 ::    $read: mark an event as read
 ::    $adjust: adjust the volume of an source
@@ -31,6 +32,7 @@
 ::
 +$  action
   $%  [%add =incoming-event]
+      [%bump =source]
       [%del =source]
       [%read =source =read-action]
       [%adjust =source =(unit volume-map)]
@@ -57,6 +59,7 @@
 ::    $add: an event was added to the stream
 ::    $del: a source and its activity were removed
 ::    $read: a source's activity state was updated
+::    $activity: the activity state was updated
 ::    $adjust: the volume of a source was adjusted
 ::    $allow-notifications: the allowed notifications were changed
 ::
@@ -64,6 +67,7 @@
   $%  [%add =source time-event]
       [%del =source]
       [%read =source =activity-summary]
+      [%activity =activity]
       [%adjust =source volume-map=(unit volume-map)]
       [%allow-notifications allow=notifications-allowed]
   ==
@@ -139,7 +143,7 @@
   ==
 ::
 ::  $index: the stream of activity and read state for a source
-+$  index  [=stream =reads]
++$  index  [=stream =reads bump=time]
 ::
 ::  $reads: the read state for a source
 ::
@@ -218,6 +222,8 @@
   |%
   ++  v3
     |%
+    +$  index  [=stream =reads]
+    +$  indices  (map source index)
     +$  update
       $%  [%add =source time-event]
           [%del =source]
@@ -252,7 +258,7 @@
           [%allow-notifications allow=notifications-allowed]
       ==
     +$  full-info
-      $:  =indices
+      $:  =indices:v3
           activity=activity
           =volume-settings
       ==

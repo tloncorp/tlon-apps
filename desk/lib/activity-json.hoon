@@ -257,11 +257,12 @@
     |=  ind=indices:a
     %-  pairs
     %+  turn  ~(tap by ind)
-    |=  [sc=source:a st=stream:a r=reads:a]
+    |=  [sc=source:a st=stream:a r=reads:a bump=^time]
     :-  (string-source sc)
     %-  pairs
     :~  stream+(stream st)
         reads+(reads r)
+        last-self-activity+(time bump)
     ==
   ::
   ++  activity
@@ -303,6 +304,7 @@
       %add  (added +.u)
       %del  (source +.u)
       %read  (read +.u)
+      %activity  (activity +.u)
       %adjust  (adjusted +.u)
       %allow-notifications  (allowed +.u)
     ==
@@ -334,7 +336,7 @@
     |%
     ++  update
       |=  u=update:v2:old:a
-      ?+  -.u  (update u)
+      ?+  -.u  (^update u)
         %read  (frond -.u (read +.u))
       ==
     ++  read
@@ -346,7 +348,7 @@
     ++  full-info
       |=  fi=full-info:v2:old:a
       %-  pairs
-      :~  indices+(indices indices.fi)
+      :~  indices+(indices:v3 indices.fi)
           activity+(activity activity.fi)
           settings+(volume-settings volume-settings.fi)
       ==
@@ -371,7 +373,7 @@
     |%
     ++  update
       |=  u=update:v3:old:a
-      ?+  -.u  (update u)
+      ?+  -.u  (^update u)
         %read  (frond -.u (read +.u))
       ==
     ++  read
@@ -386,6 +388,16 @@
       :~  indices+(indices indices.fi)
           activity+(activity activity.fi)
           settings+(volume-settings volume-settings.fi)
+      ==
+    ++  indices
+      |=  ind=indices:v3:old:a
+      %-  pairs
+      %+  turn  ~(tap by ind)
+      |=  [sc=source:a st=stream:a r=reads:a]
+      :-  (string-source sc)
+      %-  pairs
+      :~  stream+(stream st)
+          reads+(reads r)
       ==
     ++  activity
       |=  ac=activity:v3:old:a

@@ -106,6 +106,10 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  now-id   `id:c`[our now]:bowl
+++  scry-path
+  |=  [agent=term =path]
+  ^-  ^path
+  (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  init  cor
 ::  +load: load next state
 ++  load
@@ -773,10 +777,13 @@
           mention=?
       ==
   ^+  cor
-  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
-    cor
-  %-  emit
-  =;  =cage
+  =;  actions=(list action)
+    ?.  .^(? %gu (scry-path %activity /$))
+      cor
+    %-  emil
+    %+  turn  actions
+    |=  =action
+    =/  =cage  activity-action+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
   ?:  ?&  ?=(?(%post %reply) -.concern)
           .=  our.bowl
@@ -785,9 +792,10 @@
     =/  =source
       ?:  ?=(%post -.concern)  [%dm whom]
       [%dm-thread top.concern whom]
-    activity-action+!>(`action`[%read source [%all `now.bowl |]])
-  :-  %activity-action
-  !>  ^-  action
+    :~  [%read source [%all `now.bowl |]]
+        [%bump source]
+    ==
+  :_  ~
   :-  %add
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]

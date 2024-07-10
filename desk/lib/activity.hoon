@@ -90,7 +90,7 @@
   ++  update-reads
     |=  =index:a
     ^-  index:a
-    =/  new-floor=(unit time)  (find-floor index)
+    =/  new-floor=(unit time)  (find-floor [stream reads]:index)
     ?~  new-floor  index
     =/  new-reads=read-items:a
       (lot:on-read-items:a items.reads.index new-floor ~)
@@ -199,6 +199,7 @@
           notify.as
           unread.as
         ::
+          ?:  =(~ children.as)  ~
           :-  ~
           %-  ~(gas by *activity:v3:old:a)
           %+  turn
@@ -214,6 +215,7 @@
       |=  [=update:a =activity:a]
       ^-  update:v3:old:a
       ?+  -.update  update
+          %activity  !!
           %read
         [%read source.update (activity-summary activity-summary.update activity)]
       ==
@@ -247,6 +249,7 @@
       |=  [=update:a =activity:a]
       ^-  update:v2:old:a
       ?+  -.update  update
+          %activity  !!
           %read
         [%read source.update (activity-summary activity-summary.update activity)]
       ==
