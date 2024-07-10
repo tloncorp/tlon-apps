@@ -42,10 +42,12 @@ export type RootStackParamList = {
   GroupSettings: {
     group: db.Group;
   };
+  AppSettings: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
-  AppSettings: undefined;
+  AppInfo: undefined;
+  PushNotificationSettings: undefined;
 };
 
 export type GroupSettingsStackParamList = {

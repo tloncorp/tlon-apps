@@ -1,91 +1,101 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/dist/store';
-import {
-  AppSetting,
-  GenericHeader,
-  ListItem,
-  SizableText,
-  Stack,
-  View,
-  YStack,
-} from '@tloncorp/ui';
-import { preSig } from '@urbit/aura';
-import * as Application from 'expo-application';
-import { useCallback } from 'react';
-import { Platform } from 'react-native';
+import { GenericHeader, IconType, ListItem, View, YStack } from '@tloncorp/ui';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView } from 'react-native-gesture-handler';
 
-import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
 import { RootStackParamList } from '../types';
+import { getHostingToken, getHostingUserId } from '../utils/hosting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 
-const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
-
 export function AppSettingsScreen(props: Props) {
-  const { data: appInfo } = store.useAppInfo();
+  const [hasHostedAuth, setHasHostedAuth] = useState(false);
 
-  const onPressPreviewFeatures = useCallback(() => {
-    props.navigation.navigate('FeatureFlags');
+  useEffect(() => {
+    async function getHostingInfo() {
+      const [cookie, userId] = await Promise.all([
+        getHostingToken(),
+        getHostingUserId(),
+      ]);
+      if (cookie && userId) {
+        setHasHostedAuth(true);
+      }
+    }
+    getHostingInfo();
+  }, []);
+
+  const onManageAccountPressed = useCallback(() => {
+    props.navigation.navigate('ManageAccount');
+  }, [props.navigation]);
+
+  const onAppInfoPressed = useCallback(() => {
+    props.navigation.navigate('AppInfo');
+  }, [props.navigation]);
+
+  const onPushNotifPressed = useCallback(() => {
+    props.navigation.navigate('PushNotificationSettings');
+  }, [props.navigation]);
+
+  const onBlockedUsersPressed = useCallback(() => {
+    props.navigation.navigate('BlockedUsers');
   }, [props.navigation]);
 
   return (
     <View flex={1}>
       <GenericHeader
-        title="App Info"
+        title="App Settings"
         goBack={() => props.navigation.goBack()}
       />
       <ScrollView>
         <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$s">
-          <AppSetting title="Build version" value={BUILD_VERSION} copyable />
-          <AppSetting
-            title="Notify provider"
-            value={preSig(NOTIFY_PROVIDER)}
-            copyable
+          <AppInfoListItem
+            title="App Info"
+            icon="Settings"
+            onPress={onAppInfoPressed}
           />
-          <AppSetting title="Notify service" value={NOTIFY_SERVICE} copyable />
-          {appInfo ? (
-            <>
-              <AppSetting
-                title="Desk version"
-                value={appInfo.groupsVersion}
-                copyable
-              />
-              <AppSetting
-                title="Desk source"
-                value={appInfo.groupsSyncNode}
-                copyable
-              />
-              <AppSetting
-                title="Desk hash"
-                value={appInfo.groupsHash.split('.').pop() ?? 'n/a'}
-                copyable
-              />
-            </>
-          ) : (
-            <View>
-              <SizableText color="$negativeActionText">
-                Cannot load app info settings
-              </SizableText>
-            </View>
+          <AppInfoListItem
+            title="Push Notifications"
+            icon="Notifications"
+            onPress={onPushNotifPressed} // TODO
+          />
+          <AppInfoListItem
+            title="Blocked Users"
+            icon="Placeholder"
+            onPress={onBlockedUsersPressed}
+          />
+          {hasHostedAuth && (
+            <AppInfoListItem
+              title="Manage Account"
+              icon="Profile"
+              onPress={onManageAccountPressed}
+            />
           )}
-
-          <Stack marginTop="$xl">
-            <ListItem onPress={onPressPreviewFeatures}>
-              <ListItem.SystemIcon icon="Bang" rounded />
-              <ListItem.MainContent>
-                <ListItem.Title>Feature previews</ListItem.Title>
-              </ListItem.MainContent>
-              <ListItem.SystemIcon
-                icon="ChevronRight"
-                backgroundColor={'transparent'}
-                position="relative"
-                left="$m"
-              />
-            </ListItem>
-          </Stack>
         </YStack>
       </ScrollView>
     </View>
+  );
+}
+
+function AppInfoListItem({
+  onPress,
+  title,
+  icon,
+}: {
+  onPress: () => void;
+  title: string;
+  icon: IconType;
+}) {
+  return (
+    <ListItem onPress={onPress}>
+      <ListItem.SystemIcon icon={icon} rounded />
+      <ListItem.MainContent>
+        <ListItem.Title>{title}</ListItem.Title>
+      </ListItem.MainContent>
+
+      <ListItem.SystemIcon
+        icon="ChevronRight"
+        backgroundColor={'transparent'}
+      />
+    </ListItem>
   );
 }

@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import { useCallback, useMemo, useState } from 'react';
-import { Dimensions } from 'react-native';
+import { Alert, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, XStack, getTokens } from 'tamagui';
 
@@ -95,18 +95,18 @@ export function Wrapped(props: Props) {
   );
 
   // TODO: Add logout back in when we figure out TLON-2098.
-  // const onLogoutPress = () => {
-  //   Alert.alert('Log out', 'Are you sure you want to log out?', [
-  //     {
-  //       text: 'Cancel',
-  //       style: 'cancel',
-  //     },
-  //     {
-  //       text: 'Log out',
-  //       onPress: props.handleLogout,
-  //     },
-  //   ]);
-  // };
+  const onLogoutPress = () => {
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Log out',
+        onPress: props.handleLogout,
+      },
+    ]);
+  };
 
   return (
     <ScrollView>
@@ -132,11 +132,11 @@ export function Wrapped(props: Props) {
             </View>
             <View marginTop="$xl">
               <ProfileAction
-                title="App Info"
+                title="App Settings"
                 icon="Settings"
                 onPress={props.onAppSettingsPressed}
               />
-              <ProfileAction
+              {/* <ProfileAction
                 title="Push Notifications"
                 icon="Notifications"
                 onPress={() =>
@@ -154,13 +154,13 @@ export function Wrapped(props: Props) {
                   icon="TBlock"
                   onPress={props.onManageAccountPressed}
                 />
-              )}
-              {/* <ProfileAction
+              )} */}
+              <ProfileAction
                 title="Log Out"
                 icon="LogOut"
                 hideCaret
                 onPress={onLogoutPress}
-              /> */}
+              />
             </View>
           </>
         )}

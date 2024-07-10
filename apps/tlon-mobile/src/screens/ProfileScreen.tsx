@@ -11,12 +11,8 @@ import { clearShipInfo, useShip } from '../contexts/ship';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { purgeDb } from '../lib/nativeDb';
 import NavBar from '../navigation/NavBarView';
-import { RootStackParamList, SettingsStackParamList } from '../types';
-import {
-  getHostingToken,
-  removeHostingToken,
-  removeHostingUserId,
-} from '../utils/hosting';
+import { RootStackParamList } from '../types';
+import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 

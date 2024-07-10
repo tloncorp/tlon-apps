@@ -5,6 +5,7 @@ import { Platform, StatusBar } from 'react-native';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { ActivityScreen } from '../screens/ActivityScreen';
+import { AppInfoScreen } from '../screens/AppInfo';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import ChannelScreen from '../screens/ChannelScreen';
@@ -15,6 +16,7 @@ import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import PostScreen from '../screens/PostScreen';
+import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { SettingsStack } from './SettingsStack';
@@ -70,10 +72,16 @@ export function RootStack() {
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
+
+      <Root.Screen name="AppSettings" component={AppSettingsScreen} />
       <Root.Screen name="ManageAccount" component={ManageAccountScreen} />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
-      <Root.Screen name="AppSettings" component={AppSettingsScreen} />
+      <Root.Screen name="AppInfo" component={AppInfoScreen} />
       <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+      <Root.Screen
+        name="PushNotificationSettings"
+        component={PushNotificationSettingsScreen}
+      />
     </Root.Navigator>
   );
 }
