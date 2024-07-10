@@ -1,9 +1,12 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LoadingSpinner, ScreenHeader, View, YStack } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { WebView } from 'react-native-webview';
 
+import { useHandleLogout } from '../hooks/handleLogout';
 import { useWebView } from '../hooks/useWebView';
+import { getHostingUser } from '../lib/hostingApi';
 import { RootStackParamList } from '../types';
 import { getHostingToken, getHostingUserId } from '../utils/hosting';
 
@@ -17,9 +20,29 @@ interface HostingSession {
 }
 
 export function ManageAccountScreen(props: Props) {
+  const handleLogout = useHandleLogout();
   const webview = useWebView();
   const [hostingSession, setHostingSession] = useState<HostingSession | null>(
     null
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      // check if the user deleted their account when navigating away
+      return async () => {
+        const hostingUserId = await getHostingUserId();
+        if (hostingUserId) {
+          try {
+            const user = await getHostingUser(hostingUserId);
+            if (!user.verified) {
+              handleLogout();
+            }
+          } catch (err) {
+            handleLogout();
+          }
+        }
+      };
+    }, [handleLogout])
   );
 
   useEffect(() => {

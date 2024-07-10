@@ -12,11 +12,8 @@ import ProfileRow from './ProfileRow';
 
 interface Props {
   currentUserId: string;
-  debugMessage: string;
   onAppSettingsPressed?: () => void;
-  onManageAccountPressed?: () => void;
-  onBlockedUsersPressed?: () => void;
-  handleLogout: () => void;
+  onLogoutPressed: () => void;
 }
 
 export function ProfileScreenView({
@@ -43,7 +40,7 @@ export function Wrapped(props: Props) {
       },
       {
         text: 'Log out',
-        onPress: props.handleLogout,
+        onPress: props.onLogoutPressed,
       },
     ]);
   };
@@ -54,17 +51,12 @@ export function Wrapped(props: Props) {
         <View marginTop="$l">
           {contact ? (
             <ProfileDisplayWidget
-              debugMessage={props.debugMessage}
               contact={contact}
               contactId={props.currentUserId}
             />
           ) : (
             <View backgroundColor="$secondaryBackground" borderRadius="$m">
-              <ProfileRow
-                debugMessage={props.debugMessage}
-                dark
-                contactId={props.currentUserId}
-              />
+              <ProfileRow dark contactId={props.currentUserId} />
             </View>
           )}
         </View>
@@ -89,11 +81,9 @@ export function Wrapped(props: Props) {
 export function ProfileDisplayWidget({
   contact,
   contactId,
-  debugMessage,
 }: {
   contact: db.Contact;
   contactId: string;
-  debugMessage: string;
 }) {
   const coverSize =
     Dimensions.get('window').width - getTokens().space.$xl.val * 2;
@@ -101,24 +91,13 @@ export function ProfileDisplayWidget({
     return (
       <ProfileCover uri={contact.coverImage}>
         <YStack height={coverSize} width={coverSize} justifyContent="flex-end">
-          <ProfileRow
-            debugMessage={debugMessage}
-            contactId={contactId}
-            contact={contact}
-          />
+          <ProfileRow contactId={contactId} contact={contact} />
         </YStack>
       </ProfileCover>
     );
   }
 
-  return (
-    <ProfileRow
-      debugMessage={debugMessage}
-      dark
-      contactId={contactId}
-      contact={contact}
-    />
-  );
+  return <ProfileRow dark contactId={contactId} contact={contact} />;
 }
 
 function ProfileAction({

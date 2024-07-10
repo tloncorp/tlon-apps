@@ -4,13 +4,12 @@ import * as ub from '@tloncorp/shared/dist/urbit';
 import {
   GenericHeader,
   Icon,
-  LoadingSpinner,
   SizableText,
   View,
   XStack,
   YStack,
 } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import { RootStackParamList } from '../types';
 
