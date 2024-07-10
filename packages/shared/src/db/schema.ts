@@ -725,6 +725,17 @@ export const posts = sqliteTable(
   })
 );
 
+export const hiddenPosts = sqliteTable(
+  'hidden_posts',
+  {
+    postId: text('post_id').notNull(),
+    hiddenAt: timestamp('hidden_at').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.postId] }),
+  })
+);
+
 export const postsRelations = relations(posts, ({ one, many }) => ({
   channel: one(channels, {
     fields: [posts.channelId],

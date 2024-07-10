@@ -45,7 +45,7 @@ export default function NotebookPost({
 
   return (
     <Pressable
-      onPress={() => onPress?.(post)}
+      onPress={() => (post.hidden ? () => {} : onPress?.(post))}
       onLongPress={handleLongPress}
       delayLongPress={250}
       disabled={viewMode === 'activity'}
@@ -60,49 +60,57 @@ export default function NotebookPost({
         borderColor="$shadow"
         overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
-        {post.image && (
-          <Image
-            source={{
-              uri: post.image,
-            }}
-            width="100%"
-            height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
-            borderRadius="$m"
-          />
-        )}
-        {post.title && (
-          <Text
-            color="$primaryText"
-            fontFamily="$serif"
-            fontWeight="$s"
-            fontSize={smallTitle || viewMode === 'activity' ? '$l' : '$xl'}
-          >
-            {post.title}
+        {post.hidden ? (
+          <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+            You have hidden or flagged this post.
           </Text>
-        )}
-        {showAuthor && viewMode !== 'activity' && (
-          <AuthorRow
-            authorId={post.authorId}
-            author={post.author}
-            sent={post.sentAt}
-            type={post.type}
-          />
-        )}
-        <Text
-          color="$tertiaryText"
-          fontWeight="$s"
-          fontSize={smallTitle ? '$s' : '$l'}
-        >
-          {dateDisplay}
-        </Text>
-        {showReplies && (
-          <Text
-            color="$tertiaryText"
-            fontWeight="$s"
-            fontSize={viewMode === 'activity' ? '$s' : '$l'}
-          >
-            {post.replyCount} replies
-          </Text>
+        ) : (
+          <>
+            {post.image && (
+              <Image
+                source={{
+                  uri: post.image,
+                }}
+                width="100%"
+                height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
+                borderRadius="$m"
+              />
+            )}
+            {post.title && (
+              <Text
+                color="$primaryText"
+                fontFamily="$serif"
+                fontWeight="$s"
+                fontSize={smallTitle || viewMode === 'activity' ? '$l' : '$xl'}
+              >
+                {post.title}
+              </Text>
+            )}
+            {showAuthor && viewMode !== 'activity' && (
+              <AuthorRow
+                authorId={post.authorId}
+                author={post.author}
+                sent={post.sentAt}
+                type={post.type}
+              />
+            )}
+            <Text
+              color="$tertiaryText"
+              fontWeight="$s"
+              fontSize={smallTitle ? '$s' : '$l'}
+            >
+              {dateDisplay}
+            </Text>
+            {showReplies && (
+              <Text
+                color="$tertiaryText"
+                fontWeight="$s"
+                fontSize={viewMode === 'activity' ? '$s' : '$l'}
+              >
+                {post.replyCount} replies
+              </Text>
+            )}
+          </>
         )}
       </YStack>
     </Pressable>

@@ -1,4 +1,5 @@
 import * as api from '../api';
+import { isGroupChannelId } from '../api/apiUtils';
 import * as db from '../db';
 import * as urbit from '../urbit';
 import * as sync from './sync';
@@ -131,7 +132,11 @@ export async function hidePost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: true });
 
   try {
-    await api.hidePost(post.channelId, post.id);
+    if (isGroupChannelId(post.channelId)) {
+      await api.hidePost(post.id);
+    } else {
+      await api.hideDMPost(post.authorId, post.id);
+    }
   } catch (e) {
     console.error('Failed to hide post', e);
 
@@ -145,7 +150,11 @@ export async function showPost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: false });
 
   try {
-    await api.showPost(post.channelId, post.id);
+    if (isGroupChannelId(post.channelId)) {
+      await api.showPost(post.id);
+    } else {
+      await api.showDMPost(post.authorId, post.id);
+    }
   } catch (e) {
     console.error('Failed to show post', e);
 

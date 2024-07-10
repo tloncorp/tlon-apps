@@ -6,6 +6,8 @@ import * as ub from '../urbit';
 import {
   ClubAction,
   DmAction,
+  HiddenMessages,
+  HiddenPosts,
   KindData,
   KindDataChat,
   Story,
@@ -102,23 +104,33 @@ export async function getPostReference({
     replyId ? '/' + replyId : ''
   }`;
   const data = await subscribeOnce<ub.Said>({ app: 'channels', path }, 3000);
-  const post = toPostReference(data);
+  const post = await toPostReference(data);
   // The returned post id can be different than the postId we requested?? But the
   // post is going to be requested by the original id, so set manually :/
   post.id = postId;
   return post;
 }
 
-function toPostReference(said: ub.Said) {
+async function toPostReference(said: ub.Said) {
   const channelId = said.nest;
+  const hiddenPosts = await db.getHiddenPosts();
   if ('reply' in said.reference) {
     return toPostReplyData(
       channelId,
       said.reference.reply['id-post'],
-      said.reference.reply.reply
+      said.reference.reply.reply,
+      hiddenPosts.some(
+        (h) =>
+          h.postId ===
+          (said.reference as ub.ReplyReferenceResponse).reply.reply.seal.id
+      )
     );
   } else if ('post' in said.reference) {
-    return toPostData(channelId, said.reference.post);
+    return toPostData(
+      channelId,
+      said.reference.post,
+      hiddenPosts.map((p) => p.postId)
+    );
   } else {
     throw new Error('invalid response' + JSON.stringify(said, null, 2));
   }
@@ -352,7 +364,9 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
-  return toPagedPostsData(channelId, response);
+  const hiddenPosts = await db.getHiddenPosts();
+  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
+  return toPagedPostsData(channelId, response, hiddenPostIds);
 };
 
 export type PostWithUpdateTime = {
@@ -381,12 +395,17 @@ export const getLatestPosts = async ({
       count
     ),
   });
+
+  const hiddenPosts = await db.getHiddenPosts();
+  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
+
   return response.map((head) => {
     const channelId = 'nest' in head ? head.nest : head.whom;
+    const latestPost = toPostData(channelId, head.latest, hiddenPostIds);
     return {
       channelId: channelId,
       updatedAt: head.recency,
-      latestPost: toPostData(channelId, head.latest),
+      latestPost,
     };
   });
 };
@@ -572,7 +591,7 @@ export async function removeReaction({
   });
 }
 
-export async function showPost(channelId: string, postId: string) {
+export async function showPost(postId: string) {
   const action = {
     app: 'channels',
     mark: 'channel-action',
@@ -583,10 +602,10 @@ export async function showPost(channelId: string, postId: string) {
     },
   };
 
-  return await poke(action);
+  return poke(action);
 }
 
-export async function hidePost(channelId: string, postId: string) {
+export async function hidePost(postId: string) {
   const action = {
     app: 'channels',
     mark: 'channel-action',
@@ -597,8 +616,53 @@ export async function hidePost(channelId: string, postId: string) {
     },
   };
 
-  return await poke(action);
+  return poke(action);
 }
+
+export async function hideDMPost(authorId: string, postId: string) {
+  const writId = `${authorId}/${postId}`;
+  const action = {
+    app: 'chat',
+    mark: 'chat-toggle-message',
+    json: {
+      hide: writId,
+    },
+  };
+
+  return poke(action);
+}
+
+export async function showDMPost(authorId: string, postId: string) {
+  const writId = `${authorId}/${postId}`;
+
+  const action = {
+    app: 'chat',
+    mark: 'chat-toggle-message',
+    json: {
+      show: writId,
+    },
+  };
+
+  return poke(action);
+}
+
+export const getHiddenPosts = async () => {
+  const hiddenPosts = await scry<HiddenPosts>({
+    app: 'channels',
+    path: '/hidden-posts',
+  });
+
+  return hiddenPosts.map((postId) => getCanonicalPostId(postId));
+};
+
+export const getHiddenDMPosts = async () => {
+  const hiddenDMPosts = await scry<HiddenMessages>({
+    app: 'chat',
+    path: '/hidden-messages',
+  });
+
+  return hiddenDMPosts.map((postId) => getCanonicalPostId(postId));
+};
 
 export async function deletePost(channelId: string, postId: string) {
   const action = channelAction(channelId, {
@@ -651,7 +715,10 @@ export const getPostWithReplies = async ({
     path,
   });
 
-  return toPostData(channelId, post);
+  const hiddenPosts = await db.getHiddenPosts();
+  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
+
+  return toPostData(channelId, post, hiddenPostIds);
 };
 
 export interface DeletedPost {
@@ -684,45 +751,49 @@ export type ContentReference = ChannelReference | GroupReference | AppReference;
 
 export function toPagedPostsData(
   channelId: string,
-  data: ub.PagedPosts | ub.PagedWrits
+  data: ub.PagedPosts | ub.PagedWrits,
+  hiddenPostIds: string[] = []
 ): GetChannelPostsResponse {
   const posts = 'writs' in data ? data.writs : data.posts;
+  const postsData = toPostsData(channelId, posts, hiddenPostIds);
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
     totalPosts: data.total,
-    ...toPostsData(channelId, posts),
+    ...postsData,
   };
 }
 
 export function toPostsData(
   channelId: string,
-  posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
-) {
-  const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
-    [string[], db.Post[]]
-  >(
-    (memo, [id, post]) => {
-      if (post === null) {
-        memo[0].push(id);
-      } else {
-        memo[1].push(toPostData(channelId, post));
-      }
-      return memo;
-    },
-    [[], []]
-  );
+  posts: ub.Posts | ub.Writs | Record<string, ub.Reply>,
+  hiddenPostIds: string[] = []
+): { posts: db.Post[]; deletedPosts: string[] } {
+  const entries = Object.entries(posts);
+  const deletedPosts: string[] = [];
+  const otherPosts: db.Post[] = [];
+
+  for (const [id, post] of entries) {
+    if (post === null) {
+      deletedPosts.push(id);
+    } else {
+      const postData = toPostData(channelId, post, hiddenPostIds);
+      otherPosts.push(postData);
+    }
+  }
+
+  otherPosts.sort((a, b) => (a.receivedAt ?? 0) - (b.receivedAt ?? 0));
+
   return {
-    posts: otherPosts.sort((a, b) => {
-      return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
-    }),
+    posts: otherPosts,
     deletedPosts,
   };
 }
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.Writ | ub.PostDataResponse
+  post: ub.Post | ub.Writ | ub.PostDataResponse,
+  hiddenPostIds: string[] = []
 ): db.Post {
   const getPostType = (
     channelId: string,
@@ -754,6 +825,11 @@ export function toPostData(
       ? getCanonicalPostId(post.seal.time.toString())
       : null;
 
+  const isHidden = hiddenPostIds.includes(id);
+  const replyData = isPostDataResponse(post)
+    ? getReplyData(id, channelId, post, hiddenPostIds)
+    : null;
+
   return {
     id,
     channelId,
@@ -773,11 +849,10 @@ export function toPostData(
     replyContactIds: post?.seal.meta.lastRepliers,
     images: getContentImages(id, post.essay?.content),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
-    replies: isPostDataResponse(post)
-      ? getReplyData(id, channelId, post)
-      : null,
+    replies: replyData,
     deliveryStatus: null,
     syncedAt: Date.now(),
+    hidden: isHidden,
     ...flags,
   };
 }
@@ -795,10 +870,16 @@ function isPostDataResponse(
 function getReplyData(
   postId: string,
   channelId: string,
-  post: ub.PostDataResponse
+  post: ub.PostDataResponse,
+  hiddenPostIds: string[] = []
 ): db.Post[] {
   return Object.entries(post.seal.replies ?? {}).map(([, reply]) =>
-    toPostReplyData(channelId, postId, reply)
+    toPostReplyData(
+      channelId,
+      postId,
+      reply,
+      hiddenPostIds.includes(reply.seal.id)
+    )
   );
 }
 export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
@@ -815,7 +896,8 @@ export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply | ub.WritReply
+  reply: ub.Reply | ub.WritReply,
+  isHidden: boolean = false
 ): db.Post {
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
@@ -839,6 +921,7 @@ export function toPostReplyData(
     replyCount: 0,
     images: getContentImages(id, reply.memo.content),
     syncedAt: Date.now(),
+    hidden: isHidden,
     ...flags,
   };
 }

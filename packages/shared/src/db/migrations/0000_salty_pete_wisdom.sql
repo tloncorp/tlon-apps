@@ -194,6 +194,11 @@ CREATE TABLE `groups` (
 	`last_post_at` integer
 );
 --> statement-breakpoint
+CREATE TABLE `hidden_posts` (
+	`post_id` text PRIMARY KEY NOT NULL,
+	`hidden_at` integer NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `pins` (
 	`type` text NOT NULL,
 	`index` integer NOT NULL,

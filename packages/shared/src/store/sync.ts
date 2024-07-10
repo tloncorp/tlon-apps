@@ -131,8 +131,14 @@ export const syncChannelHeads = async (
   ]);
   reporter?.log('got latest posts from api');
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
+  const hiddenPosts = await db.getHiddenPosts();
+  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
   allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
-  await db.insertLatestPosts(allPosts);
+  const allPostsWithHidden = allPosts.map((post) => {
+    const hidden = hiddenPostIds.includes(post.id);
+    return { ...post, hidden };
+  });
+  await db.insertLatestPosts(allPostsWithHidden);
 };
 
 export const syncSettings = async (priority = SyncPriority.Medium) => {
@@ -566,9 +572,11 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       await db.deletePosts({ ids: [update.postId] });
       break;
     case 'hidePost':
+      await db.insertHiddenPosts([update.postId]);
       await db.updatePost({ id: update.postId, hidden: true });
       break;
     case 'showPost':
+      await db.deleteHiddenPosts([update.postId]);
       await db.updatePost({ id: update.postId, hidden: false });
       break;
     case 'updateReactions':
@@ -604,6 +612,14 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
   logger.log('event: chat update', update);
 
   switch (update.type) {
+    case 'showPost':
+      await db.deleteHiddenPosts([update.postId]);
+      await db.updatePost({ id: update.postId, hidden: false });
+      break;
+    case 'hidePost':
+      await db.insertHiddenPosts([update.postId]);
+      await db.updatePost({ id: update.postId, hidden: true });
+      break;
     case 'addPost':
       await handleAddPost(update.post, update.replyMeta);
       break;
@@ -681,6 +697,37 @@ export async function handleAddPost(
   }
 }
 
+export async function syncHiddenPosts(reporter: ErrorReporter) {
+  const hiddenPosts = await syncQueue.add(
+    'hiddenPosts',
+    SyncPriority.High,
+    () => api.getHiddenPosts()
+  );
+  reporter?.log('got hidden channel posts data from api');
+  const hiddenDMPosts = await syncQueue.add(
+    'hiddenDMPosts',
+    SyncPriority.High,
+    () => api.getHiddenDMPosts()
+  );
+  reporter?.log('got hidden dm posts data from api');
+
+  const currentHiddenPosts = await db.getHiddenPosts();
+
+  // if the user deleted the posts from another client while we were offline,
+  // we should remove them from our hidden posts list
+  currentHiddenPosts.forEach(async (hiddenPost) => {
+    if (
+      !hiddenPosts.some((postId) => postId === hiddenPost.postId) &&
+      !hiddenDMPosts.some((postId) => postId === hiddenPost.postId)
+    ) {
+      await db.deleteHiddenPosts([hiddenPost.postId]);
+    }
+  });
+
+  await db.insertHiddenPosts([...hiddenPosts, ...hiddenDMPosts]);
+  reporter?.log('inserted hidden posts');
+}
+
 export async function syncPosts(
   options: api.GetChannelPostsOptions,
   priority = SyncPriority.Medium
@@ -692,10 +739,18 @@ export async function syncPosts(
   const response = await syncQueue.add('channelPosts', priority, () =>
     api.getChannelPosts(options)
   );
+  const hiddenPosts = await db.getHiddenPosts();
   if (response.posts.length) {
+    const postsWithHidden = response.posts.map((post) => {
+      const hidden = hiddenPosts.some(
+        (hiddenPost) => hiddenPost.postId === post.id
+      );
+      return { ...post, hidden };
+    });
+
     await db.insertChannelPosts({
       channelId: options.channelId,
-      posts: response.posts,
+      posts: postsWithHidden,
       newer: response.newer,
       older: response.older,
     });
@@ -706,6 +761,7 @@ export async function syncPosts(
       syncedAt: Date.now(),
     });
   }
+
   return response;
 }
 
@@ -797,6 +853,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // highest priority, do immediately
     await withRetry(() => syncInitData(reporter));
     reporter.log(`finished syncing init data`);
+    await withRetry(() => syncHiddenPosts(reporter));
+    reporter.log(`finished syncing hidden posts`);
 
     await withRetry(() => syncChannelHeads(reporter));
     reporter.log(`finished syncing latest posts`);
