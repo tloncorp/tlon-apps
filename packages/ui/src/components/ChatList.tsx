@@ -350,7 +350,7 @@ export function ChatList({
             renderSectionHeader={renderSectionHeader}
             onViewableItemsChanged={onViewableItemsChanged}
             onScroll={scrollHandler}
-            onMomentumScrollEnd={handleScroll}
+            onMomentumScrollEnd={activeTab === 'all' ? handleScroll : undefined}
             scrollEventThrottle={16}
           />
         )}
