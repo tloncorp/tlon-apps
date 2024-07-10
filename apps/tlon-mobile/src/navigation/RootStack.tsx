@@ -5,6 +5,7 @@ import { Platform, StatusBar } from 'react-native';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { ActivityScreen } from '../screens/ActivityScreen';
+import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
@@ -68,6 +69,7 @@ export function RootStack() {
         options={{ animation: 'fade' }}
       />
       <Root.Screen name="ManageAccount" component={ManageAccountScreen} />
+      <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
     </Root.Navigator>
   );
 }

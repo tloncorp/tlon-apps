@@ -1,5 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 import { Dimensions } from 'react-native';
 import { getTokens } from 'tamagui';
@@ -51,9 +52,13 @@ export function ProfileSheet({
   const { onPressGoToDm } = useNavigation();
 
   const handleBlock = useCallback(() => {
-    console.log('block not yet implemented', contactId);
+    if (contact && contact.isBlocked) {
+      store.unblockUser(contactId);
+    } else {
+      store.blockUser(contactId);
+    }
     onOpenChange(false);
-  }, [contactId, onOpenChange]);
+  }, [contact, contactId, onOpenChange]);
 
   const handleGoToDm = useCallback(async () => {
     onPressGoToDm([contactId]);
@@ -89,8 +94,7 @@ export function ProfileSheet({
           <ProfileButton secondary label="Copy Name" onPress={handleCopyName} />
           <ProfileButton
             secondary
-            label="Block"
-            // TODO: blocking is not implemented yet
+            label={contact?.isBlocked ? 'Unblock' : 'Block'}
             onPress={handleBlock}
           />
         </YStack>

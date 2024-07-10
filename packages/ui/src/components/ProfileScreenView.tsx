@@ -20,6 +20,7 @@ interface Props {
   debugMessage: string;
   onAppSettingsPressed?: () => void;
   onManageAccountPressed?: () => void;
+  onBlockedUsersPressed?: () => void;
   handleLogout: () => void;
 }
 
@@ -137,6 +138,11 @@ export function Wrapped(props: Props) {
                   onPress={props.onManageAccountPressed}
                 />
               )}
+              <ProfileAction
+                title="Blocked Users"
+                icon="Stop"
+                onPress={props.onBlockedUsersPressed}
+              />
               <ProfileAction
                 title="App Settings"
                 icon="Settings"

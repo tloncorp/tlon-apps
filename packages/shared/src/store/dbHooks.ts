@@ -92,6 +92,14 @@ export const useContact = (options: { id: string }) => {
   });
 };
 
+export const useBlockedContacts = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBlockedUsers);
+  return useQuery({
+    queryKey: ['blockedContacts', depsKey],
+    queryFn: () => db.getBlockedUsers(),
+  });
+};
+
 export const useContacts = () => {
   const deps = useKeyFromQueryDeps(db.getContacts);
   return useQuery({

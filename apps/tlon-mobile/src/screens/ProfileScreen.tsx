@@ -54,6 +54,10 @@ export default function ProfileScreen(props: Props) {
     props.navigation.navigate('FeatureFlags');
   }, [props.navigation]);
 
+  const onBlockedUsersPressed = useCallback(() => {
+    props.navigation.navigate('BlockedUsers');
+  }, [props.navigation]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
@@ -62,6 +66,7 @@ export default function ProfileScreen(props: Props) {
         debugMessage={DEBUG_MESSAGE}
         onManageAccountPressed={onManageAccountPressed}
         onAppSettingsPressed={onAppSettingsPressed}
+        onBlockedUsersPressed={onBlockedUsersPressed}
         handleLogout={handleLogout}
       />
       <NavBar navigation={props.navigation} />

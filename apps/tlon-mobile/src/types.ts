@@ -44,6 +44,7 @@ export type RootStackParamList = {
   };
   FeatureFlags: undefined;
   ManageAccount: undefined;
+  BlockedUsers: undefined;
 };
 
 export type GroupSettingsStackParamList = {

@@ -117,6 +117,11 @@ function checkForNewlyJoined({
   }
 }
 
+export const syncBlockedUsers = async () => {
+  const blockedIds = await api.getBlockedUsers();
+  await db.insertBlockedContacts({ blockedIds });
+};
+
 export const syncChannelHeads = async (
   reporter?: ErrorReporter,
   priority = SyncPriority.High
@@ -830,6 +835,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         syncPushNotificationsSetting().then(() =>
           reporter.log(`finished syncing push notifications setting`)
         ),
+        syncBlockedUsers().then(() => {
+          reporter.log(`finished syncing blocked users`);
+        }),
       ])
     );
 

@@ -42,6 +42,7 @@ export * from './components/Channel/BaubleHeader';
 export * from './components/ChatMessage';
 export * from './components/GalleryPost';
 export * from './components/ContactList';
+export * from './components/BlockedContactsWidget';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Embed';
 export * from './components/AddChats';

@@ -60,3 +60,25 @@ export async function blockUser(userId: string) {
     }
   }
 }
+
+export async function unblockUser(userId: string) {
+  logger.log(`blocking user`, userId);
+  // optimistic update
+  const existingContact = await db.getContact({ id: userId });
+  if (existingContact) {
+    await db.updateContact({ id: userId, isBlocked: false });
+  }
+
+  try {
+    await api.unblockUser(userId);
+  } catch (e) {
+    console.error('Failed to unblock user', e);
+    // rollback optimistic update
+    if (existingContact) {
+      await db.updateContact({
+        id: userId,
+        isBlocked: existingContact.isBlocked,
+      });
+    }
+  }
+}
