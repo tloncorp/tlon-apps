@@ -36,6 +36,7 @@ export * from './components/SectionList';
 export * from './components/ContactRow';
 export * from './components/Button';
 export * from './components/ScreenHeader';
+export * from './components/GenericHeader';
 export * from './components/IconButton';
 export * from './components/Channel/ChannelHeader';
 export * from './components/Channel/BaubleHeader';

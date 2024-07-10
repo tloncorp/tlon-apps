@@ -2,16 +2,15 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   AppSetting,
+  GenericHeader,
   ListItem,
   SizableText,
   Stack,
   View,
-  XStack,
   YStack,
 } from '@tloncorp/ui';
 import { preSig } from '@urbit/aura';
 import * as Application from 'expo-application';
-import { GenericHeader } from 'packages/ui/src/components/GenericHeader';
 import { useCallback } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
