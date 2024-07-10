@@ -1,17 +1,12 @@
-import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
-import * as ub from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo, useState } from 'react';
 import { Alert, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, SizableText, XStack, getTokens } from 'tamagui';
+import { ScrollView, getTokens } from 'tamagui';
 
 import { ContactsProvider, useContact } from '../contexts';
 import { View, YStack } from '../core';
-import { Icon, IconType } from './Icon';
+import { IconType } from './Icon';
 import { ListItem } from './ListItem';
-import { LoadingSpinner } from './LoadingSpinner';
 import ProfileCover from './ProfileCover';
 import ProfileRow from './ProfileRow';
 
@@ -35,64 +30,9 @@ export function ProfileScreenView({
   );
 }
 
-type NotificationState = { open: boolean; setting: 1 | 2 | 3 };
-
 export function Wrapped(props: Props) {
-  const [loading, setLoading] = useState<string | null>(null);
-  const { data: pushNotificationsSetting } =
-    store.usePushNotificationsSetting();
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
-  const [notifState, setNotifState] = useState<NotificationState>({
-    open: false,
-    setting: 1,
-  });
-
-  const currentUserIsHosted = useMemo(() => {
-    return props.currentUserId ? api.getCurrentUserIsHosted() : false;
-  }, [props.currentUserId]);
-
-  const setLevel = useCallback(
-    async (level: ub.PushNotificationsSetting) => {
-      if (level === pushNotificationsSetting) return;
-      setLoading(level);
-      await store.setDefaultNotificationLevel(level);
-      setLoading(null);
-    },
-    [pushNotificationsSetting]
-  );
-
-  const LevelIndicator = useCallback(
-    (props: { level: ub.PushNotificationsSetting }) => {
-      if (loading === props.level) {
-        return <LoadingSpinner />;
-      }
-
-      if (pushNotificationsSetting === props.level) {
-        return (
-          <View
-            height="$2xl"
-            width="$2xl"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Icon type="Checkmark" />
-          </View>
-        );
-      }
-
-      return (
-        <View
-          borderRadius="$4xl"
-          borderWidth={1}
-          borderColor="$secondaryBorder"
-          height="$2xl"
-          width="$2xl"
-        />
-      );
-    },
-    [pushNotificationsSetting, loading]
-  );
 
   // TODO: Add logout back in when we figure out TLON-2098.
   const onLogoutPress = () => {
@@ -111,103 +51,36 @@ export function Wrapped(props: Props) {
   return (
     <ScrollView>
       <YStack flex={1} paddingHorizontal="$xl" paddingTop={top}>
-        {!notifState.open && (
-          <>
-            <View marginTop="$l">
-              {contact ? (
-                <ProfileDisplayWidget
-                  debugMessage={props.debugMessage}
-                  contact={contact}
-                  contactId={props.currentUserId}
-                />
-              ) : (
-                <View backgroundColor="$secondaryBackground" borderRadius="$m">
-                  <ProfileRow
-                    debugMessage={props.debugMessage}
-                    dark
-                    contactId={props.currentUserId}
-                  />
-                </View>
-              )}
-            </View>
-            <View marginTop="$xl">
-              <ProfileAction
-                title="App Settings"
-                icon="Settings"
-                onPress={props.onAppSettingsPressed}
-              />
-              {/* <ProfileAction
-                title="Push Notifications"
-                icon="Notifications"
-                onPress={() =>
-                  setNotifState((prev) => ({ ...prev, open: true }))
-                }
-              />
-              <ProfileAction
-                title="Blocked Users"
-                icon="Stop"
-                onPress={props.onBlockedUsersPressed}
-              />
-              {currentUserIsHosted && (
-                <ProfileAction
-                  title="Manage Account"
-                  icon="TBlock"
-                  onPress={props.onManageAccountPressed}
-                />
-              )} */}
-              <ProfileAction
-                title="Log Out"
-                icon="LogOut"
-                hideCaret
-                onPress={onLogoutPress}
+        <View marginTop="$l">
+          {contact ? (
+            <ProfileDisplayWidget
+              debugMessage={props.debugMessage}
+              contact={contact}
+              contactId={props.currentUserId}
+            />
+          ) : (
+            <View backgroundColor="$secondaryBackground" borderRadius="$m">
+              <ProfileRow
+                debugMessage={props.debugMessage}
+                dark
+                contactId={props.currentUserId}
               />
             </View>
-          </>
-        )}
-        {notifState.open && (
-          <View marginTop="$4xl">
-            <XStack alignItems="center">
-              <Icon
-                type="ChevronLeft"
-                onPress={() => setNotifState({ open: false, setting: 1 })}
-              />
-              <SizableText size="$l" fontWeight="500">
-                Push Notification Settings
-              </SizableText>
-            </XStack>
-
-            <SizableText marginLeft="$m" marginTop="$xl" size="$m">
-              Configure what kinds of messages will send you notifications.
-            </SizableText>
-
-            <YStack marginLeft="$m" marginTop="$3xl">
-              <XStack onPress={() => setLevel('all')}>
-                <LevelIndicator level="all" />
-                <SizableText marginLeft="$l">All group activity</SizableText>
-              </XStack>
-
-              <XStack marginTop="$xl" onPress={() => setLevel('some')}>
-                <LevelIndicator level="some" />
-                <YStack marginLeft="$l">
-                  <SizableText>Mentions and replies only</SizableText>
-                  <SizableText
-                    width="80%"
-                    marginTop="$m"
-                    size="$s"
-                    color="$secondaryText"
-                  >
-                    Direct messages will still notify unless you mute them.
-                  </SizableText>
-                </YStack>
-              </XStack>
-
-              <XStack marginTop="$xl" onPress={() => setLevel('none')}>
-                <LevelIndicator level="none" />
-                <SizableText marginLeft="$l">Nothing</SizableText>
-              </XStack>
-            </YStack>
-          </View>
-        )}
+          )}
+        </View>
+        <View marginTop="$xl">
+          <ProfileAction
+            title="App Settings"
+            icon="Settings"
+            onPress={props.onAppSettingsPressed}
+          />
+          <ProfileAction
+            title="Log Out"
+            icon="LogOut"
+            hideCaret
+            onPress={onLogoutPress}
+          />
+        </View>
       </YStack>
     </ScrollView>
   );
