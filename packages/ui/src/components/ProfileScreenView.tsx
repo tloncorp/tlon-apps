@@ -1,7 +1,8 @@
+import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as ub from '@tloncorp/shared/dist/urbit';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, XStack, getTokens } from 'tamagui';
@@ -18,6 +19,7 @@ interface Props {
   currentUserId: string;
   debugMessage: string;
   onAppSettingsPressed?: () => void;
+  onManageAccountPressed?: () => void;
   handleLogout: () => void;
 }
 
@@ -44,6 +46,10 @@ export function Wrapped(props: Props) {
     open: false,
     setting: 1,
   });
+
+  const currentUserIsHosted = useMemo(() => {
+    return props.currentUserId ? api.getCurrentUserIsHosted() : false;
+  }, [props.currentUserId]);
 
   const setLevel = useCallback(
     async (level: ub.PushNotificationsSetting) => {
@@ -124,6 +130,13 @@ export function Wrapped(props: Props) {
               )}
             </View>
             <View marginTop="$xl">
+              {currentUserIsHosted && (
+                <ProfileAction
+                  title="Manage Account"
+                  icon="TBlock"
+                  onPress={props.onManageAccountPressed}
+                />
+              )}
               <ProfileAction
                 title="App Settings"
                 icon="Settings"

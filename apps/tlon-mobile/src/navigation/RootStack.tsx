@@ -10,6 +10,7 @@ import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
+import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import PostScreen from '../screens/PostScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
@@ -66,6 +67,7 @@ export function RootStack() {
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
+      <Root.Screen name="ManageAccount" component={ManageAccountScreen} />
     </Root.Navigator>
   );
 }

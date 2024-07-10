@@ -11,10 +11,14 @@ import { clearShipInfo, useShip } from '../contexts/ship';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { purgeDb } from '../lib/nativeDb';
 import NavBar from '../navigation/NavBarView';
-import { SettingsStackParamList } from '../types';
-import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
+import { RootStackParamList, SettingsStackParamList } from '../types';
+import {
+  getHostingToken,
+  removeHostingToken,
+  removeHostingUserId,
+} from '../utils/hosting';
 
-type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 const DEBUG_MESSAGE = `
   Version: 
@@ -42,13 +46,22 @@ export default function ProfileScreen(props: Props) {
     removeHostingUserId();
   }, [clearShip]);
 
+  const onManageAccountPressed = useCallback(() => {
+    props.navigation.navigate('ManageAccount');
+  }, [props.navigation]);
+
+  const onAppSettingsPressed = useCallback(() => {
+    props.navigation.navigate('FeatureFlags');
+  }, [props.navigation]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
         contacts={contacts ?? []}
         currentUserId={currentUserId}
         debugMessage={DEBUG_MESSAGE}
-        onAppSettingsPressed={() => props.navigation.navigate('FeatureFlags')}
+        onManageAccountPressed={onManageAccountPressed}
+        onAppSettingsPressed={onAppSettingsPressed}
         handleLogout={handleLogout}
       />
       <NavBar navigation={props.navigation} />
