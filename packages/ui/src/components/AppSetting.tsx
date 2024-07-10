@@ -1,7 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useCallback, useState } from 'react';
 
-import { SizableText, View, XStack, YStack } from '../core';
 import { Icon } from './Icon';
 import { ListItem } from './ListItem';
 

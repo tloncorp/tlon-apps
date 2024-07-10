@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { SizableText, XStack } from 'tamagui';
 
+import { SizableText, XStack } from '../core';
 import { Badge } from './Badge';
 import { ContactList } from './ContactList';
 

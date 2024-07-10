@@ -1,14 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LoadingSpinner, ScreenHeader, View, YStack } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { useWebView } from '../hooks/useWebView';
 import { RootStackParamList } from '../types';
 import { getHostingToken, getHostingUserId } from '../utils/hosting';
-
-// TODO: why getting this? https://github.com/tloncorp/ylem/blob/6c9a64b3c3e7221b00514103e5720b57df8fa22f/pkg/ui/horizon/src/features/account/hooks.ts#L134
 
 const MANAGE_ACCOUNT_URL = 'https://tlon.network/account';
 
@@ -32,9 +29,9 @@ export function ManageAccountScreen(props: Props) {
         getHostingUserId(),
       ]);
       if (cookie && userId) {
-        // console.log(`bl: userId ${userId}`);
-        // console.log(`bl: cookie ${cookie}`);
-        setHostingSession({ cookie, userId });
+        // we need to strip HttpOnly from the cookie or it won't get sent along with the request
+        const modifiedCookie = cookie.replace(' HttpOnly;', '');
+        setHostingSession({ cookie: modifiedCookie, userId });
       } else {
         throw new Error(
           'Cannot manage account, failed to get hosting token or user ID.'
@@ -56,11 +53,12 @@ export function ManageAccountScreen(props: Props) {
             webview={webview}
             source={{
               uri: MANAGE_ACCOUNT_URL,
-              headers: {
-                Cookie: hostingSession.cookie,
-              },
             }}
-            injectedJavaScriptBeforeContentLoaded={`localStorage.setItem("X-SESSION-ID", "${hostingSession.userId}")`}
+            injectedJavaScriptBeforeContentLoaded={`
+              document.cookie= "${hostingSession.cookie}";
+              localStorage.setItem("X-SESSION-ID", "${hostingSession.userId}");
+              true;
+            `}
           />
         </View>
       ) : (
