@@ -5,10 +5,12 @@ import { Platform, StatusBar } from 'react-native';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { ActivityScreen } from '../screens/ActivityScreen';
+import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
@@ -70,6 +72,8 @@ export function RootStack() {
       />
       <Root.Screen name="ManageAccount" component={ManageAccountScreen} />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+      <Root.Screen name="AppSettings" component={AppSettingsScreen} />
+      <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
     </Root.Navigator>
   );
 }

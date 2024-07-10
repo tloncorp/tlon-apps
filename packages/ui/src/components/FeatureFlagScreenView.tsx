@@ -18,7 +18,7 @@ export function FeatureFlagScreenView({
 
   return (
     <View flex={1}>
-      <GenericHeader title={'Settings'} goBack={onBackPressed} />
+      <GenericHeader title={'Feature Previews'} goBack={onBackPressed} />
       <ScrollView
         contentContainerStyle={{
           gap: '$s',

@@ -51,7 +51,7 @@ export default function ProfileScreen(props: Props) {
   }, [props.navigation]);
 
   const onAppSettingsPressed = useCallback(() => {
-    props.navigation.navigate('FeatureFlags');
+    props.navigation.navigate('AppSettings');
   }, [props.navigation]);
 
   const onBlockedUsersPressed = useCallback(() => {

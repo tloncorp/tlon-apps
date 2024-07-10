@@ -32,6 +32,8 @@ export function ManageAccountScreen(props: Props) {
         getHostingUserId(),
       ]);
       if (cookie && userId) {
+        // console.log(`bl: userId ${userId}`);
+        // console.log(`bl: cookie ${cookie}`);
         setHostingSession({ cookie, userId });
       } else {
         throw new Error(
@@ -49,7 +51,7 @@ export function ManageAccountScreen(props: Props) {
         <ScreenHeader.Title>Manage Account</ScreenHeader.Title>
       </ScreenHeader>
       {hostingSession ? (
-        <View flex={1} backgroundColor="orange">
+        <View flex={1}>
           <WebView
             webview={webview}
             source={{

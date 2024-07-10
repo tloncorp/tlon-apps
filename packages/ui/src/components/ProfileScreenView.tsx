@@ -131,20 +131,8 @@ export function Wrapped(props: Props) {
               )}
             </View>
             <View marginTop="$xl">
-              {currentUserIsHosted && (
-                <ProfileAction
-                  title="Manage Account"
-                  icon="TBlock"
-                  onPress={props.onManageAccountPressed}
-                />
-              )}
               <ProfileAction
-                title="Blocked Users"
-                icon="Stop"
-                onPress={props.onBlockedUsersPressed}
-              />
-              <ProfileAction
-                title="App Settings"
+                title="App Info"
                 icon="Settings"
                 onPress={props.onAppSettingsPressed}
               />
@@ -155,6 +143,18 @@ export function Wrapped(props: Props) {
                   setNotifState((prev) => ({ ...prev, open: true }))
                 }
               />
+              <ProfileAction
+                title="Blocked Users"
+                icon="Stop"
+                onPress={props.onBlockedUsersPressed}
+              />
+              {currentUserIsHosted && (
+                <ProfileAction
+                  title="Manage Account"
+                  icon="TBlock"
+                  onPress={props.onManageAccountPressed}
+                />
+              )}
               {/* <ProfileAction
                 title="Log Out"
                 icon="LogOut"

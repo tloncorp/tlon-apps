@@ -70,6 +70,13 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
+export const useAppInfo = () => {
+  return useQuery({
+    queryKey: db.APP_INFO_QUERY_KEY,
+    queryFn: db.getAppInfoSettings,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,

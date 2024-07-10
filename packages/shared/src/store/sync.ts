@@ -147,6 +147,13 @@ export const syncSettings = async (priority = SyncPriority.Medium) => {
   return db.insertSettings(settings);
 };
 
+export const syncAppInfo = async (priority = SyncPriority.Medium) => {
+  const appInfo = await syncQueue.add('appInfo', priority, () =>
+    api.getAppInfo()
+  );
+  return db.setAppInfoSettings(appInfo);
+};
+
 export const syncVolumeSettings = async (priority = SyncPriority.Medium) => {
   const volumeSettings = await syncQueue.add('volumeSettings', priority, () =>
     api.getVolumeSettings()
@@ -837,6 +844,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         ),
         syncBlockedUsers().then(() => {
           reporter.log(`finished syncing blocked users`);
+        }),
+        syncAppInfo().then(() => {
+          reporter.log(`finished syncing app info`);
         }),
       ])
     );
