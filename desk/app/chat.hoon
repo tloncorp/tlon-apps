@@ -1667,6 +1667,11 @@
       =.  recency.remark.dm  now.bowl
       =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
+      =/  concern
+        ?:  =(net.dm %invited)  [%invite ~]
+        [%post p.diff now.bowl]
+      =/  mention  (was-mentioned:utils content.memo our.bowl)
+      =.  di-core  (di-activity concern content.memo mention)
       ?:  from-self    (di-give-writs-diff diff)
       ?^  kind.q.diff  (di-give-writs-diff diff)
       =/  new-yarn
@@ -1679,11 +1684,6 @@
         ~
       =?  cor  (want-hark %to-us)
         (emit (pass-yarn new-yarn))
-      =/  concern
-        ?:  =(net.dm %invited)  [%invite ~]
-        [%post p.diff now.bowl]
-      =/  mention  (was-mentioned:utils content.memo our.bowl)
-      =.  di-core  (di-activity concern content.memo mention)
       (di-give-writs-diff diff)
     ::
         %reply
@@ -1701,8 +1701,12 @@
         =.  recency.remark.dm  now.bowl
         =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
           (give-unread ship/ship di-unread)
-        ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         ?~  entry  (di-give-writs-diff diff)
+        =/  top-con  [id.writ.u.entry time.writ.u.entry]
+        =/  concern  [%reply [id.q.diff now.bowl] top-con]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  di-core  (di-activity concern content.memo mention)
+        ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         =*  op  writ.u.entry
         =/  new-yarn
           %^  di-spin  /message/(scot %p p.id.op)/(scot %ud q.id.op)
@@ -1714,10 +1718,6 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
-        =/  top-con  [id.writ.u.entry time.writ.u.entry]
-        =/  concern  [%reply [id.q.diff now.bowl] top-con]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
-        =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)
       ==
     ==
