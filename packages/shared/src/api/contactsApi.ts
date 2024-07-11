@@ -43,14 +43,14 @@ export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
     editedFields.push({ cover: update.coverImage });
   }
 
-  const edit: ub.ContactEdit = {
+  const action: ub.ContactEdit = {
     edit: editedFields,
   };
 
   return poke({
     app: 'contacts',
     mark: 'contact-action',
-    json: { edit },
+    json: action,
   });
 };
 

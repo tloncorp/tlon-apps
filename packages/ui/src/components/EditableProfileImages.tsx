@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Circle, XStack, ZStack, getTokenValue, useTheme } from 'tamagui';
+import { Circle, ZStack, useTheme } from 'tamagui';
 
 import { View } from '../core';
 import AttachmentSheet from './AttachmentSheet';

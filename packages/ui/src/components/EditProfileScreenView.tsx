@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/shared/dist/api';
+import * as db from '@tloncorp/shared/dist/db';
 import { useForm } from 'react-hook-form';
 
 import { useContact } from '../contexts';
@@ -37,18 +38,18 @@ export function EditProfileScreenView(props: Props) {
       <GenericHeader
         title="Edit Profile"
         goBack={props.onGoBack}
-        rightContent={<SaveButton onPress={() => console.log(`bl: saving`)} />}
+        rightContent={
+          <SaveButton onPress={handleSubmit(props.onSaveProfile)} />
+        }
       />
       <ScrollView>
         <YStack>
-          {userContact && (
-            <EditablePofileImages
-              contact={userContact}
-              uploadInfo={props.uploadInfo}
-              onSetCoverUrl={(url) => setValue('coverImage', url)}
-              onSetIconUrl={(url) => setValue('avatarImage', url)}
-            />
-          )}
+          <EditablePofileImages
+            contact={userContact ?? db.getFallbackContact(props.currentUserId)}
+            uploadInfo={props.uploadInfo}
+            onSetCoverUrl={(url) => setValue('coverImage', url)}
+            onSetIconUrl={(url) => setValue('avatarImage', url)}
+          />
 
           <FormTextInput>
             <FormTextInput.Label>Nickname</FormTextInput.Label>
