@@ -99,3 +99,8 @@ async function runMigrations() {
   await migrate(client!, migrations);
   logger.log("migrations succeeded after purge, shouldn't happen often");
 }
+
+export async function resetDb() {
+  await purgeDb();
+  await migrate(client!, migrations);
+}

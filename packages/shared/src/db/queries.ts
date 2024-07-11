@@ -2270,6 +2270,37 @@ export const getGroupByChannel = createReadQuery(
   ['channels', 'groups']
 );
 
+export const insertBlockedContacts = createWriteQuery(
+  'insertBlockedContacts',
+  async ({ blockedIds }: { blockedIds: string[] }, ctx: QueryCtx) => {
+    if (blockedIds.length === 0) return;
+
+    const blockedContacts: Contact[] = blockedIds.map((id) => ({
+      id,
+      isBlocked: true,
+    }));
+
+    return ctx.db
+      .insert($contacts)
+      .values(blockedContacts)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSet($contacts.isBlocked),
+      });
+  },
+  ['contacts']
+);
+
+export const getBlockedUsers = createReadQuery(
+  'getBlockedUsers',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: eq($contacts.isBlocked, true),
+    });
+  },
+  ['contacts']
+);
+
 export const getContacts = createReadQuery(
   'getContacts',
   async (ctx: QueryCtx) => {
