@@ -1,7 +1,6 @@
-import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { Contact } from '@tloncorp/shared/dist/urbit/contact';
 import cn from 'classnames';
-import React, { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   Outlet,
   Route,
@@ -26,7 +25,6 @@ import DMHero from '@/dms/DMHero';
 import DmOptions from '@/dms/DMOptions';
 import DmInvite from '@/dms/DmInvite';
 import DmWindow from '@/dms/DmWindow';
-import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
@@ -36,7 +34,6 @@ import { dmListPath } from '@/logic/utils';
 import { useDmIsPending, useSendMessage } from '@/state/chat';
 import { useContact } from '@/state/contact';
 import { useNegotiate } from '@/state/negotiation';
-import { useUnread } from '@/state/unreads';
 import { useConnectivityCheck } from '@/state/vitals';
 
 import DmSearch from './DmSearch';
@@ -108,7 +105,6 @@ function TitleButton({
 export default function Dm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
-  const { isChatInputFocused } = useChatInputFocus();
   const dropZoneId = `chat-dm-input-dropzone-${ship}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { mutate: sendMessage } = useSendMessage();
@@ -118,10 +114,9 @@ export default function Dm() {
   const isMobile = useIsMobile();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
-  const unread = useUnread(getKey(ship));
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const canStart = ship && !!unread;
+  const canStart = !!ship;
   const root = `/dm/${ship}`;
   const { paddingBottom } = useBottomPadding();
   const { matchedOrPending, isLoading: negotiationLoading } = useNegotiate(

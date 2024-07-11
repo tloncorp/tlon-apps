@@ -70,7 +70,6 @@ import {
 } from '@/state/chat';
 import { useGroupFlag } from '@/state/groups';
 import { useFileStore, useUploader } from '@/state/storage';
-import { useUnreadsStore } from '@/state/unreads';
 
 interface ChatInputProps {
   whom: string;
@@ -392,9 +391,6 @@ export default function ChatInput({
       onUpdate.current.flush();
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
-        const key = replying ? getThreadKey(whom, replying) : getKey(whom);
-        useUnreadsStore.getState().read(key);
-        useUnreadsStore.getState().bump(key);
         clearAttachments();
       }, 0);
     },

@@ -1,4 +1,4 @@
-import { getKey } from '@tloncorp/shared/dist/urbit/activity';
+import { sourceToString } from '@tloncorp/shared/dist/urbit/activity';
 import bigInt from 'big-integer';
 import React, {
   ReactElement,
@@ -21,8 +21,10 @@ import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChannelCompatibility, useMarkChannelRead } from '@/logic/channel';
 import { log } from '@/logic/utils';
+import queryClient from '@/queryClient';
+import { unreadsKey } from '@/state/activity';
 import { useInfinitePosts } from '@/state/channel/channel';
-import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
+import { useRouteGroup } from '@/state/groups';
 
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 import UnreadAlerts from './UnreadAlerts';
@@ -43,13 +45,13 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   scrollElementRef,
   isScrolling,
 }: ChatWindowProps) {
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { idTime } = useParams();
   const scrollToId = useMemo(
     () => searchParams.get('msg') || searchParams.get('edit') || idTime,
     [searchParams, idTime]
   );
+  const flag = useRouteGroup();
   const nest = `chat/${whom}`;
   const {
     posts: messages,
@@ -69,9 +71,6 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   const fetchingNewest =
     isFetching && (!isFetchingNextPage || !isFetchingPreviousPage);
   const [showUnreadBanner, setShowUnreadBanner] = useState(false);
-  const unreadsKey = getKey(whom);
-  const readTimeout = useUnread(unreadsKey)?.readTimeout;
-  const path = location.pathname;
   const { compatible } = useChannelCompatibility(nest);
   const navigate = useNavigate();
   const latestMessageIndex = messages.length - 1;
@@ -134,14 +133,12 @@ const ChatWindow = React.memo(function ChatWindowRaw({
 
   const onAtBottom = useCallback(() => {
     const { bottom } = useChatStore.getState();
-    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(unreadsKey, () => markRead());
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [unreadsKey, markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
+  }, [markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -169,18 +166,12 @@ const ChatWindow = React.memo(function ChatWindowRaw({
     };
   }, [fetchingNewest]);
 
-  // read the messages once navigated away
   useEffect(() => {
-    return () => {
-      const winPath = window.location.pathname.replace('/apps/groups', '');
-      if (winPath !== path && readTimeout) {
-        unreadStoreLogger.log(winPath, path);
-        unreadStoreLogger.log('marking read from dismount', unreadsKey);
-        useUnreadsStore.getState().read(unreadsKey);
-        markRead();
-      }
-    };
-  }, [path, readTimeout, unreadsKey, markRead]);
+    const src = sourceToString({ channel: { nest, group: flag } });
+    const queryKey = unreadsKey('threads', src);
+    console.log('invalidating', queryKey);
+    queryClient.invalidateQueries(queryKey, { refetchType: 'all' });
+  }, [nest, flag]);
 
   useEffect(() => {
     const doRefetch = async () => {

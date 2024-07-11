@@ -1,16 +1,15 @@
+import { ActivitySummary } from '@tloncorp/shared/dist/urbit';
 import { useCallback } from 'react';
 
-import { Unread, emptyUnread, useUnreads } from '@/state/unreads';
-
-const defaultUnread = emptyUnread();
+import { emptySummary, useActivity } from '@/state/activity';
 
 export default function useGroupUnread() {
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const getGroupUnread = useCallback(
-    (flag: string): Unread => {
-      return unreads?.[`group/${flag}`] || defaultUnread;
+    (flag: string): ActivitySummary => {
+      return activity?.[`group/${flag}`] || emptySummary;
     },
-    [unreads]
+    [activity]
   );
 
   return {

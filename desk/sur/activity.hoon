@@ -159,7 +159,8 @@
 ::
 ::    $newest: the time of the latest activity read or unread
 ::    $count: the total number of unread events including children
-::    $notify-count: the number of unreads that are notifications including children
+::    $notify-count: the number of unreads that are notifications
+::                   including children
 ::    $notify: if there are any notifications here or in children
 ::    $unread: if the main stream of source is unread: which starting
 ::             message, how many there are, and if any are notifications
