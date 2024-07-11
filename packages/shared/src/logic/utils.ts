@@ -363,6 +363,28 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
   return false;
 };
 
+export const textPostIsLink = (post: db.Post): boolean => {
+  const postIsJustText = isTextPost(post);
+  if (!postIsJustText) {
+    return false;
+  }
+
+  const { inlines } = extractContentTypesFromPost(post);
+
+  if (inlines.length <= 2) {
+    const [first] = inlines;
+    if (typeof first === 'object' && 'link' in first) {
+      const link = first as ub.Link;
+      const { href } = link.link;
+      const isLink = URL_REGEX.test(href);
+
+      return isLink;
+    }
+  }
+
+  return false;
+};
+
 export const textPostIsReference = (post: db.Post): boolean => {
   const { inlines, references } = extractContentTypesFromPost(post);
   if (references.length === 0) {
@@ -413,6 +435,7 @@ export const usePostMeta = (post: db.Post) => {
   );
   const isText = useMemo(() => isTextPost(post), [post]);
   const isImage = useMemo(() => isImagePost(post), [post]);
+  const isLink = useMemo(() => textPostIsLink(post), [post]);
   const isReference = useMemo(() => isReferencePost(post), [post]);
   const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
   const isRefInText = useMemo(() => textPostIsReference(post), [post]);
@@ -428,6 +451,7 @@ export const usePostMeta = (post: db.Post) => {
   return {
     isText,
     isImage,
+    isLink,
     isReference,
     isLinkedImage,
     isRefInText,

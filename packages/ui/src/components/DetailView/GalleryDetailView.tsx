@@ -4,6 +4,7 @@ import { Dimensions } from 'react-native';
 import { Image, Text, View, YStack } from '../../core';
 import ContentReference from '../ContentReference';
 import ContentRenderer from '../ContentRenderer';
+import { Icon } from '../Icon';
 import { DetailView, DetailViewProps } from './DetailView';
 
 export default function GalleryDetailView({
@@ -32,6 +33,7 @@ export default function GalleryDetailView({
     references,
     isText,
     isImage,
+    isLink,
     isReference,
     isLinkedImage,
     isRefInText,
@@ -100,7 +102,14 @@ export default function GalleryDetailView({
               width={WIDTH_DETAIL_VIEW_CONTENT}
               height="auto"
             >
-              <View overflow="hidden" paddingBottom="$xs" position="relative">
+              <View
+                overflow="hidden"
+                paddingBottom="$xs"
+                position="relative"
+                flexDirection="row"
+                alignItems="center"
+              >
+                {isLink && <Icon type="Link" />}
                 <ContentRenderer post={post} />
               </View>
             </View>
