@@ -53,7 +53,7 @@ import {
 import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
-import ContentReference from './ContentReference';
+import { ContentReference } from './ContentReference/ContentReference';
 
 refractor.register(hoon);
 
@@ -783,7 +783,12 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
-export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
+export type PostViewMode =
+  | 'chat'
+  | 'block'
+  | 'note'
+  | 'activity'
+  | 'attachment';
 
 export default function ContentRenderer({
   post,

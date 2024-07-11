@@ -5,7 +5,7 @@ import { SizableText, styled } from 'tamagui';
 
 import { ImageWithFallback, View } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ContentReference from '../ContentReference';
+import { ContentReference } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';

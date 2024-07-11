@@ -1,4 +1,4 @@
-import { ContentReference } from 'packages/shared/dist/api';
+import { ContentReference } from '@tloncorp/shared/dist/api';
 import { PropsWithChildren, createContext, useContext, useState } from 'react';
 
 export type ReferencesState = {

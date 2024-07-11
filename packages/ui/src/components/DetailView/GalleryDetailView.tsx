@@ -2,7 +2,7 @@ import { tiptap, usePostMeta } from '@tloncorp/shared/dist';
 import { Dimensions } from 'react-native';
 
 import { Image, Text, View, YStack } from '../../core';
-import ContentReference from '../ContentReference';
+import { ContentReference } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { DetailView, DetailViewProps } from './DetailView';
