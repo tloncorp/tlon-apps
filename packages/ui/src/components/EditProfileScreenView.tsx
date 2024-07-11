@@ -58,6 +58,12 @@ export function EditProfileScreenView(props: Props) {
               errors={errors}
               name="nickname"
               label="Nickname"
+              rules={{
+                maxLength: {
+                  value: 30,
+                  message: 'Your nickname is limited to 30 characters',
+                },
+              }}
               placeholder={userContact?.id}
             />
           </FormTextInput>
@@ -67,6 +73,12 @@ export function EditProfileScreenView(props: Props) {
             <FormTextInput.Input
               control={control}
               errors={errors}
+              rules={{
+                maxLength: {
+                  value: 300,
+                  message: 'Your bio is limited to 300 characters',
+                },
+              }}
               name="bio"
               label="Bio"
               placeholder="About yourself"
