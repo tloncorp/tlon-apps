@@ -369,6 +369,11 @@ export const textPostIsLink = (post: db.Post): boolean => {
     return false;
   }
 
+  const postIsImage = textPostIsLinkedImage(post);
+  if (postIsImage) {
+    return false;
+  }
+
   const { inlines } = extractContentTypesFromPost(post);
 
   if (inlines.length <= 2) {
