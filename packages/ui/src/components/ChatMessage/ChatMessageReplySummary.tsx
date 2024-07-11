@@ -10,9 +10,11 @@ export const ChatMessageReplySummary = React.memo(
   function ChatMessageReplySummary({
     post,
     onPress,
+    paddingLeft = true,
   }: {
     post: db.Post;
     onPress?: () => void;
+    paddingLeft?: boolean;
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
 
@@ -21,7 +23,7 @@ export const ChatMessageReplySummary = React.memo(
     }, [replyTime]);
 
     return replyCount && replyContactIds && replyTime ? (
-      <XStack gap="$m" paddingLeft="$4xl" onPress={onPress}>
+      <XStack gap="$m" paddingLeft={paddingLeft && '$4xl'} onPress={onPress}>
         <XStack alignItems="center">
           {replyContactIds?.map((c, i) => (
             <View

@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 
 import { Image, Text, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
+import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
 
@@ -92,11 +93,13 @@ export default function NotebookPost({
         )}
 
         {/* TODO: reuse reply stack from Chat messages */}
-        {showReplies && hasReplies && (
-          <Text color="$tertiaryText" fontSize="$s">
-            {post.replyCount} {post.replyCount === 1 ? 'reply' : 'replies'}
-          </Text>
-        )}
+        {showReplies &&
+        hasReplies &&
+        post.replyCount &&
+        post.replyTime &&
+        post.replyContactIds ? (
+          <ChatMessageReplySummary post={post} paddingLeft={false} />
+        ) : null}
       </YStack>
     </Pressable>
   );
