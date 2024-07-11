@@ -130,7 +130,9 @@ export default function GalleryDetailView({
             </View>
           )}
         </View>
-        <DetailView.MetaData post={post} />
+        <View paddingBottom="$xl">
+          <DetailView.MetaData post={post} />
+        </View>
       </DetailView.Header>
     </DetailView>
   );

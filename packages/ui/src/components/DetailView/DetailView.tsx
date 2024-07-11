@@ -46,8 +46,11 @@ const DetailViewMetaDataComponent = ({
     return makePrettyShortDate(date);
   }, [post.sentAt]);
 
+  const hasReplies = post.replyCount! > 0;
+
   return (
-    <YStack gap="$l" paddingBottom="$xl">
+    <YStack gap="$l">
+      <Text color="$tertiaryText">{dateDisplay}</Text>
       <AuthorRow
         authorId={post.authorId}
         author={post.author}
@@ -55,12 +58,9 @@ const DetailViewMetaDataComponent = ({
         type={post.type}
         detailView
       />
-      <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-        {dateDisplay}
-      </Text>
-      {showReplyCount && (
+      {showReplyCount && hasReplies && (
         <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-          {post.replyCount} replies
+          {post.replyCount} {post.replyCount === 1 ? 'reply' : 'replies'}
         </Text>
       )}
     </YStack>
