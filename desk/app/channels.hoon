@@ -608,7 +608,7 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
@@ -618,6 +618,11 @@
     ::
       [%x ?(%v0 %v1) %init ~]    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
       [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels |)])
+    ::
+        [%x %v3 %init ~]
+      =/  init  [(uv-channels-2:utils v-channels |) hidden-posts]
+      ``noun+!>(`[channels:c (set id-post:c)]`init)
+    ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x v=?(%v0 %v1) =kind:c ship=@ name=@ rest=*]

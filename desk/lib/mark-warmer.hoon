@@ -2,6 +2,7 @@
 /$  init-1      %ui-init-1            %json
 /$  init-2      %ui-init-2            %json
 /$  init-3      %ui-init-3            %json
+/$  init-4      %ui-init-4            %json
 /$  heads       %ui-heads             %json
 /$  pins        %ui-pins              %json
 /$  groups      %groups               %json

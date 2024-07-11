@@ -658,6 +658,16 @@
         pins
     ==
   ::
+      [%x %v1 %init ~]
+    =-  ``noun+!>(-)
+    :*  ~(key by accepted-dms)
+        ~(key by pending-dms)
+        (~(run by clubs) |=(=club:c crew.club))
+        blocked
+        blocked-by
+        hidden-messages
+    ==
+  ::
       [%x %heads ?(~ [@ ~])]
     =/  since=(unit time)
       ?~  t.t.path  ~

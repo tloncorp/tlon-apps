@@ -1,6 +1,6 @@
 /-  u=ui
 /+  gj=groups-json, cj=chat-json, dj=channel-json, aj=activity-json
-|_  =init:u
+|_  init=init-3:u
 ++  grad  %noun
 ++  grow
   |%
@@ -26,6 +26,6 @@
   --
 ++  grab
   |%
-  ++  noun  init:u
+  ++  noun  init-3:u
   --
 --
