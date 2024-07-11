@@ -64,7 +64,10 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     const shipUrl = transformShipURL(rawShipUrl);
     setFormattedShipUrl(shipUrl);
     try {
-      const authCookie = await getLandscapeAuthCookie(shipUrl, accessCode);
+      const authCookie = await getLandscapeAuthCookie(
+        shipUrl,
+        accessCode.trim()
+      );
       if (authCookie) {
         const shipId = getShipFromCookie(authCookie);
         if (await isEulaAgreed()) {
@@ -77,7 +80,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           navigation.navigate('EULA', { shipId, shipUrl, authCookie });
         }
       } else {
-        setRemoteError("Sorry, we couldn't log you into your Urbit ID.");
+        setRemoteError(
+          "Sorry, we couldn't log in to your ship. It may be busy or offline."
+        );
       }
     } catch (err) {
       setRemoteError((err as Error).message);
