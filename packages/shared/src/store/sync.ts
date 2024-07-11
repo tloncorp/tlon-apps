@@ -117,6 +117,11 @@ function checkForNewlyJoined({
   }
 }
 
+export const syncBlockedUsers = async () => {
+  const blockedIds = await api.getBlockedUsers();
+  await db.insertBlockedContacts({ blockedIds });
+};
+
 export const syncChannelHeads = async (
   reporter?: ErrorReporter,
   priority = SyncPriority.High
@@ -140,6 +145,13 @@ export const syncSettings = async (priority = SyncPriority.Medium) => {
     api.getSettings()
   );
   return db.insertSettings(settings);
+};
+
+export const syncAppInfo = async (priority = SyncPriority.Medium) => {
+  const appInfo = await syncQueue.add('appInfo', priority, () =>
+    api.getAppInfo()
+  );
+  return db.setAppInfoSettings(appInfo);
 };
 
 export const syncVolumeSettings = async (priority = SyncPriority.Medium) => {
@@ -830,6 +842,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         syncPushNotificationsSetting().then(() =>
           reporter.log(`finished syncing push notifications setting`)
         ),
+        syncBlockedUsers().then(() => {
+          reporter.log(`finished syncing blocked users`);
+        }),
+        syncAppInfo().then(() => {
+          reporter.log(`finished syncing app info`);
+        }),
       ])
     );
 
