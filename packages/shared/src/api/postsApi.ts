@@ -2,6 +2,7 @@ import { unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { useCurrentSession } from '../store';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -593,6 +594,39 @@ export async function hidePost(channelId: string, postId: string) {
     json: {
       'toggle-post': {
         hide: postId,
+      },
+    },
+  };
+
+  return await poke(action);
+}
+
+export async function reportPost(
+  currentUserId: string,
+  groupId: string,
+  channelId: string,
+  postId: string,
+  replyId?: string
+) {
+  await hidePost(channelId, postId);
+
+  const action = {
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          'flag-content': {
+            nest: channelId,
+            src: currentUserId,
+            'post-key': {
+              post: postId,
+              reply: replyId ?? null,
+            },
+          },
+        },
       },
     },
   };

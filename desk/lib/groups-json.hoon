@@ -154,7 +154,7 @@
     %-  pairs
     :~  nest/s/(nest n)
         src/(ship src)
-        :-  %post
+        :-  %post-key
         %-  pairs
         :~  post/(time-id post.post-key)
             reply/?~(reply.post-key ~ (time-id u.reply.post-key))

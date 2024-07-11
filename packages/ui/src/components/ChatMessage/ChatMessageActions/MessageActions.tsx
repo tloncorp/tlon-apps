@@ -60,6 +60,7 @@ export default function MessageActions({
             handleAction({
               id: action.id,
               post,
+              userId: currentUserId,
               channel,
               isMuted: post.volumeSettings?.isMuted ?? false,
               dismiss,
@@ -101,6 +102,7 @@ export function getPostActions({
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: 'Hide' },
+        { id: 'report', label: 'Report post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
     case 'notebook':
@@ -111,6 +113,7 @@ export function getPostActions({
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: 'Hide' },
+        { id: 'report', label: 'Report post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
     case 'dm':
@@ -133,6 +136,7 @@ export function getPostActions({
         { id: 'copyText', label: 'Copy message text' },
         { id: 'edit', label: 'Edit message' },
         { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
+        { id: 'report', label: 'Report message' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
   }
@@ -141,6 +145,7 @@ export function getPostActions({
 async function handleAction({
   id,
   post,
+  userId,
   channel,
   isMuted,
   dismiss,
@@ -150,6 +155,7 @@ async function handleAction({
 }: {
   id: string;
   post: db.Post;
+  userId: string;
   channel: db.Channel;
   isMuted?: boolean;
   dismiss: () => void;
@@ -183,6 +189,9 @@ async function handleAction({
       break;
     case 'delete':
       store.deletePost({ post });
+      break;
+    case 'report':
+      store.reportPost({ userId, post });
       break;
     case 'visibility':
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });

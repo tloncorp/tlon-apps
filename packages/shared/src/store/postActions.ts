@@ -168,6 +168,32 @@ export async function deletePost({ post }: { post: db.Post }) {
   }
 }
 
+export async function reportPost({
+  userId,
+  post,
+}: {
+  userId: string;
+  post: db.Post;
+}) {
+  if (!post.groupId) {
+    console.error('Cannot report post without groupId', post);
+    return;
+  }
+
+  // optimistic update
+  await db.updatePost({ id: post.id, hidden: true });
+
+  try {
+    await api.reportPost(userId, post.groupId, post.channelId, post.id);
+    await hidePost({ post });
+  } catch (e) {
+    console.error('Failed to report post', e);
+
+    // rollback optimistic update
+    await db.updatePost({ id: post.id, hidden: false });
+  }
+}
+
 export async function addPostReaction(
   post: db.Post,
   shortCode: string,
