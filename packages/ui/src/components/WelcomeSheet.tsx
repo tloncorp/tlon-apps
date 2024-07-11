@@ -61,7 +61,7 @@ export function WelcomeSheet({
                 </View>
               </View>
               <YStack gap="$xs" flex={1}>
-                <Text fontWeight="500">Control every bit</Text>
+                <Text fontWeight="$xl">Control every bit</Text>
                 <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
                   Whatever you do, say, and make on Tlon is yours to keep
                 </Text>
@@ -78,7 +78,7 @@ export function WelcomeSheet({
                 </View>
               </View>
               <YStack gap="$xs" flex={1}>
-                <Text fontWeight="500">From now until forever</Text>
+                <Text fontWeight="$xl">From now until forever</Text>
                 <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
                   With Tlon you can always take your data with you and continue
                   using it elsewhere
@@ -96,7 +96,7 @@ export function WelcomeSheet({
                 </View>
               </View>
               <YStack gap="$xs" flex={1}>
-                <Text fontWeight="500">Connect with calm</Text>
+                <Text fontWeight="$xl">Connect with calm</Text>
                 <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
                   Tlon is designed to maximize genuine connection, not addictive
                   engagement

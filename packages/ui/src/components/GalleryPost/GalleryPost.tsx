@@ -67,16 +67,21 @@ export default function GalleryPost({
   const handlePress = useBoundHandler(post, onPress);
   const handleLongPress = useBoundHandler(post, onLongPress);
 
-  const previewType =
-    isImage || isLinkedImage
-      ? 'image'
-      : isText && !isLinkedImage && !isRefInText && !isLink
-        ? 'text'
-        : isReference || isRefInText
-          ? 'reference'
-          : isLink
-            ? 'link'
-            : 'unsupported';
+  const previewType = (() => {
+    if (isImage || isLinkedImage) {
+      return 'image';
+    }
+    if (isText && !isLinkedImage && !isRefInText && !isLink) {
+      return 'text';
+    }
+    if (isReference || isRefInText) {
+      return 'reference';
+    }
+    if (isLink) {
+      return 'link';
+    }
+    return 'unsupported';
+  })();
 
   return (
     <GalleryPostFrame

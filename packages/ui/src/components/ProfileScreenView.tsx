@@ -152,7 +152,7 @@ export function Wrapped(props: Props) {
                 type="ChevronLeft"
                 onPress={() => setNotifState({ open: false, setting: 1 })}
               />
-              <SizableText size="$l" fontWeight="500">
+              <SizableText size="$l" fontWeight="$xl">
                 Push Notification Settings
               </SizableText>
             </XStack>

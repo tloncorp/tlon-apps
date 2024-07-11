@@ -69,7 +69,7 @@ export default function NotebookPost({
         )}
         {post.title && (
           <Text
-            fontWeight={'500'}
+            fontWeight="$xl"
             color="$primaryText"
             fontSize={smallTitle || viewMode === 'activity' ? '$l' : 24}
           >

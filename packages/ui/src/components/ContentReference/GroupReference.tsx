@@ -9,7 +9,7 @@ import ContactName from '../ContactName';
 import { PostViewMode } from '../ContentRenderer';
 import { ListItem } from '../ListItem';
 import { LoadingSpinner } from '../LoadingSpinner';
-import { Reference } from './Reference';
+import { REF_AUTHOR_WIDTH, Reference } from './Reference';
 
 export function GroupReference({
   groupId,
@@ -39,7 +39,7 @@ export function GroupReference({
             color="$tertiaryText"
             size="$s"
             userId={host}
-            maxWidth={230}
+            maxWidth={REF_AUTHOR_WIDTH}
             showNickname
           />
         </Reference.Title>

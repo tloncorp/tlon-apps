@@ -14,6 +14,8 @@ export const ChatMessageReplySummary = React.memo(
   }: {
     post: db.Post;
     onPress?: () => void;
+    // Since this component is used in places other than a chat log, we need to
+    // be able to toggle the Chat message padding on and off
     paddingLeft?: boolean;
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
