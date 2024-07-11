@@ -4,7 +4,7 @@ import { LoadingSpinner, ScreenHeader, View, YStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { WebView } from 'react-native-webview';
 
-import { useHandleLogout } from '../hooks/handleLogout';
+import { useHandleLogout } from '../hooks/useHandleLogout';
 import { useWebView } from '../hooks/useWebView';
 import { getHostingUser } from '../lib/hostingApi';
 import { RootStackParamList } from '../types';

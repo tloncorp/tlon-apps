@@ -3,8 +3,8 @@ import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { useHandleLogout } from '../hooks/handleLogout';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
+import { useHandleLogout } from '../hooks/useHandleLogout';
 import NavBar from '../navigation/NavBarView';
 import { RootStackParamList } from '../types';
 
