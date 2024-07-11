@@ -5,6 +5,7 @@ import {
   ActivityDeleteUpdate,
   ActivityReadUpdate,
   ActivitySummary,
+  ActivitySummaryUpdate,
   ActivityUpdate,
   ActivityVolumeUpdate,
   ChannelSource,
@@ -21,12 +22,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/api';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { createDevLogger, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { createDevLogger } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { SidebarFilter } from './settings';
 
-const actLogger = createDevLogger('activity', true);
+const actLogger = createDevLogger('activity', false);
 
 export const unreadsKey = (...args: string[]) => [
   'activity',
@@ -78,6 +79,39 @@ function activityReadUpdates(events: ActivityReadUpdate[]) {
   return { main, threads };
 }
 
+function activitySummaryUpdates(events: ActivitySummaryUpdate[]) {
+  const main: Record<string, ActivitySummary> = {};
+  const threads: Record<string, Record<string, ActivitySummary>> = {};
+
+  events.forEach((event) => {
+    Object.entries(event.activity).forEach(([source, summary]) => {
+      if (source.startsWith('thread/')) {
+        const channelSrc = source.replace(
+          /thread\/([a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*)\/.*/,
+          'channel/$1'
+        );
+        threads[channelSrc] = {
+          ...threads[channelSrc],
+          [source]: summary,
+        };
+      } else if (source.startsWith('dm-thread/')) {
+        const pattern = /dm-thread\/((?:[a-z]|[\d.~-])*).*/;
+        const dmSrc = source.startsWith('dm-thread/~')
+          ? source.replace(pattern, 'ship/$1')
+          : source.replace(pattern, 'club/$1');
+        threads[dmSrc] = {
+          ...threads[dmSrc],
+          [source]: summary,
+        };
+      } else {
+        main[source] = summary;
+      }
+    });
+  });
+
+  return { main, threads };
+}
+
 function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   return events.reduce((acc, event) => {
     const { source, volume } = event.adjust;
@@ -91,32 +125,45 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   }, {} as VolumeSettings);
 }
 
+function updateActivity({
+  main,
+  threads,
+}: {
+  main: Activity;
+  threads: Record<string, Activity>;
+}) {
+  queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
+    return {
+      ...d,
+      ...main,
+    };
+  });
+
+  Object.entries(threads).forEach(([key, value]) => {
+    queryClient.setQueryData(
+      unreadsKey('threads', key),
+      (d: Activity | undefined) => {
+        return {
+          ...d,
+          ...value,
+        };
+      }
+    );
+  });
+}
+
 function processActivityUpdates(updates: ActivityUpdate[]) {
+  const summaryEvents = updates.filter(
+    (e) => 'activity' in e
+  ) as ActivitySummaryUpdate[];
+  if (summaryEvents.length > 0) {
+    updateActivity(activitySummaryUpdates(summaryEvents));
+  }
+
   const readEvents = updates.filter((e) => 'read' in e) as ActivityReadUpdate[];
   actLogger.log('checking read events', readEvents);
   if (readEvents.length > 0) {
-    const { main, threads } = activityReadUpdates(readEvents);
-    console.log('processed read events', main, threads);
-    queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
-      return {
-        ...d,
-        ...main,
-      };
-    });
-
-    Object.entries(threads).forEach(([key, value]) => {
-      console.log('setting thread', key);
-      queryClient.setQueryData(
-        unreadsKey('threads', key),
-        (d: Activity | undefined) => {
-          console.log('old threads', d, 'new threads', value);
-          return {
-            ...d,
-            ...value,
-          };
-        }
-      );
-    });
+    updateActivity(activityReadUpdates(readEvents));
   }
 
   const adjustEvents = updates.filter(
@@ -160,7 +207,7 @@ export function useActivityFirehose() {
   useEffect(() => {
     api.subscribe({
       app: 'activity',
-      path: '/',
+      path: '/v4',
       event: eventHandler,
     });
   }, [eventHandler]);

@@ -229,6 +229,10 @@ export type ActivityAction =
   | { adjust: ActivityVolumeAction }
   | { 'allow-notifications': PushNotificationsSetting };
 
+export interface ActivitySummaryUpdate {
+  activity: Activity;
+}
+
 export interface ActivityReadUpdate {
   read: {
     source: Source;
@@ -262,6 +266,7 @@ export interface ActivityPushNotificationsSettingUpdate {
 
 export type ActivityUpdate =
   | ActivityReadUpdate
+  | ActivitySummaryUpdate
   | ActivityVolumeUpdate
   | ActivityDeleteUpdate
   | ActivityAddUpdate

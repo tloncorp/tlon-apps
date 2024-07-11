@@ -169,7 +169,6 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   useEffect(() => {
     const src = sourceToString({ channel: { nest, group: flag } });
     const queryKey = unreadsKey('threads', src);
-    console.log('invalidating', queryKey);
     queryClient.invalidateQueries(queryKey, { refetchType: 'all' });
   }, [nest, flag]);
 

@@ -225,7 +225,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v4) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+pole !!)
     [%v0 ~]                 ?>(from-self cor)
@@ -546,7 +546,6 @@
 ++  add-event
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
-  ~&  [inc start-time]
   ^+  cor
   =/  =time-id:a
     =/  t  start-time
@@ -587,7 +586,6 @@
       (add-to-index group-src time-id event(child &))
     ==
   =.  cor  (add-to-index [%base ~] time-id event)
-  ~&  indices
   =?  cor  !importing
     =/  new-activity=activity:a
       %+  roll
@@ -658,7 +656,14 @@
   =/  new=index:a  index(bump now.bowl)
   =.  indices
     (~(put by indices) source new)
-  (refresh source)
+  =.  cor  (refresh source)
+  =/  new-activity=activity:a
+    %+  roll
+      (snoc (get-parents:src source) source)
+    |=  [=source:a out=activity:a]
+    (~(put by out) source (~(gut by activity) source *activity-summary:a))
+  ~?  verbose  "sending activity: {<new-activity>}"
+  (give-update [%activity new-activity] [%hose ~])
 ++  read
   |=  [=source:a action=read-action:a from-parent=?]
   ^+  cor
