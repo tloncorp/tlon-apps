@@ -50,6 +50,7 @@ export * from './components/AddChats';
 export * from './components/ContactBook';
 export * from './components/Buttons';
 export * from './components/Avatar';
+export * from './components/EditProfileScreenView';
 export * from './components/AppSetting';
 export * from './components/GroupChannelsScreenView';
 export * from './components/FeatureFlagScreenView';

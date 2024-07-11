@@ -11,6 +11,7 @@ import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import ChannelScreen from '../screens/ChannelScreen';
 import ChannelSearch from '../screens/ChannelSearchScreen';
 import ChatListScreen from '../screens/ChatListScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
 import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
@@ -82,6 +83,7 @@ export function RootStack() {
         name="PushNotificationSettings"
         component={PushNotificationSettingsScreen}
       />
+      <Root.Screen name="EditProfile" component={EditProfileScreen} />
     </Root.Navigator>
   );
 }

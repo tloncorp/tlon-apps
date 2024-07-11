@@ -19,6 +19,41 @@ export const addContacts = async (contactIds: string[]) => {
   });
 };
 
+export interface ProfileUpdate {
+  nickname?: string;
+  bio?: string;
+  avatarImage?: string;
+  coverImage?: string;
+}
+export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
+  const editedFields = [];
+  if (update.nickname !== undefined) {
+    editedFields.push({ nickname: update.nickname });
+  }
+
+  if (update.bio !== undefined) {
+    editedFields.push({ bio: update.bio });
+  }
+
+  if (update.avatarImage !== undefined) {
+    editedFields.push({ avatar: update.avatarImage });
+  }
+
+  if (update.coverImage !== undefined) {
+    editedFields.push({ cover: update.coverImage });
+  }
+
+  const edit: ub.ContactEdit = {
+    edit: editedFields,
+  };
+
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action',
+    json: { edit },
+  });
+};
+
 export type ContactsUpdate =
   | { type: 'add'; contact: db.Contact }
   | { type: 'delete'; contactId: string };

@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { Alert, Dimensions } from 'react-native';
+import { Alert, Dimensions, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, getTokens } from 'tamagui';
+import { ScrollView, SizableText, getTokens } from 'tamagui';
 
 import { ContactsProvider, useContact } from '../contexts';
-import { View, YStack } from '../core';
+import { Stack, View, YStack } from '../core';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
 import ProfileCover from './ProfileCover';
@@ -13,6 +13,7 @@ import ProfileRow from './ProfileRow';
 interface Props {
   currentUserId: string;
   onAppSettingsPressed?: () => void;
+  onEditProfilePressed?: () => void;
   onLogoutPressed: () => void;
 }
 
@@ -59,6 +60,24 @@ export function Wrapped(props: Props) {
               <ProfileRow dark contactId={props.currentUserId} />
             </View>
           )}
+          <View position="absolute" top="$l" right="$l">
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={props.onEditProfilePressed}
+            >
+              <Stack
+                padding="$m"
+                paddingHorizontal="$l"
+                opacity={0.6}
+                backgroundColor="$darkOverlay"
+                borderRadius="$l"
+              >
+                <SizableText fontWeight="500" color="$white">
+                  Edit
+                </SizableText>
+              </Stack>
+            </TouchableOpacity>
+          </View>
         </View>
         <View marginTop="$xl">
           <ProfileAction
