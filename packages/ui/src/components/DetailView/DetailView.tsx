@@ -47,7 +47,7 @@ const DetailViewMetaDataComponent = ({
   }, [post.sentAt]);
 
   return (
-    <YStack gap="$l" paddingBottom="$2xl">
+    <YStack gap="$l" paddingBottom="$xl">
       <AuthorRow
         authorId={post.authorId}
         author={post.author}
@@ -83,16 +83,6 @@ const DetailViewHeaderComponentFrame = ({
       >
         {children}
       </YStack>
-      <View
-        paddingHorizontal="$xl"
-        paddingVertical="$2xl"
-        borderBottomWidth={1}
-        borderColor="$border"
-      >
-        <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-          {replyCount} replies
-        </Text>
-      </View>
     </YStack>
   );
 };
@@ -172,7 +162,7 @@ const DetailViewFrameComponent = ({
           getDraft={getDraft}
           backgroundColor="$background"
           showAttachmentButton={false}
-          placeholder="Reply to post"
+          placeholder="Reply"
           setHeight={setMessageInputHeight}
           // TODO: add back in when we switch to bottom nav
           // goBack={goBack}

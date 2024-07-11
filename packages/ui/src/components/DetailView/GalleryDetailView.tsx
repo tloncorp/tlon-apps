@@ -92,39 +92,31 @@ export default function GalleryDetailView({
           )}
           {isText && !isLinkedImage && !isRefInText && (
             <View
-              backgroundColor="$background"
-              borderRadius="$l"
+              borderColor="$border"
+              borderTopWidth={1}
+              borderBottomWidth={1}
+              backgroundColor="$secondaryBackground"
               padding="$l"
               width={WIDTH_DETAIL_VIEW_CONTENT}
-              height={HEIGHT_DETAIL_VIEW_CONTENT}
+              height="auto"
             >
-              <View
-                height="100%"
-                width="100%"
-                overflow="hidden"
-                paddingBottom="$xs"
-                position="relative"
-              >
+              <View overflow="hidden" paddingBottom="$xs" position="relative">
                 <ContentRenderer post={post} />
               </View>
             </View>
           )}
           {(isReference || isRefInText) && (
             <View
+              backgroundColor="$secondaryBackground"
+              borderColor="$border"
+              borderTopWidth={1}
+              borderBottomWidth={1}
               width={WIDTH_DETAIL_VIEW_CONTENT}
-              height={HEIGHT_DETAIL_VIEW_CONTENT}
-              borderRadius="$l"
-              padding="$m"
+              height="auto"
               overflow="hidden"
             >
-              <View
-                height="100%"
-                width="100%"
-                overflow="hidden"
-                paddingBottom="$xs"
-                position="relative"
-              >
-                <ContentReference reference={references[0]} />
+              <View overflow="hidden" position="relative">
+                <ContentReference reference={references[0]} viewMode="block" />
               </View>
             </View>
           )}

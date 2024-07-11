@@ -40,6 +40,9 @@ const ReferenceFrame = styled(YStack, {
       },
       block: {
         backgroundColor: '$secondaryBackground',
+        borderWidth: 0,
+        borderRadius: 0,
+        marginBottom: 0,
       },
       note: {
         marginLeft: 0,

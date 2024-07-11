@@ -44,6 +44,7 @@ export default function ChatReference({
           <ContactName
             color="$tertiaryText"
             size="$s"
+            maxWidth={230}
             userId={post.authorId}
             showNickname
           />
