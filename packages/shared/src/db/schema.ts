@@ -628,6 +628,7 @@ export const channels = sqliteTable(
       onDelete: 'cascade',
     }),
     ...metaFields,
+    contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),
     postCount: integer('post_count'),
@@ -659,6 +660,10 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   group: one(groups, {
     fields: [channels.groupId],
     references: [groups.id],
+  }),
+  contact: one(contacts, {
+    fields: [channels.contactId],
+    references: [contacts.id],
   }),
   posts: many(posts),
   lastPost: one(posts, {
