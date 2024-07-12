@@ -576,55 +576,55 @@ export async function removeReaction({
   });
 }
 
-export async function showPost(postId: string) {
-  const action = {
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      'toggle-post': {
-        show: postId,
+export async function showPost(post: db.Post) {
+  if (isGroupChannelId(post.channelId)) {
+    const action = {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        'toggle-post': {
+          show: post.id,
+        },
       },
-    },
-  };
+    };
 
-  return poke(action);
-}
+    return poke(action);
+  }
 
-export async function hidePost(postId: string) {
-  const action = {
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      'toggle-post': {
-        hide: postId,
-      },
-    },
-  };
-
-  return poke(action);
-}
-
-export async function hideDMPost(authorId: string, postId: string) {
-  const writId = `${authorId}/${postId}`;
-  const action = {
-    app: 'chat',
-    mark: 'chat-toggle-message',
-    json: {
-      hide: writId,
-    },
-  };
-
-  return poke(action);
-}
-
-export async function showDMPost(authorId: string, postId: string) {
-  const writId = `${authorId}/${postId}`;
+  const writId = `${post.authorId}/${post.id}`;
 
   const action = {
     app: 'chat',
     mark: 'chat-toggle-message',
     json: {
       show: writId,
+    },
+  };
+
+  return poke(action);
+}
+
+export async function hidePost(post: db.Post) {
+  if (isGroupChannelId(post.channelId)) {
+    const action = {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        'toggle-post': {
+          hide: post.id,
+        },
+      },
+    };
+
+    return poke(action);
+  }
+
+  const writId = `${post.authorId}/${post.id}`;
+  const action = {
+    app: 'chat',
+    mark: 'chat-toggle-message',
+    json: {
+      hide: writId,
     },
   };
 
