@@ -510,7 +510,7 @@
 ++  give-update
   |=  $:  =update:a
         $=  dist
-        $%  [%hose ~]
+        $%  [%hose path=~]
             [%both =path]
             [%only =path]
         ==
@@ -520,10 +520,12 @@
   =?  cor  ?!(?=(%activity -.update))
     =?  dist  ?=(%read -.update)  [%both /unreads]
     =/  v0-paths
+      =/  hose=(list path)  ~[/ /v0 /v2]
+      =/  only=(list path)  ~[path.dist [%v0 path.dist] [%v2 path.dist]]
       ?-  -.dist
-        %hose  ~[/ /v0 /v2]
-        %only  ~[path.dist [%v0 path.dist] [%v2 path.dist]]
-        %both  ~[/ /v0 /v2 path.dist [%v0 path.dist] [%v2 path.dist]]
+        %hose  hose
+        %only  only
+        %both  (weld only hose)
       ==
     =/  v0-cage=cage
       activity-update+!>((update:v2:convert-to update activity))
@@ -531,19 +533,23 @@
   =?  cor  ?!(?=(%activity -.update))
     =?  dist  ?=(%read -.update)  [%both /unreads]
     =/  v1-paths
+      =/  hose=(list path)  ~[/v1 /v3]
+      =/  only=(list path)  ~[path.dist [%v1 path.dist] [%v3 path.dist]]
       ?-  -.dist
-        %hose  ~[/v1 /v3]
-        %only  ~[[%v1 path.dist] [%v3 path.dist]]
-        %both  ~[/v1 /v3 [%v1 path.dist] [%v3 path.dist]]
+        %hose  hose
+        %only  only
+        %both  (weld only hose)
       ==
     =/  v1-cage=cage
       activity-update-1+!>((update:v3:convert-to update activity))
     (give %fact v1-paths v1-cage)
   =/  v4-paths
+    =/  hose=(list path)  ~[/v4]
+    =/  only=(list path)  ~[[%v4 path.dist]]
     ?-  -.dist
-      %hose  ~[/v4]
-      %only  ~[[%v4 path.dist]]
-      %both  ~[/v4 [%v4 path.dist]]
+      %hose  hose
+      %only  only
+      %both  (weld only hose)
     ==
   =/  v4-cage=cage  activity-update-4+!>(update)
   (give %fact v4-paths v4-cage)
