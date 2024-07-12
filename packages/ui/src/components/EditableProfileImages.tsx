@@ -9,12 +9,13 @@ import {
   useState,
 } from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Circle, ZStack, useTheme } from 'tamagui';
+import { Circle, Stack, ZStack, useTheme } from 'tamagui';
 
 import { View } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { AvatarProps, ContactAvatar, GroupAvatar } from './Avatar';
 import { Icon } from './Icon';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface Props {
   contact?: db.Contact;
@@ -58,9 +59,13 @@ export function EditablePofileImages(props: Props) {
     }
   }, [props.uploadInfo, attachingTo, props]);
 
-  const canInitiateUpload = useMemo(() => {
-    return props.uploadInfo.canUpload && !props.uploadInfo.uploading;
-  }, [props.uploadInfo]);
+  const coverIsUploading = useMemo(() => {
+    return props.uploadInfo.uploading && attachingTo === 'cover';
+  }, [attachingTo, props.uploadInfo.uploading]);
+
+  const iconIsUploading = useMemo(() => {
+    return props.uploadInfo.uploading && attachingTo === 'icon';
+  }, [attachingTo, props.uploadInfo.uploading]);
 
   const handleCoverPress = useCallback(() => {
     if (props.uploadInfo.canUpload) {
@@ -84,6 +89,7 @@ export function EditablePofileImages(props: Props) {
           style={{ width: '100%', height: '100%' }}
           activeOpacity={0.85}
           onPress={handleCoverPress}
+          disabled={!props.uploadInfo.canUpload}
         >
           <ImageBackground
             source={{ uri: coverUrl }}
@@ -94,19 +100,41 @@ export function EditablePofileImages(props: Props) {
               justifyContent: 'flex-end',
               alignItems: 'flex-end',
               backgroundColor: theme.secondaryBackground.val,
+              opacity: coverIsUploading ? 0.7 : 1,
             }}
           >
+            {coverIsUploading && (
+              <Stack
+                flex={1}
+                width="100%"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <LoadingSpinner size="small" color="white" />
+              </Stack>
+            )}
             <EditableImageIndicator
               position="absolute"
               bottom="$l"
               right="$l"
+              opacity={!props.uploadInfo.canUpload ? 0 : 1}
+              loading={coverIsUploading}
             />
           </ImageBackground>
         </TouchableOpacity>
 
         {/* Profile Icon */}
-        <View position="absolute" top={34} left="$2xl">
-          <TouchableOpacity activeOpacity={0.85} onPress={handleIconPress}>
+        <View
+          position="absolute"
+          top={34}
+          left="$2xl"
+          opacity={iconIsUploading ? 0.7 : 1}
+        >
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleIconPress}
+            disabled={!props.uploadInfo.canUpload}
+          >
             {props.contact && (
               <ContactAvatar
                 contactId={props.contact.id}
@@ -126,6 +154,8 @@ export function EditablePofileImages(props: Props) {
               position="absolute"
               bottom="$s"
               right="$s"
+              opacity={!props.uploadInfo.canUpload ? 0 : 1}
+              loading={iconIsUploading}
             />
           </TouchableOpacity>
         </View>
@@ -142,9 +172,16 @@ export function EditablePofileImages(props: Props) {
   );
 }
 
-export function EditableImageIndicator(props: ComponentProps<typeof Circle>) {
+export function EditableImageIndicator(
+  props: ComponentProps<typeof Circle> & { loading?: boolean }
+) {
   return (
-    <Circle backgroundColor="$black" opacity={0.7} padding="$m" {...props}>
+    <Circle
+      backgroundColor="$black"
+      opacity={props.loading ? 0 : 0.7}
+      padding="$m"
+      {...props}
+    >
       <Icon type="Camera" color="$white" size="$s" />
     </Circle>
   );
