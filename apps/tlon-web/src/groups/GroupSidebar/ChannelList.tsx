@@ -231,8 +231,8 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
           <ChannelIcon nest={nest} className="h-6 w-6" />
         );
       const unread = getUnread(nest);
-      const isUnread = unread?.combined.status === 'unread';
-      const hasNotify = unread?.combined.notify;
+      const isUnread = (unread?.count || 0) > 0;
+      const hasNotify = unread?.notify;
 
       return (
         <SidebarItem
@@ -245,8 +245,8 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
               <div className={cn('relative h-6 w-6 text-gray-600')}>
                 {isUnread ? (
                   <UnreadIndicator
-                    count={unread?.combined.count || 0}
-                    notify={unread?.combined.notify}
+                    count={unread?.count || 0}
+                    notify={unread?.notify}
                     className="group-focus-within:opacity-0 group-hover:opacity-0"
                   />
                 ) : null}

@@ -5,6 +5,7 @@ import ob from 'urbit-ob';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { ShipOption } from '@/components/ShipSelector';
+import { useActivity } from '@/state/activity';
 import {
   SendMessageVariables,
   useCreateMultiDm,
@@ -15,7 +16,6 @@ import {
   useForceNegotiationUpdate,
   useNegotiateMulti,
 } from '@/state/negotiation';
-import { useUnreads } from '@/state/unreads';
 
 import { createStorageKey, newUv } from './utils';
 
@@ -30,7 +30,7 @@ export default function useMessageSelector() {
   const isMultiDm = ships.length > 1;
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const { mutate: sendMessage } = useSendMessage();
   const { mutateAsync: createMultiDm } = useCreateMultiDm();
 
@@ -52,7 +52,7 @@ export default function useMessageSelector() {
     }
 
     return (
-      Object.entries(unreads)
+      Object.entries(activity)
         .find(([source, _unread]) => {
           const theShip = ships[0].value;
           const sameDM = `ship/${theShip}` === source;
@@ -60,7 +60,7 @@ export default function useMessageSelector() {
         })?.[0]
         .split('/')[1] ?? null
     );
-  }, [ships, unreads]);
+  }, [ships, activity]);
 
   const existingMultiDm = useMemo(() => {
     if (!shipValues.length) {
@@ -76,8 +76,8 @@ export default function useMessageSelector() {
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
-      const unread = unreads[`club/${key}`];
-      const newUnread = unreads[`club/${k}`];
+      const unread = activity[`club/${key}`];
+      const newUnread = activity[`club/${k}`];
       const newer =
         !unread || (unread && newUnread && newUnread.recency > unread.recency);
       if (sameDM && newer) {
@@ -88,7 +88,7 @@ export default function useMessageSelector() {
     }, '');
 
     return clubId !== '' ? clubId : null;
-  }, [multiDms, shipValues, unreads]);
+  }, [multiDms, shipValues, activity]);
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {

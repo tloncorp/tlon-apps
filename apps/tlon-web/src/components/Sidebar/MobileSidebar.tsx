@@ -9,13 +9,13 @@ import { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useCharge } from '@/state/docket';
-import { useLocalState } from '@/state/local';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
-  useUnread,
-} from '@/state/unreads';
+  useSourceActivity,
+} from '@/state/activity';
+import { useCharge } from '@/state/docket';
+import { useLocalState } from '@/state/local';
 
 import Avatar from '../Avatar';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
@@ -111,7 +111,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const unread = useUnread('base');
+  const { activity } = useSourceActivity('base');
 
   return (
     <DoubleClickableNavTab
@@ -131,7 +131,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         <div
           className={cn(
             'mb-0.5 h-1.5 w-1.5 rounded-full',
-            (unread?.combined.count || 0) > 0 && 'bg-blue'
+            (activity['notify-count'] || 0) > 0 && 'bg-blue'
           )}
         />
       </div>

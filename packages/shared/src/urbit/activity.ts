@@ -164,7 +164,7 @@ export interface PostRead {
 
 export interface Reads {
   floor: number;
-  posts: Record<string, PostRead>;
+  items: Record<string, PostRead>;
 }
 
 export interface IndexData {
@@ -172,11 +172,19 @@ export interface IndexData {
   reads: Reads;
 }
 
+export interface DmSource {
+  dm: Whom;
+}
+
+export interface ChannelSource {
+  channel: { nest: string; group: string };
+}
+
 export type Source =
-  | { dm: Whom }
+  | DmSource
   | { base: null }
   | { group: string }
-  | { channel: { nest: string; group: string } }
+  | ChannelSource
   | { thread: { key: MessageKey; channel: string; group: string } }
   | { 'dm-thread': { key: MessageKey; whom: Whom } };
 
@@ -250,6 +258,10 @@ export type ActivityAction =
   | { adjust: ActivityVolumeAction }
   | { 'allow-notifications': PushNotificationsSetting };
 
+export interface ActivitySummaryUpdate {
+  activity: Activity;
+}
+
 export interface ActivityReadUpdate {
   read: {
     source: Source;
@@ -283,6 +295,7 @@ export interface ActivityPushNotificationsSettingUpdate {
 
 export type ActivityUpdate =
   | ActivityReadUpdate
+  | ActivitySummaryUpdate
   | ActivityVolumeUpdate
   | ActivityDeleteUpdate
   | ActivityAddUpdate
@@ -296,16 +309,23 @@ export interface FullActivity {
 export type VolumeSettings = Record<string, VolumeMap | null>;
 
 export function sourceToString(source: Source, stripPrefix = false): string {
-  if ('base' in source) {
-    return stripPrefix ? '' : 'base';
+  if ('thread' in source) {
+    const key = `${source.thread.channel}/${source.thread.key.time}`;
+    return stripPrefix ? key : `thread/${key}`;
   }
 
-  if ('group' in source) {
-    return stripPrefix ? source.group : `group/${source.group}`;
+  if ('dm-thread' in source) {
+    const prefix = sourceToString({ dm: source['dm-thread'].whom }, true);
+    const key = `${prefix}/${source['dm-thread'].key.id}`;
+    return stripPrefix ? key : `dm-thread/${key}`;
   }
 
   if ('channel' in source) {
     return stripPrefix ? source.channel.nest : `channel/${source.channel.nest}`;
+  }
+
+  if ('group' in source) {
+    return stripPrefix ? source.group : `group/${source.group}`;
   }
 
   if ('dm' in source) {
@@ -316,15 +336,8 @@ export function sourceToString(source: Source, stripPrefix = false): string {
     return stripPrefix ? source.dm.club : `club/${source.dm.club}`;
   }
 
-  if ('thread' in source) {
-    const key = `${source.thread.channel}/${source.thread.key.time}`;
-    return stripPrefix ? key : `thread/${key}`;
-  }
-
-  if ('dm-thread' in source) {
-    const prefix = sourceToString({ dm: source['dm-thread'].whom }, true);
-    const key = `${prefix}/${source['dm-thread'].key.id}`;
-    return stripPrefix ? key : `dm-thread/${key}`;
+  if ('base' in source) {
+    return 'base';
   }
 
   throw new Error('Invalid activity source');
@@ -504,11 +517,15 @@ export function getDefaultVolumeOption(
 }
 
 export function stripSourcePrefix(source: string) {
+  if (source === 'base') {
+    return source;
+  }
+
   return source.replace(/^[-\w]*\//, '');
 }
 
 export function stripPrefixes(unreads: Activity) {
-  return _.mapKeys(unreads, (v, k) => stripSourcePrefix);
+  return _.mapKeys(unreads, (v, k) => stripSourcePrefix(k));
 }
 
 export function onlyChats(unreads: Activity) {
@@ -516,6 +533,14 @@ export function onlyChats(unreads: Activity) {
     unreads,
     (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)
   );
+}
+
+export function getChannelSource(group: string, channel: string) {
+  return { channel: { nest: channel, group } };
+}
+
+export function getDmSource(id: string) {
+  return whomIsDm(id) ? { dm: { ship: id } } : { dm: { club: id } };
 }
 
 export function getKey(whom: string) {
@@ -686,7 +711,7 @@ export function isUnread(time: string, summary: ActivitySummary): boolean {
   }
 
   if (parseUd(time).gt(unixToDa(reads.floor))) {
-    return !(time in reads.posts);
+    return !(time in reads.items);
   }
 
   return false;

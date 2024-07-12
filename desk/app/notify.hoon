@@ -642,7 +642,7 @@
     :~  identity+(rsh [3 1] (scot %p who))
         action+`@t`action.update
         uid+(scot %uv uid.update)
-        id+(scot %da id.update)
+        id+(scot %da uid.update)
     ==
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))
