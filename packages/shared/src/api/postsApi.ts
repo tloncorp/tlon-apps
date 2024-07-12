@@ -113,24 +113,14 @@ export async function getPostReference({
 
 async function toPostReference(said: ub.Said) {
   const channelId = said.nest;
-  const hiddenPosts = await db.getHiddenPosts();
   if ('reply' in said.reference) {
     return toPostReplyData(
       channelId,
       said.reference.reply['id-post'],
-      said.reference.reply.reply,
-      hiddenPosts.some(
-        (h) =>
-          h.postId ===
-          (said.reference as ub.ReplyReferenceResponse).reply.reply.seal.id
-      )
+      said.reference.reply.reply
     );
   } else if ('post' in said.reference) {
-    return toPostData(
-      channelId,
-      said.reference.post,
-      hiddenPosts.map((p) => p.postId)
-    );
+    return toPostData(channelId, said.reference.post);
   } else {
     throw new Error('invalid response' + JSON.stringify(said, null, 2));
   }
@@ -364,9 +354,7 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
-  const hiddenPosts = await db.getHiddenPosts();
-  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
-  return toPagedPostsData(channelId, response, hiddenPostIds);
+  return toPagedPostsData(channelId, response);
 };
 
 export type PostWithUpdateTime = {
@@ -396,12 +384,9 @@ export const getLatestPosts = async ({
     ),
   });
 
-  const hiddenPosts = await db.getHiddenPosts();
-  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
-
   return response.map((head) => {
     const channelId = 'nest' in head ? head.nest : head.whom;
-    const latestPost = toPostData(channelId, head.latest, hiddenPostIds);
+    const latestPost = toPostData(channelId, head.latest);
     return {
       channelId: channelId,
       updatedAt: head.recency,
@@ -715,10 +700,7 @@ export const getPostWithReplies = async ({
     path,
   });
 
-  const hiddenPosts = await db.getHiddenPosts();
-  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
-
-  return toPostData(channelId, post, hiddenPostIds);
+  return toPostData(channelId, post);
 };
 
 export interface DeletedPost {
@@ -751,11 +733,10 @@ export type ContentReference = ChannelReference | GroupReference | AppReference;
 
 export function toPagedPostsData(
   channelId: string,
-  data: ub.PagedPosts | ub.PagedWrits,
-  hiddenPostIds: string[] = []
+  data: ub.PagedPosts | ub.PagedWrits
 ): GetChannelPostsResponse {
   const posts = 'writs' in data ? data.writs : data.posts;
-  const postsData = toPostsData(channelId, posts, hiddenPostIds);
+  const postsData = toPostsData(channelId, posts);
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
@@ -766,8 +747,7 @@ export function toPagedPostsData(
 
 export function toPostsData(
   channelId: string,
-  posts: ub.Posts | ub.Writs | Record<string, ub.Reply>,
-  hiddenPostIds: string[] = []
+  posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
 ): { posts: db.Post[]; deletedPosts: string[] } {
   const entries = Object.entries(posts);
   const deletedPosts: string[] = [];
@@ -777,7 +757,7 @@ export function toPostsData(
     if (post === null) {
       deletedPosts.push(id);
     } else {
-      const postData = toPostData(channelId, post, hiddenPostIds);
+      const postData = toPostData(channelId, post);
       otherPosts.push(postData);
     }
   }
@@ -792,8 +772,7 @@ export function toPostsData(
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.Writ | ub.PostDataResponse,
-  hiddenPostIds: string[] = []
+  post: ub.Post | ub.Writ | ub.PostDataResponse
 ): db.Post {
   const getPostType = (
     channelId: string,
@@ -825,9 +804,8 @@ export function toPostData(
       ? getCanonicalPostId(post.seal.time.toString())
       : null;
 
-  const isHidden = hiddenPostIds.includes(id);
   const replyData = isPostDataResponse(post)
-    ? getReplyData(id, channelId, post, hiddenPostIds)
+    ? getReplyData(id, channelId, post)
     : null;
 
   return {
@@ -852,7 +830,6 @@ export function toPostData(
     replies: replyData,
     deliveryStatus: null,
     syncedAt: Date.now(),
-    hidden: isHidden,
     ...flags,
   };
 }
@@ -870,16 +847,10 @@ function isPostDataResponse(
 function getReplyData(
   postId: string,
   channelId: string,
-  post: ub.PostDataResponse,
-  hiddenPostIds: string[] = []
+  post: ub.PostDataResponse
 ): db.Post[] {
   return Object.entries(post.seal.replies ?? {}).map(([, reply]) =>
-    toPostReplyData(
-      channelId,
-      postId,
-      reply,
-      hiddenPostIds.includes(reply.seal.id)
-    )
+    toPostReplyData(channelId, postId, reply)
   );
 }
 export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
@@ -896,8 +867,7 @@ export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
 export function toPostReplyData(
   channelId: string,
   postId: string,
-  reply: ub.Reply | ub.WritReply,
-  isHidden: boolean = false
+  reply: ub.Reply | ub.WritReply
 ): db.Post {
   const [content, flags] = toPostContent(reply.memo.content);
   const id = getCanonicalPostId(reply.seal.id);
@@ -921,7 +891,6 @@ export function toPostReplyData(
     replyCount: 0,
     images: getContentImages(id, reply.memo.content),
     syncedAt: Date.now(),
-    hidden: isHidden,
     ...flags,
   };
 }

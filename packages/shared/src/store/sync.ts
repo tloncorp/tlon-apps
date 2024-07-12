@@ -131,14 +131,8 @@ export const syncChannelHeads = async (
   ]);
   reporter?.log('got latest posts from api');
   const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
-  const hiddenPosts = await db.getHiddenPosts();
-  const hiddenPostIds = hiddenPosts.map((p) => p.postId);
   allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
-  const allPostsWithHidden = allPosts.map((post) => {
-    const hidden = hiddenPostIds.includes(post.id);
-    return { ...post, hidden };
-  });
-  await db.insertLatestPosts(allPostsWithHidden);
+  await db.insertLatestPosts(allPosts);
 };
 
 export const syncSettings = async (priority = SyncPriority.Medium) => {
@@ -572,11 +566,9 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       await db.deletePosts({ ids: [update.postId] });
       break;
     case 'hidePost':
-      await db.insertHiddenPosts([update.postId]);
       await db.updatePost({ id: update.postId, hidden: true });
       break;
     case 'showPost':
-      await db.deleteHiddenPosts([update.postId]);
       await db.updatePost({ id: update.postId, hidden: false });
       break;
     case 'updateReactions':
@@ -613,11 +605,9 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
 
   switch (update.type) {
     case 'showPost':
-      await db.deleteHiddenPosts([update.postId]);
       await db.updatePost({ id: update.postId, hidden: false });
       break;
     case 'hidePost':
-      await db.insertHiddenPosts([update.postId]);
       await db.updatePost({ id: update.postId, hidden: true });
       break;
     case 'addPost':
@@ -717,10 +707,11 @@ export async function syncHiddenPosts(reporter: ErrorReporter) {
   // we should remove them from our hidden posts list
   currentHiddenPosts.forEach(async (hiddenPost) => {
     if (
-      !hiddenPosts.some((postId) => postId === hiddenPost.postId) &&
-      !hiddenDMPosts.some((postId) => postId === hiddenPost.postId)
+      !hiddenPosts.some((postId) => postId === hiddenPost.id) &&
+      !hiddenDMPosts.some((postId) => postId === hiddenPost.id)
     ) {
-      await db.deleteHiddenPosts([hiddenPost.postId]);
+      reporter?.log(`deleting hidden post ${hiddenPost.id}`);
+      await db.updatePost({ id: hiddenPost.id, hidden: false });
     }
   });
 
@@ -739,18 +730,10 @@ export async function syncPosts(
   const response = await syncQueue.add('channelPosts', priority, () =>
     api.getChannelPosts(options)
   );
-  const hiddenPosts = await db.getHiddenPosts();
   if (response.posts.length) {
-    const postsWithHidden = response.posts.map((post) => {
-      const hidden = hiddenPosts.some(
-        (hiddenPost) => hiddenPost.postId === post.id
-      );
-      return { ...post, hidden };
-    });
-
     await db.insertChannelPosts({
       channelId: options.channelId,
-      posts: postsWithHidden,
+      posts: response.posts,
       newer: response.newer,
       older: response.older,
     });

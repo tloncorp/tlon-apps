@@ -63,7 +63,6 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
-  hiddenPosts as $hiddenPosts,
   pins as $pins,
   postReactions as $postReactions,
   postWindows as $postWindows,
@@ -1807,11 +1806,11 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
     )
     .onConflictDoUpdate({
       target: $posts.id,
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
       target: [$posts.authorId, $posts.sentAt],
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     });
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
@@ -1827,31 +1826,25 @@ export const insertHiddenPosts = createWriteQuery(
   'insertHiddenPosts',
   async (postIds: string[], ctx: QueryCtx) => {
     if (postIds.length === 0) return;
-    await ctx.db
-      .insert($hiddenPosts)
-      .values(postIds.map((id) => ({ postId: id, hiddenAt: Date.now() })))
-      .onConflictDoNothing();
-  },
-  ['hiddenPosts']
-);
 
-export const deleteHiddenPosts = createWriteQuery(
-  'deleteHiddenPosts',
-  async (postIds: string[], ctx: QueryCtx) => {
-    if (postIds.length === 0) return;
-    return ctx.db
-      .delete($hiddenPosts)
-      .where(inArray($hiddenPosts.postId, postIds));
+    logger.log('insertHiddenPosts', postIds);
+
+    await ctx.db
+      .update($posts)
+      .set({ hidden: true })
+      .where(inArray($posts.id, postIds));
   },
-  ['hiddenPosts']
+  ['posts']
 );
 
 export const getHiddenPosts = createReadQuery(
   'getHiddenPosts',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.hiddenPosts.findMany();
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.hidden, true),
+    });
   },
-  ['hiddenPosts']
+  ['posts']
 );
 
 async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
