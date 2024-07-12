@@ -66,20 +66,12 @@ export default function NotebookDetailView({
           </TouchableOpacity>
         )}
         {post.title && (
-          <Text
-            color="$primaryText"
-            fontFamily="$serif"
-            fontWeight="$s"
-            fontSize="$2xl"
-            paddingTop="$l"
-          >
+          <Text color="$primaryText" fontSize={24} fontWeight={'500'}>
             {post.title}
           </Text>
         )}
-        <DetailView.MetaData showReplyCount post={post} />
-        <View paddingVertical="$xl">
-          <ContentRenderer post={post} />
-        </View>
+        <DetailView.MetaData post={post} />
+        <ContentRenderer post={post} />
       </DetailView.Header>
     </DetailView>
   );

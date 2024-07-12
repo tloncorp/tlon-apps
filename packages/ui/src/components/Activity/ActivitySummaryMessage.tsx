@@ -149,7 +149,7 @@ function SummaryMessageRaw({
       <SizableText color="$secondaryText">
         <ContactName
           userId={newest.authorId ?? ''}
-          fontWeight="500"
+          fontWeight="$xl"
           showNickname
         />
         {` ${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}

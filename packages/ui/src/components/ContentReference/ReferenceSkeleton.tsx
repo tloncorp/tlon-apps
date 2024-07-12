@@ -1,23 +1,26 @@
 import { ComponentProps } from 'react';
 
 import { Text, XStack, YStack } from '../../core';
+import { PostViewMode } from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { LoadingSpinner } from '../LoadingSpinner';
 
 export default function ReferenceSkeleton({
   message = 'Loading',
   messageType = 'loading',
+  viewMode = 'chat',
   ...props
 }: {
   message?: string;
   messageType?: 'loading' | 'error' | 'not-found';
+  viewMode?: PostViewMode;
 } & ComponentProps<typeof YStack>) {
   return (
     <YStack
       borderRadius="$s"
       padding="$s"
       borderColor="$border"
-      borderWidth={1}
+      borderWidth={viewMode === 'block' ? 0 : 1}
       {...props}
     >
       <XStack alignItems="center" justifyContent="space-between">
