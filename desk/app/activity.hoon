@@ -115,6 +115,10 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  from-self  =(our src):bowl
+++  log
+  |=  msg=tape
+  ~?  verbose  "%{(trip dap.bowl)} {msg}"
+  same
 ::
 ++  init
   ^+  cor
@@ -512,7 +516,7 @@
         ==
       ==
   ^+  cor
-  ~?  verbose  [update dist]
+  %-  (log "{<[update dist]>}")
   =?  cor  ?!(?=(%activity -.update))
     =?  dist  ?=(%read -.update)  [%both /unreads]
     =/  v0-paths
@@ -592,7 +596,7 @@
         (snoc (get-parents:src source) source)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    ~?  verbose  "sending activity: {<new-activity>}"
+    %-  (log "sending activity: {<new-activity>}")
     (give-update [%activity new-activity] [%hose ~])
   cor
 ::
@@ -612,10 +616,10 @@
   (refresh-index source index(stream new) |)
 ++  refresh-index
   |=  [=source:a new=index:a new-floor=?]
-  ~?  verbose  "refeshing index: {<source>}"
+  %-  (log "refeshing index: {<source>}")
   =?  new  new-floor
     (update-reads:idx new)
-  ~?  verbose  "new reads: {<reads.new>}"
+  %-  (log "new reads: {<reads.new>}")
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -639,16 +643,11 @@
 ++  refresh
   |=  =source:a
   =.  cor  (refresh-summary source)
-  =.  cor
-    ?+  -.source  cor
-      %channel  (refresh-summary [%group group.source])
-      %dm-thread  (refresh-summary [%dm whom.source])
-    ::
-        %thread
-      =.  cor  (refresh-summary [%channel channel.source group.source])
-      (refresh-summary [%group group.source])
-    ==
-  (refresh-summary [%base ~])
+  =/  parents  (get-parents:src source)
+  |-
+  ?~  parents  cor
+  =.  cor  (refresh-summary i.parents)
+  $(parents t.parents)
 ++  bump
   |=  =source:a
   ^+  cor
@@ -662,7 +661,7 @@
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
     (~(put by out) source (~(gut by activity) source *activity-summary:a))
-  ~?  verbose  "sending activity: {<new-activity>}"
+  %-  (log "sending activity: {<new-activity>}")
   (give-update [%activity new-activity] [%hose ~])
 ++  read
   |=  [=source:a action=read-action:a from-parent=?]
@@ -778,7 +777,7 @@
 ++  summarize-unreads
   |=  [=source:a =index:a]
   ^-  activity-summary:a
-  ~?  verbose  "summarizing unreads for: {<source>}"
+  %-  (log "summarizing unreads for: {<source>}")
   =/  top=time  -:(fall (ram:on-event:a stream.index) [*@da ~])
   ::  for each item in reads
   ::  omit:
@@ -791,7 +790,7 @@
   ::        and segment replies for unread threads tracking
   =;  unread-stream=stream:a
     =/  children  (get-children:src indices source)
-    ~?  verbose  "children: {<children>}"
+    %-  (log "children: {<?:(?=(%base -.source) 'all' children)>}")
     (stream-to-unreads source index(stream unread-stream) children top)
   %+  gas:on-event:a  *stream:a
   %+  murn
@@ -813,7 +812,7 @@
       =>  (summarize-unreads source index)
       .(children ~)
     u.as(children ~)
-  ~?  verbose  "child map: {<child-map>}"
+  %-  (log "child map: {<child-map>}")
   =/  cs=activity-summary:a
     %-  ~(rep by child-map)
     |=  [[=source:a as=activity-summary:a] sum=activity-summary:a]
