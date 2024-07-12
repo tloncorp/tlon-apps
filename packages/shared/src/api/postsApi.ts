@@ -104,14 +104,14 @@ export async function getPostReference({
     replyId ? '/' + replyId : ''
   }`;
   const data = await subscribeOnce<ub.Said>({ app: 'channels', path }, 3000);
-  const post = await toPostReference(data);
+  const post = toPostReference(data);
   // The returned post id can be different than the postId we requested?? But the
   // post is going to be requested by the original id, so set manually :/
   post.id = postId;
   return post;
 }
 
-async function toPostReference(said: ub.Said) {
+function toPostReference(said: ub.Said) {
   const channelId = said.nest;
   if ('reply' in said.reference) {
     return toPostReplyData(
