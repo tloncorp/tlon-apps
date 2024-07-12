@@ -299,11 +299,6 @@ class API {
             ...params,
             event: eventListener(params.event),
             quit: () => {
-              this.client!.subscribe({
-                ...params,
-                event: eventListener(params.event),
-              });
-
               // should only happen once since we call this each invocation
               // and onReconnect will set the lastReconnect time
               const { lastReconnect, onReconnect } = useLocalState.getState();
