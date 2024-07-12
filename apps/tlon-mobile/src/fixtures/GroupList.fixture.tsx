@@ -100,6 +100,8 @@ export default {
   basic: (
     <FixtureWrapper fillWidth>
       <ChatList
+        activeTab="all"
+        setActiveTab={() => {}}
         pinned={[groupWithLongTitle, groupWithImage].map((g) =>
           makeChannelSummary({ group: g })
         )}
@@ -116,6 +118,8 @@ export default {
   emptyPinned: (
     <FixtureWrapper fillWidth>
       <ChatList
+        activeTab="all"
+        setActiveTab={() => {}}
         pinned={[dmSummary, groupDmSummary]}
         unpinned={[
           groupWithColorAndNoImage,
@@ -129,7 +133,13 @@ export default {
   ),
   loading: (
     <FixtureWrapper fillWidth>
-      <ChatList pinned={[]} unpinned={[]} pendingChats={[]} />
+      <ChatList
+        activeTab="all"
+        setActiveTab={() => {}}
+        pinned={[]}
+        unpinned={[]}
+        pendingChats={[]}
+      />
     </FixtureWrapper>
   ),
 };
