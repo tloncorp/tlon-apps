@@ -33,7 +33,11 @@ export type RootStackParamList = {
     channel: db.Channel;
   };
   Post: {
-    post: db.Post;
+    post: {
+      id: string;
+      channelId: string;
+      authorId: string;
+    };
   };
   ImageViewer: {
     post: db.Post;
@@ -48,6 +52,7 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  EditProfile: undefined;
 };
 
 export type GroupSettingsStackParamList = {

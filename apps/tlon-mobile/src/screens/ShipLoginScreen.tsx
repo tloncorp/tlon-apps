@@ -47,7 +47,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   const { setShip } = useShip();
 
   const isValidUrl = useCallback((url: string) => {
-    const urlPattern = /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(\/\S*)?$/i;
+    const urlPattern =
+      /^(https?:\/\/)?(localhost|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[\w.-]+\.([a-z]{2,}))(:\d+)?$/i;
     const hostedPattern = /tlon\.network/i;
     if (!urlPattern.test(url)) {
       return false;

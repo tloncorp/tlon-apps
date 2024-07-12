@@ -43,7 +43,7 @@ export default function NotebookPost({
 
   return (
     <Pressable
-      onPress={() => onPress?.(post)}
+      onPress={() => (post.hidden ? () => {} : onPress?.(post))}
       onLongPress={handleLongPress}
       delayLongPress={250}
       disabled={viewMode === 'activity'}
@@ -57,49 +57,57 @@ export default function NotebookPost({
         borderColor="$border"
         overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
-        {post.image && (
-          <Image
-            source={{
-              uri: post.image,
-            }}
-            width="100%"
-            height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
-            borderRadius="$s"
-          />
-        )}
-        {post.title && (
-          <Text
-            fontWeight="$xl"
-            color="$primaryText"
-            fontSize={smallTitle || viewMode === 'activity' ? '$l' : 24}
-          >
-            {post.title}
+        {post.hidden ? (
+          <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+            You have hidden or flagged this post.
           </Text>
-        )}
-        {showAuthor && viewMode !== 'activity' && (
-          <AuthorRow
-            authorId={post.authorId}
-            author={post.author}
-            sent={post.sentAt}
-            type={post.type}
-          />
-        )}
-        {viewMode !== 'activity' && (
-          <ContentRenderer
-            viewMode={viewMode}
-            shortenedTextOnly={true}
-            post={post}
-          />
-        )}
+        ) : (
+          <>
+            {post.image && (
+              <Image
+                source={{
+                  uri: post.image,
+                }}
+                width="100%"
+                height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
+                borderRadius="$s"
+              />
+            )}
+            {post.title && (
+              <Text
+                fontWeight="$xl"
+                color="$primaryText"
+                fontSize={smallTitle || viewMode === 'activity' ? '$l' : 24}
+              >
+                {post.title}
+              </Text>
+            )}
+            {showAuthor && viewMode !== 'activity' && (
+              <AuthorRow
+                authorId={post.authorId}
+                author={post.author}
+                sent={post.sentAt}
+                type={post.type}
+              />
+            )}
+            {viewMode !== 'activity' && (
+              <ContentRenderer
+                viewMode={viewMode}
+                shortenedTextOnly={true}
+                post={post}
+              />
+            )}
 
-        {/* TODO: reuse reply stack from Chat messages */}
-        {showReplies &&
-        hasReplies &&
-        post.replyCount &&
-        post.replyTime &&
-        post.replyContactIds ? (
-          <ChatMessageReplySummary post={post} paddingLeft={false} />
-        ) : null}
+            {/* TODO: reuse reply stack from Chat messages */}
+            {showReplies &&
+            hasReplies &&
+            post.replyCount &&
+            post.replyTime &&
+            post.replyContactIds ? (
+              <ChatMessageReplySummary post={post} paddingLeft={false} />
+            ) : null}
+          </>
+        )}
       </YStack>
     </Pressable>
   );
