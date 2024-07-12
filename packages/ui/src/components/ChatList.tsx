@@ -286,7 +286,7 @@ export function ChatList({
   return (
     <>
       <Animated.View style={filterStyle}>
-        <YStack gap="$m">
+        <YStack backgroundColor="$background" gap="$m">
           <View paddingHorizontal="$l">
             <Input>
               <Input.Icon>
