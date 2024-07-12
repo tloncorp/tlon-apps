@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import fuzzy from 'fuzzy';
+import { debounce } from 'lodash';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
@@ -31,6 +32,8 @@ import { ChatListItem, SwipableChatListItem } from './ListItem';
 import Pressable from './Pressable';
 import { SectionListHeader } from './SectionList';
 import { Tabs } from './Tabs';
+
+const DEBOUNCE_DELAY = 200;
 
 export type Chat = db.Channel | db.Group;
 
@@ -88,42 +91,49 @@ export function ChatList({
     ];
   }, [filteredData, pendingChats]);
 
-  const fuzzySearchResults = useMemo(() => {
-    return fuzzy.filter(
-      searchQuery.trim(),
-      [...filteredData.filteredPinned, ...filteredData.filteredUnpinned],
-      {
-        extract: (item) => {
-          if (logic.isGroupChannelId(item.id)) {
-            return item.group?.title || '';
-          }
+  const extractForFuzzy = useCallback((item: db.ChannelWithContact) => {
+    if (logic.isGroupChannelId(item.id)) {
+      return item.group?.title || '';
+    }
+    if (item.type === 'dm' && item.contact) {
+      return item.contact.nickname || item.id;
+    }
+    if (item.type === 'groupDm') {
+      return (item.members || [])
+        .map((m) => m.contact?.nickname || m.contact?.id || '')
+        .join(' ');
+    }
+    return item.id;
+  }, []);
 
-          if (item.type === 'dm') {
-            if (item.contact) {
-              return item.contact.nickname || item.id;
-            }
-            return item.id || '';
-          }
+  const debouncedFuzzySearch = useMemo(
+    () =>
+      debounce((query) => {
+        const results = fuzzy.filter(
+          query.trim(),
+          [...filteredData.filteredPinned, ...filteredData.filteredUnpinned],
+          { extract: extractForFuzzy }
+        );
+        return results.map((result) => result.original);
+      }, DEBOUNCE_DELAY),
+    [filteredData, extractForFuzzy]
+  );
 
-          if (item.type === 'groupDm') {
-            return fuzzy
-              .filter(searchQuery.trim(), item.members || [], {
-                extract: (m) => {
-                  if (m.contact) {
-                    return m.contact.nickname || m.contact.id;
-                  }
-                  return '';
-                },
-              })
-              .map((m) => m.string)
-              .join(' ');
-          }
+  const searchResults = useMemo(() => {
+    if (searchQuery.trim() === '') {
+      return sectionedData;
+    }
+    const results = debouncedFuzzySearch(searchQuery);
 
-          return item.id;
-        },
-      }
-    );
-  }, [searchQuery, filteredData]);
+    return results && results.length > 0
+      ? [
+          {
+            title: 'Search',
+            data: results,
+          },
+        ]
+      : [{ title: 'Search', data: [] }];
+  }, [searchQuery, sectionedData, debouncedFuzzySearch]);
 
   const contentContainerStyle = useStyle(
     {
@@ -278,6 +288,9 @@ export function ChatList({
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Find by name"
+                spellCheck={false}
+                autoCorrect={false}
+                autoCapitalize="none"
               />
             </Input>
           </View>
@@ -309,7 +322,7 @@ export function ChatList({
         </YStack>
       </Animated.View>
       <Animated.View style={listStyle}>
-        {searchQuery !== '' && fuzzySearchResults.length === 0 ? (
+        {searchQuery !== '' && searchResults.length === 0 ? (
           <YStack
             gap="$l"
             alignItems="center"
@@ -330,14 +343,7 @@ export function ChatList({
         ) : (
           <AnimatedSectionList
             sections={
-              searchQuery
-                ? [
-                    {
-                      title: 'Search',
-                      data: fuzzySearchResults.map((r) => r.original),
-                    },
-                  ]
-                : sectionedData
+              searchQuery && searchResults ? searchResults : sectionedData
             }
             contentContainerStyle={contentContainerStyle}
             keyExtractor={getChannelKey}
