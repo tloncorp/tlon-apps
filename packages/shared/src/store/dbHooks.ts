@@ -91,6 +91,13 @@ export const usePushNotificationsSetting = () => {
   });
 };
 
+export const useIsTlonEmployee = () => {
+  return useQuery({
+    queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
+    queryFn: db.getIsTlonEmployee,
+  });
+};
+
 export const useContact = (options: { id: string }) => {
   const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({

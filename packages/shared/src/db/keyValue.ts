@@ -16,6 +16,7 @@ export const PUSH_NOTIFICATIONS_SETTING_QUERY_KEY = [
   'pushNotifications',
 ];
 
+export const IS_TLON_EMPLOYEE_QUERY_KEY = ['settings', 'isTlonEmployee'];
 export const APP_INFO_QUERY_KEY = ['settings', 'appInfo'];
 
 export type ChannelSortPreference = 'recency' | 'arranged';
@@ -64,6 +65,16 @@ export async function getPushNotificationsSetting(): Promise<ub.PushNotification
     `settings:pushNotifications`
   )) as ub.PushNotificationsSetting;
   return pushSetting ?? 'none';
+}
+
+export async function setIsTlonEmployee(isTlonEmployee: boolean) {
+  await AsyncStorage.setItem('isTlonEmployee', String(isTlonEmployee));
+  logger.log('stored isTlonEmployee', isTlonEmployee);
+}
+
+export async function getIsTlonEmployee() {
+  const isTlonEmployee = await AsyncStorage.getItem('isTlonEmployee');
+  return isTlonEmployee === 'true' ?? false;
 }
 
 export type AppInfo = {
