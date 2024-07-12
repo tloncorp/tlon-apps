@@ -1,3 +1,5 @@
+import { ChargeUpdateInitial, Pikes, getPikes, scryCharges } from '@urbit/api';
+
 import * as db from '../db';
 import * as ub from '../urbit';
 import { client, scry } from './urbit';
@@ -57,3 +59,17 @@ export const toClientSettings = (
     notebookSettings: JSON.stringify(settings.desk.diary),
   };
 };
+
+export async function getAppInfo(): Promise<db.AppInfo> {
+  const pikes = await scry<Pikes>(getPikes);
+  const charges = (await scry<ChargeUpdateInitial>(scryCharges)).initial;
+
+  const groupsPike = pikes?.['groups'] ?? {};
+  const groupsCharge = charges?.['groups'] ?? {};
+
+  return {
+    groupsVersion: groupsCharge.version ?? 'n/a',
+    groupsHash: groupsPike.hash ?? 'n/a',
+    groupsSyncNode: groupsPike.sync?.ship ?? 'n/a',
+  };
+}

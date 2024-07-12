@@ -705,14 +705,12 @@ const LineRenderer = memo(
               <LineRenderer
                 inlines={inline.blockquote}
                 color="$secondaryText"
-                serif={serif}
               />
             ) : (
               // not clear if this is necessary
               <InlineContent
                 inline={inline.blockquote}
                 color="$secondaryText"
-                serif={serif}
               />
             )}
           </YStack>
@@ -742,7 +740,6 @@ const LineRenderer = memo(
             color={color}
             onPressImage={onPressImage}
             onLongPress={onLongPress}
-            serif={serif}
           />
         );
       }
@@ -774,7 +771,6 @@ const LineRenderer = memo(
               }
               key={`line-${index}`}
               flexWrap="wrap"
-              fontFamily={serif ? '$serif' : '$body'}
             >
               {line}
             </SizableText>
@@ -792,6 +788,7 @@ export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
 export default function ContentRenderer({
   post,
   shortened = false,
+  shortenedTextOnly = false,
   isNotice = false,
   deliveryStatus,
   onPressImage,
@@ -801,6 +798,7 @@ export default function ContentRenderer({
 }: {
   post: Post | { type: 'chat' | 'diary' | 'gallery'; id: string; content: any };
   shortened?: boolean;
+  shortenedTextOnly?: boolean;
   isNotice?: boolean;
   deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
@@ -861,7 +859,6 @@ export default function ContentRenderer({
         ) : null}
         {post.type === 'note' && post.title ? (
           <HeaderText
-            serif
             header={{
               header: {
                 tag: 'h1',
@@ -876,7 +873,20 @@ export default function ContentRenderer({
           onPressImage={onPressImage}
           onLongPress={onLongPress}
           viewMode={viewMode}
-          serif={post.type === 'note'}
+        />
+      </YStack>
+    );
+  }
+
+  if (shortenedTextOnly) {
+    return (
+      <YStack width="100%">
+        <LineRenderer
+          inlines={shortenedInlines}
+          isNotice={isNotice}
+          onPressImage={onPressImage}
+          onLongPress={onLongPress}
+          viewMode={viewMode}
         />
       </YStack>
     );
@@ -886,13 +896,7 @@ export default function ContentRenderer({
     <YStack width="100%">
       {story.map((s, k) => {
         if ('block' in s) {
-          return (
-            <BlockContent
-              serif={post.type === 'note'}
-              key={k}
-              block={s.block}
-            />
-          );
+          return <BlockContent key={k} block={s.block} />;
         }
 
         if ('type' in s && s.type === 'reference') {
@@ -908,7 +912,6 @@ export default function ContentRenderer({
               onPressImage={onPressImage}
               onLongPress={onLongPress}
               viewMode={viewMode}
-              serif={post.type === 'note'}
             />
           );
         }

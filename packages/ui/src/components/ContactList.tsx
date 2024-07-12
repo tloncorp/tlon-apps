@@ -1,4 +1,4 @@
-import { PropsWithChildren } from 'react';
+import { ComponentProps, PropsWithChildren } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 
 import { YStack } from '../core';
@@ -16,8 +16,11 @@ const ContactListFrame = styled(YStack, {
   },
 });
 
-const ContactListFrameComponent = ({ children }: PropsWithChildren) => {
-  return <ContactListFrame>{children}</ContactListFrame>;
+const ContactListFrameComponent = ({
+  children,
+  ...rest
+}: PropsWithChildren<ComponentProps<typeof ContactListFrame>>) => {
+  return <ContactListFrame {...rest}>{children}</ContactListFrame>;
 };
 
 export const ContactList = withStaticProperties(ContactListFrameComponent, {
