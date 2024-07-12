@@ -66,6 +66,8 @@ export const respondToDMInvite = ({
 };
 
 export type ChatEvent =
+  | { type: 'showPost'; postId: string }
+  | { type: 'hidePost'; postId: string }
   | { type: 'addDmInvites'; channels: db.Channel[] }
   | { type: 'groupDmsUpdate' }
   | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
@@ -83,6 +85,20 @@ export function subscribeToChatUpdates(
     },
     (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);
+
+      if ('show' in event) {
+        // show/unhide post event
+        logger.log('show/unhide post', event.show);
+        const postId = getCanonicalPostId(event.show as string);
+        return eventHandler({ type: 'showPost', postId });
+      }
+
+      if ('hide' in event) {
+        // hide post event
+        logger.log('hide post', event.hide);
+        const postId = getCanonicalPostId(event.hide as string);
+        return eventHandler({ type: 'hidePost', postId });
+      }
 
       // check for DM invites
       if (Array.isArray(event)) {

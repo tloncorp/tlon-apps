@@ -1806,11 +1806,11 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
     )
     .onConflictDoUpdate({
       target: $posts.id,
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
       target: [$posts.authorId, $posts.sentAt],
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     });
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
@@ -1821,6 +1821,31 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
   );
   logger.log('clear matched pending');
 }
+
+export const insertHiddenPosts = createWriteQuery(
+  'insertHiddenPosts',
+  async (postIds: string[], ctx: QueryCtx) => {
+    if (postIds.length === 0) return;
+
+    logger.log('insertHiddenPosts', postIds);
+
+    await ctx.db
+      .update($posts)
+      .set({ hidden: true })
+      .where(inArray($posts.id, postIds));
+  },
+  ['posts']
+);
+
+export const getHiddenPosts = createReadQuery(
+  'getHiddenPosts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.hidden, true),
+    });
+  },
+  ['posts']
+);
 
 async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
   const channelIds = newPosts?.map((p) => p.channelId) ?? [];

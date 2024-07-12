@@ -131,7 +131,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: true });
 
   try {
-    await api.hidePost(post.channelId, post.id);
+    await api.hidePost(post);
   } catch (e) {
     console.error('Failed to hide post', e);
 
@@ -145,7 +145,7 @@ export async function showPost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: false });
 
   try {
-    await api.showPost(post.channelId, post.id);
+    await api.showPost(post);
   } catch (e) {
     console.error('Failed to show post', e);
 
