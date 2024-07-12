@@ -52,6 +52,7 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
+  EditProfile: undefined;
 };
 
 export type GroupSettingsStackParamList = {
