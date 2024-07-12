@@ -1,32 +1,24 @@
 import {
   ActivityBundle,
   ActivityEvent,
-  Kind,
-  PostEvent,
-  ReplyEvent,
+  ActivityRelevancy,
   getAuthor,
-  isMention,
+  getChannelKind,
 } from '@tloncorp/shared/dist/urbit';
 import React, { PropsWithChildren, useMemo } from 'react';
 
 import ShipName from '@/components/ShipName';
-import { nestToFlag } from '@/logic/utils';
 
 interface ActivitySummaryProps {
   top: ActivityEvent;
   bundle: ActivityBundle;
-}
-
-function getChannelType(event: PostEvent | ReplyEvent): Kind {
-  const channel = 'post' in event ? event.post.channel : event.reply.channel;
-  const [channelType] = nestToFlag(channel);
-  return channelType;
+  relevancy: ActivityRelevancy;
 }
 
 function postName(event: ActivityEvent, plural = false) {
   let name = 'message';
   if ('post' in event || 'reply' in event) {
-    const channelType = getChannelType(event);
+    const channelType = getChannelKind(event);
     name =
       channelType === 'heap'
         ? 'block'
@@ -43,67 +35,15 @@ function postVerb(event: ActivityEvent) {
     throw new Error('Invalid event type for postVerb');
   }
 
-  const channelType = getChannelType(event);
+  const channelType = getChannelKind(event);
   return channelType === 'heap' || channelType === 'diary' ? 'added' : 'sent';
 }
 
-type ActivityRelevancy =
-  | 'mention'
-  | 'involvedThread'
-  | 'replyToGalleryOrNote'
-  | 'replyToChatPost'
-  | 'dm'
-  | 'groupchat'
-  | 'postInYourChannel'
-  | 'postToChannel';
-
-export function getRelevancy(event: ActivityEvent): ActivityRelevancy {
-  if (isMention(event)) {
-    return 'mention';
-  }
-
-  if ('dm-post' in event && 'ship' in event['dm-post'].whom) {
-    return 'dm';
-  }
-
-  if ('dm-post' in event && 'club' in event['dm-post'].whom) {
-    return 'groupchat';
-  }
-
-  if ('reply' in event && event.reply.parent.id.includes(window.our)) {
-    const channelType = getChannelType(event);
-    if (channelType === 'heap' || channelType === 'diary') {
-      return 'replyToGalleryOrNote';
-    }
-
-    return 'replyToChatPost';
-  }
-
-  if ('post' in event && event.post.channel.includes(`/${window.our}/`)) {
-    return 'postInYourChannel';
-  }
-
-  if ('reply' in event && event.notified) {
-    return 'involvedThread';
-  }
-
-  if ('post' in event && event.notified) {
-    return 'postToChannel';
-  }
-
-  console.log(
-    'Unknown relevancy type for activity summary. Defaulting to involvedThread.',
-    event
-  );
-  return 'involvedThread';
-}
-
 function SummaryMessageWrapper({ children }: PropsWithChildren) {
-  return <div className="text-gray-400 text-sm mr-8">{children}</div>;
+  return <div className="text-gray-400 text-base mr-8">{children}</div>;
 }
 
-function ActivitySummary({ top, bundle }: ActivitySummaryProps) {
-  const relevancy = getRelevancy(top);
+function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
   const count = bundle.events.length;
   const plural = bundle.events.length > 1;
   const otherSet = new Set<string>();
@@ -117,23 +57,41 @@ function ActivitySummary({ top, bundle }: ActivitySummaryProps) {
   const otherAuthors = Array.from(otherSet);
 
   const NewestAuthor = useMemo(() => {
-    return <ShipName className="text-black" name={topAuthor || ''} showAlias />;
+    return (
+      <ShipName
+        className="text-gray-800 font-semibold"
+        name={topAuthor || ''}
+        showAlias
+      />
+    );
   }, [topAuthor]);
 
   const Authors = useMemo(() => {
     return (
       <>
-        <ShipName className="text-black" name={topAuthor || ''} showAlias />
+        <ShipName
+          className="text-gray-800 font-semibold"
+          name={topAuthor || ''}
+          showAlias
+        />
         {otherAuthors[0] && (
           <>
             {`${otherAuthors[1] ? ', ' : ' and '}`}
-            <ShipName className="text-black" name={otherAuthors[0]} showAlias />
+            <ShipName
+              className="text-gray-800 font-semibold"
+              name={otherAuthors[0]}
+              showAlias
+            />
           </>
         )}
         {otherAuthors[1] && (
           <>
             {', and '}
-            <ShipName className="text-black" name={otherAuthors[1]} showAlias />
+            <ShipName
+              className="text-gray-800 font-semibold"
+              name={otherAuthors[1]}
+              showAlias
+            />
           </>
         )}
       </>
@@ -222,7 +180,11 @@ function ActivitySummary({ top, bundle }: ActivitySummaryProps) {
   if (bundle.events.length === 1) {
     return (
       <div className="text-gray-400">
-        <ShipName className="text-black" name={topAuthor || ''} showAlias />
+        <ShipName
+          className="text-gray-800 font-semibold"
+          name={topAuthor || ''}
+          showAlias
+        />
         {` ${postVerb(top)} a ${postName(top)}`}
       </div>
     );
@@ -237,7 +199,7 @@ function ActivitySummary({ top, bundle }: ActivitySummaryProps) {
       <div className="text-gray-400">
         <ShipName
           name={topAuthor ?? ''}
-          className="text-black font-semibold"
+          className="text-gray-800 font-semibold"
           showAlias
         />
         {` ${postVerb(top)} ${count} ${postName(top, count > 1)}`}

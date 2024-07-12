@@ -193,6 +193,8 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
       }, unreads);
     });
   }
+
+  queryClient.invalidateQueries(allKey);
 }
 
 export function useActivityFirehose() {

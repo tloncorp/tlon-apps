@@ -3,31 +3,21 @@ import {
   ActivityEvent,
   ActivitySummary,
   Source,
+  getAuthor,
   getContent,
+  getRelevancy,
   getSource,
   getTop,
-  isComment,
-  isGalleryBlock,
-  isInvite,
-  isMention,
-  isMessage,
-  isReply,
   isUnread,
 } from '@tloncorp/shared/dist/urbit';
 import { daToUnix, parseUd } from '@urbit/aura';
-import cn from 'classnames';
 import _ from 'lodash';
-import { ReactNode, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback } from 'react';
 
-import ChatContent from '@/chat/ChatContent/ChatContent';
-import Bullet16Icon from '@/components/icons/Bullet16Icon';
-import { makePrettyTime } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/activity';
 
-import ActivityTopLine from './ActivitySummary';
-import { GalleryNotification } from './GalleryNotification';
-import { GroupInviteNotification } from './GroupInviteNotification';
+import DMNotification from './DMNotification';
+import GroupNotification from './GroupNotification';
 
 function getPath(source: Source, event: ActivityEvent): string {
   if ('group' in source) {
@@ -40,7 +30,8 @@ function getPath(source: Source, event: ActivityEvent): string {
   }
 
   if ('channel' in source) {
-    const suffix = 'post' in event ? `?msg=${event.post.key.time}` : '';
+    const suffix =
+      'post' in event ? `?msg=${parseUd(event.post.key.time).toString()}` : '';
     return `/groups/${source.channel.group}/channels/${source.channel.nest}${suffix}`;
   }
 
@@ -56,7 +47,9 @@ function getPath(source: Source, event: ActivityEvent): string {
     const thread = source['dm-thread'];
     const id = 'club' in thread.whom ? thread.whom.club : thread.whom.ship;
     const suffix =
-      'dm-reply' in event ? `?reply=${event['dm-reply'].key.time}` : '';
+      'dm-reply' in event
+        ? `?reply=${parseUd(event['dm-reply'].key.time).toString()}`
+        : '';
     return `/dm/${id}/message/${thread.key.id}${suffix}`;
   }
 
@@ -67,99 +60,63 @@ function getPath(source: Source, event: ActivityEvent): string {
 interface NotificationProps {
   bundle: ActivityBundle;
   summary: ActivitySummary;
-  topLine?: ReactNode;
-  avatar?: ReactNode;
 }
 
-export default function Notification({
-  bundle,
-  summary,
-  avatar,
-  topLine,
-}: NotificationProps) {
+function Notification({ bundle, summary }: NotificationProps) {
   const top = getTop(bundle);
   const source = getSource(bundle);
+  const author = getAuthor(top);
+  const relevancy = getRelevancy(top, window.our);
   const path = getPath(source, top);
+  const time = daToUnix(parseUd(bundle.latest));
+  const content = getContent(top);
+  const unread = isUnread(bundle.latest, summary);
   const { mutate } = useMarkReadMutation();
   const onClick = useCallback(() => {
     mutate({ source });
   }, [source]);
-  const replyBool = isReply(top);
-  const isMessageBool = isMessage(top);
-  const commentBool = isComment(top);
-  const mentionBool = isMention(top);
-  // const isNoteBool = isNote(top);
-  // const groupMetaBool = isGroupMeta(top);
-  const time = daToUnix(parseUd(bundle.latest));
-  const unread = isUnread(bundle.latest, summary);
-  const content = getContent(top);
 
-  if (isGalleryBlock(top)) {
+  if ('dm' in source || 'dm-thread' in source) {
     return (
-      <GalleryNotification
+      <DMNotification
         top={top}
         bundle={bundle}
-        avatar={avatar}
-        topLine={topLine}
-      />
-    );
-  }
-
-  if (isInvite(top) && 'group' in source) {
-    return (
-      <GroupInviteNotification
-        top={top}
-        bundle={bundle}
-        flag={source.group}
+        author={author!}
+        path={path}
         time={time}
-        unread={unread}
-        avatar={avatar}
-        topLine={topLine}
+        content={content}
+        relevancy={relevancy}
+        isUnread={unread}
+        onClick={onClick}
       />
     );
   }
 
-  return (
-    <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
-      <Link
-        to={path}
-        state={
-          undefined
-          // groupMetaBool
-          //   ? {
-          //       backgroundLocation: {
-          //         pathname: `/groups/${rope.group}/channels/${recentChannel}`,
-          //       },
-          //     }
-          //   : undefined
-        }
-        className="flex w-full min-w-0 flex-1 space-x-3"
+  if ('thread' in source || 'channel' in source || 'group' in source) {
+    const group =
+      'thread' in source
+        ? source.thread.group
+        : 'channel' in source
+          ? source.channel.group
+          : source.group;
+    return (
+      <GroupNotification
+        flag={group}
+        top={top}
+        bundle={bundle}
+        author={author!}
+        path={path}
+        time={time}
+        content={content}
+        relevancy={relevancy}
+        isUnread={unread}
         onClick={onClick}
-      >
-        <div className="relative flex-none self-start">{avatar}</div>
-        <div className="min-w-0 grow-0 break-words p-1">
-          {topLine}
-          <ActivityTopLine top={top} bundle={bundle} />
-          {content ? (
-            <div className="text-black my-2 leading-5">
-              <ChatContent story={content} />
-            </div>
-          ) : null}
-          {mentionBool || commentBool || replyBool || isMessageBool ? (
-            <div className={cn('small-button bg-blue-soft text-blue')}>
-              Reply
-            </div>
-          ) : null}
-        </div>
-      </Link>
-      <div className="absolute right-5 flex-none p-1">
-        <div className="flex items-center space-x-1">
-          {unread ? <Bullet16Icon className="h-4 w-4 text-blue" /> : null}
-          <span className="text-sm font-semibold">
-            {makePrettyTime(new Date(time))}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+      />
+    );
+  }
+
+  console.warn('There are no "base" activity events. Something went wrong');
+  return null;
 }
+
+export default React.memo(Notification);

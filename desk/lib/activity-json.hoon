@@ -531,19 +531,7 @@
         whom/whom
     ==
   ::
-  ++  volume-map
-    |=  jon=^json
-    :: ^-  $-(json volume-map:a)
-    =/  jom  ((om volume) jon)
-    ~&  jom
-    ~&
-      %-  malt
-      %+  turn  ~(tap by jom)
-      |*  [a=cord b=*]
-      =>  .(+< [a b]=+<)
-      ~&  a
-      [(rash a event-type) b]
-    ((op event-type volume) jon)
+  ++  volume-map  (op event-type volume)
   ++  volume
     %-  ot
     :~  unreads/bo

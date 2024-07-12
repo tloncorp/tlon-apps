@@ -2,8 +2,8 @@ import { unixToDa } from '@urbit/api';
 import { parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
-import { Story } from './channel';
-import { whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import { Kind, Story } from './channel';
+import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -763,4 +763,65 @@ export function getAuthor(event: ActivityEvent) {
   }
 
   return undefined;
+}
+
+export function getChannelKind(event: PostEvent | ReplyEvent): Kind {
+  const channel = 'post' in event ? event.post.channel : event.reply.channel;
+  const [channelType] = nestToFlag(channel);
+  return channelType;
+}
+
+export type ActivityRelevancy =
+  | 'mention'
+  | 'involvedThread'
+  | 'replyToGalleryOrNote'
+  | 'replyToChatPost'
+  | 'dm'
+  | 'groupchat'
+  | 'postInYourChannel'
+  | 'postToChannel'
+  | 'groupMeta';
+
+export function getRelevancy(
+  event: ActivityEvent,
+  us: string
+): ActivityRelevancy {
+  if (isMention(event)) {
+    return 'mention';
+  }
+
+  if ('dm-post' in event && 'ship' in event['dm-post'].whom) {
+    return 'dm';
+  }
+
+  if ('dm-post' in event && 'club' in event['dm-post'].whom) {
+    return 'groupchat';
+  }
+
+  if ('reply' in event && event.reply.parent.id.includes(us)) {
+    const channelType = getChannelKind(event);
+    if (channelType === 'heap' || channelType === 'diary') {
+      return 'replyToGalleryOrNote';
+    }
+
+    return 'replyToChatPost';
+  }
+
+  if ('post' in event && event.post.channel.includes(`/${us}/`)) {
+    return 'postInYourChannel';
+  }
+
+  if ('reply' in event && event.notified) {
+    return 'involvedThread';
+  }
+
+  if ('post' in event && event.notified) {
+    return 'postToChannel';
+  }
+
+  console.log(
+    'Unknown relevancy type for activity summary. Defaulting to involvedThread.',
+    event
+  );
+  return 'involvedThread';
 }

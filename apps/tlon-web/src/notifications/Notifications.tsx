@@ -67,7 +67,7 @@ export default function Notifications({
   const isMobile = useIsMobile();
   const { paddingBottom } = useBottomPadding();
   const { loaded, notifications, activity } = useNotifications();
-  const { mutate, isLoading } = useMarkReadMutation();
+  const { mutate, isLoading } = useMarkReadMutation(true);
   const isMarkReadPending = isLoading;
   const hasUnreads = activity['notify-count'] > 0;
 
@@ -86,7 +86,7 @@ export default function Notifications({
       {isMarkReadPending ? (
         <LoadingSpinner className="h-4 w-4" />
       ) : (
-        `Mark All as Read`
+        `Mark Everything as Read`
       )}
     </button>
   );
@@ -97,7 +97,7 @@ export default function Notifications({
       className="whitespace-nowrap text-[17px] font-normal text-gray-800"
       onClick={markAllRead}
     >
-      Read All
+      Read Everything
     </button>
   );
 
