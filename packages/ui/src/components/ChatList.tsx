@@ -96,11 +96,19 @@ export function ChatList({
       return item.group?.title || '';
     }
     if (item.type === 'dm' && item.contact) {
-      return item.contact.nickname || item.id;
+      return item.contact.nickname
+        ? `${item.contact.nickname}-${item.id}`
+        : item.id;
     }
     if (item.type === 'groupDm') {
       return (item.members || [])
-        .map((m) => m.contact?.nickname || m.contact?.id || '')
+        .map((m) =>
+          m.contact
+            ? m.contact.nickname
+              ? `${m.contact.nickname}-${m.contact.id}`
+              : m.contact.id
+            : ''
+        )
         .join(' ');
     }
     return item.id;
