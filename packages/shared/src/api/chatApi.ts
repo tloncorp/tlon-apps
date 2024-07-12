@@ -252,6 +252,7 @@ export const toClientDm = (id: string, isInvite?: boolean): db.Channel => {
     title: '',
     description: '',
     isDmInvite: !!isInvite,
+    contactId: id,
     members: [{ chatId: id, contactId: id, membershipType: 'channel' }],
   };
 };

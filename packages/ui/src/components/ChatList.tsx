@@ -91,7 +91,7 @@ export function ChatList({
     ];
   }, [filteredData, pendingChats]);
 
-  const extractForFuzzy = useCallback((item: db.ChannelWithContact) => {
+  const extractForFuzzy = useCallback((item: db.Channel) => {
     if (logic.isGroupChannelId(item.id)) {
       return item.group?.title || '';
     }
