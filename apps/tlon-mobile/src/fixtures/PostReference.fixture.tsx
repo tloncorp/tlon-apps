@@ -1,11 +1,15 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { View } from '@tloncorp/ui';
-import { PostReference } from '@tloncorp/ui/src/components/ContentReference';
+import {
+  GroupReference,
+  PostReference,
+} from '@tloncorp/ui/src/components/ContentReference';
 import { PropsWithChildren } from 'react';
+import { useFixtureSelect } from 'react-cosmos/client';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { FixtureWrapper } from './FixtureWrapper';
-import { createFakePost } from './fakeData';
+import { createFakePost, group } from './fakeData';
 
 const fakePost = createFakePost();
 
@@ -31,11 +35,11 @@ const notebookRef: db.Post = {
   channelId: 'diary/~solfer-magfed/bofto',
   groupId: '~solfer-magfed/boko',
   type: 'note',
-  title: 'HiHi',
+  title: 'A Quote About Something',
   image:
     'https://dans-gifts.s3.amazonaws.com/dans-gifts/solfer-magfed/2023.12.7..16.54.32..7999.9999.9999.9999-IMG_FBD440716632-1.jpeg',
   content:
-    '[{"block":{"header":{"content":["Whats8-"],"tag":"h1"}}},{"inline":[{"break":null},"Ok, goodbye.",{"break":null}]}]',
+    '[{"block":{"header":{"content":["Whats8-"],"tag":"h1"}}},{"inline":["Ok, goodbye.",{"break":null}]}]',
 };
 
 function Wrapper({ children }: PropsWithChildren) {
@@ -50,10 +54,45 @@ function Wrapper({ children }: PropsWithChildren) {
   );
 }
 
+function RefList(props: {
+  isLoading: boolean;
+  isError: boolean;
+  errorMessage: string;
+  hasData: boolean;
+  onPress: () => void;
+}) {
+  const [viewMode, setViewMode] = useFixtureSelect('Viewmode', {
+    options: ['chat', 'block', 'note', 'activity', 'attachment'],
+    defaultValue: 'chat',
+  });
+  return (
+    <Wrapper>
+      {[chatRef, galleryRef, notebookRef].map((p, i) => {
+        return (
+          <PostReference
+            key={i}
+            channelId={p.channelId}
+            post={props.hasData ? p : null}
+            viewMode={viewMode}
+            {...props}
+          />
+        );
+      })}
+      <GroupReference
+        data={props.hasData ? group : null}
+        {...props}
+        viewMode={viewMode}
+      />
+    </Wrapper>
+  );
+}
+
 export default (
-  <Wrapper>
-    {[chatRef, galleryRef, notebookRef].map((p, i) => {
-      return <PostReference key={i} post={p} viewMode={'attachment'} />;
-    })}
-  </Wrapper>
+  <RefList
+    isLoading={false}
+    isError={false}
+    errorMessage={''}
+    hasData={true}
+    onPress={() => {}}
+  />
 );

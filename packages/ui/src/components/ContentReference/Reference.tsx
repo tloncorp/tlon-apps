@@ -1,28 +1,34 @@
+import { PostType } from '@tloncorp/shared/dist/db';
 import { ComponentProps, useContext } from 'react';
 import { Dimensions } from 'react-native';
 import {
+  SizableText,
   ViewStyle,
   createStyledContext,
   styled,
   withStaticProperties,
 } from 'tamagui';
 
-import { Text, View, XStack, YStack } from '../../core';
+import { View, XStack, YStack } from '../../core';
 import { PostViewMode } from '../ContentRenderer';
 import { Icon } from '../Icon';
-import { LoadingSpinner } from '../LoadingSpinner';
-import Pressable from '../Pressable';
 
 export const REF_AUTHOR_WIDTH = 230;
 
-export type ReferenceProps = {
-  onPress?: () => void;
-};
+export type ReferenceProps = ComponentProps<typeof ReferenceComponent>;
 
 export const ReferenceContext = createStyledContext<{
+  /**
+   * The type of context embedding this ref
+   */
   viewMode?: PostViewMode;
+  /**
+   * Mode for actually rendering the content
+   */
+  renderMode?: PostType;
 }>({
   viewMode: 'chat',
+  renderMode: 'chat',
 });
 
 export const useReferenceContext = () => {
@@ -31,13 +37,14 @@ export const useReferenceContext = () => {
 
 const ReferenceFrame = styled(YStack, {
   context: ReferenceContext,
-  gap: '$m',
+  name: 'ReferenceFrame',
   borderRadius: '$s',
   padding: 0,
   borderColor: '$border',
   marginBottom: '$s',
   borderWidth: 1,
-  backgroundColor: '$background',
+  backgroundColor: '$secondaryBackground',
+  overflow: 'hidden',
   variants: {
     viewMode: {
       attachment: {
@@ -50,14 +57,65 @@ const ReferenceFrame = styled(YStack, {
         marginBottom: 0,
       },
     },
-  } as { viewMode: { [K in PostViewMode]: ViewStyle } },
+    pressable: {
+      true: {
+        pressStyle: {
+          opacity: 0.8,
+        },
+      },
+    },
+  } as {
+    pressable: { true: ViewStyle };
+    viewMode: { [K in PostViewMode]: ViewStyle };
+    renderMode: { [K in PostType]: ViewStyle };
+  },
 });
+
+const ReferenceComponent = ReferenceFrame.styleable<{
+  isLoading?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  hasData?: boolean;
+}>(
+  ({ children, isLoading, isError, hasData, errorMessage, ...props }, ref) => {
+    return (
+      <ReferenceFrame {...props} pressable={!!props.onPress} ref={ref}>
+        {children}
+        {isLoading ? (
+          <ReferenceSkeleton
+            messageType="loading"
+            message="Loading remote content..."
+            {...props}
+          />
+        ) : isError ? (
+          <ReferenceSkeleton
+            message={errorMessage || 'Error loading content'}
+            messageType="error"
+            {...props}
+          />
+        ) : !hasData ? (
+          <ReferenceSkeleton
+            messageType="not-found"
+            message="This content could not be found"
+            {...props}
+          />
+        ) : null}
+      </ReferenceFrame>
+    );
+  },
+  {
+    staticConfig: {
+      componentName: 'Reference',
+    },
+  }
+);
 
 const ReferenceHeader = styled(XStack, {
   context: ReferenceContext,
-  paddingHorizontal: '$l',
-  paddingVertical: '$m',
-  alignItems: 'center',
+  name: 'ReferenceHeader',
+  paddingLeft: '$l',
+  paddingRight: '$s',
+  paddingVertical: '$2xs',
   justifyContent: 'space-between',
   borderBottomColor: '$border',
   borderBottomWidth: 1,
@@ -71,83 +129,106 @@ const ReferenceHeader = styled(XStack, {
 });
 
 const ReferenceTitle = styled(XStack, {
-  gap: '$m',
+  name: 'ReferenceTitle',
+  gap: '$s',
   alignItems: 'center',
 });
 
-const ReferenceIcon = styled(Icon, {
-  context: ReferenceContext,
+const ReferenceTitleIcon = styled(
+  Icon,
+  {
+    name: 'ReferenceTitleIcon',
+    color: '$tertiaryText',
+    size: '$s',
+  },
+  {
+    accept: {
+      color: 'color',
+    },
+  }
+);
+
+const ReferenceTitleText = styled(SizableText, {
+  name: 'ReferenceTitleText',
+  size: '$s',
   color: '$tertiaryText',
-  size: '$m',
+});
+
+const ReferenceLinkIcon = styled(
+  Icon,
+  {
+    name: `ReferenceLinkIcon`,
+    context: ReferenceContext,
+    color: '$tertiaryText',
+    size: '$m',
+    variants: {
+      viewMode: {
+        attachment: {
+          display: 'none',
+        },
+        block: {
+          display: 'none',
+        },
+        chat: {
+          display: 'flex',
+        },
+        note: {
+          display: 'flex',
+        },
+      },
+    } as const,
+  },
+  {
+    accept: {
+      color: 'color',
+    },
+  }
+);
+
+const ReferenceBody = styled(View, {
+  context: ReferenceContext,
+  name: 'ReferenceBody',
+  paddingHorizontal: '$l',
+  paddingVertical: '$l',
+  gap: '$m',
+  pointerEvents: 'none',
   variants: {
-    viewMode: {
-      attachment: {
-        display: 'none',
-      },
-      block: {
-        display: 'none',
-      },
-      chat: {
-        display: 'flex',
-      },
+    renderMode: {
       note: {
-        display: 'flex',
+        padding: '$2xl',
+        gap: '$xl',
       },
     },
   } as const,
 });
 
-const ReferenceBody = styled(View, {
-  paddingHorizontal: '$l',
-  paddingBottom: '$m',
-});
-
-const ReferenceFrameComponent = ReferenceFrame.styleable(
-  ({ children, onPress, ...props }, ref) => (
-    <Pressable onPress={onPress ?? undefined}>
-      <ReferenceFrame {...props} ref={ref}>
-        {children}
-      </ReferenceFrame>
-    </Pressable>
-  )
-);
-
-export const Reference = withStaticProperties(ReferenceFrameComponent, {
+export const Reference = withStaticProperties(ReferenceComponent, {
   Header: ReferenceHeader,
   Title: ReferenceTitle,
+  TitleIcon: ReferenceTitleIcon,
+  TitleText: ReferenceTitleText,
   Body: ReferenceBody,
-  Icon: ReferenceIcon,
+  LinkIcon: ReferenceLinkIcon,
 });
 
 export function ReferenceSkeleton({
   message = 'Loading',
   messageType = 'loading',
-  ...props
 }: {
   message?: string;
   messageType?: 'loading' | 'error' | 'not-found';
 } & ComponentProps<typeof YStack>) {
   return (
-    <YStack
-      borderRadius="$s"
-      padding="$s"
-      borderColor="$border"
-      borderWidth={1}
-      {...props}
-    >
-      <XStack alignItems="center" justifyContent="space-between">
-        <XStack padding="$m" gap="$m" alignItems="center">
-          {messageType === 'loading' ? (
-            <LoadingSpinner />
-          ) : (
-            // TODO: Replace with proper error icon when available
-            <Icon type="Placeholder" color="$tertiaryText" size="$l" />
-          )}
-          <Text fontSize="$s" color="$tertiaryText" flex={1}>
-            {message}
-          </Text>
-        </XStack>
+    <ReferenceBody>
+      <XStack gap="$s" alignItems="center">
+        {messageType === 'error' ? (
+          // TODO: Replace with proper error icon when available
+          <Icon type="Placeholder" color="$tertiaryText" size="$s" />
+        ) : null}
+        <SizableText fontSize="$s" color="$tertiaryText" flex={1}>
+          {message}
+        </SizableText>
       </XStack>
-    </YStack>
+    </ReferenceBody>
   );
 }
