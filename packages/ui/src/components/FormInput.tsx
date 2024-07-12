@@ -6,13 +6,10 @@ import {
   FieldError,
   RegisterOptions,
 } from 'react-hook-form';
-import { TextInput as RNTextInput } from 'react-native';
 import { createStyledContext, styled, withStaticProperties } from 'tamagui';
 
 import { SizableText, Text, View, YStack } from '../core';
 import { Input } from './Input';
-
-const TextInput = styled(RNTextInput);
 
 export function FormInput({
   name,

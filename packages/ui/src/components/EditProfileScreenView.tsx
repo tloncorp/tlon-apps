@@ -83,15 +83,14 @@ export function EditProfileScreenView(props: Props) {
               label="Bio"
               placeholder="About yourself"
               frameProps={{
-                height: 'unset',
+                height: 'auto',
                 justifyContent: 'flex-start',
                 alignItems: 'flex-start',
                 overflow: 'scroll',
               }}
               areaProps={{
                 numberOfLines: 5,
-                display: 'flex',
-                justifyContent: 'flex-start',
+                multiline: true,
               }}
             />
           </FormTextInput>
