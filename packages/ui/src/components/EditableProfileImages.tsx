@@ -118,7 +118,7 @@ export function EditablePofileImages(props: Props) {
             {props.group && (
               <GroupAvatar
                 model={{ ...props.group, iconImage: iconUrl }}
-                size="$4xl"
+                size="$9xl"
                 {...props.iconProps}
               />
             )}
