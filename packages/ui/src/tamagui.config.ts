@@ -258,6 +258,7 @@ export const systemFont = createFont({
     m: 'regular',
     true: 'regular',
     l: 'medium',
+    xl: '500',
   },
   letterSpacing: {
     s: 0,

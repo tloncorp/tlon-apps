@@ -1,10 +1,10 @@
 import { useNavigation } from '../../contexts';
 import { useRequests } from '../../contexts/requests';
 import { PostViewMode } from '../ContentRenderer';
-import ChatReference from './ChatReference';
+import GalleryReference from './GalleryReference';
 import ReferenceSkeleton from './ReferenceSkeleton';
 
-export default function ChatReferenceWrapper({
+export default function GalleryReferenceWrapper({
   channelId,
   postId,
   replyId,
@@ -35,18 +35,16 @@ export default function ChatReferenceWrapper({
       <ReferenceSkeleton
         message={error?.message || 'Error loading content'}
         messageType="error"
-        viewMode={viewMode}
       />
     );
   }
 
   if (!post) {
     if (isLoading) {
-      return <ReferenceSkeleton viewMode={viewMode} messageType="loading" />;
+      return <ReferenceSkeleton messageType="loading" />;
     }
     return (
       <ReferenceSkeleton
-        viewMode={viewMode}
         messageType="not-found"
         message="This content could not be found"
       />
@@ -54,7 +52,7 @@ export default function ChatReferenceWrapper({
   }
 
   return (
-    <ChatReference
+    <GalleryReference
       post={post}
       channel={channel ?? undefined}
       onPress={onPressRef}

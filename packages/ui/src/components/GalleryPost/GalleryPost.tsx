@@ -7,6 +7,7 @@ import { ImageWithFallback, View } from '../../core';
 import AuthorRow from '../AuthorRow';
 import ContentReference from '../ContentReference';
 import ContentRenderer from '../ContentRenderer';
+import { Icon } from '../Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 
 const GalleryPostFrame = styled(View, {
@@ -24,6 +25,10 @@ const GalleryPostFrame = styled(View, {
         borderWidth: 0,
       },
       text: {},
+      link: {
+        borderWidth: 0,
+        backgroundColor: '$secondaryBackground',
+      },
       reference: {
         borderWidth: 0,
         backgroundColor: '$secondaryBackground',
@@ -51,6 +56,7 @@ export default function GalleryPost({
     references,
     isText,
     isImage,
+    isLink,
     isReference,
     isLinkedImage,
     isRefInText,
@@ -61,14 +67,21 @@ export default function GalleryPost({
   const handlePress = useBoundHandler(post, onPress);
   const handleLongPress = useBoundHandler(post, onLongPress);
 
-  const previewType =
-    isImage || isLinkedImage
-      ? 'image'
-      : isText && !isLinkedImage && !isRefInText
-        ? 'text'
-        : isReference || isRefInText
-          ? 'reference'
-          : 'unsupported';
+  const previewType = (() => {
+    if (isImage || isLinkedImage) {
+      return 'image';
+    }
+    if (isText && !isLinkedImage && !isRefInText && !isLink) {
+      return 'text';
+    }
+    if (isReference || isRefInText) {
+      return 'reference';
+    }
+    if (isLink) {
+      return 'link';
+    }
+    return 'unsupported';
+  })();
 
   return (
     <GalleryPostFrame
@@ -95,6 +108,7 @@ export default function GalleryPost({
         {/** Text post */}
         {isText && !isLinkedImage && !isRefInText && (
           <View padding="$m" flex={1}>
+            {isLink && <Icon type="Link" size="$s" marginBottom="$s" />}
             <ContentRenderer viewMode="block" post={post} />
           </View>
         )}

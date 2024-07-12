@@ -53,14 +53,14 @@ export function SearchResults({
               <XStack justifyContent="space-between" marginBottom="$xl">
                 <SizableText size="$s" color="$secondaryText">
                   Results for "
-                  <SizableText size="$s" fontWeight="500" color="$primaryText">
+                  <SizableText size="$s" fontWeight="$xl" color="$primaryText">
                     {search.query}
                   </SizableText>
                   "
                 </SizableText>
                 <SizableText size="$s" color="$secondaryText">
                   Sorted by:{' '}
-                  <SizableText size="$s" fontWeight="500" color="$primaryText">
+                  <SizableText size="$s" fontWeight="$xl" color="$primaryText">
                     most recent
                   </SizableText>
                 </SizableText>

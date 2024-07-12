@@ -4,9 +4,9 @@ import { useCallback } from 'react';
 import { ContactAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 import ContentRenderer, { PostViewMode } from '../ContentRenderer';
-import { REF_AUTHOR_WIDTH, Reference } from './Reference';
+import { Reference } from './Reference';
 
-export default function ChatReference({
+export default function NotebookReference({
   channel,
   post,
   onPress,
@@ -44,7 +44,6 @@ export default function ChatReference({
           <ContactName
             color="$tertiaryText"
             size="$s"
-            maxWidth={REF_AUTHOR_WIDTH}
             userId={post.authorId}
             showNickname
           />
@@ -52,11 +51,7 @@ export default function ChatReference({
         <Reference.Icon type="ArrowRef" />
       </Reference.Header>
       <Reference.Body>
-        <ContentRenderer
-          viewMode={viewMode}
-          shortened={asAttachment || viewMode === 'block'}
-          post={post}
-        />
+        <ContentRenderer viewMode={viewMode} shortened={true} post={post} />
       </Reference.Body>
     </Reference>
   );

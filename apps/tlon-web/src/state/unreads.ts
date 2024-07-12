@@ -196,8 +196,8 @@ export const emptyUnread = (): Unread => ({
     children: {},
     'notify-count': 0,
     reads: {
-      floor: '0',
-      posts: {},
+      floor: 0,
+      items: {},
     },
   },
   recency: 0,

@@ -35,7 +35,7 @@ export function WelcomeSheet({
         paddingHorizontal="$2xl"
       >
         <Sheet.Handle marginBottom="$l" />
-        <View paddingHorizontal="$2xl" paddingBottom="$xl">
+        <View paddingHorizontal="$2xl" paddingBottom="$2xl">
           <YStack gap="$2xl">
             <View borderRadius="$xl" overflow="hidden">
               <Image
@@ -47,7 +47,7 @@ export function WelcomeSheet({
             <YStack gap="$xs">
               <Text fontSize="$l2">Welcome to Tlon</Text>
               <Text fontSize="$l" color="$tertiaryText">
-                A messenger you can actually trust.
+                A messenger you can finally trust.
               </Text>
             </YStack>
             <XStack gap="$l">
@@ -61,28 +61,9 @@ export function WelcomeSheet({
                 </View>
               </View>
               <YStack gap="$xs" flex={1}>
-                <Text fontWeight="500">Message privately</Text>
+                <Text fontWeight="$xl">Control every bit</Text>
                 <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                  When you chat, it&rsquo;s just your computer talking to my
-                  computer. No middlemen in between.
-                </Text>
-              </YStack>
-            </XStack>
-            <XStack gap="$l">
-              <View>
-                <View
-                  backgroundColor={'$secondaryBackground'}
-                  borderRadius={'$3xl'}
-                  padding="$m"
-                >
-                  <Icon type="Bang" />
-                </View>
-              </View>
-              <YStack gap="$xs" flex={1}>
-                <Text fontWeight="500">Start a community</Text>
-                <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                  Get a group together for a shared purpose; stay because
-                  it&rsquo;s free from spying.
+                  Whatever you do, say, and make on Tlon is yours to keep
                 </Text>
               </YStack>
             </XStack>
@@ -97,10 +78,28 @@ export function WelcomeSheet({
                 </View>
               </View>
               <YStack gap="$xs" flex={1}>
-                <Text fontWeight="500">Grow with confidence</Text>
+                <Text fontWeight="$xl">From now until forever</Text>
                 <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                  Tlon is built for longevity: your community won&rsquo;t
-                  disappear and can&rsquo;t be disappeared.
+                  With Tlon you can always take your data with you and continue
+                  using it elsewhere
+                </Text>
+              </YStack>
+            </XStack>
+            <XStack gap="$l">
+              <View>
+                <View
+                  backgroundColor={'$secondaryBackground'}
+                  borderRadius={'$3xl'}
+                  padding="$m"
+                >
+                  <Icon type="Mute" />
+                </View>
+              </View>
+              <YStack gap="$xs" flex={1}>
+                <Text fontWeight="$xl">Connect with calm</Text>
+                <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
+                  Tlon is designed to maximize genuine connection, not addictive
+                  engagement
                 </Text>
               </YStack>
             </XStack>

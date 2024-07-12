@@ -134,8 +134,8 @@ export interface PostRead {
 }
 
 export interface Reads {
-  floor: string;
-  posts: Record<string, PostRead>;
+  floor: number;
+  items: Record<string, PostRead>;
 }
 
 export interface IndexData {

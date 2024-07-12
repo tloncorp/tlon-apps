@@ -2,6 +2,8 @@ import { getChannelType } from '@tloncorp/shared/dist/urbit';
 
 import { PostViewMode } from '../ContentRenderer';
 import ChatReferenceWrapper from './ChatReferenceWrapper';
+import GalleryReferenceWrapper from './GalleryReferenceWrapper';
+import NotebookReferenceWrapper from './NotebookReferenceWrapper';
 import ReferenceSkeleton from './ReferenceSkeleton';
 
 export default function ChannelReference({
@@ -32,21 +34,23 @@ export default function ChannelReference({
   }
 
   if (channelType === 'notebook') {
-    // TODO: Implement notebook reference
     return (
-      <ReferenceSkeleton
-        message="Notebook references are not yet supported"
-        messageType="error"
+      <NotebookReferenceWrapper
+        asAttachment={asAttachment}
+        viewMode={viewMode}
+        channelId={channelId}
+        postId={postId}
       />
     );
   }
 
   if (channelType === 'gallery') {
-    // TODO: Implement gallery reference
     return (
-      <ReferenceSkeleton
-        message="Gallery references are not yet supported"
-        messageType="error"
+      <GalleryReferenceWrapper
+        asAttachment={asAttachment}
+        viewMode={viewMode}
+        channelId={channelId}
+        postId={postId}
       />
     );
   }
