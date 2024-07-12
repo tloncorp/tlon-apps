@@ -29,7 +29,7 @@ export function SearchStatus({
           )}
           {numResults > 0 && (
             <SizableText size="$s" color={color ?? '$secondaryText'}>
-              <SizableText size="$s" color="$primaryText" fontWeight="500">
+              <SizableText size="$s" color="$primaryText" fontWeight="$xl">
                 {numResults}
               </SizableText>
               {` results  ·  `}

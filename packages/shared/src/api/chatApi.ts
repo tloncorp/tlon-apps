@@ -213,6 +213,10 @@ export function subscribeToChatUpdates(
   );
 }
 
+export function getBlockedUsers() {
+  return scry<ub.BlockedShips>({ app: 'chat', path: '/blocked' });
+}
+
 export function blockUser(userId: string) {
   return poke({
     app: 'chat',

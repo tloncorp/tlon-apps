@@ -68,6 +68,7 @@ export const tokens = createTokens({
     '4xl': 48,
     '5xl': 64,
     '6xl': 72,
+    '9xl': 96, // TODO: worth leaving room between?
   },
   radius: {
     '2xs': 2,
@@ -258,6 +259,7 @@ export const systemFont = createFont({
     m: 'regular',
     true: 'regular',
     l: 'medium',
+    xl: '500',
   },
   letterSpacing: {
     s: 0,

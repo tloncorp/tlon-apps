@@ -89,7 +89,7 @@ function ChatAuthorRow({ authorId, sent, roles, ...props }: AuthorRowProps) {
   return (
     <XStack gap="$l" alignItems="center" {...props}>
       <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName showNickname userId={authorId} fontWeight="500" />
+      <ContactName showNickname userId={authorId} fontWeight="$xl" />
       <SizableText color="$secondaryText" size="$s" position="relative" top={1}>
         {timeDisplay}
       </SizableText>

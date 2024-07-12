@@ -27,12 +27,13 @@ export default function ContentReference({
   }
 
   if (reference.referenceType === 'group') {
-    return <GroupReference groupId={reference.groupId} />;
+    return <GroupReference groupId={reference.groupId} viewMode={viewMode} />;
   }
 
   if (reference.referenceType === 'app') {
     return (
       <ReferenceSkeleton
+        viewMode={viewMode}
         message="App references are not yet supported"
         messageType="error"
       />

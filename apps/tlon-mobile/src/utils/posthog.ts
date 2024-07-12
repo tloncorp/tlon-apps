@@ -1,4 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import * as db from '@tloncorp/shared/dist/db';
 import PostHog from 'posthog-react-native';
 
 import { POST_HOG_API_KEY } from '../constants';
@@ -54,4 +55,5 @@ export const identifyTlonEmployee = () => {
 
   const UUID = posthog.getDistinctId();
   posthog.identify(UUID, { isTlonEmployee: true });
+  db.setIsTlonEmployee(true);
 };

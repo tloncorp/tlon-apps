@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/dist/api';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Text, TextInput, View } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
@@ -46,13 +46,28 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   });
   const { setShip } = useShip();
 
+  const isValidUrl = useCallback((url: string) => {
+    const urlPattern = /^(https?:\/\/)?([\w.-]+)\.([a-z]{2,})(\/\S*)?$/i;
+    const hostedPattern = /tlon\.network/i;
+    if (!urlPattern.test(url)) {
+      return false;
+    }
+    if (hostedPattern.test(url)) {
+      return 'hosted';
+    }
+    return true;
+  }, []);
+
   const onSubmit = handleSubmit(async ({ shipUrl: rawShipUrl, accessCode }) => {
     setIsSubmitting(true);
 
     const shipUrl = transformShipURL(rawShipUrl);
     setFormattedShipUrl(shipUrl);
     try {
-      const authCookie = await getLandscapeAuthCookie(shipUrl, accessCode);
+      const authCookie = await getLandscapeAuthCookie(
+        shipUrl,
+        accessCode.trim()
+      );
       if (authCookie) {
         const shipId = getShipFromCookie(authCookie);
         if (await isEulaAgreed()) {
@@ -65,7 +80,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           navigation.navigate('EULA', { shipId, shipUrl, authCookie });
         }
       } else {
-        setRemoteError("Sorry, we couldn't log you into your Urbit ID.");
+        setRemoteError(
+          "Sorry, we couldn't log in to your ship. It may be busy or offline."
+        );
       }
     } catch (err) {
       setRemoteError((err as Error).message);
@@ -76,6 +93,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton title="Back" onPress={() => navigation.goBack()} />
+      ),
       headerRight: () =>
         isSubmitting ? (
           <View style={tailwind('px-8')}>
@@ -101,7 +121,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           'text-lg font-medium text-tlon-black-80 dark:text-white'
         )}
       >
-        Connect an unhosted ship by entering its URL and access code.
+        Connect a self-hosted ship by entering its URL and access code.
       </Text>
       {remoteError ? (
         <Text style={tailwind('mt-4 text-tlon-red')}>{remoteError}</Text>
@@ -118,13 +138,23 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           control={control}
           rules={{
             required: 'Please enter a valid URL.',
+            validate: (value) => {
+              const urlValidation = isValidUrl(value);
+              if (urlValidation === false) {
+                return 'Please enter a valid URL.';
+              }
+              if (urlValidation === 'hosted') {
+                return 'Please log in to your hosted Tlon ship using email and password.';
+              }
+              return true;
+            },
           }}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={tailwind(
                 'p-4 text-tlon-black-80 dark:text-white border border-tlon-black-20 dark:border-tlon-black-80 rounded-lg'
               )}
-              placeholder="sampel-palnet.tlon.network"
+              placeholder="https://sampel-palnet.arvo.network"
               placeholderTextColor="#999999"
               onBlur={onBlur}
               onChangeText={onChange}

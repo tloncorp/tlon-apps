@@ -12,7 +12,6 @@ export default {
     >
       <View paddingHorizontal="$xl">
         <ProfileDisplayWidget
-          debugMessage=""
           contact={brianContact}
           contactId={brianContact.id}
         />
@@ -26,11 +25,7 @@ export default {
       verticalAlign="center"
     >
       <View paddingHorizontal="$xl">
-        <ProfileDisplayWidget
-          contact={danContact}
-          contactId={danContact.id}
-          debugMessage=""
-        />
+        <ProfileDisplayWidget contact={danContact} contactId={danContact.id} />
       </View>
     </FixtureWrapper>
   ),
@@ -44,7 +39,6 @@ export default {
         <ProfileDisplayWidget
           contact={markContact}
           contactId={markContact.id}
-          debugMessage=""
         />
       </View>
     </FixtureWrapper>

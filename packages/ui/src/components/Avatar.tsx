@@ -50,6 +50,11 @@ const AvatarFrame = styled(View, {
         width: '$5xl',
         borderRadius: '$m',
       },
+      $9xl: {
+        height: '$9xl',
+        width: '$9xl',
+        borderRadius: '$xl',
+      },
       custom: {},
     },
   } as const,
@@ -61,16 +66,18 @@ export type AvatarProps = ComponentProps<typeof AvatarFrame> & {
 
 export const ContactAvatar = React.memo(function ContactAvatComponent({
   contactId,
+  overrideUrl,
   innerSigilSize,
   ...props
 }: {
   contactId: string;
+  overrideUrl?: string;
   innerSigilSize?: number;
 } & AvatarProps) {
   const contact = useContact(contactId);
   return (
     <ImageAvatar
-      imageUrl={contact?.avatarImage ?? undefined}
+      imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={
         <SigilAvatar
           contactId={contactId}
@@ -224,6 +231,7 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
     $3xl: 16,
     $4xl: 16,
     $5xl: 24,
+    $9xl: 32,
     // TODO: could be nice to implement some scaling logic? But also might be
     // nice to get rid of "custom"...
     custom: 16,
