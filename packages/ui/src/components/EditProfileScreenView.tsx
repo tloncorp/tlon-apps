@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { useForm } from 'react-hook-form';
+import { Keyboard } from 'react-native';
 
 import { useContact } from '../contexts';
 import { ScrollView, View, YStack } from '../core';
@@ -8,6 +9,7 @@ import { EditablePofileImages } from './EditableProfileImages';
 import { FormTextInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
 import { SaveButton } from './GroupMetaScreenView';
+import KeyboardAvoidingView from './KeyboardAvoidingView';
 
 interface Props {
   currentUserId: string;
@@ -22,7 +24,6 @@ export function EditProfileScreenView(props: Props) {
     control,
     handleSubmit,
     formState: { errors },
-    getValues,
     setValue,
   } = useForm({
     defaultValues: {
@@ -34,7 +35,7 @@ export function EditProfileScreenView(props: Props) {
   });
 
   return (
-    <View marginHorizontal="$xl" flex={1}>
+    <View flex={1}>
       <GenericHeader
         title="Edit Profile"
         goBack={props.onGoBack}
@@ -42,60 +43,68 @@ export function EditProfileScreenView(props: Props) {
           <SaveButton onPress={handleSubmit(props.onSaveProfile)} />
         }
       />
-      <ScrollView>
-        <YStack>
-          <EditablePofileImages
-            contact={userContact ?? db.getFallbackContact(props.currentUserId)}
-            uploadInfo={props.uploadInfo}
-            onSetCoverUrl={(url) => setValue('coverImage', url)}
-            onSetIconUrl={(url) => setValue('avatarImage', url)}
-          />
-
-          <FormTextInput>
-            <FormTextInput.Label>Nickname</FormTextInput.Label>
-            <FormTextInput.Input
-              control={control}
-              errors={errors}
-              name="nickname"
-              label="Nickname"
-              rules={{
-                maxLength: {
-                  value: 30,
-                  message: 'Your nickname is limited to 30 characters',
-                },
-              }}
-              placeholder={userContact?.id}
+      <KeyboardAvoidingView>
+        <ScrollView>
+          <YStack
+            onTouchStart={Keyboard.dismiss}
+            marginTop="$l"
+            marginHorizontal="$xl"
+          >
+            <EditablePofileImages
+              contact={
+                userContact ?? db.getFallbackContact(props.currentUserId)
+              }
+              uploadInfo={props.uploadInfo}
+              onSetCoverUrl={(url) => setValue('coverImage', url)}
+              onSetIconUrl={(url) => setValue('avatarImage', url)}
             />
-          </FormTextInput>
 
-          <FormTextInput>
-            <FormTextInput.Label>Bio</FormTextInput.Label>
-            <FormTextInput.Input
-              control={control}
-              errors={errors}
-              rules={{
-                maxLength: {
-                  value: 300,
-                  message: 'Your bio is limited to 300 characters',
-                },
-              }}
-              name="bio"
-              label="Bio"
-              placeholder="About yourself"
-              frameProps={{
-                height: 'auto',
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start',
-                overflow: 'scroll',
-              }}
-              areaProps={{
-                numberOfLines: 5,
-                multiline: true,
-              }}
-            />
-          </FormTextInput>
-        </YStack>
-      </ScrollView>
+            <FormTextInput marginTop="$m">
+              <FormTextInput.Label>Nickname</FormTextInput.Label>
+              <FormTextInput.Input
+                control={control}
+                errors={errors}
+                name="nickname"
+                label="Nickname"
+                rules={{
+                  maxLength: {
+                    value: 30,
+                    message: 'Your nickname is limited to 30 characters',
+                  },
+                }}
+                placeholder={userContact?.id}
+              />
+            </FormTextInput>
+
+            <FormTextInput>
+              <FormTextInput.Label>Bio</FormTextInput.Label>
+              <FormTextInput.Input
+                control={control}
+                errors={errors}
+                rules={{
+                  maxLength: {
+                    value: 300,
+                    message: 'Your bio is limited to 300 characters',
+                  },
+                }}
+                name="bio"
+                label="Bio"
+                placeholder="About yourself"
+                frameProps={{
+                  height: 'auto',
+                  justifyContent: 'flex-start',
+                  alignItems: 'flex-start',
+                  overflow: 'scroll',
+                }}
+                areaProps={{
+                  numberOfLines: 5,
+                  multiline: true,
+                }}
+              />
+            </FormTextInput>
+          </YStack>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
