@@ -4,8 +4,7 @@ import { ActivityBundle } from 'packages/shared/dist/urbit';
 import { useMemo } from 'react';
 
 import { makePrettyDay } from '@/logic/utils';
-import { useAllEvents } from '@/state/activity';
-import { useUnread } from '@/state/unreads';
+import { useAllEvents, useSourceActivity } from '@/state/activity';
 
 export interface DayGrouping {
   date: string;
@@ -28,7 +27,7 @@ function groupBundlesByDate(bundles: ActivityBundle[]): DayGrouping[] {
 }
 
 export function useNotifications() {
-  const unread = useUnread('base');
+  const { activity } = useSourceActivity('base');
   const { data, status } = useAllEvents();
   const bundles = useMemo(() => {
     return data?.pages.flat() || [];
@@ -37,7 +36,7 @@ export function useNotifications() {
   if (status !== 'success') {
     return {
       notifications: [],
-      unread,
+      activity,
       loaded: status === 'error',
     };
   }
@@ -46,7 +45,7 @@ export function useNotifications() {
 
   return {
     notifications,
-    unread,
+    activity,
     loaded: status === 'success' || status === 'error',
   };
 }

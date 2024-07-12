@@ -1,4 +1,4 @@
-import { ActivityBundle } from '@tloncorp/shared/dist/urbit';
+import { ActivityBundle, ActivitySummary } from '@tloncorp/shared/dist/urbit';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
 import { ComponentType, PropsWithChildren, useCallback } from 'react';
@@ -16,7 +16,7 @@ import { useMarkReadMutation } from '@/state/activity';
 import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
-  child: ComponentType<{ bundle: ActivityBundle }>;
+  child: ComponentType<{ bundle: ActivityBundle; summary: ActivitySummary }>;
   title?: ViewProps['title'];
 }
 
@@ -66,10 +66,10 @@ export default function Notifications({
 }: NotificationsProps) {
   const isMobile = useIsMobile();
   const { paddingBottom } = useBottomPadding();
-  const { loaded, notifications, unread } = useNotifications();
+  const { loaded, notifications, activity } = useNotifications();
   const { mutate, isLoading } = useMarkReadMutation();
   const isMarkReadPending = isLoading;
-  const hasUnreads = unread.combined.status === 'unread';
+  const hasUnreads = activity['notify-count'] > 0;
 
   const markAllRead = useCallback(async () => {
     mutate({ source: { base: null } });
@@ -151,7 +151,7 @@ export default function Notifications({
                   <ul className="mb-4 space-y-2">
                     {grouping.bundles.map((b) => (
                       <li key={b.latest}>
-                        <Notification bundle={b} />
+                        <Notification bundle={b} summary={activity} />
                       </li>
                     ))}
                   </ul>

@@ -8,7 +8,6 @@ import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
-import { useNotifications } from '@/notifications/useNotifications';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,

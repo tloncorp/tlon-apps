@@ -1,4 +1,4 @@
-import { ActivityEvent } from '@tloncorp/shared/dist/urbit';
+import { ActivityBundle, ActivityEvent } from '@tloncorp/shared/dist/urbit';
 import { ReactNode } from 'react';
 
 import HeapBlock from '@/heap/HeapBlock';
@@ -6,22 +6,20 @@ import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag } from '@/logic/utils';
 import { usePost } from '@/state/channel/channel';
 
-import { NotificationContent } from './NotificationContent';
+import ActivitySummary from './ActivitySummary';
 
 interface GalleryNotificationProps {
   top: ActivityEvent;
-  time: number;
-  moreCount: number;
+  bundle: ActivityBundle;
   avatar?: ReactNode;
   topLine?: ReactNode;
 }
 
 export function GalleryNotification({
   top,
-  time,
+  bundle,
   avatar,
   topLine,
-  moreCount,
 }: GalleryNotificationProps) {
   const isMobile = useIsMobile();
   const curioId = 'post' in top ? top.post.key.time : '';
@@ -40,7 +38,7 @@ export function GalleryNotification({
           <div className="flex flex-col space-y-2">
             <div className="min-w-0 grow-0 break-words p-1">{topLine}</div>
             <div className="my-2 leading-5">
-              <NotificationContent time={time} top={top} />
+              <ActivitySummary top={top} bundle={bundle} />
             </div>
             <div className="max-w-[36px] sm:max-w-[190px]">
               <div className="aspect-h-1 aspect-w-1 cursor-pointer">
@@ -52,11 +50,6 @@ export function GalleryNotification({
                 />
               </div>
             </div>
-            {moreCount > 0 ? (
-              <p className="mt-2 text-sm font-semibold">
-                Latest of {moreCount} new blocks
-              </p>
-            ) : null}
           </div>
         </div>
       </div>

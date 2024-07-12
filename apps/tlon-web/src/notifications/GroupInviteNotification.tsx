@@ -1,15 +1,16 @@
 import { makePrettyTime } from '@tloncorp/shared/dist';
-import { ActivityEvent } from '@tloncorp/shared/dist/urbit';
+import { ActivityBundle, ActivityEvent } from '@tloncorp/shared/dist/urbit';
 import { ReactNode } from 'react';
 
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useGang, useGroup } from '@/state/groups';
 
-import { NotificationContent } from './NotificationContent';
+import ActivitySummary from './ActivitySummary';
 
 interface GroupInviteNotificationProps {
   top: ActivityEvent;
+  bundle: ActivityBundle;
   flag: string;
   time: number;
   unread: boolean;
@@ -19,6 +20,7 @@ interface GroupInviteNotificationProps {
 
 export function GroupInviteNotification({
   top,
+  bundle,
   flag,
   time,
   unread,
@@ -39,7 +41,7 @@ export function GroupInviteNotification({
         >
           {topLine}
           <div className="my-2 leading-5">
-            <NotificationContent time={time} top={top} />
+            <ActivitySummary top={top} bundle={bundle} />
           </div>
           {gang && !group && (
             <div className="mt-2 flex space-x-2">

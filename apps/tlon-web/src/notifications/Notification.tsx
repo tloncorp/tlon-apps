@@ -3,15 +3,14 @@ import {
   ActivityEvent,
   ActivitySummary,
   Source,
+  getContent,
   getSource,
   getTop,
-  isBlock,
   isComment,
-  isGroupMeta,
+  isGalleryBlock,
   isInvite,
   isMention,
   isMessage,
-  isNote,
   isReply,
   isUnread,
 } from '@tloncorp/shared/dist/urbit';
@@ -21,19 +20,16 @@ import _ from 'lodash';
 import { ReactNode, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
-import { getTabPath } from '@/components/Sidebar/util';
+import ChatContent from '@/chat/ChatContent/ChatContent';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import { makePrettyTime } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/activity';
 
+import ActivityTopLine from './ActivitySummary';
 import { GalleryNotification } from './GalleryNotification';
 import { GroupInviteNotification } from './GroupInviteNotification';
 
-function getPath(
-  source: Source,
-  event: ActivityEvent,
-  locationPath: string
-): string {
+function getPath(source: Source, event: ActivityEvent): string {
   if ('group' in source) {
     return `/groups/${source.group}`;
   }
@@ -44,13 +40,16 @@ function getPath(
   }
 
   if ('channel' in source) {
-    const path = `/groups/${source.channel.group}/channels/${source.channel.nest}`;
-    return getTabPath(path, locationPath);
+    const suffix = 'post' in event ? `?msg=${event.post.key.time}` : '';
+    return `/groups/${source.channel.group}/channels/${source.channel.nest}${suffix}`;
   }
 
   if ('thread' in source) {
-    const suffix = 'reply' in event ? `?reply=${event.reply.key.time}` : '';
-    return `/groups/${source.thread.group}/channels/${source.thread.channel}/message/${source.thread.key.time}${suffix}`;
+    const suffix =
+      'reply' in event
+        ? `?reply=${parseUd(event.reply.key.time).toString()}`
+        : '';
+    return `/groups/${source.thread.group}/channels/${source.thread.channel}/message/${parseUd(source.thread.key.time).toString()}${suffix}`;
   }
 
   if ('dm-thread' in source) {
@@ -58,21 +57,11 @@ function getPath(
     const id = 'club' in thread.whom ? thread.whom.club : thread.whom.ship;
     const suffix =
       'dm-reply' in event ? `?reply=${event['dm-reply'].key.time}` : '';
-    return `/dm/${id}/message/${thread.key.time}${suffix}`;
+    return `/dm/${id}/message/${thread.key.id}${suffix}`;
   }
 
-  // all replies should go to the post and scroll to the reply
-  if (reply) {
-    return `${parts.slice(0, index + 2).join('/')}?reply=${reply}`;
-  }
-
-  // chat messages should go to the channel and scroll to the message
-  if (isChatMsg) {
-    return `${parts.slice(0, index).join('/')}?msg=${post}`;
-  }
-
-  // all other posts should go to the post
-  return path;
+  // base events don't exist, but this is a fallback
+  return '/';
 }
 
 interface NotificationProps {
@@ -89,28 +78,27 @@ export default function Notification({
   topLine,
 }: NotificationProps) {
   const top = getTop(bundle);
-  const moreCount = bundle.events.length - 1;
-  const { mutate } = useMarkReadMutation();
-  const mentionBool = isMention(top);
-  const commentBool = isComment(top);
-  const isMessageBool = isMessage(top);
-  const isNoteBool = isNote(top);
-  const groupMetaBool = isGroupMeta(top);
-  const replyBool = isReply(top);
-  const path = getPath(bundle);
-  const onClick = useCallback(() => {
-    mutate({ source: getSource(bundle) });
-  }, [bundle]);
   const source = getSource(bundle);
+  const path = getPath(source, top);
+  const { mutate } = useMarkReadMutation();
+  const onClick = useCallback(() => {
+    mutate({ source });
+  }, [source]);
+  const replyBool = isReply(top);
+  const isMessageBool = isMessage(top);
+  const commentBool = isComment(top);
+  const mentionBool = isMention(top);
+  // const isNoteBool = isNote(top);
+  // const groupMetaBool = isGroupMeta(top);
   const time = daToUnix(parseUd(bundle.latest));
   const unread = isUnread(bundle.latest, summary);
+  const content = getContent(top);
 
-  if (isBlock(top)) {
+  if (isGalleryBlock(top)) {
     return (
       <GalleryNotification
         top={top}
-        time={time}
-        moreCount={moreCount}
+        bundle={bundle}
         avatar={avatar}
         topLine={topLine}
       />
@@ -121,6 +109,7 @@ export default function Notification({
     return (
       <GroupInviteNotification
         top={top}
+        bundle={bundle}
         flag={source.group}
         time={time}
         unread={unread}
@@ -135,13 +124,14 @@ export default function Notification({
       <Link
         to={path}
         state={
-          groupMetaBool
-            ? {
-                backgroundLocation: {
-                  pathname: `/groups/${rope.group}/channels/${recentChannel}`,
-                },
-              }
-            : undefined
+          undefined
+          // groupMetaBool
+          //   ? {
+          //       backgroundLocation: {
+          //         pathname: `/groups/${rope.group}/channels/${recentChannel}`,
+          //       },
+          //     }
+          //   : undefined
         }
         className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
@@ -149,28 +139,14 @@ export default function Notification({
         <div className="relative flex-none self-start">{avatar}</div>
         <div className="min-w-0 grow-0 break-words p-1">
           {topLine}
-          <div className="my-2 leading-5">
-            <NotificationContent
-              time={bin.time}
-              content={bin.top.con}
-              conIsMention={mentionBool}
-              conIsComment={commentBool}
-              conIsReply={replyBool}
-              conIsNote={isNoteBool}
-            />
-          </div>
-          {moreCount > 0 ? (
-            <p className="mt-2 text-sm font-semibold">
-              Latest of {moreCount} new messages
-            </p>
+          <ActivityTopLine top={top} bundle={bundle} />
+          {content ? (
+            <div className="text-black my-2 leading-5">
+              <ChatContent story={content} />
+            </div>
           ) : null}
           {mentionBool || commentBool || replyBool || isMessageBool ? (
-            <div
-              className={cn(
-                'small-button bg-blue-soft text-blue',
-                moreCount > 0 ? 'mt-2' : 'mt-0'
-              )}
-            >
+            <div className={cn('small-button bg-blue-soft text-blue')}>
               Reply
             </div>
           ) : null}

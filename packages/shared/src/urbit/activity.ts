@@ -573,7 +573,7 @@ export const isNote = (event: ActivityEvent) => {
   return false;
 };
 
-export const isBlock = (event: ActivityEvent) => {
+export const isGalleryBlock = (event: ActivityEvent) => {
   if ('post' in event) {
     return event.post.channel.startsWith('heap');
   }
@@ -715,4 +715,52 @@ export function isUnread(time: string, summary: ActivitySummary): boolean {
   }
 
   return false;
+}
+
+export function getContent(event: ActivityEvent) {
+  if ('post' in event) {
+    return event.post.content;
+  }
+
+  if ('reply' in event) {
+    return event.reply.content;
+  }
+
+  if ('dm-post' in event) {
+    return event['dm-post'].content;
+  }
+
+  if ('dm-reply' in event) {
+    return event['dm-reply'].content;
+  }
+
+  return undefined;
+}
+
+export function getIdParts(id: string): { author: string; sent: number } {
+  const [author, sentStr] = id.split('/');
+  return {
+    author,
+    sent: parseInt(parseUd(sentStr).toString(), 10),
+  };
+}
+
+export function getAuthor(event: ActivityEvent) {
+  if ('post' in event) {
+    return getIdParts(event.post.key.id).author;
+  }
+
+  if ('reply' in event) {
+    return getIdParts(event.reply.key.id).author;
+  }
+
+  if ('dm-post' in event) {
+    return getIdParts(event['dm-post'].key.id).author;
+  }
+
+  if ('dm-reply' in event) {
+    return getIdParts(event['dm-reply'].key.id).author;
+  }
+
+  return undefined;
 }
