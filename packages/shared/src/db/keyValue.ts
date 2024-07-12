@@ -74,7 +74,7 @@ export async function setIsTlonEmployee(isTlonEmployee: boolean) {
 
 export async function getIsTlonEmployee() {
   const isTlonEmployee = await AsyncStorage.getItem('isTlonEmployee');
-  return isTlonEmployee === 'true' ?? false;
+  return isTlonEmployee === 'true' ? true : false;
 }
 
 export type AppInfo = {
