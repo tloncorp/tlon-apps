@@ -151,13 +151,49 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     // Logic for uploading with Tlon Hosting storage.
     if (config.service === 'presigned-url' && config.presignedUrl) {
-      // The first step is to send the PUT request to the proxy, which will
-      // respond with a redirect to a pre-signed url to the actual bucket. The
-      // token is in the url, not a header, so that it disappears after the
-      // redirect.
-
       try {
-        const requestOptions = {
+        // First, grab an auth secret from the ship
+        const token = await api
+          .scry<string>({
+            app: 'genuine',
+            path: '/secret',
+          })
+          .catch((e) => {
+            throw new Error('Failed to get secret');
+          });
+
+        // Second, hit memex with the secret to obtain an upload
+        const uploadParams = {
+          token,
+          contentLength: file.size,
+          contentType: file.type,
+          fileName: key,
+        };
+
+        const { presignedUrl } = config;
+        const endpoint = `${presignedUrl}/v1/${deSig(window.ship)}/upload`;
+        const response = await fetch(`${endpoint}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(uploadParams),
+        });
+
+        if (response.status !== 200) {
+          throw new Error('Bad response from memex');
+        }
+
+        const data: { url?: string; filePath?: string } | null =
+          await response.json();
+
+        if (!data || !data.url || !data.filePath) {
+          throw new Error('Invalid response from memex upload');
+        }
+        const { url: uploadUrl, filePath: finalFileUrl } = data;
+
+        // Finally, upload the file to cloud storage
+        const cloudUploadOptions = {
           method: 'PUT',
           headers: {
             'Content-Type': compressedFile.type,
@@ -165,19 +201,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
           },
           body: compressedFile,
         };
-        const { presignedUrl } = config;
-        const url = `${presignedUrl}/${key}`;
-        const token = await api
-          .scry<string>({
-            app: 'genuine',
-            path: '/secret',
-          })
-          .catch((e) => {
-            console.log('failed to get secret', { e });
-            return '';
-          });
-        const urlWithToken = `${url}?token=${token}`;
-        fetch(urlWithToken, requestOptions)
+
+        fetch(uploadUrl, cloudUploadOptions)
           .then(async (response) => {
             if (response.status !== 200) {
               const body = await response.text().catch(() => {
@@ -188,22 +213,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
               });
               throw new Error(body || 'Incorrect response status');
             }
-            // When the PUT succeeded, we fetch the actual URL of the file. We do
-            // this to avoid having to proxy every single GET request, and to
-            // avoid remembering which file corresponds to which bucket, when
-            // using multiple buckets internally.
-            const fileUrlResponse = await fetch(url);
-            const fileUrl = await fileUrlResponse.json().catch(() => {
-              console.log('Error parsing response body, fileUrlResponse');
-              return '';
-            });
             updateStatus(uploader, key, 'success');
             if (isImageFile(file)) {
-              imageSize(fileUrl)
+              imageSize(finalFileUrl)
                 .then((s) =>
                   updateFile(uploader, key, {
                     size: s,
-                    url: fileUrl,
+                    url: finalFileUrl,
                   })
                 )
                 .catch((e) => {
@@ -211,11 +227,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
                   return '';
                 });
             } else if (isVideoFile(file)) {
-              videoSize(fileUrl)
+              videoSize(finalFileUrl)
                 .then((s) =>
                   updateFile(uploader, key, {
                     size: s,
-                    url: fileUrl,
+                    url: finalFileUrl,
                   })
                 )
                 .catch((e) => {
