@@ -1,6 +1,7 @@
 import { preSig } from '@urbit/api';
 import { deSig, formatDa, unixToDa } from '@urbit/aura';
 
+import * as api from '../../api';
 import {
   RNFile,
   StorageConfiguration,
@@ -10,6 +11,7 @@ import {
   scry,
 } from '../../api';
 import { createDevLogger } from '../../debug';
+import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
@@ -82,15 +84,74 @@ export const hasCustomS3Creds = ({
   );
 };
 
+const MEMEX_BASE_URL = 'https://memex.tlon.network';
+
 export const getIsHosted = async () => {
   const shipInfo = getShipInfo();
   const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
   return isHosted;
 };
 
+interface MemexUploadParams {
+  token: string;
+  contentLength: number;
+  contentType: string;
+  fileName: string;
+}
+
+export const getMemexUpload = async ({
+  file,
+  uploadKey,
+}: {
+  file: api.RNFile;
+  uploadKey: string;
+}) => {
+  const currentUser = api.getCurrentUserId();
+  const token = await scry<string>({
+    app: 'genuine',
+    path: '/secret',
+  }).catch((e) => {
+    throw new Error('Failed to get secret');
+  });
+
+  const uploadParams: MemexUploadParams = {
+    token,
+    contentLength: file.blob.size,
+    contentType: file.type,
+    fileName: uploadKey,
+  };
+
+  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/upload`;
+  const response = await fetch(`${endpoint}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(uploadParams),
+  });
+
+  if (response.status !== 200) {
+    logger.log(`Bad response from memex`, response.status);
+    throw new Error('Bad response from memex');
+  }
+
+  const data: { url?: string; filePath?: string } | null =
+    await response.json();
+
+  if (data && data.url && data.filePath) {
+    return {
+      hostedUrl: data.filePath,
+      uploadUrl: data.url,
+    };
+  } else {
+    logger.log(`Invalid response from memex upload`, data);
+    throw new Error('Invalid response from memex upload');
+  }
+};
+
 export const getHostingUploadURL = async () => {
   const isHosted = await getIsHosted();
-  return isHosted ? 'https://memex.tlon.network' : '';
+  return isHosted ? MEMEX_BASE_URL : '';
 };
 
 export const getMemexUploadUrl = async (key: string) => {

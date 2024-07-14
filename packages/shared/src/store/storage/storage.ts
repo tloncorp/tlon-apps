@@ -83,10 +83,28 @@ export const useStorage = create<StorageState>((set, get) => ({
     try {
       // we apparently need to specifically scry for these on android since
       // the subscription isn't working
-      await get().getCredentials();
-      await get().getConfiguration();
+      const credentials = (await get().getCredentials()) ?? null;
+      const configuration = (await get().getConfiguration()) ?? {
+        buckets: new Set(),
+        currentBucket: '',
+        region: '',
+        publicUrlBase: '',
+        presignedUrl: '',
+        service: 'credentials',
+      };
+      // set({
+      //   loaded: true,
+      // });
       set({
         loaded: true,
+        s3: {
+          credentials,
+          configuration: {
+            ...configuration,
+            presignedUrl: configuration.presignedUrl || hostingUploadURL,
+            service: 'presigned-url',
+          },
+        },
       });
     } catch (e) {
       logger.error(e);
@@ -98,6 +116,7 @@ export const useStorage = create<StorageState>((set, get) => ({
         path: '/all',
       },
       (e) => {
+        console.log(`bl: got storage event`, e);
         const data = _.get(e, 'storage-update', false);
         if (data) {
           reduceStateN(get(), data, reduce);
