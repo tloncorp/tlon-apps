@@ -16,13 +16,7 @@ import type {
 import * as api from '../../api';
 import { createDevLogger } from '../../debug';
 import { useStorage } from './storage';
-import {
-  getFinalMemexUrl,
-  getMemexUpload,
-  getMemexUploadUrl,
-  getShipInfo,
-  hasCustomS3Creds,
-} from './utils';
+import { getMemexUpload, getShipInfo } from './utils';
 
 const logger = createDevLogger('upload state', true);
 

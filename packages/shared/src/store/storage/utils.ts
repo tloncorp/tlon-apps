@@ -153,30 +153,3 @@ export const getHostingUploadURL = async () => {
   const isHosted = await getIsHosted();
   return isHosted ? MEMEX_BASE_URL : '';
 };
-
-export const getMemexUploadUrl = async (key: string) => {
-  const baseUrl = 'https://memex.tlon.network';
-  const url = `${baseUrl}/${key}`;
-  const token = await scry<string>({
-    app: 'genuine',
-    path: '/secret',
-  }).catch((e) => {
-    logger.log('failed to get secret', { e });
-    return '';
-  });
-  return `${url}?token=${token}`;
-};
-
-export function getUploadObjectKey(ship: string, fileName: string) {
-  return `${deSig(ship)}/${deSig(formatDa(unixToDa(new Date().getTime())))}-${fileName.split(' ').join('-')}`;
-}
-
-export const getFinalMemexUrl = async (memexUploadUrl: string) => {
-  const fileUrlResponse = await fetch(memexUploadUrl);
-  const fileUrl = await fileUrlResponse.json().catch(() => {
-    logger.log('Error parsing response body, fileUrlResponse');
-    return '';
-  });
-
-  return fileUrl;
-};
