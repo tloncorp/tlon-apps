@@ -1806,11 +1806,11 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
     )
     .onConflictDoUpdate({
       target: $posts.id,
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
       target: [$posts.authorId, $posts.sentAt],
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     });
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
@@ -1821,6 +1821,31 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
   );
   logger.log('clear matched pending');
 }
+
+export const insertHiddenPosts = createWriteQuery(
+  'insertHiddenPosts',
+  async (postIds: string[], ctx: QueryCtx) => {
+    if (postIds.length === 0) return;
+
+    logger.log('insertHiddenPosts', postIds);
+
+    await ctx.db
+      .update($posts)
+      .set({ hidden: true })
+      .where(inArray($posts.id, postIds));
+  },
+  ['posts']
+);
+
+export const getHiddenPosts = createReadQuery(
+  'getHiddenPosts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.hidden, true),
+    });
+  },
+  ['posts']
+);
 
 async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
   const channelIds = newPosts?.map((p) => p.channelId) ?? [];
@@ -2268,6 +2293,37 @@ export const getGroupByChannel = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['channels', 'groups']
+);
+
+export const insertBlockedContacts = createWriteQuery(
+  'insertBlockedContacts',
+  async ({ blockedIds }: { blockedIds: string[] }, ctx: QueryCtx) => {
+    if (blockedIds.length === 0) return;
+
+    const blockedContacts: Contact[] = blockedIds.map((id) => ({
+      id,
+      isBlocked: true,
+    }));
+
+    return ctx.db
+      .insert($contacts)
+      .values(blockedContacts)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSet($contacts.isBlocked),
+      });
+  },
+  ['contacts']
+);
+
+export const getBlockedUsers = createReadQuery(
+  'getBlockedUsers',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: eq($contacts.isBlocked, true),
+    });
+  },
+  ['contacts']
 );
 
 export const getContacts = createReadQuery(
@@ -2929,16 +2985,24 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
 
 function conflictUpdateSet(...columns: Column[]) {
   return Object.fromEntries(
-    columns.map((c) => [toCamelCase(c.name), sql.raw(`excluded.${c.name}`)])
+    columns.map((c) => {
+      return [getColumnTsName(c), sql.raw(`excluded.${c.name}`)];
+    })
   );
+}
+
+function getColumnTsName(c: Column) {
+  const name = Object.keys(c.table).find(
+    (k) => c.table[k as keyof typeof c.table] === c
+  );
+  if (!name) {
+    throw new Error('unable to find column name');
+  }
+  return name;
 }
 
 function ascNullsLast(column: SQLWrapper | AnyColumn) {
   return sql`${column} ASC NULLS LAST`;
-}
-
-function toCamelCase(str: string) {
-  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
 function returnNullIfUndefined<T>(input: T | undefined): T | null {

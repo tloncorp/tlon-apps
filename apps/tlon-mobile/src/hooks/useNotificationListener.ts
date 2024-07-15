@@ -1,9 +1,11 @@
+import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
@@ -21,10 +23,12 @@ export default function useNotificationListener({
   notificationChannelId,
 }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [{ postId, channelId, isDm }, setGotoData] = useState<{
+  const { data: isTlonEmployee } = store.useIsTlonEmployee();
+
+  const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
     path?: string;
     isDm?: boolean;
-    postId?: string | null;
+    postInfo?: { id: string; authorId: string } | null;
     channelId?: string;
   }>({
     path: notificationPath,
@@ -32,7 +36,7 @@ export default function useNotificationListener({
   });
 
   const resetGotoData = () =>
-    setGotoData({ path: undefined, channelId: undefined });
+    setGotoData({ path: undefined, channelId: undefined, postInfo: undefined });
 
   // Start notifications prompt
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function useNotificationListener({
             },
           },
         } = response;
-        const postId = api.getPostIdFromWer(data.wer);
+        const postInfo = api.getPostInfoFromWer(data.wer);
         const isDm = api.getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
@@ -63,7 +67,7 @@ export default function useNotificationListener({
           setGotoData({
             path: data.wer,
             isDm,
-            postId,
+            postInfo,
             channelId: data.channelId,
           });
         }
@@ -86,42 +90,33 @@ export default function useNotificationListener({
         }
 
         // if we have a post id, try to navigate to the thread
-        if (postId) {
-          let postToNavigateTo: db.Post | null = null;
-          if (isDm) {
-            // for DMs, we get the backend ID (seal time) of the thread reply itself. So first we have to try to find that,
-            // then we grab the parent
-            const post = await db.getPostByBackendTime({ backendTime: postId });
-            if (post && post.parentId) {
-              const parentPost = await db.getPost({ postId: post.parentId });
-              if (parentPost) {
-                postToNavigateTo = parentPost;
-              }
-            }
+        if (postInfo) {
+          let postToNavigateTo: {
+            id: string;
+            authorId: string;
+            channelId: string;
+          } | null = null;
+
+          const post = await db.getPost({ postId: postInfo.id });
+
+          if (post) {
+            postToNavigateTo = post;
           } else {
-            // for group posts, we get the correct post ID and can just try to grab it
-            const post = await db.getPost({ postId });
-            if (post) {
-              postToNavigateTo = post;
-            }
+            postToNavigateTo = { ...postInfo, channelId };
           }
 
-          // if we found the post, navigate to it. Otherwise fallback to channel
-          if (postToNavigateTo) {
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 1,
-                routes: [
-                  { name: 'ChatList' },
-                  { name: 'Channel', params: { channel } },
-                  { name: 'Post', params: { post: postToNavigateTo } },
-                ],
-              })
-            );
-
-            resetGotoData();
-            return true;
-          }
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 1,
+              routes: [
+                { name: 'ChatList' },
+                { name: 'Channel', params: { channel } },
+                { name: 'Post', params: { post: postToNavigateTo } },
+              ],
+            })
+          );
+          resetGotoData();
+          return true;
         }
 
         navigation.navigate('Channel', { channel });
@@ -145,10 +140,19 @@ export default function useNotificationListener({
 
           // If still not found, clear out the requested channel ID
           if (!didNavigate) {
+            if (isTlonEmployee) {
+              crashlytics().log(`failed channel ID: ${channelId}`);
+              crashlytics().log(`failed post ID: ${postInfo?.id}`);
+            }
+            crashlytics().recordError(
+              new Error(
+                `Notification listener: failed to navigate to ${isDm ? 'DM ' : ''}channel ${postInfo?.id ? ' thread' : ''}`
+              )
+            );
             resetGotoData();
           }
         }
       })();
     }
-  }, [channelId, postId, navigation, isDm]);
+  }, [channelId, postInfo, navigation, isDm]);
 }

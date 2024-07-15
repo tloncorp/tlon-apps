@@ -117,7 +117,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!channel) {
         throw new Error('Tried to send message before channel loaded');
       }
-      store.sendPost({
+      await store.sendPost({
         channel: channel,
         authorId: currentUserId,
         content,

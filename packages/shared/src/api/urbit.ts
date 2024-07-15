@@ -44,6 +44,14 @@ export const getCurrentUserId = () => {
   return client.our;
 };
 
+export const getCurrentUserIsHosted = () => {
+  if (!client.our) {
+    throw new Error('Client not initialized');
+  }
+
+  return client.url.endsWith('tlon.network');
+};
+
 export function configureClient({
   shipName,
   shipUrl,

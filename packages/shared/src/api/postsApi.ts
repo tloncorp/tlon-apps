@@ -2,11 +2,14 @@ import { unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import { useCurrentSession } from '../store';
 import * as ub from '../urbit';
 import {
   ClubAction,
   DmAction,
+  HiddenMessages,
+  HiddenPosts,
   KindData,
   KindDataChat,
   Story,
@@ -32,6 +35,8 @@ import {
   with404Handler,
 } from './apiUtils';
 import { poke, scry, subscribeOnce } from './urbit';
+
+const logger = createDevLogger('postsApi', false);
 
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
@@ -202,12 +207,15 @@ export const editPost = async ({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) => {
+  logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+    logger.error('Cannot edit a post in a DM or group DM');
     throw new Error('Cannot edit a post in a DM or group DM');
   }
 
   if (parentId) {
+    logger.log('editing a reply');
     const memo: ub.Memo = {
       author: authorId,
       content,
@@ -228,9 +236,13 @@ export const editPost = async ({
       },
     };
 
+    logger.log('sending action', action);
     await poke(channelAction(channelId, action));
+    logger.log('action sent');
     return;
   }
+
+  logger.log('editing a post');
 
   const essay = toPostEssay({
     content,
@@ -247,7 +259,9 @@ export const editPost = async ({
     },
   });
 
+  logger.log('sending action', action);
   await poke(action);
+  logger.log('action sent');
 };
 
 export const sendReply = async ({
@@ -382,12 +396,14 @@ export const getLatestPosts = async ({
       count
     ),
   });
+
   return response.map((head) => {
     const channelId = 'nest' in head ? head.nest : head.whom;
+    const latestPost = toPostData(channelId, head.latest);
     return {
       channelId: channelId,
       updatedAt: head.recency,
-      latestPost: toPostData(channelId, head.latest),
+      latestPost,
     };
   });
 };
@@ -573,42 +589,68 @@ export async function removeReaction({
   });
 }
 
-export async function showPost(channelId: string, postId: string) {
-  const action = {
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      'toggle-post': {
-        show: postId,
+export async function showPost(post: db.Post) {
+  if (isGroupChannelId(post.channelId)) {
+    const action = {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        'toggle-post': {
+          show: post.id,
+        },
       },
+    };
+
+    return poke(action);
+  }
+
+  const writId = `${post.authorId}/${post.id}`;
+
+  const action = {
+    app: 'chat',
+    mark: 'chat-toggle-message',
+    json: {
+      show: writId,
     },
   };
 
-  return await poke(action);
+  return poke(action);
 }
 
-export async function hidePost(channelId: string, postId: string) {
-  const action = {
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      'toggle-post': {
-        hide: postId,
+export async function hidePost(post: db.Post) {
+  if (isGroupChannelId(post.channelId)) {
+    const action = {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        'toggle-post': {
+          hide: post.id,
+        },
       },
+    };
+
+    return poke(action);
+  }
+
+  const writId = `${post.authorId}/${post.id}`;
+  const action = {
+    app: 'chat',
+    mark: 'chat-toggle-message',
+    json: {
+      hide: writId,
     },
   };
 
-  return await poke(action);
+  return poke(action);
 }
 
 export async function reportPost(
   currentUserId: string,
   groupId: string,
   channelId: string,
-  postId: string,
-  replyId?: string
+  post: db.Post
 ) {
-  await hidePost(channelId, postId);
+  await hidePost(post);
 
   const action = {
     app: 'groups',
@@ -622,8 +664,8 @@ export async function reportPost(
             nest: channelId,
             src: currentUserId,
             'post-key': {
-              post: postId,
-              reply: replyId ?? null,
+              post: post.parentId ? post.parentId : post.id,
+              reply: post.parentId ? post.id : null,
             },
           },
         },
@@ -633,6 +675,24 @@ export async function reportPost(
 
   return await poke(action);
 }
+
+export const getHiddenPosts = async () => {
+  const hiddenPosts = await scry<HiddenPosts>({
+    app: 'channels',
+    path: '/hidden-posts',
+  });
+
+  return hiddenPosts.map((postId) => getCanonicalPostId(postId));
+};
+
+export const getHiddenDMPosts = async () => {
+  const hiddenDMPosts = await scry<HiddenMessages>({
+    app: 'chat',
+    path: '/hidden-messages',
+  });
+
+  return hiddenDMPosts.map((postId) => getCanonicalPostId(postId));
+};
 
 export async function deletePost(channelId: string, postId: string) {
   const action = channelAction(channelId, {
@@ -721,35 +781,36 @@ export function toPagedPostsData(
   data: ub.PagedPosts | ub.PagedWrits
 ): GetChannelPostsResponse {
   const posts = 'writs' in data ? data.writs : data.posts;
+  const postsData = toPostsData(channelId, posts);
   return {
     older: data.older ? formatUd(data.older) : null,
     newer: data.newer ? formatUd(data.newer) : null,
     totalPosts: data.total,
-    ...toPostsData(channelId, posts),
+    ...postsData,
   };
 }
 
 export function toPostsData(
   channelId: string,
   posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
-) {
-  const [deletedPosts, otherPosts] = Object.entries(posts).reduce<
-    [string[], db.Post[]]
-  >(
-    (memo, [id, post]) => {
-      if (post === null) {
-        memo[0].push(id);
-      } else {
-        memo[1].push(toPostData(channelId, post));
-      }
-      return memo;
-    },
-    [[], []]
-  );
+): { posts: db.Post[]; deletedPosts: string[] } {
+  const entries = Object.entries(posts);
+  const deletedPosts: string[] = [];
+  const otherPosts: db.Post[] = [];
+
+  for (const [id, post] of entries) {
+    if (post === null) {
+      deletedPosts.push(id);
+    } else {
+      const postData = toPostData(channelId, post);
+      otherPosts.push(postData);
+    }
+  }
+
+  otherPosts.sort((a, b) => (a.receivedAt ?? 0) - (b.receivedAt ?? 0));
+
   return {
-    posts: otherPosts.sort((a, b) => {
-      return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
-    }),
+    posts: otherPosts,
     deletedPosts,
   };
 }
@@ -788,6 +849,10 @@ export function toPostData(
       ? getCanonicalPostId(post.seal.time.toString())
       : null;
 
+  const replyData = isPostDataResponse(post)
+    ? getReplyData(id, channelId, post)
+    : null;
+
   return {
     id,
     channelId,
@@ -807,9 +872,7 @@ export function toPostData(
     replyContactIds: post?.seal.meta.lastRepliers,
     images: getContentImages(id, post.essay?.content),
     reactions: toReactionsData(post?.seal.reacts ?? {}, id),
-    replies: isPostDataResponse(post)
-      ? getReplyData(id, channelId, post)
-      : null,
+    replies: replyData,
     deliveryStatus: null,
     syncedAt: Date.now(),
     ...flags,

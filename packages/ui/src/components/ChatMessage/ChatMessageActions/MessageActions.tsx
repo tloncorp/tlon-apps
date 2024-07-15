@@ -101,8 +101,8 @@ export function getPostActions({
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
-        { id: 'visibility', label: 'Hide' },
         { id: 'report', label: 'Report post' },
+        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
     case 'notebook':
@@ -112,8 +112,8 @@ export function getPostActions({
         { id: 'pin', label: 'Pin post' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
-        { id: 'visibility', label: 'Hide' },
         { id: 'report', label: 'Report post' },
+        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
     case 'dm':
@@ -123,7 +123,7 @@ export function getPostActions({
         { id: 'startThread', label: 'Start thread' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
         { id: 'copyText', label: 'Copy message text' },
-        { id: 'visibility', label: 'Hide' },
+        { id: 'visibility', label: post?.hidden ? 'Show post' : 'Hide post' },
         { id: 'delete', label: 'Delete message', actionType: 'destructive' },
       ];
     case 'chat':
