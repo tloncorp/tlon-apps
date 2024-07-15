@@ -1,6 +1,5 @@
-import { getThreadKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
-import { formatUd, unixToDa } from '@urbit/aura';
+import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
 import _ from 'lodash';
@@ -22,11 +21,7 @@ import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import {
-  useChannelCompatibility,
-  useChannelFlag,
-  useMarkChannelRead,
-} from '@/logic/channel';
+import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { firstInlineSummary } from '@/logic/tiptap';
@@ -44,10 +39,9 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import { chatStoreLogger, useChatStore } from '../useChatStore';
+import { useChatStore } from '../useChatStore';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -87,8 +81,6 @@ export default function ChatThread() {
     }),
     [id, idTime]
   );
-  const chatUnreadsKey = getThreadKey(flag, time);
-  const { markRead } = useMarkChannelRead(nest, msgKey);
   const replies = note?.seal.replies || null;
   const idTimeIsNumber = !Number.isNaN(Number(idTime));
   if (note && replies !== null && idTimeIsNumber) {
@@ -132,8 +124,6 @@ export default function ChatThread() {
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const { paddingBottom } = useBottomPadding();
-  const readTimeout = useUnread(chatUnreadsKey)?.readTimeout;
-  const path = location.pathname;
   const activeTab = useActiveTab();
 
   const returnURL = useCallback(
@@ -154,10 +144,8 @@ export default function ChatThread() {
 
   const onAtBottom = useCallback(() => {
     const { bottom } = useChatStore.getState();
-    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(chatUnreadsKey, markRead);
-  }, [chatUnreadsKey, markRead]);
+  }, []);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -168,19 +156,6 @@ export default function ChatThread() {
     [navigate, returnURL, leapIsOpen]
   );
   useEventListener('keydown', onEscape, threadRef);
-
-  // read the messages once navigated away
-  useEffect(() => {
-    return () => {
-      const winPath = window.location.pathname.replace('/apps/groups', '');
-      if (winPath !== path && readTimeout) {
-        unreadStoreLogger.log(winPath, path);
-        unreadStoreLogger.log('marking read from dismount', chatUnreadsKey);
-        useUnreadsStore.getState().read(chatUnreadsKey);
-        markRead();
-      }
-    };
-  }, [path, readTimeout, chatUnreadsKey, markRead]);
 
   useEffect(() => {
     if (!idTimeIsNumber) {

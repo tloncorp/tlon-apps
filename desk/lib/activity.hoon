@@ -90,7 +90,7 @@
   ++  update-reads
     |=  =index:a
     ^-  index:a
-    =/  new-floor=(unit time)  (find-floor index)
+    =/  new-floor=(unit time)  (find-floor [stream reads]:index)
     ?~  new-floor  index
     =/  new-reads=read-items:a
       (lot:on-read-items:a items.reads.index new-floor ~)
@@ -182,27 +182,77 @@
 ::
 ++  convert-to
   |%
-  ++  activity-0
-    |=  =activity:a
-    ^-  activity-0:old:a
-    %-  ~(run by activity)
-    activity-summary-0
-  ++  activity-summary-0
-    |=  as=activity-summary:a
-    ^-  activity-summary-0:old:a
-    :*  newest.as
-        count.as
-        notify.as
-        unread.as
-        ?~  children.as  ~
-        `(activity-0 u.children.as)
-    ==
-  ++  update-0
-    |=  =update:a
-    ^-  update-0:old:a
-    ?+  -.update  update
-        %read
-      [%read source.update (activity-summary-0 activity-summary.update)]
-    ==
+  ++  v3
+    |%
+    ++  activity
+      |=  =activity:a
+      ^-  activity:v3:old:a
+      %-  ~(run by activity)
+      |=  as=activity-summary:a
+      (activity-summary as activity)
+    ++  activity-summary
+      |=  [as=activity-summary:a =activity:a]
+      ^-  activity-summary:v3:old:a
+      :*  newest.as
+          count.as
+          notify-count.as
+          notify.as
+          unread.as
+        ::
+          ?:  =(~ children.as)  ~
+          :-  ~
+          %-  ~(gas by *activity:v3:old:a)
+          %+  turn
+            ~(tap in children.as)
+          |=  =source:a
+          =/  sum  (~(got by activity) source)
+          :-  source
+          (activity-summary sum(children ~) ~)
+        ::
+          reads.as
+      ==
+    ++  update
+      |=  [=update:a =activity:a]
+      ^-  update:v3:old:a
+      ?+  -.update  update
+          %activity  !!
+          %read
+        [%read source.update (activity-summary activity-summary.update activity)]
+      ==
+    --
+  ++  v2
+    |%
+    ++  activity
+      |=  =activity:a
+      ^-  activity:v2:old:a
+      %-  ~(run by activity)
+      |=  as=activity-summary:a
+      (activity-summary as activity)
+    ++  activity-summary
+      |=  [as=activity-summary:a =activity:a]
+      ^-  activity-summary:v2:old:a
+      :*  newest.as
+          count.as
+          notify.as
+          unread.as
+        ::
+          :-  ~
+          %-  ~(gas by *activity:v2:old:a)
+          %+  turn
+            ~(tap in children.as)
+          |=  =source:a
+          =/  sum  (~(got by activity) source)
+          :-  source
+          (activity-summary sum(children ~) ~)
+      ==
+    ++  update
+      |=  [=update:a =activity:a]
+      ^-  update:v2:old:a
+      ?+  -.update  update
+          %activity  !!
+          %read
+        [%read source.update (activity-summary activity-summary.update activity)]
+      ==
+    --
   --
 --

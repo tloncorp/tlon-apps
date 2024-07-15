@@ -1,27 +1,23 @@
-import { stripSourcePrefix } from '@tloncorp/shared/src/urbit/activity';
+import {
+  ActivitySummary,
+  stripSourcePrefix,
+} from '@tloncorp/shared/src/urbit/activity';
 import fuzzy from 'fuzzy';
-import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
+import { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import { InlineEmptyPlaceholder } from '@/components/EmptyPlaceholder';
 import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSort from '@/logic/useMessageSort';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import {
-  Cohort,
-  Cohorts,
-  cohortToUnread,
-  useCohorts,
-} from '@/state/broadcasts';
+import { useActivity } from '@/state/activity';
+import { Cohort, cohortToUnread, useCohorts } from '@/state/broadcasts';
 import { useChats } from '@/state/channel/channel';
-import { useContacts } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
-import { Unread, useUnreads } from '@/state/unreads';
 
-import { useMultiDms, usePendingDms, usePendingMultiDms } from '../state/chat';
+import { usePendingDms, usePendingMultiDms } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 type MessagesListProps = PropsWithChildren<{
@@ -31,7 +27,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, Unread]) {
+function itemContent(_i: number, [whom, _unread]: [string, ActivitySummary]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -39,7 +35,10 @@ function itemContent(_i: number, [whom, _unread]: [string, Unread]) {
   );
 }
 
-const computeItemKey = (_i: number, [whom, _unread]: [string, Unread]) => whom;
+const computeItemKey = (
+  _i: number,
+  [whom, _unread]: [string, ActivitySummary]
+) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
 
@@ -55,7 +54,7 @@ export default function MessagesList({
   const pinned = usePinnedChats();
   const { sortMessages } = useMessageSort();
   const broadcasts = useCohorts();
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const chats = useChats();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
@@ -73,11 +72,13 @@ export default function MessagesList({
     const filteredMsgs = sortMessages(
       filter === filters.broadcasts
         ? Object.fromEntries(
-            Object.entries(broadcasts.data || {}).map((v): [string, Unread] => {
-              return [v[0], cohortToUnread(v[1] as Cohort)]; //REVIEW hax
-            })
+            Object.entries(broadcasts.data || {}).map(
+              (v): [string, ActivitySummary] => {
+                return [v[0], cohortToUnread(v[1] as Cohort)]; //REVIEW hax
+              }
+            )
           )
-        : unreads
+        : activity
     )
       .filter(([k]) => {
         if (k.startsWith('~~') && filter === filters.broadcasts) {
@@ -135,7 +136,10 @@ export default function MessagesList({
 
         return true; // is all
       })
-      .map(([k, v]) => [stripSourcePrefix(k), v]) as [string, Unread][];
+      .map(([k, v]) => [stripSourcePrefix(k), v]) as [
+      string,
+      ActivitySummary,
+    ][];
     return !searchQuery
       ? filteredMsgs
       : fuzzy
@@ -144,7 +148,7 @@ export default function MessagesList({
           .map((x) => x.original);
   }, [
     sortMessages,
-    unreads,
+    activity,
     chats,
     groups,
     pinned,
