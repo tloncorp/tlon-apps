@@ -631,6 +631,10 @@ export async function hidePost(post: db.Post) {
   return poke(action);
 }
 
+export const toClientHiddenPosts = (hiddenPostIds: string[]) => {
+  return hiddenPostIds.map((postId) => getCanonicalPostId(postId));
+};
+
 export const getHiddenPosts = async () => {
   const hiddenPosts = await scry<HiddenPosts>({
     app: 'channels',

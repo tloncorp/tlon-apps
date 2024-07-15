@@ -63,6 +63,10 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
       persistUnreads(initData.unreads, ctx).then(() =>
         reporter?.log('persisted unreads')
       ),
+      handleReceivedHiddenPosts({
+        reporter,
+        hiddenPostIds: initData.hiddenPostIds,
+      }).then(() => reporter?.log('handled hidden posts')),
       db
         .insertChannelPerms(initData.channelPerms, ctx)
         .then(() => reporter?.log('inserted channel perms')),
@@ -725,22 +729,31 @@ export async function syncHiddenPosts(reporter: ErrorReporter) {
     () => api.getHiddenDMPosts()
   );
   reporter?.log('got hidden dm posts data from api');
+  handleReceivedHiddenPosts({
+    reporter,
+    hiddenPostIds: [...hiddenPosts, ...hiddenDMPosts],
+  });
+}
 
+export async function handleReceivedHiddenPosts({
+  reporter,
+  hiddenPostIds,
+}: {
+  reporter?: ErrorReporter;
+  hiddenPostIds: string[];
+}) {
   const currentHiddenPosts = await db.getHiddenPosts();
 
   // if the user deleted the posts from another client while we were offline,
   // we should remove them from our hidden posts list
   currentHiddenPosts.forEach(async (hiddenPost) => {
-    if (
-      !hiddenPosts.some((postId) => postId === hiddenPost.id) &&
-      !hiddenDMPosts.some((postId) => postId === hiddenPost.id)
-    ) {
+    if (!hiddenPostIds.some((postId) => postId === hiddenPost.id)) {
       reporter?.log(`deleting hidden post ${hiddenPost.id}`);
       await db.updatePost({ id: hiddenPost.id, hidden: false });
     }
   });
 
-  await db.insertHiddenPosts([...hiddenPosts, ...hiddenDMPosts]);
+  await db.insertHiddenPosts(hiddenPostIds);
   reporter?.log('inserted hidden posts');
 }
 

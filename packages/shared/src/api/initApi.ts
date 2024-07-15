@@ -9,6 +9,7 @@ import {
   toClientGroupsFromGangs,
   toClientPinnedItems,
 } from './groupsApi';
+import { toClientHiddenPosts } from './postsApi';
 import { scry } from './urbit';
 
 export interface InitData {
@@ -20,6 +21,8 @@ export interface InitData {
   channelPerms: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
+  hiddenPostIds: string[];
+  blockedUsers: string[];
 }
 
 export const getInitData = async () => {
@@ -37,7 +40,10 @@ export const getInitData = async () => {
 
   const hiddenGroupPosts = response.channel['hidden-posts'] ?? [];
   const hiddenDmPosts = response.chat['hidden-messages'] ?? [];
-  const hiddenPostIds = [...hiddenGroupPosts, ...hiddenDmPosts]; // TODO: write these to DB
+  const hiddenPostIds = toClientHiddenPosts([
+    ...hiddenGroupPosts,
+    ...hiddenDmPosts,
+  ]); // TODO: write these to DB
   const blockedUsers = response.chat.blocked ?? []; // TODO: write these to DB
 
   const groups = toClientGroups(response.groups, true);
@@ -61,5 +67,7 @@ export const getInitData = async () => {
     channelPerms: channelsInit,
     joinedGroups,
     joinedChannels,
+    hiddenPostIds,
+    blockedUsers,
   };
 };
