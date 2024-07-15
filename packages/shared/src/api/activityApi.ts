@@ -588,6 +588,11 @@ export function sourceIdToSource(sourceId: string): ClientSource {
     return { type: 'channel', channelId: `${kind}/${host}/${name}` };
   }
 
+  if (sourceType === 'ship' || sourceType === 'club') {
+    const channelId = parts[1];
+    return { type: 'channel', channelId };
+  }
+
   if (sourceType === 'thread') {
     const kind = parts[1];
     const host = parts[2];
