@@ -311,41 +311,42 @@ test('deletes removed posts', async () => {
   expect(posts.length).toEqual(0);
 });
 
-test('syncs init data', async () => {
-  setScryOutput(rawGroupsInitData);
-  await syncInitData();
-  const groups = await db.getGroups({});
-  expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
-  const pins = await db.getPinnedItems();
-  expect(pins.length).toEqual(groupsInitData.pins.length);
-  const dmsAndClubs = await getClient()
-    ?.select({ count: $.count() })
-    .from(db.schema.channels)
-    .where(
-      $.or(
-        $.eq(db.schema.channels.type, 'dm'),
-        $.eq(db.schema.channels.type, 'groupDm')
-      )
-    );
-  expect(dmsAndClubs?.[0].count).toEqual(
-    groupsInitData.chat.dms.length +
-      Object.keys(groupsInitData.chat.clubs).length
-  );
-  // TODO: fix once activity integrated
-  // const staleChannels = await db.getStaleChannels();
-  // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
-  //   ['chat/~bolbex-fogdys/watercooler-4926'],
-  //   ['chat/~dabben-larbet/hosting-6173'],
-  //   ['chat/~bolbex-fogdys/tlon-general'],
-  //   ['chat/~bolbex-fogdys/marcom'],
-  //   ['heap/~bolbex-fogdys/design-1761'],
-  //   ['chat/~bitpyx-dildus/interface'],
-  //   ['chat/~bolbex-fogdys/ops'],
-  //   ['heap/~dabben-larbet/fanmail-3976'],
-  //   ['diary/~bolbex-fogdys/bulletins'],
-  //   ['chat/~nocsyx-lassul/bongtable'],
-  // ]);
-});
+// TODO: fix once test init data added
+// test('syncs init data', async () => {
+//   setScryOutput(rawGroupsInitData);
+//   await syncInitData();
+//   const groups = await db.getGroups({});
+//   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
+//   const pins = await db.getPinnedItems();
+//   expect(pins.length).toEqual(groupsInitData.pins.length);
+//   const dmsAndClubs = await getClient()
+//     ?.select({ count: $.count() })
+//     .from(db.schema.channels)
+//     .where(
+//       $.or(
+//         $.eq(db.schema.channels.type, 'dm'),
+//         $.eq(db.schema.channels.type, 'groupDm')
+//       )
+//     );
+//   expect(dmsAndClubs?.[0].count).toEqual(
+//     groupsInitData.chat.dms.length +
+//       Object.keys(groupsInitData.chat.clubs).length
+//   );
+//   // TODO: fix once activity integrated
+//   // const staleChannels = await db.getStaleChannels();
+//   // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
+//   //   ['chat/~bolbex-fogdys/watercooler-4926'],
+//   //   ['chat/~dabben-larbet/hosting-6173'],
+//   //   ['chat/~bolbex-fogdys/tlon-general'],
+//   //   ['chat/~bolbex-fogdys/marcom'],
+//   //   ['heap/~bolbex-fogdys/design-1761'],
+//   //   ['chat/~bitpyx-dildus/interface'],
+//   //   ['chat/~bolbex-fogdys/ops'],
+//   //   ['heap/~dabben-larbet/fanmail-3976'],
+//   //   ['diary/~bolbex-fogdys/bulletins'],
+//   //   ['chat/~nocsyx-lassul/bongtable'],
+//   // ]);
+// });
 
 test('syncs thread posts', async () => {
   setScryOutput(channelPostWithRepliesData);

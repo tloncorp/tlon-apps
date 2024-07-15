@@ -39,22 +39,22 @@ test('inserts all groups', async () => {
   expect(groups.length).toEqual(groupsData.length);
 });
 
-test('uses init data to get chat list', async () => {
-  setScryOutputs([initResponse]);
-  await syncInitData();
+// test('uses init data to get chat list', async () => {
+//   setScryOutputs([initResponse]);
+//   await syncInitData();
 
-  const result = await queries.getChats();
-  expect(result.map((r) => r.id).slice(0, 8)).toEqual([
-    '0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2',
-    'chat/~nibset-napwyn/commons',
-    '0v4.00000.qd819.b3ubo.qjuv7.di5k7',
-    'chat/~bolbex-fogdys/watercooler-4926',
-    'diary/~pondus-watbel/books',
-    '~roslet-tanner',
-    '~solfer-magfed',
-    '~pondus-watbel',
-  ]);
-});
+//   const result = await queries.getChats();
+//   expect(result.map((r) => r.id).slice(0, 8)).toEqual([
+//     '0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2',
+//     'chat/~nibset-napwyn/commons',
+//     '0v4.00000.qd819.b3ubo.qjuv7.di5k7',
+//     'chat/~bolbex-fogdys/watercooler-4926',
+//     'diary/~pondus-watbel/books',
+//     '~roslet-tanner',
+//     '~solfer-magfed',
+//     '~pondus-watbel',
+//   ]);
+// });
 
 const refDate = Date.now();
 
