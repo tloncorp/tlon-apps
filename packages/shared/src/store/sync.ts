@@ -207,7 +207,10 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
 };
 
-export const syncChannelThreadUnreads = async (channelId: string) => {
+export const syncChannelThreadUnreads = async (
+  channelId: string,
+  priority = SyncPriority.Medium
+) => {
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
     console.warn(
@@ -216,7 +219,9 @@ export const syncChannelThreadUnreads = async (channelId: string) => {
     );
     return;
   }
-  const unreads = await api.getThreadUnreadsByChannel(channel);
+  const unreads = await syncQueue.add('thread unreads', priority, () =>
+    api.getThreadUnreadsByChannel(channel)
+  );
   await db.insertThreadUnreads(unreads);
 };
 
