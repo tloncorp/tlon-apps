@@ -2985,16 +2985,24 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
 
 function conflictUpdateSet(...columns: Column[]) {
   return Object.fromEntries(
-    columns.map((c) => [toCamelCase(c.name), sql.raw(`excluded.${c.name}`)])
+    columns.map((c) => {
+      return [getColumnTsName(c), sql.raw(`excluded.${c.name}`)];
+    })
   );
+}
+
+function getColumnTsName(c: Column) {
+  const name = Object.keys(c.table).find(
+    (k) => c.table[k as keyof typeof c.table] === c
+  );
+  if (!name) {
+    throw new Error('unable to find column name');
+  }
+  return name;
 }
 
 function ascNullsLast(column: SQLWrapper | AnyColumn) {
   return sql`${column} ASC NULLS LAST`;
-}
-
-function toCamelCase(str: string) {
-  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
 function returnNullIfUndefined<T>(input: T | undefined): T | null {
