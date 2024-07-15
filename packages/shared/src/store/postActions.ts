@@ -1,7 +1,10 @@
 import * as api from '../api';
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
 import * as sync from './sync';
+
+const logger = createDevLogger('postActions', false);
 
 export async function sendPost({
   channel,
@@ -58,8 +61,10 @@ export async function editPost({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) {
+  logger.log('editPost', { post, content, parentId, metadata });
   // optimistic update
   await db.updatePost({ id: post.id, content: JSON.stringify(content) });
+  logger.log('editPost optimistic update done');
 
   try {
     await api.editPost({
@@ -71,12 +76,16 @@ export async function editPost({
       metadata,
       parentId,
     });
+    logger.log('editPost api call done');
     sync.syncChannelMessageDelivery({ channelId: post.channelId });
+    logger.log('editPost sync done');
   } catch (e) {
     console.error('Failed to edit post', e);
+    logger.log('editPost failed', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, content: post.content });
+    logger.log('editPost rollback done');
   }
 }
 

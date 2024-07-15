@@ -50,7 +50,7 @@ export function PostScreenView({
   group?: db.Group | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
-  sendReply: (content: urbit.Story, channelId: string) => void;
+  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   markRead: () => void;
   goBack?: () => void;
   groupMembers: db.ChatMember[];
@@ -61,7 +61,7 @@ export function PostScreenView({
   getDraft: () => Promise<urbit.JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => void;
+  editPost: (post: db.Post, content: Story) => Promise<void>;
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
 }) {
