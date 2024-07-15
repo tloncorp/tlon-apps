@@ -13,13 +13,14 @@ export function EmptyChannelNotice({
 }) {
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const [isFirstVisit] = useState(() => channel.lastViewedAt == null);
+  const isWelcomeChannel = !!channel.isDefaultWelcomeChannel;
   const noticeText = useMemo(() => {
-    if (isGroupAdmin && isFirstVisit) {
+    if (isGroupAdmin && isFirstVisit && isWelcomeChannel) {
       return 'This is your group’s default welcome channel. Feel free to rename it or create additional channels.';
     }
 
     return 'There are no messages... yet.';
-  }, [isGroupAdmin, isFirstVisit]);
+  }, [isGroupAdmin, isFirstVisit, isWelcomeChannel]);
 
   return (
     <View alignItems="center" paddingHorizontal="$2xl">
