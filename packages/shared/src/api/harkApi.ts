@@ -1,6 +1,8 @@
 import { getCanonicalPostId } from './apiUtils';
 
-export const getPostIdFromWer = (wer: string): string | null => {
+export const getPostInfoFromWer = (
+  wer: string
+): { id: string; authorId: string } | null => {
   const isDm = getIsDmFromWer(wer);
   const isChannelPost = getIsChannelPostFromWer(wer);
   const parts = wer.split('/');
@@ -10,12 +12,18 @@ export const getPostIdFromWer = (wer: string): string | null => {
     return null;
   }
 
-  if (isDm && parts[3]) {
-    return getCanonicalPostId(parts[3]);
+  if (isDm && parts[5]) {
+    return {
+      id: getCanonicalPostId(parts[5]),
+      authorId: parts[4],
+    };
   }
 
   if (isChannelPost && isGroupChannelReply && parts[9]) {
-    return getCanonicalPostId(parts[9]);
+    return {
+      id: getCanonicalPostId(parts[9]),
+      authorId: '',
+    };
   }
 
   return null;

@@ -49,7 +49,7 @@ export function GenericHeader({
               numberOfLines={1}
               color="$primaryText"
               size="$m"
-              fontWeight="500"
+              fontWeight="$xl"
             >
               {showSpinner ? 'Loading…' : title}
             </SizableText>

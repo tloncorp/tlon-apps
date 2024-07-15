@@ -3,10 +3,10 @@ import { FeatureFlagScreenView } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
 import * as featureFlags from '../lib/featureFlags';
-import type { SettingsStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 
 type FeatureFlagScreenProps = NativeStackScreenProps<
-  SettingsStackParamList,
+  RootStackParamList,
   'FeatureFlags'
 >;
 

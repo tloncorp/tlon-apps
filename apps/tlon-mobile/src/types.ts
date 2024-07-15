@@ -21,7 +21,7 @@ export type WebViewStackParamList = {
 export type RootStackParamList = {
   ChatList: undefined;
   Activity: undefined;
-  Profile: NavigatorScreenParams<SettingsStackParamList>;
+  Profile: undefined;
   Channel: {
     channel: db.Channel;
     selectedPostId?: string | null;
@@ -33,7 +33,11 @@ export type RootStackParamList = {
     channel: db.Channel;
   };
   Post: {
-    post: db.Post;
+    post: {
+      id: string;
+      channelId: string;
+      authorId: string;
+    };
   };
   ImageViewer: {
     post: db.Post;
@@ -42,6 +46,13 @@ export type RootStackParamList = {
   GroupSettings: {
     group: db.Group;
   };
+  AppSettings: undefined;
+  FeatureFlags: undefined;
+  ManageAccount: undefined;
+  BlockedUsers: undefined;
+  AppInfo: undefined;
+  PushNotificationSettings: undefined;
+  EditProfile: undefined;
 };
 
 export type GroupSettingsStackParamList = {

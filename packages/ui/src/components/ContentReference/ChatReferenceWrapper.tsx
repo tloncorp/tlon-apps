@@ -35,16 +35,18 @@ export default function ChatReferenceWrapper({
       <ReferenceSkeleton
         message={error?.message || 'Error loading content'}
         messageType="error"
+        viewMode={viewMode}
       />
     );
   }
 
   if (!post) {
     if (isLoading) {
-      return <ReferenceSkeleton messageType="loading" />;
+      return <ReferenceSkeleton viewMode={viewMode} messageType="loading" />;
     }
     return (
       <ReferenceSkeleton
+        viewMode={viewMode}
         messageType="not-found"
         message="This content could not be found"
       />

@@ -69,7 +69,7 @@ export function ChannelSwitcherSheet({
             <XStack alignItems="center" justifyContent="space-between">
               <SizableText
                 fontSize="$l"
-                fontWeight="500"
+                fontWeight="$xl"
                 color="$primaryText"
                 paddingHorizontal="$l"
               >

@@ -70,6 +70,13 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
+export const useAppInfo = () => {
+  return useQuery({
+    queryKey: db.APP_INFO_QUERY_KEY,
+    queryFn: db.getAppInfoSettings,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
@@ -84,11 +91,26 @@ export const usePushNotificationsSetting = () => {
   });
 };
 
+export const useIsTlonEmployee = () => {
+  return useQuery({
+    queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
+    queryFn: db.getIsTlonEmployee,
+  });
+};
+
 export const useContact = (options: { id: string }) => {
   const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
     queryKey: [['contact', deps]],
     queryFn: () => db.getContact(options),
+  });
+};
+
+export const useBlockedContacts = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBlockedUsers);
+  return useQuery({
+    queryKey: ['blockedContacts', depsKey],
+    queryFn: () => db.getBlockedUsers(),
   });
 };
 

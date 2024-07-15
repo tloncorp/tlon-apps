@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { ContactAvatar } from '../Avatar';
 import ContactName from '../ContactName';
 import ContentRenderer, { PostViewMode } from '../ContentRenderer';
-import { Reference } from './Reference';
+import { REF_AUTHOR_WIDTH, Reference } from './Reference';
 
 export default function ChatReference({
   channel,
@@ -44,6 +44,7 @@ export default function ChatReference({
           <ContactName
             color="$tertiaryText"
             size="$s"
+            maxWidth={REF_AUTHOR_WIDTH}
             userId={post.authorId}
             showNickname
           />

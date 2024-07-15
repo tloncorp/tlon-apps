@@ -45,7 +45,6 @@ export default function ChannelReference({
   }
 
   if (channelType === 'gallery') {
-    // TODO: Implement gallery reference
     return (
       <GalleryReferenceWrapper
         asAttachment={asAttachment}
