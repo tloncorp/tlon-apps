@@ -9,12 +9,12 @@ import { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useCharge } from '@/state/docket';
-import { useLocalState } from '@/state/local';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
-} from '@/state/unreads';
+} from '@/state/activity';
+import { useCharge } from '@/state/docket';
+import { useLocalState } from '@/state/local';
 
 import Avatar from '../Avatar';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';

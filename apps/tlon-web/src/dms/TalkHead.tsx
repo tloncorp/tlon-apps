@@ -3,20 +3,20 @@ import { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { canReadChannel } from '@/logic/channel';
-import { whomIsMultiDm, whomIsNest } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useActivity } from '@/state/activity';
 import { useChannels } from '@/state/channel/channel';
 import { useMultiDms } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import { useMessagesFilter } from '@/state/settings';
-import { useUnreads } from '@/state/unreads';
 
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const channels = useChannels();
   const multiDms = useMultiDms();
   const groups = useGroups();
-  const joinedChannels = Object.entries(unreads).filter(([k, v]) => {
+  const joinedChannels = Object.entries(activity).filter(([k, v]) => {
     const chat = channels[k];
     if (!chat) {
       return false;
@@ -27,7 +27,7 @@ export default function TalkHead() {
     const vessel = group?.fleet[window.our];
     return channel && vessel && canReadChannel(channel, vessel, group.bloc);
   });
-  const dms = Object.entries(unreads).filter(([k, v]) => {
+  const dms = Object.entries(activity).filter(([k, v]) => {
     const isClub = k.startsWith('club/');
     if (!(k.startsWith('ship/') || isClub)) {
       return false;

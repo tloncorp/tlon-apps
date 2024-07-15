@@ -7,12 +7,13 @@ import { useLocation } from 'react-router-dom';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
+import { useStickyUnread } from '@/logic/useStickyUnread';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
+import { useThreadActivity } from '@/state/activity';
 import { usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useUnread } from '@/state/unreads';
 
 import HeapDetailCommentField from './HeapDetailCommentField';
 
@@ -40,7 +41,11 @@ export default function HeapDetailComments({
   const sort = useDiaryCommentSortMode(chFlag ?? '');
   const vessel = useVessel(groupFlag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const unread = useUnread(`thread/${nest}/${parent.id}`);
+  const { activity } = useThreadActivity(
+    { channel: { nest, group: groupFlag } },
+    `thread/${nest}/${parent.id}`
+  );
+  const unread = useStickyUnread(activity);
   const sortedComments =
     comments?.sort(([a], [b]) => {
       if (sort === 'asc') {
