@@ -117,8 +117,8 @@
 ++  from-self  =(our src):bowl
 ++  log
   |=  msg=tape
-  ~?  verbose  "%{(trip dap.bowl)} {msg}"
-  same
+  ?.  verbose  same
+  (slog leaf+"%{(trip dap.bowl)} {msg}" ~)
 ::
 ++  init
   ^+  cor
