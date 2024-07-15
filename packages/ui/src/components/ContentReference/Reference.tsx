@@ -7,6 +7,8 @@ import { PostViewMode } from '../ContentRenderer';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 
+export const REF_AUTHOR_WIDTH = 230;
+
 export type ReferenceProps = {
   onPress: () => void;
 };
@@ -40,6 +42,9 @@ const ReferenceFrame = styled(YStack, {
       },
       block: {
         backgroundColor: '$secondaryBackground',
+        borderWidth: 0,
+        borderRadius: 0,
+        marginBottom: 0,
       },
       note: {
         marginLeft: 0,

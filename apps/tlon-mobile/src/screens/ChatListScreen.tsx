@@ -48,6 +48,9 @@ export default function ChatListScreen(
   const [longPressedGroup, setLongPressedGroup] = useState<db.Group | null>(
     null
   );
+  const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
+    'all'
+  );
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
@@ -239,9 +242,24 @@ export default function ChatListScreen(
 
   const { calmSettings } = useCalmSettings();
 
-  const handleSectionChange = useCallback((title: string) => {
-    setScreenTitle(title);
-  }, []);
+  const handleSectionChange = useCallback(
+    (title: string) => {
+      if (activeTab === 'all') {
+        setScreenTitle(title);
+      }
+    },
+    [activeTab]
+  );
+
+  useEffect(() => {
+    if (activeTab === 'all') {
+      setScreenTitle('Home');
+    } else if (activeTab === 'groups') {
+      setScreenTitle('Groups');
+    } else if (activeTab === 'messages') {
+      setScreenTitle('Messages');
+    }
+  }, [activeTab]);
 
   const [splashVisible, setSplashVisible] = useState(true);
 
@@ -274,6 +292,8 @@ export default function ChatListScreen(
           />
           {chats && chats.unpinned.length ? (
             <ChatList
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
               pinned={resolvedChats.pinned}
               unpinned={resolvedChats.unpinned}
               pendingChats={resolvedChats.pendingChats}

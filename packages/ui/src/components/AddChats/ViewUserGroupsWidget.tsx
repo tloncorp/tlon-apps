@@ -49,7 +49,7 @@ export function ViewUserGroupsWidget({
           <LoadingSpinner />
           <SizableText marginTop="$xl" color="$secondaryText">
             Loading groups hosted by{' '}
-            <ContactName showNickname fontWeight="500" userId={userId} />
+            <ContactName showNickname fontWeight="$xl" userId={userId} />
           </SizableText>
         </YStack>
       ) : isError ? (
@@ -59,7 +59,7 @@ export function ViewUserGroupsWidget({
             <ContactName
               color="$negativeActionText"
               showNickname
-              fontWeight="500"
+              fontWeight="$xl"
               userId={userId}
             />
           </SizableText>
@@ -69,7 +69,7 @@ export function ViewUserGroupsWidget({
           <XStack marginLeft="$m" marginVertical="$xl">
             <SizableText fontSize="$l">
               Groups hosted by{' '}
-              <ContactName showNickname fontWeight="500" userId={userId} />:
+              <ContactName showNickname fontWeight="$xl" userId={userId} />:
             </SizableText>
           </XStack>
           <ScrollView

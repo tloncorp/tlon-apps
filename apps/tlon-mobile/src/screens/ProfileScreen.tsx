@@ -1,55 +1,36 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as api from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
-import * as Application from 'expo-application';
 import { useCallback } from 'react';
-import { Platform } from 'react-native';
 
-import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
-import { clearShipInfo, useShip } from '../contexts/ship';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { purgeDb } from '../lib/nativeDb';
+import { useHandleLogout } from '../hooks/useHandleLogout';
 import NavBar from '../navigation/NavBarView';
-import { SettingsStackParamList } from '../types';
-import { removeHostingToken, removeHostingUserId } from '../utils/hosting';
+import { RootStackParamList } from '../types';
 
-type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
-
-const DEBUG_MESSAGE = `
-  Version: 
-  ${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}
-  
-  Notify Provider: 
-  ${NOTIFY_PROVIDER}
-
-  Notify Service: 
-  ${NOTIFY_SERVICE}
-`;
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 export default function ProfileScreen(props: Props) {
-  const { clearShip } = useShip();
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
+  const handleLogout = useHandleLogout();
 
-  const handleLogout = useCallback(async () => {
-    await purgeDb();
-    api.queryClient.clear();
-    api.removeUrbitClient();
-    clearShip();
-    clearShipInfo();
-    removeHostingToken();
-    removeHostingUserId();
-  }, [clearShip]);
+  const onAppSettingsPressed = useCallback(() => {
+    props.navigation.navigate('AppSettings');
+  }, [props.navigation]);
+
+  const onEditProfilePressed = useCallback(() => {
+    props.navigation.navigate('EditProfile');
+  }, [props.navigation]);
 
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
         contacts={contacts ?? []}
         currentUserId={currentUserId}
-        debugMessage={DEBUG_MESSAGE}
-        onAppSettingsPressed={() => props.navigation.navigate('FeatureFlags')}
-        handleLogout={handleLogout}
+        onAppSettingsPressed={onAppSettingsPressed}
+        onEditProfilePressed={onEditProfilePressed}
+        onLogoutPressed={handleLogout}
       />
       <NavBar navigation={props.navigation} />
     </View>

@@ -36,7 +36,7 @@ export default function ProfileRow({
           <YStack>
             <ContactName
               color={color}
-              fontWeight="500"
+              fontWeight="$xl"
               userId={contactId}
               showNickname
             />
@@ -48,7 +48,7 @@ export default function ProfileRow({
             />
           </YStack>
         ) : (
-          <ContactName color={color} fontWeight="500" userId={contactId} />
+          <ContactName color={color} fontWeight="$xl" userId={contactId} />
         )}
       </View>
     </XStack>

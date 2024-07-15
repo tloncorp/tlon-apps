@@ -43,6 +43,7 @@ export { default as ChevronRight } from './ChevronRight.svg';
 export { default as ChevronUp } from './ChevronUp.svg';
 export { default as Clock } from './Clock.svg';
 export { default as Close } from './Close.svg';
+export { default as Copy } from './Copy.svg';
 export { default as Discover } from './Discover.svg';
 export { default as Dragger } from './Dragger.svg';
 export { default as Draw } from './Draw.svg';

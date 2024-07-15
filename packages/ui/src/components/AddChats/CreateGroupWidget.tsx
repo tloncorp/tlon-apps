@@ -50,7 +50,7 @@ export function CreateGroupWidget(props: {
     <YStack flex={1} gap="$2xl">
       <XStack justifyContent="space-between" alignItems="center">
         <Icon type="ChevronLeft" onPress={() => props.goBack()} />
-        <SizableText fontWeight="500">Start a New Group</SizableText>
+        <SizableText fontWeight="$xl">Start a New Group</SizableText>
         <Icon type="ChevronRight" opacity={0} />
       </XStack>
       <SizableText size="$m">What is your group about?</SizableText>
