@@ -7,10 +7,7 @@ import { Gangs, Groups } from './groups';
 export interface GroupsInit {
   groups: Groups;
   gangs: Gangs;
-  channel: {
-    channels: Channels;
-    ['hidden-posts']: string[];
-  };
+  channel: Channels;
   activity: Activity;
   pins: string[];
   chat: DMInit;
