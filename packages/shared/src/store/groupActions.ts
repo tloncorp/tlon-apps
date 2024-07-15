@@ -34,6 +34,9 @@ export async function createGroup({
 
     if (group && group.channels.length) {
       const channel = group.channels[0];
+
+      await db.updateChannel({ id: channel.id, isDefaultWelcomeChannel: true });
+
       return { group, channel };
     }
 
