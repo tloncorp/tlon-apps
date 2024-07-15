@@ -15,7 +15,7 @@ import {
 } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
-const logger = createDevLogger('activityApi', false);
+const logger = createDevLogger('activityApi', true);
 
 export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
@@ -271,50 +271,43 @@ export type ActivityEvent =
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
-    { app: 'activity', path: '/' },
+    { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
-      logger.log(`raw activity sub event`, update);
-      // a 'read' update corresponds to any change in an activity summary
-      if ('read' in update) {
-        const { source, activity: summary } = update.read;
-        if ('dm' in source) {
-          const channelId = getChannelIdFromSource(source);
-          return handler({
-            type: 'updateChannelUnread',
-            activity: toChannelUnread(channelId, summary, 'dm'),
-          });
-        }
+      // handle unreads
+      if ('activity' in update) {
+        Object.entries(update.activity).forEach((activityEntry) => {
+          const [sourceId, summary] = activityEntry;
+          const source = sourceIdToSource(sourceId);
 
-        if ('channel' in source) {
-          const channelId = getChannelIdFromSource(source);
-          return handler({
-            type: 'updateChannelUnread',
-            activity: toChannelUnread(channelId, summary, 'channel'),
-          });
-        }
-
-        if ('dm-thread' in source || 'thread' in source) {
-          const channelId = getChannelIdFromSource(source);
-          const threadId = getPostIdFromSource(source);
-          return handler({
-            type: 'updateThreadUnread',
-            activity: toThreadUnread(
-              channelId,
-              threadId,
-              summary,
-              'dm-thread' in source ? 'dm' : 'channel'
-            ),
-          });
-        }
-
-        if ('group' in source) {
-          return handler({
-            type: 'updateGroupUnread',
-            unread: toGroupUnread(source.group, summary),
-          });
-        }
+          switch (source.type) {
+            case 'group':
+              handler({
+                type: 'updateGroupUnread',
+                unread: toGroupUnread(source.groupId, summary),
+              });
+              break;
+            case 'channel':
+              handler({
+                type: 'updateChannelUnread',
+                activity: toChannelUnread(source.channelId, summary, 'dm'),
+              });
+              break;
+            case 'thread':
+              handler({
+                type: 'updateThreadUnread',
+                activity: toThreadUnread(
+                  source.channelId,
+                  source.threadId,
+                  summary,
+                  source.channelType
+                ),
+              });
+              break;
+          }
+        });
       }
 
+      // handle volume settings
       if ('adjust' in update) {
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
@@ -369,6 +362,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         });
       }
 
+      // handle push notification settings
       if ('allow-notifications' in update) {
         const notifsAllowed = update['allow-notifications'];
 
@@ -378,11 +372,11 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         });
       }
 
+      // handle new activity events
       if ('add' in update) {
         const id = update.add.time;
         const sourceId = update.add['source-key'];
         const rawEvent = update.add.event;
-        // TODO: parse relevant buckets
 
         const activityEvent = toActivityEvent({
           id,
@@ -412,8 +406,6 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           return handler({ type: 'addActivityEvent', events });
         }
       }
-
-      // TODO: delete
     }
   );
 }
@@ -552,6 +544,73 @@ export function getMessageKey(
 
   Sources can be represented as a string or an object (see urbit/activity.ts for details).
 */
+
+interface ClientGroupSource {
+  type: 'group';
+  groupId: string;
+}
+
+interface ClientChannelSource {
+  type: 'channel';
+  channelId: string;
+}
+
+interface ClientThreadSource {
+  type: 'thread';
+  channelId: string;
+  channelType: db.ChannelUnread['type'];
+  threadId: string;
+}
+
+interface ClientUnknownSource {
+  type: 'unknown'; // for source types we don't care about
+}
+
+export type ClientSource =
+  | ClientGroupSource
+  | ClientChannelSource
+  | ClientThreadSource
+  | ClientUnknownSource;
+
+export function sourceIdToSource(sourceId: string): ClientSource {
+  const parts = sourceId.split('/');
+  const sourceType = parts[0];
+
+  if (sourceType === 'group') {
+    const host = parts[1];
+    const name = parts[2];
+    return { type: 'group', groupId: `${host}/${name}` };
+  }
+
+  if (sourceType === 'channel') {
+    const kind = parts[1];
+    const host = parts[2];
+    const name = parts[3];
+    return { type: 'channel', channelId: `${kind}/${host}/${name}` };
+  }
+
+  if (sourceType === 'thread') {
+    const kind = parts[1];
+    const host = parts[2];
+    const name = parts[3];
+    const threadId = getCanonicalPostId(parts[4]);
+    return {
+      type: 'thread',
+      channelType: 'channel',
+      channelId: `${kind}/${host}/${name}`,
+      threadId,
+    };
+  }
+
+  if (sourceType === 'dm-thread') {
+    const channelId = parts[1];
+    const threadId = getCanonicalPostId(`${parts[2]}/${parts[3]}`);
+    return { type: 'thread', channelType: 'dm', channelId, threadId };
+  }
+
+  return { type: 'unknown' };
+}
+
 export function getThreadSource({
   channel,
   post,
