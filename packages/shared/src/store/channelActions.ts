@@ -1,5 +1,6 @@
 import * as api from '../api';
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import { GroupChannel, getChannelKindFromType } from '../urbit';
 
@@ -112,6 +113,8 @@ export async function updateChannel({
   }
 }
 
+const logger = createDevLogger('channelActions', false);
+
 export async function pinItem(channel: db.Channel) {
   // optimistic update
   const partialPin = logic.getPinPartial(channel);
@@ -137,6 +140,15 @@ export async function unpinItem(pin: db.Pin) {
     // rollback optimistic update
     db.insertPinnedItem(pin);
   }
+}
+
+export async function markChannelVisited(channel: db.Channel) {
+  const now = Date.now();
+  logger.log(
+    `marking channel as visited (${channel.lastViewedAt} -> ${now})`,
+    channel.id
+  );
+  await db.updateChannel({ id: channel.id, lastViewedAt: now });
 }
 
 export async function markChannelRead(channel: db.Channel) {
