@@ -68,6 +68,9 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
         hiddenPostIds: initData.hiddenPostIds,
       }).then(() => reporter?.log('handled hidden posts')),
       db
+        .insertBlockedContacts({ blockedIds: initData.blockedUsers })
+        .then(() => reporter?.log('inserted blocked users')),
+      db
         .insertChannelPerms(initData.channelPerms, ctx)
         .then(() => reporter?.log('inserted channel perms')),
       db

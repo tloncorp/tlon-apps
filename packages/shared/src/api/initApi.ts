@@ -43,8 +43,8 @@ export const getInitData = async () => {
   const hiddenPostIds = toClientHiddenPosts([
     ...hiddenGroupPosts,
     ...hiddenDmPosts,
-  ]); // TODO: write these to DB
-  const blockedUsers = response.chat.blocked ?? []; // TODO: write these to DB
+  ]);
+  const blockedUsers = response.chat.blocked ?? [];
 
   const groups = toClientGroups(response.groups, true);
   const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
