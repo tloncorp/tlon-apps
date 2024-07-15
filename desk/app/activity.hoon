@@ -408,9 +408,10 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  [~ | acc]
+  ?.  ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+    [~ | acc]
   =/  is-mention
-    ?-  -<.event
+    ?+  -<.event  |
       %post  mention.event
       %reply  mention.event
       %dm-post  mention.event
