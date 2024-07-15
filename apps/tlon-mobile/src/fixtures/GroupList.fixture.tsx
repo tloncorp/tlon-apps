@@ -102,6 +102,7 @@ export default {
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
+        showFilters={false}
         pinned={[groupWithLongTitle, groupWithImage].map((g) =>
           makeChannelSummary({ group: g })
         )}
@@ -120,6 +121,7 @@ export default {
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
+        showFilters={false}
         pinned={[dmSummary, groupDmSummary]}
         unpinned={[
           groupWithColorAndNoImage,
@@ -136,6 +138,7 @@ export default {
       <ChatList
         activeTab="all"
         setActiveTab={() => {}}
+        showFilters={false}
         pinned={[]}
         unpinned={[]}
         pendingChats={[]}
