@@ -529,8 +529,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(big-integer@1.6.52)
       '@urbit/http-api':
-        specifier: 3.2.0-dev
-        version: 3.2.0-dev
+        specifier: 3.1.0-dev-3
+        version: 3.1.0-dev-3(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)
       '@urbit/sigil-js':
         specifier: ^2.2.0
         version: 2.2.0
@@ -5480,9 +5480,6 @@ packages:
 
   '@urbit/http-api@3.1.0-dev-3':
     resolution: {integrity: sha512-Gjik6915zPI+gwel+KsEsZck78ghZwqT25FWveESS3USzNhmR/N/kbHB5tNombseLrnyFcvFringjP0nhyvzJA==}
-
-  '@urbit/http-api@3.2.0-dev':
-    resolution: {integrity: sha512-phG35u7Uhlg4ZIRt/7mVum9KuR0j7XrxMnYsRUlRk3XgsXgDDNOgT7tvKeY6+L2PTblUOBqcVqNWNtzAOsy3hQ==}
 
   '@urbit/sigil-js@2.2.0':
     resolution: {integrity: sha512-UNtRJ0K4CAXe+IP4wARNRMjuI5GTF2MNj9FL5l4RSMddCPJqSWSpkrYcREBI4AOB+80AEyN1kK/jtzhlm5WW+w==}
@@ -18141,7 +18138,7 @@ snapshots:
 
   '@types/resolve@1.17.1':
     dependencies:
-      '@types/node': 20.10.8
+      '@types/node': 20.14.10
 
   '@types/scheduler@0.16.2': {}
 
@@ -18394,13 +18391,6 @@ snapshots:
   '@urbit/http-api@3.1.0-dev-3(patch_hash=a4psibisxhh5q6cyjn3nbiaogm)':
     dependencies:
       '@babel/runtime': 7.23.8
-      browser-or-node: 1.3.0
-      core-js: 3.24.1
-
-  '@urbit/http-api@3.2.0-dev':
-    dependencies:
-      '@babel/runtime': 7.23.8
-      '@types/node': 20.14.10
       browser-or-node: 1.3.0
       core-js: 3.24.1
 
@@ -21908,7 +21898,7 @@ snapshots:
 
   jest-worker@26.6.2:
     dependencies:
-      '@types/node': 20.10.8
+      '@types/node': 20.14.10
       merge-stream: 2.0.0
       supports-color: 7.2.0
 
