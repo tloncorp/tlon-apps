@@ -59,7 +59,7 @@ export function assembleNewChannelIdAndName({
 }
 
 export function assembleParentPostFromActivityEvent(event: db.ActivityEvent) {
-  if (!['post', 'reply'].includes(event.type)) {
+  if (!['post', 'reply', 'flag-post', 'flag-reply'].includes(event.type)) {
     console.warn(
       `assembling parent post from activity event that isn't a message`,
       event.id,
@@ -95,7 +95,7 @@ export function assembleParentPostFromActivityEvent(event: db.ActivityEvent) {
 }
 
 export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
-  if (!['post', 'reply'].includes(event.type)) {
+  if (!['post', 'reply', 'flag-post', 'flag-reply'].includes(event.type)) {
     console.warn(
       `assembling post from activity event that isn't a message`,
       event.id,

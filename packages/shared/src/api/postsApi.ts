@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { useCurrentSession } from '../store';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -641,6 +642,38 @@ export async function hidePost(post: db.Post) {
   };
 
   return poke(action);
+}
+
+export async function reportPost(
+  currentUserId: string,
+  groupId: string,
+  channelId: string,
+  post: db.Post
+) {
+  await hidePost(post);
+
+  const action = {
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          'flag-content': {
+            nest: channelId,
+            src: currentUserId,
+            'post-key': {
+              post: post.parentId ? post.parentId : post.id,
+              reply: post.parentId ? post.id : null,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  return await poke(action);
 }
 
 export const getHiddenPosts = async () => {

@@ -356,13 +356,13 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
           (lth latest.src-info start)
-          ?=(?(%post %reply %dm-post %dm-reply) -<.event)
+          ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
       ==
     acc
   =/  mention=(unit activity-bundle:a)
     ?.  |(?=(%all type) ?=(%mentions type))  ~
     =/  is-mention
-      ?-  -<.event
+      ?+  -<.event  |
         %post  mention.event
         %reply  mention.event
         %dm-post  mention.event
@@ -408,9 +408,10 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  [~ | acc]
+  ?.  ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+    [~ | acc]
   =/  is-mention
-    ?-  -<.event
+    ?+  -<.event  |
       %post  mention.event
       %reply  mention.event
       %dm-post  mention.event
@@ -484,6 +485,11 @@
     =.  cor  (add-to-index source time-id event)
     =.  cor  (add-to-index chan-src time-id event(child &))
     (add-to-index group-src time-id event(child &))
+   ::
+      :: %flag-post
+    :: =/  group-src  [%group group.event]
+    :: =.  cor  (add-to-index source time-id event)
+    :: (add-to-index group-src time-id event(child &))
   ==
 ::
 ++  del-source
