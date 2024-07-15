@@ -14,7 +14,7 @@ const ChatMessageInputFixture = () => {
         <MessageInput
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
-          send={() => {}}
+          send={async () => {}}
           channelId="channel-id"
           uploadInfo={{
             imageAttachment: null,
@@ -44,7 +44,7 @@ const NotebookInputFixture = () => {
           channelType="notebook"
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
-          send={() => {}}
+          send={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}

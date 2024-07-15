@@ -21,8 +21,8 @@ export interface DetailViewProps {
   currentUserId?: string;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: urbit.Story) => void;
-  sendReply: (content: urbit.Story, channelId: string) => void;
+  editPost?: (post: db.Post, content: urbit.Story) => Promise<void>;
+  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   groupMembers: db.ChatMember[];
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;

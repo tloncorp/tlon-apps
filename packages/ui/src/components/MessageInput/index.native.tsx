@@ -467,6 +467,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         if (isEdit && editingPost) {
+          if (editingPost.parentId) {
+            await editPost?.(editingPost, story, editingPost.parentId);
+          }
           await editPost?.(editingPost, story);
           setEditingPost?.(undefined);
         } else {

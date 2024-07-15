@@ -916,20 +916,21 @@ export default function ContentRenderer({
           );
         }
       })}
-      {post.type === 'chat' && (
-        <View position="absolute" bottom={0} right={0}>
-          {isEdited ? (
-            <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
-              Edited
-            </Text>
-          ) : null}
-          {deliveryStatus ? (
-            <View flexShrink={1}>
-              <ChatMessageDeliveryStatus status={deliveryStatus} />
-            </View>
-          ) : null}
-        </View>
-      )}
+      {post.type === 'chat' ||
+        (post.type === 'reply' && (
+          <View position="absolute" bottom={0} right={0}>
+            {isEdited ? (
+              <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+                Edited
+              </Text>
+            ) : null}
+            {deliveryStatus ? (
+              <View flexShrink={1}>
+                <ChatMessageDeliveryStatus status={deliveryStatus} />
+              </View>
+            ) : null}
+          </View>
+        ))}
     </YStack>
   );
 }
