@@ -333,9 +333,6 @@ export interface DMInit {
   clubs: Clubs;
   dms: string[];
   invited: string[];
-  ['hidden-messages']: string[];
-  blocked: string[];
-  ['blocked-by']: string[];
 }
 
 export interface DMInit2 {

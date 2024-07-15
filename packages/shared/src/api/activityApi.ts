@@ -51,7 +51,6 @@ export async function getThreadUnreadsByChannel(channel: db.Channel) {
   });
 
   const deserialized = toClientUnreads(activity);
-  console.log(`got thread unreads for channel ${channel.id}`, deserialized);
   return deserialized.threadActivity;
 }
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
