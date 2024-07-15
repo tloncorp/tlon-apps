@@ -1,6 +1,10 @@
 import { Editor } from '@tiptap/core';
 import { MessageKey } from '@tloncorp/shared/dist/urbit';
-import { getThreadKey } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  getChannelSource,
+  getDmSource,
+  getThreadKey,
+} from '@tloncorp/shared/dist/urbit/activity';
 import {
   Reply,
   Story,
@@ -8,7 +12,7 @@ import {
   emptyReply,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
-import { formatUd, unixToDa } from '@urbit/aura';
+import { formatUd } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
@@ -32,7 +36,6 @@ import {
   useChatDialog,
   useChatHovering,
   useChatInfo,
-  useChatStore,
 } from '@/chat/useChatStore';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -41,7 +44,9 @@ import { useMarkChannelRead } from '@/logic/channel';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
+import { useStickyUnread } from '@/logic/useStickyUnread';
 import { useIsDmOrMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
+import { useThreadActivity } from '@/state/activity';
 import {
   useEditReplyMutation,
   useIsEdited,
@@ -52,9 +57,8 @@ import {
   useMarkDmReadMutation,
   useMessageToggler,
   useTrackedMessageStatus,
-  useWrit,
 } from '@/state/chat';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
+import { useRouteGroup } from '@/state/groups';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';
@@ -117,6 +121,7 @@ const ReplyMessage = React.memo<
     ) => {
       // we pass `whom` as a channel flag for chat, nest for diary/heap
       // because we use flags in unreads
+      const groupFlag = useRouteGroup();
       const nest = whomIsNest(whom) ? whom : `chat/${whom}`;
       const [searchParms, setSearchParams] = useSearchParams();
       const isEditing = searchParms.get('editReply') === reply.seal.id;
@@ -134,10 +139,13 @@ const ReplyMessage = React.memo<
         !whomIsFlag(whom) ? parent.id : parent.time
       );
       const chatInfo = useChatInfo(`${whom}/${parent.id}`);
-      const unread = useUnread(threadKey);
+      const source = whomIsFlag(whom)
+        ? getChannelSource(groupFlag, nest)
+        : getDmSource(whom);
+      const { activity } = useThreadActivity(source, threadKey);
+      const unread = useStickyUnread(activity);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-      const isUnread =
-        unread?.status !== 'read' && unread?.lastUnread?.id === msgId;
+      const isUnread = unread.unread && unread.unread.id === msgId;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { markRead: markChannelRead } = useMarkChannelRead(
@@ -158,40 +166,16 @@ const ReplyMessage = React.memo<
 
       useEffect(() => {
         // if no tracked unread we don't need to take any action
-        if (!inView || !unread) {
+        if (!inView || !isUnread) {
           return;
         }
 
-        const unseen = whomIsFlag(whom)
-          ? unread.status === 'unread'
-          : unread.combined.status === 'unread';
-        const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
-
-        /* once the unseen marker comes into view we need to mark it
-             as seen and start a timer to mark it read so it goes away.
-             we ensure that the brief matches and hasn't changed before
-             doing so. we don't want to accidentally clear unreads when
-             the state has changed
-          */
-        if (inView && isUnread && unseen) {
-          markSeen(threadKey);
-          delayedRead(threadKey, () => {
-            if (isDMOrMultiDM) {
-              markDmRead();
-            } else {
-              markChannelRead();
-            }
-          });
+        if (isDMOrMultiDM) {
+          markDmRead();
+        } else {
+          markChannelRead();
         }
-      }, [
-        whom,
-        inView,
-        isUnread,
-        unread,
-        isDMOrMultiDM,
-        markChannelRead,
-        markDmRead,
-      ]);
+      }, [whom, inView, isUnread, isDMOrMultiDM, markChannelRead, markDmRead]);
 
       const msgStatus = useTrackedMessageStatus({
         author: window.our,

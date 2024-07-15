@@ -18,7 +18,7 @@ import {
   ClubAction,
   ClubDelta,
   Clubs,
-  DMInit,
+  DMInit2,
   DMUnreads,
   DmAction,
   HiddenMessages,
@@ -48,7 +48,6 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 
 import api from '@/api';
-import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import {
   LARGE_MESSAGE_FETCH_PAGE_SIZE,
   STANDARD_MESSAGE_FETCH_PAGE_SIZE,
@@ -56,12 +55,11 @@ import {
 import { isNativeApp } from '@/logic/native';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { whomIsDm, whomIsNest } from '@/logic/utils';
+import { whomIsDm } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { unreadsKey, useMarkReadMutation } from '../activity';
+import { useActivity, useMarkReadMutation } from '../activity';
 import { PostStatus, TrackedPost } from '../channel/channel';
-import { useUnread, useUnreads } from '../unreads';
 import ChatKeys from './keys';
 import emptyMultiDm, {
   appendWritToLastPage,
@@ -182,10 +180,13 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
   };
 }
 
-export function initializeChat({ dms, clubs, invited }: DMInit) {
-  queryClient.setQueryData(['dms', 'dms'], () => dms || []);
-  queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
-  queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
+export function initializeChat(init: DMInit2) {
+  queryClient.setQueryData(['dms', 'dms'], () => init.dms);
+  queryClient.setQueryData(['dms', 'multi'], () => init.clubs);
+  queryClient.setQueryData(ChatKeys.pending(), () => init.invited);
+  queryClient.setQueryData(['chat', 'blocked'], () => init.blocked);
+  queryClient.setQueryData(['chat', 'blocked-by'], () => init['blocked-by']);
+  queryClient.setQueryData(['chat', 'hidden'], () => init['hidden-messages']);
 }
 
 interface PageParam {
@@ -775,7 +776,6 @@ export function useDmRsvpMutation() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries(unreadsKey);
       queryClient.invalidateQueries(ChatKeys.pending());
       queryClient.invalidateQueries(['dms', 'dms']);
       queryClient.invalidateQueries(['dms', variables.ship]);
@@ -1225,7 +1225,7 @@ export const infiniteDMsQueryFn =
   };
 
 export function useInfiniteDMs(whom: string, initialTime?: string) {
-  const unread = useUnread(getKey(whom));
+  const { activity } = useActivity();
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
@@ -1244,7 +1244,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
   );
 
   useEffect(() => {
-    if (unread) {
+    if (getKey(whom) in activity) {
       api.subscribe({
         app: 'chat',
         path: `/${type}/${whom}`,
@@ -1260,7 +1260,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
         },
       });
     }
-  }, [whom, type, isDM, queryKey, unread, invalidate]);
+  }, [whom, type, isDM, queryKey, activity, invalidate]);
 
   const { data, ...rest } = useInfiniteQuery<PagedWrits>({
     queryKey,
@@ -1314,12 +1314,12 @@ export function useTrackedMessageStatus(cacheId: CacheId) {
 }
 
 export function useCheckDmUnread() {
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   return useCallback(
     (whom: string) => {
-      return unreads[whom]?.combined.status === 'unread';
+      return activity[getKey(whom)]?.count > 0;
     },
-    [unreads]
+    [activity]
   );
 }
 
@@ -1613,7 +1613,7 @@ export function useDeleteDMReplyReactMutation() {
 }
 
 export function useMultiDmIsPending(id: string): boolean {
-  const unread = useUnread(getKey(id));
+  const { activity } = useActivity();
   const chat = useMultiDm(id);
 
   const isPending = chat && chat.hive.includes(window.our);
@@ -1623,7 +1623,7 @@ export function useMultiDmIsPending(id: string): boolean {
     return true;
   }
 
-  return !unread && !inTeam;
+  return !(getKey(id) in activity) && !inTeam;
 }
 
 export function useBlockedShips() {

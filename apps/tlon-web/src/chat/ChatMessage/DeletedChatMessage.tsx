@@ -1,7 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import { getKey } from '@tloncorp/shared/dist/urbit/activity';
 import { daToUnix } from '@urbit/api';
-import { formatUd } from '@urbit/aura';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import { format } from 'date-fns';
@@ -10,7 +9,8 @@ import { useInView } from 'react-intersection-observer';
 
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import { useMarkChannelRead } from '@/logic/channel';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
+import { useStickyUnread } from '@/logic/useStickyUnread';
+import { useSourceActivity } from '@/state/activity';
 
 export interface DeletedChatMessageProps {
   whom: string;
@@ -52,9 +52,11 @@ const DeletedChatMessage = React.memo<
       const container = useRef<HTMLDivElement>(null);
       const unix = new Date(daToUnix(time));
       const unreadsKey = getKey(whom);
-      const unread = useUnread(unreadsKey);
+      const { activity } = useSourceActivity(unreadsKey);
+      const summary = useStickyUnread(activity);
+      const { unread } = summary;
       const isUnread = useMemo(
-        () => unread && unread.lastUnread?.time === time.toString(),
+        () => unread && unread.time === time.toString(),
         [unread, time]
       );
       const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
@@ -64,23 +66,12 @@ const DeletedChatMessage = React.memo<
       });
 
       useEffect(() => {
-        if (!inView || !unread) {
+        if (!inView || !isUnread) {
           return;
         }
 
-        const unseen = unread.status === 'unread';
-        const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
-        /* once the unseen marker comes into view we need to mark it
-            as seen and start a timer to mark it read so it goes away.
-            we ensure that the brief matches and hasn't changed before
-            doing so. we don't want to accidentally clear unreads when
-            the state has changed
-        */
-        if (inView && isUnread && unseen) {
-          markSeen(unreadsKey);
-          delayedRead(unreadsKey, markReadChannel);
-        }
-      }, [inView, unread, unreadsKey, isUnread, markReadChannel]);
+        markReadChannel();
+      }, [inView, isUnread, markReadChannel]);
 
       return (
         <div

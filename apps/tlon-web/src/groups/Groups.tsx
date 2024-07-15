@@ -10,6 +10,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { getFlagParts } from '@/logic/utils';
+import { useActivity } from '@/state/activity';
 import {
   useGang,
   useGroup,
@@ -20,7 +21,6 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
-import { useUnreads } from '@/state/unreads';
 
 function Groups() {
   const navigate = useNavigate();
@@ -31,7 +31,7 @@ function Groups() {
   const { privacy } = useGroupPrivacy(flag);
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const newGroupFlags = useNewGroupFlags();
@@ -92,7 +92,7 @@ function Groups() {
         return;
       }
 
-      const allUnreads = _.mapKeys(unreads, (k, v) => k);
+      const allUnreads = _.mapKeys(activity, (k, v) => k);
       const channel = Object.entries(group.channels).find(
         ([nest]) => `channel/${nest}` in allUnreads
       );
@@ -106,7 +106,7 @@ function Groups() {
     }
   }, [
     root,
-    unreads,
+    activity,
     gang,
     group,
     vessel,
