@@ -24,10 +24,12 @@ type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
+      console.log(`bl: callback running?`);
       if (props.route.params.channel.group?.isNew) {
         store.markGroupVisited(props.route.params.channel.group);
       }
-    }, [props.route.params.channel.group])
+      store.syncChannelThreadUnreads(props.route.params.channel.id);
+    }, [props.route.params.channel])
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);

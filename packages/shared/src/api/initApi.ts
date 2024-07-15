@@ -25,12 +25,21 @@ export interface InitData {
 export const getInitData = async () => {
   const response = await scry<ub.GroupsInit>({
     app: 'groups-ui',
-    path: '/v2/init',
+    path: '/v4/init',
   });
 
   const pins = toClientPinnedItems(response.pins);
   const channelReaders = extractChannelReaders(response.groups);
-  const channelsInit = toClientChannelsInit(response.channels, channelReaders);
+  const channelsInit = toClientChannelsInit(
+    response.channel.channels,
+    channelReaders
+  );
+
+  const hiddenGroupPosts = response.channel['hidden-posts'] ?? [];
+  const hiddenDmPosts = response.chat['hidden-messages'] ?? [];
+  const hiddenPostIds = [...hiddenGroupPosts, ...hiddenDmPosts]; // TODO: write these to DB
+  const blockedUsers = response.chat.blocked ?? []; // TODO: write these to DB
+
   const groups = toClientGroups(response.groups, true);
   const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
   const dmChannels = toClientDms(response.chat.dms);

@@ -5,20 +5,55 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
-import { formatUd, getCanonicalPostId, udToDate } from './apiUtils';
+import {
+  formatUd,
+  getCanonicalPostId,
+  getChannelIdType,
+  parseGroupChannelId,
+  parseGroupId,
+  udToDate,
+} from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
-export async function getUnreads() {
+export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/v1/activity',
+    path: '/v4/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
 }
 
+export async function getThreadUnreadsByChannel(channel: db.Channel) {
+  let scryPath = '';
+  if (getChannelIdType(channel.id) === 'channel' && channel.groupId) {
+    const groupParts = parseGroupId(channel.groupId);
+    const channelParts = parseGroupChannelId(channel.id);
+    const pathParts = [
+      'v4',
+      'activity',
+      'threads',
+      groupParts.host,
+      groupParts.name,
+      channelParts.kind,
+      channelParts.host,
+      channelParts.name,
+    ].join('/');
+    scryPath = `/${pathParts}/`;
+  } else {
+    scryPath = `/v4/activity/dm-threads/${channel.id}/`;
+  }
+  const activity = await scry<ub.Activity>({
+    app: 'activity',
+    path: scryPath,
+  });
+
+  const deserialized = toClientUnreads(activity);
+  console.log(`got thread unreads for channel ${channel.id}`, deserialized);
+  return deserialized.threadActivity;
+}
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   const settings = await scry<ub.VolumeSettings>({
     app: 'activity',

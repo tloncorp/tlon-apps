@@ -194,10 +194,23 @@ export const syncDms = async (priority = SyncPriority.Medium) => {
 
 export const syncUnreads = async (priority = SyncPriority.Medium) => {
   const unreads = await syncQueue.add('unreads', priority, () =>
-    api.getUnreads()
+    api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
+};
+
+export const syncChannelThreadUnreads = async (channelId: string) => {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    console.warn(
+      'cannot get thread unreads for non-existent channel',
+      channelId
+    );
+    return;
+  }
+  const unreads = await api.getThreadUnreadsByChannel(channel);
+  await db.insertThreadUnreads(unreads);
 };
 
 export async function syncPostReference(options: {
