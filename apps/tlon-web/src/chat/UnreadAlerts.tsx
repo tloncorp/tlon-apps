@@ -8,8 +8,8 @@ import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
 import { useMarkChannelRead } from '@/logic/channel';
 import { pluralize, whomIsFlag } from '@/logic/utils';
+import { useSourceActivity } from '@/state/activity';
 import { useMarkDmReadMutation } from '@/state/chat';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 interface UnreadAlertsProps {
   whom: string;
@@ -17,7 +17,7 @@ interface UnreadAlertsProps {
 }
 
 export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
-  const unread = useUnread(getKey(whom));
+  const { activity } = useSourceActivity(getKey(whom));
   const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
   const { markDmRead } = useMarkDmReadMutation(whom);
   const markRead = useCallback(() => {
@@ -26,19 +26,15 @@ export default function UnreadAlerts({ whom, root }: UnreadAlertsProps) {
     } else {
       markDmRead();
     }
-    useUnreadsStore.getState().read(getKey(whom));
   }, [whom, markReadChannel, markDmRead]);
 
-  if (!unread || unread.status !== 'unread') {
+  const { unread } = activity;
+  if (!unread || unread.count === 0) {
     return null;
   }
 
-  if (unread.count === 0 || !unread.lastUnread) {
-    return null;
-  }
-
-  const to = `${root}?msg=${unread.lastUnread.time}`;
-  const date = new Date(daToUnix(bigInt(unread.lastUnread.time)));
+  const to = `${root}?msg=${unread.time}`;
+  const date = new Date(daToUnix(bigInt(unread.time)));
 
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`

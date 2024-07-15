@@ -62,12 +62,10 @@ import {
   createDevLogger,
   nestToFlag,
   stringToTa,
-  whomIsFlag,
 } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { unreadsKey } from '../activity';
-import { useUnreads } from '../unreads';
+import { useActivity } from '../activity';
 import { channelKey, infinitePostsKey, postKey } from './keys';
 import shouldAddPostToCache from './util';
 
@@ -1345,9 +1343,9 @@ export function useReply(
 
 export function useIsJoined(nest: Nest) {
   checkNest(nest);
-  const unreads = useUnreads();
+  const { activity } = useActivity();
 
-  return Object.keys(unreads).includes(`channel/${nest}`);
+  return Object.keys(activity).includes(`channel/${nest}`);
 }
 
 export function useChats(): Channels {
@@ -1463,7 +1461,6 @@ export function useLeaveMutation() {
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
       await queryClient.cancelQueries(channelKey());
-      await queryClient.cancelQueries(unreadsKey);
       await queryClient.cancelQueries([han, 'perms', flag]);
       await queryClient.cancelQueries([han, 'posts', flag]);
       queryClient.removeQueries([han, 'perms', flag]);
@@ -1471,7 +1468,6 @@ export function useLeaveMutation() {
     },
     onSettled: async (_data, _error) => {
       await queryClient.invalidateQueries(channelKey());
-      await queryClient.invalidateQueries(unreadsKey);
     },
   });
 }

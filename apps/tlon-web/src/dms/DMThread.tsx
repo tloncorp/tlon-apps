@@ -37,13 +37,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  useMarkDmReadMutation,
-  useMultiDm,
-  useSendReplyMutation,
-  useWrit,
-} from '@/state/chat';
-import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
+import { useMultiDm, useSendReplyMutation, useWrit } from '@/state/chat';
 
 export default function DMThread() {
   const { ship, idTime, idShip } = useParams<{
@@ -72,8 +66,6 @@ export default function DMThread() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
-  const unreadsKey = getThreadKey(whom, id);
-  const readTimeout = useUnread(unreadsKey)?.readTimeout;
   const msgKey: MessageKey = useMemo(
     () => ({
       id,
@@ -81,8 +73,6 @@ export default function DMThread() {
     }),
     [id, time]
   );
-  const { markDmRead } = useMarkDmReadMutation(whom, msgKey);
-  const path = location.pathname;
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -127,25 +117,10 @@ export default function DMThread() {
 
   const onAtBottom = useCallback(() => {
     const { bottom } = useChatStore.getState();
-    const { delayedRead } = useUnreadsStore.getState();
     bottom(true);
-    delayedRead(unreadsKey, markDmRead);
-  }, [unreadsKey, markDmRead]);
+  }, []);
 
   useEventListener('keydown', onEscape, threadRef);
-
-  // read the messages once navigated away
-  useEffect(() => {
-    return () => {
-      const winPath = window.location.pathname.replace('/apps/groups', '');
-      if (winPath !== path && readTimeout) {
-        unreadStoreLogger.log(winPath, path);
-        unreadStoreLogger.log('marking read from dismount', unreadsKey);
-        useUnreadsStore.getState().read(unreadsKey);
-        markDmRead();
-      }
-    };
-  }, [path, readTimeout, unreadsKey, markDmRead]);
 
   if (!writ || isLoading) return null;
 

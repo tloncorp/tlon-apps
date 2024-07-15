@@ -2,6 +2,7 @@
 /$  init-1      %ui-init-1            %json
 /$  init-2      %ui-init-2            %json
 /$  init-3      %ui-init-3            %json
+/$  init-4      %ui-init-4            %json
 /$  heads       %ui-heads             %json
 /$  pins        %ui-pins              %json
 /$  groups      %groups               %json
@@ -41,6 +42,9 @@
 /$  act-feed    %activity-feed        %json
 /$  act-fe-it   %activity-feed-init   %json
 /$  full-info-1   %activity-full-1      %json
+/$  full-info-4   %activity-full-4      %json
 /$  act-update-1  %activity-update-1    %json
+/$  act-update-4  %activity-update-4    %json
 /$  act-sum-1     %activity-summary-1   %json
+/$  act-sum-4     %activity-summary-4   %json
 ~

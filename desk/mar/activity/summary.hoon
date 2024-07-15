@@ -1,14 +1,14 @@
 /-  a=activity
 /+  aj=activity-json
-|_  =activity-0:old:a
+|_  =activity:v2:old:a
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  activity-0
-  ++  json  (activity-0:enjs:aj activity-0)
+  ++  noun  activity
+  ++  json  (activity:v2:enjs:aj activity)
   --
 ++  grab
   |%
-  ++  noun  activity-0:old:a
+  ++  noun  activity:v2:old:a
   --
 --
