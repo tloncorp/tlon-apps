@@ -120,9 +120,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
 
       // clear the attachments immediately so consumers know the upload state is
       // no longer needed
-      setTimeout(() => {
-        uploadInfo.resetImageAttachment();
-      }, 20);
+      uploadInfo.resetImageAttachment();
 
       await store.sendPost({
         channel: channel,

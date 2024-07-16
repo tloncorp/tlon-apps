@@ -492,7 +492,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setReferences({});
         clearDraft();
         setShowBigInput?.(false);
-        uploadInfo?.resetImageAttachment();
       },
       [
         editor,
