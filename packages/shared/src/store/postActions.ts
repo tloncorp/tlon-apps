@@ -1,4 +1,5 @@
 import * as api from '../api';
+import { toPostContent } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
@@ -63,7 +64,8 @@ export async function editPost({
 }) {
   logger.log('editPost', { post, content, parentId, metadata });
   // optimistic update
-  await db.updatePost({ id: post.id, content: JSON.stringify(content) });
+  const [contentForDb, flags] = toPostContent(content);
+  await db.updatePost({ id: post.id, content: contentForDb, ...flags });
   logger.log('editPost optimistic update done');
 
   try {

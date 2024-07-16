@@ -3,7 +3,6 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { useCurrentSession } from '../store';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -151,6 +150,7 @@ export const sendPost = async ({
   content: Story;
   metadata?: db.PostMetadata;
 }) => {
+  logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
 
   if (channelType === 'dm' || channelType === 'groupDm') {
@@ -1007,6 +1007,31 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
     return { type: 'reference', referenceType: 'app', userId, appId };
   }
   return null;
+}
+
+export function contentReferenceToCite(reference: ContentReference): ub.Cite {
+  if (reference.referenceType === 'channel') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: `/msg/${reference.postId}${
+          reference.replyId ? '/' + reference.replyId : ''
+        }`,
+      },
+    };
+  } else if (reference.referenceType === 'group') {
+    return {
+      group: reference.groupId,
+    };
+  } else if (reference.referenceType === 'app') {
+    return {
+      desk: {
+        flag: `${reference.userId}/${reference.appId}`,
+        where: '',
+      },
+    };
+  }
+  throw new Error('invalid reference');
 }
 
 function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
