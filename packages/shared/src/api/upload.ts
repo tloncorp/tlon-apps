@@ -20,70 +20,6 @@ export interface FileStoreFile {
   size: [number, number];
 }
 
-export interface StorageUpdateCredentials {
-  credentials: StorageCredentials;
-}
-
-export interface StorageUpdateConfiguration {
-  configuration: {
-    buckets: Set<string>;
-    currentBucket: string;
-    region: string;
-    publicUrlBase: string;
-    presignedUrl: string;
-    service: StorageService;
-  };
-}
-
-export interface StorageUpdateCurrentBucket {
-  setCurrentBucket: string;
-}
-
-export interface StorageUpdateAddBucket {
-  addBucket: string;
-}
-
-export interface StorageUpdateRemoveBucket {
-  removeBucket: string;
-}
-
-export interface StorageUpdateEndpoint {
-  setEndpoint: string;
-}
-
-export interface StorageUpdateAccessKeyId {
-  setAccessKeyId: string;
-}
-
-export interface StorageUpdateSecretAccessKey {
-  setSecretAccessKey: string;
-}
-
-export interface StorageUpdateRegion {
-  setRegion: string;
-}
-
-export interface StorageUpdateToggleService {
-  toggleService: string;
-}
-
-export interface StorageUpdateSetPresignedUrl {
-  setPresignedUrl: string;
-}
-
-export declare type StorageUpdate =
-  | StorageUpdateCredentials
-  | StorageUpdateConfiguration
-  | StorageUpdateCurrentBucket
-  | StorageUpdateAddBucket
-  | StorageUpdateRemoveBucket
-  | StorageUpdateEndpoint
-  | StorageUpdateAccessKeyId
-  | StorageUpdateSecretAccessKey
-  | StorageUpdateRegion
-  | StorageUpdateToggleService
-  | StorageUpdateSetPresignedUrl;
-
 export type Status = 'initial' | 'idle' | 'loading' | 'success' | 'error';
 
 export interface Upload extends FileStoreFile {
@@ -168,7 +104,7 @@ export interface FileStore {
 export type StorageService = 'presigned-url' | 'credentials';
 
 export interface StorageConfiguration {
-  buckets: Set<string>;
+  buckets: string[];
   currentBucket: string;
   region: string;
   publicUrlBase: string;

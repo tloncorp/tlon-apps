@@ -1,4 +1,5 @@
 import { PostType } from '@tloncorp/shared/dist/db';
+import { ContentReference } from 'packages/shared/dist/api';
 import { ComponentProps, useContext } from 'react';
 import { Dimensions } from 'react-native';
 import {
@@ -11,11 +12,14 @@ import {
 
 import { View, XStack, YStack } from '../../core';
 import { PostViewMode } from '../ContentRenderer';
-import { Icon } from '../Icon';
+import { Icon, IconType } from '../Icon';
 
 export const REF_AUTHOR_WIDTH = 230;
 
-export type ReferenceProps = ComponentProps<typeof ReferenceComponent>;
+export type ReferenceProps = ComponentProps<typeof ReferenceComponent> & {
+  actionIcon?: IconType | null;
+  openOnPress?: boolean;
+};
 
 export const ReferenceContext = createStyledContext<{
   /**
@@ -26,9 +30,11 @@ export const ReferenceContext = createStyledContext<{
    * Mode for actually rendering the content
    */
   renderMode?: PostType;
+  actionIcon?: IconType;
 }>({
   viewMode: 'chat',
   renderMode: 'chat',
+  actionIcon: 'ArrowRef',
 });
 
 export const useReferenceContext = () => {
@@ -38,7 +44,7 @@ export const useReferenceContext = () => {
 const ReferenceFrame = styled(YStack, {
   context: ReferenceContext,
   name: 'ReferenceFrame',
-  borderRadius: '$s',
+  borderRadius: '$m',
   padding: 0,
   borderColor: '$border',
   marginBottom: '$s',
@@ -154,36 +160,20 @@ const ReferenceTitleText = styled(SizableText, {
   color: '$tertiaryText',
 });
 
-const ReferenceLinkIcon = styled(
-  Icon,
-  {
-    name: `ReferenceLinkIcon`,
-    context: ReferenceContext,
-    color: '$tertiaryText',
-    size: '$m',
-    variants: {
-      viewMode: {
-        attachment: {
-          display: 'none',
-        },
-        block: {
-          display: 'none',
-        },
-        chat: {
-          display: 'flex',
-        },
-        note: {
-          display: 'flex',
-        },
-      },
-    } as const,
-  },
-  {
-    accept: {
-      color: 'color',
-    },
-  }
-);
+const ReferenceActionIcon = ({
+  type,
+  ...props
+}: { type?: IconType } & Omit<ComponentProps<typeof Icon>, 'type'>) => {
+  const { actionIcon } = useReferenceContext();
+  return actionIcon ? (
+    <Icon
+      color="$tertiaryText"
+      size="$m"
+      {...props}
+      type={type ?? 'ArrowRef'}
+    />
+  ) : null;
+};
 
 const ReferenceBody = styled(View, {
   context: ReferenceContext,
@@ -208,7 +198,7 @@ export const Reference = withStaticProperties(ReferenceComponent, {
   TitleIcon: ReferenceTitleIcon,
   TitleText: ReferenceTitleText,
   Body: ReferenceBody,
-  LinkIcon: ReferenceLinkIcon,
+  ActionIcon: ReferenceActionIcon,
 });
 
 export function ReferenceSkeleton({

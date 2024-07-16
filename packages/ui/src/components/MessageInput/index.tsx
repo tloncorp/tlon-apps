@@ -8,14 +8,12 @@ export function MessageInput({
   setShouldBlur,
   send,
   channelId,
-  uploadInfo,
   groupMembers,
 }: MessageInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <MessageInputContainer
-      uploadInfo={uploadInfo}
       containerHeight={0}
       groupMembers={groupMembers}
       onSelectMention={() => {}}

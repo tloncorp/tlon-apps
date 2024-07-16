@@ -5,9 +5,9 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
-import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
@@ -20,7 +20,7 @@ import {
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
-import { ReferencesProvider } from '../../contexts/references';
+import { Attachment, MessageInputProvider } from '../../contexts/messageInput';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import { SizableText, View, YStack } from '../../core';
@@ -41,7 +41,6 @@ import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from './Scroller';
-import UploadedImagePreview from './UploadedImagePreview';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -66,7 +65,6 @@ export function Channel({
   messageSender,
   onScrollEndReached,
   onScrollStartReached,
-  uploadInfo,
   isLoadingPosts,
   markRead,
   onPressRef,
@@ -83,9 +81,11 @@ export function Channel({
   editPost,
   onPressRetry,
   onPressDelete,
+  uploadAsset,
   negotiationMatch,
   hasNewerPosts,
   hasOlderPosts,
+  initialAttachments,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -102,7 +102,7 @@ export function Channel({
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => Promise<void>;
-  uploadInfo: UploadInfo;
+  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -121,6 +121,7 @@ export function Channel({
   editPost: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
+  initialAttachments?: Attachment[];
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
@@ -182,7 +183,6 @@ export function Channel({
 
   const bigInputGoBack = () => {
     setShowBigInput(false);
-    uploadInfo.resetImageAttachment();
   };
 
   const { bottom } = useSafeAreaInsets();
@@ -209,7 +209,10 @@ export function Channel({
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
                 >
-                  <ReferencesProvider>
+                  <MessageInputProvider
+                    initialAttachments={initialAttachments}
+                    uploadAsset={uploadAsset}
+                  >
                     <View
                       paddingBottom={isChatChannel ? bottom : 'unset'}
                       backgroundColor="$background"
@@ -267,18 +270,8 @@ export function Channel({
                                     editPost={editPost}
                                     setShowBigInput={setShowBigInput}
                                     placeholder=""
-                                    uploadInfo={uploadInfo}
                                   />
                                 </View>
-                              ) : uploadInfo.imageAttachment &&
-                                channel.type !== 'notebook' ? (
-                                <UploadedImagePreview
-                                  imageAttachment={uploadInfo.imageAttachment}
-                                  uploading={uploadInfo.uploading}
-                                  resetImageAttachment={
-                                    uploadInfo.resetImageAttachment
-                                  }
-                                />
                               ) : (
                                 <View flex={1} width="100%">
                                   {channel && posts && (
@@ -323,20 +316,13 @@ export function Channel({
                             {negotiationMatch &&
                               !channel.isDmInvite &&
                               !editingPost &&
-                              (isChatChannel ||
-                                (channel.type === 'gallery' &&
-                                  uploadInfo?.imageAttachment)) &&
+                              (isChatChannel || channel.type === 'gallery') &&
                               canWrite && (
                                 <MessageInput
                                   shouldBlur={inputShouldBlur}
                                   setShouldBlur={setInputShouldBlur}
                                   send={messageSender}
                                   channelId={channel.id}
-                                  uploadInfo={
-                                    channel.type === 'notebook'
-                                      ? undefined
-                                      : uploadInfo
-                                  }
                                   groupMembers={group?.members ?? []}
                                   storeDraft={storeDraft}
                                   clearDraft={clearDraft}
@@ -358,9 +344,8 @@ export function Channel({
                                 width="100%"
                                 alignItems="center"
                               >
-                                {(channel.type === 'gallery' &&
-                                  showAddGalleryPost) ||
-                                uploadInfo.imageAttachment ? null : (
+                                {channel.type === 'gallery' &&
+                                showAddGalleryPost ? null : (
                                   <FloatingActionButton
                                     onPress={() =>
                                       channel.type === 'gallery'
@@ -396,7 +381,6 @@ export function Channel({
                                 showAddGalleryPost={showAddGalleryPost}
                                 setShowAddGalleryPost={setShowAddGalleryPost}
                                 setShowGalleryInput={setShowBigInput}
-                                setImage={uploadInfo.setAttachments}
                               />
                             )}
                           </YStack>
@@ -418,7 +402,7 @@ export function Channel({
                         />
                       </YStack>
                     </View>
-                  </ReferencesProvider>
+                  </MessageInputProvider>
                 </NavigationProvider>
               </RequestsProvider>
             </ChannelProvider>

@@ -1,5 +1,6 @@
-import { MessageAttachments, UploadInfo } from '@tloncorp/shared/dist/api';
+import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -21,7 +22,7 @@ interface GroupMetaScreenViewProps {
   currentUserIsAdmin: boolean;
   setGroupMetadata: (metadata: db.ClientMeta) => void;
   goBack: () => void;
-  uploadInfo: UploadInfo;
+  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
 }
 
 export function SaveButton({ onPress }: { onPress: () => void }) {
@@ -37,7 +38,7 @@ export function GroupMetaScreenView({
   setGroupMetadata,
   deleteGroup,
   goBack,
-  uploadInfo,
+  uploadAsset,
 }: GroupMetaScreenViewProps) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
@@ -90,7 +91,6 @@ export function GroupMetaScreenView({
           <YStack gap="$2xl" padding="$xl" alignItems="center" flex={1}>
             <EditablePofileImages
               group={group}
-              uploadInfo={uploadInfo}
               onSetCoverUrl={(url) => setValue('coverImage', url)}
               onSetIconUrl={(url) => setValue('iconImage', url)}
             />
@@ -120,9 +120,7 @@ export function GroupMetaScreenView({
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={(attachments: MessageAttachments) => {
-          uploadInfo.setAttachments(attachments);
-        }}
+        setImage={(attachments: MessageAttachments) => {}}
       />
       <DeleteSheet
         title={group.title ?? 'This Group'}

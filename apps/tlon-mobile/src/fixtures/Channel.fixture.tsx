@@ -1,15 +1,14 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   useChannel,
   useGroupPreview,
-  usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
-import { Channel, ChannelSwitcherSheet, View } from '@tloncorp/ui';
-import { useEffect, useMemo, useState } from 'react';
+import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useMemo, useState } from 'react';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -22,6 +21,26 @@ import {
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
+
+const usePost = ({ id }: { id: string }) => {
+  return useQuery({
+    queryFn: () => posts.find((p) => p.id === id) ?? null,
+    queryKey: ['post', id],
+  });
+};
+
+const usePostReference = ({
+  postId,
+  channelId,
+}: {
+  postId: string;
+  channelId: string;
+}) => {
+  return useQuery({
+    queryFn: () => posts.find((p) => p.id === postId) ?? null,
+    queryKey: ['post', postId],
+  });
+};
 
 const fakeMostRecentFile: Upload = {
   key: 'key',
@@ -49,24 +68,13 @@ const fakeLoadingMostRecentFile: Upload = {
   size: [100, 100],
 };
 
-const defaultUploadInfo = {
-  imageAttachment: null,
-  resetImageAttachment: () => {},
-  setAttachments: () => {},
-  canUpload: true,
-  uploading: false,
-};
-
 const ChannelFixtureWrapper = ({
   children,
   theme,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
-  const { bottom } = useSafeAreaInsets();
   return (
     <FixtureWrapper fillWidth fillHeight theme={theme}>
-      <View paddingBottom={bottom} backgroundColor="$background" flex={1}>
-        {children}
-      </View>
+      {children}
     </FixtureWrapper>
   );
 };
@@ -100,7 +108,7 @@ export const ChannelFixture = (props: {
         messageSender={async () => {}}
         markRead={() => {}}
         editPost={async () => {}}
-        uploadInfo={defaultUploadInfo}
+        uploadAsset={async () => {}}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         usePostReference={usePostReference}
@@ -143,7 +151,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
-        uploadInfo={defaultUploadInfo}
+        uploadAsset={async () => {}}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
         usePostReference={usePostReference}
@@ -201,15 +209,21 @@ const ChannelFixtureWithImage = () => {
         editPost={async () => {}}
         negotiationMatch={true}
         isLoadingPosts={false}
-        uploadInfo={{
-          imageAttachment: imageAttachment,
-          resetImageAttachment: resetImageAttachment,
-          setAttachments: fakeSetImageAttachment,
-          canUpload: true,
-          uploading: false,
-        }}
+        uploadAsset={async () => {}}
+        initialAttachments={[
+          {
+            type: 'reference',
+            path: '/1/chan/~nibset-napwyn/intros/msg/~solfer-magfed-3mct56',
+            reference: {
+              type: 'reference',
+              referenceType: 'channel',
+              channelId: posts[0].channelId,
+              postId: posts[0].id,
+            },
+          },
+        ]}
         onPressRef={() => {}}
-        usePost={usePostWithRelations}
+        usePost={usePost}
         usePostReference={usePostReference}
         useChannel={useChannel}
         getDraft={async () => ({})}

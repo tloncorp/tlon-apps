@@ -65,7 +65,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     navigateToRef,
     navigateToSearch,
     calmSettings,
-    uploadInfo,
     currentUserId,
     performGroupAction,
     headerMode,
@@ -132,10 +131,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         throw new Error('Tried to send message before channel loaded');
       }
 
-      // clear the attachments immediately so consumers know the upload state is
-      // no longer needed
-      uploadInfo.resetImageAttachment();
-
       await store.sendPost({
         channel: channel,
         authorId: currentUserId,
@@ -143,7 +138,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         metadata,
       });
     },
-    [currentUserId, channel, uploadInfo]
+    [currentUserId, channel]
   );
 
   const handleDeletePost = useCallback(
@@ -221,7 +216,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={navigateToSearch}
         goToDm={handleGoToDm}
-        uploadInfo={uploadInfo}
+        uploadAsset={store.uploadAsset}
         onScrollEndReached={loadOlder}
         onScrollStartReached={loadNewer}
         onPressRef={navigateToRef}

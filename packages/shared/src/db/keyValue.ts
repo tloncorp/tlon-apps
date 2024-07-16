@@ -1,9 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { queryClient } from '../api';
+import {
+  StorageConfiguration,
+  StorageCredentials,
+  StorageService,
+  queryClient,
+} from '../api';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
-import * as db from './types';
 
 const logger = createDevLogger('keyValueStore', true);
 
@@ -75,6 +79,88 @@ export async function setIsTlonEmployee(isTlonEmployee: boolean) {
 export async function getIsTlonEmployee() {
   const isTlonEmployee = await AsyncStorage.getItem('isTlonEmployee');
   return isTlonEmployee === 'true' ? true : false;
+}
+
+const STORAGE_CONFIGURATION_KEY = 'storageConfiguration';
+
+export async function setStorageConfiguration(
+  configuration: StorageConfiguration
+) {
+  logger.log('set storage configuration', configuration);
+  return AsyncStorage.setItem(
+    STORAGE_CONFIGURATION_KEY,
+    JSON.stringify(configuration)
+  );
+}
+
+export async function updateStorageConfiguration(
+  update: Partial<StorageConfiguration>
+) {
+  const current = await getStorageConfiguration();
+  if (!current) {
+    return;
+  }
+  return setStorageConfiguration({ ...current, ...update });
+}
+
+export async function getStorageConfiguration(): Promise<StorageConfiguration | null> {
+  const configuration = await AsyncStorage.getItem(STORAGE_CONFIGURATION_KEY);
+  return configuration ? JSON.parse(configuration) : null;
+}
+
+export async function addStorageBucket(bucket: string) {
+  const current = await getStorageConfiguration();
+  if (!current) {
+    return;
+  }
+  if (current.buckets.includes(bucket)) {
+    return;
+  }
+  current.buckets.push(bucket);
+  return setStorageConfiguration(current);
+}
+
+export async function removeStorageBucket(bucket: string) {
+  const current = await getStorageConfiguration();
+  if (!current) {
+    return;
+  }
+  current.buckets = current.buckets.filter((b) => b !== bucket);
+  return setStorageConfiguration(current);
+}
+
+export async function toggleStorageService(service: StorageService) {
+  const current = await getStorageConfiguration();
+  if (!current) {
+    return;
+  }
+  return setStorageConfiguration({ ...current, service });
+}
+
+const STORAGE_CREDENTIALS_KEY = 'storageCredentials';
+
+export async function setStorageCredentials(credentials: StorageCredentials) {
+  logger.log('setStorageCredentials', credentials);
+  return AsyncStorage.setItem(
+    STORAGE_CREDENTIALS_KEY,
+    JSON.stringify(credentials)
+  );
+}
+
+export async function getStorageCredentials(): Promise<StorageCredentials | null> {
+  const credentials = await AsyncStorage.getItem(STORAGE_CREDENTIALS_KEY);
+  return credentials ? JSON.parse(credentials) : null;
+}
+
+export async function updateStorageCredentials(
+  update: Partial<StorageCredentials>
+) {
+  logger.log('updateStorageCredentials', update);
+  const current = await getStorageCredentials();
+  if (!current) {
+    return;
+  }
+  return setStorageCredentials({ ...current, ...update });
 }
 
 export type AppInfo = {

@@ -12,7 +12,6 @@ import {
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
 import { updateSession } from './session';
-import { useStorage } from './storage';
 import { SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -277,9 +276,14 @@ export async function syncGroup(id: string, priority = SyncPriority.High) {
 }
 
 export const syncStorageSettings = (priority = SyncPriority.Medium) => {
-  return syncQueue.add('initialize storage', priority, () => {
-    return useStorage.getState().start();
-  });
+  return Promise.all([
+    syncQueue
+      .add('storageSettings', priority, () => api.getStorageConfiguration())
+      .then((config) => db.setStorageConfiguration(config)),
+    syncQueue
+      .add('storageCredentials', priority, () => api.getStorageCredentials())
+      .then((creds) => db.setStorageCredentials(creds)),
+  ]);
 };
 
 export const persistUnreads = async ({
@@ -604,6 +608,69 @@ export const handleContactUpdate = async (update: api.ContactsUpdate) => {
     case 'delete':
       await db.deleteContact(update.contactId);
       break;
+  }
+};
+
+export const handleStorageUpdate = async (update: api.StorageUpdate) => {
+  console.log('storage update', update);
+  switch (update.type) {
+    case 'storageCredentialsChanged': {
+      await db.setStorageCredentials(update.credentials);
+      break;
+    }
+    case 'storageCongfigurationChanged': {
+      await db.setStorageConfiguration(update.configuration);
+      break;
+    }
+    case 'storageAccessKeyIdChanged': {
+      await db.updateStorageCredentials({
+        accessKeyId: update.setAccessKeyId,
+      });
+      break;
+    }
+    case 'storageSecretAccessKeyChanged': {
+      await db.updateStorageCredentials({
+        secretAccessKey: update.setSecretAccessKey,
+      });
+      break;
+    }
+    case 'storageRegionChanged': {
+      await db.updateStorageConfiguration({
+        region: update.setRegion,
+      });
+      break;
+    }
+    case 'storageServiceToggled': {
+      // TODO: is this right???
+      await db.toggleStorageService(update.toggleService);
+      break;
+    }
+    case 'storagePresignedUrlChanged': {
+      await db.updateStorageConfiguration({
+        presignedUrl: update.setPresignedUrl,
+      });
+      break;
+    }
+    case 'storageCurrentBucketChanged': {
+      await db.updateStorageConfiguration({
+        currentBucket: update.setCurrentBucket,
+      });
+      break;
+    }
+    case 'storageBucketAdded': {
+      await db.addStorageBucket(update.addBucket);
+      break;
+    }
+    case 'storageBucketRemoved': {
+      await db.removeStorageBucket(update.removeBucket);
+      break;
+    }
+    case 'storageEndpointChanged': {
+      await db.updateStorageCredentials({
+        endpoint: update.setEndpoint,
+      });
+      break;
+    }
   }
 };
 
@@ -966,5 +1033,6 @@ export const setupSubscriptions = async () => {
     api.subscribeToChannelsUpdates(handleChannelsUpdate),
     api.subscribeToChatUpdates(handleChatUpdate),
     api.subscribeToContactUpdates(handleContactUpdate),
+    api.subscribeToStorageUpdates(handleStorageUpdate),
   ]);
 };

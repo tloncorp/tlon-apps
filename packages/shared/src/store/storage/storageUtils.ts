@@ -1,5 +1,4 @@
 import { preSig } from '@urbit/api';
-import { deSig, formatDa, unixToDa } from '@urbit/aura';
 
 import * as api from '../../api';
 import {
@@ -15,7 +14,7 @@ import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
-const fetchImageFromUri = async (
+export const fetchImageFromUri = async (
   uri: string,
   height: number,
   width: number
