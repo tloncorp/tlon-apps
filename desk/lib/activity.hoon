@@ -19,17 +19,18 @@
       ==
     ==
   ::
-  ++  get-children
+  ++  get-children  ::  direct children only
     |=  [=indices:a =source:a]
     ^-  (list source:a)
+    ?:  ?=(?(%thread %dm-thread) -.source)  ~
     %+  skim
       ~(tap in ~(key by indices))
     |=  src=source:a
-    ?+  -.source  |
-        %base  ?!(?=(%base -.src))
-        %group  &(?=(%channel -.src) =(flag.source group.src))
+    ?-  -.source
+        %base     ?=(?(%group %dm) -.src)
+        %group    &(?=(%channel -.src) =(flag.source group.src))
         %channel  &(?=(%thread -.src) =(nest.source channel.src))
-        %dm  &(?=(%dm-thread -.src) =(whom.source whom.src))
+        %dm       &(?=(%dm-thread -.src) =(whom.source whom.src))
     ==
   ::
   ++  get-order
