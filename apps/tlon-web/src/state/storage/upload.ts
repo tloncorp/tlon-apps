@@ -165,8 +165,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
         // Second, hit memex with the secret to obtain an upload
         const uploadParams = {
           token,
-          contentLength: file.size,
-          contentType: file.type,
+          contentLength: compressedFile.size,
+          contentType: compressedFile.type,
           fileName: key,
         };
 
