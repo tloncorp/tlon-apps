@@ -27,3 +27,4 @@ export * from './ui';
 export * from './volume';
 export * from './utils';
 export * from './settings';
+export * from './storage';

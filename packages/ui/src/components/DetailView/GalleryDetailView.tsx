@@ -16,7 +16,6 @@ export default function GalleryDetailView({
   groupMembers,
   posts,
   onPressImage,
-  uploadInfo,
   storeDraft,
   clearDraft,
   getDraft,
@@ -65,7 +64,6 @@ export default function GalleryDetailView({
       groupMembers={groupMembers}
       posts={posts}
       onPressImage={onPressImage}
-      uploadInfo={uploadInfo}
       storeDraft={storeDraft}
       clearDraft={clearDraft}
       getDraft={getDraft}

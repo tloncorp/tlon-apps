@@ -21,7 +21,7 @@ interface Props {
   contact?: db.Contact;
   group?: db.Group;
   iconProps?: AvatarProps;
-  uploadInfo: api.UploadInfo;
+  uploadInfo?: api.UploadInfo;
   onSetCoverUrl: (url: string) => void;
   onSetIconUrl: (url: string) => void;
 }
@@ -39,6 +39,7 @@ export function EditablePofileImages(props: Props) {
 
   useEffect(() => {
     if (
+      props.uploadInfo &&
       props.uploadInfo.imageAttachment &&
       props.uploadInfo.uploadedImage &&
       !props.uploadInfo.uploading &&
@@ -60,22 +61,22 @@ export function EditablePofileImages(props: Props) {
   }, [props.uploadInfo, attachingTo, props]);
 
   const coverIsUploading = useMemo(() => {
-    return props.uploadInfo.uploading && attachingTo === 'cover';
-  }, [attachingTo, props.uploadInfo.uploading]);
+    return props.uploadInfo?.uploading && attachingTo === 'cover';
+  }, [attachingTo, props.uploadInfo?.uploading]);
 
   const iconIsUploading = useMemo(() => {
-    return props.uploadInfo.uploading && attachingTo === 'icon';
-  }, [attachingTo, props.uploadInfo.uploading]);
+    return props.uploadInfo?.uploading && attachingTo === 'icon';
+  }, [attachingTo, props.uploadInfo?.uploading]);
 
   const handleCoverPress = useCallback(() => {
-    if (props.uploadInfo.canUpload) {
+    if (props.uploadInfo?.canUpload) {
       setShowAttachmentSheet(true);
       setAttachingTo('cover');
     }
   }, [props.uploadInfo]);
 
   const handleIconPress = useCallback(() => {
-    if (props.uploadInfo.canUpload) {
+    if (props.uploadInfo?.canUpload) {
       setShowAttachmentSheet(true);
       setAttachingTo('icon');
     }
@@ -89,7 +90,7 @@ export function EditablePofileImages(props: Props) {
           style={{ width: '100%', height: '100%' }}
           activeOpacity={0.85}
           onPress={handleCoverPress}
-          disabled={!props.uploadInfo.canUpload}
+          disabled={!props.uploadInfo?.canUpload}
         >
           <ImageBackground
             source={{ uri: coverUrl }}
@@ -117,7 +118,7 @@ export function EditablePofileImages(props: Props) {
               position="absolute"
               bottom="$l"
               right="$l"
-              opacity={!props.uploadInfo.canUpload ? 0 : 1}
+              opacity={!props.uploadInfo?.canUpload ? 0 : 1}
               loading={coverIsUploading}
             />
           </ImageBackground>
@@ -133,7 +134,7 @@ export function EditablePofileImages(props: Props) {
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleIconPress}
-            disabled={!props.uploadInfo.canUpload}
+            disabled={!props.uploadInfo?.canUpload}
           >
             {props.contact && (
               <ContactAvatar
@@ -154,7 +155,7 @@ export function EditablePofileImages(props: Props) {
               position="absolute"
               bottom="$s"
               right="$s"
-              opacity={!props.uploadInfo.canUpload ? 0 : 1}
+              opacity={!props.uploadInfo?.canUpload ? 0 : 1}
               loading={iconIsUploading}
             />
           </TouchableOpacity>
@@ -165,7 +166,7 @@ export function EditablePofileImages(props: Props) {
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
         setImage={(attachments: api.MessageAttachments) => {
-          props.uploadInfo.setAttachments(attachments);
+          props.uploadInfo?.setAttachments(attachments);
         }}
       />
     </View>

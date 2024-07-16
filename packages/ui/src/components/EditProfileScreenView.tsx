@@ -1,5 +1,6 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
@@ -12,9 +13,9 @@ import { SaveButton } from './GroupMetaScreenView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 
 interface Props {
-  uploadInfo: api.UploadInfo;
   onGoBack: () => void;
   onSaveProfile: (update: api.ProfileUpdate) => void;
+  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -52,7 +53,6 @@ export function EditProfileScreenView(props: Props) {
           >
             <EditablePofileImages
               contact={userContact ?? db.getFallbackContact(currentUserId)}
-              uploadInfo={props.uploadInfo}
               onSetCoverUrl={(url) => setValue('coverImage', url)}
               onSetIconUrl={(url) => setValue('avatarImage', url)}
             />

@@ -26,7 +26,6 @@ export default function PostScreen(props: PostScreenProps) {
     editPost,
     navigateToImage,
     calmSettings,
-    uploadInfo,
     headerMode,
   } = useChannelContext({
     channelId: postParam.channelId,
@@ -66,9 +65,8 @@ export default function PostScreen(props: PostScreenProps) {
         parentId: post!.id,
         parentAuthor: post!.authorId,
       });
-      uploadInfo.resetImageAttachment();
     },
-    [channel, currentUserId, post, uploadInfo]
+    [channel, currentUserId, post]
   );
 
   return currentUserId && channel && post ? (
@@ -82,7 +80,7 @@ export default function PostScreen(props: PostScreenProps) {
       goBack={props.navigation.goBack}
       sendReply={sendReply}
       groupMembers={group?.members ?? []}
-      uploadInfo={uploadInfo}
+      uploadAsset={store.uploadAsset}
       handleGoToImage={navigateToImage}
       getDraft={getDraft}
       storeDraft={storeDraft}

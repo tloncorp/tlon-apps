@@ -8,10 +8,8 @@ import { Attachment } from '../../assets/icons';
 import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
-  uploadInfo,
   setShouldBlur,
 }: {
-  uploadInfo: UploadInfo;
   setShouldBlur: (shouldBlur: boolean) => void;
 }) {
   return (

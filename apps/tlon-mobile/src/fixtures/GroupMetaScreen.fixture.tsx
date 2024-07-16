@@ -12,13 +12,7 @@ const GroupMetaScreenFixture = () => {
         deleteGroup={() => console.log('deleteGroup')}
         goBack={() => console.log('goBack')}
         setGroupMetadata={() => console.log('setGroupMetadata')}
-        uploadInfo={{
-          imageAttachment: null,
-          setAttachments: () => console.log('setAttachments'),
-          resetImageAttachment: () => console.log('resetImageAttachment'),
-          canUpload: true,
-          uploading: false,
-        }}
+        uploadAsset={async () => {}}
       />
     </FixtureWrapper>
   );

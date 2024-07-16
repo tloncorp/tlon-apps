@@ -1,6 +1,6 @@
-import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import { useState } from 'react';
 
+import { useMessageInputContext } from '../contexts/messageInput';
 import { ActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
@@ -8,13 +8,12 @@ export default function AddGalleryPost({
   showAddGalleryPost,
   setShowAddGalleryPost,
   setShowGalleryInput,
-  setImage,
 }: {
   showAddGalleryPost: boolean;
   setShowAddGalleryPost: (show: boolean) => void;
   setShowGalleryInput: (show: boolean) => void;
-  setImage: (attchments: MessageAttachments) => void;
 }) {
+  const { attachAssets } = useMessageInputContext();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
 
   const actions = [
@@ -49,7 +48,7 @@ export default function AddGalleryPost({
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={setImage}
+        setImage={attachAssets}
       />
     </>
   );
