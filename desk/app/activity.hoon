@@ -416,9 +416,6 @@
       (~(put by out) source (~(got by activity) source))
     ``activity-summary-4+!>(threads)
   ::
-      [%x %v4 %activity %base ~]
-    ``activity-source-summary-4+!>((~(got by activity) [%base ~]))
-  ::
       [%x any %volume-settings ~]
     ``activity-settings+!>(volume-settings)
   ::
