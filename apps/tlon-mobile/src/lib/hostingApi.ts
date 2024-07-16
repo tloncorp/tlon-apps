@@ -1,3 +1,4 @@
+import * as logic from '@tloncorp/shared/dist/logic';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
 
@@ -295,3 +296,22 @@ export const inviteShipWithLure = async (params: {
       'Content-Type': 'application/json',
     },
   });
+
+export const checkIfAccountDeleted = async (): Promise<boolean> => {
+  const hostingUserId = await getHostingUserId();
+  if (hostingUserId) {
+    try {
+      const user = await logic.withRetry(() => getHostingUser(hostingUserId), {
+        startingDelay: 500,
+        numOfAttempts: 5,
+      });
+      if (!user.verified) {
+        return true;
+      }
+    } catch (err) {
+      return true;
+    }
+  }
+
+  return false;
+};
