@@ -748,6 +748,8 @@
     ++  on-post
       |=  v-post:c
       ^+  ca-core
+      ?.  .^(? %gu (scry-path %activity /$))
+        ca-core
       ?:  =(author our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
@@ -758,6 +760,8 @@
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
       ^+  ca-core
+      ?.  .^(? %gu (scry-path %activity /$))
+        ca-core
       =/  parent-key=message-key  [[author id]:parent id.parent]
       ?:  =(author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
