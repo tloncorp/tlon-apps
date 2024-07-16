@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import tmp from 'tmp';
-import { MockedFunction } from 'vitest';
+import { MockedFunction, beforeAll, beforeEach } from 'vitest';
 
 import { scry } from '../api/urbit';
 import { setClient } from '../db';
@@ -30,6 +30,19 @@ export function resetDb() {
   setClient(client);
   migrate(client as unknown as BetterSQLite3Database, {
     migrationsFolder: __dirname + '/../db/migrations',
+  });
+}
+
+/**
+ * Sets up a test database before any test is run, then resets the database before each test.
+ */
+export function setupDatabaseTestSuite() {
+  beforeAll(() => {
+    setupDb();
+  });
+
+  beforeEach(async () => {
+    resetDb();
   });
 }
 

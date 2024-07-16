@@ -1,7 +1,7 @@
 import * as $ from 'drizzle-orm';
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 
-import { toClientGroup, toPagedPostsData } from '../api';
+import { toClientGroup } from '../api';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
@@ -12,10 +12,9 @@ import rawGroupsData from '../test/groups.json';
 import rawGroupsInitData from '../test/groupsInit.json';
 import {
   getClient,
-  resetDb,
   setScryOutput,
   setScryOutputs,
-  setupDb,
+  setupDatabaseTestSuite,
 } from '../test/helpers';
 import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
@@ -36,13 +35,7 @@ const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
 
-beforeAll(() => {
-  setupDb();
-});
-
-beforeEach(async () => {
-  resetDb();
-});
+setupDatabaseTestSuite();
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
