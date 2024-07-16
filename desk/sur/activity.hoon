@@ -41,10 +41,9 @@
 ::
 ::  $read-action: mark activity read
 ::
-::    $item: mark an individual activity as read, indexed by id
-::    $event: mark an individual activity as read, indexed by the event itself
-::    $all: mark _everything_ as read for this source, but not children
-::    $recursive: mark _everything_ as read for this source and children
+::    $item: (DEPRECATED) mark an individual activity as read, indexed by id
+::    $event: (DEPRECATED) mark an individual activity as read, indexed by the event itself
+::    $all: mark _everything_ as read for this source, and possibly children
 ::
 +$  read-action
   $%  [%item id=time-id]
