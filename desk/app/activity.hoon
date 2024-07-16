@@ -39,7 +39,7 @@
 ::
 ::
 /-  a=activity, c=channels, ch=chat, g=groups
-/+  *activity, ch-utils=channel-utils, v=volume
+/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json
 /+  default-agent, verb, dbug
 ::
 =/  verbose  |
@@ -48,7 +48,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %4
+    $:  %5
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -134,11 +134,38 @@
     (emit %pass /clean-keys %agent [our.bowl dap.bowl] %poke noun+!>(%clean-keys))
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  ?>  ?=(%4 -.old)
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+  ?>  ?=(%5 -.old)
   =.  state  old
   sync-reads
-  +$  versioned-state  $%(state-4 state-3 state-2 state-1)
-  +$  state-4  current-state
+  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1)
+  +$  state-5  current-state
+  +$  state-4
+    $:  %4
+        allowed=notifications-allowed:a
+        =indices:a
+        =activity:a
+        =volume-settings:a
+    ==
+  ++  state-4-to-5
+    |=  old=state-4
+    ^-  state-5
+    :*  %5
+        allowed.old
+        indices.old
+        activity.old
+        volume-settings.old
+    ==
+  ++  indices-4-to-5
+    |=  =indices:a
+    ^-  indices:a
+    %+  ~(jab by indices)  [%base ~]
+    |=  =index:a
+    =.  stream.index
+      %+  run:on-event:a  stream.index
+      |=  =event:a
+      event(child &)
+    index
   +$  state-3
     $:  %3
         allowed=notifications-allowed:a
@@ -596,7 +623,7 @@
       =.  cor  (add-to-index chan-src time-id event(child &))
       (add-to-index group-src time-id event(child &))
     ==
-  =.  cor  (add-to-index [%base ~] time-id event)
+  =.  cor  (add-to-index [%base ~] time-id event(child &))
   =?  cor  !importing
     =/  new-activity=activity:a
       %+  roll
@@ -799,36 +826,34 @@
     =/  children  (get-children:src indices source)
     %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
     (stream-to-unreads source index(stream unread-stream) children top)
+  ?:  ?=(%base -.source)  ~
   %+  gas:on-event:a  *stream:a
   %+  murn
     (tap:on-event:a (lot:on-event:a stream.index `floor.reads.index ~))
   |=  [=time =event:a]
-  ?:  (has:on-read-items:a items.reads.index time)  ~
   ?:  child.event  ~
+  ?:  (has:on-read-items:a items.reads.index time)  ~
   `[time event]
 ++  stream-to-unreads
   |=  [=source:a =index:a children=(list source:a) top=time]
   ^-  activity-summary:a
-  =/  child-map
+  =/  cs=activity-summary:a
     %+  roll
       children
-    |=  [=source:a acc=(map source:a activity-summary:a)]
+    |=  [=source:a sum=activity-summary:a]
     =/  =index:a  (~(gut by indices) source *index:a)
-    %+  ~(put by acc)  source
-    ?~  as=(~(get by activity) source)
-      =>  (summarize-unreads source index)
-      .(children ~)
-    u.as(children ~)
-  %-  (log |.("child map: {<child-map>}"))
-  =/  cs=activity-summary:a
-    %-  ~(rep by child-map)
-    |=  [[=source:a as=activity-summary:a] sum=activity-summary:a]
+    =/  as=activity-summary:a
+      ?~  summary=(~(get by activity) source)
+        =>  (summarize-unreads source index)
+        .(children ~)
+      u.summary(children ~)
     %=  sum
       count  (add count.sum count.as)
       notify  |(notify.sum notify.as)
       newest  (max newest.as newest.sum)
       notify-count  (add notify-count.sum notify-count.as)
     ==
+  %-  (log |.("children summary: {<cs>}"))
   =/  newest=time  :(max newest.cs floor.reads.index bump.index top)
   =/  total
     ::  if we're a channel, we only want thread notify counts, not totals
@@ -852,7 +877,7 @@
         notify-count
         notified
         ?~(last ~ `[u.last main main-notified])
-        ?:(?=(%base -.source) ~ ~(key by child-map))
+        ?:(?=(%base -.source) ~ (sy children))
         reads.index
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
