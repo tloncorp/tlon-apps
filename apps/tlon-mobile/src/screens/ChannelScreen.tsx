@@ -31,9 +31,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
   );
   useFocusEffect(
     useCallback(
-      () => () => {
-        store.markChannelVisited(props.route.params.channel);
-      },
+      () =>
+        // Mark the channel as visited when we unfocus/leave this screen
+        () => {
+          store.markChannelVisited(props.route.params.channel);
+        },
       [props.route.params.channel]
     )
   );
