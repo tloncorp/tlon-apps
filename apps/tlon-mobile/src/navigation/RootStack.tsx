@@ -75,7 +75,11 @@ export function RootStack() {
       />
 
       <Root.Screen name="AppSettings" component={AppSettingsScreen} />
-      <Root.Screen name="ManageAccount" component={ManageAccountScreen} />
+      <Root.Screen
+        name="ManageAccount"
+        component={ManageAccountScreen}
+        options={{ gestureEnabled: false }}
+      />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       <Root.Screen name="AppInfo" component={AppInfoScreen} />
       <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
