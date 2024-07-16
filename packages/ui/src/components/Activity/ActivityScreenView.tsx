@@ -54,6 +54,7 @@ export function ActivityScreenView({
   const handlePressEvent = useCallback(
     async (event: db.ActivityEvent) => {
       switch (event.type) {
+        case 'flag-post':
         case 'post':
           if (event.channel) {
             goToChannel(event.channel);
@@ -66,6 +67,7 @@ export function ActivityScreenView({
             console.warn('No channel found for post', event);
           }
           break;
+        case 'flag-reply':
         case 'reply':
           if (event.parent) {
             goToThread(event.parent);
@@ -163,7 +165,12 @@ function ActivityEventRaw({
   const event = sourceActivity.newest;
   const handlePress = useCallback(() => onPress(event), [event, onPress]);
 
-  if (event.type === 'post' || event.type === 'reply') {
+  if (
+    event.type === 'post' ||
+    event.type === 'reply' ||
+    event.type === 'flag-post' ||
+    event.type === 'flag-reply'
+  ) {
     return (
       <View onPress={handlePress}>
         <ChannelActivitySummary

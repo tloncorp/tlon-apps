@@ -116,9 +116,9 @@
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  from-self  =(our src):bowl
 ++  log
-  |=  msg=tape
+  |=  msg=(trap tape)
   ?.  verbose  same
-  (slog leaf+"%{(trip dap.bowl)} {msg}" ~)
+  (slog leaf+"%{(trip dap.bowl)} {(msg)}" ~)
 ::
 ++  init
   ^+  cor
@@ -427,13 +427,13 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
           (lth latest.src-info start)
-          ?=(?(%post %reply %dm-post %dm-reply) -<.event)
+          ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
       ==
     acc
   =/  mention=(unit activity-bundle:a)
     ?.  |(?=(%all type) ?=(%mentions type))  ~
     =/  is-mention
-      ?-  -<.event
+      ?+  -<.event  |
         %post  mention.event
         %reply  mention.event
         %dm-post  mention.event
@@ -479,9 +479,10 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=(?(%post %reply %dm-post %dm-reply) -<.event)  [~ | acc]
+  ?.  ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+    [~ | acc]
   =/  is-mention
-    ?-  -<.event
+    ?+  -<.event  |
       %post  mention.event
       %reply  mention.event
       %dm-post  mention.event
@@ -516,7 +517,7 @@
         ==
       ==
   ^+  cor
-  %-  (log "{<[update dist]>}")
+  %-  (log |.("{<[update dist]>}"))
   =?  cor  ?!(?=(%activity -.update))
     =?  dist  ?=(%read -.update)  [%both /unreads]
     =/  v0-paths
@@ -602,7 +603,7 @@
         (snoc (get-parents:src source) source)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    %-  (log "sending activity: {<new-activity>}")
+    %-  (log |.("sending activity: {<new-activity>}"))
     (give-update [%activity new-activity] [%hose ~])
   cor
 ::
@@ -622,10 +623,10 @@
   (refresh-index source index(stream new) |)
 ++  refresh-index
   |=  [=source:a new=index:a new-floor=?]
-  %-  (log "refeshing index: {<source>}")
+  %-  (log |.("refeshing index: {<source>}"))
   =?  new  new-floor
     (update-reads:idx new)
-  %-  (log "new reads: {<reads.new>}")
+  %-  (log |.("new reads: {<reads.new>}"))
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -667,7 +668,7 @@
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
     (~(put by out) source (~(gut by activity) source *activity-summary:a))
-  %-  (log "sending activity: {<new-activity>}")
+  %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
   |=  [=source:a action=read-action:a from-parent=?]
@@ -783,7 +784,7 @@
 ++  summarize-unreads
   |=  [=source:a =index:a]
   ^-  activity-summary:a
-  %-  (log "summarizing unreads for: {<source>}")
+  %-  (log |.("summarizing unreads for: {<source>}"))
   =/  top=time  -:(fall (ram:on-event:a stream.index) [*@da ~])
   ::  for each item in reads
   ::  omit:
@@ -796,7 +797,7 @@
   ::        and segment replies for unread threads tracking
   =;  unread-stream=stream:a
     =/  children  (get-children:src indices source)
-    %-  (log "children: {<?:(?=(%base -.source) 'all' children)>}")
+    %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
     (stream-to-unreads source index(stream unread-stream) children top)
   %+  gas:on-event:a  *stream:a
   %+  murn
@@ -818,7 +819,7 @@
       =>  (summarize-unreads source index)
       .(children ~)
     u.as(children ~)
-  %-  (log "child map: {<child-map>}")
+  %-  (log |.("child map: {<child-map>}"))
   =/  cs=activity-summary:a
     %-  ~(rep by child-map)
     |=  [[=source:a as=activity-summary:a] sum=activity-summary:a]

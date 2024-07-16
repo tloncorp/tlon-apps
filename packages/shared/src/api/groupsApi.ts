@@ -957,7 +957,7 @@ export const toGroupUpdate = (
       type: 'flagGroupPost',
       groupId,
       channelId: updateDiff['flag-content'].nest,
-      postId: updateDiff['flag-content']['post-key'].reply
+      postId: updateDiff['flag-content']['post-key']?.reply
         ? updateDiff['flag-content']['post-key'].reply
         : updateDiff['flag-content']['post-key'].post,
       flaggingUser: updateDiff['flag-content'].src,

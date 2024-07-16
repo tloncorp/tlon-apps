@@ -8,6 +8,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  Button,
   CalmProvider,
   ChatList,
   ChatOptionsSheet,
@@ -15,6 +16,7 @@ import {
   FloatingActionButton,
   GroupPreviewSheet,
   Icon,
+  IconButton,
   ScreenHeader,
   StartDmSheet,
   View,
@@ -38,6 +40,14 @@ type ChatListScreenProps = NativeStackScreenProps<
   'ChatList'
 >;
 
+const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
+  return (
+    <Button borderWidth={0} onPress={onPress}>
+      <Icon type="Filter" size="$m" />
+    </Button>
+  );
+};
+
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
 ) {
@@ -54,6 +64,7 @@ export default function ChatListScreen(
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
@@ -289,6 +300,11 @@ export default function ChatListScreen(
                 ? 'Loading…'
                 : screenTitle
             }
+            rightControls={
+              <ShowFiltersButton
+                onPress={() => setShowFilters((prev) => !prev)}
+              />
+            }
           />
           {chats && chats.unpinned.length ? (
             <ChatList
@@ -300,6 +316,7 @@ export default function ChatListScreen(
               onLongPressItem={onLongPressItem}
               onPressItem={onPressChat}
               onSectionChange={handleSectionChange}
+              showFilters={showFilters}
             />
           ) : null}
           <View

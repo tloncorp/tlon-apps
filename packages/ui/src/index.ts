@@ -58,3 +58,4 @@ export * from './tamagui.config';
 export * from './contexts';
 export * from './components/Input';
 export * from './types';
+export * from './components/ContentRenderer';

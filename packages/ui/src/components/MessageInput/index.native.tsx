@@ -467,6 +467,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         if (isEdit && editingPost) {
+          if (editingPost.parentId) {
+            await editPost?.(editingPost, story, editingPost.parentId);
+          }
           await editPost?.(editingPost, story);
           setEditingPost?.(undefined);
         } else {
@@ -479,7 +482,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             metadata['image'] = image.url;
           }
 
-          await send(story, channelId, metadata);
+          // not awaiting since we don't want to wait for the send to complete
+          // before clearing the draft and the editor content
+          send(story, channelId, metadata);
         }
 
         editor.setContent('');

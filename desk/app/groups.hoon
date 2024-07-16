@@ -827,8 +827,8 @@
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
-            [%flag-post key=message-key =nest:c group=flag:g]
-            [%flag-reply key=message-key parent=message-key =nest:c group=flag:g]
+            [%flag-post key=message-key =nest:d group=flag:g]
+            [%flag-reply key=message-key parent=message-key =nest:d group=flag:g]
             [%role =ship roles=(set sect:g)]
             [%ask =ship]
         ==
@@ -1313,8 +1313,27 @@
           ==
       ==
     =.  cor  (emit (pass-hark new-yarn))
-    ::TODO  want to (go-activity %flag), but we would need
-    ::      a more detailed "key" than just the post-key
+    =/  new-message-id=message-id:activity  [src post.post-key]
+    =/  kind-from-nest=kind:d
+      ?:  =(p.nest %chat)  %chat
+      ?:  =(p.nest %heap)  %heap
+      ?:  =(p.nest %diary)  %diary
+      ~|  "Invalid nest kind"  !!
+    =/  converted-nest=nest:d  [kind-from-nest p.q.nest q.q.nest]
+    =.  go-core
+       ?~  reply.post-key
+          %+  go-activity  %flag-post
+          :*  [new-message-id post.post-key]
+              converted-nest
+              flag
+          ==
+        =/  new-reply-message-id=message-id:activity  [src u.reply.post-key]
+        %+  go-activity  %flag-reply
+        :*  [new-reply-message-id u.reply.post-key]
+            [new-message-id post.post-key]
+            converted-nest
+            flag
+        ==
     go-core
   ++  go-zone-update
     |=  [=zone:g =delta:zone:g]

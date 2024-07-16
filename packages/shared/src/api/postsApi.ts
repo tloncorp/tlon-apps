@@ -2,6 +2,8 @@ import { unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { createDevLogger } from '../debug';
+import { useCurrentSession } from '../store';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -33,6 +35,8 @@ import {
   with404Handler,
 } from './apiUtils';
 import { poke, scry, subscribeOnce } from './urbit';
+
+const logger = createDevLogger('postsApi', false);
 
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
@@ -203,12 +207,15 @@ export const editPost = async ({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) => {
+  logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+    logger.error('Cannot edit a post in a DM or group DM');
     throw new Error('Cannot edit a post in a DM or group DM');
   }
 
   if (parentId) {
+    logger.log('editing a reply');
     const memo: ub.Memo = {
       author: authorId,
       content,
@@ -229,9 +236,13 @@ export const editPost = async ({
       },
     };
 
+    logger.log('sending action', action);
     await poke(channelAction(channelId, action));
+    logger.log('action sent');
     return;
   }
+
+  logger.log('editing a post');
 
   const essay = toPostEssay({
     content,
@@ -248,7 +259,9 @@ export const editPost = async ({
     },
   });
 
+  logger.log('sending action', action);
   await poke(action);
+  logger.log('action sent');
 };
 
 export const sendReply = async ({
@@ -629,6 +642,38 @@ export async function hidePost(post: db.Post) {
   };
 
   return poke(action);
+}
+
+export async function reportPost(
+  currentUserId: string,
+  groupId: string,
+  channelId: string,
+  post: db.Post
+) {
+  await hidePost(post);
+
+  const action = {
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          'flag-content': {
+            nest: channelId,
+            src: currentUserId,
+            'post-key': {
+              post: post.parentId ? post.parentId : post.id,
+              reply: post.parentId ? post.id : null,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  return await poke(action);
 }
 
 export const getHiddenPosts = async () => {
