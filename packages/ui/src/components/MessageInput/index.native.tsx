@@ -294,10 +294,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               typeof c === 'string' || (typeof c === 'object' && isInline(c))
           ) as Inline[];
         const blocks =
-          (tiptap
+          tiptap
             .JSONToInlines(json)
-            .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
-          [];
+            .filter((c) => typeof c !== 'string' && 'block' in c) || [];
 
         const inlineIsJustBreak = !!(
           inlines.length === 1 &&
@@ -368,11 +367,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                     (typeof c === 'object' && isInline(c))
                 ) as Inline[];
               const blocks =
-                (tiptap
+                tiptap
                   .JSONToInlines(json)
-                  .filter(
-                    (c) => typeof c !== 'string' && 'block' in c
-                  ) as Block[]) || [];
+                  .filter((c) => typeof c !== 'string' && 'block' in c) || [];
 
               // then we need to find all the inlines without refs
               // so we can render the input text without refs
@@ -398,7 +395,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               const newStory = constructStory(inlinesWithOutRefs);
 
               if (blocks && blocks.length > 0) {
-                newStory.push(...blocks.map((block) => ({ block })));
+                newStory.push(
+                  ...blocks.map((block) => ({
+                    block: block as unknown as Block,
+                  }))
+                );
               }
 
               const newJson = tiptap.diaryMixedToJSON(newStory);
