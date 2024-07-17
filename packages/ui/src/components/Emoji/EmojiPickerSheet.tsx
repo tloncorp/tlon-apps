@@ -2,15 +2,18 @@ import { ComponentProps, useCallback, useRef, useState } from 'react';
 import React from 'react';
 import {
   FlatList,
+  Keyboard,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
 
+import { View } from '../../core';
 import { Button } from '../Button';
+import { SearchBar } from '../SearchBar';
 import { Sheet } from '../Sheet';
 import { SizableEmoji } from './SizableEmoji';
-import { ALL_EMOJIS } from './data';
+import { ALL_EMOJIS, EmojiObject, searchEmojis } from './data';
 
 const EMOJI_SIZE = 32;
 
@@ -40,7 +43,14 @@ export function EmojiPickerSheet(
   }
 ) {
   const [scrolling, setIsScrolling] = useState(false);
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<string[]>([]);
   const { onEmojiSelect, ...rest } = props;
+
+  const handleQueryChange = useCallback((query: string) => {
+    setQuery(query);
+    setSearchResults(searchEmojis(query).map((emoj) => emoj.id));
+  }, []);
 
   const handleEmojiSelect = useCallback(
     (shortCode: string) => {
@@ -89,8 +99,19 @@ export function EmojiPickerSheet(
         disableDrag={scrolling}
       >
         <Sheet.Overlay zIndex="$modalSheet" />
-        <Sheet.Frame zIndex="$modalSheet" padding="$xl" alignItems="center">
-          <Sheet.Handle paddingBottom="$2xl" />
+        <Sheet.Frame
+          zIndex="$modalSheet"
+          padding="$xl"
+          alignItems="center"
+          onPress={() => Keyboard.dismiss()}
+        >
+          <Sheet.Handle paddingBottom="$xl" />
+          <View width="100%" marginBottom="$xl">
+            <SearchBar
+              marginHorizontal="$m"
+              onChangeQuery={handleQueryChange}
+            />
+          </View>
           <FlatList
             style={{ width: '100%' }}
             horizontal={false}
@@ -98,7 +119,7 @@ export function EmojiPickerSheet(
             onScroll={handleScroll}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
-            data={ALL_EMOJIS}
+            data={query ? searchResults : ALL_EMOJIS}
             keyExtractor={keyExtractor}
             numColumns={6}
             renderItem={renderItem}
