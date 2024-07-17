@@ -28,6 +28,10 @@
       "extends": "base",
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "NOTIFY_PROVIDER": "rivfur-livmet",
+        "NOTIFY_SERVICE": "groups-native"
+      },
       "android": {
         "gradleCommand": ":app:bundleProductionRelease"
       },

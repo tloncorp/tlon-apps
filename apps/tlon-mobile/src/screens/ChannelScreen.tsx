@@ -29,6 +29,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       }
     }, [props.route.params.channel.group])
   );
+  useFocusEffect(
+    useCallback(
+      () =>
+        // Mark the channel as visited when we unfocus/leave this screen
+        () => {
+          store.markChannelVisited(props.route.params.channel);
+        },
+      [props.route.params.channel]
+    )
+  );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
