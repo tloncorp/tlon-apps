@@ -12,7 +12,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { TamaguiProvider } from '@tloncorp/ui';
-import { usePreloadedEmojis } from 'packages/ui/src/components/Emoji/data';
+import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';

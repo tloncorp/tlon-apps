@@ -59,3 +59,4 @@ export * from './contexts';
 export * from './components/Input';
 export * from './types';
 export * from './components/ContentRenderer';
+export * from './components/Emoji';
