@@ -1,5 +1,6 @@
 import EmojiData, { EmojiMartData } from '@emoji-mart/data';
 import Fuse from 'fuse.js';
+import { useMemo } from 'react';
 
 export type EmojiObject = {
   id: string;
@@ -8,22 +9,26 @@ export type EmojiObject = {
   skins: { native: string }[];
 };
 
-export const EMOJI_MAP = Object.entries(
-  (EmojiData as EmojiMartData).emojis
-).reduce(
-  (acc, [key, value]) => {
-    acc[key] = {
-      id: key,
-      name: value.name,
-      keywords: value.keywords,
-      skins: value.skins,
-    };
-    return acc;
-  },
-  {} as Record<string, EmojiObject>
+export const EMOJI_MAP = Object.freeze(
+  Object.entries((EmojiData as EmojiMartData).emojis).reduce(
+    (acc, [key, value]) => {
+      acc[key] = {
+        id: key,
+        name: value.name,
+        keywords: value.keywords,
+        skins: value.skins,
+      };
+      return acc;
+    },
+    {} as Record<string, EmojiObject>
+  )
 );
 
-export const ALL_EMOJIS = Object.keys(EMOJI_MAP);
+export const ALL_EMOJIS = Object.freeze(Object.keys(EMOJI_MAP));
+
+export function usePreloadedEmojis() {
+  return useMemo(() => ALL_EMOJIS, []);
+}
 
 export function getNativeEmoji(shortcode: string) {
   const sanitizedShortcode = shortcode.replace(/^:|:$/g, '');
@@ -36,7 +41,7 @@ export function getNativeEmoji(shortcode: string) {
   }
 }
 
-const fuseOptions = {
+const emojiSearchOptions = {
   keys: [
     { name: 'id', weight: 1 },
     { name: 'name', weight: 2 },
@@ -44,7 +49,15 @@ const fuseOptions = {
   ],
   threshold: 0.2,
 };
-export const fuse = new Fuse(Object.values(EMOJI_MAP), fuseOptions);
+const emojiSearchIndex = Fuse.createIndex(
+  emojiSearchOptions.keys,
+  Object.values(EMOJI_MAP)
+);
+const fuse = new Fuse(
+  Object.values(EMOJI_MAP),
+  emojiSearchOptions,
+  emojiSearchIndex
+);
 
 export function searchEmojis(query: string): EmojiObject[] {
   if (!query) return Object.values(EMOJI_MAP);

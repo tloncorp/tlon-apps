@@ -1,4 +1,4 @@
-import { ComponentProps, useCallback, useRef, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
 import React from 'react';
 import {
   FlatList,
@@ -14,7 +14,7 @@ import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { SearchBar } from '../SearchBar';
 import { Sheet } from '../Sheet';
 import { SizableEmoji } from './SizableEmoji';
-import { ALL_EMOJIS, EmojiObject, searchEmojis } from './data';
+import { searchEmojis, usePreloadedEmojis } from './data';
 
 const EMOJI_SIZE = 32;
 
@@ -48,8 +48,14 @@ export function EmojiPickerSheet(
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const { onEmojiSelect, ...rest } = props;
+  const ALL_EMOJIS = usePreloadedEmojis();
+
+  const listData = useMemo(() => {
+    return query ? searchResults : ALL_EMOJIS;
+  }, [query, searchResults, ALL_EMOJIS]);
 
   const handleQueryChange = useCallback((query: string) => {
+    console.log(`bl: setting query to ${query}`);
     setQuery(query);
     setSearchResults(searchEmojis(query).map((emoj) => emoj.id));
   }, []);
@@ -62,7 +68,9 @@ export function EmojiPickerSheet(
     setQuery('');
     setIsScrolling(false);
     setSnapToLarge(false);
-    props.onOpenChange?.(false);
+    setTimeout(() => {
+      props.onOpenChange?.(false);
+    }, 100);
   }, [props]);
 
   const handleEmojiSelect = useCallback(
@@ -118,21 +126,22 @@ export function EmojiPickerSheet(
             <Sheet.Handle paddingBottom="$xl" />
             <View width="100%" marginBottom="$xl">
               <SearchBar
-                debounceTime={100}
+                debounceTime={300}
                 marginHorizontal="$m"
                 onChangeQuery={handleQueryChange}
                 onFocus={handleInputFocus}
+                areaProps={{ spellCheck: false, autoComplete: 'off' }}
               />
             </View>
             <View onTouchStart={() => Keyboard.dismiss()}>
               <FlatList
                 style={{ width: '100%' }}
                 horizontal={false}
-                contentContainerStyle={{}}
+                contentContainerStyle={{ flexGrow: 1 }}
                 onScroll={handleScroll}
                 onTouchStart={onTouchStart}
                 onTouchEnd={onTouchEnd}
-                data={query ? searchResults : ALL_EMOJIS}
+                data={listData}
                 keyExtractor={keyExtractor}
                 numColumns={6}
                 renderItem={renderItem}
