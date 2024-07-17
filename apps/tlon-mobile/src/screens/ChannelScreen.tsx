@@ -117,17 +117,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!channel) {
         throw new Error('Tried to send message before channel loaded');
       }
+
+      // clear the attachments immediately so consumers know the upload state is
+      // no longer needed
+      uploadInfo.resetImageAttachment();
+
       await store.sendPost({
         channel: channel,
         authorId: currentUserId,
         content,
         metadata,
       });
-      // prevents state update + render from blocking optimistic post insertion.
-      // may be better ways to handle...
-      setTimeout(() => {
-        uploadInfo.resetImageAttachment();
-      }, 20);
     },
     [currentUserId, channel, uploadInfo]
   );

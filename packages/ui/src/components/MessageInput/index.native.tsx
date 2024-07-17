@@ -15,14 +15,24 @@ import {
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
-import { createDevLogger, tiptap } from '@tloncorp/shared/dist';
-import { PostContent, toContentReference } from '@tloncorp/shared/dist/api';
+import {
+  createDevLogger,
+  extractContentTypesFromPost,
+  findFirstImageBlock,
+  tiptap,
+} from '@tloncorp/shared/dist';
+import {
+  contentReferenceToCite,
+  toContentReference,
+} from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
   Block,
+  Image,
   Inline,
   JSONContent,
   Story,
+  citeToPath,
   constructStory,
   isInline,
   pathToCite,
@@ -41,7 +51,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import { getToken, useWindowDimensions } from 'tamagui';
 
-import { useReferences } from '../../contexts/references';
+import { RefEditorRecord, useReferences } from '../../contexts/references';
 import { XStack } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
@@ -135,6 +145,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }));
 
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+    const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
@@ -205,19 +216,49 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               setEditorIsEmpty(false);
             }
             if (editingPost?.content) {
-              const content = JSON.parse(
-                editingPost.content as string
-              ) as PostContent;
+              const {
+                story,
+                references: postReferences,
+                blocks,
+              } = extractContentTypesFromPost(editingPost);
 
-              if (!content) {
+              if (
+                !story ||
+                story?.length === 0 ||
+                !postReferences ||
+                blocks.length === 0
+              ) {
                 return;
               }
 
-              const story =
-                (content.filter(
-                  (c) => 'inline' in c || 'block' in c
-                ) as Story) ?? [];
-              const tiptapContent = tiptap.diaryMixedToJSON(story);
+              if (postReferences) {
+                const newRefs: RefEditorRecord = postReferences.reduce(
+                  (acc, ref) => {
+                    const cite = contentReferenceToCite(ref);
+                    const path = citeToPath(cite);
+                    acc[path] = ref;
+                    return acc;
+                  },
+                  {
+                    ...references,
+                  }
+                );
+
+                setReferences(newRefs);
+              }
+
+              if (blocks.some((c) => 'image' in c)) {
+                const image = findFirstImageBlock(blocks);
+                if (image) {
+                  setImageOnEditedPost(image);
+                }
+              }
+
+              const tiptapContent = tiptap.diaryMixedToJSON(
+                story.filter(
+                  (c) => !('type' in c) && !('block' in c && 'image' in c.block)
+                ) as Story
+              );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setHasSetInitialContent(true);
@@ -233,6 +274,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       hasSetInitialContent,
       editorState.isReady,
       editingPost,
+      setReferences,
+      references,
     ]);
 
     useEffect(() => {
@@ -251,10 +294,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               typeof c === 'string' || (typeof c === 'object' && isInline(c))
           ) as Inline[];
         const blocks =
-          (tiptap
+          tiptap
             .JSONToInlines(json)
-            .filter((c) => typeof c !== 'string' && 'block' in c) as Block[]) ||
-          [];
+            .filter((c) => typeof c !== 'string' && 'block' in c) || [];
 
         const inlineIsJustBreak = !!(
           inlines.length === 1 &&
@@ -325,11 +367,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                     (typeof c === 'object' && isInline(c))
                 ) as Inline[];
               const blocks =
-                (tiptap
+                tiptap
                   .JSONToInlines(json)
-                  .filter(
-                    (c) => typeof c !== 'string' && 'block' in c
-                  ) as Block[]) || [];
+                  .filter((c) => typeof c !== 'string' && 'block' in c) || [];
 
               // then we need to find all the inlines without refs
               // so we can render the input text without refs
@@ -355,7 +395,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               const newStory = constructStory(inlinesWithOutRefs);
 
               if (blocks && blocks.length > 0) {
-                newStory.push(...blocks.map((block) => ({ block })));
+                newStory.push(
+                  ...blocks.map((block) => ({
+                    block: block as unknown as Block,
+                  }))
+                );
               }
 
               const newJson = tiptap.diaryMixedToJSON(newStory);
@@ -462,6 +506,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           });
         }
 
+        if (imageOnEditedPost) {
+          blocks.push({
+            image: {
+              src: imageOnEditedPost.image.src,
+              height: imageOnEditedPost.image.height,
+              width: imageOnEditedPost.image.width,
+              alt: imageOnEditedPost.image.alt,
+            },
+          });
+        }
+
         if (blocks && blocks.length > 0) {
           story.push(...blocks.map((block) => ({ block })));
         }
@@ -491,6 +546,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setReferences({});
         clearDraft();
         setShowBigInput?.(false);
+        setImageOnEditedPost(null);
       },
       [
         editor,
@@ -506,6 +562,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setShowBigInput,
         title,
         image,
+        imageOnEditedPost,
       ]
     );
 

@@ -309,8 +309,6 @@ export const extractContentTypes = (
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);
 
-  // console.log(`extracted inlines:`, inlines);
-
   return { inlines, references, blocks, story };
 };
 

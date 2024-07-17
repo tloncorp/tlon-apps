@@ -1,5 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
+import * as store from '@tloncorp/shared/dist/store';
+import { useMemo } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import { getChannelTitle } from '../../utils';
@@ -20,10 +22,12 @@ export function ChannelActivitySummary({
   const newestPost = summary.newest;
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
-  const unreadCount =
+  const modelUnread =
     summary.type === 'post'
-      ? newestPost.channel?.unread?.countWithoutThreads ?? 0
-      : newestPost.parent?.threadUnread?.count ?? 0;
+      ? newestPost.channel?.unread ?? null
+      : newestPost.parent?.threadUnread ?? null;
+  const { data: unread } = store.useLiveUnread(modelUnread);
+  const unreadCount = useMemo(() => unread?.count ?? 0, [unread]);
 
   const newestIsBlockOrNote =
     (summary.type === 'post' && newestPost.channel?.type === 'gallery') ||
