@@ -239,6 +239,8 @@
       refresh-all-summaries
         %clean-keys
       correct-dm-keys
+        %sync-reads
+      sync-reads
     ==
   ::
       %activity-action
@@ -847,19 +849,19 @@
   =/  =index:a  (~(got by indices) source)
   =/  old=(unit activity-summary:a)  (~(get by activity) source)
   ::  get all our reads, removing children
-  =/  our-reads
-    :-  floor.reads.index
-    %+  gas:on-read-items:a  *read-items:a
-    (get-reads:stm stream.index ~ ~ &)
-  =.  reads.index
-    ::  find new floor with only our reads
-    =/  new-floor=(unit time)  (find-floor:idx stream.index our-reads)
-    ?~  new-floor  reads.index(items ~)
-    [u.new-floor ~]
+  =/  new-floor=time
+    =-  -.-
+    %^  (dip:on-read-items:a @da)  items.reads.index  *@da
+    |=  [st=@da =time-id:a *]
+    =/  event=(unit event:a)  (get:on-event:a stream.index time-id)
+    ?~  event  [~ %.n st]
+    ?:  child.u.event  [~ %.n st]
+    [~ %.n ?:((gth time-id st) time-id st)]
+  =.  reads.index  [new-floor ~]
   ::  with new reads, update our index and summary
   =.  cor  (refresh-index source index)
   =/  new=(unit activity-summary:a)  (~(get by activity) source)
-  ~?  !=(old new)  "%sync-reads: WARNING old and new summaries differ"
+  ~?  !=(old new)  "%sync-reads: WARNING old and new summaries differ {<old>} {<new>}"
   $(sources t.sources)
 ::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
