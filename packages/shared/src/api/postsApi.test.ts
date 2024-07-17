@@ -1,21 +1,15 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 
 import { Post } from '../db';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
 import rawChannelPostsData from '../test/channelPosts.json';
 import rawDmPostWithRepliesData from '../test/dmPostWithReplies.json';
 import rawGroupDmPostWithRepliesData from '../test/groupDmPostWithReplies.json';
-import { resetDb, setupDb } from '../test/helpers';
+import { setupDatabaseTestSuite } from '../test/helpers';
 import { PagedPosts, Posts } from '../urbit';
 import { toPostsData } from './postsApi';
 
-beforeAll(() => {
-  setupDb();
-});
-
-beforeEach(async () => {
-  resetDb();
-});
+setupDatabaseTestSuite();
 
 test('toPostData', async () => {
   const postsData = rawChannelPostsData as unknown as PagedPosts;

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "5fa6c36d-ce08-4b92-ae6d-305c6fbc307b",
+  "id": "430ef366-6b5b-4d84-b3f6-d846603c2e60",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -391,6 +391,20 @@
         },
         "remote_updated_at": {
           "name": "remote_updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_viewed_at": {
+          "name": "last_viewed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_default_welcome_channel": {
+          "name": "is_default_welcome_channel",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
