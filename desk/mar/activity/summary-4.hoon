@@ -6,7 +6,7 @@
 ++  grow
   |%
   ++  noun  activity
-  ++  json  (activity:enjs:aj activity)
+  ++  json  (activity:enjs:aj activity |)
   --
 ++  grab
   |%

@@ -660,6 +660,8 @@ export const getThreadPosts = createReadQuery(
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+    if (!parentId) return Promise.resolve(null);
+
     return ctx.db.query.threadUnreads.findFirst({
       where: eq($threadUnreads.threadId, parentId),
     });
@@ -1067,6 +1069,7 @@ export const clearVolumeSetting = createWriteQuery(
 export const getChannelUnread = createReadQuery(
   'getChannelUnread',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    if (!channelId) return Promise.resolve(null);
     return ctx.db.query.channelUnreads.findFirst({
       where: and(eq($channelUnreads.channelId, channelId)),
     });

@@ -142,6 +142,16 @@
         notify-count+(numb notify-count.sum)
         notify+b+notify.sum
         unread/?~(unread.sum ~ (unread-point u.unread.sum))
+    ==
+  ::
+  ++  activity-summary-full
+    |=  sum=activity-summary:a
+    %-  pairs
+    :~  recency+(time newest.sum)
+        count+(numb count.sum)
+        notify-count+(numb notify-count.sum)
+        notify+b+notify.sum
+        unread/?~(unread.sum ~ (unread-point u.unread.sum))
       ::
         :-  %children
         a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
@@ -266,17 +276,19 @@
     ==
   ::
   ++  activity
-    |=  ac=activity:a
+    |=  [ac=activity:a full=?]
     %-  pairs
     %+  turn  ~(tap by ac)
     |=  [s=source:a sum=activity-summary:a]
-    [(string-source s) (activity-summary sum)]
+    :-  (string-source s)
+    ?.  full  (activity-summary sum)
+    (activity-summary-full sum)
   ::
   ++  full-info
     |=  fi=full-info:a
     %-  pairs
     :~  indices+(indices indices.fi)
-        activity+(activity activity.fi)
+        activity+(activity activity.fi &)
         settings+(volume-settings volume-settings.fi)
     ==
   ++  volume-settings
@@ -304,7 +316,7 @@
       %add  (added +.u)
       %del  (source +.u)
       %read  (read +.u)
-      %activity  (activity +.u)
+      %activity  (activity +.u |)
       %adjust  (adjusted +.u)
       %allow-notifications  (allowed +.u)
     ==
