@@ -95,7 +95,7 @@ export function GroupMembersScreenView({
     ({ section }: { section: { title: string } }) => (
       <SectionListHeader>
         <SectionListHeader.Text>
-          {roles.find((r) => r.id === section.title)?.title}
+          {roles.find((r) => r.id === section.title)?.title ?? 'Everyone Else'}
         </SectionListHeader.Text>
       </SectionListHeader>
     ),
