@@ -657,18 +657,6 @@ export async function kickUserFromGroup({
   }
 }
 
-export async function getBannedUsers(groupId: string) {
-  logger.log('getting banned users', groupId);
-
-  try {
-    const bannedUsers = await db.getGroupMemberBans(groupId);
-    return bannedUsers;
-  } catch (e) {
-    console.error('Failed to get banned users', e);
-    return [];
-  }
-}
-
 export async function banUserFromGroup({
   groupId,
   contactId,
