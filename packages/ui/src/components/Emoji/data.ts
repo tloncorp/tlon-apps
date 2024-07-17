@@ -25,6 +25,7 @@ export const EMOJI_MAP = Object.freeze(
 );
 
 export const ALL_EMOJIS = Object.freeze(Object.keys(EMOJI_MAP));
+const ALL_EMOJI_VALUES = Object.freeze(Object.values(EMOJI_MAP));
 
 export function usePreloadedEmojis() {
   return useMemo(() => ALL_EMOJIS, []);
@@ -51,13 +52,9 @@ const emojiSearchOptions = {
 };
 const emojiSearchIndex = Fuse.createIndex(
   emojiSearchOptions.keys,
-  Object.values(EMOJI_MAP)
+  ALL_EMOJI_VALUES
 );
-const fuse = new Fuse(
-  Object.values(EMOJI_MAP),
-  emojiSearchOptions,
-  emojiSearchIndex
-);
+const fuse = new Fuse(ALL_EMOJI_VALUES, emojiSearchOptions, emojiSearchIndex);
 
 export function searchEmojis(query: string): EmojiObject[] {
   if (!query) return Object.values(EMOJI_MAP);
