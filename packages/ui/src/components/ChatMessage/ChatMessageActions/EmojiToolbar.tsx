@@ -36,11 +36,11 @@ export function EmojiToolbar({
 
   const lastShortCode =
     details.self.didReact &&
-    !['+1', 'heart', 'cyclone', 'seedling'].some((code) =>
+    !['+1', 'heart', 'laughing', 'cyclone'].some((code) =>
       details.self.value.includes(code)
     )
       ? details.self.value
-      : 'seedling';
+      : 'cyclone';
 
   return (
     <>
@@ -64,7 +64,7 @@ export function EmojiToolbar({
         />
         <EmojiToolbarButton
           details={details}
-          shortCode="cyclone"
+          shortCode="laughing"
           handlePress={handlePress}
         />
         <EmojiToolbarButton
