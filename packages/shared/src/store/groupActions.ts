@@ -705,3 +705,46 @@ export async function banUserFromGroup({
     });
   }
 }
+
+export async function unbanUserFromGroup({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('unbanning user from group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User is still in group', groupId, contactId);
+    return;
+  }
+  // optimistic update
+  await db.addChatMembers({
+    chatId: groupId,
+    type: 'group',
+    contactIds: [contactId],
+  });
+
+  try {
+    await api.unbanUsersFromGroup({ groupId, contactIds: [contactId] });
+  } catch (e) {
+    console.error('Failed to unban user from group', e);
+    // rollback optimistic update
+    await db.updateGroup({
+      ...existingGroup,
+    });
+  }
+}

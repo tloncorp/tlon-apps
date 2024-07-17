@@ -274,7 +274,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const unbanUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        // await store.unbanUser(group.id, contactId);
+        await store.unbanUserFromGroup({
+          groupId: group.id,
+          contactId,
+        });
       }
     },
     [group]

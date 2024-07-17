@@ -97,6 +97,32 @@ export function banUsersFromGroup({
         diff: {
           cordon: {
             open: {
+              'add-ships': contactIds,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export function unbanUsersFromGroup({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          cordon: {
+            open: {
               'del-ships': contactIds,
             },
           },
