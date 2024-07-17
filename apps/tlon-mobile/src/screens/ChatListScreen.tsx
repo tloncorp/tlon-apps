@@ -8,11 +8,11 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  AppDataContextProvider,
   Button,
   CalmProvider,
   ChatList,
   ChatOptionsSheet,
-  ContactsProvider,
   FloatingActionButton,
   GroupPreviewSheet,
   Icon,
@@ -296,7 +296,10 @@ export default function ChatListScreen(
 
   return (
     <CalmProvider calmSettings={calmSettings}>
-      <ContactsProvider contacts={contacts ?? []}>
+      <AppDataContextProvider
+        currentUserId={currentUser}
+        contacts={contacts ?? []}
+      >
         <View backgroundColor="$background" flex={1}>
           <ScreenHeader
             title={
@@ -390,7 +393,7 @@ export default function ChatListScreen(
           />
         </View>
         <NavBar navigation={props.navigation} />
-      </ContactsProvider>
+      </AppDataContextProvider>
     </CalmProvider>
   );
 }

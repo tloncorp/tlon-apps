@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { useCurrentUserContext } from 'packages/ui/src/contexts/currentUser';
+import { useCurrentUserId } from 'packages/ui/src/contexts/appDataContext';
 import { useCallback, useState } from 'react';
 
 import { XStack } from '../../../core';
@@ -18,7 +18,7 @@ export function EmojiToolbar({
   post: db.Post;
   onDismiss: () => void;
 }) {
-  const currentUserId = useCurrentUserContext();
+  const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const details = useReactionDetails(post.reactions ?? [], currentUserId);
 

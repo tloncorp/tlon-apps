@@ -2,10 +2,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/shared/dist/api';
 import * as store from '@tloncorp/shared/dist/store';
 import {
-  ContactsProvider,
+  AppDataContextProvider,
   EditProfileScreenView,
   View,
-  useContacts,
 } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
@@ -35,15 +34,17 @@ export function EditProfileScreen(props: Props) {
   );
 
   return (
-    <ContactsProvider contacts={contacts ?? []}>
+    <AppDataContextProvider
+      currentUserId={currentUserId}
+      contacts={contacts ?? []}
+    >
       <View flex={1}>
         <EditProfileScreenView
-          currentUserId={currentUserId}
           uploadInfo={uploadInfo}
           onGoBack={onGoBack}
           onSaveProfile={onSaveProfile}
         />
       </View>
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 }

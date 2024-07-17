@@ -2,8 +2,7 @@ import * as db from 'packages/shared/dist/db';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
 
-import { ContactsProvider } from '../contexts';
-import { CurrentUserProvider } from '../contexts/currentUser';
+import { AppDataContextProvider } from '../contexts/appDataContext';
 import { View } from '../core';
 import { ContactList } from './ContactList';
 import { GenericHeader } from './GenericHeader';
@@ -139,43 +138,41 @@ export function GroupMembersScreenView({
   );
 
   return (
-    <CurrentUserProvider currentUserId={currentUserId}>
-      <ContactsProvider contacts={contacts}>
-        <View backgroundColor="$background" flex={1}>
-          <GenericHeader title="Members" goBack={goBack} />
-          <View padding="$l">
-            <SectionList
-              sections={sectionedData}
-              keyExtractor={keyExtractor}
-              maxToRenderPerBatch={6}
-              initialNumToRender={11}
-              windowSize={2}
-              renderItem={renderItem}
-              renderSectionHeader={renderSectionHeader}
-              stickySectionHeadersEnabled={false}
-            />
-          </View>
-        </View>
-        {selectedContact !== null && (
-          <ProfileSheet
-            open={true}
-            currentUserIsAdmin={currentUserIsAdmin}
-            userIsBanned={bannedUsers.some(
-              (b) => b.contactId === selectedContact
-            )}
-            onOpenChange={(open) => {
-              if (!open) {
-                setSelectedContact(null);
-              }
-            }}
-            contactId={selectedContact}
-            contact={contacts.find((c) => c.id === selectedContact)}
-            onPressKick={() => onPressKick(selectedContact)}
-            onPressBan={() => onPressBan(selectedContact)}
-            onPressUnban={() => onPressUnban(selectedContact)}
+    <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
+      <View backgroundColor="$background" flex={1}>
+        <GenericHeader title="Members" goBack={goBack} />
+        <View padding="$l">
+          <SectionList
+            sections={sectionedData}
+            keyExtractor={keyExtractor}
+            maxToRenderPerBatch={6}
+            initialNumToRender={11}
+            windowSize={2}
+            renderItem={renderItem}
+            renderSectionHeader={renderSectionHeader}
+            stickySectionHeadersEnabled={false}
           />
-        )}
-      </ContactsProvider>
-    </CurrentUserProvider>
+        </View>
+      </View>
+      {selectedContact !== null && (
+        <ProfileSheet
+          open={true}
+          currentUserIsAdmin={currentUserIsAdmin}
+          userIsBanned={bannedUsers.some(
+            (b) => b.contactId === selectedContact
+          )}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedContact(null);
+            }
+          }}
+          contactId={selectedContact}
+          contact={contacts.find((c) => c.id === selectedContact)}
+          onPressKick={() => onPressKick(selectedContact)}
+          onPressBan={() => onPressBan(selectedContact)}
+          onPressUnban={() => onPressUnban(selectedContact)}
+        />
+      )}
+    </AppDataContextProvider>
   );
 }

@@ -6,7 +6,7 @@ import { Dimensions } from 'react-native';
 import { getTokens } from 'tamagui';
 
 import { useNavigation } from '../contexts';
-import { useCurrentUserContext } from '../contexts/currentUser';
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { Text, View, YStack } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
@@ -52,7 +52,7 @@ export function ProfileSheet({
   onPressBan?: () => void;
   onPressUnban?: () => void;
 }) {
-  const currentUserId = useCurrentUserContext();
+  const currentUserId = useCurrentUserId();
   const coverSize =
     Dimensions.get('window').width / 2 - getTokens().space.$xl.val * 2;
 

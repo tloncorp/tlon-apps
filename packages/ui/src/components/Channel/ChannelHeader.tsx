@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
 
 import { Dots, Search } from '../../assets/icons';
-import { useCurrentUserContext } from '../../contexts/currentUser';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ActionSheet } from '../ActionSheet';
 import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
 import { GenericHeader } from '../GenericHeader';
@@ -35,7 +35,7 @@ export function ChannelHeader({
   channelType?: db.ChannelType;
 }) {
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const currentUserId = useCurrentUserContext();
+  const currentUserId = useCurrentUserId();
 
   const postActions = useMemo(() => {
     if (!post || !channelType || !currentUserId) return [];

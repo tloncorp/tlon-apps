@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { useCurrentUserContext } from 'packages/ui/src/contexts/currentUser';
+import { useCurrentUserId } from 'packages/ui/src/contexts/appDataContext';
 import { useMemo } from 'react';
 
 import { useChannelContext } from '../../../contexts';
@@ -24,7 +24,7 @@ export default function MessageActions({
   post: db.Post;
   channelType: db.ChannelType;
 }) {
-  const currentUserId = useCurrentUserContext();
+  const currentUserId = useCurrentUserId();
   const { setReferences } = useReferences();
   const channel = useChannelContext();
   const postActions = useMemo(() => {

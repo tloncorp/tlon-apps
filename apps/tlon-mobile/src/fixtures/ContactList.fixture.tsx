@@ -1,4 +1,8 @@
-import { CalmProvider, ContactList, ContactsProvider } from '@tloncorp/ui';
+import {
+  AppDataContextProvider,
+  CalmProvider,
+  ContactList,
+} from '@tloncorp/ui';
 
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts } from './fakeData';
@@ -14,7 +18,7 @@ const ContactListFixture = ({
 }) => {
   return (
     <FixtureWrapper>
-      <ContactsProvider contacts={initialContacts}>
+      <AppDataContextProvider contacts={initialContacts}>
         <CalmProvider
           calmSettings={{
             disableNicknames: false,
@@ -37,7 +41,7 @@ const ContactListFixture = ({
             ))}
           </ContactList>
         </CalmProvider>
-      </ContactsProvider>
+      </AppDataContextProvider>
     </FixtureWrapper>
   );
 };

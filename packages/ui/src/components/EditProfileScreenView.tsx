@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
-import { useContact } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts';
 import { ScrollView, View, YStack } from '../core';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FormTextInput } from './FormInput';
@@ -12,14 +12,14 @@ import { SaveButton } from './GroupMetaScreenView';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 
 interface Props {
-  currentUserId: string;
   uploadInfo: api.UploadInfo;
   onGoBack: () => void;
   onSaveProfile: (update: api.ProfileUpdate) => void;
 }
 
 export function EditProfileScreenView(props: Props) {
-  const userContact = useContact(props.currentUserId);
+  const currentUserId = useCurrentUserId();
+  const userContact = useContact(currentUserId);
   const {
     control,
     handleSubmit,
@@ -51,9 +51,7 @@ export function EditProfileScreenView(props: Props) {
             marginHorizontal="$xl"
           >
             <EditablePofileImages
-              contact={
-                userContact ?? db.getFallbackContact(props.currentUserId)
-              }
+              contact={userContact ?? db.getFallbackContact(currentUserId)}
               uploadInfo={props.uploadInfo}
               onSetCoverUrl={(url) => setValue('coverImage', url)}
               onSetIconUrl={(url) => setValue('avatarImage', url)}
