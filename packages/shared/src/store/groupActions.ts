@@ -636,11 +636,9 @@ export async function kickUserFromGroup({
     return;
   }
   // optimistic update
-  await db.updateGroup({
-    ...existingGroup,
-    members: existingGroup.members.filter(
-      (member) => member.contactId !== contactId
-    ),
+  await db.removeChatMembers({
+    chatId: groupId,
+    contactIds: [contactId],
   });
 
   try {
@@ -651,9 +649,23 @@ export async function kickUserFromGroup({
   } catch (e) {
     console.error('Failed to kick user from group', e);
     // rollback optimistic update
-    await db.updateGroup({
-      ...existingGroup,
+    await db.addChatMembers({
+      chatId: groupId,
+      type: 'group',
+      contactIds: [contactId],
     });
+  }
+}
+
+export async function getBannedUsers(groupId: string) {
+  logger.log('getting banned users', groupId);
+
+  try {
+    const bannedUsers = await db.getGroupMemberBans(groupId);
+    return bannedUsers;
+  } catch (e) {
+    console.error('Failed to get banned users', e);
+    return [];
   }
 }
 
@@ -683,11 +695,14 @@ export async function banUserFromGroup({
     return;
   }
   // optimistic update
-  await db.updateGroup({
-    ...existingGroup,
-    members: existingGroup.members.filter(
-      (member) => member.contactId !== contactId
-    ),
+  await db.addGroupMemberBans({
+    groupId,
+    contactIds: [contactId],
+  });
+
+  await db.removeChatMembers({
+    chatId: groupId,
+    contactIds: [contactId],
   });
 
   try {
@@ -700,8 +715,15 @@ export async function banUserFromGroup({
   } catch (e) {
     console.error('Failed to ban user from group', e);
     // rollback optimistic update
-    await db.updateGroup({
-      ...existingGroup,
+    await db.addChatMembers({
+      chatId: groupId,
+      type: 'group',
+      contactIds: [contactId],
+    });
+
+    await db.deleteGroupMemberBans({
+      groupId,
+      contactIds: [contactId],
     });
   }
 }
@@ -732,9 +754,8 @@ export async function unbanUserFromGroup({
     return;
   }
   // optimistic update
-  await db.addChatMembers({
-    chatId: groupId,
-    type: 'group',
+  await db.deleteGroupMemberBans({
+    groupId,
     contactIds: [contactId],
   });
 
@@ -743,8 +764,9 @@ export async function unbanUserFromGroup({
   } catch (e) {
     console.error('Failed to unban user from group', e);
     // rollback optimistic update
-    await db.updateGroup({
-      ...existingGroup,
+    await db.addGroupMemberBans({
+      groupId,
+      contactIds: [contactId],
     });
   }
 }

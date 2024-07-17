@@ -312,6 +312,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         groupId: update.groupId,
         contactIds: update.ships,
       });
+      await db.removeChatMembers({
+        chatId: update.groupId,
+        contactIds: update.ships,
+      });
       break;
     case 'unbanGroupMembers':
       await db.deleteGroupMemberBans({

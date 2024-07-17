@@ -14,16 +14,20 @@ export function GroupMembersScreenView({
   goBack,
   members,
   roles,
+  bannedUsers,
   currentUserId,
   onPressKick,
   onPressBan,
+  onPressUnban,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
   roles: db.GroupRole[];
   currentUserId: string;
+  bannedUsers: db.GroupMemberBan[];
   onPressKick: (contactId: string) => void;
   onPressBan: (contactId: string) => void;
+  onPressUnban: (contactId: string) => void;
 }) {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const contacts = useMemo(
@@ -54,6 +58,17 @@ export function GroupMembersScreenView({
     (m) => m.roles?.length === 0 || m.roles === null
   );
 
+  const bannedUserData: db.ChatMember[] = useMemo(
+    () =>
+      bannedUsers.map((b) => ({
+        contactId: b.contactId,
+        roles: null,
+        contact: contacts.find((c) => c.id === b.contactId),
+        membershipType: 'group',
+      })),
+    [bannedUsers, contacts]
+  );
+
   const sectionedData = useMemo(
     () =>
       Object.keys(membersByRole)
@@ -61,6 +76,16 @@ export function GroupMembersScreenView({
           title: role,
           data: membersByRole[role],
         }))
+        .concat(
+          bannedUserData.length > 0
+            ? [
+                {
+                  title: 'Banned Users',
+                  data: bannedUserData,
+                },
+              ]
+            : []
+        )
         .concat(
           membersWithoutRoles.length > 0
             ? [
@@ -71,7 +96,7 @@ export function GroupMembersScreenView({
               ]
             : []
         ),
-    [membersByRole, membersWithoutRoles]
+    [membersByRole, membersWithoutRoles, bannedUserData]
   );
 
   const keyExtractor = useCallback((item: db.ChatMember) => item.contactId, []);
@@ -83,7 +108,6 @@ export function GroupMembersScreenView({
         showNickname
         size="$4xl"
         onPress={() => {
-          console.log('pressed', item.contactId);
           setSelectedContact(item.contactId);
         }}
       />
@@ -95,7 +119,7 @@ export function GroupMembersScreenView({
     ({ section }: { section: { title: string } }) => (
       <SectionListHeader>
         <SectionListHeader.Text>
-          {roles.find((r) => r.id === section.title)?.title ?? 'Everyone Else'}
+          {roles.find((r) => r.id === section.title)?.title ?? section.title}
         </SectionListHeader.Text>
       </SectionListHeader>
     ),
@@ -136,6 +160,9 @@ export function GroupMembersScreenView({
           <ProfileSheet
             open={true}
             currentUserIsAdmin={currentUserIsAdmin}
+            userIsBanned={bannedUsers.some(
+              (b) => b.contactId === selectedContact
+            )}
             onOpenChange={(open) => {
               if (!open) {
                 setSelectedContact(null);
@@ -145,6 +172,7 @@ export function GroupMembersScreenView({
             contact={contacts.find((c) => c.id === selectedContact)}
             onPressKick={() => onPressKick(selectedContact)}
             onPressBan={() => onPressBan(selectedContact)}
+            onPressUnban={() => onPressUnban(selectedContact)}
           />
         )}
       </ContactsProvider>

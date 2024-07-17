@@ -283,6 +283,14 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
+  const bannedUsers = useMemo(() => {
+    if (!group) {
+      return [];
+    }
+
+    return group.bannedMembers ?? [];
+  }, [group]);
+
   const kickUser = useCallback(
     async (contactId: string) => {
       if (group) {
@@ -337,6 +345,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     deleteGroupRole,
     banUser,
     unbanUser,
+    bannedUsers,
     kickUser,
     setUserRoles,
     leaveGroup,

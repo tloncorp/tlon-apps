@@ -13,7 +13,14 @@ type GroupMembersScreenProps = NativeStackScreenProps<
 export function GroupMembersScreen(props: GroupMembersScreenProps) {
   const { groupId } = props.route.params;
 
-  const { groupMembers, groupRoles, banUser, kickUser } = useGroupContext({
+  const {
+    groupMembers,
+    groupRoles,
+    banUser,
+    unbanUser,
+    kickUser,
+    bannedUsers,
+  } = useGroupContext({
     groupId,
   });
 
@@ -26,7 +33,9 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
       roles={groupRoles}
       currentUserId={currentUserId}
       onPressBan={banUser}
+      onPressUnban={unbanUser}
       onPressKick={kickUser}
+      bannedUsers={bannedUsers}
     />
   );
 }

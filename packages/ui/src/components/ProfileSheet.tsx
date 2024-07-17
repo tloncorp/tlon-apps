@@ -37,7 +37,9 @@ export function ProfileSheet({
   onOpenChange,
   open,
   currentUserIsAdmin,
+  userIsBanned,
   onPressBan,
+  onPressUnban,
   onPressKick,
 }: {
   contact?: db.Contact;
@@ -45,8 +47,10 @@ export function ProfileSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUserIsAdmin?: boolean;
+  userIsBanned?: boolean;
   onPressKick?: () => void;
   onPressBan?: () => void;
+  onPressUnban?: () => void;
 }) {
   const currentUserId = useCurrentUserContext();
   const coverSize =
@@ -112,14 +116,25 @@ export function ProfileSheet({
                   onOpenChange(false);
                 }}
               />
-              <ProfileButton
-                secondary
-                label="Ban User"
-                onPress={() => {
-                  onPressBan?.();
-                  onOpenChange(false);
-                }}
-              />
+              {userIsBanned ? (
+                <ProfileButton
+                  secondary
+                  label="Unban User"
+                  onPress={() => {
+                    onPressUnban?.();
+                    onOpenChange(false);
+                  }}
+                />
+              ) : (
+                <ProfileButton
+                  secondary
+                  label="Ban User"
+                  onPress={() => {
+                    onPressBan?.();
+                    onOpenChange(false);
+                  }}
+                />
+              )}
             </>
           )}
           {currentUserId !== contactId && (

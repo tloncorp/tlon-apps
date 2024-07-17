@@ -12,7 +12,7 @@ import {
 import { toClientMeta } from './apiUtils';
 import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
-const logger = createDevLogger('groupsApi', true);
+const logger = createDevLogger('groupsApi', false);
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -1256,6 +1256,18 @@ export function toClientGroup(
     group['flagged-content']
   );
 
+  logger.log('cordon', group.cordon);
+
+  const bannedMembers: db.GroupMemberBan[] =
+    'open' in group.cordon
+      ? group.cordon?.open.ships.map((ship) => ({
+          contactId: ship,
+          groupId: id,
+        }))
+      : [];
+
+  logger.log('bannedMembers', bannedMembers);
+
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
     const data: db.GroupRole = {
       id: roleId,
@@ -1304,6 +1316,7 @@ export function toClientGroup(
         vessel: vessel,
       });
     }),
+    bannedMembers,
     channels: group.channels
       ? toClientChannels({ channels: group.channels, groupId: id })
       : [],

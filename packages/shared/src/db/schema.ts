@@ -256,6 +256,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
+  bannedMembers: many(groupMemberBans),
   navSections: many(groupNavSections),
   flaggedPosts: many(groupFlaggedPosts),
   channels: many(channels),
