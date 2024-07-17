@@ -4,10 +4,9 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
-import { useCurrentUserId } from 'packages/ui/src/contexts/appDataContext';
 import { useMemo } from 'react';
 
-import { useChannelContext } from '../../../contexts';
+import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useReferences } from '../../../contexts/references';
 import ActionList from '../../ActionList';
 
