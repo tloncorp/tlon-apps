@@ -22,6 +22,7 @@ export * from './components/GroupPreviewSheet';
 export * from './components/NavBar';
 export * from './components/ListItem';
 export * from './components/GroupOptionsSheet';
+export * from './components/GroupMembersScreenView';
 export * from './components/WelcomeSheet';
 export * from './components/AddChats/AddDmSheet';
 export * from './components/ListItem';

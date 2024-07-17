@@ -24,7 +24,7 @@ export function BlockedContactsWidget({
       {blockedContacts.map((contact) => (
         <ContactList.Item
           key={contact.id}
-          contact={contact}
+          contactId={contact.id}
           onPress={() => onBlockedContactPress(contact)}
           showNickname
           showEndContent

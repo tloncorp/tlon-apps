@@ -609,3 +609,99 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
     });
   }
 }
+
+export async function kickUserFromGroup({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('kicking user from group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User not found in group', groupId, contactId);
+    return;
+  }
+  // optimistic update
+  await db.updateGroup({
+    ...existingGroup,
+    members: existingGroup.members.filter(
+      (member) => member.contactId !== contactId
+    ),
+  });
+
+  try {
+    await api.kickUsersFromGroup({
+      groupId,
+      contactIds: [contactId],
+    });
+  } catch (e) {
+    console.error('Failed to kick user from group', e);
+    // rollback optimistic update
+    await db.updateGroup({
+      ...existingGroup,
+    });
+  }
+}
+
+export async function banUserFromGroup({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('banning user from group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User not found in group', groupId, contactId);
+    return;
+  }
+  // optimistic update
+  await db.updateGroup({
+    ...existingGroup,
+    members: existingGroup.members.filter(
+      (member) => member.contactId !== contactId
+    ),
+  });
+
+  try {
+    await api.kickUsersFromGroup({
+      groupId,
+      contactIds: [contactId],
+    });
+
+    await api.banUsersFromGroup({ groupId: groupId, contactIds: [contactId] });
+  } catch (e) {
+    console.error('Failed to ban user from group', e);
+    // rollback optimistic update
+    await db.updateGroup({
+      ...existingGroup,
+    });
+  }
+}

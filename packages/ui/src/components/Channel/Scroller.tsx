@@ -38,7 +38,6 @@ import { Icon } from '../Icon';
 import { ChannelDivider } from './ChannelDivider';
 
 type RenderItemFunction = (props: {
-  currentUserId: string;
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
@@ -77,7 +76,6 @@ function Scroller({
   renderItem,
   renderEmptyComponent: renderEmptyComponentFn,
   posts,
-  currentUserId,
   channelType,
   channelId,
   firstUnreadId,
@@ -99,7 +97,6 @@ function Scroller({
   renderItem: RenderItemType;
   renderEmptyComponent?: () => ReactElement;
   posts: db.Post[] | null;
-  currentUserId: string;
   channelType: db.ChannelType;
   channelId: string;
   firstUnreadId?: string | null;
@@ -218,7 +215,6 @@ function Scroller({
           showDayDivider={isFirstPostOfDay}
           showAuthor={showAuthor}
           Component={renderItem}
-          currentUserId={currentUserId}
           unreadCount={unreadCount}
           editingPost={editingPost}
           onLayout={handleItemLayout}
@@ -240,7 +236,6 @@ function Scroller({
       posts,
       firstUnreadId,
       renderItem,
-      currentUserId,
       unreadCount,
       editingPost,
       handleItemLayout,
@@ -421,7 +416,6 @@ function Scroller({
       >
         {activeMessage !== null && (
           <ChatMessageActions
-            currentUserId={currentUserId}
             post={activeMessage}
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
@@ -451,7 +445,6 @@ const BaseScrollerItem = ({
   showDayDivider,
   showAuthor,
   Component,
-  currentUserId,
   unreadCount,
   editingPost,
   onLayout,
@@ -473,7 +466,6 @@ const BaseScrollerItem = ({
   item: db.Post;
   index: number;
   Component: RenderItemType;
-  currentUserId: string;
   unreadCount?: number | null;
   onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
   channelId: string;
@@ -528,7 +520,6 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
-          currentUserId={currentUserId}
           post={post}
           editing={editingPost && editingPost?.id === item.id}
           setEditingPost={setEditingPost}
@@ -552,7 +543,6 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.currentUserId === next.currentUserId &&
     prev.editingPost === next.editingPost &&
     prev.editPost === next.editPost &&
     prev.setEditingPost === next.setEditingPost &&

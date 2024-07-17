@@ -10,13 +10,7 @@ import { NotebookPost } from '../../NotebookPost';
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
 const MAX_MESSAGE_TO_SCREEN_RATIO_NOTE = 0.5;
 
-export function MessageContainer({
-  post,
-  currentUserId,
-}: {
-  post: db.Post;
-  currentUserId: string;
-}) {
+export function MessageContainer({ post }: { post: db.Post }) {
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
 
@@ -50,7 +44,7 @@ export function MessageContainer({
         type={post.type}
         // roles={roles}
       />
-      <ChatMessage post={post} currentUserId={currentUserId} />
+      <ChatMessage post={post} />
     </View>
   );
 }

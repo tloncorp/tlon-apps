@@ -6,6 +6,7 @@ import { Dimensions } from 'react-native';
 import { getTokens } from 'tamagui';
 
 import { useNavigation } from '../contexts';
+import { useCurrentUserContext } from '../contexts/currentUser';
 import { Text, View, YStack } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
@@ -35,12 +36,19 @@ export function ProfileSheet({
   contactId,
   onOpenChange,
   open,
+  currentUserIsAdmin,
+  onPressBan,
+  onPressKick,
 }: {
-  contact: db.Contact;
+  contact?: db.Contact;
   contactId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  currentUserIsAdmin?: boolean;
+  onPressKick?: () => void;
+  onPressBan?: () => void;
 }) {
+  const currentUserId = useCurrentUserContext();
   const coverSize =
     Dimensions.get('window').width / 2 - getTokens().space.$xl.val * 2;
 
@@ -68,7 +76,7 @@ export function ProfileSheet({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <YStack gap="$xl">
-        {contact.coverImage ? (
+        {contact?.coverImage ? (
           <ProfileCover uri={contact.coverImage}>
             <View height={coverSize} justifyContent="flex-end">
               <ProfileRow
@@ -87,16 +95,45 @@ export function ProfileSheet({
           />
         )}
         <Text paddingHorizontal="$2xl" fontSize="$l">
-          {contact.bio}
+          {contact?.bio}
         </Text>
         <YStack gap="$m">
-          <ProfileButton hero label="Message" onPress={handleGoToDm} />
+          {currentUserId !== contactId && (
+            <ProfileButton hero label="Message" onPress={handleGoToDm} />
+          )}
           <ProfileButton secondary label="Copy Name" onPress={handleCopyName} />
-          <ProfileButton
-            secondary
-            label={contact?.isBlocked ? 'Unblock' : 'Block'}
-            onPress={handleBlock}
-          />
+          {currentUserIsAdmin && currentUserId !== contactId && (
+            <>
+              <ProfileButton
+                secondary
+                label="Kick User"
+                onPress={() => {
+                  onPressKick?.();
+                  onOpenChange(false);
+                }}
+              />
+              <ProfileButton
+                secondary
+                label="Ban User"
+                onPress={() => {
+                  onPressBan?.();
+                  onOpenChange(false);
+                }}
+              />
+            </>
+          )}
+          {currentUserId !== contactId && (
+            <ProfileButton
+              secondary
+              label={contact?.isBlocked ? 'Unblock' : 'Block'}
+              onPress={handleBlock}
+            />
+          )}
+          {currentUserIsAdmin && currentUserId !== contactId && (
+            <Text paddingHorizontal="$2xl" fontSize="$s">
+              Visit your group on desktop to manage roles.
+            </Text>
+          )}
         </YStack>
       </YStack>
     </ActionSheet>

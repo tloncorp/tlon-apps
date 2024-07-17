@@ -31,7 +31,7 @@ const ContactListFixture = ({
                 justifyContent="flex-start"
                 padding="$s"
                 key={contact.id}
-                contact={contact}
+                contactId={contact.id}
                 matchText={matchText}
               />
             ))}

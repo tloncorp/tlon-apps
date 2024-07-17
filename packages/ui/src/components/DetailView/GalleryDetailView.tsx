@@ -9,7 +9,6 @@ import { DetailView, DetailViewProps } from './DetailView';
 
 export default function GalleryDetailView({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -59,7 +58,6 @@ export default function GalleryDetailView({
   return (
     <DetailView
       post={post}
-      currentUserId={currentUserId}
       editingPost={editingPost}
       setEditingPost={setEditingPost}
       editPost={editPost}

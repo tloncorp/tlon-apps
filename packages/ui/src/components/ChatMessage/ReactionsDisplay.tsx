@@ -1,17 +1,13 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 
+import { useCurrentUserContext } from '../../contexts/currentUser';
 import { SizableText, XStack } from '../../core';
 import { useReactionDetails } from '../../utils/postUtils';
 import { SizableEmoji } from '../Emoji/SizableEmoji';
 
-export function ReactionsDisplay({
-  post,
-  currentUserId,
-}: {
-  post: db.Post;
-  currentUserId: string;
-}) {
+export function ReactionsDisplay({ post }: { post: db.Post }) {
+  const currentUserId = useCurrentUserContext();
   const reactionDetails = useReactionDetails(
     post.reactions ?? [],
     currentUserId

@@ -53,6 +53,59 @@ export function rescindGroupInvitationRequest(groupId: string) {
   });
 }
 
+export function kickUsersFromGroup({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          fleet: {
+            ships: contactIds,
+            diff: {
+              del: null,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export function banUsersFromGroup({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          cordon: {
+            open: {
+              'del-ships': contactIds,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
 export function requestGroupInvitation(groupId: string) {
   logger.log('api knocking', groupId);
   return poke({
