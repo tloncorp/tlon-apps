@@ -37,8 +37,12 @@ export function getNativeEmoji(shortcode: string) {
 }
 
 const fuseOptions = {
-  keys: ['id', 'name', 'keywords'],
-  threshold: 0.3,
+  keys: [
+    { name: 'id', weight: 1 },
+    { name: 'name', weight: 2 },
+    { name: 'keywords', weight: 1.5 },
+  ],
+  threshold: 0.2,
 };
 export const fuse = new Fuse(Object.values(EMOJI_MAP), fuseOptions);
 

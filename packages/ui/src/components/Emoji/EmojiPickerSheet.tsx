@@ -10,6 +10,7 @@ import {
 
 import { View } from '../../core';
 import { Button } from '../Button';
+import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { SearchBar } from '../SearchBar';
 import { Sheet } from '../Sheet';
 import { SizableEmoji } from './SizableEmoji';
@@ -43,6 +44,7 @@ export function EmojiPickerSheet(
   }
 ) {
   const [scrolling, setIsScrolling] = useState(false);
+  const [snapToLarge, setSnapToLarge] = useState(false);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]);
   const { onEmojiSelect, ...rest } = props;
@@ -51,6 +53,17 @@ export function EmojiPickerSheet(
     setQuery(query);
     setSearchResults(searchEmojis(query).map((emoj) => emoj.id));
   }, []);
+
+  const handleInputFocus = useCallback(() => {
+    setSnapToLarge(true);
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    setQuery('');
+    setIsScrolling(false);
+    setSnapToLarge(false);
+    props.onOpenChange?.(false);
+  }, [props]);
 
   const handleEmojiSelect = useCallback(
     (shortCode: string) => {
@@ -84,14 +97,10 @@ export function EmojiPickerSheet(
   const keyExtractor = useCallback((item: string) => item, []);
 
   return (
-    <Modal
-      transparent
-      visible={props.open}
-      onDismiss={() => props.onOpenChange?.(false)}
-    >
+    <Modal transparent visible={props.open} onDismiss={handleDismiss}>
       <Sheet
         snapPointsMode="percent"
-        snapPoints={[60]}
+        snapPoints={[snapToLarge ? 80 : 60]}
         {...rest}
         dismissOnSnapToBottom
         dismissOnOverlayPress
@@ -103,27 +112,33 @@ export function EmojiPickerSheet(
           zIndex="$modalSheet"
           padding="$xl"
           alignItems="center"
-          onPress={() => Keyboard.dismiss()}
+          flex={1}
         >
-          <Sheet.Handle paddingBottom="$xl" />
-          <View width="100%" marginBottom="$xl">
-            <SearchBar
-              marginHorizontal="$m"
-              onChangeQuery={handleQueryChange}
-            />
-          </View>
-          <FlatList
-            style={{ width: '100%' }}
-            horizontal={false}
-            contentContainerStyle={{}}
-            onScroll={handleScroll}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-            data={query ? searchResults : ALL_EMOJIS}
-            keyExtractor={keyExtractor}
-            numColumns={6}
-            renderItem={renderItem}
-          />
+          <KeyboardAvoidingView style={{ flex: 1, width: '100%' }}>
+            <Sheet.Handle paddingBottom="$xl" />
+            <View width="100%" marginBottom="$xl">
+              <SearchBar
+                debounceTime={100}
+                marginHorizontal="$m"
+                onChangeQuery={handleQueryChange}
+                onFocus={handleInputFocus}
+              />
+            </View>
+            <View onTouchStart={() => Keyboard.dismiss()}>
+              <FlatList
+                style={{ width: '100%' }}
+                horizontal={false}
+                contentContainerStyle={{}}
+                onScroll={handleScroll}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
+                data={query ? searchResults : ALL_EMOJIS}
+                keyExtractor={keyExtractor}
+                numColumns={6}
+                renderItem={renderItem}
+              />
+            </View>
+          </KeyboardAvoidingView>
         </Sheet.Frame>
       </Sheet>
     </Modal>
