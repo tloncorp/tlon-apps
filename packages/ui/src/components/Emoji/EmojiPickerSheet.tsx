@@ -28,7 +28,8 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
   return (
     <Button
       borderWidth={0}
-      flex={1}
+      paddingHorizontal={0}
+      flex={1 / 6}
       onPress={() => onSelect(item)}
       justifyContent="center"
       alignItems="center"
