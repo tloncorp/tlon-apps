@@ -301,6 +301,12 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
+  const leaveGroup = useCallback(async () => {
+    if (group) {
+      await store.leaveGroup(group.id);
+    }
+  }, [group]);
+
   return {
     group,
     uploadInfo,
@@ -333,5 +339,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     unbanUser,
     kickUser,
     setUserRoles,
+    leaveGroup,
   };
 };

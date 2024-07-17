@@ -53,7 +53,7 @@ export function rescindGroupInvitationRequest(groupId: string) {
   });
 }
 
-export function kickUsersFromGroup({
+export async function kickUsersFromGroup({
   groupId,
   contactIds,
 }: {
@@ -80,7 +80,7 @@ export function kickUsersFromGroup({
   });
 }
 
-export function banUsersFromGroup({
+export async function banUsersFromGroup({
   groupId,
   contactIds,
 }: {
@@ -106,7 +106,7 @@ export function banUsersFromGroup({
   });
 }
 
-export function unbanUsersFromGroup({
+export async function unbanUsersFromGroup({
   groupId,
   contactIds,
 }: {
@@ -129,6 +129,14 @@ export function unbanUsersFromGroup({
         },
       },
     },
+  });
+}
+
+export async function leaveGroup(groupId: string) {
+  return poke({
+    app: 'groups',
+    mark: 'group-leave',
+    json: groupId,
   });
 }
 

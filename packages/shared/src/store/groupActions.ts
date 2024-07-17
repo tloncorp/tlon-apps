@@ -748,3 +748,25 @@ export async function unbanUserFromGroup({
     });
   }
 }
+
+export async function leaveGroup(groupId: string) {
+  logger.log('leaving group', groupId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  // optimistic update
+  await db.deleteGroup(groupId);
+
+  try {
+    await api.leaveGroup(groupId);
+  } catch (e) {
+    console.error('Failed to leave group', e);
+    // rollback optimistic update
+    await db.insertGroups({ groups: [existingGroup] });
+  }
+}

@@ -16,7 +16,6 @@ import {
   FloatingActionButton,
   GroupPreviewSheet,
   Icon,
-  IconButton,
   ScreenHeader,
   StartDmSheet,
   View,
@@ -34,6 +33,7 @@ import NavBar from '../navigation/NavBarView';
 import { RootStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
+import { useGroupContext } from './GroupSettings/useGroupContext';
 
 type ChatListScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -290,6 +290,10 @@ export default function ChatListScreen(
     }
   }, []);
 
+  const { leaveGroup } = useGroupContext({
+    groupId: longPressedGroup?.id ?? '',
+  });
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <ContactsProvider contacts={contacts ?? []}>
@@ -367,6 +371,7 @@ export default function ChatListScreen(
             onPressManageChannels={handleGoToManageChannels}
             onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
             onPressRoles={handleGoToRoles}
+            onPressLeave={leaveGroup}
           />
           <StartDmSheet
             goToDm={goToDm}
