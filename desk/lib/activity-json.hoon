@@ -304,7 +304,10 @@
     [e (volume v)]
   ++  feed
     |=  f=feed:a
-    a+(turn f activity-bundle)
+    %-  pairs
+    :~  feed+a+(turn feed.f activity-bundle)
+        summaries+(activity summaries.f |)
+    ==
   ::
   +|  %updates
   ++  update
@@ -427,6 +430,12 @@
           reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
       ==
     ::
+    --
+  ++  v4
+    |%
+    ++  feed
+      |=  f=feed:v4:old:a
+      a+(turn f activity-bundle)
     --
   --
 ::

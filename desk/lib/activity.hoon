@@ -174,6 +174,13 @@
 ::
 ++  convert-to
   |%
+  ++  v4
+    |%
+    ++  feed
+      |=  =feed:a
+      ^-  feed:v4:old:a
+      feed.feed
+    --
   ++  v3
     |%
     ++  activity

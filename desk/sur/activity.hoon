@@ -16,8 +16,17 @@
 +$  volume-map
   $~  default-volumes
   (map event-type volume)
-::  $feed: a set of grouped events
-+$  feed  (list activity-bundle)
+::  $feed: a set of grouped events and the summaries of their sources
++$  feed
+  $:  feed=(list activity-bundle)
+      summaries=activity
+  ==
++$  feed-init
+  $:  all=(list activity-bundle)
+      mentions=(list activity-bundle)
+      replies=(list activity-bundle)
+      summaries=activity
+  ==
 +|  %actions
 ::  $action: how to interact with our activity stream
 ::
@@ -220,6 +229,10 @@
 +|  %old-types
 ++  old
   |%
+  ++  v4
+    |%
+    +$  feed  (list activity-bundle)
+    --
   ++  v3
     |%
     +$  index  [=stream =reads]
