@@ -2,8 +2,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  AppDataContextProvider,
   BlockedContactsWidget,
-  ContactsProvider,
   ScreenHeader,
   View,
 } from '@tloncorp/ui';
@@ -42,7 +42,7 @@ export function BlockedUsersScreen(props: Props) {
   );
 
   return (
-    <ContactsProvider contacts={allContacts ?? []}>
+    <AppDataContextProvider contacts={allContacts ?? []}>
       <View flex={1}>
         <ScreenHeader>
           <ScreenHeader.BackButton onPress={() => props.navigation.goBack()} />
@@ -55,6 +55,6 @@ export function BlockedUsersScreen(props: Props) {
           />
         </View>
       </View>
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 }

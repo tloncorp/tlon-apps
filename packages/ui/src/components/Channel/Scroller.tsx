@@ -38,7 +38,6 @@ import { Icon } from '../Icon';
 import { ChannelDivider } from './ChannelDivider';
 
 type RenderItemFunction = (props: {
-  currentUserId: string;
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
@@ -77,7 +76,6 @@ function Scroller({
   renderItem,
   renderEmptyComponent: renderEmptyComponentFn,
   posts,
-  currentUserId,
   channelType,
   channelId,
   firstUnreadId,
@@ -93,13 +91,14 @@ function Scroller({
   editPost,
   hasNewerPosts,
   hasOlderPosts,
+  activeMessage,
+  setActiveMessage,
 }: {
   anchor?: ScrollAnchor | null;
   inverted: boolean;
   renderItem: RenderItemType;
   renderEmptyComponent?: () => ReactElement;
   posts: db.Post[] | null;
-  currentUserId: string;
   channelType: db.ChannelType;
   channelId: string;
   firstUnreadId?: string | null;
@@ -115,6 +114,8 @@ function Scroller({
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
+  activeMessage: db.Post | null;
+  setActiveMessage: (post: db.Post | null) => void;
 }) {
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -127,8 +128,6 @@ function Scroller({
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
     }
   };
-
-  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
   const handleSetActive = useCallback((active: db.Post) => {
@@ -218,7 +217,6 @@ function Scroller({
           showDayDivider={isFirstPostOfDay}
           showAuthor={showAuthor}
           Component={renderItem}
-          currentUserId={currentUserId}
           unreadCount={unreadCount}
           editingPost={editingPost}
           onLayout={handleItemLayout}
@@ -240,7 +238,6 @@ function Scroller({
       posts,
       firstUnreadId,
       renderItem,
-      currentUserId,
       unreadCount,
       editingPost,
       handleItemLayout,
@@ -421,7 +418,6 @@ function Scroller({
       >
         {activeMessage !== null && (
           <ChatMessageActions
-            currentUserId={currentUserId}
             post={activeMessage}
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
@@ -451,7 +447,6 @@ const BaseScrollerItem = ({
   showDayDivider,
   showAuthor,
   Component,
-  currentUserId,
   unreadCount,
   editingPost,
   onLayout,
@@ -473,7 +468,6 @@ const BaseScrollerItem = ({
   item: db.Post;
   index: number;
   Component: RenderItemType;
-  currentUserId: string;
   unreadCount?: number | null;
   onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
   channelId: string;
@@ -528,17 +522,16 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
-          currentUserId={currentUserId}
           post={post}
           editing={editingPost && editingPost?.id === item.id}
           setEditingPost={setEditingPost}
           editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}
-          onPressReplies={onPressReplies}
-          onPressImage={onPressImage}
-          onLongPress={onLongPressPost}
-          onPress={onPressPost}
+          onPressReplies={post.isDeleted ? () => {} : onPressReplies}
+          onPressImage={post.isDeleted ? () => {} : onPressImage}
+          onLongPress={post.isDeleted ? () => {} : onLongPressPost}
+          onPress={post.isDeleted ? () => {} : onPressPost}
         />
       </PressableMessage>
     </View>
@@ -552,7 +545,6 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.currentUserId === next.currentUserId &&
     prev.editingPost === next.editingPost &&
     prev.editPost === next.editPost &&
     prev.setEditingPost === next.setEditingPost &&

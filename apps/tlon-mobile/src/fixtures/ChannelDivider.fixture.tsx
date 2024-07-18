@@ -11,12 +11,10 @@ export default (
     <ChatMessage
       showAuthor={true}
       showReplies={true}
-      currentUserId="~solfer-magfed"
       post={posts[0]}
     ></ChatMessage>
     <ChannelDivider index={0} post={posts[1]} unreadCount={3} />
     <ChatMessage
-      currentUserId="~solfer-magfed"
       post={posts[1]}
       showAuthor={true}
       showReplies={true}

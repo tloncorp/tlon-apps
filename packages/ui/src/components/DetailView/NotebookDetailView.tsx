@@ -10,7 +10,6 @@ const IMAGE_HEIGHT = 268;
 
 export default function NotebookDetailView({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -37,7 +36,6 @@ export default function NotebookDetailView({
   return (
     <DetailView
       post={post}
-      currentUserId={currentUserId}
       editingPost={editingPost}
       setEditingPost={setEditingPost}
       editPost={editPost}

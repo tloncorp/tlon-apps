@@ -40,7 +40,7 @@ export default function ActivityIndicator({
 }
 
 export function ActivitySidebarItem() {
-  const { count } = useNotifications();
+  const { activity } = useNotifications();
   const activeTab = useActiveTab();
 
   return (
@@ -55,7 +55,11 @@ export function ActivitySidebarItem() {
           nonNav
         />
       }
-      actions={count > 0 && <ActivityIndicator count={count} />}
+      actions={
+        activity['notify-count'] > 0 && (
+          <ActivityIndicator count={activity['notify-count']} />
+        )
+      }
       color={activeTab === 'notifications' ? 'text-black' : 'text-gray-600'}
       to={`/`}
       defaultRoute

@@ -18,7 +18,6 @@ import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput/index.native';
 export interface DetailViewProps {
   post: db.Post;
   children?: JSX.Element;
-  currentUserId?: string;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: urbit.Story) => Promise<void>;
@@ -89,7 +88,6 @@ const DetailViewHeaderComponentFrame = ({
 
 const DetailViewFrameComponent = ({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -107,6 +105,7 @@ const DetailViewFrameComponent = ({
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
   );
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const threadUnread = useStickyUnread(post?.threadUnread);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
@@ -125,7 +124,6 @@ const DetailViewFrameComponent = ({
               renderItem={ChatMessage}
               channelType="chat"
               channelId={post.channelId}
-              currentUserId={currentUserId ?? ''}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
               editPost={editPost}
@@ -138,6 +136,8 @@ const DetailViewFrameComponent = ({
                   : null
               }
               unreadCount={threadUnread?.count ?? 0}
+              activeMessage={activeMessage}
+              setActiveMessage={setActiveMessage}
             />
           </View>
         )}

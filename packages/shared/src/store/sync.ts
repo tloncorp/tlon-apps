@@ -342,6 +342,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         groupId: update.groupId,
         contactIds: update.ships,
       });
+      await db.removeChatMembers({
+        chatId: update.groupId,
+        contactIds: update.ships,
+      });
       break;
     case 'unbanGroupMembers':
       await db.deleteGroupMemberBans({
@@ -605,7 +609,8 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       });
       break;
     case 'deletePost':
-      await db.deletePosts({ ids: [update.postId] });
+      await db.markPostAsDeleted(update.postId);
+      await db.updateChannel({ id: update.channelId, lastPostId: null });
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true });

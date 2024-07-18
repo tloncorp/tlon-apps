@@ -16,7 +16,6 @@ import HeapRow from '@/heap/HeapRow';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel, useMarkChannelRead } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
-import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { useIsMobile } from '@/logic/useMedia';
 import { useInfinitePosts } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -48,7 +47,11 @@ function HeapChannel({ title }: ViewProps) {
   const sortMode = useHeapSortMode(chFlag);
   const { posts, fetchNextPage, hasNextPage, isLoading } =
     useInfinitePosts(nest);
-  const { markRead, isLoading: isMarking } = useMarkChannelRead(nest);
+  const { markRead, isLoading: isMarking } = useMarkChannelRead(
+    nest,
+    undefined,
+    true
+  );
 
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const { isDragging, isOver, droppedFiles, setDroppedFiles } =
@@ -61,11 +64,9 @@ function HeapChannel({ title }: ViewProps) {
     dragEnabled && !isLoading && !addCurioOpen && isDragging && isOver;
   const [dragErrorMessage, setDragErrorMessage] = useState('');
 
-  useDismissChannelNotifications({
-    nest,
-    markRead,
-    isMarking,
-  });
+  useEffect(() => {
+    markRead();
+  }, [nest]);
 
   const renderCurio = useCallback(
     (i: number, outline: Post, time: bigInt.BigInteger) => (

@@ -1,7 +1,7 @@
 import { ComponentProps, useMemo } from 'react';
 
+import { useContact } from '../contexts/appDataContext';
 import { useCalm } from '../contexts/calm';
-import { useContact } from '../contexts/contacts';
 import { SizableText } from '../core';
 import { formatUserId } from '../utils/user';
 

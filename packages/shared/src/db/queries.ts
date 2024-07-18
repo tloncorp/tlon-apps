@@ -480,6 +480,18 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
+
+        if (group.bannedMembers?.length) {
+          await txCtx.db
+            .insert($groupMemberBans)
+            .values(
+              group.bannedMembers.map((m) => ({
+                groupId: group.id,
+                contactId: m.contactId,
+              }))
+            )
+            .onConflictDoNothing();
+        }
       }
       await setLastPosts(null, txCtx);
     });
@@ -2043,6 +2055,22 @@ export const deletePost = createWriteQuery(
   ['posts']
 );
 
+export const markPostAsDeleted = createWriteQuery(
+  'markPostAsDeleted',
+  async (postId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .update($posts)
+      .set({
+        isDeleted: true,
+        content: null,
+        textContent: null,
+        authorId: undefined,
+      })
+      .where(eq($posts.id, postId));
+  },
+  ['posts']
+);
+
 export const getPostReaction = createReadQuery(
   'getPostReaction',
   async (
@@ -2263,6 +2291,7 @@ export const getGroup = createReadQuery(
               roles: true,
             },
           },
+          bannedMembers: true,
           navSections: {
             with: {
               channels: true,

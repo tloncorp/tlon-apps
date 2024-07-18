@@ -135,11 +135,18 @@ export default ({ mode }: { mode: string }) => {
     },
   };
 
+  const port =
+    process.env.E2E_PORT_3001 === 'true'
+      ? 3001
+      : process.env.VITE_PORT
+        ? parseInt(process.env.VITE_PORT)
+        : 3000;
+
   return defineConfig({
     base: base(mode),
     server: {
       host: 'localhost',
-      port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
+      port,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
       //      empty path segments from urls: http-party/node-http-proxy#1420.
       //      as a workaround for this, we rewrite the path going into the

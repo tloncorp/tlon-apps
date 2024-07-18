@@ -77,7 +77,7 @@ export async function getInitialActivity() {
 }
 
 export function fromInitFeedToBucketedActivityEvents(
-  feeds: ub.InitActivityFeeds
+  feeds: Omit<ub.InitActivityFeeds, 'summaries'>
 ) {
   return [
     ...fromFeedToActivityEvents(feeds.all, 'all'),

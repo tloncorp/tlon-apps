@@ -6,7 +6,7 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
+import { AppDataContextProvider, CalmProvider, CalmState } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
 import { useStickyUnread } from '../hooks/useStickyUnread';
@@ -65,6 +65,7 @@ export function PostScreenView({
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
 }) {
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -91,7 +92,7 @@ export function PostScreenView({
 
   return (
     <CalmProvider calmSettings={calmSettings}>
-      <ContactsProvider contacts={contacts}>
+      <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
         <ReferencesProvider>
           <View
             paddingBottom={isChatChannel ? bottom : 'unset'}
@@ -108,15 +109,13 @@ export function PostScreenView({
                 showMenuButton={!isChatChannel}
                 post={parentPost ?? undefined}
                 channelType={channel.type}
-                currentUserId={currentUserId}
                 mode={headerMode}
               />
-              <KeyboardAvoidingView>
+              <KeyboardAvoidingView enabled={!activeMessage}>
                 {parentPost && channel.type === 'gallery' && (
                   <GalleryDetailView
                     post={parentPost}
                     onPressImage={handleGoToImage}
-                    currentUserId={currentUserId}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
@@ -134,7 +133,6 @@ export function PostScreenView({
                   <NotebookDetailView
                     post={parentPost}
                     onPressImage={handleGoToImage}
-                    currentUserId={currentUserId}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
@@ -163,7 +161,6 @@ export function PostScreenView({
                         renderItem={ChatMessage}
                         channelType="chat"
                         channelId={channel.id}
-                        currentUserId={currentUserId}
                         editingPost={editingPost}
                         setEditingPost={setEditingPost}
                         editPost={editPost}
@@ -176,6 +173,8 @@ export function PostScreenView({
                             : null
                         }
                         unreadCount={threadUnread?.count ?? 0}
+                        activeMessage={activeMessage}
+                        setActiveMessage={setActiveMessage}
                       />
                     </View>
                   )
@@ -225,7 +224,7 @@ export function PostScreenView({
             </YStack>
           </View>
         </ReferencesProvider>
-      </ContactsProvider>
+      </AppDataContextProvider>
     </CalmProvider>
   );
 }

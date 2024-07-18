@@ -6,7 +6,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 
-import { useChannelContext } from '../../../contexts';
+import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { useReferences } from '../../../contexts/references';
 import ActionList from '../../ActionList';
 
@@ -15,16 +15,15 @@ export default function MessageActions({
   onReply,
   channelType,
   post,
-  currentUserId,
   onEdit,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   post: db.Post;
-  currentUserId: string;
   channelType: db.ChannelType;
 }) {
+  const currentUserId = useCurrentUserId();
   const { setReferences } = useReferences();
   const channel = useChannelContext();
   const postActions = useMemo(() => {

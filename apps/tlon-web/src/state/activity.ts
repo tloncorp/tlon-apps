@@ -1,8 +1,10 @@
-import { useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Activity,
   ActivityAction,
+  ActivityBundle,
   ActivityDeleteUpdate,
+  ActivityFeed,
   ActivityReadUpdate,
   ActivitySummary,
   ActivitySummaryUpdate,
@@ -35,6 +37,7 @@ export const unreadsKey = (...args: string[]) => [
   ...args,
 ];
 export const volumeKey = ['activity', 'volume'];
+export const allKey = ['activity', 'all'];
 
 export function activityAction(action: ActivityAction) {
   return {
@@ -191,6 +194,8 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
       }, unreads);
     });
   }
+
+  queryClient.invalidateQueries(allKey);
 }
 
 export function useActivityFirehose() {
@@ -233,6 +238,28 @@ export function useActivityFirehose() {
     actLogger.log('attempting to process queue', eventQueue.length);
     processQueue.current(eventQueue);
   }, [eventQueue]);
+}
+
+type PageParam = string | null;
+
+export function useAllEvents() {
+  const queryFn = useCallback(({ pageParam }: { pageParam?: PageParam }) => {
+    return api.scry<ActivityFeed>({
+      app: 'activity',
+      path: `/v5/feed/all/50${pageParam ? `/${pageParam}` : ''}`,
+    });
+  }, []);
+  return useInfiniteQuery({
+    queryKey: allKey,
+    queryFn,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.feed.length === 0) {
+        return null;
+      }
+
+      return lastPage.feed[lastPage.feed.length - 1].latest;
+    },
+  });
 }
 
 export function useMarkReadMutation(recursive = false) {
