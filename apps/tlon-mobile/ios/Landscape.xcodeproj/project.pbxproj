@@ -457,10 +457,10 @@
 				70DBC01A2B7C61690021EA96 /* Copy GoogleService-Info.plist */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				6374ACE72C49DA9600E637C0 /* Embed Foundation Extensions */,
 				A8F420A9D9FA89D6A8CAB3CB /* [CP] Embed Pods Frameworks */,
 				590BC56CB01851B48360848A /* [CP-User] [RNFB] Core Configuration */,
 				30592FA2D112F0273F698291 /* [CP-User] [RNFB] Crashlytics Configuration */,
-				6374ACE72C49DA9600E637C0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -507,10 +507,10 @@
 				70DBC01B2B7C61A20021EA96 /* Copy GoogleService-Info.plist */,
 				70DBC00D2B7C60B50021EA96 /* Bundle React Native code and images */,
 				70DBC00E2B7C60B50021EA96 /* [CP] Copy Pods Resources */,
+				6374ACEF2C49DB6500E637C0 /* Embed Foundation Extensions */,
 				70DBC00F2B7C60B50021EA96 /* [CP] Embed Pods Frameworks */,
 				BB7267E200EDB0AE50913E9C /* [CP-User] [RNFB] Core Configuration */,
 				9FD3A78FD12DFC986E134E73 /* [CP-User] [RNFB] Crashlytics Configuration */,
-				6374ACEF2C49DB6500E637C0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
