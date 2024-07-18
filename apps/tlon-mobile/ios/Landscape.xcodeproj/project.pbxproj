@@ -141,6 +141,7 @@
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6374ACE12C49DA9600E637C0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		6374ACE32C49DA9600E637C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Notifications.entitlements; sourceTree = "<group>"; };
 		6C2E3173556A471DD304B334 /* Pods-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
 		700B635A2A71DF860017F40F /* PocketUserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PocketUserAPI.swift; sourceTree = "<group>"; };
 		700B635C2A71DFE90017F40F /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
@@ -271,6 +272,7 @@
 		6374ACE02C49DA9600E637C0 /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
+				6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */,
 				6374ACE12C49DA9600E637C0 /* NotificationService.swift */,
 				6374ACE32C49DA9600E637C0 /* Info.plist */,
 			);
@@ -1187,6 +1189,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -1233,6 +1236,7 @@
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
