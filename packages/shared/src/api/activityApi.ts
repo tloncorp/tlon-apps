@@ -29,7 +29,7 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
-  const feeds = await scry<ub.InitActivityFeeds>({
+  const feeds = await scry<Omit<ub.InitActivityFeeds, 'summaries'>>({
     app: 'activity',
     path: `/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
@@ -38,7 +38,7 @@ export async function getInitialActivity() {
 }
 
 export function fromInitFeedToBucketedActivityEvents(
-  feeds: ub.InitActivityFeeds
+  feeds: Omit<ub.InitActivityFeeds, 'summaries'>
 ) {
   return [
     ...fromFeedToActivityEvents(feeds.all, 'all'),
@@ -62,7 +62,7 @@ export async function getPagedActivityByBucket({
   );
   const urbitCursor = formatUd(unixToDa(cursor).toString());
   const path = `/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
-  const activity = await scry<ub.ActivityFeed>({
+  const activity = await scry<ub.ActivityBundle[]>({
     app: 'activity',
     path,
   });
@@ -73,7 +73,7 @@ export async function getPagedActivityByBucket({
 }
 
 export function fromFeedToActivityEvents(
-  feed: ub.ActivityFeed,
+  feed: ub.ActivityBundle[],
   bucket: db.ActivityBucket
 ): db.ActivityEvent[] {
   const stream: EnhancedStream = {};
@@ -87,7 +87,7 @@ export function fromFeedToActivityEvents(
   return toActivityEvents(stream, bucket);
 }
 
-function extractNextCursor(feed: ub.ActivityFeed): number | null {
+function extractNextCursor(feed: ub.ActivityBundle[]): number | null {
   if (feed.length === 0) {
     return null;
   }
