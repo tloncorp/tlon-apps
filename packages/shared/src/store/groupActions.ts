@@ -612,3 +612,179 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
     });
   }
 }
+
+export async function kickUserFromGroup({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('kicking user from group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User not found in group', groupId, contactId);
+    return;
+  }
+  // optimistic update
+  await db.removeChatMembers({
+    chatId: groupId,
+    contactIds: [contactId],
+  });
+
+  try {
+    await api.kickUsersFromGroup({
+      groupId,
+      contactIds: [contactId],
+    });
+  } catch (e) {
+    console.error('Failed to kick user from group', e);
+    // rollback optimistic update
+    await db.addChatMembers({
+      chatId: groupId,
+      type: 'group',
+      contactIds: [contactId],
+    });
+  }
+}
+
+export async function banUserFromGroup({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('banning user from group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User not found in group', groupId, contactId);
+    return;
+  }
+
+  if (existingGroup.privacy !== 'public') {
+    console.error('Group is not public', groupId);
+    return;
+  }
+  // optimistic update
+  await db.addGroupMemberBans({
+    groupId,
+    contactIds: [contactId],
+  });
+
+  await db.removeChatMembers({
+    chatId: groupId,
+    contactIds: [contactId],
+  });
+
+  try {
+    await api.kickUsersFromGroup({
+      groupId,
+      contactIds: [contactId],
+    });
+
+    await api.banUsersFromGroup({ groupId: groupId, contactIds: [contactId] });
+  } catch (e) {
+    console.error('Failed to ban user from group', e);
+    // rollback optimistic update
+    await db.addChatMembers({
+      chatId: groupId,
+      type: 'group',
+      contactIds: [contactId],
+    });
+
+    await db.deleteGroupMemberBans({
+      groupId,
+      contactIds: [contactId],
+    });
+  }
+}
+
+export async function unbanUserFromGroup({
+  groupId,
+  contactId,
+}: {
+  groupId: string;
+  contactId: string;
+}) {
+  logger.log('unbanning user from group', groupId, contactId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  if (!existingGroup.members) {
+    console.error('Group members not found', groupId);
+    return;
+  }
+
+  if (existingGroup.members.find((member) => member.contactId === contactId)) {
+    console.error('User is still in group', groupId, contactId);
+    return;
+  }
+  // optimistic update
+  await db.deleteGroupMemberBans({
+    groupId,
+    contactIds: [contactId],
+  });
+
+  try {
+    await api.unbanUsersFromGroup({ groupId, contactIds: [contactId] });
+  } catch (e) {
+    console.error('Failed to unban user from group', e);
+    // rollback optimistic update
+    await db.addGroupMemberBans({
+      groupId,
+      contactIds: [contactId],
+    });
+  }
+}
+
+export async function leaveGroup(groupId: string) {
+  logger.log('leaving group', groupId);
+
+  const existingGroup = await db.getGroup({ id: groupId });
+
+  if (!existingGroup) {
+    console.error('Group not found', groupId);
+    return;
+  }
+
+  // optimistic update
+  await db.deleteGroup(groupId);
+
+  try {
+    await api.leaveGroup(groupId);
+  } catch (e) {
+    console.error('Failed to leave group', e);
+    // rollback optimistic update
+    await db.insertGroups({ groups: [existingGroup] });
+  }
+}

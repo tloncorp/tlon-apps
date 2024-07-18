@@ -20,6 +20,7 @@ interface Props {
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
   onPressManageChannels: (groupId: string) => void;
+  onPressLeave: (groupId: string) => void;
   onPressInvitesAndPrivacy: (groupId: string) => void;
   onPressRoles: (groupId: string) => void;
 }
@@ -35,6 +36,7 @@ export function ChatOptionsSheet({
   onPressGroupMeta,
   onPressGroupMembers,
   onPressManageChannels,
+  onPressLeave,
   onPressInvitesAndPrivacy,
   onPressRoles,
 }: Props) {
@@ -110,10 +112,10 @@ export function ChatOptionsSheet({
       {
         title: 'Leave group',
         variant: 'destructive',
-        action: () => {},
+        action: () => (groupData ? onPressLeave(groupData.id) : {}),
       },
     ],
-    [isPinned]
+    [isPinned, groupData, onPressLeave]
   );
 
   if (group && currentUserIsAdmin && actions.length === 4) {

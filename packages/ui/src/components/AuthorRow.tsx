@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { GestureResponderEvent } from 'react-native';
 
-import { SizableText, SizeTokens, View, XStack } from '../core';
+import { SizableText, View, XStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { ProfileSheet } from './ProfileSheet';

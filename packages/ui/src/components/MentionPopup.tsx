@@ -54,7 +54,7 @@ export default function MentionPopup({
             paddingRight="$3xl"
             padding="$s"
             key={contact.id}
-            contact={contact}
+            contactId={contact.id}
             matchText={matchText ? desig(matchText) : undefined}
             showNickname
             showUserId

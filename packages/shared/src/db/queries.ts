@@ -480,6 +480,18 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
+
+        if (group.bannedMembers?.length) {
+          await txCtx.db
+            .insert($groupMemberBans)
+            .values(
+              group.bannedMembers.map((m) => ({
+                groupId: group.id,
+                contactId: m.contactId,
+              }))
+            )
+            .onConflictDoNothing();
+        }
       }
       await setLastPosts(null, txCtx);
     });
@@ -2263,6 +2275,7 @@ export const getGroup = createReadQuery(
               roles: true,
             },
           },
+          bannedMembers: true,
           navSections: {
             with: {
               channels: true,

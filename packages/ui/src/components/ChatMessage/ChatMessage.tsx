@@ -42,7 +42,6 @@ const ChatMessage = ({
   onPressImage,
   onLongPress,
   showReplies,
-  currentUserId,
   editing,
   editPost,
   setEditingPost,
@@ -50,7 +49,6 @@ const ChatMessage = ({
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
-  currentUserId: string;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
@@ -147,7 +145,7 @@ const ChatMessage = ({
           </NoticeWrapper>
         )}
       </View>
-      <ReactionsDisplay post={post} currentUserId={currentUserId} />
+      <ReactionsDisplay post={post} />
 
       {showReplies &&
       post.replyCount &&
@@ -165,7 +163,6 @@ export default memo(ChatMessage, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.currentUserId === next.currentUserId &&
     prev.editing === next.editing &&
     prev.editPost === next.editPost &&
     prev.setEditingPost === next.setEditingPost &&
