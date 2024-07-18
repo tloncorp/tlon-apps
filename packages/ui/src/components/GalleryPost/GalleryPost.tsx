@@ -90,12 +90,20 @@ export default function GalleryPost({
       onPress={handlePress}
       onLongPress={handleLongPress}
     >
-      {post.hidden ? (
-        <View flex={1} padding="$m">
-          <SizableText size="$l" color="$tertiaryText">
-            You have hidden or flagged this post.
-          </SizableText>
-        </View>
+      {post.hidden || post.isDeleted ? (
+        post.hidden ? (
+          <View flex={1} padding="$m">
+            <SizableText size="$l" color="$tertiaryText">
+              You have hidden or flagged this post.
+            </SizableText>
+          </View>
+        ) : post.isDeleted ? (
+          <View flex={1} padding="$m">
+            <SizableText size="$l" color="$tertiaryText">
+              This post has been deleted.
+            </SizableText>
+          </View>
+        ) : null
       ) : (
         <View flex={1} pointerEvents="none">
           {/** Image post */}

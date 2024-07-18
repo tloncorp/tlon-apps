@@ -2055,6 +2055,22 @@ export const deletePost = createWriteQuery(
   ['posts']
 );
 
+export const markPostAsDeleted = createWriteQuery(
+  'markPostAsDeleted',
+  async (postId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .update($posts)
+      .set({
+        isDeleted: true,
+        content: null,
+        textContent: null,
+        authorId: undefined,
+      })
+      .where(eq($posts.id, postId));
+  },
+  ['posts']
+);
+
 export const getPostReaction = createReadQuery(
   'getPostReaction',
   async (
