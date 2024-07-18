@@ -249,7 +249,7 @@
       %add      (add-event +.action)
       %bump     (bump +.action)
       %del      (del-source +.action)
-      %read     (read source.action read-action.action)
+      %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
@@ -730,7 +730,7 @@
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
-  |=  [=source:a action=read-action:a]
+  |=  [=source:a action=read-action:a from-parent=?]
   ^+  cor
   =/  =index:a  (get-index source)
   ?-  -.action
@@ -753,12 +753,25 @@
       |-
       ?~  children  cor
       =/  =source:a  i.children
-      =.  cor  (read source action)
+      =.  cor  (read source action &)
       $(children t.children)
     ::  we need to refresh our own index to reflect new reads
     %-  (log |.("refeshing index: {<source>}"))
     =.  indices  (~(put by indices) source new)
+<<<<<<< Updated upstream
     (refresh source)
+=======
+    ?:  from-parent
+      (refresh-summary source)
+    =.  cor  (refresh source)
+    =/  new-activity=activity:a
+      %+  roll
+        :(weld (get-parents:src source) ~[source] ?:(deep.action children ~))
+      |=  [=source:a out=activity:a]
+      (~(put by out) source (~(gut by activity) source *activity-summary:a))
+    %-  (log |.("sending activity: {<new-activity>}"))
+    (give-update [%activity new-activity] [%hose ~])
+>>>>>>> Stashed changes
   ==
 ::
 ++  give-unreads
