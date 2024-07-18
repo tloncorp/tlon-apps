@@ -121,6 +121,7 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
@@ -225,7 +226,7 @@ export function Channel({
                           showSpinner={isLoadingPosts}
                           showMenuButton={!isChatChannel}
                         />
-                        <KeyboardAvoidingView>
+                        <KeyboardAvoidingView enabled={!activeMessage}>
                           <YStack alignItems="center" flex={1}>
                             <AnimatePresence>
                               {showBigInput ? (
@@ -304,6 +305,8 @@ export function Channel({
                                       onPressImage={goToImageViewer}
                                       onEndReached={onScrollEndReached}
                                       onStartReached={onScrollStartReached}
+                                      activeMessage={activeMessage}
+                                      setActiveMessage={setActiveMessage}
                                     />
                                   )}
                                 </View>

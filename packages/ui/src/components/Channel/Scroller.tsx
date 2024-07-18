@@ -93,6 +93,8 @@ function Scroller({
   editPost,
   hasNewerPosts,
   hasOlderPosts,
+  activeMessage,
+  setActiveMessage,
 }: {
   anchor?: ScrollAnchor | null;
   inverted: boolean;
@@ -115,6 +117,8 @@ function Scroller({
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
+  activeMessage: db.Post | null;
+  setActiveMessage: (post: db.Post | null) => void;
 }) {
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -127,8 +131,6 @@ function Scroller({
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
     }
   };
-
-  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
 
   const handleSetActive = useCallback((active: db.Post) => {

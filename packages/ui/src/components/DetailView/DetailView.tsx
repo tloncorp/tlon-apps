@@ -107,6 +107,7 @@ const DetailViewFrameComponent = ({
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
   );
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const threadUnread = useStickyUnread(post?.threadUnread);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
@@ -138,6 +139,8 @@ const DetailViewFrameComponent = ({
                   : null
               }
               unreadCount={threadUnread?.count ?? 0}
+              activeMessage={activeMessage}
+              setActiveMessage={setActiveMessage}
             />
           </View>
         )}
