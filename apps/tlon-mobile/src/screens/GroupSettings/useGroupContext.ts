@@ -300,6 +300,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
+  const groupPrivacyType = useMemo(() => {
+    return group?.privacy ?? 'public';
+  }, [group]);
+
   const setUserRoles = useCallback(
     async (contactId: string, roleIds: string[]) => {
       if (group) {
@@ -349,5 +353,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     kickUser,
     setUserRoles,
     leaveGroup,
+    groupPrivacyType,
   };
 };

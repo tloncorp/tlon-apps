@@ -20,6 +20,7 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
     unbanUser,
     kickUser,
     bannedUsers,
+    groupPrivacyType,
   } = useGroupContext({
     groupId,
   });
@@ -36,6 +37,7 @@ export function GroupMembersScreen(props: GroupMembersScreenProps) {
       onPressUnban={unbanUser}
       onPressKick={kickUser}
       bannedUsers={bannedUsers}
+      groupPrivacyType={groupPrivacyType}
     />
   );
 }

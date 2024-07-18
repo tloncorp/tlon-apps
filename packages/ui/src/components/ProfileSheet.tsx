@@ -37,6 +37,7 @@ export function ProfileSheet({
   onOpenChange,
   open,
   currentUserIsAdmin,
+  groupIsOpen,
   userIsBanned,
   onPressBan,
   onPressUnban,
@@ -47,6 +48,7 @@ export function ProfileSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUserIsAdmin?: boolean;
+  groupIsOpen?: boolean;
   userIsBanned?: boolean;
   onPressKick?: () => void;
   onPressBan?: () => void;
@@ -116,25 +118,27 @@ export function ProfileSheet({
                   onOpenChange(false);
                 }}
               />
-              {userIsBanned ? (
-                <ProfileButton
-                  secondary
-                  label="Unban User"
-                  onPress={() => {
-                    onPressUnban?.();
-                    onOpenChange(false);
-                  }}
-                />
-              ) : (
-                <ProfileButton
-                  secondary
-                  label="Ban User"
-                  onPress={() => {
-                    onPressBan?.();
-                    onOpenChange(false);
-                  }}
-                />
-              )}
+              {groupIsOpen ? (
+                userIsBanned ? (
+                  <ProfileButton
+                    secondary
+                    label="Unban User"
+                    onPress={() => {
+                      onPressUnban?.();
+                      onOpenChange(false);
+                    }}
+                  />
+                ) : (
+                  <ProfileButton
+                    secondary
+                    label="Ban User"
+                    onPress={() => {
+                      onPressBan?.();
+                      onOpenChange(false);
+                    }}
+                  />
+                )
+              ) : null}
             </>
           )}
           {currentUserId !== contactId && (

@@ -682,6 +682,11 @@ export async function banUserFromGroup({
     console.error('User not found in group', groupId, contactId);
     return;
   }
+
+  if (existingGroup.privacy !== 'public') {
+    console.error('Group is not public', groupId);
+    return;
+  }
   // optimistic update
   await db.addGroupMemberBans({
     groupId,

@@ -1,3 +1,4 @@
+import { GroupPrivacy } from '@tloncorp/shared/dist/db/schema';
 import * as db from 'packages/shared/dist/db';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
@@ -14,6 +15,7 @@ export function GroupMembersScreenView({
   members,
   roles,
   bannedUsers,
+  groupPrivacyType,
   currentUserId,
   onPressKick,
   onPressBan,
@@ -24,6 +26,7 @@ export function GroupMembersScreenView({
   roles: db.GroupRole[];
   currentUserId: string;
   bannedUsers: db.GroupMemberBan[];
+  groupPrivacyType: GroupPrivacy;
   onPressKick: (contactId: string) => void;
   onPressBan: (contactId: string) => void;
   onPressUnban: (contactId: string) => void;
@@ -166,6 +169,7 @@ export function GroupMembersScreenView({
               setSelectedContact(null);
             }
           }}
+          groupIsOpen={groupPrivacyType === 'public'}
           contactId={selectedContact}
           contact={contacts.find((c) => c.id === selectedContact)}
           onPressKick={() => onPressKick(selectedContact)}
