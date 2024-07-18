@@ -728,6 +728,7 @@ export const posts = sqliteTable(
     hasImage: boolean('has_image'),
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
+    isDeleted: boolean('is_deleted'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
     syncedAt: timestamp('synced_at').notNull(),
     // backendTime translates to an unfortunate alternative timestamp that is used

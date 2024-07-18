@@ -526,10 +526,10 @@ const BaseScrollerItem = ({
           editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}
-          onPressReplies={onPressReplies}
-          onPressImage={onPressImage}
-          onLongPress={onLongPressPost}
-          onPress={onPressPost}
+          onPressReplies={post.isDeleted ? () => {} : onPressReplies}
+          onPressImage={post.isDeleted ? () => {} : onPressImage}
+          onLongPress={post.isDeleted ? () => {} : onLongPressPost}
+          onPress={post.isDeleted ? () => {} : onPressPost}
         />
       </PressableMessage>
     </View>

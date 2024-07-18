@@ -43,7 +43,9 @@ export default function NotebookPost({
 
   return (
     <Pressable
-      onPress={() => (post.hidden ? () => {} : onPress?.(post))}
+      onPress={() =>
+        post.hidden || post.isDeleted ? () => {} : onPress?.(post)
+      }
       onLongPress={handleLongPress}
       delayLongPress={250}
       disabled={viewMode === 'activity'}
@@ -57,10 +59,16 @@ export default function NotebookPost({
         borderColor="$border"
         overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
-        {post.hidden ? (
-          <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-            You have hidden or flagged this post.
-          </Text>
+        {post.hidden || post.isDeleted ? (
+          post.hidden ? (
+            <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+              You have hidden or flagged this post.
+            </Text>
+          ) : post.isDeleted ? (
+            <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+              This post has been deleted.
+            </Text>
+          ) : null
         ) : (
           <>
             {post.image && (

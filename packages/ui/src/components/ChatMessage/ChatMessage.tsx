@@ -5,7 +5,7 @@ import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ChatContent from '../ContentRenderer';
+import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
@@ -94,6 +94,25 @@ const ChatMessage = ({
   // return utils.makePrettyDay(date);
   // }, [post.sentAt]);
 
+  if (post.isDeleted) {
+    return (
+      <XStack
+        alignItems="center"
+        key={post.id}
+        gap="$s"
+        paddingVertical="$m"
+        paddingRight="$l"
+        marginVertical="$s"
+        backgroundColor="$secondaryBackground"
+        borderRadius="$m"
+      >
+        <SizableText paddingLeft="$4xl" color="$secondaryText">
+          This message was deleted.
+        </SizableText>
+      </XStack>
+    );
+  }
+
   return (
     <YStack
       onLongPress={handleLongPress}
@@ -134,7 +153,7 @@ const ChatMessage = ({
           </SizableText>
         ) : (
           <NoticeWrapper isNotice={isNotice}>
-            <ChatContent
+            <ContentRenderer
               post={post}
               isNotice={isNotice}
               onPressImage={handleImagePressed}

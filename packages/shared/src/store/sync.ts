@@ -579,7 +579,8 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       });
       break;
     case 'deletePost':
-      await db.deletePosts({ ids: [update.postId] });
+      await db.markPostAsDeleted(update.postId);
+      await db.updateChannel({ id: update.channelId, lastPostId: null });
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true });

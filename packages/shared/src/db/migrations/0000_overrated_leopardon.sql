@@ -251,6 +251,7 @@ CREATE TABLE `posts` (
 	`has_image` integer,
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
+	`is_deleted` integer,
 	`delivery_status` text,
 	`synced_at` integer NOT NULL,
 	`backend_time` text
