@@ -40,6 +40,7 @@ import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
+import GalleryImagePreview from './GalleryImagePreview';
 import Scroller, { ScrollAnchor } from './Scroller';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
@@ -189,6 +190,22 @@ export function Channel({
 
   const { bottom } = useSafeAreaInsets();
 
+  const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
+  const handleGalleryImageSet = useCallback(
+    (assets?: ImagePickerAsset[] | null) => {
+      setIsUploadingGalleryImage(!!assets);
+    },
+    []
+  );
+
+  const handleGalleryPreviewClosed = useCallback(() => {
+    setIsUploadingGalleryImage(false);
+  }, []);
+
+  const handleMessageSent = useCallback(() => {
+    setIsUploadingGalleryImage(false);
+  }, []);
+
   return (
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
@@ -217,7 +234,11 @@ export function Channel({
                     uploadAsset={uploadAsset}
                   >
                     <View
-                      paddingBottom={isChatChannel ? bottom : 'unset'}
+                      paddingBottom={
+                        isChatChannel || isUploadingGalleryImage
+                          ? bottom
+                          : 'unset'
+                      }
                       backgroundColor="$background"
                       flex={1}
                     >
@@ -275,6 +296,10 @@ export function Channel({
                                     placeholder=""
                                   />
                                 </View>
+                              ) : isUploadingGalleryImage ? (
+                                <GalleryImagePreview
+                                  onReset={handleGalleryPreviewClosed}
+                                />
                               ) : (
                                 <View flex={1} width="100%">
                                   {channel && posts && (
@@ -319,7 +344,9 @@ export function Channel({
                             {negotiationMatch &&
                               !channel.isDmInvite &&
                               !editingPost &&
-                              (isChatChannel || channel.type === 'gallery') &&
+                              (isChatChannel ||
+                                (channel.type === 'gallery' &&
+                                  isUploadingGalleryImage)) &&
                               canWrite && (
                                 <MessageInput
                                   shouldBlur={inputShouldBlur}
@@ -334,6 +361,7 @@ export function Channel({
                                   setEditingPost={setEditingPost}
                                   editPost={editPost}
                                   channelType={channel.type}
+                                  onSend={handleMessageSent}
                                   showInlineAttachments={
                                     channel.type !== 'gallery'
                                   }
@@ -351,7 +379,8 @@ export function Channel({
                                 alignItems="center"
                               >
                                 {channel.type === 'gallery' &&
-                                showAddGalleryPost ? null : (
+                                (showAddGalleryPost ||
+                                  isUploadingGalleryImage) ? null : (
                                   <FloatingActionButton
                                     onPress={() =>
                                       channel.type === 'gallery'
@@ -387,6 +416,7 @@ export function Channel({
                                 showAddGalleryPost={showAddGalleryPost}
                                 setShowAddGalleryPost={setShowAddGalleryPost}
                                 setShowGalleryInput={setShowBigInput}
+                                onSetImage={handleGalleryImageSet}
                               />
                             )}
                           </YStack>
