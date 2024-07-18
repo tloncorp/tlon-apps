@@ -273,7 +273,8 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =/  any  ?(%v0 %v1 %v2 %v3 %v4)
+  =/  any  ?(%v0 %v1 %v2 %v3 %v4 %v5)
+  =/  upto-4  ?(%v0 %v1 %v2 %v3 %v4)
   =?  +.pole  !?=([any *] +.pole)
     [%v0 +.pole]
   ?+  pole  [~ ~]
@@ -302,24 +303,51 @@
     =-  ``activity-stream+!>((gas:on-event:a *stream:a -))
     (bat:ex-event:a stream:base `start count)
   ::
-      [%x any %feed %init count=@ ~]
+      [%x upto-4 %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
-    =;  init=[all=feed:a mentions=feed:a replies=feed:a]
+    =;  init=[all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
       ``activity-feed-init+!>(init)
-    :*  (feed %all start count)
-        (feed %mentions start count)
-        (feed %replies start count)
+    :*  feed:(feed %all start count)
+        feed:(feed %mentions start count)
+        feed:(feed %replies start count)
     ==
   ::
-      [%x any %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+      [%x %v5 %feed %init count=@ ~]
+    =/  start  now.bowl
+    =/  count  (slav %ud count.pole)
+    =;  =feed-init:a
+      ``activity-feed-init-5+!>(feed-init)
+    =/  all  (feed %all start count)
+    =/  mentions  (feed %mentions start count)
+    =/  replies  (feed %replies start count)
+    :*  feed.all
+        feed.mentions
+        feed.replies
+      ::
+        %-  ~(uni by summaries.all)
+        %-  ~(uni by summaries.mentions)
+        summaries.replies
+    ==
+  ::
+      [%x upto-4 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+    =/  start
+      ?~  start.pole  now.bowl
+      ?^  tim=(slaw %ud u.start.pole)  u.tim
+      (slav %da u.start.pole)
+    =/  count  (slav %ud count.pole)
+    =;  =feed:v4:old:a
+      ``activity-feed+!>(feed)
+    (feed:v4:convert-to (feed type.pole start count))
+  ::
+      [%x %v5 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
     =;  =feed:a
-      ``activity-feed+!>(feed)
+      ``activity-feed-5+!>(feed)
     (feed type.pole start count)
   ::
   ::  /each: unified feed (equality of outcome)
@@ -428,8 +456,13 @@
 ++  feed
   |=  [type=?(%all %mentions %replies) start=time-id:a count=@ud]
   |^
-  ^-  (list activity-bundle:a)
-  =-  happenings
+  ^-  feed:a
+  =-
+    :-  happenings
+    %+  roll
+      happenings
+    |=  [bn=activity-bundle:a acc=activity:a]
+    (~(put by acc) source.bn (~(got by activity) source.bn))
   ::  if start is now, need to increment to make sure we include latest
   ::  event if that event somehow has now as its time
   =/  real-start  ?:(=(start now.bowl) +(start) start)
