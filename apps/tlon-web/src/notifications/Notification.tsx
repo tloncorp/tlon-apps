@@ -69,7 +69,7 @@ function Notification({ bundle, summary }: NotificationProps) {
   const path = getPath(source, top);
   const time = daToUnix(parseUd(bundle.latest));
   const content = getContent(top);
-  const unread = false;
+  const unread = summary.count > 0 || summary['notify-count'] > 0;
   const { mutate } = useMarkReadMutation();
   const onClick = useCallback(() => {
     mutate({ source });

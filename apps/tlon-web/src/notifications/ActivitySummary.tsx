@@ -61,6 +61,7 @@ function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
       <ShipName
         className="text-gray-800 font-semibold"
         name={topAuthor || ''}
+        full
         showAlias
       />
     );
@@ -72,6 +73,7 @@ function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
         <ShipName
           className="text-gray-800 font-semibold"
           name={topAuthor || ''}
+          full
           showAlias
         />
         {otherAuthors[0] && (
@@ -80,6 +82,7 @@ function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
             <ShipName
               className="text-gray-800 font-semibold"
               name={otherAuthors[0]}
+              full
               showAlias
             />
           </>
@@ -90,6 +93,7 @@ function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
             <ShipName
               className="text-gray-800 font-semibold"
               name={otherAuthors[1]}
+              full
               showAlias
             />
           </>
@@ -169,6 +173,26 @@ function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
 
   if (relevancy === 'postToChannel') {
     const message = ` ${postVerb(top)} ${postName(top, plural)} to the channel`;
+    return (
+      <SummaryMessageWrapper>
+        {Authors}
+        {message}
+      </SummaryMessageWrapper>
+    );
+  }
+
+  if (relevancy === 'flaggedPost') {
+    const message = ` ${otherAuthors.length > 0 ? 'have' : 'has'} reported ${plural ? 'some' : 'a'} ${postName(top, plural)} as inappropriate`;
+    return (
+      <SummaryMessageWrapper>
+        {Authors}
+        {message}
+      </SummaryMessageWrapper>
+    );
+  }
+
+  if (relevancy === 'flaggedReply') {
+    const message = ` ${otherAuthors.length > 0 ? 'have' : 'has'} reported ${plural ? 'some replies' : 'a reply'} as inappropriate`;
     return (
       <SummaryMessageWrapper>
         {Authors}

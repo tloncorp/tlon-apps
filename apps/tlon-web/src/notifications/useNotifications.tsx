@@ -1,19 +1,32 @@
+import {
+  ActivityBundle,
+  ActivityFeed,
+  ActivitySummary,
+} from '@tloncorp/shared/dist/urbit';
 import { daToUnix, parseUd } from '@urbit/aura';
 import _ from 'lodash';
-import { ActivityBundle } from 'packages/shared/dist/urbit';
 import { useMemo } from 'react';
 
 import { makePrettyDay } from '@/logic/utils';
-import { useAllEvents, useSourceActivity } from '@/state/activity';
+import {
+  emptySummary,
+  useAllEvents,
+  useSourceActivity,
+} from '@/state/activity';
+
+export interface BundlePair {
+  bundle: ActivityBundle;
+  summary: ActivitySummary;
+}
 
 export interface DayGrouping {
   date: string;
   latest: number;
-  bundles: ActivityBundle[];
+  bundles: BundlePair[];
 }
 
-function groupBundlesByDate(bundles: ActivityBundle[]): DayGrouping[] {
-  const groups = _.groupBy(bundles, (b) =>
+function groupBundlesByDate(feed: ActivityFeed): DayGrouping[] {
+  const groups = _.groupBy(feed.feed, (b) =>
     makePrettyDay(new Date(daToUnix(parseUd(b.latest))))
   );
 
@@ -21,7 +34,12 @@ function groupBundlesByDate(bundles: ActivityBundle[]): DayGrouping[] {
     .map(([k, v]) => ({
       date: k,
       latest: daToUnix(parseUd(_.head(v)?.latest || '0')),
-      bundles: v.sort((a, b) => b.latest.localeCompare(a.latest)),
+      bundles: v
+        .sort((a, b) => b.latest.localeCompare(a.latest))
+        .map((b) => ({
+          bundle: b,
+          summary: feed.summaries[b['source-key']] || emptySummary,
+        })),
     }))
     .sort((a, b) => b.latest - a.latest);
 }
@@ -29,8 +47,18 @@ function groupBundlesByDate(bundles: ActivityBundle[]): DayGrouping[] {
 export function useNotifications() {
   const { activity } = useSourceActivity('base');
   const { data, status } = useAllEvents();
-  const bundles = useMemo(() => {
-    return data?.pages.flat() || [];
+  const all = useMemo(() => {
+    if (!data) {
+      return { feed: [], summaries: {} };
+    }
+
+    return data.pages.reduce(
+      (acc, { feed, summaries }) => ({
+        feed: [...feed, ...acc.feed],
+        summaries: { ...summaries, ...acc.summaries },
+      }),
+      { feed: [], summaries: {} }
+    );
   }, [data]);
 
   if (status !== 'success') {
@@ -41,7 +69,7 @@ export function useNotifications() {
     };
   }
 
-  const notifications = groupBundlesByDate(bundles);
+  const notifications = groupBundlesByDate(all);
 
   return {
     notifications,

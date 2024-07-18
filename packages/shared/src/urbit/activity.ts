@@ -222,11 +222,16 @@ export interface ActivityBundle {
   'source-key': string;
 }
 
-export type ActivityFeed = ActivityBundle[];
+export interface ActivityFeed {
+  feed: ActivityBundle[];
+  summaries: Activity;
+}
+
 export type InitActivityFeeds = {
   all: ActivityBundle[];
   mentions: ActivityBundle[];
   replies: ActivityBundle[];
+  summaries: Activity;
 };
 
 export type Activity = Record<string, ActivitySummary>;
@@ -752,6 +757,14 @@ export function getAuthor(event: ActivityEvent) {
     return getIdParts(event['dm-reply'].key.id).author;
   }
 
+  if ('flag-post' in event) {
+    return getIdParts(event['flag-post'].key.id).author;
+  }
+
+  if ('flag-reply' in event) {
+    return getIdParts(event['flag-reply'].key.id).author;
+  }
+
   return undefined;
 }
 
@@ -770,7 +783,9 @@ export type ActivityRelevancy =
   | 'groupchat'
   | 'postInYourChannel'
   | 'postToChannel'
-  | 'groupMeta';
+  | 'groupMeta'
+  | 'flaggedPost'
+  | 'flaggedReply';
 
 export function getRelevancy(
   event: ActivityEvent,
@@ -807,6 +822,14 @@ export function getRelevancy(
 
   if ('post' in event && event.notified) {
     return 'postToChannel';
+  }
+
+  if ('flag-post' in event) {
+    return 'flaggedPost';
+  }
+
+  if ('flag-reply' in event) {
+    return 'flaggedReply';
   }
 
   console.log(

@@ -107,7 +107,7 @@ function GroupNotification({
           {!groupMetaEvent && author ? (
             <Avatar size="default-sm" ship={author} />
           ) : (
-            <GroupAvatar size="w-12 h-12" {...(group || gang?.preview)?.meta} />
+            <GroupAvatar size="w-9 h-9" {...(group || gang?.preview)?.meta} />
           )}
         </div>
         <div className="min-w-0 grow-0 break-words p-1 space-y-2">

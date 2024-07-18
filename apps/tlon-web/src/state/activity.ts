@@ -4,6 +4,7 @@ import {
   ActivityAction,
   ActivityBundle,
   ActivityDeleteUpdate,
+  ActivityFeed,
   ActivityReadUpdate,
   ActivitySummary,
   ActivitySummaryUpdate,
@@ -243,20 +244,20 @@ type PageParam = string | null;
 
 export function useAllEvents() {
   const queryFn = useCallback(({ pageParam }: { pageParam?: PageParam }) => {
-    return api.scry<ActivityBundle[]>({
+    return api.scry<ActivityFeed>({
       app: 'activity',
-      path: `/v0/feed/all/100${pageParam ? `/${pageParam}` : ''}`,
+      path: `/v5/feed/all/50${pageParam ? `/${pageParam}` : ''}`,
     });
   }, []);
   return useInfiniteQuery({
     queryKey: allKey,
     queryFn,
     getNextPageParam: (lastPage) => {
-      if (lastPage.length === 0) {
+      if (lastPage.feed.length === 0) {
         return null;
       }
 
-      return lastPage[lastPage.length - 1].latest;
+      return lastPage.feed[lastPage.feed.length - 1].latest;
     },
   });
 }

@@ -150,8 +150,8 @@ export default function Notifications({
                   </h2>
                   <ul className="mb-4 space-y-2">
                     {grouping.bundles.map((b) => (
-                      <li key={b.latest}>
-                        <Notification bundle={b} summary={activity} />
+                      <li key={b.bundle.latest}>
+                        <Notification {...b} />
                       </li>
                     ))}
                   </ul>
