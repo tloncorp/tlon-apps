@@ -1,52 +1,17 @@
-import {
-  ActivityBundle,
-  ActivityFeed,
-  ActivitySummary,
-} from '@tloncorp/shared/dist/urbit';
 import { daToUnix, parseUd } from '@urbit/aura';
+import { isSameDay } from 'date-fns';
 import _ from 'lodash';
 import { useMemo } from 'react';
 
-import { makePrettyDay } from '@/logic/utils';
 import {
   emptySummary,
   useAllEvents,
   useSourceActivity,
 } from '@/state/activity';
 
-export interface BundlePair {
-  bundle: ActivityBundle;
-  summary: ActivitySummary;
-}
-
-export interface DayGrouping {
-  date: string;
-  latest: number;
-  bundles: BundlePair[];
-}
-
-function groupBundlesByDate(feed: ActivityFeed): DayGrouping[] {
-  const groups = _.groupBy(feed.feed, (b) =>
-    makePrettyDay(new Date(daToUnix(parseUd(b.latest))))
-  );
-
-  return Object.entries(groups)
-    .map(([k, v]) => ({
-      date: k,
-      latest: daToUnix(parseUd(_.head(v)?.latest || '0')),
-      bundles: v
-        .sort((a, b) => b.latest.localeCompare(a.latest))
-        .map((b) => ({
-          bundle: b,
-          summary: feed.summaries[b['source-key']] || emptySummary,
-        })),
-    }))
-    .sort((a, b) => b.latest - a.latest);
-}
-
 export function useNotifications() {
   const { activity } = useSourceActivity('base');
-  const { data, status } = useAllEvents();
+  const { data, status, ...rest } = useAllEvents();
   const all = useMemo(() => {
     if (!data) {
       return { feed: [], summaries: {} };
@@ -61,17 +26,39 @@ export function useNotifications() {
     );
   }, [data]);
 
+  const notifications = useMemo(
+    () =>
+      all.feed
+        .sort((a, b) => b.latest.localeCompare(a.latest))
+        .map((b, index) => {
+          const myDay = new Date(daToUnix(parseUd(b.latest)));
+          const prevDay =
+            index === 0
+              ? null
+              : new Date(daToUnix(parseUd(all.feed[index - 1].latest)));
+          const newDay = prevDay === null ? true : !isSameDay(myDay, prevDay);
+
+          return {
+            bundle: b,
+            summary: all.summaries[b['source-key']] || emptySummary,
+            newDay,
+            date: myDay,
+          };
+        }),
+    [all]
+  );
+
   if (status !== 'success') {
     return {
+      ...rest,
       notifications: [],
       activity,
       loaded: status === 'error',
     };
   }
 
-  const notifications = groupBundlesByDate(all);
-
   return {
+    ...rest,
     notifications,
     activity,
     loaded: status === 'success' || status === 'error',

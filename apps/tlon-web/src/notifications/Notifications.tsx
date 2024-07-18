@@ -1,8 +1,9 @@
 import { ActivityBundle, ActivitySummary } from '@tloncorp/shared/dist/urbit';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
-import { ComponentType, PropsWithChildren, useCallback } from 'react';
+import { PropsWithChildren, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
+import { Virtuoso } from 'react-virtuoso';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
@@ -10,13 +11,13 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import WelcomeCard from '@/components/WelcomeCard';
 import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
-import { randomElement, randomIntInRange } from '@/logic/utils';
+import { makePrettyDay, randomElement, randomIntInRange } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/activity';
 
+import Notification from './Notification';
 import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
-  child: ComponentType<{ bundle: ActivityBundle; summary: ActivitySummary }>;
   title?: ViewProps['title'];
 }
 
@@ -60,16 +61,47 @@ function NotificationPlaceholder() {
   );
 }
 
-export default function Notifications({
-  child: Notification,
-  title,
-}: NotificationsProps) {
+interface NotificationItem {
+  bundle: ActivityBundle;
+  summary: ActivitySummary;
+  newDay: boolean;
+  date: Date;
+}
+
+function VirtualNotification(
+  index: number,
+  { bundle, summary, newDay, date }: NotificationItem
+) {
+  return (
+    <div key={bundle.latest} className="py-2">
+      {newDay && (
+        <h2 className="mt-2 mb-4 font-sans text-[17px] font-normal leading-[22px] text-gray-400">
+          {makePrettyDay(date)}
+        </h2>
+      )}
+      <Notification bundle={bundle} summary={summary} />
+    </div>
+  );
+}
+
+function getKey(i: number, { bundle }: NotificationItem): string {
+  return bundle['source-key'] + bundle.latest;
+}
+
+export default function Notifications({ title }: NotificationsProps) {
   const isMobile = useIsMobile();
   const { paddingBottom } = useBottomPadding();
-  const { loaded, notifications, activity } = useNotifications();
+  const { loaded, notifications, activity, fetchNextPage, hasNextPage } =
+    useNotifications();
   const { mutate, isLoading } = useMarkReadMutation(true);
   const isMarkReadPending = isLoading;
   const hasUnreads = activity['notify-count'] > 0;
+
+  const getMore = useCallback(() => {
+    if (hasNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage]);
 
   const markAllRead = useCallback(async () => {
     mutate({ source: { base: null } });
@@ -125,9 +157,9 @@ export default function Notifications({
           <title>{title}</title>
         </Helmet>
 
-        <div className="card pt-6">
+        <div className="flex flex-col card h-full pt-6 sm:py-6 sm:mb-6">
           {!isMobile && (
-            <div>
+            <div className="flex-none">
               <WelcomeCard />
               <div className="mb-6 flex w-full items-center justify-between">
                 <h2 className="text-lg font-bold">Activity</h2>
@@ -143,20 +175,14 @@ export default function Notifications({
                 </span>
               </div>
             ) : (
-              notifications.map((grouping) => (
-                <div key={grouping.date}>
-                  <h2 className="mb-4 font-sans text-[17px] font-normal leading-[22px] text-gray-400">
-                    {grouping.date}
-                  </h2>
-                  <ul className="mb-4 space-y-2">
-                    {grouping.bundles.map((b) => (
-                      <li key={b.bundle.latest}>
-                        <Notification {...b} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))
+              <div className="flex-1">
+                <Virtuoso
+                  data={notifications}
+                  endReached={getMore}
+                  computeItemKey={getKey}
+                  itemContent={VirtualNotification}
+                />
+              </div>
             )
           ) : (
             new Array(30)

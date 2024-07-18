@@ -368,12 +368,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
           </Route>
           <Route
             path="/notifications"
-            element={
-              <Notifications
-                child={Notification}
-                title={`Activity • ${groupsTitle}`}
-              />
-            }
+            element={<Notifications title={`Activity • ${groupsTitle}`} />}
           />
           {!isMobile ? (
             <Route
