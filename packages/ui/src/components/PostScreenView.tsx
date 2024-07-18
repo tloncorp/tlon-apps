@@ -43,6 +43,7 @@ export function PostScreenView({
   onPressDelete,
   negotiationMatch,
   headerMode,
+  canUpload,
 }: {
   currentUserId: string;
   calmSettings?: CalmState | null;
@@ -67,6 +68,7 @@ export function PostScreenView({
   onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
+  canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -96,7 +98,7 @@ export function PostScreenView({
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
-        <MessageInputProvider uploadAsset={uploadAsset}>
+        <MessageInputProvider canUpload={canUpload} uploadAsset={uploadAsset}>
           <View
             paddingBottom={isChatChannel ? bottom : 'unset'}
             backgroundColor="$background"

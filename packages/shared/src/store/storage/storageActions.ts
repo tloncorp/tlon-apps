@@ -10,7 +10,12 @@ import { getCurrentUserId } from '../../api';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { setUploadState } from './storageUploadState';
-import { fetchImageFromUri, getMemexUpload } from './storageUtils';
+import {
+  fetchImageFromUri,
+  getMemexUpload,
+  hasCustomS3Creds,
+  hasHostingUploadCreds,
+} from './storageUtils';
 
 const logger = createDevLogger('storageActions', true);
 
@@ -53,9 +58,7 @@ const performUpload = async (asset: ImagePickerAsset) => {
   )}-${resizedAsset.uri.split('/').pop()}`;
   logger.log('asset key:', fileKey);
 
-  const isHostedUpload =
-    config.service === 'presigned-url' && config.presignedUrl;
-  if (isHostedUpload) {
+  if (hasHostingUploadCreds(config, credentials)) {
     const file = await fetchImageFromUri(
       resizedAsset.uri,
       resizedAsset.height,
@@ -73,13 +76,7 @@ const performUpload = async (asset: ImagePickerAsset) => {
       'Content-Type': file.type,
     });
     return hostedUrl;
-  } else if (
-    // TODO: proper check here?
-    // config.service === 'credentials' &&
-    credentials?.accessKeyId &&
-    credentials?.endpoint &&
-    credentials?.secretAccessKey
-  ) {
+  } else if (hasCustomS3Creds(config, credentials)) {
     const endpoint = new URL(prefixEndpoint(credentials.endpoint));
     const client = new S3Client({
       endpoint: {

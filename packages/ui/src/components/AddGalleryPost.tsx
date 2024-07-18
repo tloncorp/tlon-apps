@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { ImagePickerAsset } from 'expo-image-picker';
+import { useCallback, useMemo, useState } from 'react';
 
-import { useMessageInputContext } from '../contexts/messageInput';
+import {
+  ImageAttachment,
+  useMessageInputContext,
+} from '../contexts/messageInput';
+import { Image, View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
@@ -13,8 +18,12 @@ export default function AddGalleryPost({
   setShowAddGalleryPost: (show: boolean) => void;
   setShowGalleryInput: (show: boolean) => void;
 }) {
-  const { attachAssets } = useMessageInputContext();
+  const { attachments, resetAttachments } = useMessageInputContext();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+
+  const attachedImage = useMemo(() => {
+    return attachments.find((a): a is ImageAttachment => a.type === 'image');
+  }, [attachments]);
 
   const actions = [
     {
@@ -33,6 +42,18 @@ export default function AddGalleryPost({
     },
   ];
 
+  const handleSetImage = useCallback(
+    (assets: ImagePickerAsset[]) => {
+      resetAttachments([
+        {
+          type: 'image',
+          file: assets[0],
+        },
+      ]);
+    },
+    [resetAttachments]
+  );
+
   return (
     <>
       <ActionSheet
@@ -48,8 +69,13 @@ export default function AddGalleryPost({
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={attachAssets}
+        setImage={handleSetImage}
       />
+      {attachedImage ? (
+        <View flex={1}>
+          <Image source={{ uri: attachedImage.file.uri }} flex={1} />
+        </View>
+      ) : null}
     </>
   );
 }

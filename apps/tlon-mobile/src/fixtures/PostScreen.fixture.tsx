@@ -35,6 +35,7 @@ export default (
       getDraft={async () => ({})}
       storeDraft={() => {}}
       clearDraft={() => {}}
+      canUpload={true}
     />
   </>
 );

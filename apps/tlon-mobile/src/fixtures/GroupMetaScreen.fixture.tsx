@@ -13,6 +13,7 @@ const GroupMetaScreenFixture = () => {
         goBack={() => console.log('goBack')}
         setGroupMetadata={() => console.log('setGroupMetadata')}
         uploadAsset={async () => {}}
+        canUpload={true}
       />
     </FixtureWrapper>
   );

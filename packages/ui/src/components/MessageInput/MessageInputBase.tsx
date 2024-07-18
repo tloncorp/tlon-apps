@@ -6,10 +6,12 @@ import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
 
 import { ArrowUp, Checkmark, ChevronLeft, Close } from '../../assets/icons';
+import { useMessageInputContext } from '../../contexts/messageInput';
 import { ThemeTokens, View, XStack, YStack } from '../../core';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
 import { IconButton } from '../IconButton';
+import { LoadingSpinner } from '../LoadingSpinner';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 
@@ -67,6 +69,7 @@ export const MessageInputContainer = ({
   mentionText,
   groupMembers,
   onSelectMention,
+  isSending,
   isEditing = false,
   cancelEditing,
   onPressEdit,
@@ -83,10 +86,12 @@ export const MessageInputContainer = ({
   groupMembers: db.ChatMember[];
   onSelectMention: (contact: db.Contact) => void;
   isEditing?: boolean;
+  isSending?: boolean;
   cancelEditing?: () => void;
   onPressEdit?: () => void;
   goBack?: () => void;
 }>) => {
+  const { canUpload } = useMessageInputContext();
   return (
     <YStack width="100%">
       <InputMentionPopup
@@ -117,7 +122,7 @@ export const MessageInputContainer = ({
             </IconButton>
           </View>
         ) : null}
-        {showAttachmentButton ? (
+        {canUpload && showAttachmentButton ? (
           <View paddingBottom="$xs">
             <AttachmentButton setShouldBlur={setShouldBlur} />
           </View>
@@ -142,11 +147,20 @@ export const MessageInputContainer = ({
           <View paddingBottom="$xs">
             {disableSend ? null : (
               <IconButton
+                disabled={isSending}
                 color={'$primaryText'}
                 onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
                 backgroundColor="unset"
               >
-                {isEditing ? <Checkmark /> : <ArrowUp />}
+                {isSending ? (
+                  <View width="$2xl" height="$2xl">
+                    <LoadingSpinner size="small" color="$secondaryText" />
+                  </View>
+                ) : isEditing ? (
+                  <Checkmark />
+                ) : (
+                  <ArrowUp />
+                )}
               </IconButton>
             )}
           </View>

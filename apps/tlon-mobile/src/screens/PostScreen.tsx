@@ -94,9 +94,11 @@ export default function PostScreen(props: PostScreenProps) {
     },
     [channel]
   );
+  const canUpload = store.useCanUpload();
 
   return currentUserId && channel && post ? (
     <PostScreenView
+      canUpload={canUpload}
       contacts={contacts ?? null}
       calmSettings={calmSettings}
       currentUserId={currentUserId}

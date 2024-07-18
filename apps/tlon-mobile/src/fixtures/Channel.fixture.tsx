@@ -118,6 +118,7 @@ export const ChannelFixture = (props: {
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
+        canUpload={true}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -158,6 +159,7 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         useChannel={useChannel}
         useGroup={useGroupPreview}
         onGroupAction={() => {}}
+        canUpload={true}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -210,6 +212,7 @@ const ChannelFixtureWithImage = () => {
         negotiationMatch={true}
         isLoadingPosts={false}
         uploadAsset={async () => {}}
+        canUpload={true}
         initialAttachments={[
           {
             type: 'reference',

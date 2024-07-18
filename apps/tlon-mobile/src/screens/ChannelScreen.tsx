@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  useCanUpload,
   useChannel,
   useGroupPreview,
   usePostReference,
@@ -191,6 +192,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [channel]);
 
+  const canUpload = useCanUpload();
+
   if (!channel) {
     return null;
   }
@@ -235,6 +238,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         setEditingPost={setEditingPost}
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
+        canUpload={canUpload}
       />
       {group && (
         <ChannelSwitcherSheet

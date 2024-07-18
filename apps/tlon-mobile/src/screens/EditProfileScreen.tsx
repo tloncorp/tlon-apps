@@ -29,6 +29,8 @@ export function EditProfileScreen(props: Props) {
     [props.navigation]
   );
 
+  const canUpload = store.useCanUpload();
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -36,6 +38,7 @@ export function EditProfileScreen(props: Props) {
     >
       <View flex={1}>
         <EditProfileScreenView
+          canUpload={canUpload}
           uploadAsset={store.uploadAsset}
           onGoBack={onGoBack}
           onSaveProfile={onSaveProfile}

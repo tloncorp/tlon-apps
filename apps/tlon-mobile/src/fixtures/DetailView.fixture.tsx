@@ -38,6 +38,7 @@ const NotebookDetailViewFixture = () => {
         getDraft={async () => ({})}
         goBack={() => {}}
         markRead={() => {}}
+        canUpload={true}
       />
     </FixtureWrapper>
   );
@@ -64,6 +65,7 @@ const GalleryDetailViewFixture = () => {
         getDraft={async () => ({})}
         goBack={() => {}}
         markRead={() => {}}
+        canUpload={true}
       />
     </FixtureWrapper>
   );
