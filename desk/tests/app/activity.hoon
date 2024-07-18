@@ -1,27 +1,31 @@
 /-  a=activity, g=groups, c=channels
-/+  *test-agent
+/+  *activity, *test-agent
 /=  activity-agent  /app/activity
 |%
 ++  dap  %activity
 ++  test-sync-reads-0
-  (run-sync-reads pre-sync-state-0 post-sync-state-0 5)
+  =+  state-0
+  (run-sync-reads pre-sync post-sync activity 5)
 ::
 ++  test-sync-reads-1
-  (run-sync-reads pre-sync-state-1 post-sync-state-1 5)
+  =+  state-1
+  (run-sync-reads pre-sync post-sync activity 5)
 ::
 ++  test-sync-reads-2
-  (run-sync-reads pre-sync-state-2 post-sync-state-2 5)
+  =+  state-2
+  (run-sync-reads pre-sync post-sync activity 5)
 ::
 ++  test-sync-reads-3
-  (run-sync-reads pre-sync-state-3 post-sync-state-3 9)
+  =+  state-3
+  (run-sync-reads pre-sync post-sync activity 9)
 ++  run-sync-reads
-  |=  [pre=indices:a post=indices:a count=@ud]
+  |=  [pre=indices:a post=indices:a =activity:a count=@ud]
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
-  ;<  *  bind:m  (do-load activity-agent `!>([%3 %some pre ~ ~]))
+  ;<  *  bind:m  (do-load activity-agent `!>([%5 %some pre activity ~]))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
@@ -30,7 +34,7 @@
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 +$  current-state
-  $:  %3
+  $:  %5
       allowed=notifications-allowed:a
       =indices:a
       =activity:a
@@ -47,199 +51,438 @@
 ::  in this case, we test when a child has unreads before any of the parents,
 ::  resulting in a large list of reads and a very early floor
 ++  state-0
-  ^-  source-set
-  =/  thrd1  (thread-source-1 flag nest i0)
-  =/  thrd2  (thread-source-2 flag nest i0)
-  =/  chnl  (channel-source flag nest stream.index.thrd1 stream.index.thrd2 i0)
-  =/  grp  (group-source flag stream.index.chnl)
-  :*  thrd1
-      thrd2
-      chnl
-      grp
-      (base-source stream.index.grp)
-  ==
-++  pre-sync-state-0
-  ^-  indices:a
-  %-  ~(gas by *indices:a)
-  =>  state-0
-  .(base [base ~])
-++  post-sync-state-0
-  ^-  indices:a
-  =+  state-0
-  ::  only care about the index
-  =/  new-reads=reads:a
-    :-  d-1
-    %+  gas:on-read-items:a  *read-items:a
-    :~  [d1 ~]
-        [d2 ~]
-        [d3 ~]
-        [d4 ~]
+  |%
+  ++  sources
+    ^-  source-set
+    =/  =reads:a
+      :-  d-1
+      %+  gas:on-read-items:a  *read-items:a
+      :~  [d1 ~]
+          [d2 ~]
+          [d3 ~]
+          [d4 ~]
+          [d5 ~]
+      ==
+    =/  thrd1  (thread-source-1 flag nest i0)
+    =/  thrd2  (thread-source-2 flag nest i0)
+    =/  chnl  (channel-source flag nest reads index.thrd1 index.thrd2 i0)
+    =/  grp  (group-source flag index.chnl)
+    :*  thrd1
+        thrd2
+        chnl
+        grp
+        (base-source index.grp)
     ==
-  %-  my
-  :~  thrd1
-      thrd2
-      chnl(reads.index new-reads)
-      grp(reads.index new-reads)
-      base(reads.index new-reads)
-  ==
+  ++  pre-sync
+    ^-  indices:a
+    %-  ~(gas by *indices:a)
+    =>  sources
+    .(base [base ~])
+  ++  post-sync
+    ^-  indices:a
+    =+  sources
+    ::  only care about the index
+    %-  my
+    :~  thrd1
+        thrd2
+        chnl(reads.index [d4 ~])
+        grp(reads.index [d-1 ~])
+        base(reads.index [d-1 ~])
+    ==
+  ++  activity
+    ^-  activity:a
+    =+  sources
+    =/  chan-sum=activity-summary:a
+      :*  newest=d5
+          count=0
+          notify-count=0
+          notify=|
+          unread=~
+          children=(sy (get-children:src pre-sync source.chnl))
+          reads=[d-1 (my [d1 ~] [d2 ~] [d3 ~] [d4 ~] [d5 ~] ~)]
+      ==
+    %-  my
+    :~  :-  source.thrd1
+        :*  newest=d5
+            count=2
+            notify-count=0
+            notify=|
+            unread=`[[[~dev d0] d0] 2 |]
+            children=(sy (get-children:src pre-sync source.thrd1))
+            reads=[d-1 ~]
+        ==
+      ::
+        :-  source.thrd2
+        :*  newest=d2
+            count=0
+            notify-count=0
+            notify=|
+            unread=~
+            children=(sy (get-children:src pre-sync source.thrd2))
+            reads=[d2 ~]
+        ==
+      ::
+        [source.chnl chan-sum]
+      ::
+        :-  source.grp
+        chan-sum(children (sy (get-children:src pre-sync source.grp)))
+      ::
+        :-  source.base
+        chan-sum(children ~)
+    ==
+  --
 ::  in this case, we test when a child has unreads later than any of the
 ::  parents, but all other children are read, resulting in a late floor
 ::  and no reads
 ++  state-1
-  ^-  source-set
-  =/  thrd1  (thread-source-2 flag nest i0)
-  =/  thrd2  (thread-source-3 flag nest i0)
-  =/  chnl  (channel-source flag nest stream.index.thrd1 stream.index.thrd2 i0)
-  =/  grp  (group-source flag stream.index.chnl)
-  :*  thrd1
-      thrd2
-      chnl
-      grp
-      (base-source stream.index.grp)
-  ==
-++  pre-sync-state-1
-  ^-  indices:a
-  %-  ~(gas by *indices:a)
-  =>  state-1
-  .(base [base ~])
-++  post-sync-state-1
-  ^-  indices:a
-  =+  state-1
-  %-  my
-  :~  thrd1
-      thrd2
-      chnl(reads.index [d4 ~])
-      grp(reads.index [d4 ~])
-      base(reads.index [d4 ~])
-  ==
+  |%
+  ++  sources
+    ^-  source-set
+    =/  thrd1  (thread-source-2 flag nest i0)
+    =/  thrd2  (thread-source-3 flag nest i0)
+    =/  =reads:a  [d-1 (my [d1 ~] [d2 ~] [d3 ~] ~)]
+    =/  chnl  (channel-source flag nest reads index.thrd1 index.thrd2 i0)
+    =/  grp  (group-source flag index.chnl)
+    :*  thrd1
+        thrd2
+        chnl
+        grp
+        (base-source index.grp)
+    ==
+  ++  pre-sync
+    ^-  indices:a
+    %-  ~(gas by *indices:a)
+    =>  sources
+    .(base [base ~])
+  ++  post-sync
+    ^-  indices:a
+    =+  sources
+    %-  my
+    :~  thrd1
+        thrd2
+        chnl(reads.index [d3 ~])
+        grp(reads.index [d-1 ~])
+        base(reads.index [d-1 ~])
+    ==
+  ++  activity
+    ^-  activity:a
+    =+  sources
+    =/  chan-sum=activity-summary:a
+      :*  newest=d5
+          count=1
+          notify-count=0
+          notify=|
+          unread=`[[[~dev d4] d4] 1 |]
+          children=(sy (get-children:src pre-sync source.chnl))
+          reads=[d-1 (my [d1 ~] [d2 ~] [d3 ~] ~)]
+      ==
+    %-  my
+    :~  :-  source.thrd1
+        :*  newest=d2
+            count=0
+            notify-count=0
+            notify=|
+            unread=~
+            children=(sy (get-children:src pre-sync source.thrd1))
+            reads=[d-1 ~]
+        ==
+      ::
+        :-  source.thrd2
+        :*  newest=d5
+            count=1
+            notify-count=0
+            notify=|
+            unread=`[[[~dev d5] d5] 1 |]
+            children=(sy (get-children:src pre-sync source.thrd2))
+            reads=[d0 ~]
+        ==
+      ::
+        [source.chnl chan-sum]
+      ::
+        :-  source.grp
+        %=  chan-sum
+          unread  ~
+          children  (sy (get-children:src pre-sync source.grp))
+        ==
+      ::
+        :-  source.base
+        %=  chan-sum
+          unread  ~
+          children  ~
+        ==
+    ==
+  --
 ::  in this case we test a parent having mixed reads with children that
 ::  are all read, resulting in a floor up to the parent reads and one
 ::  read item that comes later
 ++  state-2
-  ^-  source-set
-  =/  thrd1  (thread-source-2 flag nest i0)
-  =/  thrd2  (thread-source-3 flag nest i0)
-  =.  thrd2  thrd2(reads.index [d5 ~])
-  =/  chnl  (channel-source flag nest stream.index.thrd1 stream.index.thrd2 i0)
-  =.  chnl  chnl(reads.index [d3 ~])
-  =/  grp  (group-source flag stream.index.chnl)
-  :*  thrd1
-      thrd2
-      chnl
-      grp
-      (base-source stream.index.grp)
-  ==
-++  pre-sync-state-2
-  ^-  indices:a
-  %-  ~(gas by *indices:a)
-  =>  state-2
-  .(base [base ~])
-++  post-sync-state-2
-  ^-  indices:a
-  =+  state-2
-  =/  new-reads=reads:a  [d3 (my [d5 ~] ~)]
-  %-  my
-  :~  thrd1
-      thrd2
-      chnl(reads.index new-reads)
-      grp(reads.index new-reads)
-      base(reads.index new-reads)
-  ==
+  |%
+  ++  sources
+    ^-  source-set
+    =/  thrd1  (thread-source-2 flag nest i0)
+    =/  thrd2  (thread-source-3 flag nest i0)
+    =.  thrd2  thrd2(reads.index [d5 ~])
+    =/  =reads:a  [d3 (my [d5 ~] ~)]
+    =/  chnl  (channel-source flag nest reads index.thrd1 index.thrd2 i0)
+    =/  grp  (group-source flag index.chnl)
+    :*  thrd1
+        thrd2
+        chnl
+        grp
+        (base-source index.grp)
+    ==
+  ++  pre-sync
+    ^-  indices:a
+    %-  ~(gas by *indices:a)
+    =>  sources
+    .(base [base ~])
+  ++  post-sync
+    ^-  indices:a
+    =+  sources
+    %-  my
+    :~  thrd1
+        thrd2
+        chnl(reads.index [d3 ~])
+        grp(reads.index [d3 ~])
+        base(reads.index [d3 ~])
+    ==
+  ++  activity
+    ^-  activity:a
+    =+  sources
+    =/  chan-sum=activity-summary:a
+      :*  newest=d5
+          count=1
+          notify-count=0
+          notify=|
+          unread=`[[[~dev d4] d4] 1 |]
+          children=(sy (get-children:src pre-sync source.chnl))
+          reads=[d3 (my [d3 ~] [d5 ~] ~)]
+      ==
+    %-  my
+    :~  :-  source.thrd1
+        :*  newest=d2
+            count=0
+            notify-count=0
+            notify=|
+            unread=~
+            children=(sy (get-children:src pre-sync source.thrd1))
+            reads=[d2 ~]
+        ==
+      ::
+        :-  source.thrd2
+        :*  newest=d5
+            count=0
+            notify-count=0
+            notify=|
+            unread=~
+            children=(sy (get-children:src pre-sync source.thrd2))
+            reads=[d0 ~]
+        ==
+      ::
+        [source.chnl chan-sum]
+      ::
+        :-  source.grp
+        %=  chan-sum
+          unread  ~
+          children  (sy (get-children:src pre-sync source.grp))
+        ==
+      ::
+        :-  source.base
+        %=  chan-sum
+          unread  ~
+          children  ~
+        ==
+    ==
+  --
 ::  in this case we test multiple parents one with mixed reads and one
 ::  with all reads
 ++  state-3
-  =/  thrd1-1  (thread-source-1 flag nest i0)
-  =/  thrd1-2  (thread-source-2 flag nest i0)
-  =/  chnl1  (channel-source flag nest stream.index.thrd1-1 stream.index.thrd1-2 i0)
-  =/  grp1  (group-source flag stream.index.chnl1)
-  ::
-  =/  second-grp=flag:g  [~dev %urbit]
-  =/  second-chnl=nest:c  [%chat ~dev %lobby]
-  =/  thrd2-1  (thread-source-2 second-grp second-chnl i1)
-  =/  thrd2-2  (thread-source-3 second-grp second-chnl i1)
-  =/  chnl2
-    (channel-source second-grp second-chnl stream.index.thrd2-1 stream.index.thrd2-2 i1)
-  =/  grp2  (group-source second-grp stream.index.chnl2)
-  ::
-  :*  thrd1-1=thrd1-1
-      thrd1-2=thrd1-2
-      thrd2-1=thrd2-1
-      thrd2-2=thrd2-2
-      chnl1=chnl1
-      chnl2=chnl2
-      grp1=grp1
-      grp2=grp2
-      base=(base-source (uni:on-event:a stream.index.grp1 stream.index.grp2))
-  ==
-++  pre-sync-state-3
-  ^-  indices:a
-  %-  ~(gas by *indices:a)
-  =>  state-3
-  .(base [base ~])
-++  post-sync-state-3
-  ^-  indices:a
-  =+  state-3
-  =/  new-reads2=reads:a  [(add d4 i1) ~]
-  =/  new-reads1=reads:a
-    :-  d-1
-    %+  gas:on-read-items:a  *read-items:a
-    :~  [d1 ~]
-        [d2 ~]
-        [d3 ~]
-        [d4 ~]
+  |%
+  ++  sources
+    =/  thrd1-1  (thread-source-1 flag nest i0)
+    =/  thrd1-2  (thread-source-2 flag nest i0)
+    =/  r1=reads:a
+      :-  d-1
+      %+  gas:on-read-items:a  *read-items:a
+      :~  [d1 ~]
+          [d2 ~]
+          [d3 ~]
+          [d4 ~]
+      ==
+    =/  chnl1  (channel-source flag nest r1 index.thrd1-1 index.thrd1-2 i0)
+    =/  grp1  (group-source flag index.chnl1)
+    ::
+    =/  second-grp=flag:g  [~dev %urbit]
+    =/  second-chnl=nest:c  [%chat ~dev %lobby]
+    =/  thrd2-1  (thread-source-2 second-grp second-chnl i1)
+    =/  thrd2-2  (thread-source-3 second-grp second-chnl i1)
+    =/  r2=reads:a  [(add d3 i1) ~]
+    =/  chnl2
+      (channel-source second-grp second-chnl r2 index.thrd2-1 index.thrd2-2 i1)
+    =/  grp2  (group-source second-grp index.chnl2)
+    =/  base
+      %-  base-source
+      :*  (uni:on-event:a stream.index.grp1 stream.index.grp2)
+        ::
+          :-  d-1
+          %+  gas:on-read-items:a  items.r1
+          :~  [(add d1 i1) ~]
+              [(add d2 i1) ~]
+              [(add d3 i1) ~]
+          ==
+        ::
+          *@da
+      ==
+    ::
+    :*  thrd1-1=thrd1-1
+        thrd1-2=thrd1-2
+        thrd2-1=thrd2-1
+        thrd2-2=thrd2-2
+        chnl1=chnl1
+        chnl2=chnl2
+        grp1=grp1
+        grp2=grp2
+        base=base
     ==
-  =/  base-reads=reads:a
-    :-  d-1
-    %+  gas:on-read-items:a  items.new-reads1
-    :~  [(add d1 i1) ~]
-        [(add d2 i1) ~]
-        [(add d3 i1) ~]
-        [(add d4 i1) ~]
+  ++  pre-sync
+    ^-  indices:a
+    %-  ~(gas by *indices:a)
+    =>  sources
+    .(base [base ~])
+  ++  post-sync
+    ^-  indices:a
+    =+  sources
+    %-  my
+    :~  thrd1-1
+        thrd1-2
+        thrd2-1
+        thrd2-2
+        chnl1(reads.index [d4 ~])
+        chnl2
+        grp1(reads.index [d-1 ~])
+        grp2
+        base(reads.index [d-1 ~])
     ==
-  %-  my
-  :~  thrd1-1
-      thrd1-2
-      thrd2-1
-      thrd2-2
-      chnl1(reads.index new-reads1)
-      chnl2(reads.index new-reads2)
-      grp1(reads.index new-reads1)
-      grp2(reads.index new-reads2)
-      base(reads.index base-reads)
-  ==
+  ++  activity
+    ^-  activity:a
+    =+  sources
+    =/  chan-sum1=activity-summary:a
+      :*  newest=d5
+          count=0
+          notify-count=0
+          notify=|
+          unread=~
+          children=(sy (get-children:src pre-sync source.chnl1))
+          reads=[d-1 (my [d1 ~] [d2 ~] [d3 ~] [d4 ~] ~)]
+      ==
+    =/  time-chan2  (add d4 i1)
+    =/  time2-2  (add d5 i1)
+    =/  chan-sum2=activity-summary:a
+      :*  newest=time2-2
+          count=1
+          notify-count=0
+          notify=|
+          unread=`[[[~dev time-chan2] time-chan2] 1 |]
+          children=(sy (get-children:src pre-sync source.chnl2))
+          reads=[(add d3 i1) ~]
+      ==
+    %-  my
+    :~  :-  source.thrd1-1
+        :*  newest=d5
+            count=2
+            notify-count=0
+            notify=|
+            unread=`[[[~dev d0] d0] 2 |]
+            children=(sy (get-children:src pre-sync source.thrd1-1))
+            reads=[d-1 ~]
+        ==
+      ::
+        :-  source.thrd1-2
+        :*  newest=d2
+            count=0
+            notify-count=0
+            notify=|
+            unread=~
+            children=(sy (get-children:src pre-sync source.thrd1-2))
+            reads=[d2 ~]
+        ==
+      ::
+        :-  source.thrd2-1
+        :*  newest=(add d2 i1)
+            count=0
+            notify-count=0
+            notify=|
+            unread=~
+            children=(sy (get-children:src pre-sync source.thrd2-1))
+            reads=[(add d2 i1) ~]
+        ==
+      ::
+        :-  source.thrd2-2
+        :*  newest=time2-2
+            count=1
+            notify-count=0
+            notify=|
+            unread=`[[[~dev time2-2] time2-2] 1 |]
+            children=(sy (get-children:src pre-sync source.thrd2-2))
+            reads=[(add d0 i1) ~]
+        ==
+      ::
+        [source.chnl1 chan-sum1]
+        [source.chnl2 chan-sum2]
+      ::
+        :-  source.grp1
+        %=  chan-sum1
+          unread  ~
+          children  (sy (get-children:src pre-sync source.grp1))
+        ==
+      ::
+        :-  source.grp2
+        %=  chan-sum2
+          unread  ~
+          children  (sy (get-children:src pre-sync source.grp2))
+        ==
+      ::
+        :-  source.base
+        %=  chan-sum2
+          unread  ~
+          children  ~
+        ==
+    ==
+  --
 ::  base
 ++  base-source
-  |=  group-stream=stream:a
+  |=  group-idx=index:a
   ^-  index-pair
   :-  [%base ~]
-  :_  [*@da ~]
-  (child-stream group-stream)
+  group-idx(stream (child-stream stream.group-idx))
 ::  the group has no posts of its own only from children, it is "unread"
 ++  group-source
-  |=  [=flag:g channel-stream=stream:a]
+  |=  [=flag:g channel-idx=index:a]
   ^-  index-pair
   :-  [%group flag]
-  :_  [*@da ~]
-  (child-stream channel-stream)
+  channel-idx(stream (child-stream stream.channel-idx))
 ::  the channel only has two posts, and it is completely read
 ++  channel-source
-  |=  [=flag:g =nest:c thrd1=stream:a thrd2=stream:a interval=@dr]
+  |=  [=flag:g =nest:c =reads:a thrd1=index:a thrd2=index:a interval=@dr]
   ^-  index-pair
   :-  [%channel nest flag]
-  :_  [(add d4 interval) ~]
-  %+  uni:on-event:a  (child-stream thrd1)
-  %+  gas:on-event:a
-    (child-stream thrd2)
-  =/  key1  (mod [[~dev d3] d3] interval)
-  =/  key2  (mod [[~dev d4] d4] interval)
-  :~  [time.key1 [[%post key1 nest flag *story:c |] | |]]
-      [time.key2 [[%post key2 nest flag *story:c |] | |]]
+  :*  %+  uni:on-event:a  (child-stream stream.thrd1)
+      %+  gas:on-event:a  (child-stream stream.thrd2)
+      =/  key1  (mod [[~dev d3] d3] interval)
+      =/  key2  (mod [[~dev d4] d4] interval)
+      :~  [time.key1 [[%post key1 nest flag *story:c |] | |]]
+          [time.key2 [[%post key2 nest flag *story:c |] | |]]
+      ==
+    ::
+      reads
+    ::
+      *@da
   ==
 ::
 ::  this thread has two messages and is unread
 ++  thread-source-1
   %^  thread-source
-      [[~zod *@da] *@da]
+      [[~zod d0] d0]
     [d-1 ~]
   :~  [[~dev d5] d5]
       [[~dev d0] d0]
@@ -254,8 +497,8 @@
   ==
 ++  thread-source-3
   %^  thread-source
-      [[~zod *@da] *@da]
-    [*@da ~]
+      [[~zod d0] d0]
+    [d0 ~]
   ~[[[~dev d5] d5]]
 ++  thread-source
   |=  [parent=message-key:a =reads:a replies=(list message-key:a)]
@@ -263,7 +506,10 @@
   =.  parent  (mod parent interval)
   ^-  index-pair
   :-  [%thread parent nest flag]
-  :_  %=  reads
+  :*  %+  gas:on-event:a  *stream:a
+      (turn replies (curr create-reply-pair parent interval))
+    ::
+      %_  reads
         floor  (add floor.reads interval)
           items
         %+  gas:on-read-items:a  *read-items:a
@@ -272,8 +518,9 @@
         |=  [=time *]
         [(add time interval) ~]
       ==
-  %+  gas:on-event:a  *stream:a
-  (turn replies (curr create-reply-pair parent interval))
+    ::
+      *@da
+  ==
 ++  create-reply-pair
   |=  [key=message-key:a parent=message-key:a interval=@dr]
   =.  key  (mod key interval)
