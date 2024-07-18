@@ -56,7 +56,6 @@ export function EmojiPickerSheet(
   }, [query, searchResults, ALL_EMOJIS]);
 
   const handleQueryChange = useCallback((query: string) => {
-    console.log(`bl: setting query to ${query}`);
     setQuery(query);
     setSearchResults(searchEmojis(query).map((emoj) => emoj.id));
   }, []);
