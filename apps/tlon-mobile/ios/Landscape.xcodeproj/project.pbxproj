@@ -13,6 +13,7 @@
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACE12C49DA9600E637C0 /* NotificationService.swift */; };
 		6374ACE62C49DA9600E637C0 /* Notifications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6374ACDF2C49DA9600E637C0 /* Notifications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6374ACEC2C49DB6500E637C0 /* Notifications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6374ACDF2C49DA9600E637C0 /* Notifications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
 		700B635D2A71DFE90017F40F /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		700B63602A71E0810017F40F /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
@@ -106,6 +107,13 @@
 			remoteGlobalIDString = 6374ACDE2C49DA9600E637C0;
 			remoteInfo = Notifications;
 		};
+		6374ACED2C49DB6500E637C0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6374ACDE2C49DA9600E637C0;
+			remoteInfo = Notifications;
+		};
 		70F99A922B2D2B5700D77256 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
@@ -123,6 +131,17 @@
 			dstSubfolderSpec = 13;
 			files = (
 				6374ACE62C49DA9600E637C0 /* Notifications.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6374ACEF2C49DB6500E637C0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6374ACEC2C49DB6500E637C0 /* Notifications.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -491,10 +510,12 @@
 				70DBC00F2B7C60B50021EA96 /* [CP] Embed Pods Frameworks */,
 				BB7267E200EDB0AE50913E9C /* [CP-User] [RNFB] Core Configuration */,
 				9FD3A78FD12DFC986E134E73 /* [CP-User] [RNFB] Crashlytics Configuration */,
+				6374ACEF2C49DB6500E637C0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6374ACEE2C49DB6500E637C0 /* PBXTargetDependency */,
 			);
 			name = "Landscape-preview";
 			packageProductDependencies = (
@@ -1093,6 +1114,11 @@
 			isa = PBXTargetDependency;
 			target = 6374ACDE2C49DA9600E637C0 /* Notifications */;
 			targetProxy = 6374ACE42C49DA9600E637C0 /* PBXContainerItemProxy */;
+		};
+		6374ACEE2C49DB6500E637C0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6374ACDE2C49DA9600E637C0 /* Notifications */;
+			targetProxy = 6374ACED2C49DB6500E637C0 /* PBXContainerItemProxy */;
 		};
 		70F99A932B2D2B5700D77256 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
