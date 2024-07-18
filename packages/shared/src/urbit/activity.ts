@@ -692,20 +692,13 @@ export function getSource(bundle: ActivityBundle): Source {
 
   if ('flag-post' in top) {
     return {
-      channel: {
-        nest: top['flag-post'].channel,
-        group: top['flag-post'].group,
-      },
+      group: top['flag-post'].group,
     };
   }
 
   if ('flag-reply' in top) {
     return {
-      thread: {
-        key: top['flag-reply'].parent,
-        channel: top['flag-reply'].channel,
-        group: top['flag-reply'].group,
-      },
+      group: top['flag-reply'].group,
     };
   }
 
