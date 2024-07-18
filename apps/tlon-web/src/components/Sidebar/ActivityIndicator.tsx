@@ -1,6 +1,6 @@
 import cn from 'classnames';
 
-import { useNotifications } from '@/notifications/useNotifications';
+import { useSourceActivity } from '@/state/activity';
 import { useCalmSetting } from '@/state/settings';
 
 import BellIcon from '../icons/BellIcon';
@@ -40,7 +40,7 @@ export default function ActivityIndicator({
 }
 
 export function ActivitySidebarItem() {
-  const { activity } = useNotifications();
+  const { activity } = useSourceActivity('base');
   const activeTab = useActiveTab();
 
   return (

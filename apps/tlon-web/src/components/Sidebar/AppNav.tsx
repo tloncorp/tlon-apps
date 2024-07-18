@@ -9,11 +9,11 @@ import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
-import { useNotifications } from '@/notifications/useNotifications';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
   useMarkAllGroupsRead,
+  useSourceActivity,
 } from '@/state/activity';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
@@ -220,7 +220,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { activity } = useNotifications();
+  const { activity } = useSourceActivity('base');
   const isMobile = useIsMobile();
 
   if (isMobile) {
