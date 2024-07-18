@@ -1321,6 +1321,9 @@
           (add now.bowl (div ~s1 100))
         =.  recency.remark.club  now.bowl
         =.  cor  (give-unread club/id cu-unread)
+        =/  concern  [%post p.diff.delta now.bowl]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  cu-core  (cu-activity concern content.memo mention)
         ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
         =/  new-yarn
@@ -1333,9 +1336,6 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
-        =/  concern  [%post p.diff.delta now.bowl]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
-        =.  cu-core  (cu-activity concern content.memo mention)
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1353,9 +1353,13 @@
             (~(put in unread-threads.remark.club) p.diff.delta)
           =.  recency.remark.club  now.bowl
           =.  cor  (give-unread club/id cu-unread)
-          ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           ?~  entry  (cu-give-writs-diff diff.delta)
           =*  op  writ.u.entry
+          =/  top-con  [id time]:op
+          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
+          =/  mention  (was-mentioned:utils content.memo our.bowl)
+          =.  cu-core  (cu-activity concern content.memo mention)
+          ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           =/  new-yarn
             %^  cu-spin
               /message/(scot %p p.id.op)/(scot %ud q.id.op)
@@ -1367,10 +1371,6 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
-          =/  top-con  [id time]:op
-          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
-          =/  mention  (was-mentioned:utils content.memo our.bowl)
-          =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
       ==
