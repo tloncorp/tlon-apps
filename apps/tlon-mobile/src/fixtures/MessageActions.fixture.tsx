@@ -26,7 +26,6 @@ function MessageActions() {
     return (
       <Modal visible={true} onDismiss={() => null}>
         <ChatMessageActions
-          currentUserId={'~latter-bolden'}
           post={post}
           postRef={refStub}
           onDismiss={() => null}

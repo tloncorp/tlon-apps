@@ -12,7 +12,7 @@ const posts = createFakePosts(10);
 export default (
   <>
     <PostScreenView
-      editPost={() => {}}
+      editPost={async () => {}}
       editingPost={undefined}
       negotiationMatch={true}
       setEditingPost={() => {}}
@@ -33,7 +33,7 @@ export default (
       }}
       channel={tlonLocalBulletinBoard}
       posts={posts}
-      sendReply={() => {}}
+      sendReply={async () => {}}
       markRead={() => {}}
       groupMembers={group.members ?? []}
       getDraft={async () => ({})}

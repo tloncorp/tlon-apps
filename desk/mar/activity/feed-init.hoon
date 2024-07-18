@@ -1,6 +1,6 @@
 /-  a=activity
 /+  aj=activity-json
-|_  [all=feed:a mentions=feed:a replies=feed:a]
+|_  [all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
 ++  grad  %noun
 ++  grow
   |%
@@ -8,13 +8,13 @@
   ++  json
     =,  enjs:format
     %-  pairs
-    :~  all+(feed:enjs:aj all)
-        mentions+(feed:enjs:aj mentions)
-        replies+(feed:enjs:aj replies)
+    :~  all+(feed:v4:enjs:aj all)
+        mentions+(feed:v4:enjs:aj mentions)
+        replies+(feed:v4:enjs:aj replies)
     ==
   --
 ++  grab
   |%
-  ++  noun  [all=feed:a mentions=feed:a replies=feed:a]
+  ++  noun  [all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
   --
 --

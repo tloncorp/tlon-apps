@@ -1,4 +1,3 @@
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LoadingSpinner, ScreenHeader, View, YStack } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,7 +5,7 @@ import { WebView } from 'react-native-webview';
 
 import { useHandleLogout } from '../hooks/useHandleLogout';
 import { useWebView } from '../hooks/useWebView';
-import { getHostingUser } from '../lib/hostingApi';
+import { checkIfAccountDeleted } from '../lib/hostingApi';
 import { RootStackParamList } from '../types';
 import { getHostingToken, getHostingUserId } from '../utils/hosting';
 
@@ -20,30 +19,23 @@ interface HostingSession {
 }
 
 export function ManageAccountScreen(props: Props) {
+  const [goingBack, setGoingBack] = useState(false);
   const handleLogout = useHandleLogout();
   const webview = useWebView();
   const [hostingSession, setHostingSession] = useState<HostingSession | null>(
     null
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      // check if the user deleted their account when navigating away
-      return async () => {
-        const hostingUserId = await getHostingUserId();
-        if (hostingUserId) {
-          try {
-            const user = await getHostingUser(hostingUserId);
-            if (!user.verified) {
-              handleLogout();
-            }
-          } catch (err) {
-            handleLogout();
-          }
-        }
-      };
-    }, [handleLogout])
-  );
+  const handleBack = useCallback(async () => {
+    setGoingBack(true);
+    const wasDeleted = await checkIfAccountDeleted();
+    if (wasDeleted) {
+      handleLogout();
+    } else {
+      props.navigation.goBack();
+      setGoingBack(false);
+    }
+  }, [handleLogout, props.navigation]);
 
   useEffect(() => {
     async function initialize() {
@@ -67,7 +59,13 @@ export function ManageAccountScreen(props: Props) {
   return (
     <View flex={1}>
       <ScreenHeader>
-        <ScreenHeader.BackButton onPress={() => props.navigation.goBack()} />
+        <View marginRight="$m">
+          {goingBack ? (
+            <LoadingSpinner />
+          ) : (
+            <ScreenHeader.BackButton onPress={handleBack} />
+          )}
+        </View>
         <ScreenHeader.Title>Manage Account</ScreenHeader.Title>
       </ScreenHeader>
       {hostingSession ? (

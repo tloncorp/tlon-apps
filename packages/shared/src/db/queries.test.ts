@@ -1,10 +1,14 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 
 import { toClientGroups } from '../api/groupsApi';
 import * as schema from '../db/schema';
 import { syncInitData } from '../store/sync';
 import groupsResponse from '../test/groups.json';
-import { getClient, resetDb, setScryOutputs, setupDb } from '../test/helpers';
+import {
+  getClient,
+  setScryOutputs,
+  setupDatabaseTestSuite,
+} from '../test/helpers';
 import initResponse from '../test/init.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
@@ -15,13 +19,7 @@ const groupsData = toClientGroups(
   true
 );
 
-beforeAll(() => {
-  setupDb();
-});
-
-beforeEach(async () => {
-  resetDb();
-});
+setupDatabaseTestSuite();
 
 test('inserts a group', async () => {
   const groupData = groupsData[3];
@@ -47,11 +45,11 @@ test('uses init data to get chat list', async () => {
   expect(result.map((r) => r.id).slice(0, 8)).toEqual([
     '0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2',
     'chat/~nibset-napwyn/commons',
-    '0v4.00000.qd819.b3ubo.qjuv7.di5k7',
-    'chat/~bolbex-fogdys/watercooler-4926',
-    'diary/~pondus-watbel/books',
-    '~roslet-tanner',
+    '~nocsyx-lassul',
+    'chat/~pondus-watbel/new-channel',
+    '~ravseg-nosduc',
     '~solfer-magfed',
+    '~hansel-ribbur',
     '~pondus-watbel',
   ]);
 });

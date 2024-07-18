@@ -1,113 +1,66 @@
-import { Flag, Rope, Skein, Yarn } from '@tloncorp/shared/dist/urbit/hark';
+import { daToUnix, parseUd } from '@urbit/aura';
+import { isSameDay } from 'date-fns';
 import _ from 'lodash';
+import { useMemo } from 'react';
 
-import { useIsMobile } from '@/logic/useMedia';
-import { makePrettyDay } from '@/logic/utils';
-import { useSkeins } from '@/state/hark';
+import {
+  emptySummary,
+  useAllEvents,
+  useSourceActivity,
+} from '@/state/activity';
 
-export interface DayGrouping {
-  date: string;
-  latest: number;
-  skeins: Skein[];
-}
+export function useNotifications() {
+  const { activity } = useSourceActivity('base');
+  const { data, status, ...rest } = useAllEvents();
+  const all = useMemo(() => {
+    if (!data) {
+      return { feed: [], summaries: {} };
+    }
 
-function groupSkeinsByDate(skeins: Skein[]): DayGrouping[] {
-  const groups = _.groupBy(skeins, (b) => makePrettyDay(new Date(b.time)));
+    return data.pages.reduce(
+      (acc, { feed, summaries }) => ({
+        feed: [...feed, ...acc.feed],
+        summaries: { ...summaries, ...acc.summaries },
+      }),
+      { feed: [], summaries: {} }
+    );
+  }, [data]);
 
-  return Object.entries(groups)
-    .map(([k, v]) => ({
-      date: k,
-      latest: _.head(v)?.time || 0,
-      skeins: v.sort((a, b) => b.time - a.time),
-    }))
-    .sort((a, b) => b.latest - a.latest);
-}
+  const notifications = useMemo(
+    () =>
+      all.feed
+        .sort((a, b) => b.latest.localeCompare(a.latest))
+        .map((b, index) => {
+          const myDay = new Date(daToUnix(parseUd(b.latest)));
+          const prevDay =
+            index === 0
+              ? null
+              : new Date(daToUnix(parseUd(all.feed[index - 1].latest)));
+          const newDay = prevDay === null ? true : !isSameDay(myDay, prevDay);
 
-export const getUrlInContent = (yarn: Yarn) =>
-  yarn.con.find((c) => typeof c === 'string' && c.startsWith('http'));
+          return {
+            bundle: b,
+            summary: all.summaries[b['source-key']] || emptySummary,
+            newDay,
+            date: myDay,
+          };
+        }),
+    [all]
+  );
 
-export const isMessage = (yarn: Yarn) => yarn.con.some((con) => con === ': ');
-
-export const isNote = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' published a note: ');
-
-export const isBlock = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' posted a block to a gallery ');
-
-export const isMention = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' mentioned you :');
-
-export const isComment = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' commented on ');
-
-export const isReply = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' replied to your message “');
-
-export const isInvite = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' sent you an invite to ');
-
-export const isJoin = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' has joined ');
-
-export const isLeave = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' has left ');
-
-export const isRoleChange = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' is now a(n) ');
-
-export const isChannelEdit = (yarn: Yarn) =>
-  yarn.con.some((con) => con === ' has been edited ');
-
-export const isGroupMeta = (yarn: Yarn) =>
-  isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn) || isChannelEdit(yarn);
-
-export const isDm = (rope: Rope) => rope.thread.startsWith('/dm');
-
-export const isClub = (rope: Rope) => rope.thread.startsWith('/club');
-
-export type NotificationFilterType = 'mentions' | 'replies' | 'invites' | 'all';
-
-export const useNotifications = (
-  flag?: Flag,
-  showOnly: NotificationFilterType = 'all'
-) => {
-  const isMobile = useIsMobile();
-  const { data: skeins, status: skeinsStatus } = useSkeins(flag);
-
-  if (skeinsStatus !== 'success') {
+  if (status !== 'success') {
     return {
+      ...rest,
       notifications: [],
-      mentions: [],
-      count: 0,
-      loaded: skeinsStatus === 'error',
+      activity,
+      loaded: status === 'error',
     };
   }
 
-  const filter = (s: Skein) => {
-    switch (showOnly) {
-      case 'mentions':
-        return isMention(s.top);
-      case 'replies':
-        return isReply(s.top);
-      case 'invites':
-        return isInvite(s.top);
-      default:
-        return true;
-    }
-  };
-
-  const unreads = skeins.filter((s) => s.unread);
-  const filteredSkeins = skeins.filter(filter);
-  const notifications = groupSkeinsByDate(filteredSkeins);
-
   return {
+    ...rest,
     notifications,
-    unreadMentions: unreads.filter((s) => isMention(s.top)),
-    unreadReplies: unreads.filter((s) => isReply(s.top)),
-    unreadInvites: unreads.filter((s) => isInvite(s.top)),
-    count: unreads.length,
-    replyCount: unreads.filter((s) => isReply(s.top)).length,
-    inviteCount: unreads.filter((s) => isInvite(s.top)).length,
-    loaded: skeinsStatus === 'success' || skeinsStatus === 'error',
+    activity,
+    loaded: status === 'success' || status === 'error',
   };
-};
+}

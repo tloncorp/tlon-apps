@@ -256,6 +256,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
+  bannedMembers: many(groupMemberBans),
   navSections: many(groupNavSections),
   flaggedPosts: many(groupFlaggedPosts),
   channels: many(channels),
@@ -648,6 +649,17 @@ export const channels = sqliteTable(
      * From `recency` on unreads on the Urbit side
      */
     remoteUpdatedAt: timestamp('remote_updated_at'),
+
+    /**
+     * Local time that this channel was last viewed by this client;
+     * null if never viewed (or after a database reset)
+     */
+    lastViewedAt: timestamp('last_viewed_at'),
+
+    /**
+     * True if this channel was autocreated during new group creation (on this client)
+     */
+    isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),
@@ -716,6 +728,7 @@ export const posts = sqliteTable(
     hasImage: boolean('has_image'),
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
+    isDeleted: boolean('is_deleted'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
     syncedAt: timestamp('synced_at').notNull(),
     // backendTime translates to an unfortunate alternative timestamp that is used

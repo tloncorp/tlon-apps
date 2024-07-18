@@ -63,6 +63,13 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
       persistUnreads(initData.unreads, ctx).then(() =>
         reporter?.log('persisted unreads')
       ),
+      handleReceivedHiddenPosts({
+        reporter,
+        hiddenPostIds: initData.hiddenPostIds,
+      }).then(() => reporter?.log('handled hidden posts')),
+      db
+        .insertBlockedContacts({ blockedIds: initData.blockedUsers })
+        .then(() => reporter?.log('inserted blocked users')),
       db
         .insertChannelPerms(initData.channelPerms, ctx)
         .then(() => reporter?.log('inserted channel perms')),
@@ -194,10 +201,28 @@ export const syncDms = async (priority = SyncPriority.Medium) => {
 
 export const syncUnreads = async (priority = SyncPriority.Medium) => {
   const unreads = await syncQueue.add('unreads', priority, () =>
-    api.getUnreads()
+    api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
   return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
+};
+
+export const syncChannelThreadUnreads = async (
+  channelId: string,
+  priority = SyncPriority.Medium
+) => {
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    console.warn(
+      'cannot get thread unreads for non-existent channel',
+      channelId
+    );
+    return;
+  }
+  const unreads = await syncQueue.add('thread unreads', priority, () =>
+    api.getThreadUnreadsByChannel(channel)
+  );
+  await db.insertThreadUnreads(unreads);
 };
 
 export async function syncPostReference(options: {
@@ -253,7 +278,10 @@ export const syncStorageSettings = (priority = SyncPriority.Medium) => {
   });
 };
 
-const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
+export const persistUnreads = async (
+  activity: api.ActivityInit,
+  ctx?: QueryCtx
+) => {
   const { groupUnreads, channelUnreads, threadActivity } = activity;
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
@@ -269,9 +297,11 @@ const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
 };
 
 export const resetActivity = async () => {
-  const activityEvents = await api.getInitialActivity();
+  const { relevantUnreads, events } = await api.getInitialActivity();
   await db.clearActivityEvents();
-  await db.insertActivityEvents(activityEvents);
+  await db.insertActivityEvents(events);
+  await persistUnreads(relevantUnreads);
+
   resetActivityFetchers();
 };
 
@@ -310,6 +340,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'banGroupMembers':
       await db.addGroupMemberBans({
         groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      await db.removeChatMembers({
+        chatId: update.groupId,
         contactIds: update.ships,
       });
       break;
@@ -575,7 +609,8 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
       });
       break;
     case 'deletePost':
-      await db.deletePosts({ ids: [update.postId] });
+      await db.markPostAsDeleted(update.postId);
+      await db.updateChannel({ id: update.channelId, lastPostId: null });
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true });
@@ -660,6 +695,7 @@ export async function handleAddPost(
   post: db.Post,
   replyMeta?: db.ReplyMeta | null
 ) {
+  logger.log('event: add post', post);
   // We frequently get duplicate addPost events from the api,
   // so skip if we've just added this.
   if (post.id === lastAdded) {
@@ -712,22 +748,31 @@ export async function syncHiddenPosts(reporter: ErrorReporter) {
     () => api.getHiddenDMPosts()
   );
   reporter?.log('got hidden dm posts data from api');
+  handleReceivedHiddenPosts({
+    reporter,
+    hiddenPostIds: [...hiddenPosts, ...hiddenDMPosts],
+  });
+}
 
+export async function handleReceivedHiddenPosts({
+  reporter,
+  hiddenPostIds,
+}: {
+  reporter?: ErrorReporter;
+  hiddenPostIds: string[];
+}) {
   const currentHiddenPosts = await db.getHiddenPosts();
 
   // if the user deleted the posts from another client while we were offline,
   // we should remove them from our hidden posts list
   currentHiddenPosts.forEach(async (hiddenPost) => {
-    if (
-      !hiddenPosts.some((postId) => postId === hiddenPost.id) &&
-      !hiddenDMPosts.some((postId) => postId === hiddenPost.id)
-    ) {
+    if (!hiddenPostIds.some((postId) => postId === hiddenPost.id)) {
       reporter?.log(`deleting hidden post ${hiddenPost.id}`);
       await db.updatePost({ id: hiddenPost.id, hidden: false });
     }
   });
 
-  await db.insertHiddenPosts([...hiddenPosts, ...hiddenDMPosts]);
+  await db.insertHiddenPosts(hiddenPostIds);
   reporter?.log('inserted hidden posts');
 }
 

@@ -242,11 +242,12 @@ export const systemFont = createFont({
     m: 16,
     true: 16,
     l: 17,
+    xl: 24,
     // TODO: resolve this with Ochre later, sorry for the inconsistency
     l2: 32,
     // xl is used for emoji-only messages
-    xl: 36,
-    '2xl': 44,
+    '2xl': 36,
+    '3xl': 44,
   },
   lineHeight: {
     xs: 16,
@@ -281,6 +282,7 @@ export const serifFont = createFont({
     s: 22,
     m: 24,
     true: 24,
+    xl: 40,
   },
   weight: {
     s: '400',

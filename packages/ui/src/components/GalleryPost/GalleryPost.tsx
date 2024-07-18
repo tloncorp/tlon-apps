@@ -5,7 +5,7 @@ import { SizableText, styled } from 'tamagui';
 
 import { ImageWithFallback, View } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ContentReference from '../ContentReference';
+import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { useBoundHandler } from '../ListItem/listItemUtils';
@@ -90,12 +90,20 @@ export default function GalleryPost({
       onPress={handlePress}
       onLongPress={handleLongPress}
     >
-      {post.hidden ? (
-        <View flex={1} padding="$m">
-          <SizableText size="$l" color="$tertiaryText">
-            You have hidden or flagged this post.
-          </SizableText>
-        </View>
+      {post.hidden || post.isDeleted ? (
+        post.hidden ? (
+          <View flex={1} padding="$m">
+            <SizableText size="$l" color="$tertiaryText">
+              You have hidden or flagged this post.
+            </SizableText>
+          </View>
+        ) : post.isDeleted ? (
+          <View flex={1} padding="$m">
+            <SizableText size="$l" color="$tertiaryText">
+              This post has been deleted.
+            </SizableText>
+          </View>
+        ) : null
       ) : (
         <View flex={1} pointerEvents="none">
           {/** Image post */}
@@ -123,7 +131,10 @@ export default function GalleryPost({
           {/** Reference post */}
           {(isReference || isRefInText) && (
             <View flex={1}>
-              <ContentReference viewMode="block" reference={references[0]} />
+              <ContentReferenceLoader
+                viewMode="block"
+                reference={references[0]}
+              />
             </View>
           )}
 
@@ -147,46 +158,6 @@ export default function GalleryPost({
                 sent={post.sentAt}
                 type={post.type}
               />
-
-              {/** Text post */}
-              {isText && !isLinkedImage && !isRefInText && (
-                <View padding="$m" flex={1}>
-                  <ContentRenderer viewMode="block" post={post} />
-                </View>
-              )}
-
-              {/** Reference post */}
-              {(isReference || isRefInText) && (
-                <View flex={1}>
-                  <ContentReference
-                    viewMode="block"
-                    reference={references[0]}
-                  />
-                </View>
-              )}
-
-              {/** Unsupported post */}
-              {!isImage && !isText && !isReference && !isRefInText ? (
-                <ErrorPlaceholder>Unable to parse content</ErrorPlaceholder>
-              ) : null}
-
-              {viewMode !== 'activity' && (
-                <View
-                  position="absolute"
-                  bottom={0}
-                  left={0}
-                  right={0}
-                  width="100%"
-                  pointerEvents="none"
-                >
-                  <AuthorRow
-                    author={post.author}
-                    authorId={post.authorId}
-                    sent={post.sentAt}
-                    type={post.type}
-                  />
-                </View>
-              )}
             </View>
           )}
         </View>

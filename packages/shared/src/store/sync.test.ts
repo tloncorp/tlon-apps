@@ -1,7 +1,7 @@
 import * as $ from 'drizzle-orm';
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 
-import { toClientGroup, toPagedPostsData } from '../api';
+import { toClientGroup } from '../api';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
@@ -12,10 +12,9 @@ import rawGroupsData from '../test/groups.json';
 import rawGroupsInitData from '../test/groupsInit.json';
 import {
   getClient,
-  resetDb,
   setScryOutput,
   setScryOutputs,
-  setupDb,
+  setupDatabaseTestSuite,
 } from '../test/helpers';
 import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
@@ -36,13 +35,7 @@ const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
 
-beforeAll(() => {
-  setupDb();
-});
-
-beforeEach(async () => {
-  resetDb();
-});
+setupDatabaseTestSuite();
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
@@ -156,6 +149,8 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     isPendingChannel: null,
     isDmInvite: false,
+    isDefaultWelcomeChannel: null,
+    lastViewedAt: null,
     members: [
       {
         chatId: '~solfer-magfed',
@@ -193,6 +188,8 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     isPendingChannel: null,
     isDmInvite: false,
+    isDefaultWelcomeChannel: null,
+    lastViewedAt: null,
     members: [
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -311,6 +308,7 @@ test('deletes removed posts', async () => {
   expect(posts.length).toEqual(0);
 });
 
+// TODO: fix once test init data added
 test('syncs init data', async () => {
   setScryOutput(rawGroupsInitData);
   await syncInitData();
@@ -331,20 +329,20 @@ test('syncs init data', async () => {
     groupsInitData.chat.dms.length +
       Object.keys(groupsInitData.chat.clubs).length
   );
-  // TODO: fix once activity integrated
-  // const staleChannels = await db.getStaleChannels();
-  // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
-  //   ['chat/~bolbex-fogdys/watercooler-4926'],
-  //   ['chat/~dabben-larbet/hosting-6173'],
-  //   ['chat/~bolbex-fogdys/tlon-general'],
-  //   ['chat/~bolbex-fogdys/marcom'],
-  //   ['heap/~bolbex-fogdys/design-1761'],
-  //   ['chat/~bitpyx-dildus/interface'],
-  //   ['chat/~bolbex-fogdys/ops'],
-  //   ['heap/~dabben-larbet/fanmail-3976'],
-  //   ['diary/~bolbex-fogdys/bulletins'],
-  //   ['chat/~nocsyx-lassul/bongtable'],
-  // ]);
+  //   // TODO: fix once activity integrated
+  //   // const staleChannels = await db.getStaleChannels();
+  //   // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
+  //   //   ['chat/~bolbex-fogdys/watercooler-4926'],
+  //   //   ['chat/~dabben-larbet/hosting-6173'],
+  //   //   ['chat/~bolbex-fogdys/tlon-general'],
+  //   //   ['chat/~bolbex-fogdys/marcom'],
+  //   //   ['heap/~bolbex-fogdys/design-1761'],
+  //   //   ['chat/~bitpyx-dildus/interface'],
+  //   //   ['chat/~bolbex-fogdys/ops'],
+  //   //   ['heap/~dabben-larbet/fanmail-3976'],
+  //   //   ['diary/~bolbex-fogdys/bulletins'],
+  //   //   ['chat/~nocsyx-lassul/bongtable'],
+  //   // ]);
 });
 
 test('syncs thread posts', async () => {

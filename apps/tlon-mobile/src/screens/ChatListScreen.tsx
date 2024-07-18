@@ -8,10 +8,11 @@ import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  AppDataContextProvider,
+  Button,
   CalmProvider,
   ChatList,
   ChatOptionsSheet,
-  ContactsProvider,
   FloatingActionButton,
   GroupPreviewSheet,
   Icon,
@@ -32,11 +33,20 @@ import NavBar from '../navigation/NavBarView';
 import { RootStackParamList } from '../types';
 import { identifyTlonEmployee } from '../utils/posthog';
 import { isSplashDismissed, setSplashDismissed } from '../utils/splash';
+import { useGroupContext } from './GroupSettings/useGroupContext';
 
 type ChatListScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'ChatList'
 >;
+
+const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
+  return (
+    <Button borderWidth={0} onPress={onPress}>
+      <Icon type="Filter" size="$m" />
+    </Button>
+  );
+};
 
 export default function ChatListScreen(
   props: ChatListScreenProps & { contacts: db.Contact[] }
@@ -54,6 +64,7 @@ export default function ChatListScreen(
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
@@ -279,15 +290,27 @@ export default function ChatListScreen(
     }
   }, []);
 
+  const { leaveGroup } = useGroupContext({
+    groupId: longPressedGroup?.id ?? '',
+  });
+
   return (
     <CalmProvider calmSettings={calmSettings}>
-      <ContactsProvider contacts={contacts ?? []}>
+      <AppDataContextProvider
+        currentUserId={currentUser}
+        contacts={contacts ?? []}
+      >
         <View backgroundColor="$background" flex={1}>
           <ScreenHeader
             title={
               !chats || (!chats.unpinned.length && !chats.pinned.length)
                 ? 'Loading…'
                 : screenTitle
+            }
+            rightControls={
+              <ShowFiltersButton
+                onPress={() => setShowFilters((prev) => !prev)}
+              />
             }
           />
           {chats && chats.unpinned.length ? (
@@ -300,6 +323,7 @@ export default function ChatListScreen(
               onLongPressItem={onLongPressItem}
               onPressItem={onPressChat}
               onSectionChange={handleSectionChange}
+              showFilters={showFilters}
             />
           ) : null}
           <View
@@ -350,6 +374,7 @@ export default function ChatListScreen(
             onPressManageChannels={handleGoToManageChannels}
             onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
             onPressRoles={handleGoToRoles}
+            onPressLeave={leaveGroup}
           />
           <StartDmSheet
             goToDm={goToDm}
@@ -368,7 +393,7 @@ export default function ChatListScreen(
           />
         </View>
         <NavBar navigation={props.navigation} />
-      </ContactsProvider>
+      </AppDataContextProvider>
     </CalmProvider>
   );
 }

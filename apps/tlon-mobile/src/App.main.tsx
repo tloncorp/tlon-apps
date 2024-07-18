@@ -12,6 +12,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import { TamaguiProvider } from '@tloncorp/ui';
+import { usePreloadedEmojis } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
@@ -64,6 +65,7 @@ const App = ({
   const [connected, setConnected] = useState(true);
   const { lure, priorityToken } = useBranch();
   const screenOptions = useScreenOptions();
+  usePreloadedEmojis();
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(

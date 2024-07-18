@@ -73,6 +73,23 @@ export function isGroupChannelId(channelId: string) {
   );
 }
 
+export function parseGroupChannelId(channelId: string) {
+  const parts = channelId.split('/');
+  return {
+    kind: parts[0] as ub.Kind,
+    host: parts[1] as string,
+    name: parts[2] as string,
+  };
+}
+
+export function parseGroupId(groupId: string) {
+  const parts = groupId.split('/');
+  return {
+    host: parts[0] as string,
+    name: parts[1] as string,
+  };
+}
+
 export function getChannelIdType(channelId: string) {
   if (isDmChannelId(channelId)) {
     return 'dm';

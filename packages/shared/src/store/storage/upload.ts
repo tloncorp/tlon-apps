@@ -16,12 +16,7 @@ import type {
 import * as api from '../../api';
 import { createDevLogger } from '../../debug';
 import { useStorage } from './storage';
-import {
-  getFinalMemexUrl,
-  getMemexUploadUrl,
-  getShipInfo,
-  hasCustomS3Creds,
-} from './utils';
+import { getMemexUpload, getShipInfo } from './utils';
 
 const logger = createDevLogger('upload state', true);
 
@@ -159,16 +154,19 @@ export const useFileStore = create<FileStore>((set, get) => ({
     if (nativeUploader) {
       try {
         if (isHostedUpload) {
-          // first hit memex to obtain a presigned URL
-          const presignedUrl = await getMemexUploadUrl(key);
-          await nativeUploader(presignedUrl, file, undefined, {
+          // first pass the file metadata to memex
+          const { uploadUrl, hostedUrl } = await getMemexUpload({
+            file,
+            uploadKey: key,
+          });
+
+          // then use the native uploader
+          await nativeUploader(uploadUrl, file, undefined, {
             'Cache-Control': 'public, max-age=3600',
           });
-          // after the upload succeeds, we have to query memex again with the
-          // same key to obtain the final location of the object
-          const finalUrl = await getFinalMemexUrl(presignedUrl);
+
           updateFile(uploader, key, {
-            url: finalUrl,
+            url: hostedUrl,
             size: [file.height ?? 200, file.width ?? 200],
           });
           updateStatus(uploader, key, 'success');

@@ -53,7 +53,7 @@ import {
 import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
-import ContentReference from './ContentReference';
+import { ContentReferenceLoader } from './ContentReference/ContentReference';
 
 refractor.register(hoon);
 
@@ -421,7 +421,7 @@ export function InlineContent({
   if (typeof inline === 'string') {
     if (utils.isSingleEmoji(inline)) {
       return (
-        <Text paddingTop="$xl" lineHeight="$m" fontSize="$xl">
+        <Text paddingTop="$xl" lineHeight="$m" fontSize="$2xl">
           {inline}
         </Text>
       );
@@ -783,7 +783,12 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
-export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
+export type PostViewMode =
+  | 'chat'
+  | 'block'
+  | 'note'
+  | 'activity'
+  | 'attachment';
 
 export default function ContentRenderer({
   post,
@@ -795,6 +800,7 @@ export default function ContentRenderer({
   onLongPress,
   isEdited = false,
   viewMode = 'chat',
+  ...props
 }: {
   post: Post | { type: 'chat' | 'diary' | 'gallery'; id: string; content: any };
   shortened?: boolean;
@@ -805,7 +811,7 @@ export default function ContentRenderer({
   onLongPress?: () => void;
   isEdited?: boolean;
   viewMode?: PostViewMode;
-}) {
+} & ComponentProps<typeof YStack>) {
   const { inlines, story } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
@@ -848,25 +854,7 @@ export default function ContentRenderer({
 
   if (shortened) {
     return (
-      <YStack width="100%">
-        {post.type === 'note' && post.image ? (
-          <Image
-            source={{ uri: post.image }}
-            aspectRatio={16 / 9}
-            width="100%"
-            backgroundColor="$secondaryBackground"
-          />
-        ) : null}
-        {post.type === 'note' && post.title ? (
-          <HeaderText
-            header={{
-              header: {
-                tag: 'h1',
-                content: [post.title],
-              },
-            }}
-          />
-        ) : null}
+      <YStack width="100%" {...props}>
         <LineRenderer
           inlines={shortenedInlines}
           isNotice={isNotice}
@@ -880,7 +868,7 @@ export default function ContentRenderer({
 
   if (shortenedTextOnly) {
     return (
-      <YStack width="100%">
+      <YStack width="100%" {...props}>
         <LineRenderer
           inlines={shortenedInlines}
           isNotice={isNotice}
@@ -893,14 +881,16 @@ export default function ContentRenderer({
   }
 
   return (
-    <YStack width="100%">
+    <YStack width="100%" {...props}>
       {story.map((s, k) => {
         if ('block' in s) {
-          return <BlockContent key={k} block={s.block} />;
+          return (
+            <BlockContent key={k} block={s.block} onPressImage={onPressImage} />
+          );
         }
 
         if ('type' in s && s.type === 'reference') {
-          return <ContentReference key={k} reference={s} />;
+          return <ContentReferenceLoader key={k} reference={s} />;
         }
 
         if ('inline' in s) {
@@ -916,20 +906,21 @@ export default function ContentRenderer({
           );
         }
       })}
-      {post.type === 'chat' && (
-        <View position="absolute" bottom={0} right={0}>
-          {isEdited ? (
-            <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
-              Edited
-            </Text>
-          ) : null}
-          {deliveryStatus ? (
-            <View flexShrink={1}>
-              <ChatMessageDeliveryStatus status={deliveryStatus} />
-            </View>
-          ) : null}
-        </View>
-      )}
+      {post.type === 'chat' ||
+        (post.type === 'reply' && (
+          <View position="absolute" bottom={0} right={0}>
+            {isEdited ? (
+              <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+                Edited
+              </Text>
+            ) : null}
+            {deliveryStatus ? (
+              <View flexShrink={1}>
+                <ChatMessageDeliveryStatus status={deliveryStatus} />
+              </View>
+            ) : null}
+          </View>
+        ))}
     </YStack>
   );
 }

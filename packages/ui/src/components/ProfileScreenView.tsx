@@ -3,7 +3,7 @@ import { Alert, Dimensions, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, getTokens } from 'tamagui';
 
-import { ContactsProvider, useContact } from '../contexts';
+import { AppDataContextProvider, useContact } from '../contexts';
 import { Stack, View, YStack } from '../core';
 import { IconType } from './Icon';
 import { ListItem } from './ListItem';
@@ -22,9 +22,12 @@ export function ProfileScreenView({
   ...rest
 }: Props & { contacts: db.Contact[] }) {
   return (
-    <ContactsProvider contacts={contacts ?? []}>
+    <AppDataContextProvider
+      currentUserId={rest.currentUserId}
+      contacts={contacts ?? []}
+    >
       <Wrapped {...rest} />
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 }
 

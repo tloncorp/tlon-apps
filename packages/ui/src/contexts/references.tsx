@@ -1,8 +1,11 @@
-import { ContentReference } from 'packages/shared/dist/api';
+import { ContentReference } from '@tloncorp/shared/dist/api';
 import { PropsWithChildren, createContext, useContext, useState } from 'react';
 
+type refPath = string;
+export type RefEditorRecord = Record<refPath, ContentReference | null>;
+
 export type ReferencesState = {
-  references: Record<string, ContentReference | null>;
+  references: RefEditorRecord;
   setReferences: (references: Record<string, ContentReference | null>) => void;
 };
 

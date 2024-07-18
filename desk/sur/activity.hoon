@@ -16,8 +16,17 @@
 +$  volume-map
   $~  default-volumes
   (map event-type volume)
-::  $feed: a set of grouped events
-+$  feed  (list activity-bundle)
+::  $feed: a set of grouped events and the summaries of their sources
++$  feed
+  $:  feed=(list activity-bundle)
+      summaries=activity
+  ==
++$  feed-init
+  $:  all=(list activity-bundle)
+      mentions=(list activity-bundle)
+      replies=(list activity-bundle)
+      summaries=activity
+  ==
 +|  %actions
 ::  $action: how to interact with our activity stream
 ::
@@ -41,10 +50,9 @@
 ::
 ::  $read-action: mark activity read
 ::
-::    $item: mark an individual activity as read, indexed by id
-::    $event: mark an individual activity as read, indexed by the event itself
-::    $all: mark _everything_ as read for this source, but not children
-::    $recursive: mark _everything_ as read for this source and children
+::    $item: (DEPRECATED) mark an individual activity as read, indexed by id
+::    $event: (DEPRECATED) mark an individual activity as read, indexed by the event itself
+::    $all: mark _everything_ as read for this source, and possibly children
 ::
 +$  read-action
   $%  [%item id=time-id]
@@ -167,14 +175,14 @@
 ::    $children: the sources nested under this source
 ::
 +$  activity-summary
-  $~  [*@da 0 0 | ~ ~ [*@da ~]]
+  $~  [*@da 0 0 | ~ ~ ~]
   $:  newest=time
       count=@ud
       notify-count=@ud
       notify=_|
       unread=(unit unread-point)
       children=(set source)
-      =reads
+      reads=*  ::  DO NOT USE, 🚨 ⚠️ REMOVE
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]
@@ -221,6 +229,10 @@
 +|  %old-types
 ++  old
   |%
+  ++  v4
+    |%
+    +$  feed  (list activity-bundle)
+    --
   ++  v3
     |%
     +$  index  [=stream =reads]

@@ -9,11 +9,11 @@ import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
-import { useNotifications } from '@/notifications/useNotifications';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
   useMarkAllGroupsRead,
+  useSourceActivity,
 } from '@/state/activity';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
@@ -220,7 +220,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { count } = useNotifications('', 'all');
+  const { activity } = useSourceActivity('base');
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -244,7 +244,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
           <div
             className={cn(
               'mb-0.5 h-1.5 w-1.5 rounded-full',
-              count > 0 && 'bg-blue'
+              activity['notify-count'] > 0 && 'bg-blue'
             )}
           />
         </div>
@@ -270,7 +270,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div
         className={cn(
           'h-1 w-1 rounded-full top-1 right-1 absolute',
-          count > 0 && 'bg-blue'
+          activity['notify-count'] > 0 && 'bg-blue'
         )}
       />
     </Link>

@@ -5,20 +5,54 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { extractClientVolume } from '../logic/activity';
 import * as ub from '../urbit';
-import { formatUd, getCanonicalPostId, udToDate } from './apiUtils';
+import {
+  formatUd,
+  getCanonicalPostId,
+  getChannelIdType,
+  parseGroupChannelId,
+  parseGroupId,
+  udToDate,
+} from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
 
-const logger = createDevLogger('activityApi', false);
+const logger = createDevLogger('activityApi', true);
 
-export async function getUnreads() {
+export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/v1/activity',
+    path: '/v4/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
 }
 
+export async function getThreadUnreadsByChannel(channel: db.Channel) {
+  let scryPath = '';
+  if (getChannelIdType(channel.id) === 'channel' && channel.groupId) {
+    const groupParts = parseGroupId(channel.groupId);
+    const channelParts = parseGroupChannelId(channel.id);
+    const pathParts = [
+      'v4',
+      'activity',
+      'threads',
+      groupParts.host,
+      groupParts.name,
+      channelParts.kind,
+      channelParts.host,
+      channelParts.name,
+    ].join('/');
+    scryPath = `/${pathParts}/`;
+  } else {
+    scryPath = `/v4/activity/dm-threads/${channel.id}/`;
+  }
+  const activity = await scry<ub.Activity>({
+    app: 'activity',
+    path: scryPath,
+  });
+
+  const deserialized = toClientUnreads(activity);
+  return deserialized.threadActivity;
+}
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   const settings = await scry<ub.VolumeSettings>({
     app: 'activity',
@@ -29,16 +63,21 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
-  const feeds = await scry<ub.InitActivityFeeds>({
+  const response = await scry<ub.InitActivityFeeds>({
     app: 'activity',
-    path: `/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
+    path: `/v5/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
 
-  return fromInitFeedToBucketedActivityEvents(feeds);
+  const events = fromInitFeedToBucketedActivityEvents(response);
+  const relevantUnreads = toClientUnreads(response.summaries);
+  return {
+    events,
+    relevantUnreads,
+  };
 }
 
 export function fromInitFeedToBucketedActivityEvents(
-  feeds: ub.InitActivityFeeds
+  feeds: Omit<ub.InitActivityFeeds, 'summaries'>
 ) {
   return [
     ...fromFeedToActivityEvents(feeds.all, 'all'),
@@ -55,25 +94,31 @@ export async function getPagedActivityByBucket({
 }: {
   cursor: number;
   bucket: db.ActivityBucket;
-}): Promise<{ events: db.ActivityEvent[]; nextCursor: number | null }> {
+}): Promise<{
+  events: db.ActivityEvent[];
+  nextCursor: number | null;
+  relevantUnreads: ActivityInit;
+}> {
   logger.log(
     `fetching next activity page for bucket ${bucket} with cursor`,
     cursor
   );
   const urbitCursor = formatUd(unixToDa(cursor).toString());
-  const path = `/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
-  const activity = await scry<ub.ActivityFeed>({
+  const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
+  const { feed, summaries } = await scry<ub.ActivityFeed>({
     app: 'activity',
     path,
   });
 
-  const events = fromFeedToActivityEvents(activity, bucket);
-  const nextCursor = extractNextCursor(activity);
-  return { events, nextCursor };
+  const events = fromFeedToActivityEvents(feed, bucket);
+  const relevantUnreads = toClientUnreads(summaries);
+  const nextCursor = extractNextCursor(feed);
+
+  return { events, nextCursor, relevantUnreads };
 }
 
 export function fromFeedToActivityEvents(
-  feed: ub.ActivityFeed,
+  feed: ub.ActivityBundle[],
   bucket: db.ActivityBucket
 ): db.ActivityEvent[] {
   const stream: EnhancedStream = {};
@@ -87,7 +132,7 @@ export function fromFeedToActivityEvents(
   return toActivityEvents(stream, bucket);
 }
 
-function extractNextCursor(feed: ub.ActivityFeed): number | null {
+function extractNextCursor(feed: ub.ActivityBundle[]): number | null {
   if (feed.length === 0) {
     return null;
   }
@@ -200,6 +245,36 @@ function toActivityEvent({
     };
   }
 
+  if ('flag-post' in event) {
+    const flagEvent = event['flag-post'];
+    const { authorId, postId } = getInfoFromMessageKey(flagEvent.key);
+    return {
+      ...baseFields,
+      type: 'flag-post',
+      postId,
+      authorId,
+      channelId: flagEvent.channel,
+      groupId: flagEvent.group,
+    };
+  }
+
+  if ('flag-reply' in event) {
+    const flagEvent = event['flag-reply'];
+    const { authorId, postId } = getInfoFromMessageKey(flagEvent.key);
+    const { postId: parentId, authorId: parentAuthorId } =
+      getInfoFromMessageKey(flagEvent.parent);
+    return {
+      ...baseFields,
+      type: 'flag-reply',
+      postId,
+      parentId,
+      parentAuthorId,
+      authorId,
+      channelId: flagEvent.channel,
+      groupId: flagEvent.group,
+    };
+  }
+
   return null;
 }
 
@@ -236,50 +311,43 @@ export type ActivityEvent =
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
-    { app: 'activity', path: '/' },
+    { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
-      logger.log(`raw activity sub event`, update);
-      // a 'read' update corresponds to any change in an activity summary
-      if ('read' in update) {
-        const { source, activity: summary } = update.read;
-        if ('dm' in source) {
-          const channelId = getChannelIdFromSource(source);
-          return handler({
-            type: 'updateChannelUnread',
-            activity: toChannelUnread(channelId, summary, 'dm'),
-          });
-        }
+      // handle unreads
+      if ('activity' in update) {
+        Object.entries(update.activity).forEach((activityEntry) => {
+          const [sourceId, summary] = activityEntry;
+          const source = sourceIdToSource(sourceId);
 
-        if ('channel' in source) {
-          const channelId = getChannelIdFromSource(source);
-          return handler({
-            type: 'updateChannelUnread',
-            activity: toChannelUnread(channelId, summary, 'channel'),
-          });
-        }
-
-        if ('dm-thread' in source || 'thread' in source) {
-          const channelId = getChannelIdFromSource(source);
-          const threadId = getPostIdFromSource(source);
-          return handler({
-            type: 'updateThreadUnread',
-            activity: toThreadUnread(
-              channelId,
-              threadId,
-              summary,
-              'dm-thread' in source ? 'dm' : 'channel'
-            ),
-          });
-        }
-
-        if ('group' in source) {
-          return handler({
-            type: 'updateGroupUnread',
-            unread: toGroupUnread(source.group, summary),
-          });
-        }
+          switch (source.type) {
+            case 'group':
+              handler({
+                type: 'updateGroupUnread',
+                unread: toGroupUnread(source.groupId, summary),
+              });
+              break;
+            case 'channel':
+              handler({
+                type: 'updateChannelUnread',
+                activity: toChannelUnread(source.channelId, summary, 'dm'),
+              });
+              break;
+            case 'thread':
+              handler({
+                type: 'updateThreadUnread',
+                activity: toThreadUnread(
+                  source.channelId,
+                  source.threadId,
+                  summary,
+                  source.channelType
+                ),
+              });
+              break;
+          }
+        });
       }
 
+      // handle volume settings
       if ('adjust' in update) {
         const { source, volume } = update.adjust;
         const sourceId = ub.sourceToString(source);
@@ -334,6 +402,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         });
       }
 
+      // handle push notification settings
       if ('allow-notifications' in update) {
         const notifsAllowed = update['allow-notifications'];
 
@@ -343,11 +412,11 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
         });
       }
 
+      // handle new activity events
       if ('add' in update) {
         const id = update.add.time;
         const sourceId = update.add['source-key'];
         const rawEvent = update.add.event;
-        // TODO: parse relevant buckets
 
         const activityEvent = toActivityEvent({
           id,
@@ -377,8 +446,6 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           return handler({ type: 'addActivityEvent', events });
         }
       }
-
-      // TODO: delete
     }
   );
 }
@@ -517,6 +584,78 @@ export function getMessageKey(
 
   Sources can be represented as a string or an object (see urbit/activity.ts for details).
 */
+
+interface ClientGroupSource {
+  type: 'group';
+  groupId: string;
+}
+
+interface ClientChannelSource {
+  type: 'channel';
+  channelId: string;
+}
+
+interface ClientThreadSource {
+  type: 'thread';
+  channelId: string;
+  channelType: db.ChannelUnread['type'];
+  threadId: string;
+}
+
+interface ClientUnknownSource {
+  type: 'unknown'; // for source types we don't care about
+}
+
+export type ClientSource =
+  | ClientGroupSource
+  | ClientChannelSource
+  | ClientThreadSource
+  | ClientUnknownSource;
+
+export function sourceIdToSource(sourceId: string): ClientSource {
+  const parts = sourceId.split('/');
+  const sourceType = parts[0];
+
+  if (sourceType === 'group') {
+    const host = parts[1];
+    const name = parts[2];
+    return { type: 'group', groupId: `${host}/${name}` };
+  }
+
+  if (sourceType === 'channel') {
+    const kind = parts[1];
+    const host = parts[2];
+    const name = parts[3];
+    return { type: 'channel', channelId: `${kind}/${host}/${name}` };
+  }
+
+  if (sourceType === 'ship' || sourceType === 'club') {
+    const channelId = parts[1];
+    return { type: 'channel', channelId };
+  }
+
+  if (sourceType === 'thread') {
+    const kind = parts[1];
+    const host = parts[2];
+    const name = parts[3];
+    const threadId = getCanonicalPostId(parts[4]);
+    return {
+      type: 'thread',
+      channelType: 'channel',
+      channelId: `${kind}/${host}/${name}`,
+      threadId,
+    };
+  }
+
+  if (sourceType === 'dm-thread') {
+    const channelId = parts[1];
+    const threadId = getCanonicalPostId(`${parts[2]}/${parts[3]}`);
+    return { type: 'thread', channelType: 'dm', channelId, threadId };
+  }
+
+  return { type: 'unknown' };
+}
+
 export function getThreadSource({
   channel,
   post,

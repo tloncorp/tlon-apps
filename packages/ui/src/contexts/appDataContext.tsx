@@ -1,17 +1,39 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import {
+  ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+} from 'react';
 
-type State = {
+export type CurrentAppDataState = {
+  currentUserId: string;
   contacts: db.Contact[] | null;
   contactIndex: Record<string, db.Contact> | null;
 };
 
-type ContextValue = State;
+type ContextValue = CurrentAppDataState;
 
-const Context = createContext<ContextValue>({
+const defaultState: CurrentAppDataState = {
+  currentUserId: '',
   contacts: null,
   contactIndex: null,
-});
+};
+
+const Context = createContext<ContextValue>(defaultState);
+
+export const useCurrentUserId = () => {
+  const context = useContext(Context);
+
+  if (!context) {
+    throw new Error(
+      'Must call `useCurrentUser` within an `CurrentUserProvider` component.'
+    );
+  }
+
+  return context.currentUserId;
+};
 
 export const useContacts = () => {
   const context = useContext(Context);
@@ -51,17 +73,24 @@ export const useContactGetter = () => {
   return getFromIndex;
 };
 
-export const ContactsProvider = ({
+export const AppDataContextProvider = ({
   children,
+  currentUserId,
   contacts,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
+  currentUserId?: string;
   contacts: db.Contact[] | null;
 }) => {
   const value = useMemo(
-    () => ({ contacts, contactIndex: buildContactIndex(contacts ?? []) }),
-    [contacts]
+    () => ({
+      contacts,
+      contactIndex: buildContactIndex(contacts ?? []),
+      currentUserId: currentUserId ?? '',
+    }),
+    [contacts, currentUserId]
   );
+
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 

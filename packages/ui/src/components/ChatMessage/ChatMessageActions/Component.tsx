@@ -29,7 +29,6 @@ interface LayoutStruct {
 
 export function ChatMessageActions({
   post,
-  currentUserId,
   postRef,
   channelType,
   onDismiss,
@@ -39,7 +38,6 @@ export function ChatMessageActions({
   onEdit,
 }: {
   post: db.Post;
-  currentUserId: string;
   postRef: RefObject<RNView>;
   channelType: db.ChannelType;
   onDismiss: () => void;
@@ -146,15 +144,10 @@ export function ChatMessageActions({
         paddingHorizontal="$xl"
       >
         <YStack gap="$xs">
-          <EmojiToolbar
-            post={post}
-            onDismiss={onDismiss}
-            currentUserId={currentUserId}
-          />
-          <MessageContainer post={post} currentUserId={currentUserId} />
+          <EmojiToolbar post={post} onDismiss={onDismiss} />
+          <MessageContainer post={post} />
           <MessageActions
             post={post}
-            currentUserId={currentUserId}
             channelType={channelType}
             dismiss={onDismiss}
             onReply={onReply}
