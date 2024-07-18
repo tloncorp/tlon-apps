@@ -648,6 +648,17 @@ export const channels = sqliteTable(
      * From `recency` on unreads on the Urbit side
      */
     remoteUpdatedAt: timestamp('remote_updated_at'),
+
+    /**
+     * Local time that this channel was last viewed by this client;
+     * null if never viewed (or after a database reset)
+     */
+    lastViewedAt: timestamp('last_viewed_at'),
+
+    /**
+     * True if this channel was autocreated during new group creation (on this client)
+     */
+    isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),

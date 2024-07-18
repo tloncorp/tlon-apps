@@ -20,10 +20,14 @@ vi.mock('@react-native-firebase/crashlytics', () => {
 });
 
 export function mockUrbit() {
-  vi.mock('../api/urbit', async () => {
-    return {
+  vi.mock('../api/urbit', async (importOriginal) => {
+    const mod = await importOriginal<typeof import('../api/urbit')>();
+    const out: typeof mod = {
+      ...mod,
       scry: vi.fn(),
+      trackedPoke: vi.fn(),
       getCurrentUserId: () => '~solfer-magfed',
     };
+    return out;
   });
 }
