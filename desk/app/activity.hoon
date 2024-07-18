@@ -249,7 +249,7 @@
       %add      (add-event +.action)
       %bump     (bump +.action)
       %del      (del-source +.action)
-      %read     (read source.action read-action.action |)
+      %read     (read source.action read-action.action)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
@@ -697,7 +697,7 @@
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
-  |=  [=source:a action=read-action:a from-parent=?]
+  |=  [=source:a action=read-action:a]
   ^+  cor
   =/  =index:a  (get-index source)
   ?-  -.action
@@ -720,7 +720,7 @@
       |-
       ?~  children  cor
       =/  =source:a  i.children
-      =.  cor  (read source action &)
+      =.  cor  (read source action)
       $(children t.children)
     ::  we need to refresh our own index to reflect new reads
     %-  (log |.("refeshing index: {<source>}"))
@@ -762,11 +762,14 @@
     ?:  ?=(%base -.source)  ~
     ::  we don't need to take child events into account when summarizing
     ::  the activity, so we filter them out
-    =-  +:-
-    %^  (dip:on-event:a @)  stream.index  ~
+    ::  TODO: measure performance vs gas+murn+tap+lot
+    =-  ->
+    %^    (dip:on-event:a @)
+        (lot:on-event:a stream.index `floor.reads.index ~)
+      ~
     |=  [st=@ =time-id:a =event:a]
     :_  [%.n st]
-    ?.  &(!child.event (gth time-id floor.reads.index))  ~
+    ?.  !child.event  ~
     `event
   =/  children  (get-children:src indices source)
   %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
@@ -815,7 +818,7 @@
         notified
         ?~(last ~ `[u.last main main-notified])
         ?:(?=(%base -.source) ~ (sy children))
-        reads.index
+        ~
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume:evt volume-settings -.event)
@@ -847,11 +850,12 @@
   ?~  sources  cor
   =/  =source:a  i.sources
   =/  =index:a  (~(got by indices) source)
+  =/  old-floor  floor.reads.index
   =/  old=(unit activity-summary:a)  (~(get by activity) source)
   ::  get all our reads, removing children
   =/  new-floor=time
-    =-  -.-
-    %^  (dip:on-read-items:a @da)  items.reads.index  *@da
+    =-  st
+    %^  (dip:on-read-items:a ,st=@da)  items.reads.index  floor.reads.index
     |=  [st=@da =time-id:a *]
     =/  event=(unit event:a)  (get:on-event:a stream.index time-id)
     ?~  event  [~ %.n st]
@@ -861,7 +865,14 @@
   ::  with new reads, update our index and summary
   =.  cor  (refresh-index source index)
   =/  new=(unit activity-summary:a)  (~(get by activity) source)
-  ~?  !=(old new)  "%sync-reads: WARNING old and new summaries differ {<old>} {<new>}"
+  =/  old-sum  ?~(old ~ %=(u.old reads ~))
+  =/  new-sum  ?~(new ~ %=(u.new reads ~))
+  ?:  !=(old-sum new-sum)
+    ~&  "%sync-reads: WARNING old and new summaries differ {<source>}"
+    ~&  "old floor: {<old-floor>} new floor: {<new-floor>}"
+    ~&  "old:  {<old-sum>}"
+    ~&  "new:  {<new-sum>}"
+    $(sources t.sources)
   $(sources t.sources)
 ::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events

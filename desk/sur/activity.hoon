@@ -166,14 +166,14 @@
 ::    $children: the sources nested under this source
 ::
 +$  activity-summary
-  $~  [*@da 0 0 | ~ ~ [*@da ~]]
+  $~  [*@da 0 0 | ~ ~ ~]
   $:  newest=time
       count=@ud
       notify-count=@ud
       notify=_|
       unread=(unit unread-point)
       children=(set source)
-      =reads
+      reads=*  ::  DO NOT USE, 🚨 ⚠️ REMOVE
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]

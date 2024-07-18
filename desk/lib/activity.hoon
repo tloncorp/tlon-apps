@@ -201,7 +201,7 @@
           :-  source
           (activity-summary sum(children ~) ~)
         ::
-          reads.as
+          [*@da ~]
       ==
     ++  update
       |=  [=update:a =activity:a]
