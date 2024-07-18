@@ -279,9 +279,55 @@ export function useMarkReadMutation(recursive = false) {
 
   return useMutation({
     mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries(unreadsKey(), undefined, {
-        cancelRefetch: true,
+    onMutate: async (variables) => {
+      const current = queryClient.getQueryData<Activity>(unreadsKey());
+      queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        if (!variables.action || !('all' in variables.action)) {
+          return d;
+        }
+
+        const source = sourceToString(variables.source);
+        if (variables.action.all.deep) {
+          return {
+            ...d,
+            [source]: {
+              ...d[source],
+              unread: null,
+              count: 0,
+              notify: false,
+              'notify-count': 0,
+            },
+          };
+        }
+
+        const old = d[source];
+        return {
+          ...d,
+          [source]: {
+            ...old,
+            unread: null,
+            count: Math.min(0, old.count - (old.unread?.count || 0)),
+            'notify-count':
+              old.unread && old.unread.notify
+                ? Math.min(old['notify-count'] - old.unread.count)
+                : old['notify-count'],
+          },
+        };
+      });
+
+      return { current };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(unreadsKey(), context?.current);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: unreadsKey(),
+        refetchType: 'none',
       });
     },
   });
