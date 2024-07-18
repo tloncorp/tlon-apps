@@ -864,9 +864,9 @@
   =/  volume  (get-volume:evt volume-settings -.event)
   ::TODO  support other event types
   =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
-  =*  inits  ?=(?(%dm-invite %chan-init) -<.event)
-  =*  flags  ?=(?(%flag-post %flag-reply) -<.event)
-  =*  supported  |(is-msg inits flags)
+  =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
+  =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
+  =*  supported  |(is-msg is-init is-flag)
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
   =?  notify-count  &(notify.volume notified.event)  +(notify-count)
