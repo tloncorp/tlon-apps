@@ -505,33 +505,6 @@ const BaseScrollerItem = ({
       <ChannelDivider unreadCount={0} post={post} index={index} />
     ) : null;
 
-  if (post.isDeleted) {
-    return (
-      <View
-        onLayout={handleLayout}
-        {...(channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {})}
-      >
-        {channelType === 'chat' ||
-        channelType === 'dm' ||
-        channelType === 'groupDm'
-          ? unreadDivider ?? dayDivider
-          : null}
-        <Component
-          post={post}
-          editing={editingPost && editingPost?.id === item.id}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          showAuthor={showAuthor}
-          showReplies={showReplies}
-          onPressReplies={onPressReplies}
-          onPressImage={onPressImage}
-          onLongPress={onLongPressPost}
-          onPress={onPressPost}
-        />
-      </View>
-    );
-  }
-
   return (
     <View
       onLayout={handleLayout}
@@ -553,10 +526,10 @@ const BaseScrollerItem = ({
           editPost={editPost}
           showAuthor={showAuthor}
           showReplies={showReplies}
-          onPressReplies={onPressReplies}
-          onPressImage={onPressImage}
-          onLongPress={onLongPressPost}
-          onPress={onPressPost}
+          onPressReplies={post.isDeleted ? () => {} : onPressReplies}
+          onPressImage={post.isDeleted ? () => {} : onPressImage}
+          onLongPress={post.isDeleted ? () => {} : onLongPressPost}
+          onPress={post.isDeleted ? () => {} : onPressPost}
         />
       </PressableMessage>
     </View>
