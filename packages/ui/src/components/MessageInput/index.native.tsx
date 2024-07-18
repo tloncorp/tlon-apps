@@ -136,6 +136,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       channelType,
       setHeight,
       goBack,
+      onSend,
     },
     ref
   ) => {
@@ -573,6 +574,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           send(story, channelId, metadata);
         }
 
+        onSend?.();
         editor.setContent('');
         clearAttachments();
         clearDraft();
@@ -580,6 +582,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setImageOnEditedPost(null);
       },
       [
+        onSend,
         editor,
         waitForAttachmentUploads,
         imageOnEditedPost,

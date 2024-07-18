@@ -48,6 +48,7 @@ export interface MessageInputProps {
   showToolbar?: boolean;
   channelType?: db.ChannelType;
   initialHeight?: number;
+  onSend?: () => void;
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;

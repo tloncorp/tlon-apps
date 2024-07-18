@@ -1,11 +1,7 @@
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
-import {
-  ImageAttachment,
-  useMessageInputContext,
-} from '../contexts/messageInput';
-import { Image, View } from '../core';
+import { useMessageInputContext } from '../contexts/messageInput';
 import { ActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
@@ -13,17 +9,15 @@ export default function AddGalleryPost({
   showAddGalleryPost,
   setShowAddGalleryPost,
   setShowGalleryInput,
+  onSetImage,
 }: {
   showAddGalleryPost: boolean;
   setShowAddGalleryPost: (show: boolean) => void;
   setShowGalleryInput: (show: boolean) => void;
+  onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
-  const { attachments, resetAttachments } = useMessageInputContext();
+  const { attachAssets } = useMessageInputContext();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-
-  const attachedImage = useMemo(() => {
-    return attachments.find((a): a is ImageAttachment => a.type === 'image');
-  }, [attachments]);
 
   const actions = [
     {
@@ -42,16 +36,12 @@ export default function AddGalleryPost({
     },
   ];
 
-  const handleSetImage = useCallback(
+  const handleImageSet = useCallback(
     (assets: ImagePickerAsset[]) => {
-      resetAttachments([
-        {
-          type: 'image',
-          file: assets[0],
-        },
-      ]);
+      attachAssets(assets);
+      onSetImage(assets);
     },
-    [resetAttachments]
+    [attachAssets, onSetImage]
   );
 
   return (
@@ -69,13 +59,8 @@ export default function AddGalleryPost({
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={handleSetImage}
+        setImage={handleImageSet}
       />
-      {attachedImage ? (
-        <View flex={1}>
-          <Image source={{ uri: attachedImage.file.uri }} flex={1} />
-        </View>
-      ) : null}
     </>
   );
 }
