@@ -88,15 +88,6 @@
   --
 ++  idx
   |_  =index:a
-  ++  update-reads
-    |=  =index:a
-    ^-  index:a
-    =/  new-floor=(unit time)  (find-floor [stream reads]:index)
-    ?~  new-floor  index
-    =/  new-reads=read-items:a
-      (lot:on-read-items:a items.reads.index new-floor ~)
-    index(reads [u.new-floor new-reads])
-  ::
   ++  find-floor
     |=  [orig=stream:a =reads:a]
     ^-  (unit time)
@@ -210,7 +201,7 @@
           :-  source
           (activity-summary sum(children ~) ~)
         ::
-          reads.as
+          [*@da ~]
       ==
     ++  update
       |=  [=update:a =activity:a]

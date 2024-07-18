@@ -189,8 +189,11 @@ export interface ActivitySummary {
   'notify-count': number;
   notify: boolean;
   unread: UnreadPoint | null;
-  children: Activity | null;
-  reads: Reads | null;
+}
+
+export interface ActivitySummaryFull extends ActivitySummary {
+  reads: Reads;
+  children: string[];
 }
 
 export interface ActivityBundle {

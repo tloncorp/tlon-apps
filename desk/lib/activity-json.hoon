@@ -155,8 +155,6 @@
       ::
         :-  %children
         a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
-      ::
-        reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
     ==
   ::
   ++  activity-bundle
