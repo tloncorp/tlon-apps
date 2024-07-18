@@ -1,9 +1,10 @@
+import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 
-import { SizableText, View, XStack, YStack } from '../../core';
+import { Text, View, XStack, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
 import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
@@ -77,6 +78,11 @@ const ChatMessage = ({
     [onPressImage, post]
   );
 
+  const timeDisplay = useMemo(() => {
+    const date = new Date(post.sentAt ?? 0);
+    return utils.makePrettyTime(date);
+  }, [post.sentAt]);
+
   if (!post) {
     return null;
   }
@@ -106,9 +112,17 @@ const ChatMessage = ({
         backgroundColor="$secondaryBackground"
         borderRadius="$m"
       >
-        <SizableText paddingLeft="$4xl" color="$secondaryText">
-          This message was deleted.
-        </SizableText>
+        <Text
+          paddingLeft="$l"
+          fontSize="$s"
+          fontWeight="$l"
+          color="$secondaryText"
+        >
+          {timeDisplay}
+        </Text>
+        <Text fontStyle="italic" paddingLeft="$4xl" color="$secondaryText">
+          This message was deleted
+        </Text>
       </XStack>
     );
   }
@@ -148,9 +162,9 @@ const ChatMessage = ({
             setEditingPost={setEditingPost}
           />
         ) : post.hidden ? (
-          <SizableText color="$secondaryText">
+          <Text color="$secondaryText">
             You have hidden or flagged this message.
-          </SizableText>
+          </Text>
         ) : (
           <NoticeWrapper isNotice={isNotice}>
             <ContentRenderer
