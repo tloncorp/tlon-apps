@@ -278,7 +278,10 @@ export const syncStorageSettings = (priority = SyncPriority.Medium) => {
   });
 };
 
-const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
+export const persistUnreads = async (
+  activity: api.ActivityInit,
+  ctx?: QueryCtx
+) => {
   const { groupUnreads, channelUnreads, threadActivity } = activity;
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
@@ -294,9 +297,11 @@ const persistUnreads = async (activity: api.ActivityInit, ctx?: QueryCtx) => {
 };
 
 export const resetActivity = async () => {
-  const activityEvents = await api.getInitialActivity();
+  const { relevantUnreads, events } = await api.getInitialActivity();
   await db.clearActivityEvents();
-  await db.insertActivityEvents(activityEvents);
+  await db.insertActivityEvents(events);
+  await persistUnreads(relevantUnreads);
+
   resetActivityFetchers();
 };
 

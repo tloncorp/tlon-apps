@@ -5,6 +5,7 @@ import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
+import * as sync from './sync';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', true);
 
@@ -71,15 +72,16 @@ export function useInfiniteBucketedActivity(
       }
 
       // if we don't, hit the api with the given cursor
-      const fetchedPage = await api.getPagedActivityByBucket({
+      const apiResponse = await api.getPagedActivityByBucket({
         bucket,
         cursor: cursor ?? Date.now(),
       });
-      logger.log('fetched next page from API', fetchedPage);
+      logger.log('fetched next page from API', apiResponse);
 
       // if we got some stuff, insert it into the DB & update the cusor
-      if (fetchedPage.events.length > 0) {
-        await db.insertActivityEvents(fetchedPage.events);
+      if (apiResponse.events.length > 0) {
+        await db.insertActivityEvents(apiResponse.events);
+        await sync.persistUnreads(apiResponse.relevantUnreads);
         const events = await db.getBucketedActivityPage({
           bucket,
           startCursor: cursor,

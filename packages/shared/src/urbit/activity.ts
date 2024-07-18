@@ -203,11 +203,16 @@ export interface ActivityBundle {
   'source-key': string;
 }
 
-export type ActivityFeed = ActivityBundle[];
+export type ActivityFeed = {
+  feed: ActivityBundle[];
+  summaries: Record<string, ActivitySummary>;
+};
+
 export type InitActivityFeeds = {
   all: ActivityBundle[];
   mentions: ActivityBundle[];
   replies: ActivityBundle[];
+  summaries: Record<string, ActivitySummary>;
 };
 
 export type Activity = Record<string, ActivitySummary>;

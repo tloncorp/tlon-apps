@@ -63,12 +63,17 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
-  const feeds = await scry<ub.InitActivityFeeds>({
+  const response = await scry<ub.InitActivityFeeds>({
     app: 'activity',
-    path: `/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
+    path: `/v5/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
 
-  return fromInitFeedToBucketedActivityEvents(feeds);
+  const events = fromInitFeedToBucketedActivityEvents(response);
+  const relevantUnreads = toClientUnreads(response.summaries);
+  return {
+    events,
+    relevantUnreads,
+  };
 }
 
 export function fromInitFeedToBucketedActivityEvents(
@@ -89,25 +94,31 @@ export async function getPagedActivityByBucket({
 }: {
   cursor: number;
   bucket: db.ActivityBucket;
-}): Promise<{ events: db.ActivityEvent[]; nextCursor: number | null }> {
+}): Promise<{
+  events: db.ActivityEvent[];
+  nextCursor: number | null;
+  relevantUnreads: ActivityInit;
+}> {
   logger.log(
     `fetching next activity page for bucket ${bucket} with cursor`,
     cursor
   );
   const urbitCursor = formatUd(unixToDa(cursor).toString());
-  const path = `/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
-  const activity = await scry<ub.ActivityFeed>({
+  const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
+  const { feed, summaries } = await scry<ub.ActivityFeed>({
     app: 'activity',
     path,
   });
 
-  const events = fromFeedToActivityEvents(activity, bucket);
-  const nextCursor = extractNextCursor(activity);
-  return { events, nextCursor };
+  const events = fromFeedToActivityEvents(feed, bucket);
+  const relevantUnreads = toClientUnreads(summaries);
+  const nextCursor = extractNextCursor(feed);
+
+  return { events, nextCursor, relevantUnreads };
 }
 
 export function fromFeedToActivityEvents(
-  feed: ub.ActivityFeed,
+  feed: ub.ActivityBundle[],
   bucket: db.ActivityBucket
 ): db.ActivityEvent[] {
   const stream: EnhancedStream = {};
@@ -121,7 +132,7 @@ export function fromFeedToActivityEvents(
   return toActivityEvents(stream, bucket);
 }
 
-function extractNextCursor(feed: ub.ActivityFeed): number | null {
+function extractNextCursor(feed: ub.ActivityBundle[]): number | null {
   if (feed.length === 0) {
     return null;
   }
