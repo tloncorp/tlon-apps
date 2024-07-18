@@ -22,22 +22,25 @@ export function EmojiToolbar({
   const [sheetOpen, setSheetOpen] = useState(false);
   const details = useReactionDetails(post.reactions ?? [], currentUserId);
 
-  const handlePress = useCallback(async (shortCode: string) => {
-    details.self.didReact && details.self.value.includes(shortCode)
-      ? store.removePostReaction(post, currentUserId)
-      : store.addPostReaction(post, shortCode, currentUserId);
+  const handlePress = useCallback(
+    async (shortCode: string) => {
+      details.self.didReact && details.self.value.includes(shortCode)
+        ? store.removePostReaction(post, currentUserId)
+        : store.addPostReaction(post, shortCode, currentUserId);
 
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTimeout(() => onDismiss(), 50);
-  }, []);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => onDismiss(), 50);
+    },
+    [currentUserId, details.self.didReact, details.self.value, onDismiss, post]
+  );
 
   const lastShortCode =
     details.self.didReact &&
-    !['+1', 'heart', 'cyclone', 'seedling'].some((code) =>
+    !['+1', 'heart', 'laughing', 'cyclone'].some((code) =>
       details.self.value.includes(code)
     )
       ? details.self.value
-      : 'seedling';
+      : 'cyclone';
 
   return (
     <>
@@ -61,7 +64,7 @@ export function EmojiToolbar({
         />
         <EmojiToolbarButton
           details={details}
-          shortCode="cyclone"
+          shortCode="laughing"
           handlePress={handlePress}
         />
         <EmojiToolbarButton

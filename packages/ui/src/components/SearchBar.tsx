@@ -28,12 +28,22 @@ export function SearchBar({
     [debounceTime, onChangeQuery]
   );
 
-  const onTextChange = useCallback((text: string) => {
-    // we update the input display immediately, but debounce for consumers
-    // of the search bar
-    setValue(text);
-    debouncedOnChangeQuery(text.trim());
-  }, []);
+  const onTextChange = useCallback(
+    (text: string) => {
+      // we update the input display immediately, but debounce for consumers
+      // of the search bar
+      setValue(text);
+      const newValue = text.trim();
+      if (newValue === '') {
+        // if value was cleared, update immediately
+        debouncedOnChangeQuery.cancel();
+        onChangeQuery('');
+      } else {
+        debouncedOnChangeQuery(newValue);
+      }
+    },
+    [debouncedOnChangeQuery, onChangeQuery]
+  );
 
   return (
     <View

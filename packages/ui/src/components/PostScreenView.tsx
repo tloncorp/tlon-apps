@@ -65,6 +65,7 @@ export function PostScreenView({
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
 }) {
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -110,7 +111,7 @@ export function PostScreenView({
                 channelType={channel.type}
                 mode={headerMode}
               />
-              <KeyboardAvoidingView>
+              <KeyboardAvoidingView enabled={!activeMessage}>
                 {parentPost && channel.type === 'gallery' && (
                   <GalleryDetailView
                     post={parentPost}
@@ -172,6 +173,8 @@ export function PostScreenView({
                             : null
                         }
                         unreadCount={threadUnread?.count ?? 0}
+                        activeMessage={activeMessage}
+                        setActiveMessage={setActiveMessage}
                       />
                     </View>
                   )
