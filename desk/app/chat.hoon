@@ -780,6 +780,7 @@
   |=  $:  =whom
           $=  concern
           $%  [%post key=message-key]
+              [%delete key=message-key]
               [%reply key=message-key top=message-key]
               [%invite ~]
           ==
@@ -806,6 +807,8 @@
         [%bump source]
     ==
   :_  ~
+  ?:  ?=(%delete -.concern)
+    [%del %dm-thread key.concern whom]
   :-  %add
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]
@@ -1311,9 +1314,11 @@
       =/  invited  (~(has in hive.crew.club) our.bowl)
       ?:  &(!loyal !invited)
          cu-core
+      =/  had=(unit [=time =writ:c])
+        (get:cu-pact p.diff.delta)
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
-          ?(%del %add-react %del-react)  (cu-give-writs-diff diff.delta)
+          ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  memo  memo.q.diff.delta
@@ -1336,6 +1341,11 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
+        (cu-give-writs-diff diff.delta)
+      ::
+          %del
+        =?  cu-core  ?=(^ had)
+          (cu-activity [%delete p.diff.delta time.u.had] *story:d |)
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1663,11 +1673,13 @@
     =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-unread  di-unread
+    =/  had=(unit [=time =writ:c])
+      (get:di-pact p.diff)
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff
-        ?(%del %add-react %del-react)  (di-give-writs-diff diff)
+        ?(%add-react %del-react)  (di-give-writs-diff diff)
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
@@ -1694,6 +1706,11 @@
         ~
       =?  cor  (want-hark %to-us)
         (emit (pass-yarn new-yarn))
+      (di-give-writs-diff diff)
+    ::
+        %del
+      =?  di-core  ?=(^ had)
+        (di-activity [%delete p.diff time.u.had] *story:d |)
       (di-give-writs-diff diff)
     ::
         %reply
