@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { uploadAsset } from '@tloncorp/shared/dist/store';
+import { uploadAsset, useCanUpload } from '@tloncorp/shared/dist/store';
 import { GroupMetaScreenView } from '@tloncorp/ui';
 
 import { GroupSettingsStackParamList } from '../../types';
@@ -18,8 +18,11 @@ export function GroupMetaScreen(props: GroupMetaScreenProps) {
       groupId,
     });
 
+  const canUpload = useCanUpload();
+
   return (
     <GroupMetaScreenView
+      canUpload={canUpload}
       group={group ?? null}
       currentUserIsAdmin={currentUserIsAdmin ?? false}
       setGroupMetadata={setGroupMetadata}

@@ -79,6 +79,7 @@ export function Channel({
   editingPost,
   setEditingPost,
   editPost,
+  canUpload,
   uploadAsset,
   negotiationMatch,
   hasNewerPosts,
@@ -121,6 +122,7 @@ export function Channel({
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
+  canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -206,6 +208,7 @@ export function Channel({
                   onPressGoToDm={goToDm}
                 >
                   <MessageInputProvider
+                    canUpload={canUpload}
                     initialAttachments={initialAttachments}
                     uploadAsset={uploadAsset}
                   >
@@ -324,6 +327,9 @@ export function Channel({
                                   editingPost={editingPost}
                                   setEditingPost={setEditingPost}
                                   editPost={editPost}
+                                  showInlineAttachments={
+                                    channel.type !== 'gallery'
+                                  }
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }

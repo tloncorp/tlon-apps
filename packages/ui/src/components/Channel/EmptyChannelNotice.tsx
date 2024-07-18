@@ -1,4 +1,4 @@
-import * as db from 'packages/shared/dist/db';
+import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
 
 import { SizableText, View } from '../../core';

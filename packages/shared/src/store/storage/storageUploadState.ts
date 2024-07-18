@@ -1,4 +1,4 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 import { createDevLogger } from '../../debug';
 
@@ -12,13 +12,13 @@ export type UploadState =
   | UploadStateSuccess;
 
 const logger = createDevLogger('uploadState', true);
-const uploadStates: Record<string, UploadState> = {};
+let uploadStates: Record<string, UploadState> = {};
 
 export type UploadStateListener = (state: UploadState) => void;
 const uploadStateListeners: UploadStateListener[] = [];
 
 export const setUploadState = (key: string, state: UploadState) => {
-  uploadStates[key] = state;
+  uploadStates = { ...uploadStates, [key]: state };
   logger.log('upload states changed', uploadStates);
   uploadStateListeners.forEach((listener) => listener(uploadStates[key]));
 };
@@ -31,24 +31,20 @@ export function subscribeToUploadStates(listener: UploadStateListener) {
 }
 
 export const useUploadStates = (keys: string[]) => {
-  const keyHash = keys.join('');
-  const cache = useRef<Record<string, Record<string, UploadState>>>({});
-  return useSyncExternalStore(
+  const states = useSyncExternalStore(
     subscribeToUploadStates,
     useCallback(() => {
-      if (!cache.current[keyHash]) {
-        cache.current = {
-          [keyHash]: keys.reduce<Record<string, UploadState>>((acc, key) => {
-            acc[key] = uploadStates[key];
-            return acc;
-          }, {}),
-        };
-      }
-      return cache.current[keyHash];
-      // Using keyHash to determine when keys change
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [keyHash])
+      return uploadStates;
+    }, [])
   );
+  return useMemo(() => {
+    return keys.reduce<Record<string, UploadState>>((memo, k) => {
+      return {
+        ...memo,
+        [k]: states[k],
+      };
+    }, {});
+  }, [states, keys]);
 };
 
 export const waitForUploads = async (keys: string[]) => {

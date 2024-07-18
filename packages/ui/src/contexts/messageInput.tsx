@@ -10,6 +10,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -46,6 +47,7 @@ export type MessageInputState = {
   resetAttachments: (attachments: Attachment[]) => void;
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
   attachAssets: (assets: ImagePickerAsset[]) => void;
+  canUpload: boolean;
 };
 
 const defaultState: MessageInputState = {
@@ -56,6 +58,7 @@ const defaultState: MessageInputState = {
   resetAttachments: () => {},
   attachAssets: () => {},
   waitForAttachmentUploads: async () => [],
+  canUpload: true,
 };
 
 const Context = createContext(defaultState);
@@ -74,9 +77,11 @@ export const useMessageInputContext = () => {
 
 export const MessageInputProvider = ({
   initialAttachments,
-  uploadAsset: uploadAsset,
+  uploadAsset,
+  canUpload,
   children,
 }: PropsWithChildren<{
+  canUpload: boolean;
   uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   initialAttachments?: Attachment[];
 }>) => {
@@ -101,15 +106,17 @@ export const MessageInputProvider = ({
     });
   }, [assetUploadStates, state]);
 
-  const handleAddAttachment = useCallback(
-    (attachment: Attachment) => {
-      if (attachment.type === 'image') {
-        uploadAsset(attachment.file);
+  useEffect(() => {
+    attachments.forEach((a) => {
+      if (a.type === 'image' && !a.uploadState) {
+        uploadAsset(a.file);
       }
-      setState((prev) => [...prev, attachment]);
-    },
-    [uploadAsset]
-  );
+    });
+  }, [attachments, uploadAsset]);
+
+  const handleAddAttachment = useCallback((attachment: Attachment) => {
+    setState((prev) => [...prev, attachment]);
+  }, []);
 
   const handleAttachAssets = useCallback(
     (assets: ImagePickerAsset[]) => {
@@ -164,6 +171,7 @@ export const MessageInputProvider = ({
         clearAttachments: handleClearAttachments,
         resetAttachments: handleResetAttachments,
         waitForAttachmentUploads: handleWaitForUploads,
+        canUpload,
       }}
     >
       {children}
@@ -186,4 +194,24 @@ function assertIsUploadedAssetAttachment(
     console.log(attachment);
     throw new Error('Attachment is not an uploaded image attachment');
   }
+}
+
+export function useMappedImageAttachments<T extends Record<string, string>>(
+  map: T
+): { [K in keyof T]: ImageAttachment | undefined } {
+  const mapHash = Object.entries(map).flat().join('');
+  const { attachments } = useMessageInputContext();
+
+  return useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(map).map(([key, path]) => [
+        key,
+        attachments.find(
+          (a): a is ImageAttachment => a.type === 'image' && a.file.uri === path
+        ),
+      ])
+    ) as { [K in keyof T]: ImageAttachment | undefined };
+    // Hash changes when map changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapHash, attachments]);
 }

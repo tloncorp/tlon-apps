@@ -137,14 +137,17 @@ export async function toggleStorageService(service: StorageService) {
   return setStorageConfiguration({ ...current, service });
 }
 
+export const STORAGE_SETTINGS_QUERY_KEY = ['storageSettings'];
+
 const STORAGE_CREDENTIALS_KEY = 'storageCredentials';
 
 export async function setStorageCredentials(credentials: StorageCredentials) {
   logger.log('setStorageCredentials', credentials);
-  return AsyncStorage.setItem(
+  await AsyncStorage.setItem(
     STORAGE_CREDENTIALS_KEY,
     JSON.stringify(credentials)
   );
+  queryClient.invalidateQueries({ queryKey: STORAGE_SETTINGS_QUERY_KEY });
 }
 
 export async function getStorageCredentials(): Promise<StorageCredentials | null> {
@@ -160,7 +163,8 @@ export async function updateStorageCredentials(
   if (!current) {
     return;
   }
-  return setStorageCredentials({ ...current, ...update });
+  await setStorageCredentials({ ...current, ...update });
+  queryClient.invalidateQueries({ queryKey: STORAGE_SETTINGS_QUERY_KEY });
 }
 
 export type AppInfo = {

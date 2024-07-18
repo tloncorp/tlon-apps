@@ -148,6 +148,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
     }));
 
+    const [isSending, setIsSending] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
@@ -166,6 +167,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [mentionText, setMentionText] = useState<string>();
     const [editorIsEmpty, setEditorIsEmpty] = useState(true);
     const [showMentionPopup, setShowMentionPopup] = useState(false);
+
     const {
       attachments,
       addAttachment,
@@ -173,6 +175,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       resetAttachments,
       waitForAttachmentUploads,
     } = useMessageInputContext();
+
     const bridgeExtensions = [
       ...TenTapStartKit,
       MentionsBridge,
@@ -593,19 +596,31 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       ]
     );
 
+    const runSendMessage = useCallback(
+      async (isEdit: boolean) => {
+        setIsSending(true);
+        try {
+          await sendMessage(isEdit);
+        } catch (e) {
+          console.error('failed to send', e);
+        }
+        setIsSending(false);
+      },
+      [sendMessage]
+    );
+
     const handleSend = useCallback(async () => {
       Keyboard.dismiss();
-      await sendMessage();
-    }, [sendMessage]);
+      runSendMessage(false);
+    }, [runSendMessage]);
 
     const handleEdit = useCallback(async () => {
       Keyboard.dismiss();
       if (!editingPost) {
         return;
       }
-
-      await sendMessage(true);
-    }, [sendMessage, editingPost]);
+      runSendMessage(true);
+    }, [runSendMessage, editingPost]);
 
     const handleAddNewLine = useCallback(() => {
       if (editorState.isCodeBlockActive) {
@@ -752,6 +767,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSelectMention={onSelectMention}
         showMentionPopup={showMentionPopup}
         isEditing={!!editingPost}
+        isSending={isSending}
         cancelEditing={() => setEditingPost?.(undefined)}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}

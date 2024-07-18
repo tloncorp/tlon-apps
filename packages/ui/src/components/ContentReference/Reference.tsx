@@ -1,5 +1,4 @@
 import { PostType } from '@tloncorp/shared/dist/db';
-import { ContentReference } from 'packages/shared/dist/api';
 import { ComponentProps, useContext } from 'react';
 import { Dimensions } from 'react-native';
 import {
