@@ -678,6 +678,23 @@ function RoutedApp() {
   const isDarkMode = useIsDark();
 
   useEffect(() => {
+    const onFocus = () => {
+      useLocalState.setState({ inFocus: true });
+    };
+    window.addEventListener('focus', onFocus);
+
+    const onBlur = () => {
+      useLocalState.setState({ inFocus: false });
+    };
+    window.addEventListener('blur', onBlur);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
+  useEffect(() => {
     window.toggleDevTools = () => toggleDevTools();
   }, []);
 
