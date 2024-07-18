@@ -748,8 +748,8 @@
       ?~(latest now.bowl time.u.latest)
     ::  if we're marking deeply we need to recursively read all
     ::  children
+    =/  children  (get-children:src indices source)
     =?  cor  deep.action
-      =/  children  (get-children:src indices source)
       |-
       ?~  children  cor
       =/  =source:a  i.children
@@ -758,9 +758,6 @@
     ::  we need to refresh our own index to reflect new reads
     %-  (log |.("refeshing index: {<source>}"))
     =.  indices  (~(put by indices) source new)
-<<<<<<< Updated upstream
-    (refresh source)
-=======
     ?:  from-parent
       (refresh-summary source)
     =.  cor  (refresh source)
@@ -771,7 +768,6 @@
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
     %-  (log |.("sending activity: {<new-activity>}"))
     (give-update [%activity new-activity] [%hose ~])
->>>>>>> Stashed changes
   ==
 ::
 ++  give-unreads
@@ -870,8 +866,9 @@
   =/  volume  (get-volume:evt volume-settings -.event)
   ::TODO  support other event types
   =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
-  =*  supported
-    |(is-msg ?=(?(%dm-invite %chan-init) -<.event))
+  =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
+  =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
+  =*  supported  |(is-msg is-init is-flag)
   ?.  supported  $(stream rest)
   =?  notified  &(notify.volume notified.event)  &
   =?  notify-count  &(notify.volume notified.event)  +(notify-count)

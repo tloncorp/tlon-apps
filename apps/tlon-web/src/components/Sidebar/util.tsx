@@ -50,10 +50,26 @@ export function useNavToTab() {
   );
 }
 
+export function getTabPath(ogPath: string, locationPath: string) {
+  const isActive = (path: string) => locationPath.startsWith(path);
+
+  let path = ogPath;
+  const groupsOnly =
+    path.includes('channels/diary') || path.includes('channels/heap');
+  if (isActive('/groups') || location.pathname === '/') {
+    path = path.replace(/^\/dm/, '');
+  }
+
+  if ((isActive('/messages') || isActive('/dm')) && !groupsOnly) {
+    path = path.replace(/^\/groups/, '/dm/groups');
+  }
+
+  return path;
+}
+
 export function useNavWithinTab() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isActive = (path: string) => location.pathname.startsWith(path);
 
   const navTo = useCallback(
     (to: number | To, modal = false, options?: NavigateOptions) => {
@@ -73,17 +89,10 @@ export function useNavWithinTab() {
       }
 
       const isStringPath = typeof to === 'string';
-      let path = isStringPath ? to : to.pathname || '';
-      const groupsOnly =
-        path.includes('channels/diary') || path.includes('channels/heap');
-
-      if (isActive('/groups') || location.pathname === '/') {
-        path = path.replace(/^\/dm/, '');
-      }
-
-      if ((isActive('/messages') || isActive('/dm')) && !groupsOnly) {
-        path = path.replace(/^\/groups/, '/dm/groups');
-      }
+      const path = getTabPath(
+        isStringPath ? to : to.pathname || '',
+        location.pathname
+      );
 
       navigate(
         !isStringPath

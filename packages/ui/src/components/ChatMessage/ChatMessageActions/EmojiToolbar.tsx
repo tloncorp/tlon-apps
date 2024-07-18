@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 
+import { useCurrentUserId } from '../../../contexts';
 import { XStack } from '../../../core';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { Button } from '../../Button';
@@ -12,13 +13,12 @@ import { Icon } from '../../Icon';
 
 export function EmojiToolbar({
   post,
-  currentUserId,
   onDismiss,
 }: {
   post: db.Post;
-  currentUserId: string;
   onDismiss: () => void;
 }) {
+  const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const details = useReactionDetails(post.reactions ?? [], currentUserId);
 

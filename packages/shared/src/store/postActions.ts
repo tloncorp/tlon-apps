@@ -166,8 +166,11 @@ export async function showPost({ post }: { post: db.Post }) {
 }
 
 export async function deletePost({ post }: { post: db.Post }) {
+  const existingPost = await db.getPost({ postId: post.id });
+
   // optimistic update
-  await db.deletePost(post.id);
+  await db.markPostAsDeleted(post.id);
+  await db.updateChannel({ id: post.channelId, lastPostId: null });
 
   try {
     await api.deletePost(post.channelId, post.id);
@@ -175,7 +178,11 @@ export async function deletePost({ post }: { post: db.Post }) {
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
-    await db.insertChannelPosts({ channelId: post.channelId, posts: [post] });
+    await db.updatePost({
+      id: post.id,
+      ...existingPost,
+    });
+    await db.updateChannel({ id: post.channelId, lastPostId: post.id });
   }
 }
 

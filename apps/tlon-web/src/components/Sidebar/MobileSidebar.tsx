@@ -8,10 +8,10 @@ import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
-import { useNotifications } from '@/notifications/useNotifications';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
+  useSourceActivity,
 } from '@/state/activity';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
@@ -110,7 +110,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { count } = useNotifications('', 'all');
+  const { activity } = useSourceActivity('base');
 
   return (
     <DoubleClickableNavTab
@@ -130,7 +130,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         <div
           className={cn(
             'mb-0.5 h-1.5 w-1.5 rounded-full',
-            count > 0 && 'bg-blue'
+            (activity['notify-count'] || 0) > 0 && 'bg-blue'
           )}
         />
       </div>

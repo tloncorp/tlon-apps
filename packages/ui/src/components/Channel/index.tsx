@@ -13,10 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
 import {
+  AppDataContextProvider,
   CalmProvider,
   CalmState,
   ChannelProvider,
-  ContactsProvider,
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
@@ -186,7 +186,10 @@ export function Channel({
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
         <GroupsProvider groups={groups}>
-          <ContactsProvider contacts={contacts ?? null}>
+          <AppDataContextProvider
+            contacts={contacts}
+            currentUserId={currentUserId}
+          >
             <ChannelProvider value={{ channel }}>
               <RequestsProvider
                 usePost={usePost}
@@ -280,7 +283,6 @@ export function Channel({
                                       renderEmptyComponent={
                                         renderEmptyComponent
                                       }
-                                      currentUserId={currentUserId}
                                       anchor={scrollerAnchor}
                                       posts={posts}
                                       hasNewerPosts={hasNewerPosts}
@@ -410,7 +412,7 @@ export function Channel({
                 </NavigationProvider>
               </RequestsProvider>
             </ChannelProvider>
-          </ContactsProvider>
+          </AppDataContextProvider>
         </GroupsProvider>
       </CalmProvider>
     </ScrollContextProvider>

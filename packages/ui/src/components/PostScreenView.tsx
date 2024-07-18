@@ -6,7 +6,7 @@ import { Story } from '@tloncorp/shared/dist/urbit';
 import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CalmProvider, CalmState, ContactsProvider } from '../contexts';
+import { AppDataContextProvider, CalmProvider, CalmState } from '../contexts';
 import { ReferencesProvider } from '../contexts/references';
 import { Text, View, YStack } from '../core';
 import { useStickyUnread } from '../hooks/useStickyUnread';
@@ -91,7 +91,7 @@ export function PostScreenView({
 
   return (
     <CalmProvider calmSettings={calmSettings}>
-      <ContactsProvider contacts={contacts}>
+      <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
         <ReferencesProvider>
           <View
             paddingBottom={isChatChannel ? bottom : 'unset'}
@@ -108,7 +108,6 @@ export function PostScreenView({
                 showMenuButton={!isChatChannel}
                 post={parentPost ?? undefined}
                 channelType={channel.type}
-                currentUserId={currentUserId}
                 mode={headerMode}
               />
               <KeyboardAvoidingView>
@@ -116,7 +115,6 @@ export function PostScreenView({
                   <GalleryDetailView
                     post={parentPost}
                     onPressImage={handleGoToImage}
-                    currentUserId={currentUserId}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
@@ -134,7 +132,6 @@ export function PostScreenView({
                   <NotebookDetailView
                     post={parentPost}
                     onPressImage={handleGoToImage}
-                    currentUserId={currentUserId}
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
@@ -163,7 +160,6 @@ export function PostScreenView({
                         renderItem={ChatMessage}
                         channelType="chat"
                         channelId={channel.id}
-                        currentUserId={currentUserId}
                         editingPost={editingPost}
                         setEditingPost={setEditingPost}
                         editPost={editPost}
@@ -225,7 +221,7 @@ export function PostScreenView({
             </YStack>
           </View>
         </ReferencesProvider>
-      </ContactsProvider>
+      </AppDataContextProvider>
     </CalmProvider>
   );
 }

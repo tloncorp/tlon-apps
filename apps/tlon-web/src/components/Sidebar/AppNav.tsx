@@ -220,7 +220,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { count } = useNotifications('', 'all');
+  const { activity } = useNotifications();
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -244,7 +244,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
           <div
             className={cn(
               'mb-0.5 h-1.5 w-1.5 rounded-full',
-              count > 0 && 'bg-blue'
+              activity['notify-count'] > 0 && 'bg-blue'
             )}
           />
         </div>
@@ -270,7 +270,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div
         className={cn(
           'h-1 w-1 rounded-full top-1 right-1 absolute',
-          count > 0 && 'bg-blue'
+          activity['notify-count'] > 0 && 'bg-blue'
         )}
       />
     </Link>

@@ -10,9 +10,9 @@ import {
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import {
+  AppDataContextProvider,
   Button,
   ContactBook,
-  ContactsProvider,
   CreateGroupWidget,
   GroupPreviewPane,
   Icon,
@@ -113,7 +113,7 @@ export default function AddGroupSheet({
       <Sheet.Overlay />
       <Sheet.LazyFrame>
         <QueryClientProvider client={queryClient}>
-          <ContactsProvider contacts={contacts ?? null}>
+          <AppDataContextProvider contacts={contacts ?? null}>
             <Sheet.Handle marginBottom="$l" />
             <KeyboardAvoidingView style={{ flex: 1 }}>
               <NavigationContainer independent={true} ref={navigationRef}>
@@ -150,7 +150,7 @@ export default function AddGroupSheet({
                 </ActionContext.Provider>
               </NavigationContainer>
             </KeyboardAvoidingView>
-          </ContactsProvider>
+          </AppDataContextProvider>
         </QueryClientProvider>
       </Sheet.LazyFrame>
     </Sheet>

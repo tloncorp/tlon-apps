@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "430ef366-6b5b-4d84-b3f6-d846603c2e60",
+  "id": "f4f2ae74-3687-485f-ac82-85cc2b687cd2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -1655,6 +1655,13 @@
         },
         "is_edited": {
           "name": "is_edited",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_deleted": {
+          "name": "is_deleted",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

@@ -2,7 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { ActivityScreenView, ContactsProvider, View } from '@tloncorp/ui';
+import { ActivityScreenView, AppDataContextProvider, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import ErrorBoundary from '../ErrorBoundary';
@@ -48,7 +48,7 @@ export function ActivityScreen(props: Props) {
   );
 
   return (
-    <ContactsProvider contacts={contacts ?? []}>
+    <AppDataContextProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
         <ErrorBoundary message="Try navigating away and coming back">
           <ActivityScreenView
@@ -61,6 +61,6 @@ export function ActivityScreen(props: Props) {
         </ErrorBoundary>
         <NavBarView navigation={props.navigation} />
       </View>
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 }

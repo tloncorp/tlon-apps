@@ -5,7 +5,7 @@ import { memo, useCallback } from 'react';
 
 import { SizableText, View, XStack, YStack } from '../../core';
 import AuthorRow from '../AuthorRow';
-import ChatContent from '../ContentRenderer';
+import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
@@ -42,7 +42,6 @@ const ChatMessage = ({
   onPressImage,
   onLongPress,
   showReplies,
-  currentUserId,
   editing,
   editPost,
   setEditingPost,
@@ -50,7 +49,6 @@ const ChatMessage = ({
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
-  currentUserId: string;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
@@ -96,6 +94,25 @@ const ChatMessage = ({
   // return utils.makePrettyDay(date);
   // }, [post.sentAt]);
 
+  if (post.isDeleted) {
+    return (
+      <XStack
+        alignItems="center"
+        key={post.id}
+        gap="$s"
+        paddingVertical="$m"
+        paddingRight="$l"
+        marginVertical="$s"
+        backgroundColor="$secondaryBackground"
+        borderRadius="$m"
+      >
+        <SizableText paddingLeft="$4xl" color="$secondaryText">
+          This message was deleted.
+        </SizableText>
+      </XStack>
+    );
+  }
+
   return (
     <YStack
       onLongPress={handleLongPress}
@@ -136,7 +153,7 @@ const ChatMessage = ({
           </SizableText>
         ) : (
           <NoticeWrapper isNotice={isNotice}>
-            <ChatContent
+            <ContentRenderer
               post={post}
               isNotice={isNotice}
               onPressImage={handleImagePressed}
@@ -147,7 +164,7 @@ const ChatMessage = ({
           </NoticeWrapper>
         )}
       </View>
-      <ReactionsDisplay post={post} currentUserId={currentUserId} />
+      <ReactionsDisplay post={post} />
 
       {showReplies &&
       post.replyCount &&
@@ -165,7 +182,6 @@ export default memo(ChatMessage, (prev, next) => {
   const areOtherPropsEqual =
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
-    prev.currentUserId === next.currentUserId &&
     prev.editing === next.editing &&
     prev.editPost === next.editPost &&
     prev.setEditingPost === next.setEditingPost &&
