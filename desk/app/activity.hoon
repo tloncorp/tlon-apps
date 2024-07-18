@@ -898,13 +898,11 @@
   ::  with new reads, update our index and summary
   =.  cor  (refresh-index source index)
   =/  new=(unit activity-summary:a)  (~(get by activity) source)
-  =/  old-sum  ?~(old ~ %=(u.old reads ~))
-  =/  new-sum  ?~(new ~ %=(u.new reads ~))
-  ?:  !=(old-sum new-sum)
+  ?:  !=(?~(old ~ u.old(reads ~)) ?~(new ~ u.new(reads ~)))
     ~&  "%sync-reads: WARNING old and new summaries differ {<source>}"
     ~&  "old floor: {<old-floor>} new floor: {<new-floor>}"
-    ~&  "old:  {<old-sum>}"
-    ~&  "new:  {<new-sum>}"
+    ~&  "old:  {<old>}"
+    ~&  "new:  {<new>}"
     $(sources t.sources)
   $(sources t.sources)
 ::
