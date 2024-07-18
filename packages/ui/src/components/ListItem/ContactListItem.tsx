@@ -12,6 +12,8 @@ export const ContactListItem = ({
   showUserId = false,
   full = false,
   showIcon = true,
+  showEndContent = false,
+  endContent,
   matchText,
   ...props
 }: {
@@ -22,6 +24,8 @@ export const ContactListItem = ({
   showUserId?: boolean;
   full?: boolean;
   showIcon?: boolean;
+  showEndContent?: boolean;
+  endContent?: React.ReactNode;
   matchText?: string;
 } & ComponentProps<typeof ListItem>) => (
   <ListItem
@@ -42,5 +46,10 @@ export const ContactListItem = ({
         userId={contact.id}
       />
     </ListItem.Title>
+    {showEndContent && (
+      <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
+        {endContent}
+      </ListItem.EndContent>
+    )}
   </ListItem>
 );

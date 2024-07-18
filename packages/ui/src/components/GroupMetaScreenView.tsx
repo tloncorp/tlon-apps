@@ -1,24 +1,17 @@
-import {
-  MessageAttachments,
-  UploadInfo,
-  UploadedFile,
-} from '@tloncorp/shared/dist/api';
+import { MessageAttachments, UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
-import { ImageBackground } from 'expo-image';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { getTokenValue } from 'tamagui';
 
-import { Text, View, YStack } from '../core';
+import { View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
-import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { DeleteSheet } from './DeleteSheet';
+import { EditablePofileImages } from './EditableProfileImages';
 import { FormInput } from './FormInput';
 import { GenericHeader } from './GenericHeader';
 import KeyboardAvoidingView from './KeyboardAvoidingView';
 import { LoadingSpinner } from './LoadingSpinner';
-import Pressable from './Pressable';
 
 interface GroupMetaScreenViewProps {
   group: db.Group | null;
@@ -33,78 +26,9 @@ interface GroupMetaScreenViewProps {
 
 export function SaveButton({ onPress }: { onPress: () => void }) {
   return (
-    <Button onPress={onPress} borderWidth="unset">
+    <Button minimal onPress={onPress} borderWidth="unset">
       <Button.Text>Save</Button.Text>
     </Button>
-  );
-}
-
-function ExplanationPressable({
-  onPress,
-  canUpload,
-}: {
-  onPress: () => void;
-  canUpload: boolean;
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <View
-        borderRadius="$xl"
-        alignItems="center"
-        backgroundColor="$secondaryBackground"
-        paddingVertical="$m"
-        paddingHorizontal="$xl"
-      >
-        <Text fontSize="$l">
-          {canUpload
-            ? 'Tap here to change the cover image. Tap the icon to change the icon.'
-            : 'You need to set up image hosting before you can upload'}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function GroupIconPressable({
-  group,
-  onPress,
-  iconImage,
-  uploading,
-}: {
-  uploading: boolean;
-  group: db.Group;
-  iconImage: string;
-  onPress: () => void;
-}) {
-  if (uploading) {
-    return (
-      <View
-        padding="$2xl"
-        backgroundColor="$secondaryBackground"
-        width={100}
-        height={100}
-        justifyContent="center"
-        borderRadius="$2xl"
-      >
-        <LoadingSpinner size="large" />
-      </View>
-    );
-  }
-
-  return (
-    <Pressable onPress={onPress}>
-      <GroupAvatar
-        model={{
-          ...group,
-          iconImage,
-        }}
-        ignoreCalm={true}
-        size={'custom'}
-        width={100}
-        height={100}
-        borderRadius="$xl"
-      />
-    </Pressable>
   );
 }
 
@@ -117,12 +41,10 @@ export function GroupMetaScreenView({
 }: GroupMetaScreenViewProps) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  const [attachingTo, setAttachingTo] = useState<null | 'cover' | 'icon'>(null);
   const {
     control,
     handleSubmit,
     formState: { errors },
-    getValues,
     setValue,
   } = useForm({
     defaultValues: {
@@ -132,28 +54,6 @@ export function GroupMetaScreenView({
       iconImage: group?.iconImage ?? '',
     },
   });
-
-  const { coverImage, iconImage } = getValues();
-
-  useEffect(() => {
-    if (
-      uploadInfo.imageAttachment &&
-      uploadInfo.uploadedImage &&
-      !uploadInfo.uploading &&
-      uploadInfo.uploadedImage?.url !== '' &&
-      attachingTo !== null
-    ) {
-      const uploadedFile = uploadInfo.uploadedImage as UploadedFile;
-
-      setValue(
-        attachingTo === 'cover' ? 'coverImage' : 'iconImage',
-        uploadedFile.url
-      );
-
-      setAttachingTo(null);
-      uploadInfo.resetImageAttachment();
-    }
-  }, [uploadInfo, attachingTo, setValue]);
 
   const onSubmit = useCallback(
     (data: {
@@ -188,84 +88,12 @@ export function GroupMetaScreenView({
         />
         <KeyboardAvoidingView>
           <YStack gap="$2xl" padding="$xl" alignItems="center" flex={1}>
-            {uploadInfo.uploading && attachingTo === 'cover' ? (
-              <View
-                padding="$2xl"
-                borderRadius="$2xl"
-                width="100%"
-                justifyContent="center"
-                backgroundColor="$secondaryBackground"
-                gap="$2xl"
-                // accounting for height of the explanation pressable
-                // and the group icon pressable, along with padding
-                height={getTokenValue('$2xl', 'space') * 3 + 100 + 56.7}
-              >
-                <LoadingSpinner size="large" />
-              </View>
-            ) : coverImage ? (
-              <View width="100%" borderRadius="$2xl" overflow="hidden">
-                <ImageBackground
-                  source={{ uri: coverImage }}
-                  contentFit="cover"
-                  style={{
-                    width: '100%',
-                    padding: getTokenValue('$2xl', 'space'),
-                    gap: getTokenValue('$2xl', 'space'),
-                    borderRadius: getTokenValue('$2xl', 'radius'),
-                  }}
-                >
-                  <ExplanationPressable
-                    onPress={() => {
-                      if (uploadInfo.canUpload) {
-                        setShowAttachmentSheet(true);
-                        setAttachingTo('cover');
-                      }
-                    }}
-                    canUpload={uploadInfo.canUpload}
-                  />
-                  <GroupIconPressable
-                    group={group}
-                    iconImage={iconImage}
-                    onPress={() => {
-                      if (uploadInfo.canUpload) {
-                        setShowAttachmentSheet(true);
-                        setAttachingTo('icon');
-                      }
-                    }}
-                    uploading={uploadInfo.uploading && attachingTo === 'icon'}
-                  />
-                </ImageBackground>
-              </View>
-            ) : (
-              <YStack
-                padding="$2xl"
-                borderRadius="$2xl"
-                width="100%"
-                backgroundColor="$secondaryBackground"
-                gap="$2xl"
-              >
-                <ExplanationPressable
-                  onPress={() => {
-                    if (uploadInfo.canUpload) {
-                      setShowAttachmentSheet(true);
-                      setAttachingTo('cover');
-                    }
-                  }}
-                  canUpload={uploadInfo.canUpload}
-                />
-                <GroupIconPressable
-                  group={group}
-                  iconImage={iconImage}
-                  onPress={() => {
-                    if (uploadInfo.canUpload) {
-                      setShowAttachmentSheet(true);
-                      setAttachingTo('icon');
-                    }
-                  }}
-                  uploading={uploadInfo.uploading && attachingTo === 'icon'}
-                />
-              </YStack>
-            )}
+            <EditablePofileImages
+              group={group}
+              uploadInfo={uploadInfo}
+              onSetCoverUrl={(url) => setValue('coverImage', url)}
+              onSetIconUrl={(url) => setValue('iconImage', url)}
+            />
             <YStack gap="$m" width="100%">
               <FormInput
                 name="title"

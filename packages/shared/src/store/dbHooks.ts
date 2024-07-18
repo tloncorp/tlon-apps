@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import * as api from '../api';
 import * as db from '../db';
 import { syncPostReference } from './sync';
-import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
+import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
 
@@ -70,6 +70,13 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
+export const useAppInfo = () => {
+  return useQuery({
+    queryKey: db.APP_INFO_QUERY_KEY,
+    queryFn: db.getAppInfoSettings,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
@@ -84,11 +91,26 @@ export const usePushNotificationsSetting = () => {
   });
 };
 
+export const useIsTlonEmployee = () => {
+  return useQuery({
+    queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
+    queryFn: db.getIsTlonEmployee,
+  });
+};
+
 export const useContact = (options: { id: string }) => {
   const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
     queryKey: [['contact', deps]],
     queryFn: () => db.getContact(options),
+  });
+};
+
+export const useBlockedContacts = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBlockedUsers);
+  return useQuery({
+    queryKey: ['blockedContacts', depsKey],
+    queryFn: () => db.getBlockedUsers(),
   });
 };
 
@@ -117,6 +139,63 @@ export const useHaveUnreadUnseenActivity = () => {
   });
 
   return (meaningfulUnseenActivity?.length ?? 0) > 0;
+};
+
+export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getThreadUnreadState) : null),
+    [unread]
+  );
+
+  return useQuery({
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'thread',
+      unread ? unread.threadId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
+export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getChannelUnread) : null),
+    [unread]
+  );
+
+  return useQuery({
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'channel',
+      unread ? unread.channelId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getChannelUnread({ channelId: unread.channelId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
+export const useLiveUnread = (
+  unread: db.ChannelUnread | db.ThreadUnreadState | null
+) => {
+  const isThread = useMemo(() => unread && 'threadId' in unread, [unread]);
+  const threadUnread = useLiveThreadUnread(
+    isThread ? (unread as db.ThreadUnreadState) : null
+  );
+  const channelUnread = useLiveChannelUnread(
+    isThread ? null : (unread as db.ChannelUnread | null)
+  );
+  return isThread ? threadUnread : channelUnread;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {

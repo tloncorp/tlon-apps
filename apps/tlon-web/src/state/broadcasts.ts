@@ -62,12 +62,7 @@ export function cohortToUnread(cohort: Cohort): ActivitySummary {
     count: 0,
     notify: false,
     unread: null,
-    children: null,
     'notify-count': 0,
-    reads: {
-      floor: 0,
-      items: {},
-    },
   };
 }
 

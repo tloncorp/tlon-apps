@@ -53,7 +53,7 @@ import {
 import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
-import ContentReference from './ContentReference';
+import { ContentReferenceLoader } from './ContentReference/ContentReference';
 
 refractor.register(hoon);
 
@@ -421,7 +421,7 @@ export function InlineContent({
   if (typeof inline === 'string') {
     if (utils.isSingleEmoji(inline)) {
       return (
-        <Text paddingTop="$xl" lineHeight="$m" fontSize="$xl">
+        <Text paddingTop="$xl" lineHeight="$m" fontSize="$2xl">
           {inline}
         </Text>
       );
@@ -705,14 +705,12 @@ const LineRenderer = memo(
               <LineRenderer
                 inlines={inline.blockquote}
                 color="$secondaryText"
-                serif={serif}
               />
             ) : (
               // not clear if this is necessary
               <InlineContent
                 inline={inline.blockquote}
                 color="$secondaryText"
-                serif={serif}
               />
             )}
           </YStack>
@@ -742,7 +740,6 @@ const LineRenderer = memo(
             color={color}
             onPressImage={onPressImage}
             onLongPress={onLongPress}
-            serif={serif}
           />
         );
       }
@@ -774,7 +771,6 @@ const LineRenderer = memo(
               }
               key={`line-${index}`}
               flexWrap="wrap"
-              fontFamily={serif ? '$serif' : '$body'}
             >
               {line}
             </SizableText>
@@ -787,27 +783,35 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
-export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
+export type PostViewMode =
+  | 'chat'
+  | 'block'
+  | 'note'
+  | 'activity'
+  | 'attachment';
 
 export default function ContentRenderer({
   post,
   shortened = false,
+  shortenedTextOnly = false,
   isNotice = false,
   deliveryStatus,
   onPressImage,
   onLongPress,
   isEdited = false,
   viewMode = 'chat',
+  ...props
 }: {
   post: Post | { type: 'chat' | 'diary' | 'gallery'; id: string; content: any };
   shortened?: boolean;
+  shortenedTextOnly?: boolean;
   isNotice?: boolean;
   deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   isEdited?: boolean;
   viewMode?: PostViewMode;
-}) {
+} & ComponentProps<typeof YStack>) {
   const { inlines, story } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
@@ -850,53 +854,43 @@ export default function ContentRenderer({
 
   if (shortened) {
     return (
-      <YStack width="100%">
-        {post.type === 'note' && post.image ? (
-          <Image
-            source={{ uri: post.image }}
-            aspectRatio={16 / 9}
-            width="100%"
-            backgroundColor="$secondaryBackground"
-          />
-        ) : null}
-        {post.type === 'note' && post.title ? (
-          <HeaderText
-            serif
-            header={{
-              header: {
-                tag: 'h1',
-                content: [post.title],
-              },
-            }}
-          />
-        ) : null}
+      <YStack width="100%" {...props}>
         <LineRenderer
           inlines={shortenedInlines}
           isNotice={isNotice}
           onPressImage={onPressImage}
           onLongPress={onLongPress}
           viewMode={viewMode}
-          serif={post.type === 'note'}
+        />
+      </YStack>
+    );
+  }
+
+  if (shortenedTextOnly) {
+    return (
+      <YStack width="100%" {...props}>
+        <LineRenderer
+          inlines={shortenedInlines}
+          isNotice={isNotice}
+          onPressImage={onPressImage}
+          onLongPress={onLongPress}
+          viewMode={viewMode}
         />
       </YStack>
     );
   }
 
   return (
-    <YStack width="100%">
+    <YStack width="100%" {...props}>
       {story.map((s, k) => {
         if ('block' in s) {
           return (
-            <BlockContent
-              serif={post.type === 'note'}
-              key={k}
-              block={s.block}
-            />
+            <BlockContent key={k} block={s.block} onPressImage={onPressImage} />
           );
         }
 
         if ('type' in s && s.type === 'reference') {
-          return <ContentReference key={k} reference={s} />;
+          return <ContentReferenceLoader key={k} reference={s} />;
         }
 
         if ('inline' in s) {
@@ -908,25 +902,25 @@ export default function ContentRenderer({
               onPressImage={onPressImage}
               onLongPress={onLongPress}
               viewMode={viewMode}
-              serif={post.type === 'note'}
             />
           );
         }
       })}
-      {post.type === 'chat' && (
-        <View position="absolute" bottom={0} right={0}>
-          {isEdited ? (
-            <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
-              Edited
-            </Text>
-          ) : null}
-          {deliveryStatus ? (
-            <View flexShrink={1}>
-              <ChatMessageDeliveryStatus status={deliveryStatus} />
-            </View>
-          ) : null}
-        </View>
-      )}
+      {post.type === 'chat' ||
+        (post.type === 'reply' && (
+          <View position="absolute" bottom={0} right={0}>
+            {isEdited ? (
+              <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+                Edited
+              </Text>
+            ) : null}
+            {deliveryStatus ? (
+              <View flexShrink={1}>
+                <ChatMessageDeliveryStatus status={deliveryStatus} />
+              </View>
+            ) : null}
+          </View>
+        ))}
     </YStack>
   );
 }

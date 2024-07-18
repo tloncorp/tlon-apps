@@ -308,12 +308,7 @@ export const emptySummary: ActivitySummary = {
   count: 0,
   notify: false,
   unread: null,
-  children: {},
   'notify-count': 0,
-  reads: {
-    floor: 0,
-    items: {},
-  },
 };
 
 export function useSourceActivity(source: string) {

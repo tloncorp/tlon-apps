@@ -49,6 +49,7 @@ CREATE TABLE `channels` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
+	`contact_id` text,
 	`added_to_group_at` integer,
 	`current_user_is_member` integer,
 	`post_count` integer,
@@ -60,6 +61,8 @@ CREATE TABLE `channels` (
 	`is_dm_invite` integer,
 	`synced_at` integer,
 	`remote_updated_at` integer,
+	`last_viewed_at` integer,
+	`is_default_welcome_channel` integer,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

@@ -208,8 +208,11 @@ export interface ActivitySummary {
   'notify-count': number;
   notify: boolean;
   unread: UnreadPoint | null;
-  children: Activity | null;
-  reads: Reads | null;
+}
+
+export interface ActivitySummaryFull extends ActivitySummary {
+  reads: Reads;
+  children: string[];
 }
 
 export interface ActivityBundle {
@@ -702,19 +705,6 @@ export function getSource(bundle: ActivityBundle): Source {
   }
 
   return { base: null };
-}
-
-export function isUnread(time: string, summary: ActivitySummary): boolean {
-  const reads = summary.reads;
-  if (!reads) {
-    return false;
-  }
-
-  if (parseUd(time).gt(unixToDa(reads.floor))) {
-    return !(time in reads.items);
-  }
-
-  return false;
 }
 
 export function getContent(event: ActivityEvent) {
