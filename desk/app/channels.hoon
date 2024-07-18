@@ -1141,10 +1141,10 @@
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
     =?  ca-core  &(send !=(old posts.channel))
       %+  ca-response  %posts
-      %+  gas:on-posts:c  *posts:c
+      %+  gas:on-posts:v1:old:c  *posts:v1:old:c
       %+  murn  (turn (tap:on-v-posts:c posts.chk) head)
       |=  id=id-post:c
-      ^-  (unit [id-post:c (unit post:c)])
+      ^-  (unit [id-post:c (unit post:v1:old:c)])
       =/  post  (got:on-v-posts:c posts.channel id)
       =/  old   (get:on-v-posts:c old id)
       ?:  =(old `post)  ~
@@ -1607,12 +1607,12 @@
   ::  handle scries
   ::
   ++  ca-peek
-    |=  [=(pole knot) ver=?(%v0 %v1)]
+    |=  [=(pole knot) ver=?(%v0 %v1 %v2)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%posts rest=*]
       ?:  =(ver %v0)  (ca-peek-posts-0 rest.pole)
-      (ca-peek-posts-1 rest.pole)
+      (ca-peek-posts rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%hark %rope post=@ ~]
       =/  id  (slav %ud post.pole)
@@ -1753,8 +1753,8 @@
       (ca-peek-replies-0 id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
-  ++  ca-peek-posts-1
-    |=  =(pole knot)
+  ++  ca-peek-posts
+    |=  [=(pole knot) version=?(%v1 %v2)]
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
     ?+    pole  [~ ~]
@@ -1843,7 +1843,7 @@
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (ca-peek-replies-1 id.u.u.post replies.u.u.post rest.pole)
+      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole version)
     ==
   ::
   ++  ca-peek-replies-0
@@ -1878,28 +1878,36 @@
       ``channel-simple-reply+!>(`simple-reply:c`(suv-reply:utils parent-id u.u.reply))
     ==
   ::
-  ++  ca-peek-replies-1
-    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
+  ++  ca-peek-replies
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot) version=?(%v1 %v2)]
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
         [%all ~]
+      ?:  ?=(%v2 version)
+        ``channel-replies-2+!>((uv-replies-2:utils parent-id replies))
       ``channel-replies+!>((uv-replies:utils parent-id replies))
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  reply-map  (gas:on *v-replies:c (top:mo-v-replies:c replies count))
+      ?:  ?=(%v2 version)
+        ``channel-replies-2+!>((uv-replies-2:utils parent-id reply-map))
       ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  reply-map  (gas:on *v-replies:c (bat:mo-v-replies:c replies `start count))
+      ?:  ?=(%v2 version)
+        ``channel-replies-2+!>((uv-replies-2:utils parent-id reply-map))
       ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  reply-map  (gas:on *v-replies:c (tab:on replies `start count))
+      ?:  ?=(%v2 version)
+        ``channel-replies-2+!>((uv-replies-2:utils parent-id reply-map))
       ``channel-replies+!>((uv-replies:utils parent-id reply-map))
     ::
         [%reply %id time=@ ~]

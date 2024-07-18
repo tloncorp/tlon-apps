@@ -233,8 +233,8 @@
     |=  =replies:c
     %-  pairs
     %+  turn  (tap:on-replies:c replies)
-    |=  [t=@da =reply:c]
-    [(scot %ud t) (^reply reply)]
+    |=  [t=@da reply=(unit reply:c)]
+    [(scot %ud t) ?~(reply ~ (^reply u.reply))]
   ::
   ++  simple-replies
     |=  replies=simple-replies:c
@@ -589,6 +589,31 @@
     :~  nest/(nest p.s)
         reference/(reference q.s)
     ==
+  ++  v1
+    |%
+    ++  seal
+      |=  =seal:v1:old:c
+      %-  pairs
+      :~  id+(id id.seal)
+          reacts+(reacts reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta reply-meta.seal)
+      ==
+    ++  post
+      |=  [=seal:v1:old:c [rev=@ud =essay:c]]
+      %-  pairs
+      :~  seal+(^seal seal)
+          revision+s+(scot %ud rev)
+          essay+(^essay essay)
+          type+s+%post
+      ==
+    ++  replies
+      |=  =replies:v1:old:c
+      %-  pairs
+      %+  turn  (tap:on-replies:v1:old:c replies)
+      |=  [t=@da =reply:c]
+      [(scot %ud t) (^reply reply)]
+    --
   --
 ::
 ++  dejs

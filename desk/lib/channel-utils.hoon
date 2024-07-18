@@ -25,12 +25,12 @@
 ::
 ++  uv-channels-2
   |=  [=v-channels:c full=?]
-  ^-  channels:c
+  ^-  channels:v1:old:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
-  ^-  channel:c
+  ^-  channel:v1:old:c
   =/  base
-    %*  .  *channel:c
+    %*  .  *channel:v1:old:c
       perm   +.perm.channel
       view   +.view.channel
       sort   +.sort.channel
@@ -46,19 +46,19 @@
 ::
 ++  uv-posts
   |=  =v-posts:c
-  ^-  posts:c
-  %+  gas:on-posts:c  *posts:c
+  ^-  posts:v1:old:c
+  %+  gas:on-posts:v1:old:c  *posts:v1:old:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
-  ^-  [id-post:c (unit post:c)]
+  ^-  [id-post:c (unit post:v1:old:c)]
   [id-post ?~(v-post ~ `(uv-post u.v-post))]
 ::
 ++  s-posts
-  |=  =posts:c
+  |=  =posts:v1:old:c
   ^-  simple-posts:c
   %+  gas:on-simple-posts:c  *simple-posts:c
-  %+  turn  (tap:on-posts:c posts)
-  |=  [=id-post:c post=(unit post:c)]
+  %+  turn  (tap:on-posts:v1:old:c posts)
+  |=  [=id-post:c post=(unit post:v1:old:c)]
   ^-  [id-post:c (unit simple-post:c)]
   [id-post ?~(post ~ `(s-post u.post))]
 ::
@@ -73,7 +73,7 @@
 ::
 ++  uv-post
   |=  =v-post:c
-  ^-  post:c
+  ^-  post:v1:old:c
   :_  +.v-post
   :*  id.v-post
       (uv-reacts reacts.v-post)
@@ -82,7 +82,7 @@
   ==
 ::
 ++  s-post
-  |=  =post:c
+  |=  =post:v1:old:c
   ^-  simple-post:c
   :_  +>.post
   -.post(replies (s-replies replies.post))
@@ -94,11 +94,11 @@
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
-  ^-  posts:c
-  %+  gas:on-posts:c  *posts:c
+  ^-  posts:v1:old:c
+  %+  gas:on-posts:v1:old:c  *posts:v1:old:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
-  ^-  [id-post:c (unit post:c)]
+  ^-  [id-post:c (unit post:v1:old:c)]
   [id-post ?~(v-post ~ `(uv-post-without-replies u.v-post))]
 ::
 ++  suv-posts-without-replies
@@ -112,11 +112,11 @@
 ::
 ++  uv-post-without-replies
   |=  post=v-post:c
-  ^-  post:c
+  ^-  post:v1:old:c
   :_  +.post
   :*  id.post
       (uv-reacts reacts.post)
-      *replies:c
+      *replies:v1:old:c
       (get-reply-meta post)
   ==
 ::
@@ -127,20 +127,29 @@
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
+  ^-  replies:v1:old:c
+  %+  gas:on-replies:v1:old:c  *replies:v1:old:c
+  %+  murn  (tap:on-v-replies:c v-replies)
+  |=  [=time v-reply=(unit v-reply:c)]
+  ^-  (unit [id-reply:c reply:v1:old:c])
+  ?~  v-reply  ~
+  `[time (uv-reply parent-id u.v-reply)]
+::
+++  uv-replies-2
+  |=  [parent-id=id-post:c =v-replies:c]
   ^-  replies:c
   %+  gas:on-replies:c  *replies:c
   %+  murn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(unit v-reply:c)]
-  ^-  (unit [id-reply:c reply:c])
-  ?~  v-reply  ~  ::REVIEW  discrepance w/ +uv-posts?
-  %-  some
-  [time (uv-reply parent-id u.v-reply)]
+  ^-  (unit [id-reply:c (unit reply:c)])
+  ?~  v-reply  `[time ~]
+  `[time `(uv-reply parent-id u.v-reply)]
 ::
 ++  s-replies
-  |=  =replies:c
+  |=  =replies:v1:old:c
   ^-  simple-replies:c
   %+  gas:on-simple-replies:c  *simple-replies:c
-  %+  turn  (tap:on-replies:c replies)
+  %+  turn  (tap:on-replies:v1:old:c replies)
   |=  [=time =reply:c]
   ^-  [id-reply:c simple-reply:c]
   [time (s-reply reply)]
