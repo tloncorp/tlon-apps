@@ -3,10 +3,11 @@ import { Channels } from './channel';
 import { DMInit, DMInit2 } from './dms';
 import { Gangs, Groups } from './groups';
 
+// v4
 export interface GroupsInit {
   groups: Groups;
   gangs: Gangs;
-  channels: Channels;
+  channel: Channels;
   activity: Activity;
   pins: string[];
   chat: DMInit;

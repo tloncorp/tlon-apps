@@ -644,6 +644,10 @@ export async function hidePost(post: db.Post) {
   return poke(action);
 }
 
+export const toClientHiddenPosts = (hiddenPostIds: string[]) => {
+  return hiddenPostIds.map((postId) => getCanonicalPostId(postId));
+};
+
 export async function reportPost(
   currentUserId: string,
   groupId: string,

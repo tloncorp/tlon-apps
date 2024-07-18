@@ -9,6 +9,7 @@ import {
   toClientGroupsFromGangs,
   toClientPinnedItems,
 } from './groupsApi';
+import { toClientHiddenPosts } from './postsApi';
 import { scry } from './urbit';
 
 export interface InitData {
@@ -20,17 +21,31 @@ export interface InitData {
   channelPerms: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
+  hiddenPostIds: string[];
+  blockedUsers: string[];
 }
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit>({
+  const response = await scry<ub.GroupsInit4>({
     app: 'groups-ui',
-    path: '/v2/init',
+    path: '/v4/init',
   });
 
   const pins = toClientPinnedItems(response.pins);
   const channelReaders = extractChannelReaders(response.groups);
-  const channelsInit = toClientChannelsInit(response.channels, channelReaders);
+  const channelsInit = toClientChannelsInit(
+    response.channel.channels,
+    channelReaders
+  );
+
+  const hiddenGroupPosts = response.channel['hidden-posts'] ?? [];
+  const hiddenDmPosts = response.chat['hidden-messages'] ?? [];
+  const hiddenPostIds = toClientHiddenPosts([
+    ...hiddenGroupPosts,
+    ...hiddenDmPosts,
+  ]);
+  const blockedUsers = response.chat.blocked ?? [];
+
   const groups = toClientGroups(response.groups, true);
   const unjoinedGroups = toClientGroupsFromGangs(response.gangs);
   const dmChannels = toClientDms(response.chat.dms);
@@ -52,5 +67,7 @@ export const getInitData = async () => {
     channelPerms: channelsInit,
     joinedGroups,
     joinedChannels,
+    hiddenPostIds,
+    blockedUsers,
   };
 };

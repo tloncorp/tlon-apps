@@ -9898,1924 +9898,1926 @@
     }
   },
   "profile": false,
-  "channels": {
-    "chat/~maldev-master/guild-hall": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~bitdeg/faq": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~bitdeg/assembly-2023",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/hackathons-8899": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~solfer-magfed/baringo-70": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/bofto",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hocwyn-tipwex/help-5287": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/hooniverse-chat--ask---learn-881": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~nibset-napwyn/winter-updates": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "diary/~satsut-tocdeb/welcome-to-tonga-room": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~satsut-tocdeb/tonga-room",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~middev/info": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "diary/~nocsyx-lassul/feedback-and-questions-2368": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/water-cooler-4003": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~motluc-nammex/testing-text-chat": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~motluc-nammex/h00ncr3w",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~tommur-dostyn/support": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~natnex-ronret/welcome": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~dabben-larbet/interface-1720": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dacler-ricwyt/intros": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacler-ricwyt/new-new-new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dopzod/urbit-help": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bitbet-bolbel/urbit-community",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/work---color-49": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "diary/~taptyc-lorbyl/resources": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": ["tlon", "admin"]
-      },
-      "view": "list"
-    },
-    "chat/~wolref-podlex/aegean-general": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~halbex-palheb/uf-public",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~tommur-dostyn/releases---network-updates": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~bitpyx-dildus/music-34": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~nibset-napwyn/developers": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~tommur-dostyn/media": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~bolbex-fogdys/watercooler-4938": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bolbex-fogdys/tlon-urbit-foundation",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/work---grayscale": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~nibset-napwyn/local-memory-2": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/osts-6449": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~middev/crucible-4577": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~tinsur-tantud/chat": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~natnex-ronret/feed": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/testing": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/another": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/boko",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dacsur-torryl-solfer-magfed/ghost": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacsur-torryl-solfer-magfed/moony",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~nibset-napwyn/commons": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~hiddev-dannut/administration-5989": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": ["admin", "import/~hiddev-dannut/administration-5989"]
-      },
-      "view": "grid"
-    },
-    "chat/~darrux-landes/development": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bitbet-bolbel/urbit-community",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~satsut-tocdeb/friends-of-tonga-room": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~satsut-tocdeb/tonga-room",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~tommur-dostyn/leader-chat": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~nibset-napwyn/intros": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~dacler-ricwyt/events": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacler-ricwyt/new-new-new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~bolbex-fogdys/bulletins": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~nibset-napwyn/getting-started": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": ["admin"]
-      },
-      "view": "grid"
-    },
-    "heap/~tinsur-tantud/events": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": ["tools-", "admin"]
-      },
-      "view": "list"
-    },
-    "heap/~nibset-napwyn/bulletin-board-53": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~satsut-tocdeb/admit-when-you-re-drunk-on-urbit-by-posting-a-screenshot": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~satsut-tocdeb/tonga-room",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~darrux-landes/general": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bitbet-bolbel/urbit-community",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~bitdeg/lisboa-lingua": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bitdeg/assembly-2023",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dacsur-torryl-solfer-magfed/fghost": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacsur-torryl-solfer-magfed/moony",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~bitpyx-dildus/interface": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~latter-bolden/books": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~latter-bolden/post-migrate-main",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~nibset-napwyn/assembly--23": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/hi": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/boko",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~roslet-tanner/people-leads-gang": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~middev/slag-1484": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~topdem/altar": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~topdem/structure",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/unofficial-urbit-artworks": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~tormut-bolpub/nyc-housing-7361": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~tommur-dostyn/news---announcements": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["ops", "engineering", "design", "admin", "comms"]
-      },
-      "view": "list"
-    },
-    "diary/~tommur-dostyn/how-to": {
-      "order": [
-        "170141184506315129102893469120690388992",
-        "170141184506315141235744550594090631168",
-        "170141184506315214095683572585704980480",
-        "170141184506315211876026230915976921088"
-      ],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "grid"
-    },
-    "chat/~fabled-faster/manhattan": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dacsur-torryl-solfer-magfed/host": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacsur-torryl-solfer-magfed/moony",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~latter-bolden/banter": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~latter-bolden/post-migrate-main",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/inspiration": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~nocsyx-lassul/bongtable": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~taptyc-lorbyl/android-talk": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~tommur-dostyn/wip": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["ops", "engineering", "design", "admin", "comms"]
-      },
-      "view": "list"
-    },
-    "heap/~habsul-rignyr/educational-links-3759": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~taptyc-lorbyl/on-boarding-and-discovery": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/userspace-8167": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~tinsur-tantud/digital-stack-refs": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~ripwen-sabrup/rock-": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~topdem/structure",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~tinsur-tantud/about": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~tommur-dostyn/general-chat": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~halbex-palheb/announcements-7496": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~halbex-palheb/uf-public",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~middev/welcome-122": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~fabled-faster/events-7881": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/app-school-live-classroom-office-hours-9835": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~littel-wolfur/core-4916": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~taptyc-lorbyl/small-talk": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/besto": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/bofto",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/mino": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/boko",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~middev/flux-6586": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/kernelspace-150": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~motluc-nammex/security-discussion": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~motluc-nammex/h00ncr3w",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~taptyc-lorbyl/design-previews": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": ["tlon", "admin"]
-      },
-      "view": "list"
-    },
-    "heap/~middev/foundry-7": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~satsut-tocdeb/bar-talk": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~satsut-tocdeb/tonga-room",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~tommur-dostyn/start-here": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~bolbex-fogdys/ops": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/welcome-6478": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/jail",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dabben-larbet/hosting-6173": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~fabled-faster/albany-expressions-8300": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/music-6402": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": ["import/~natnex-ronret/music-6402", "admin"]
-      },
-      "view": "list"
-    },
-    "heap/~fabled-faster/events-1267": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~tommur-dostyn/happenings--jobs---grants": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~tinsur-tantud/tools": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~hiddev-dannut/app-school-live-administration-568": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": [
-          "import/~hiddev-dannut/app-school-live-administration-568",
-          "admin"
-        ]
-      },
-      "view": "list"
-    },
-    "diary/~tinsur-tantud/digital-stack-mag": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~dacler-ricwyt/iso---recs": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacler-ricwyt/new-new-new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~halbex-palheb/general-4066": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~halbex-palheb/uf-public",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~middev/writs-2524": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "grid"
-    },
-    "diary/~middev/vault-5895": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "grid"
-    },
-    "diary/~solfer-magfed/baringo": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/bofto",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~nibset-napwyn/local-ai-15": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/hhih": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/boko",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~motluc-nammex/chill-chat": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~motluc-nammex/h00ncr3w",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~taptyc-lorbyl/bulletin-board": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "diary/~halbex-palheb/infrastructure-6618": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~halbex-palheb/uf-public",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~fabled-faster/scene-9092": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~riprud-tidmel/show-n-tell": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~riprud-tidmel/chi-anon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~middev/depot-9204": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~nibset-napwyn/news---announcements": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~sonnyt-sonnyt-habsul-rignyr/general-chat-2": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~bolbex-fogdys/general-7566": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bolbex-fogdys/tlon-urbit-foundation",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~bitdeg/news": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~bitdeg/assembly-2023",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~natnex-ronret/friends-of-door-link-2714": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hocwyn-tipwex/neutron-degeneracy-9621": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dacsur-torryl-solfer-magfed/chost": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacsur-torryl-solfer-magfed/moony",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~fabled-faster/webring-6130": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~middev/bail-meme-8836": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~dister-dozzod-lapdeg/build-party": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~tommur-dostyn/books": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["ops", "engineering", "design", "admin", "comms"]
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/pat": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/jail",
-        "writers": ["pat", "admin"]
-      },
-      "view": "list"
-    },
-    "chat/~hocwyn-tipwex/uqbar-builduuurs-3544": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~riprud-tidmel/proof-of-chi": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~riprud-tidmel/chi-anon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~ravmel-ropdyl/wall": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~ravmel-ropdyl/td",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~solfer-magfed/gg-": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/boko",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~topdem/open-field": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~topdem/structure",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~hocwyn-tipwex/urbit-links-and-other-handy-reference-8335": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/app-specific-534": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/sharing-4257": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~taptyc-lorbyl/groups-for-mobile": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~taptyc-lorbyl/tlon-early-adopters",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~latter-bolden/lots-of-links": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~latter-bolden/post-migrate-main",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/bootleg-room": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~bolbex-fogdys/watercooler-4926": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~riprud-tidmel/ruffs-n-riffs": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~riprud-tidmel/chi-anon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/log-4009": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": ["import/~natnex-ronret/log-4009"]
-      },
-      "view": "list"
-    },
-    "heap/~tommur-dostyn/references": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/troubleshooting-7189": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~habsul-rignyr/announcements-9643": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": ["import/~habsul-rignyr/announcements-9643"]
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/vanes-5343": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~middev/guild-hall-8426": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~fabled-faster/banter-3807": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/hooniverse-banter-4174": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~tommur-dostyn/staging": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~satsut-tocdeb/after-hours": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~satsut-tocdeb/tonga-room",
-        "writers": ["regular", "admin"]
-      },
-      "view": "list"
-    },
-    "heap/~nibset-napwyn/overheard--and-seen--lisbon": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dacler-ricwyt/banter": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacler-ricwyt/new-new-new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~solfer-magfed/bando": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/bofto",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~fabled-faster/organized-athletics": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~ribbyt-ribbyt-hiddev-dannut/hackathon-urbit-questions-6444": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~dalwes-migdec/fall-updates": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/app-workshop": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/beginners-749": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~fabled-faster/event-pics-87": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~dister-dozzod-lapdeg/best-practices-1230": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dister-dozzod-lapdeg/battery-payload",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~dabben-larbet/fanmail-3976": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~bolbex-fogdys/marcom": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/hooniversity--scheduled-classes-5052": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~latter-bolden/some-blocks": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~latter-bolden/post-migrate-main",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~solfer-magfed/bna": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/test-group",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~nibset-napwyn/local-directory": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~nibset-napwyn/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~motluc-nammex/personal-tech-blog": {
-      "order": [],
-      "posts": {},
-      "sort": "arranged",
-      "perms": {
-        "group": "~motluc-nammex/h00ncr3w",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~solfer-magfed/test": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/public-testo",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~bolbex-fogdys/tlon-general": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/ask-and-learn--nock-5463": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~topdem/annals": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~topdem/structure",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "diary/~solfer-magfed/bofto": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~solfer-magfed/boko",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~hocwyn-tipwex/link-to-your-personal-urbit-group-here-4413": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~fabled-faster/brooklyn": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~tommur-dostyn/blog": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tommur-dostyn/tlon-studio",
-        "writers": ["engineering", "admin"]
-      },
-      "view": "list"
-    },
-    "diary/~bolbex-fogdys/transition-4145": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~bolbex-fogdys/tlon-urbit-foundation",
-        "writers": []
-      },
-      "view": "grid"
-    },
-    "diary/~halbex-palheb/job-board-4746": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~halbex-palheb/uf-public",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~middev/bellows-4830": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~hiddev-dannut/gall-desks-software-distribution-3514": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~hiddev-dannut/new-hooniverse",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~tinsur-tantud/desktops---homescreens": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~natnex-ronret/faceless-27": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/visual-log": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/ecm": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~bolbex-fogdys/design-1761": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dabben-larbet/tlon",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~fabled-faster/spots-1241": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~fabled-faster/new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "chat/~ravmel-ropdyl/desk": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~ravmel-ropdyl/td",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "diary/~middev/arbor-press-3191": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~satsut-tocdeb/juke-box": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~satsut-tocdeb/tonga-room",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/ongoing": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/romina-s-office",
-        "writers": ["admin"]
-      },
-      "view": "list"
-    },
-    "heap/~middev/burrs-2290": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~middev/the-forge",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~latter-bolden/landmarks": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~topdem/structure",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~dacler-ricwyt/pics": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~dacler-ricwyt/new-new-new-york",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~tinsur-tantud/appstalgia": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~tinsur-tantud/digital-stack",
-        "writers": []
-      },
-      "view": "list"
-    },
-    "heap/~natnex-ronret/f-o-d--room": {
-      "order": [],
-      "posts": {},
-      "sort": "time",
-      "perms": {
-        "group": "~natnex-ronret/door-link",
-        "writers": []
-      },
-      "view": "list"
+  "channel": {
+    "channels": {
+      "chat/~maldev-master/guild-hall": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~bitdeg/faq": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~bitdeg/assembly-2023",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/hackathons-8899": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~solfer-magfed/baringo-70": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/bofto",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hocwyn-tipwex/help-5287": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/hooniverse-chat--ask---learn-881": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~nibset-napwyn/winter-updates": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "diary/~satsut-tocdeb/welcome-to-tonga-room": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~satsut-tocdeb/tonga-room",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~middev/info": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "diary/~nocsyx-lassul/feedback-and-questions-2368": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/water-cooler-4003": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~motluc-nammex/testing-text-chat": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~motluc-nammex/h00ncr3w",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~tommur-dostyn/support": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~natnex-ronret/welcome": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~dabben-larbet/interface-1720": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dacler-ricwyt/intros": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacler-ricwyt/new-new-new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dopzod/urbit-help": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bitbet-bolbel/urbit-community",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/work---color-49": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "diary/~taptyc-lorbyl/resources": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": ["tlon", "admin"]
+        },
+        "view": "list"
+      },
+      "chat/~wolref-podlex/aegean-general": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~halbex-palheb/uf-public",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~tommur-dostyn/releases---network-updates": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~bitpyx-dildus/music-34": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~nibset-napwyn/developers": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~tommur-dostyn/media": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~bolbex-fogdys/watercooler-4938": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bolbex-fogdys/tlon-urbit-foundation",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/work---grayscale": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~nibset-napwyn/local-memory-2": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/osts-6449": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~middev/crucible-4577": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~tinsur-tantud/chat": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~natnex-ronret/feed": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/testing": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/another": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/boko",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dacsur-torryl-solfer-magfed/ghost": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacsur-torryl-solfer-magfed/moony",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~nibset-napwyn/commons": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~hiddev-dannut/administration-5989": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": ["admin", "import/~hiddev-dannut/administration-5989"]
+        },
+        "view": "grid"
+      },
+      "chat/~darrux-landes/development": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bitbet-bolbel/urbit-community",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~satsut-tocdeb/friends-of-tonga-room": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~satsut-tocdeb/tonga-room",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~tommur-dostyn/leader-chat": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~nibset-napwyn/intros": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~dacler-ricwyt/events": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacler-ricwyt/new-new-new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~bolbex-fogdys/bulletins": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~nibset-napwyn/getting-started": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": ["admin"]
+        },
+        "view": "grid"
+      },
+      "heap/~tinsur-tantud/events": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": ["tools-", "admin"]
+        },
+        "view": "list"
+      },
+      "heap/~nibset-napwyn/bulletin-board-53": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~satsut-tocdeb/admit-when-you-re-drunk-on-urbit-by-posting-a-screenshot": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~satsut-tocdeb/tonga-room",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~darrux-landes/general": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bitbet-bolbel/urbit-community",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~bitdeg/lisboa-lingua": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bitdeg/assembly-2023",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dacsur-torryl-solfer-magfed/fghost": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacsur-torryl-solfer-magfed/moony",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~bitpyx-dildus/interface": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~latter-bolden/books": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~latter-bolden/post-migrate-main",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~nibset-napwyn/assembly--23": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/hi": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/boko",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~roslet-tanner/people-leads-gang": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~middev/slag-1484": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~topdem/altar": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~topdem/structure",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/unofficial-urbit-artworks": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~tormut-bolpub/nyc-housing-7361": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~tommur-dostyn/news---announcements": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["ops", "engineering", "design", "admin", "comms"]
+        },
+        "view": "list"
+      },
+      "diary/~tommur-dostyn/how-to": {
+        "order": [
+          "170141184506315129102893469120690388992",
+          "170141184506315141235744550594090631168",
+          "170141184506315214095683572585704980480",
+          "170141184506315211876026230915976921088"
+        ],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "grid"
+      },
+      "chat/~fabled-faster/manhattan": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dacsur-torryl-solfer-magfed/host": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacsur-torryl-solfer-magfed/moony",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~latter-bolden/banter": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~latter-bolden/post-migrate-main",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/inspiration": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~nocsyx-lassul/bongtable": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~taptyc-lorbyl/android-talk": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~tommur-dostyn/wip": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["ops", "engineering", "design", "admin", "comms"]
+        },
+        "view": "list"
+      },
+      "heap/~habsul-rignyr/educational-links-3759": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~taptyc-lorbyl/on-boarding-and-discovery": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/userspace-8167": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~tinsur-tantud/digital-stack-refs": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~ripwen-sabrup/rock-": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~topdem/structure",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~tinsur-tantud/about": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~tommur-dostyn/general-chat": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~halbex-palheb/announcements-7496": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~halbex-palheb/uf-public",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~middev/welcome-122": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~fabled-faster/events-7881": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/app-school-live-classroom-office-hours-9835": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~littel-wolfur/core-4916": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~taptyc-lorbyl/small-talk": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/besto": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/bofto",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/mino": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/boko",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~middev/flux-6586": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/kernelspace-150": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~motluc-nammex/security-discussion": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~motluc-nammex/h00ncr3w",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~taptyc-lorbyl/design-previews": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": ["tlon", "admin"]
+        },
+        "view": "list"
+      },
+      "heap/~middev/foundry-7": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~satsut-tocdeb/bar-talk": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~satsut-tocdeb/tonga-room",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~tommur-dostyn/start-here": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~bolbex-fogdys/ops": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/welcome-6478": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/jail",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dabben-larbet/hosting-6173": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~fabled-faster/albany-expressions-8300": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/music-6402": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": ["import/~natnex-ronret/music-6402", "admin"]
+        },
+        "view": "list"
+      },
+      "heap/~fabled-faster/events-1267": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~tommur-dostyn/happenings--jobs---grants": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~tinsur-tantud/tools": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~hiddev-dannut/app-school-live-administration-568": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": [
+            "import/~hiddev-dannut/app-school-live-administration-568",
+            "admin"
+          ]
+        },
+        "view": "list"
+      },
+      "diary/~tinsur-tantud/digital-stack-mag": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~dacler-ricwyt/iso---recs": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacler-ricwyt/new-new-new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~halbex-palheb/general-4066": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~halbex-palheb/uf-public",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~middev/writs-2524": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "grid"
+      },
+      "diary/~middev/vault-5895": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "grid"
+      },
+      "diary/~solfer-magfed/baringo": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/bofto",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~nibset-napwyn/local-ai-15": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/hhih": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/boko",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~motluc-nammex/chill-chat": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~motluc-nammex/h00ncr3w",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~taptyc-lorbyl/bulletin-board": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "diary/~halbex-palheb/infrastructure-6618": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~halbex-palheb/uf-public",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~fabled-faster/scene-9092": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~riprud-tidmel/show-n-tell": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~riprud-tidmel/chi-anon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~middev/depot-9204": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~nibset-napwyn/news---announcements": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~sonnyt-sonnyt-habsul-rignyr/general-chat-2": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~bolbex-fogdys/general-7566": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bolbex-fogdys/tlon-urbit-foundation",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~bitdeg/news": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~bitdeg/assembly-2023",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~natnex-ronret/friends-of-door-link-2714": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hocwyn-tipwex/neutron-degeneracy-9621": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dacsur-torryl-solfer-magfed/chost": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacsur-torryl-solfer-magfed/moony",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~fabled-faster/webring-6130": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~middev/bail-meme-8836": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~dister-dozzod-lapdeg/build-party": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~tommur-dostyn/books": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["ops", "engineering", "design", "admin", "comms"]
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/pat": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/jail",
+          "writers": ["pat", "admin"]
+        },
+        "view": "list"
+      },
+      "chat/~hocwyn-tipwex/uqbar-builduuurs-3544": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~riprud-tidmel/proof-of-chi": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~riprud-tidmel/chi-anon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~ravmel-ropdyl/wall": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~ravmel-ropdyl/td",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~solfer-magfed/gg-": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/boko",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~topdem/open-field": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~topdem/structure",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~hocwyn-tipwex/urbit-links-and-other-handy-reference-8335": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/app-specific-534": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/sharing-4257": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~taptyc-lorbyl/groups-for-mobile": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~taptyc-lorbyl/tlon-early-adopters",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~latter-bolden/lots-of-links": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~latter-bolden/post-migrate-main",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/bootleg-room": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~bolbex-fogdys/watercooler-4926": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~riprud-tidmel/ruffs-n-riffs": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~riprud-tidmel/chi-anon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/log-4009": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": ["import/~natnex-ronret/log-4009"]
+        },
+        "view": "list"
+      },
+      "heap/~tommur-dostyn/references": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/troubleshooting-7189": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~habsul-rignyr/announcements-9643": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": ["import/~habsul-rignyr/announcements-9643"]
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/vanes-5343": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~middev/guild-hall-8426": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~fabled-faster/banter-3807": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/hooniverse-banter-4174": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~tommur-dostyn/staging": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~satsut-tocdeb/after-hours": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~satsut-tocdeb/tonga-room",
+          "writers": ["regular", "admin"]
+        },
+        "view": "list"
+      },
+      "heap/~nibset-napwyn/overheard--and-seen--lisbon": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dacler-ricwyt/banter": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacler-ricwyt/new-new-new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~solfer-magfed/bando": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/bofto",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~fabled-faster/organized-athletics": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~ribbyt-ribbyt-hiddev-dannut/hackathon-urbit-questions-6444": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~dalwes-migdec/fall-updates": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/app-workshop": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/beginners-749": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~fabled-faster/event-pics-87": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~dister-dozzod-lapdeg/best-practices-1230": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dister-dozzod-lapdeg/battery-payload",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~dabben-larbet/fanmail-3976": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~bolbex-fogdys/marcom": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/hooniversity--scheduled-classes-5052": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~latter-bolden/some-blocks": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~latter-bolden/post-migrate-main",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~solfer-magfed/bna": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/test-group",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~nibset-napwyn/local-directory": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~nibset-napwyn/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~motluc-nammex/personal-tech-blog": {
+        "order": [],
+        "posts": {},
+        "sort": "arranged",
+        "perms": {
+          "group": "~motluc-nammex/h00ncr3w",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~solfer-magfed/test": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/public-testo",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~bolbex-fogdys/tlon-general": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/ask-and-learn--nock-5463": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~topdem/annals": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~topdem/structure",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "diary/~solfer-magfed/bofto": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~solfer-magfed/boko",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~hocwyn-tipwex/link-to-your-personal-urbit-group-here-4413": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hocwyn-tipwex/uqbar-event-horizon-forever",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~fabled-faster/brooklyn": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~tommur-dostyn/blog": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tommur-dostyn/tlon-studio",
+          "writers": ["engineering", "admin"]
+        },
+        "view": "list"
+      },
+      "diary/~bolbex-fogdys/transition-4145": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~bolbex-fogdys/tlon-urbit-foundation",
+          "writers": []
+        },
+        "view": "grid"
+      },
+      "diary/~halbex-palheb/job-board-4746": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~halbex-palheb/uf-public",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~middev/bellows-4830": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~hiddev-dannut/gall-desks-software-distribution-3514": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~hiddev-dannut/new-hooniverse",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~tinsur-tantud/desktops---homescreens": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~natnex-ronret/faceless-27": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/visual-log": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/ecm": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~bolbex-fogdys/design-1761": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dabben-larbet/tlon",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~fabled-faster/spots-1241": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~fabled-faster/new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "chat/~ravmel-ropdyl/desk": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~ravmel-ropdyl/td",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "diary/~middev/arbor-press-3191": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~satsut-tocdeb/juke-box": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~satsut-tocdeb/tonga-room",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/ongoing": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/romina-s-office",
+          "writers": ["admin"]
+        },
+        "view": "list"
+      },
+      "heap/~middev/burrs-2290": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~middev/the-forge",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~latter-bolden/landmarks": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~topdem/structure",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~dacler-ricwyt/pics": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~dacler-ricwyt/new-new-new-york",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~tinsur-tantud/appstalgia": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~tinsur-tantud/digital-stack",
+          "writers": []
+        },
+        "view": "list"
+      },
+      "heap/~natnex-ronret/f-o-d--room": {
+        "order": [],
+        "posts": {},
+        "sort": "time",
+        "perms": {
+          "group": "~natnex-ronret/door-link",
+          "writers": []
+        },
+        "view": "list"
+      }
     }
   },
   "groups": {

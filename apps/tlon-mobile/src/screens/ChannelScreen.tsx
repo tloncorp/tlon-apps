@@ -27,7 +27,11 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (props.route.params.channel.group?.isNew) {
         store.markGroupVisited(props.route.params.channel.group);
       }
-    }, [props.route.params.channel.group])
+      store.syncChannelThreadUnreads(
+        props.route.params.channel.id,
+        store.SyncPriority.High
+      );
+    }, [props.route.params.channel])
   );
   useFocusEffect(
     useCallback(
