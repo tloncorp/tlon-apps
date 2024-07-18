@@ -239,6 +239,8 @@
       refresh-all-summaries
         %clean-keys
       correct-dm-keys
+        %sync-reads
+      sync-reads
     ==
   ::
       %activity-action
@@ -247,7 +249,7 @@
       %add      (add-event +.action)
       %bump     (bump +.action)
       %del      (del-source +.action)
-      %read     (read source.action read-action.action |)
+      %read     (read source.action read-action.action)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
@@ -647,13 +649,10 @@
   =/  =index:a  (~(gut by indices) source *index:a)
   =/  new=_stream.index
     (put:on-event:a stream.index time-id event)
-  (refresh-index source index(stream new) |)
+  (refresh-index source index(stream new))
 ++  refresh-index
-  |=  [=source:a new=index:a new-floor=?]
+  |=  [=source:a new=index:a]
   %-  (log |.("refeshing index: {<source>}"))
-  =?  new  new-floor
-    (update-reads:idx new)
-  %-  (log |.("new reads: {<reads.new>}"))
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -698,47 +697,14 @@
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
-  |=  [=source:a action=read-action:a from-parent=?]
+  |=  [=source:a action=read-action:a]
   ^+  cor
   =/  =index:a  (get-index source)
   ?-  -.action
-      %event
-    ?>  ?=(%event -.action)
-    =/  events
-      %+  murn
-        (tap:on-event:a stream.index)
-      |=  [=time =event:a]
-      ?.  =(-.event event.action)  ~
-      `[time event]
-    ?~  events  cor
-    (read source [%item -<.events] |)
-  ::
-      %item
-    =/  new-read  [id.action ~]
-    =/  read-items  (put:on-read-items:a items.reads.index new-read)
-    =.  cor  (propagate-read-items source ~[new-read])
-    (refresh-index source index(items.reads read-items) &)
+      %event  ~&("read %event unsupported" !!)
+      %item   ~&("read %item unsupported" !!)
   ::
       %all
-    ?:  !deep.action
-      =/  new=index:a
-        ::  take every event between the floor and now, and put it into
-        ::  the index's items.reads. this way, the floor can be moved
-        ::  without "losing" any unreads, and the call to +refresh-index
-        ::  below will clean up unnecessary items.reads entries.
-        ::
-        =-  index(items.reads -)
-        %+  gas:on-read-items:a  *read-items:a
-        (get-reads:stm stream.index `floor.reads.index ~ &)
-      ::  we need to refresh our own index to reflect new reads
-      =.  cor  (refresh-index source new &)
-      ::  since we're not marking deep, we already have the items to
-      ::  send up to parents
-      %+  propagate-read-items  source
-      (tap:on-read-items:a items.reads.new)
-    ::
-    ::  marking read "deeply"
-    ::
     =/  new=index:a
       ::  we can short circuit and just mark everything read, because
       ::  we're going to also mark all children read
@@ -747,43 +713,21 @@
       =/  latest=(unit [=time event:a])
         (ram:on-event:a stream.index)
       ?~(latest now.bowl time.u.latest)
-    ::  since we're marking deeply we need to recursively read all
+    ::  if we're marking deeply we need to recursively read all
     ::  children
-    =.  cor
+    =?  cor  deep.action
       =/  children  (get-children:src indices source)
       |-
       ?~  children  cor
       =/  =source:a  i.children
-      =.  cor  (read source action &)
+      =.  cor  (read source action)
       $(children t.children)
     ::  we need to refresh our own index to reflect new reads
-    =.  cor  (refresh-index source new &)
-    ::  if this isn't a recursive read (see 4 lines above), we need to
-    ::  propagate the new read items up the tree so that parents can
-    ::  keep accurate counts, otherwise we can no-op
-    ?:  from-parent  cor
-    %+  propagate-read-items  source
-    ::  if not, we need to generate the new items based on the floor
-    ::  we just came up with
-    %-  get-reads:stm
-    :*  stream.index
-        `floor.reads.index
-        ?:((gte floor.reads.new floor.reads.index) `+(floor.reads.new) ~)
-        |
-    ==
+    %-  (log |.("refeshing index: {<source>}"))
+    =.  indices  (~(put by indices) source new)
+    (refresh source)
   ==
 ::
-++  propagate-read-items
-  |=  [=source:a items=(list [=time-id:a ~])]
-  =/  parents  (get-parents:src source)
-  |-
-  ?~  parents  cor
-  =/  parent-index  (get-index i.parents)
-  =/  =read-items:a
-    (gas:on-read-items:a items.reads.parent-index items)
-  =.  cor
-    (refresh-index i.parents parent-index(items.reads read-items) &)
-  $(parents t.parents)
 ++  give-unreads
   |=  =source:a
   ^+  cor
@@ -813,27 +757,23 @@
   ^-  activity-summary:a
   %-  (log |.("summarizing unreads for: {<source>}"))
   =/  top=time  -:(fall (ram:on-event:a stream.index) [*@da ~])
-  ::  for each item in reads
-  ::  omit:
-  ::    if we don't have unreads enabled for that event
-  ::    any items that are unread for some reason
-  ::  then remove the post or reply from the event stream
-  ::  and call stream-to-unreads
-  ::
-  ::  TODO: flip around and iterate over stream once, cleaning reads out
-  ::        and segment replies for unread threads tracking
-  =;  unread-stream=stream:a
-    =/  children  (get-children:src indices source)
-    %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
-    (stream-to-unreads source index(stream unread-stream) children top)
-  ?:  ?=(%base -.source)  ~
-  %+  gas:on-event:a  *stream:a
-  %+  murn
-    (tap:on-event:a (lot:on-event:a stream.index `floor.reads.index ~))
-  |=  [=time =event:a]
-  ?:  child.event  ~
-  ?:  (has:on-read-items:a items.reads.index time)  ~
-  `[time event]
+  =/  unread-stream=stream:a
+    ::  all base's events are from children so we can ignore
+    ?:  ?=(%base -.source)  ~
+    ::  we don't need to take child events into account when summarizing
+    ::  the activity, so we filter them out
+    ::  TODO: measure performance vs gas+murn+tap+lot
+    =-  ->
+    %^    (dip:on-event:a @)
+        (lot:on-event:a stream.index `floor.reads.index ~)
+      ~
+    |=  [st=@ =time-id:a =event:a]
+    :_  [%.n st]
+    ?.  !child.event  ~
+    `event
+  =/  children  (get-children:src indices source)
+  %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
+  (stream-to-unreads source index(stream unread-stream) children top)
 ++  stream-to-unreads
   |=  [=source:a =index:a children=(list source:a) top=time]
   ^-  activity-summary:a
@@ -878,7 +818,7 @@
         notified
         ?~(last ~ `[u.last main main-notified])
         ?:(?=(%base -.source) ~ (sy children))
-        reads.index
+        ~
     ==
   =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
   =/  volume  (get-volume:evt volume-settings -.event)
@@ -900,48 +840,39 @@
     last
   $(stream rest)
 ::
-::
-::  previously each source had independent read states that did not get
-::  synced across sources. we set out to rectify that here
+::  previously we used items as a way to track individual reads because
+::  floors were not local, but we have reverted to local floors and not
+::  tracking individual reads
 ::
 ++  sync-reads
-  =/  oldest-floors=(map source:a time)  ~
   =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  cor
   =/  =source:a  i.sources
   =/  =index:a  (~(got by indices) source)
-  =/  our-reads  (get-reads:stm stream.index ~ `floor.reads.index &)
-  =^  min-floors  indices
-    =/  parents  (get-parents:src source)
-    =/  floors=(map source:a time)  ~
-    |-
-    ?~  parents  [floors indices]
-    =/  parent-index  (get-index i.parents)
-    =/  parent-reads
-      :-  floor.reads.parent-index
-      %+  gas:on-read-items:a
-        (uni:on-read-items:a items.reads.parent-index items.reads.index)
-      our-reads
-    ::  keep track of oldest child floor
-    =.  floors
-      %+  ~(put by floors)  i.parents
-      (min floor.reads.index (~(gut by oldest-floors) i.parents now.bowl))
-    ::  update parents with aggregated reads and move floor if appropriate
-    =.  indices  (~(put by indices) i.parents parent-index(reads parent-reads))
-    $(parents t.parents)
-  =.  oldest-floors  (~(uni by oldest-floors) min-floors)
-  =.  reads.index
-    ::  if we have no children then the reads are accurate
-    ?~  min-floor=(~(get by oldest-floors) source)  reads.index
-    ::  if we have children, but our floor is oldest, then we're good
-    ?:  (lth floor.reads.index u.min-floor)  reads.index
-    ::  otherwise, we need to adjust our reads
-    =;  main-reads=read-items:a
-      [u.min-floor main-reads]
-    %+  gas:on-read-items:a  items.reads.index
-    (get-reads:stm stream.index `u.min-floor `floor.reads.index &)
-  =.  cor  (refresh-index source index &)
+  =/  old-floor  floor.reads.index
+  =/  old=(unit activity-summary:a)  (~(get by activity) source)
+  ::  get all our reads, removing children
+  =/  new-floor=time
+    =-  st
+    %^  (dip:on-read-items:a ,st=@da)  items.reads.index  floor.reads.index
+    |=  [st=@da =time-id:a *]
+    =/  event=(unit event:a)  (get:on-event:a stream.index time-id)
+    ?~  event  [~ %.n st]
+    ?:  child.u.event  [~ %.n st]
+    [~ %.n ?:((gth time-id st) time-id st)]
+  =.  reads.index  [new-floor ~]
+  ::  with new reads, update our index and summary
+  =.  cor  (refresh-index source index)
+  =/  new=(unit activity-summary:a)  (~(get by activity) source)
+  =/  old-sum  ?~(old ~ %=(u.old reads ~))
+  =/  new-sum  ?~(new ~ %=(u.new reads ~))
+  ?:  !=(old-sum new-sum)
+    ~&  "%sync-reads: WARNING old and new summaries differ {<source>}"
+    ~&  "old floor: {<old-floor>} new floor: {<new-floor>}"
+    ~&  "old:  {<old-sum>}"
+    ~&  "new:  {<new-sum>}"
+    $(sources t.sources)
   $(sources t.sources)
 ::
 ::  at some time in the past, for clubs activity, %dm-post and %dm-reply events
@@ -999,7 +930,7 @@
         volume-settings  (~(del by volume-settings) old-source)
       ==
     ::  update source + index, if new key create new index
-    =.  cor  (refresh-index source index.i.idxs &)
+    =.  cor  (refresh-index source index.i.idxs)
     $(idxs t.idxs)
   %+  weld
     (handle-dms u.club dms)
@@ -1046,11 +977,7 @@
     :-  (clean-stream-keys club (uni:on-event:a stream.acc stream.index))
     ::  rectify reads
     =/  floor  (max floor.reads.index floor.reads.acc)
-    :_  bump.index
-    :-  floor
-    =/  combined
-      (uni:on-read-items:a items.reads.index items.reads.acc)
-    (lot:on-read-items:a combined `floor ~)
+    [[floor ~] bump.index]
   ++  clean-stream-keys
     |=  [=club:ch =stream:a]
     ^-  stream:a
