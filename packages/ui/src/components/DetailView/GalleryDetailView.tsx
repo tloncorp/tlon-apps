@@ -2,7 +2,7 @@ import { tiptap, usePostMeta } from '@tloncorp/shared/dist';
 import { Dimensions } from 'react-native';
 
 import { Image, Text, View, YStack } from '../../core';
-import ContentReference from '../ContentReference';
+import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
 import { DetailView, DetailViewProps } from './DetailView';
@@ -125,7 +125,10 @@ export default function GalleryDetailView({
               overflow="hidden"
             >
               <View overflow="hidden" position="relative">
-                <ContentReference reference={references[0]} viewMode="block" />
+                <ContentReferenceLoader
+                  reference={references[0]}
+                  viewMode="block"
+                />
               </View>
             </View>
           )}

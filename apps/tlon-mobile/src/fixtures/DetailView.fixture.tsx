@@ -26,10 +26,10 @@ const NotebookDetailViewFixture = () => {
         contacts={[]}
         channel={tlonLocalGettingStarted}
         currentUserId={notebookPost.authorId}
-        sendReply={() => {}}
+        sendReply={async () => {}}
         groupMembers={[]}
         negotiationMatch={true}
-        editPost={() => {}}
+        editPost={async () => {}}
         uploadInfo={{
           uploading: false,
           uploadedImage: null,
@@ -57,10 +57,10 @@ const GalleryDetailViewFixture = () => {
         contacts={[]}
         channel={tlonLocalBulletinBoard}
         currentUserId={galleryPost.authorId}
-        sendReply={() => {}}
+        sendReply={async () => {}}
         groupMembers={[]}
         negotiationMatch={true}
-        editPost={() => {}}
+        editPost={async () => {}}
         uploadInfo={{
           uploading: false,
           uploadedImage: null,

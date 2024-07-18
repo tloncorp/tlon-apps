@@ -3,7 +3,7 @@ import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import fuzzy from 'fuzzy';
 import { debounce } from 'lodash';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -48,12 +48,14 @@ export function ChatList({
   onSectionChange,
   activeTab,
   setActiveTab,
+  showFilters,
 }: store.CurrentChats & {
   onPressItem?: (chat: Chat) => void;
   onLongPressItem?: (chat: Chat) => void;
   onSectionChange?: (title: string) => void;
   activeTab: 'all' | 'groups' | 'messages';
   setActiveTab: (tab: 'all' | 'groups' | 'messages') => void;
+  showFilters: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const scrollY = useSharedValue(0);
@@ -269,6 +271,16 @@ export function ChatList({
       }
     },
   });
+
+  useEffect(() => {
+    if (showFilters) {
+      filterVisible.value = true;
+      scrollY.value = withSpring(-FILTER_HEIGHT);
+    } else {
+      filterVisible.value = false;
+      scrollY.value = withSpring(0);
+    }
+  }, [showFilters, filterVisible, scrollY, FILTER_HEIGHT]);
 
   const getChannelKey = useCallback((item: unknown) => {
     const chatItem = item as Chat;

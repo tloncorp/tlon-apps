@@ -2,6 +2,7 @@ import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
+import { isEqual } from 'lodash';
 import { MotiView } from 'moti';
 import React, {
   PropsWithChildren,
@@ -47,7 +48,7 @@ type RenderItemFunction = (props: {
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -111,7 +112,7 @@ function Scroller({
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
@@ -482,7 +483,7 @@ const BaseScrollerItem = ({
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
   activeMessage?: db.Post | null;
@@ -544,7 +545,25 @@ const BaseScrollerItem = ({
   );
 };
 
-const ScrollerItem = React.memo(BaseScrollerItem);
+const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
+  const isItemEqual = isEqual(prev.item, next.item);
+  const isIndexEqual = prev.index === next.index;
+
+  const areOtherPropsEqual =
+    prev.showAuthor === next.showAuthor &&
+    prev.showReplies === next.showReplies &&
+    prev.currentUserId === next.currentUserId &&
+    prev.editingPost === next.editingPost &&
+    prev.editPost === next.editPost &&
+    prev.setEditingPost === next.setEditingPost &&
+    prev.onPressReplies === next.onPressReplies &&
+    prev.onPressImage === next.onPressImage &&
+    prev.onPressPost === next.onPressPost &&
+    prev.onLongPressPost === next.onLongPressPost &&
+    prev.activeMessage === next.activeMessage;
+
+  return isItemEqual && areOtherPropsEqual && isIndexEqual;
+});
 
 const PressableMessage = React.memo(
   forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(

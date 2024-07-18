@@ -99,7 +99,7 @@ export function Channel({
   goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
-  messageSender: (content: Story, channelId: string) => void;
+  messageSender: (content: Story, channelId: string) => Promise<void>;
   uploadInfo: UploadInfo;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
@@ -116,7 +116,7 @@ export function Channel({
   getDraft: () => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => void;
+  editPost: (post: db.Post, content: Story) => Promise<void>;
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;

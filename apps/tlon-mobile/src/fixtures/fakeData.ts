@@ -560,12 +560,13 @@ export const group: db.Group = {
   roles,
   coverImage: null,
   coverImageColor: '#000000',
-  iconImage: null,
+  iconImage: 'https://tlon.io/local-icon.svg',
   iconImageColor: '#FFFFFF',
   currentUserIsMember: true,
   lastPostAt: null,
   lastPostId: null,
-  description: 'Tlon Local',
+  description:
+    'We’re off building the internet of tomorrow. And we’re not doing it alone. Join us in Tlon Local, where the future is always under construction.',
   members: [
     {
       contactId: '~ravmel-ropdyl',

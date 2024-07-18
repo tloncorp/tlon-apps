@@ -20,38 +20,6 @@ const channelUnread: Record<string, ub.ActivitySummary> = {
       count: 5,
       recency: 1718513986192,
       'notify-count': 0,
-      reads: {
-        floor: 0,
-        items: {},
-      },
-      children: {
-        'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.591.089.314.701.116.289.581.056':
-          {
-            unread: null,
-            count: 1,
-            recency: 1718483402625,
-            children: null,
-            notify: true,
-            'notify-count': 0,
-            reads: {
-              floor: 0,
-              items: {},
-            },
-          },
-        'thread/chat/~lishul-marbyl-nisdeb-nalhec--motfed-lodmyn-tinfed-binzod/welcome-5870/170.141.184.506.852.590.556.405.446.059.399.053.312':
-          {
-            unread: null,
-            count: 0,
-            recency: 1718483869007,
-            children: null,
-            notify: false,
-            'notify-count': 0,
-            reads: {
-              floor: 0,
-              items: {},
-            },
-          },
-      },
       notify: true,
     },
 };
@@ -88,13 +56,8 @@ const threadUnread: Record<string, ub.ActivitySummary> = {
       },
       count: 1,
       recency: 1718514344709,
-      children: {},
       notify: false,
       'notify-count': 0,
-      reads: {
-        floor: 0,
-        items: {},
-      },
     },
 };
 
@@ -129,13 +92,8 @@ const dmUnread: Record<string, ub.ActivitySummary> = {
     },
     count: 6,
     recency: 1718523089789,
-    children: {},
     notify: true,
     'notify-count': 0,
-    reads: {
-      floor: 0,
-      items: {},
-    },
   },
 };
 
@@ -170,13 +128,8 @@ const dmThreadUnread: Record<string, ub.ActivitySummary> = {
       },
       count: 1,
       recency: 1718523494618,
-      children: {},
       notify: true,
       'notify-count': 0,
-      reads: {
-        floor: 0,
-        items: {},
-      },
     },
 };
 
@@ -205,31 +158,8 @@ const groupUnread: Record<string, ub.ActivitySummary> = {
     unread: null,
     count: 6,
     recency: 946684800000,
-    children: {
-      'channel/chat/~latter-bolden/welcome-8186': {
-        unread: {
-          count: 5,
-          notify: true,
-          id: '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod/170.141.184.506.853.155.647.879.036.981.225.717.760',
-          time: '170141184506853155647879036981225717760',
-        },
-        count: 5,
-        recency: 946684800000,
-        children: null,
-        notify: false,
-        'notify-count': 0,
-        reads: {
-          floor: 0,
-          items: {},
-        },
-      },
-    },
     notify: true,
     'notify-count': 0,
-    reads: {
-      floor: 0,
-      items: {},
-    },
   },
 };
 

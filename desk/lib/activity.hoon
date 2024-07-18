@@ -19,17 +19,18 @@
       ==
     ==
   ::
-  ++  get-children
+  ++  get-children  ::  direct children only
     |=  [=indices:a =source:a]
     ^-  (list source:a)
+    ?:  ?=(?(%thread %dm-thread) -.source)  ~
     %+  skim
       ~(tap in ~(key by indices))
     |=  src=source:a
-    ?+  -.source  |
-        %base  ?!(?=(%base -.src))
-        %group  &(?=(%channel -.src) =(flag.source group.src))
+    ?-  -.source
+        %base     ?=(?(%group %dm) -.src)
+        %group    &(?=(%channel -.src) =(flag.source group.src))
         %channel  &(?=(%thread -.src) =(nest.source channel.src))
-        %dm  &(?=(%dm-thread -.src) =(whom.source whom.src))
+        %dm       &(?=(%dm-thread -.src) =(whom.source whom.src))
     ==
   ::
   ++  get-order
@@ -87,15 +88,6 @@
   --
 ++  idx
   |_  =index:a
-  ++  update-reads
-    |=  =index:a
-    ^-  index:a
-    =/  new-floor=(unit time)  (find-floor [stream reads]:index)
-    ?~  new-floor  index
-    =/  new-reads=read-items:a
-      (lot:on-read-items:a items.reads.index new-floor ~)
-    index(reads [u.new-floor new-reads])
-  ::
   ++  find-floor
     |=  [orig=stream:a =reads:a]
     ^-  (unit time)
@@ -182,6 +174,13 @@
 ::
 ++  convert-to
   |%
+  ++  v4
+    |%
+    ++  feed
+      |=  =feed:a
+      ^-  feed:v4:old:a
+      feed.feed
+    --
   ++  v3
     |%
     ++  activity
@@ -209,7 +208,7 @@
           :-  source
           (activity-summary sum(children ~) ~)
         ::
-          reads.as
+          [*@da ~]
       ==
     ++  update
       |=  [=update:a =activity:a]

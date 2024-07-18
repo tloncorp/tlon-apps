@@ -1,10 +1,14 @@
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 
 import { toClientGroups } from '../api/groupsApi';
 import * as schema from '../db/schema';
 import { syncInitData } from '../store/sync';
 import groupsResponse from '../test/groups.json';
-import { getClient, resetDb, setScryOutputs, setupDb } from '../test/helpers';
+import {
+  getClient,
+  setScryOutputs,
+  setupDatabaseTestSuite,
+} from '../test/helpers';
 import initResponse from '../test/init.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
@@ -15,13 +19,7 @@ const groupsData = toClientGroups(
   true
 );
 
-beforeAll(() => {
-  setupDb();
-});
-
-beforeEach(async () => {
-  resetDb();
-});
+setupDatabaseTestSuite();
 
 test('inserts a group', async () => {
   const groupData = groupsData[3];

@@ -685,6 +685,7 @@ export async function handleAddPost(
   post: db.Post,
   replyMeta?: db.ReplyMeta | null
 ) {
+  logger.log('event: add post', post);
   // We frequently get duplicate addPost events from the api,
   // so skip if we've just added this.
   if (post.id === lastAdded) {

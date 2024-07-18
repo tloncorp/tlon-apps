@@ -1,6 +1,7 @@
 import { preSig } from '@urbit/api';
 import { deSig, formatDa, unixToDa } from '@urbit/aura';
 
+import * as api from '../../api';
 import {
   RNFile,
   StorageConfiguration,
@@ -10,6 +11,7 @@ import {
   scry,
 } from '../../api';
 import { createDevLogger } from '../../debug';
+import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
@@ -82,40 +84,72 @@ export const hasCustomS3Creds = ({
   );
 };
 
+const MEMEX_BASE_URL = 'https://memex.tlon.network';
+
 export const getIsHosted = async () => {
   const shipInfo = getShipInfo();
   const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
   return isHosted;
 };
 
-export const getHostingUploadURL = async () => {
-  const isHosted = await getIsHosted();
-  return isHosted ? 'https://memex.tlon.network' : '';
-};
+interface MemexUploadParams {
+  token: string;
+  contentLength: number;
+  contentType: string;
+  fileName: string;
+}
 
-export const getMemexUploadUrl = async (key: string) => {
-  const baseUrl = 'https://memex.tlon.network';
-  const url = `${baseUrl}/${key}`;
+export const getMemexUpload = async ({
+  file,
+  uploadKey,
+}: {
+  file: api.RNFile;
+  uploadKey: string;
+}) => {
+  const currentUser = api.getCurrentUserId();
   const token = await scry<string>({
     app: 'genuine',
     path: '/secret',
   }).catch((e) => {
-    logger.log('failed to get secret', { e });
-    return '';
+    throw new Error('Failed to get secret');
   });
-  return `${url}?token=${token}`;
+
+  const uploadParams: MemexUploadParams = {
+    token,
+    contentLength: file.blob.size,
+    contentType: file.type,
+    fileName: uploadKey,
+  };
+
+  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/upload`;
+  const response = await fetch(`${endpoint}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(uploadParams),
+  });
+
+  if (response.status !== 200) {
+    logger.log(`Bad response from memex`, response.status);
+    throw new Error('Bad response from memex');
+  }
+
+  const data: { url?: string; filePath?: string } | null =
+    await response.json();
+
+  if (data && data.url && data.filePath) {
+    return {
+      hostedUrl: data.filePath,
+      uploadUrl: data.url,
+    };
+  } else {
+    logger.log(`Invalid response from memex upload`, data);
+    throw new Error('Invalid response from memex upload');
+  }
 };
 
-export function getUploadObjectKey(ship: string, fileName: string) {
-  return `${deSig(ship)}/${deSig(formatDa(unixToDa(new Date().getTime())))}-${fileName.split(' ').join('-')}`;
-}
-
-export const getFinalMemexUrl = async (memexUploadUrl: string) => {
-  const fileUrlResponse = await fetch(memexUploadUrl);
-  const fileUrl = await fileUrlResponse.json().catch(() => {
-    logger.log('Error parsing response body, fileUrlResponse');
-    return '';
-  });
-
-  return fileUrl;
+export const getHostingUploadURL = async () => {
+  const isHosted = await getIsHosted();
+  return isHosted ? MEMEX_BASE_URL : '';
 };

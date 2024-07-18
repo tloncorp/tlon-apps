@@ -234,6 +234,36 @@ function toActivityEvent({
     };
   }
 
+  if ('flag-post' in event) {
+    const flagEvent = event['flag-post'];
+    const { authorId, postId } = getInfoFromMessageKey(flagEvent.key);
+    return {
+      ...baseFields,
+      type: 'flag-post',
+      postId,
+      authorId,
+      channelId: flagEvent.channel,
+      groupId: flagEvent.group,
+    };
+  }
+
+  if ('flag-reply' in event) {
+    const flagEvent = event['flag-reply'];
+    const { authorId, postId } = getInfoFromMessageKey(flagEvent.key);
+    const { postId: parentId, authorId: parentAuthorId } =
+      getInfoFromMessageKey(flagEvent.parent);
+    return {
+      ...baseFields,
+      type: 'flag-reply',
+      postId,
+      parentId,
+      parentAuthorId,
+      authorId,
+      channelId: flagEvent.channel,
+      groupId: flagEvent.group,
+    };
+  }
+
   return null;
 }
 

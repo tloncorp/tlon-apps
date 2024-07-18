@@ -2,6 +2,7 @@ import { unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -33,6 +34,8 @@ import {
   with404Handler,
 } from './apiUtils';
 import { poke, scry, subscribeOnce } from './urbit';
+
+const logger = createDevLogger('postsApi', false);
 
 export type Cursor = string | Date;
 export type PostContent = (ub.Verse | ContentReference)[] | null;
@@ -147,6 +150,7 @@ export const sendPost = async ({
   content: Story;
   metadata?: db.PostMetadata;
 }) => {
+  logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
 
   if (channelType === 'dm' || channelType === 'groupDm') {
@@ -203,12 +207,15 @@ export const editPost = async ({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) => {
+  logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
+    logger.error('Cannot edit a post in a DM or group DM');
     throw new Error('Cannot edit a post in a DM or group DM');
   }
 
   if (parentId) {
+    logger.log('editing a reply');
     const memo: ub.Memo = {
       author: authorId,
       content,
@@ -229,9 +236,13 @@ export const editPost = async ({
       },
     };
 
+    logger.log('sending action', action);
     await poke(channelAction(channelId, action));
+    logger.log('action sent');
     return;
   }
+
+  logger.log('editing a post');
 
   const essay = toPostEssay({
     content,
@@ -248,7 +259,9 @@ export const editPost = async ({
     },
   });
 
+  logger.log('sending action', action);
   await poke(action);
+  logger.log('action sent');
 };
 
 export const sendReply = async ({
@@ -635,6 +648,38 @@ export const toClientHiddenPosts = (hiddenPostIds: string[]) => {
   return hiddenPostIds.map((postId) => getCanonicalPostId(postId));
 };
 
+export async function reportPost(
+  currentUserId: string,
+  groupId: string,
+  channelId: string,
+  post: db.Post
+) {
+  await hidePost(post);
+
+  const action = {
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          'flag-content': {
+            nest: channelId,
+            src: currentUserId,
+            'post-key': {
+              post: post.parentId ? post.parentId : post.id,
+              reply: post.parentId ? post.id : null,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  return await poke(action);
+}
+
 export const getHiddenPosts = async () => {
   const hiddenPosts = await scry<HiddenPosts>({
     app: 'channels',
@@ -966,6 +1011,31 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
     return { type: 'reference', referenceType: 'app', userId, appId };
   }
   return null;
+}
+
+export function contentReferenceToCite(reference: ContentReference): ub.Cite {
+  if (reference.referenceType === 'channel') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: `/msg/${reference.postId}${
+          reference.replyId ? '/' + reference.replyId : ''
+        }`,
+      },
+    };
+  } else if (reference.referenceType === 'group') {
+    return {
+      group: reference.groupId,
+    };
+  } else if (reference.referenceType === 'app') {
+    return {
+      desk: {
+        flag: `${reference.userId}/${reference.appId}`,
+        where: '',
+      },
+    };
+  }
+  throw new Error('invalid reference');
 }
 
 function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
