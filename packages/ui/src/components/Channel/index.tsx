@@ -13,10 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
 import {
+  AppDataContextProvider,
   CalmProvider,
   CalmState,
   ChannelProvider,
-  ContactsProvider,
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
@@ -99,7 +99,7 @@ export function Channel({
   goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
-  messageSender: (content: Story, channelId: string) => void;
+  messageSender: (content: Story, channelId: string) => Promise<void>;
   uploadInfo: UploadInfo;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
@@ -116,7 +116,7 @@ export function Channel({
   getDraft: () => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => void;
+  editPost: (post: db.Post, content: Story) => Promise<void>;
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
@@ -186,7 +186,10 @@ export function Channel({
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
         <GroupsProvider groups={groups}>
-          <ContactsProvider contacts={contacts ?? null}>
+          <AppDataContextProvider
+            contacts={contacts}
+            currentUserId={currentUserId}
+          >
             <ChannelProvider value={{ channel }}>
               <RequestsProvider
                 usePost={usePost}
@@ -280,7 +283,6 @@ export function Channel({
                                       renderEmptyComponent={
                                         renderEmptyComponent
                                       }
-                                      currentUserId={currentUserId}
                                       anchor={scrollerAnchor}
                                       posts={posts}
                                       hasNewerPosts={hasNewerPosts}
@@ -410,7 +412,7 @@ export function Channel({
                 </NavigationProvider>
               </RequestsProvider>
             </ChannelProvider>
-          </ContactsProvider>
+          </AppDataContextProvider>
         </GroupsProvider>
       </CalmProvider>
     </ScrollContextProvider>

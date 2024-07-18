@@ -10,14 +10,14 @@ import useAppUpdates, { AppUpdateContext } from '@/logic/useAppUpdates';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useShowTabBar from '@/logic/useShowTabBar';
 import { useNotifications } from '@/notifications/useNotifications';
-import { useCharge } from '@/state/docket';
-import { useLocalState } from '@/state/local';
-import { useMessagesFilter } from '@/state/settings';
 import {
   useCombinedChatUnreads,
   useCombinedGroupUnreads,
   useMarkAllGroupsRead,
-} from '@/state/unreads';
+} from '@/state/activity';
+import { useCharge } from '@/state/docket';
+import { useLocalState } from '@/state/local';
+import { useMessagesFilter } from '@/state/settings';
 
 import ActionMenu from '../ActionMenu';
 import Avatar from '../Avatar';

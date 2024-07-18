@@ -91,6 +91,9 @@ export const SignUpEmailScreen = ({
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: () => (
+        <HeaderButton title="Back" onPress={() => navigation.goBack()} />
+      ),
       headerRight: () =>
         isSubmitting ? (
           <View style={tailwind('px-4')}>

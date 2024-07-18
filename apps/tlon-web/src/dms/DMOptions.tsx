@@ -9,19 +9,20 @@ import React, {
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-import { useChatStore } from '@/chat/useChatStore';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Dialog from '@/components/Dialog';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useMarkChannelRead } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
+import { useStickyUnread } from '@/logic/useStickyUnread';
 import {
   useIsDmOrMultiDm,
   whomIsDm,
   whomIsFlag,
   whomIsMultiDm,
 } from '@/logic/utils';
+import { useSourceActivity } from '@/state/activity';
 import { useLeaveMutation } from '@/state/channel/channel';
 import {
   useArchiveDm,
@@ -34,7 +35,6 @@ import {
   useDeletePinMutation,
   usePinnedChats,
 } from '@/state/pins';
-import { useUnread, useUnreadsStore } from '@/state/unreads';
 
 import DmInviteDialog from './DmInviteDialog';
 
@@ -68,18 +68,14 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinnedChats();
-  const chatUnread = useUnread(getKey(whom));
+  const { activity } = useSourceActivity(getKey(whom));
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
-  const unread = !chatUnread
-    ? { status: 'read', count: 0, notify: false }
-    : chatUnread.combined;
-  const hasNotify = unread.notify;
-  const hasActivity = pending || unread.status === 'unread';
+  const hasNotify = activity.notify;
+  const hasActivity = pending || activity.count > 0;
   const key = whomIsFlag(whom) ? `chat/${whom}` : whom;
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutateAsync: addPin } = useAddPinMutation();
   const { mutateAsync: delPin } = useDeletePinMutation();
-  const { mutate: archiveDm } = useArchiveDm();
   const { markRead: markReadChannel } = useMarkChannelRead(
     key,
     undefined,
@@ -103,10 +99,6 @@ export default function DmOptions({
   }, [open]);
 
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
-  const onArchive = () => {
-    onLeave?.();
-    archiveDm({ whom });
-  };
 
   const markRead = useCallback(async () => {
     if (isDMorMultiDm) {
@@ -114,8 +106,6 @@ export default function DmOptions({
     } else {
       markReadChannel();
     }
-
-    useUnreadsStore.getState().read(getKey(whom));
   }, [whom, markReadChannel, markDmRead, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);
@@ -170,7 +160,7 @@ export default function DmOptions({
   if (!isHovered && !alwaysShowEllipsis && !isOpen) {
     return hasActivity ? (
       <UnreadIndicator
-        count={unread.count}
+        count={activity.count}
         notify={hasNotify}
         className="group-focus-within:opacity-0 group-hover:opacity-0"
       />
@@ -254,7 +244,7 @@ export default function DmOptions({
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
             {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
-                count={unread.count}
+                count={activity.count}
                 notify={hasNotify}
                 className="group-focus-within:opacity-0 group-hover:opacity-0"
               />
@@ -288,7 +278,7 @@ export default function DmOptions({
             </button>
 
             <button
-              onClick={onArchive}
+              onClick={leaveMessage}
               className="button bg-red text-white"
               type="button"
             >

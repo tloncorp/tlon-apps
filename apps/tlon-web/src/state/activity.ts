@@ -5,29 +5,35 @@ import {
   ActivityDeleteUpdate,
   ActivityReadUpdate,
   ActivitySummary,
+  ActivitySummaryUpdate,
   ActivityUpdate,
   ActivityVolumeUpdate,
+  ChannelSource,
+  DmSource,
   ReadAction,
   Source,
   VolumeMap,
   VolumeSettings,
   sourceToString,
-  stripPrefixes,
+  stripSourcePrefix,
 } from '@tloncorp/shared/dist/urbit/activity';
 import _ from 'lodash';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/api';
-import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { createDevLogger, nestToFlag } from '@/logic/utils';
+import { createDevLogger } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { useUnreadsStore } from './unreads';
+import { SidebarFilter } from './settings';
 
 const actLogger = createDevLogger('activity', false);
 
-export const unreadsKey = ['activity', 'unreads'];
+export const unreadsKey = (...args: string[]) => [
+  'activity',
+  'unreads',
+  ...args,
+];
 export const volumeKey = ['activity', 'volume'];
 
 export function activityAction(action: ActivityAction) {
@@ -39,18 +45,71 @@ export function activityAction(action: ActivityAction) {
 }
 
 function activityReadUpdates(events: ActivityReadUpdate[]) {
-  const unreads: Record<string, ActivitySummary> = {};
+  const main: Record<string, ActivitySummary> = {};
+  const threads: Record<string, Record<string, ActivitySummary>> = {};
 
   events.forEach((event) => {
     const { source, activity } = event.read;
-    if ('base' in source) {
-      return;
-    }
 
-    unreads[sourceToString(source)] = activity;
+    if ('thread' in source) {
+      const channel = {
+        channel: {
+          group: source.thread.group,
+          nest: source.thread.channel,
+        },
+      };
+      const channelSrc = sourceToString(channel);
+      threads[channelSrc] = {
+        ...threads[channelSrc],
+        [sourceToString(source)]: activity,
+      };
+    } else if ('dm-thread' in source) {
+      const { whom } = source['dm-thread'];
+      const dm = { dm: whom };
+      const dmSrc = sourceToString(dm);
+      threads[dmSrc] = {
+        ...threads[dmSrc],
+        [sourceToString(source)]: activity,
+      };
+    } else {
+      main[sourceToString(source)] = activity;
+    }
   });
 
-  return unreads;
+  return { main, threads };
+}
+
+function activitySummaryUpdates(events: ActivitySummaryUpdate[]) {
+  const main: Record<string, ActivitySummary> = {};
+  const threads: Record<string, Record<string, ActivitySummary>> = {};
+
+  events.forEach((event) => {
+    Object.entries(event.activity).forEach(([source, summary]) => {
+      if (source.startsWith('thread/')) {
+        const channelSrc = source.replace(
+          /thread\/([a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*)\/.*/,
+          'channel/$1'
+        );
+        threads[channelSrc] = {
+          ...threads[channelSrc],
+          [source]: summary,
+        };
+      } else if (source.startsWith('dm-thread/')) {
+        const pattern = /dm-thread\/((?:[a-z]|[\d.~-])*).*/;
+        const dmSrc = source.startsWith('dm-thread/~')
+          ? source.replace(pattern, 'ship/$1')
+          : source.replace(pattern, 'club/$1');
+        threads[dmSrc] = {
+          ...threads[dmSrc],
+          [source]: summary,
+        };
+      } else {
+        main[source] = summary;
+      }
+    });
+  });
+
+  return { main, threads };
 }
 
 function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
@@ -66,22 +125,45 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   }, {} as VolumeSettings);
 }
 
+function updateActivity({
+  main,
+  threads,
+}: {
+  main: Activity;
+  threads: Record<string, Activity>;
+}) {
+  queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
+    return {
+      ...d,
+      ...main,
+    };
+  });
+
+  Object.entries(threads).forEach(([key, value]) => {
+    queryClient.setQueryData(
+      unreadsKey('threads', key),
+      (d: Activity | undefined) => {
+        return {
+          ...d,
+          ...value,
+        };
+      }
+    );
+  });
+}
+
 function processActivityUpdates(updates: ActivityUpdate[]) {
+  const summaryEvents = updates.filter(
+    (e) => 'activity' in e
+  ) as ActivitySummaryUpdate[];
+  if (summaryEvents.length > 0) {
+    updateActivity(activitySummaryUpdates(summaryEvents));
+  }
+
   const readEvents = updates.filter((e) => 'read' in e) as ActivityReadUpdate[];
   actLogger.log('checking read events', readEvents);
   if (readEvents.length > 0) {
-    const unreads = activityReadUpdates(readEvents);
-    useUnreadsStore.getState().update(unreads);
-    queryClient.setQueryData(unreadsKey, (d: Activity | undefined) => {
-      if (d === undefined) {
-        return undefined;
-      }
-
-      return {
-        ...d,
-        ...unreads,
-      };
-    });
+    updateActivity(activityReadUpdates(readEvents));
   }
 
   const adjustEvents = updates.filter(
@@ -97,7 +179,7 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
 
   const delEvents = updates.filter((e) => 'del' in e) as ActivityDeleteUpdate[];
   if (delEvents.length > 0) {
-    queryClient.setQueryData(unreadsKey, (unreads: Activity | undefined) => {
+    queryClient.setQueryData(unreadsKey(), (unreads: Activity | undefined) => {
       if (unreads === undefined) {
         return undefined;
       }
@@ -113,16 +195,19 @@ function processActivityUpdates(updates: ActivityUpdate[]) {
 
 export function useActivityFirehose() {
   const [eventQueue, setEventQueue] = useState<ActivityUpdate[]>([]);
-  const eventHandler = useCallback((event: ActivityUpdate) => {
-    actLogger.log('received activity', event);
-    setEventQueue((prev) => [...prev, event]);
-  }, []);
+  const eventHandler = useCallback(
+    (event: ActivityUpdate) => {
+      actLogger.log('received activity', event);
+      setEventQueue((prev) => [...prev, event]);
+    },
+    [setEventQueue]
+  );
   actLogger.log('events', eventQueue);
 
   useEffect(() => {
     api.subscribe({
       app: 'activity',
-      path: '/',
+      path: '/v4',
       event: eventHandler,
     });
   }, [eventHandler]);
@@ -168,27 +253,68 @@ export function useMarkReadMutation(recursive = false) {
   return useMutation({
     mutationFn,
     onSuccess: () => {
-      queryClient.invalidateQueries(unreadsKey, undefined, {
+      queryClient.invalidateQueries(unreadsKey(), undefined, {
         cancelRefetch: true,
       });
     },
   });
 }
 
-const emptyUnreads: Activity = {};
-export function useUnreads(): Activity {
+export function useActivity() {
   const { data, ...rest } = useReactQueryScry<Activity>({
-    queryKey: unreadsKey,
+    queryKey: unreadsKey(),
     app: 'activity',
-    path: '/activity',
-    onScry: stripPrefixes,
+    path: '/v4/activity',
+    options: {
+      placeholderData: {},
+    },
   });
 
-  if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyUnreads;
-  }
+  return {
+    ...rest,
+    // data is always an object since we set placeholder data
+    activity: data!,
+  };
+}
 
-  return data as Activity;
+export const emptySummary: ActivitySummary = {
+  recency: 0,
+  count: 0,
+  notify: false,
+  unread: null,
+  'notify-count': 0,
+};
+
+export function useSourceActivity(source: string) {
+  const { activity, ...rest } = useActivity();
+  return {
+    ...rest,
+    activity: activity[source] || emptySummary,
+  };
+}
+
+export function useThreadActivity(
+  source: DmSource | ChannelSource,
+  key: string
+) {
+  const src = sourceToString(source);
+  const queryKey = unreadsKey('threads', src);
+  const { data, ...rest } = useReactQueryScry<Activity>({
+    queryKey,
+    app: 'activity',
+    path:
+      'channel' in source
+        ? `/v4/activity/threads/${source.channel.group}/${source.channel.nest}`
+        : `/v4/activity/dm-threads/${'ship' in source.dm ? source.dm.ship : source.dm.club}`,
+    options: {
+      placeholderData: {},
+    },
+  });
+
+  return {
+    ...rest,
+    activity: data?.[key] || emptySummary,
+  };
 }
 
 const emptySettings: VolumeSettings = {};
@@ -261,4 +387,64 @@ export function useVolumeAdjustMutation() {
       queryClient.invalidateQueries(volumeKey);
     },
   });
+}
+
+const defaultUnread = {
+  unread: false,
+  count: 0,
+  notify: false,
+};
+export function useCombinedChatUnreads(messagesFilter: SidebarFilter) {
+  const { activity } = useActivity();
+  return useMemo(
+    () =>
+      Object.entries(activity).reduce((acc, [key, source]) => {
+        const isDm = key.startsWith('ship/') || key.startsWith('club/');
+        const isChat = key.startsWith('channel/chat');
+        const dms = messagesFilter === 'Direct Messages' && isDm;
+        const chats = messagesFilter === 'Group Channels' && isChat;
+        const all = messagesFilter === 'All Messages' && (isDm || isChat);
+
+        if (!(dms || chats || all)) {
+          return acc;
+        }
+
+        return {
+          unread: acc.unread || source.count > 0,
+          count: acc.count + source.count,
+          notify: acc.notify || source.notify,
+        };
+      }, defaultUnread),
+    [activity, messagesFilter]
+  );
+}
+
+export function useMarkAllGroupsRead() {
+  const { activity } = useActivity();
+  const { mutate } = useMarkReadMutation(true);
+
+  const markAllRead = useCallback(() => {
+    Object.entries(activity)
+      .filter(([key]) => key.startsWith('group'))
+      .forEach(([sourceId]) => {
+        mutate({ source: { group: stripSourcePrefix(sourceId) } });
+      });
+  }, [activity, mutate]);
+
+  return markAllRead;
+}
+
+export function useCombinedGroupUnreads() {
+  const { activity } = useActivity();
+  return Object.entries(activity).reduce((acc, [key, source]) => {
+    if (!key.startsWith('group')) {
+      return acc;
+    }
+
+    return {
+      unread: acc.unread || source.count > 0,
+      count: acc.count + source.count,
+      notify: acc.notify || source.notify,
+    };
+  }, defaultUnread);
 }

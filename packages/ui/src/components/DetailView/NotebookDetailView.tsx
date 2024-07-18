@@ -10,7 +10,6 @@ const IMAGE_HEIGHT = 268;
 
 export default function NotebookDetailView({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -37,7 +36,6 @@ export default function NotebookDetailView({
   return (
     <DetailView
       post={post}
-      currentUserId={currentUserId}
       editingPost={editingPost}
       setEditingPost={setEditingPost}
       editPost={editPost}
@@ -66,20 +64,12 @@ export default function NotebookDetailView({
           </TouchableOpacity>
         )}
         {post.title && (
-          <Text
-            color="$primaryText"
-            fontFamily="$serif"
-            fontWeight="$s"
-            fontSize="$2xl"
-            paddingTop="$l"
-          >
+          <Text color="$primaryText" fontSize={24} fontWeight={'500'}>
             {post.title}
           </Text>
         )}
-        <DetailView.MetaData showReplyCount post={post} />
-        <View paddingVertical="$xl">
-          <ContentRenderer post={post} />
-        </View>
+        <DetailView.MetaData post={post} />
+        <ContentRenderer post={post} />
       </DetailView.Header>
     </DetailView>
   );

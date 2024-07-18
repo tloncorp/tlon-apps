@@ -1,4 +1,4 @@
-import { GroupsInit } from '@tloncorp/shared/dist/urbit/ui';
+import { GroupsInit4 } from '@tloncorp/shared/dist/urbit/ui';
 import Urbit from '@urbit/http-api';
 import _ from 'lodash';
 
@@ -17,41 +17,46 @@ import usePalsState from './pals';
 import { pinsKey } from './pins';
 import useSchedulerStore from './scheduler';
 import { useStorage } from './storage';
-import { useUnreadsStore } from './unreads';
 
-const emptyGroupsInit: GroupsInit = {
+const emptyGroupsInit: GroupsInit4 = {
   groups: {},
   gangs: {},
-  channels: {},
+  channel: {
+    channels: {},
+    'hidden-posts': [],
+  },
   activity: {},
   pins: [],
   chat: {
     dms: [],
     clubs: {},
     invited: [],
+    'hidden-messages': [],
+    blocked: [],
+    'blocked-by': [],
   },
 };
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { channels, groups, gangs, pins, chat, activity } =
+  const { channel, groups, gangs, pins, chat, activity } =
     await asyncWithDefault(
       () =>
-        api.scry<GroupsInit>({
+        api.scry<GroupsInit4>({
           app: 'groups-ui',
-          path: '/v3/init',
+          path: '/v4/init',
         }),
       emptyGroupsInit
     );
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  queryClient.setQueryData(['channels'], channels);
+  queryClient.setQueryData(['channels'], channel.channels);
+  queryClient.setQueryData(['channels', 'hidden'], channel['hidden-posts']);
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
 
-  useUnreadsStore.getState().update(activity);
-  queryClient.setQueryData(unreadsKey, activity);
+  queryClient.setQueryData(unreadsKey(), activity);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';

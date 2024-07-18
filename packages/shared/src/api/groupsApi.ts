@@ -12,7 +12,7 @@ import {
 import { toClientMeta } from './apiUtils';
 import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
 
-const logger = createDevLogger('groupsApi', true);
+const logger = createDevLogger('groupsApi', false);
 
 export const getPinnedItems = async () => {
   const pinnedItems = await scry<ub.PinnedGroupsResponse>({
@@ -49,6 +49,93 @@ export function rescindGroupInvitationRequest(groupId: string) {
   return poke({
     app: 'groups',
     mark: 'group-rescind',
+    json: groupId,
+  });
+}
+
+export async function kickUsersFromGroup({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          fleet: {
+            ships: contactIds,
+            diff: {
+              del: null,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function banUsersFromGroup({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          cordon: {
+            open: {
+              'add-ships': contactIds,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function unbanUsersFromGroup({
+  groupId,
+  contactIds,
+}: {
+  groupId: string;
+  contactIds: string[];
+}) {
+  return poke({
+    app: 'groups',
+    mark: 'group-action-3',
+    json: {
+      flag: groupId,
+      update: {
+        time: '',
+        diff: {
+          cordon: {
+            open: {
+              'del-ships': contactIds,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function leaveGroup(groupId: string) {
+  return poke({
+    app: 'groups',
+    mark: 'group-leave',
     json: groupId,
   });
 }
@@ -957,7 +1044,7 @@ export const toGroupUpdate = (
       type: 'flagGroupPost',
       groupId,
       channelId: updateDiff['flag-content'].nest,
-      postId: updateDiff['flag-content']['post-key'].reply
+      postId: updateDiff['flag-content']['post-key']?.reply
         ? updateDiff['flag-content']['post-key'].reply
         : updateDiff['flag-content']['post-key'].post,
       flaggingUser: updateDiff['flag-content'].src,
@@ -1169,6 +1256,18 @@ export function toClientGroup(
     group['flagged-content']
   );
 
+  logger.log('cordon', group.cordon);
+
+  const bannedMembers: db.GroupMemberBan[] =
+    'open' in group.cordon
+      ? group.cordon?.open.ships.map((ship) => ({
+          contactId: ship,
+          groupId: id,
+        }))
+      : [];
+
+  logger.log('bannedMembers', bannedMembers);
+
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
     const data: db.GroupRole = {
       id: roleId,
@@ -1217,6 +1316,7 @@ export function toClientGroup(
         vessel: vessel,
       });
     }),
+    bannedMembers,
     channels: group.channels
       ? toClientChannels({ channels: group.channels, groupId: id })
       : [],

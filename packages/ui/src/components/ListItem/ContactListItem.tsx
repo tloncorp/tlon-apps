@@ -1,46 +1,58 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps } from 'react';
 
+import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
 import { ListItem } from './ListItem';
 
 export const ContactListItem = ({
-  contact,
+  contactId,
   onPress,
   onLongPress,
   showNickname = false,
   showUserId = false,
   full = false,
   showIcon = true,
+  showEndContent = false,
+  endContent,
   matchText,
+  size = '$2xl',
   ...props
 }: {
-  contact: db.Contact;
-  onPress?: (contact: db.Contact) => void;
+  contactId: string;
+  onPress?: () => void;
   onLongPress?: () => void;
   showNickname?: boolean;
   showUserId?: boolean;
   full?: boolean;
   showIcon?: boolean;
+  showEndContent?: boolean;
+  endContent?: React.ReactNode;
   matchText?: string;
-} & ComponentProps<typeof ListItem>) => (
+} & ComponentProps<typeof ListItem> &
+  Pick<AvatarProps, 'size'>) => (
   <ListItem
-    onPress={() => onPress?.(contact)}
+    onPress={() => onPress?.()}
     onLongPress={onLongPress}
     alignItems="center"
     justifyContent="flex-start"
     padding="$s"
     {...props}
   >
-    {showIcon && <ListItem.ContactIcon size="$2xl" contactId={contact.id} />}
+    {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
     <ListItem.Title>
       <ContactName
         matchText={matchText}
         showNickname={showNickname}
         showUserId={showUserId}
         full={full}
-        userId={contact.id}
+        userId={contactId}
       />
     </ListItem.Title>
+    {showEndContent && (
+      <ListItem.EndContent flexGrow={1} justifyContent="flex-end">
+        {endContent}
+      </ListItem.EndContent>
+    )}
   </ListItem>
 );

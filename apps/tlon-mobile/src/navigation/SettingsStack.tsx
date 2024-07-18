@@ -1,7 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useContacts } from '@tloncorp/shared/dist';
-import { ContactsProvider } from '@tloncorp/ui';
+import { AppDataContextProvider } from '@tloncorp/ui';
 
 import { useScreenOptions } from '../hooks/useScreenOptions';
 import { FeatureFlagScreen } from '../screens/FeatureFlagScreen';
@@ -23,7 +23,7 @@ export const SettingsStack = ({ navigation }: Props) => {
   const { data: contacts } = useContacts();
 
   return (
-    <ContactsProvider contacts={contacts ?? []}>
+    <AppDataContextProvider contacts={contacts ?? []}>
       <Stack.Navigator
         initialRouteName="Settings"
         screenOptions={screenOptions}
@@ -31,6 +31,6 @@ export const SettingsStack = ({ navigation }: Props) => {
         <Stack.Screen name="Settings" component={ProfileScreen} />
         <Stack.Screen name="FeatureFlags" component={FeatureFlagScreen} />
       </Stack.Navigator>
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 };

@@ -12,7 +12,7 @@
     :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         channels/(channels-2:enjs:dj channels.init)
-        activity/(activity-0:enjs:aj activity.init)
+        activity/(activity:v2:enjs:aj activity.init)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init
       ::
@@ -26,6 +26,6 @@
   --
 ++  grab
   |%
-  ++  noun  init:u
+  ++  noun  init-2:u
   --
 --

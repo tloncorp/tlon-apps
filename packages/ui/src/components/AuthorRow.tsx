@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { GestureResponderEvent } from 'react-native';
 
-import { SizableText, SizeTokens, View, XStack } from '../core';
+import { SizableText, View, XStack } from '../core';
 import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { ProfileSheet } from './ProfileSheet';
@@ -89,7 +89,7 @@ function ChatAuthorRow({ authorId, sent, roles, ...props }: AuthorRowProps) {
   return (
     <XStack gap="$l" alignItems="center" {...props}>
       <ContactAvatar size="$2xl" contactId={authorId} />
-      <ContactName showNickname userId={authorId} fontWeight="500" />
+      <ContactName showNickname userId={authorId} fontWeight="$xl" />
       <SizableText color="$secondaryText" size="$s" position="relative" top={1}>
         {timeDisplay}
       </SizableText>

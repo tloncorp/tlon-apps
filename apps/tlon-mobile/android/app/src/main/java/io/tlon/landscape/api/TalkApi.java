@@ -126,7 +126,7 @@ public class TalkApi {
     }
 
     public void fetchYarn(String uid, TalkObjectCallback callback) {
-        fetchObject("/~/scry/hark/yarn/" + uid, 8_000, 3, callback);
+        fetchObject("/apps/groups/~/notify/note/" + uid + "/hark-yarn", 8_000, 3, callback);
     }
 
     public void fetchClub(String channelId, TalkObjectCallback callback) {

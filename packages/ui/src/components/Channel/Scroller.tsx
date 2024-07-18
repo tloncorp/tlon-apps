@@ -2,6 +2,7 @@ import { createDevLogger } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { isSameDay } from '@tloncorp/shared/dist/logic';
 import { Story } from '@tloncorp/shared/dist/urbit';
+import { isEqual } from 'lodash';
 import { MotiView } from 'moti';
 import React, {
   PropsWithChildren,
@@ -37,7 +38,6 @@ import { Icon } from '../Icon';
 import { ChannelDivider } from './ChannelDivider';
 
 type RenderItemFunction = (props: {
-  currentUserId: string;
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
@@ -47,7 +47,7 @@ type RenderItemFunction = (props: {
   onLongPress?: (post: db.Post) => void;
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -76,7 +76,6 @@ function Scroller({
   renderItem,
   renderEmptyComponent: renderEmptyComponentFn,
   posts,
-  currentUserId,
   channelType,
   channelId,
   firstUnreadId,
@@ -98,7 +97,6 @@ function Scroller({
   renderItem: RenderItemType;
   renderEmptyComponent?: () => ReactElement;
   posts: db.Post[] | null;
-  currentUserId: string;
   channelType: db.ChannelType;
   channelId: string;
   firstUnreadId?: string | null;
@@ -111,7 +109,7 @@ function Scroller({
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
@@ -217,7 +215,6 @@ function Scroller({
           showDayDivider={isFirstPostOfDay}
           showAuthor={showAuthor}
           Component={renderItem}
-          currentUserId={currentUserId}
           unreadCount={unreadCount}
           editingPost={editingPost}
           onLayout={handleItemLayout}
@@ -239,7 +236,6 @@ function Scroller({
       posts,
       firstUnreadId,
       renderItem,
-      currentUserId,
       unreadCount,
       editingPost,
       handleItemLayout,
@@ -420,7 +416,6 @@ function Scroller({
       >
         {activeMessage !== null && (
           <ChatMessageActions
-            currentUserId={currentUserId}
             post={activeMessage}
             postRef={activeMessageRefs.current[activeMessage!.id]}
             onDismiss={() => setActiveMessage(null)}
@@ -450,7 +445,6 @@ const BaseScrollerItem = ({
   showDayDivider,
   showAuthor,
   Component,
-  currentUserId,
   unreadCount,
   editingPost,
   onLayout,
@@ -472,7 +466,6 @@ const BaseScrollerItem = ({
   item: db.Post;
   index: number;
   Component: RenderItemType;
-  currentUserId: string;
   unreadCount?: number | null;
   onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
   channelId: string;
@@ -482,7 +475,7 @@ const BaseScrollerItem = ({
   showReplies?: boolean;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
   activeMessage?: db.Post | null;
@@ -527,7 +520,6 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
-          currentUserId={currentUserId}
           post={post}
           editing={editingPost && editingPost?.id === item.id}
           setEditingPost={setEditingPost}
@@ -544,7 +536,24 @@ const BaseScrollerItem = ({
   );
 };
 
-const ScrollerItem = React.memo(BaseScrollerItem);
+const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
+  const isItemEqual = isEqual(prev.item, next.item);
+  const isIndexEqual = prev.index === next.index;
+
+  const areOtherPropsEqual =
+    prev.showAuthor === next.showAuthor &&
+    prev.showReplies === next.showReplies &&
+    prev.editingPost === next.editingPost &&
+    prev.editPost === next.editPost &&
+    prev.setEditingPost === next.setEditingPost &&
+    prev.onPressReplies === next.onPressReplies &&
+    prev.onPressImage === next.onPressImage &&
+    prev.onPressPost === next.onPressPost &&
+    prev.onLongPressPost === next.onLongPressPost &&
+    prev.activeMessage === next.activeMessage;
+
+  return isItemEqual && areOtherPropsEqual && isIndexEqual;
+});
 
 const PressableMessage = React.memo(
   forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(

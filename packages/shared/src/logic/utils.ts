@@ -4,15 +4,22 @@ import {
   differenceInDays,
   endOfToday,
   format,
+  getDate,
 } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import { backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
 import * as api from '../api';
-import { isDmChannelId, isGroupDmChannelId } from '../api/apiUtils';
+import {
+  isDmChannelId,
+  isGroupChannelId,
+  isGroupDmChannelId,
+} from '../api/apiUtils';
 import * as db from '../db';
 import * as ub from '../urbit';
+
+export { isDmChannelId, isGroupDmChannelId, isGroupChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
@@ -98,7 +105,7 @@ export function makePrettyDay(date: Date) {
 }
 
 export function makePrettyShortDate(date: Date) {
-  return format(date, 'MMM dd, yyyy');
+  return format(date, `MMMM do, yyyy`);
 }
 
 export function makeShortDate(date: Date) {
@@ -302,8 +309,6 @@ export const extractContentTypes = (
   const references = extractReferencesFromContent(story);
   const blocks = extractBlocksFromContent(story);
 
-  // console.log(`extracted inlines:`, inlines);
-
   return { inlines, references, blocks, story };
 };
 
@@ -363,6 +368,33 @@ export const textPostIsLinkedImage = (post: db.Post): boolean => {
   return false;
 };
 
+export const textPostIsLink = (post: db.Post): boolean => {
+  const postIsJustText = isTextPost(post);
+  if (!postIsJustText) {
+    return false;
+  }
+
+  const postIsImage = textPostIsLinkedImage(post);
+  if (postIsImage) {
+    return false;
+  }
+
+  const { inlines } = extractContentTypesFromPost(post);
+
+  if (inlines.length <= 2) {
+    const [first] = inlines;
+    if (typeof first === 'object' && 'link' in first) {
+      const link = first as ub.Link;
+      const { href } = link.link;
+      const isLink = URL_REGEX.test(href);
+
+      return isLink;
+    }
+  }
+
+  return false;
+};
+
 export const textPostIsReference = (post: db.Post): boolean => {
   const { inlines, references } = extractContentTypesFromPost(post);
   if (references.length === 0) {
@@ -413,6 +445,7 @@ export const usePostMeta = (post: db.Post) => {
   );
   const isText = useMemo(() => isTextPost(post), [post]);
   const isImage = useMemo(() => isImagePost(post), [post]);
+  const isLink = useMemo(() => textPostIsLink(post), [post]);
   const isReference = useMemo(() => isReferencePost(post), [post]);
   const isLinkedImage = useMemo(() => textPostIsLinkedImage(post), [post]);
   const isRefInText = useMemo(() => textPostIsReference(post), [post]);
@@ -428,6 +461,7 @@ export const usePostMeta = (post: db.Post) => {
   return {
     isText,
     isImage,
+    isLink,
     isReference,
     isLinkedImage,
     isRefInText,

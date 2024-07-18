@@ -1,4 +1,3 @@
-import { Post, Posts } from '@tloncorp/shared/dist/urbit/channel';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -16,9 +15,11 @@ import {
 import getKindDataFromEssay from '@/logic/getKindData';
 import { useBottomPadding } from '@/logic/position';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import { useStickyUnread } from '@/logic/useStickyUnread';
 import { getFlagParts, getMessageKey, pluralize } from '@/logic/utils';
 import ReplyMessage from '@/replies/ReplyMessage';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
+import { useThreadActivity } from '@/state/activity';
 import {
   useIsPostPending,
   useJoinMutation,
@@ -34,7 +35,6 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useUnread } from '@/state/unreads';
 import { useConnectivityCheck } from '@/state/vitals';
 
 import DiaryCommentField from './DiaryCommentField';
@@ -52,7 +52,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const group = useGroup(groupFlag);
   const channel = useGroupChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
-  const { post: note, status } = usePost(nest, noteId);
+  const { post: note } = usePost(nest, noteId);
   const location = useLocation();
   const scrollTo = useMemo(() => {
     const reply = new URLSearchParams(location.search).get('reply');
@@ -65,7 +65,11 @@ export default function DiaryNote({ title }: ViewProps) {
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const unread = useUnread(`channel/${nest}`);
+  const { activity } = useThreadActivity(
+    { channel: { nest, group: groupFlag } },
+    `thread/${nest}/${noteId}`
+  );
+  const unread = useStickyUnread(activity);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = usePerms(nest);
   const { paddingBottom } = useBottomPadding();
@@ -160,7 +164,7 @@ export default function DiaryNote({ title }: ViewProps) {
         })
     : [];
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
+  const { title: noteTitle } = getKindDataFromEssay(note.essay);
   const msgKey = getMessageKey(note);
   const groupedReplies = setNewDaysForReplies(
     groupReplies(msgKey, replyArray, unread).sort(([a], [b]) => {

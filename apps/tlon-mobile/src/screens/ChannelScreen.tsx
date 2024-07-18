@@ -29,6 +29,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       }
     }, [props.route.params.channel.group])
   );
+  useFocusEffect(
+    useCallback(
+      () =>
+        // Mark the channel as visited when we unfocus/leave this screen
+        () => {
+          store.markChannelVisited(props.route.params.channel);
+        },
+      [props.route.params.channel]
+    )
+  );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
   const [currentChannelId, setCurrentChannelId] = React.useState(
@@ -117,17 +127,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!channel) {
         throw new Error('Tried to send message before channel loaded');
       }
-      store.sendPost({
+
+      // clear the attachments immediately so consumers know the upload state is
+      // no longer needed
+      uploadInfo.resetImageAttachment();
+
+      await store.sendPost({
         channel: channel,
         authorId: currentUserId,
         content,
         metadata,
       });
-      // prevents state update + render from blocking optimistic post insertion.
-      // may be better ways to handle...
-      setTimeout(() => {
-        uploadInfo.resetImageAttachment();
-      }, 20);
     },
     [currentUserId, channel, uploadInfo]
   );

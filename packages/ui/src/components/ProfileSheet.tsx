@@ -1,10 +1,12 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { useCallback } from 'react';
 import { Dimensions } from 'react-native';
 import { getTokens } from 'tamagui';
 
 import { useNavigation } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { Text, View, YStack } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
@@ -34,12 +36,25 @@ export function ProfileSheet({
   contactId,
   onOpenChange,
   open,
+  currentUserIsAdmin,
+  groupIsOpen,
+  userIsBanned,
+  onPressBan,
+  onPressUnban,
+  onPressKick,
 }: {
-  contact: db.Contact;
+  contact?: db.Contact;
   contactId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  currentUserIsAdmin?: boolean;
+  groupIsOpen?: boolean;
+  userIsBanned?: boolean;
+  onPressKick?: () => void;
+  onPressBan?: () => void;
+  onPressUnban?: () => void;
 }) {
+  const currentUserId = useCurrentUserId();
   const coverSize =
     Dimensions.get('window').width / 2 - getTokens().space.$xl.val * 2;
 
@@ -51,9 +66,13 @@ export function ProfileSheet({
   const { onPressGoToDm } = useNavigation();
 
   const handleBlock = useCallback(() => {
-    console.log('block not yet implemented', contactId);
+    if (contact && contact.isBlocked) {
+      store.unblockUser(contactId);
+    } else {
+      store.blockUser(contactId);
+    }
     onOpenChange(false);
-  }, [contactId, onOpenChange]);
+  }, [contact, contactId, onOpenChange]);
 
   const handleGoToDm = useCallback(async () => {
     onPressGoToDm([contactId]);
@@ -63,7 +82,7 @@ export function ProfileSheet({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <YStack gap="$xl">
-        {contact.coverImage ? (
+        {contact?.coverImage ? (
           <ProfileCover uri={contact.coverImage}>
             <View height={coverSize} justifyContent="flex-end">
               <ProfileRow
@@ -82,17 +101,58 @@ export function ProfileSheet({
           />
         )}
         <Text paddingHorizontal="$2xl" fontSize="$l">
-          {contact.bio}
+          {contact?.bio}
         </Text>
         <YStack gap="$m">
-          <ProfileButton hero label="Message" onPress={handleGoToDm} />
+          {currentUserId !== contactId && (
+            <ProfileButton hero label="Message" onPress={handleGoToDm} />
+          )}
           <ProfileButton secondary label="Copy Name" onPress={handleCopyName} />
-          <ProfileButton
-            secondary
-            label="Block"
-            // TODO: blocking is not implemented yet
-            onPress={handleBlock}
-          />
+          {currentUserIsAdmin && currentUserId !== contactId && (
+            <>
+              <ProfileButton
+                secondary
+                label="Kick User"
+                onPress={() => {
+                  onPressKick?.();
+                  onOpenChange(false);
+                }}
+              />
+              {groupIsOpen ? (
+                userIsBanned ? (
+                  <ProfileButton
+                    secondary
+                    label="Unban User"
+                    onPress={() => {
+                      onPressUnban?.();
+                      onOpenChange(false);
+                    }}
+                  />
+                ) : (
+                  <ProfileButton
+                    secondary
+                    label="Ban User"
+                    onPress={() => {
+                      onPressBan?.();
+                      onOpenChange(false);
+                    }}
+                  />
+                )
+              ) : null}
+            </>
+          )}
+          {currentUserId !== contactId && (
+            <ProfileButton
+              secondary
+              label={contact?.isBlocked ? 'Unblock' : 'Block'}
+              onPress={handleBlock}
+            />
+          )}
+          {currentUserIsAdmin && currentUserId !== contactId && (
+            <Text paddingHorizontal="$2xl" fontSize="$s">
+              Visit your group on desktop to manage roles.
+            </Text>
+          )}
         </YStack>
       </YStack>
     </ActionSheet>

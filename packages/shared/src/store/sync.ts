@@ -117,6 +117,11 @@ function checkForNewlyJoined({
   }
 }
 
+export const syncBlockedUsers = async () => {
+  const blockedIds = await api.getBlockedUsers();
+  await db.insertBlockedContacts({ blockedIds });
+};
+
 export const syncChannelHeads = async (
   reporter?: ErrorReporter,
   priority = SyncPriority.High
@@ -140,6 +145,13 @@ export const syncSettings = async (priority = SyncPriority.Medium) => {
     api.getSettings()
   );
   return db.insertSettings(settings);
+};
+
+export const syncAppInfo = async (priority = SyncPriority.Medium) => {
+  const appInfo = await syncQueue.add('appInfo', priority, () =>
+    api.getAppInfo()
+  );
+  return db.setAppInfoSettings(appInfo);
 };
 
 export const syncVolumeSettings = async (priority = SyncPriority.Medium) => {
@@ -298,6 +310,10 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
     case 'banGroupMembers':
       await db.addGroupMemberBans({
         groupId: update.groupId,
+        contactIds: update.ships,
+      });
+      await db.removeChatMembers({
+        chatId: update.groupId,
         contactIds: update.ships,
       });
       break;
@@ -604,6 +620,12 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
   logger.log('event: chat update', update);
 
   switch (update.type) {
+    case 'showPost':
+      await db.updatePost({ id: update.postId, hidden: false });
+      break;
+    case 'hidePost':
+      await db.updatePost({ id: update.postId, hidden: true });
+      break;
     case 'addPost':
       await handleAddPost(update.post, update.replyMeta);
       break;
@@ -642,6 +664,7 @@ export async function handleAddPost(
   post: db.Post,
   replyMeta?: db.ReplyMeta | null
 ) {
+  logger.log('event: add post', post);
   // We frequently get duplicate addPost events from the api,
   // so skip if we've just added this.
   if (post.id === lastAdded) {
@@ -681,6 +704,38 @@ export async function handleAddPost(
   }
 }
 
+export async function syncHiddenPosts(reporter: ErrorReporter) {
+  const hiddenPosts = await syncQueue.add(
+    'hiddenPosts',
+    SyncPriority.High,
+    () => api.getHiddenPosts()
+  );
+  reporter?.log('got hidden channel posts data from api');
+  const hiddenDMPosts = await syncQueue.add(
+    'hiddenDMPosts',
+    SyncPriority.High,
+    () => api.getHiddenDMPosts()
+  );
+  reporter?.log('got hidden dm posts data from api');
+
+  const currentHiddenPosts = await db.getHiddenPosts();
+
+  // if the user deleted the posts from another client while we were offline,
+  // we should remove them from our hidden posts list
+  currentHiddenPosts.forEach(async (hiddenPost) => {
+    if (
+      !hiddenPosts.some((postId) => postId === hiddenPost.id) &&
+      !hiddenDMPosts.some((postId) => postId === hiddenPost.id)
+    ) {
+      reporter?.log(`deleting hidden post ${hiddenPost.id}`);
+      await db.updatePost({ id: hiddenPost.id, hidden: false });
+    }
+  });
+
+  await db.insertHiddenPosts([...hiddenPosts, ...hiddenDMPosts]);
+  reporter?.log('inserted hidden posts');
+}
+
 export async function syncPosts(
   options: api.GetChannelPostsOptions,
   priority = SyncPriority.Medium
@@ -706,6 +761,7 @@ export async function syncPosts(
       syncedAt: Date.now(),
     });
   }
+
   return response;
 }
 
@@ -797,6 +853,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // highest priority, do immediately
     await withRetry(() => syncInitData(reporter));
     reporter.log(`finished syncing init data`);
+    await withRetry(() => syncHiddenPosts(reporter));
+    reporter.log(`finished syncing hidden posts`);
 
     await withRetry(() => syncChannelHeads(reporter));
     reporter.log(`finished syncing latest posts`);
@@ -830,6 +888,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         syncPushNotificationsSetting().then(() =>
           reporter.log(`finished syncing push notifications setting`)
         ),
+        syncBlockedUsers().then(() => {
+          reporter.log(`finished syncing blocked users`);
+        }),
+        syncAppInfo().then(() => {
+          reporter.log(`finished syncing app info`);
+        }),
       ])
     );
 

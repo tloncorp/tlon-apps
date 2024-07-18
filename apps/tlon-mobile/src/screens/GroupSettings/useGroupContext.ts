@@ -35,6 +35,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     return group?.members ?? [];
   }, [group?.members]);
 
+  const groupRoles = useMemo(() => {
+    return group?.roles ?? [];
+  }, [group?.roles]);
+
   const groupChannels = useMemo(() => {
     return group?.channels ?? [];
   }, [group?.channels]);
@@ -258,7 +262,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const banUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        // await store.banUser(group.id, contactId);
+        await store.banUserFromGroup({
+          groupId: group.id,
+          contactId,
+        });
       }
     },
     [group]
@@ -267,20 +274,35 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const unbanUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        // await store.unbanUser(group.id, contactId);
+        await store.unbanUserFromGroup({
+          groupId: group.id,
+          contactId,
+        });
       }
     },
     [group]
   );
 
+  const bannedUsers = useMemo(() => {
+    if (!group) {
+      return [];
+    }
+
+    return group.bannedMembers ?? [];
+  }, [group]);
+
   const kickUser = useCallback(
     async (contactId: string) => {
       if (group) {
-        // await store.kickUser(group.id, contactId);
+        await store.kickUserFromGroup({ groupId: group.id, contactId });
       }
     },
     [group]
   );
+
+  const groupPrivacyType = useMemo(() => {
+    return group?.privacy ?? 'public';
+  }, [group]);
 
   const setUserRoles = useCallback(
     async (contactId: string, roleIds: string[]) => {
@@ -291,10 +313,17 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
+  const leaveGroup = useCallback(async () => {
+    if (group) {
+      await store.leaveGroup(group.id);
+    }
+  }, [group]);
+
   return {
     group,
     uploadInfo,
     groupMembers,
+    groupRoles,
     groupInvites,
     groupChannels,
     groupNavSections,
@@ -320,7 +349,10 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     deleteGroupRole,
     banUser,
     unbanUser,
+    bannedUsers,
     kickUser,
     setUserRoles,
+    leaveGroup,
+    groupPrivacyType,
   };
 };

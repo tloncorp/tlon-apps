@@ -18,11 +18,10 @@ import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput/index.native';
 export interface DetailViewProps {
   post: db.Post;
   children?: JSX.Element;
-  currentUserId?: string;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: urbit.Story) => void;
-  sendReply: (content: urbit.Story, channelId: string) => void;
+  editPost?: (post: db.Post, content: urbit.Story) => Promise<void>;
+  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   groupMembers: db.ChatMember[];
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
@@ -46,8 +45,11 @@ const DetailViewMetaDataComponent = ({
     return makePrettyShortDate(date);
   }, [post.sentAt]);
 
+  const hasReplies = post.replyCount! > 0;
+
   return (
-    <YStack gap="$l" paddingBottom="$2xl">
+    <YStack gap="$l">
+      <Text color="$tertiaryText">{dateDisplay}</Text>
       <AuthorRow
         authorId={post.authorId}
         author={post.author}
@@ -55,12 +57,9 @@ const DetailViewMetaDataComponent = ({
         type={post.type}
         detailView
       />
-      <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-        {dateDisplay}
-      </Text>
-      {showReplyCount && (
+      {showReplyCount && hasReplies && (
         <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-          {post.replyCount} replies
+          {post.replyCount} {post.replyCount === 1 ? 'reply' : 'replies'}
         </Text>
       )}
     </YStack>
@@ -83,23 +82,12 @@ const DetailViewHeaderComponentFrame = ({
       >
         {children}
       </YStack>
-      <View
-        paddingHorizontal="$xl"
-        paddingVertical="$2xl"
-        borderBottomWidth={1}
-        borderColor="$border"
-      >
-        <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-          {replyCount} replies
-        </Text>
-      </View>
     </YStack>
   );
 };
 
 const DetailViewFrameComponent = ({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -135,7 +123,6 @@ const DetailViewFrameComponent = ({
               renderItem={ChatMessage}
               channelType="chat"
               channelId={post.channelId}
-              currentUserId={currentUserId ?? ''}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
               editPost={editPost}
@@ -172,7 +159,7 @@ const DetailViewFrameComponent = ({
           getDraft={getDraft}
           backgroundColor="$background"
           showAttachmentButton={false}
-          placeholder="Reply to post"
+          placeholder="Reply"
           setHeight={setMessageInputHeight}
           // TODO: add back in when we switch to bottom nav
           // goBack={goBack}
