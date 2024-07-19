@@ -142,10 +142,10 @@ export default function ChatThread() {
     [chName, chShip, name, ship, activeTab]
   );
 
-  const onAtBottom = useCallback(() => {
-    console.log('thread bottom called');
+  const onAtBottom = useCallback((atBottom: boolean) => {
+    console.log('thread bottom called', atBottom);
     const { threadBottom } = useChatStore.getState();
-    threadBottom(true);
+    threadBottom(atBottom);
   }, []);
 
   const onEscape = useCallback(
@@ -326,7 +326,7 @@ export default function ChatThread() {
             isScrolling={isScrolling}
             hasLoadedNewest={false}
             hasLoadedOldest={false}
-            onAtBottom={onAtBottom}
+            onAtBottomChange={onAtBottom}
           />
         )}
       </div>

@@ -154,6 +154,10 @@ function optimisticActivityUpdate(d: Activity, source: string): Activity {
   };
 }
 
+function isRead(summary: ActivitySummary) {
+  return summary.unread === null;
+}
+
 function updateActivity({
   main,
   threads,
@@ -171,30 +175,26 @@ function updateActivity({
           whomIsFlag(current.whom) ? currentThread.time : currentThread.id
         )
       : null;
-  const threadActivity = source ? threads[source] : null;
-  const isThreadUpdate =
-    threadActivity && threadSource && threadSource in threadActivity;
+  const threadActivity = source ? threads[source] || null : null;
   const inFocus = useLocalState.getState().inFocus;
   const filteredMain =
-    inFocus && atBottom && source && source in main && !isThreadUpdate
+    inFocus &&
+    atBottom &&
+    source &&
+    source in main &&
+    threadActivity === null &&
+    !isRead(main[source])
       ? optimisticActivityUpdate(main, source)
       : undefined;
   const filteredThread =
-    inFocus && atThreadBottom && isThreadUpdate
+    inFocus &&
+    atThreadBottom &&
+    threadActivity &&
+    threadSource &&
+    threadSource in threadActivity &&
+    !isRead(threadActivity[threadSource])
       ? optimisticActivityUpdate(threadActivity, threadSource)
       : undefined;
-  console.log({ inFocus, source, atBottom, filteredMain });
-  console.log({
-    current,
-    currentThread,
-    source,
-    threadSource,
-    isThreadUpdate,
-    atThreadBottom,
-    filteredThread,
-    threadActivity,
-    threads,
-  });
 
   if (filteredMain && current) {
     const nest = `chat/${current.whom}`;

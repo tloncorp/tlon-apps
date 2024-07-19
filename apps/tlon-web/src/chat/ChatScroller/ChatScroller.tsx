@@ -185,8 +185,8 @@ export interface ChatScrollerProps {
   parent?: MessageKey;
   messages: PostTuple[] | WritTuple[] | ReplyTuple[];
   isBroadcast?: boolean;
-  onAtTop?: () => void;
-  onAtBottom?: () => void;
+  onAtTopChange?: (atBottom: boolean) => void;
+  onAtBottomChange?: (atBottom: boolean) => void;
   isLoadingOlder: boolean;
   isLoadingNewer: boolean;
   replying?: boolean;
@@ -208,8 +208,8 @@ export default function ChatScroller({
   parent,
   messages,
   isBroadcast,
-  onAtTop,
-  onAtBottom,
+  onAtTopChange,
+  onAtBottomChange,
   isLoadingOlder,
   isLoadingNewer,
   replying = false,
@@ -505,26 +505,19 @@ export default function ChatScroller({
 
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
-    if (isLoadingOlder || isLoadingNewer || !userHasScrolled) return;
+    if (isLoadingNewer || !userHasScrolled) return;
 
-    if (isAtTop && !hasLoadedOldest) {
-      logger.log('triggering onAtTop');
-      onAtTop?.();
-    } else if (isAtBottom) {
-      logger.log('triggering onAtBottom');
-      onAtBottom?.();
-    }
-  }, [
-    isLoadingOlder,
-    isLoadingNewer,
-    hasLoadedNewest,
-    hasLoadedOldest,
-    isAtTop,
-    isAtBottom,
-    onAtTop,
-    onAtBottom,
-    userHasScrolled,
-  ]);
+    logger.log('triggering onAtBottomChange');
+    onAtBottomChange?.(isAtBottom);
+  }, [isLoadingNewer, userHasScrolled, isAtBottom, onAtBottomChange]);
+
+  // Load more items when list reaches the top or bottom.
+  useEffect(() => {
+    if (isLoadingOlder || !userHasScrolled) return;
+
+    logger.log('triggering onAtTop');
+    onAtTopChange?.(isAtTop);
+  }, [isLoadingOlder, isAtTop, userHasScrolled, onAtTopChange]);
 
   // When the list inverts, we need to flip the scroll position in order to appear to stay in the same place.
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
