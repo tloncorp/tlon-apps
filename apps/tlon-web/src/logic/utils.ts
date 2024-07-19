@@ -24,6 +24,7 @@ import {
   Group,
   GroupChannel,
   GroupPreview,
+  Groups,
   PrivacyType,
   Rank,
   Saga,
@@ -1307,4 +1308,15 @@ export function getMessageKey(post: Post): MessageKey {
     id: `${post.essay.author}/${formatUd(unixToDa(post.essay.sent))}`,
     time: formatUd(bigInt(post.seal.id)),
   };
+}
+
+export function getGroupFromNest(nest: string, groups: Groups) {
+  let groupFlag: string | undefined = undefined;
+  Object.entries(groups).forEach(([flag, group]) => {
+    if (nest in group.channels) {
+      groupFlag = flag;
+    }
+  });
+
+  return groupFlag;
 }

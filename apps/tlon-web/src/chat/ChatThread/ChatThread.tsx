@@ -143,8 +143,9 @@ export default function ChatThread() {
   );
 
   const onAtBottom = useCallback(() => {
-    const { bottom } = useChatStore.getState();
-    bottom(true);
+    console.log('thread bottom called');
+    const { threadBottom } = useChatStore.getState();
+    threadBottom(true);
   }, []);
 
   const onEscape = useCallback(
@@ -156,6 +157,22 @@ export default function ChatThread() {
     [navigate, returnURL, leapIsOpen]
   );
   useEventListener('keydown', onEscape, threadRef);
+
+  useEffect(() => {
+    useChatStore.getState().threadBottom(true);
+
+    return () => {
+      useChatStore.getState().threadBottom(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    useChatStore.getState().setCurrentThread(msgKey);
+
+    return () => {
+      useChatStore.getState().setCurrentThread(null);
+    };
+  }, [msgKey]);
 
   useEffect(() => {
     if (!idTimeIsNumber) {

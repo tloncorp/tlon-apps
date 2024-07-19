@@ -8,12 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -124,12 +119,12 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   ]);
 
   useEffect(() => {
-    useChatStore.getState().setCurrent(whom);
+    useChatStore.getState().setCurrent({ whom, group: flag });
 
     return () => {
-      useChatStore.getState().setCurrent('');
+      useChatStore.getState().setCurrent(null);
     };
-  }, [whom]);
+  }, [whom, flag]);
 
   const onAtBottom = useCallback(() => {
     const { bottom } = useChatStore.getState();
