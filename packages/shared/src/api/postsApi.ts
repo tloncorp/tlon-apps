@@ -188,6 +188,7 @@ export const sendPost = async ({
       add: essay,
     })
   );
+  logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
 export const editPost = async ({
@@ -972,6 +973,22 @@ export function toPostContent(story?: ub.Story): PostContentAndFlags {
     return verse;
   });
   return [convertedContent, flags];
+}
+
+export function toUrbitStory(content: PostContent): Story {
+  if (!content) {
+    return [];
+  }
+  return content.map((item) => {
+    if ('type' in item) {
+      return {
+        block: {
+          cite: contentReferenceToCite(item),
+        },
+      };
+    }
+    return item;
+  });
 }
 
 export function toContentReference(cite: ub.Cite): ContentReference | null {

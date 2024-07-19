@@ -2,10 +2,12 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 
 import { Text, View, XStack, YStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -42,6 +44,8 @@ const ChatMessage = ({
   onPressReplies,
   onPressImage,
   onLongPress,
+  onPressRetry,
+  onPressDelete,
   showReplies,
   editing,
   editPost,
@@ -53,10 +57,13 @@ const ChatMessage = ({
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   editing?: boolean;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) => {
+  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
@@ -77,6 +84,16 @@ const ChatMessage = ({
     },
     [onPressImage, post]
   );
+
+  const handleRetryPressed = useCallback(() => {
+    onPressRetry?.(post);
+    setShowRetrySheet(false);
+  }, [onPressRetry, post]);
+
+  const handleDeletePressed = useCallback(() => {
+    onPressDelete?.(post);
+    setShowRetrySheet(false);
+  }, [onPressDelete, post]);
 
   const timeDisplay = useMemo(() => {
     const date = new Date(post.sentAt ?? 0);
@@ -134,6 +151,11 @@ const ChatMessage = ({
       gap="$s"
       paddingVertical="$xs"
       paddingRight="$l"
+      onPress={
+        post.deliveryStatus === 'failed'
+          ? () => setShowRetrySheet(true)
+          : undefined
+      }
     >
       {showAuthor ? (
         <View paddingLeft="$l" paddingTop="$s">
@@ -178,6 +200,13 @@ const ChatMessage = ({
           </NoticeWrapper>
         )}
       </View>
+      {post.deliveryStatus === 'failed' ? (
+        <XStack alignItems="center" justifyContent="flex-end">
+          <Text color="$negativeActionText" fontSize="$xs">
+            Message failed to send
+          </Text>
+        </XStack>
+      ) : null}
       <ReactionsDisplay post={post} />
 
       {showReplies &&
@@ -186,6 +215,15 @@ const ChatMessage = ({
       post.replyContactIds ? (
         <ChatMessageReplySummary post={post} onPress={handleRepliesPressed} />
       ) : null}
+      <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
+        <ActionSheet.ActionTitle>Post failed to send</ActionSheet.ActionTitle>
+        <Button hero onPress={handleRetryPressed}>
+          <Button.Text>Retry</Button.Text>
+        </Button>
+        <Button heroDestructive onPress={handleDeletePressed}>
+          <Button.Text>Delete</Button.Text>
+        </Button>
+      </ActionSheet>
     </YStack>
   );
 };

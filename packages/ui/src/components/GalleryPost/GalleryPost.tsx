@@ -1,10 +1,12 @@
 import { usePostMeta } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useCallback, useState } from 'react';
 import { SizableText, styled } from 'tamagui';
 
-import { ImageWithFallback, View } from '../../core';
+import { ImageWithFallback, Text, View, XStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
 import { Icon } from '../Icon';
@@ -45,13 +47,29 @@ export default function GalleryPost({
   post,
   onPress,
   onLongPress,
+  onPressRetry,
+  onPressDelete,
   viewMode,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   viewMode?: 'activity';
 }) {
+  const [showRetrySheet, setShowRetrySheet] = useState(false);
+
+  const handleRetryPressed = useCallback(() => {
+    onPressRetry?.(post);
+    setShowRetrySheet(false);
+  }, [onPressRetry, post]);
+
+  const handleDeletePressed = useCallback(() => {
+    onPressDelete?.(post);
+    setShowRetrySheet(false);
+  }, [onPressDelete, post]);
+
   const {
     references,
     isText,
@@ -87,7 +105,11 @@ export default function GalleryPost({
     <GalleryPostFrame
       previewType={previewType}
       disabled={viewMode === 'activity'}
-      onPress={handlePress}
+      onPress={
+        post.deliveryStatus === 'failed'
+          ? () => setShowRetrySheet(true)
+          : handlePress
+      }
       onLongPress={handleLongPress}
     >
       {post.hidden || post.isDeleted ? (
@@ -152,14 +174,37 @@ export default function GalleryPost({
               width="100%"
               pointerEvents="none"
             >
-              <AuthorRow
-                author={post.author}
-                authorId={post.authorId}
-                sent={post.sentAt}
-                type={post.type}
-              />
+              {post.deliveryStatus === 'failed' ? (
+                <XStack
+                  alignItems="center"
+                  paddingLeft="$xl"
+                  paddingBottom="$xl"
+                >
+                  <Text color="$negativeActionText" fontSize="$xs">
+                    Message failed to send
+                  </Text>
+                </XStack>
+              ) : (
+                <AuthorRow
+                  author={post.author}
+                  authorId={post.authorId}
+                  sent={post.sentAt}
+                  type={post.type}
+                />
+              )}
             </View>
           )}
+          <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
+            <ActionSheet.ActionTitle>
+              Message failed to send
+            </ActionSheet.ActionTitle>
+            <Button hero onPress={handleRetryPressed}>
+              <Button.Text>Retry</Button.Text>
+            </Button>
+            <Button heroDestructive onPress={handleDeletePressed}>
+              <Button.Text>Delete</Button.Text>
+            </Button>
+          </ActionSheet>
         </View>
       )}
     </GalleryPostFrame>
