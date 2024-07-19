@@ -153,18 +153,19 @@ function updateActivity({
   main: Activity;
   threads: Record<string, Activity>;
 }) {
-  const { current, atBottom } = useChatStore.getState();
-  const source = getKey(current);
-  const inFocus = useLocalState.getState().inFocus;
-  const filteredMain =
-    inFocus && atBottom && source in main
-      ? optimisticActivityUpdate(main, source)
-      : main;
-  console.log({ inFocus, source, atBottom, filteredMain });
+  // TODO: actually mark read here
+  // const { current, atBottom } = useChatStore.getState();
+  // const source = getKey(current);
+  // const inFocus = useLocalState.getState().inFocus;
+  // const filteredMain =
+  //   inFocus && atBottom && source in main
+  //     ? optimisticActivityUpdate(main, source)
+  //     : main;
+  // console.log({ inFocus, source, atBottom, filteredMain });
   queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
     return {
       ...d,
-      ...filteredMain,
+      ...main,
     };
   });
 
