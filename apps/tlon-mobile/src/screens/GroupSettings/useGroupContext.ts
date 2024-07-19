@@ -13,7 +13,9 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   });
 
   useEffect(() => {
-    sync.syncGroup(groupId, store.SyncPriority.High);
+    if (groupId) {
+      sync.syncGroup(groupId, store.SyncPriority.High);
+    }
   }, [groupId]);
 
   const group = groupQuery.data ?? null;

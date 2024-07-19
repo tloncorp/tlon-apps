@@ -51,22 +51,25 @@ export const getShipInfo = () => {
 };
 
 export const hasHostingUploadCreds = (
-  configuration: StorageConfiguration,
-  _credentials: StorageCredentials
+  configuration: StorageConfiguration | null,
+  credentials: StorageCredentials | null
 ) => {
-  return configuration.service === 'presigned-url' && getIsHosted();
+  return (
+    (getIsHosted() && configuration?.service === 'presigned-url') ||
+    !hasCustomS3Creds(configuration, credentials)
+  );
 };
 
 export const hasCustomS3Creds = (
-  configuration: StorageConfiguration,
-  credentials: StorageCredentials
+  configuration: StorageConfiguration | null,
+  credentials: StorageCredentials | null
 ): credentials is {
   accessKeyId: string;
   endpoint: string;
   secretAccessKey: string;
 } => {
   return !!(
-    configuration.service === 'credentials' &&
+    configuration?.service === 'credentials' &&
     credentials?.accessKeyId &&
     credentials?.endpoint &&
     credentials?.secretAccessKey

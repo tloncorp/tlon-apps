@@ -7,7 +7,11 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
-import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
+import {
+  getIsHosted,
+  hasCustomS3Creds,
+  hasHostingUploadCreds,
+} from './storage';
 import { syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
@@ -109,9 +113,9 @@ export const useCanUpload = () => {
           db.getStorageCredentials(),
         ]);
         return (
-          config &&
-          credentials &&
-          (hasHostingUploadCreds(config, credentials) ||
+          getIsHosted() &&
+          (!config ||
+            hasHostingUploadCreds(config, credentials) ||
             hasCustomS3Creds(config, credentials))
         );
       },
