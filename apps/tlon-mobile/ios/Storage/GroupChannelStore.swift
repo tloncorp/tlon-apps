@@ -8,5 +8,5 @@
 import Foundation
 
 final class GroupChannelStore: UserDefaultsStore<GroupChannel> {
-    static let sharedInstance = GroupChannelStore(storageKey: "store.groupChannels", fetchItems: PocketChatAPI.fetchGroupChannels)
+    static let sharedInstance = GroupChannelStore(storageKey: "store.groupChannels", fetchItems: PocketAPI.shared.fetchGroupChannels)
 }

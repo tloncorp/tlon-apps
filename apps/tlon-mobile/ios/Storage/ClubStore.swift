@@ -8,5 +8,5 @@
 import Foundation
 
 final class ClubStore: UserDefaultsStore<Club> {
-    static let sharedInstance = ClubStore(storageKey: "store.clubs", fetchItem: PocketChatAPI.fetchClubByID)
+    static let sharedInstance = ClubStore(storageKey: "store.clubs", fetchItem: PocketAPI.shared.fetchClubByID)
 }

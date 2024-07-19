@@ -86,7 +86,7 @@ enum NotificationCategory: String {
         if action == "notify" {
             let yarn: Yarn
             do {
-                yarn = try await PocketNotificationsAPI.fetchPushNotificationContents(uid)
+                yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
             } catch {
                 error.logWithDomain(TlonError.NotificationsFetchYarn)
 

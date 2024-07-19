@@ -9,9 +9,11 @@ import Alamofire
 import Foundation
 
 class PocketAPI {
-    private static let loginStore = LoginStore()
+    static let shared = PocketAPI()
 
-    static func fetchDecodable<T: Decodable>(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> T {
+    private let loginStore = LoginStore()
+
+    func fetchDecodable<T: Decodable>(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> T {
         guard let shipURL = try? loginStore.read()?.shipUrl else {
             throw APIError.unknownShip
         }
@@ -29,7 +31,7 @@ class PocketAPI {
         }
     }
 
-    static func fetchData(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> Data {
+    func fetchData(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> Data {
         guard let shipURL = try? loginStore.read()?.shipUrl else {
             throw APIError.unknownShip
         }

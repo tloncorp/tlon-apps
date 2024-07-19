@@ -7,9 +7,9 @@
 
 import Foundation
 
-final class PocketUserAPI: PocketAPI {
-    static func fetchContacts() async throws -> [String: Contact] {
-        let result: [String: ContactInfo?] = try await PocketAPI.fetchDecodable("/~/scry/contacts/all")
+extension PocketAPI {
+    func fetchContacts() async throws -> [String: Contact] {
+        let result: [String: ContactInfo?] = try await fetchDecodable("/~/scry/contacts/all")
         var contacts = [String: Contact]()
         for (id, info) in result {
             if let info {
@@ -19,8 +19,8 @@ final class PocketUserAPI: PocketAPI {
         return contacts
     }
 
-    static func fetchSettings() async throws {
-        let data = try await PocketAPI.fetchData("/~/scry/settings/desk/groups")
+    func fetchSettings() async throws {
+        let data = try await fetchData("/~/scry/settings/desk/groups")
         if let results = try JSONSerialization.jsonObject(with: data) as? [String: [String: Any]],
            let desk = results["desk"],
            let calmEngine = desk["calmEngine"] as? [String: Any]
