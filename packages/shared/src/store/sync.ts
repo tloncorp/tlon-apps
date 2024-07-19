@@ -59,7 +59,7 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
       db
         .insertChannels(initData.channels, ctx)
         .then(() => reporter?.log('inserted channels')),
-      persistUnreads(initData.unreads, ctx).then(() =>
+      persistUnreads(initData.unreads, true, ctx).then(() =>
         reporter?.log('persisted unreads')
       ),
       handleReceivedHiddenPosts({
@@ -76,7 +76,10 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
         .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, ctx)
         .then(() => reporter?.log('set left groups')),
       db
-        .setLeftGroupChannels({ joinedChannelIds: initData.joinedGroups }, ctx)
+        .setLeftGroupChannels(
+          { joinedChannelIds: initData.joinedChannels },
+          ctx
+        )
         .then(() => reporter?.log('set left channels')),
     ]);
   });
@@ -203,7 +206,9 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
     api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
-  return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
+  return batchEffects('initialUnreads', (ctx) =>
+    persistUnreads(unreads, true, ctx)
+  );
 };
 
 export const syncChannelThreadUnreads = async (
@@ -284,20 +289,24 @@ export const syncStorageSettings = (priority = SyncPriority.Medium) => {
 
 export const persistUnreads = async (
   activity: api.ActivityInit,
+  isAllUnreads?: boolean,
   ctx?: QueryCtx
 ) => {
   const { groupUnreads, channelUnreads, threadActivity } = activity;
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
-  await db.setJoinedGroupChannels(
-    {
-      channelIds: channelUnreads
-        .filter((u) => u.type === 'channel')
-        .map((u) => u.channelId),
-    },
-    ctx
-  );
+
+  if (isAllUnreads) {
+    await db.setJoinedGroupChannels(
+      {
+        channelIds: channelUnreads
+          .filter((u) => u.type === 'channel')
+          .map((u) => u.channelId),
+      },
+      ctx
+    );
+  }
 };
 
 export const resetActivity = async () => {
