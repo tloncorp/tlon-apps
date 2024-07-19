@@ -11,6 +11,7 @@ import DateDivider from '@/chat/ChatMessage/DateDivider';
 import { useMarkChannelRead } from '@/logic/channel';
 import { useStickyUnread } from '@/logic/useStickyUnread';
 import { useSourceActivity } from '@/state/activity';
+import { useInFocus } from '@/state/local';
 
 export interface DeletedChatMessageProps {
   whom: string;
@@ -61,17 +62,18 @@ const DeletedChatMessage = React.memo<
       );
       const { markRead: markReadChannel } = useMarkChannelRead(`chat/${whom}`);
 
+      const inFocus = useInFocus();
       const { ref: viewRef, inView } = useInView({
         threshold: 1,
       });
 
       useEffect(() => {
-        if (!inView || !isUnread) {
+        if (!inFocus || !inView || !isUnread) {
           return;
         }
 
         markReadChannel();
-      }, [inView, isUnread, markReadChannel]);
+      }, [inFocus, inView, isUnread, markReadChannel]);
 
       return (
         <div

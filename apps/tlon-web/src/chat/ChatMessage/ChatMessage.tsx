@@ -65,6 +65,7 @@ import {
   useTrackedMessageStatus,
 } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
+import { useInFocus } from '@/state/local';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import {
@@ -219,6 +220,7 @@ const ChatMessage = React.memo<
         [isMessageHidden, isPostHidden]
       );
 
+      const inFocus = useInFocus();
       const { ref: viewRef, inView } = useInView({
         threshold: 1,
       });
@@ -226,7 +228,7 @@ const ChatMessage = React.memo<
       useEffect(() => {
         const mainUnread =
           unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
-        if (!inView || !mainUnread) {
+        if (!inFocus || !inView || !mainUnread) {
           return;
         }
 
@@ -235,7 +237,14 @@ const ChatMessage = React.memo<
         } else {
           markReadChannel();
         }
-      }, [inView, unreadDisplay, isDMOrMultiDM, markReadChannel, markDmRead]);
+      }, [
+        inFocus,
+        inView,
+        unreadDisplay,
+        isDMOrMultiDM,
+        markReadChannel,
+        markDmRead,
+      ]);
 
       const cacheId = {
         author: window.our,

@@ -2,7 +2,6 @@ import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Activity,
   ActivityAction,
-  ActivityBundle,
   ActivityDeleteUpdate,
   ActivityFeed,
   ActivityReadUpdate,
@@ -16,6 +15,7 @@ import {
   Source,
   VolumeMap,
   VolumeSettings,
+  getKey,
   sourceToString,
   stripSourcePrefix,
 } from '@tloncorp/shared/dist/urbit/activity';
@@ -23,10 +23,12 @@ import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/api';
+import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { createDevLogger } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { useLocalState } from './local';
 import { SidebarFilter } from './settings';
 
 const actLogger = createDevLogger('activity', false);
@@ -128,6 +130,22 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   }, {} as VolumeSettings);
 }
 
+function optimisticActivityUpdate(d: Activity, source: string): Activity {
+  const old = d[source];
+  return {
+    ...d,
+    [source]: {
+      ...old,
+      unread: null,
+      count: Math.min(0, old.count - (old.unread?.count || 0)),
+      'notify-count':
+        old.unread && old.unread.notify
+          ? Math.min(old['notify-count'] - old.unread.count)
+          : old['notify-count'],
+    },
+  };
+}
+
 function updateActivity({
   main,
   threads,
@@ -135,10 +153,18 @@ function updateActivity({
   main: Activity;
   threads: Record<string, Activity>;
 }) {
+  const { current, atBottom } = useChatStore.getState();
+  const source = getKey(current);
+  const inFocus = useLocalState.getState().inFocus;
+  const filteredMain =
+    inFocus && atBottom && source in main
+      ? optimisticActivityUpdate(main, source)
+      : main;
+  console.log({ inFocus, source, atBottom, filteredMain });
   queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
     return {
       ...d,
-      ...main,
+      ...filteredMain,
     };
   });
 
@@ -304,19 +330,7 @@ export function useMarkReadMutation(recursive = false) {
           };
         }
 
-        const old = d[source];
-        return {
-          ...d,
-          [source]: {
-            ...old,
-            unread: null,
-            count: Math.min(0, old.count - (old.unread?.count || 0)),
-            'notify-count':
-              old.unread && old.unread.notify
-                ? Math.min(old['notify-count'] - old.unread.count)
-                : old['notify-count'],
-          },
-        };
+        return optimisticActivityUpdate(d, source);
       });
 
       return { current };
