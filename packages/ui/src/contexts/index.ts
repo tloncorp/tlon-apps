@@ -4,3 +4,4 @@ export * from './navigation';
 export * from './thread';
 export * from './channel';
 export * from './appDataContext';
+export * from './attachment';
