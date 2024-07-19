@@ -7,7 +7,7 @@ import {
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
-import type { PropsWithChildren } from 'react';
+import type { ComponentProps, PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { FixtureWrapper } from './FixtureWrapper';
@@ -21,13 +21,6 @@ import {
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
-
-const usePost = ({ id }: { id: string }) => {
-  return useQuery({
-    queryFn: () => posts.find((p) => p.id === id) ?? null,
-    queryKey: ['post', id],
-  });
-};
 
 const usePostReference = ({
   postId,
@@ -79,6 +72,39 @@ const ChannelFixtureWrapper = ({
   );
 };
 
+const baseProps: ComponentProps<typeof Channel> = {
+  headerMode: 'default',
+  posts: posts,
+  channel: tlonLocalIntros,
+  currentUserId: '~zod',
+  contacts: initialContacts,
+  negotiationMatch: true,
+  isLoadingPosts: false,
+  group: group,
+  goBack: () => {},
+  goToSearch: () => {},
+  goToChannels: () => {},
+  goToDm: () => {},
+  goToPost: () => {},
+  goToImageViewer: () => {},
+  messageSender: async () => {},
+  markRead: () => {},
+  editPost: async () => {},
+  uploadAsset: async () => {},
+  onPressRef: () => {},
+  usePost: usePostWithRelations,
+  usePostReference: usePostReference,
+  useChannel: useChannel,
+  useGroup: useGroupPreview,
+  onGroupAction: () => {},
+  getDraft: async () => ({}),
+  storeDraft: () => {},
+  clearDraft: () => {},
+  canUpload: true,
+  onPressRetry: () => {},
+  onPressDelete: () => {},
+} as const;
+
 export const ChannelFixture = (props: {
   theme?: 'light' | 'dark';
   negotiationMatch?: boolean;
@@ -89,36 +115,11 @@ export const ChannelFixture = (props: {
   return (
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel
+        {...baseProps}
         headerMode={props.headerMode}
-        posts={posts}
-        currentUserId="~zod"
         channel={switcher.activeChannel}
-        contacts={initialContacts}
         negotiationMatch={props.negotiationMatch ?? true}
-        isLoadingPosts={false}
-        group={group}
-        goBack={() => {}}
-        goToSearch={() => {}}
         goToChannels={() => switcher.open()}
-        goToDm={() => {}}
-        goToPost={() => {}}
-        goToImageViewer={() => {}}
-        onPressRetry={() => {}}
-        onPressDelete={() => {}}
-        messageSender={async () => {}}
-        markRead={() => {}}
-        editPost={async () => {}}
-        uploadAsset={async () => {}}
-        onPressRef={() => {}}
-        usePost={usePostWithRelations}
-        usePostReference={usePostReference}
-        useChannel={useChannel}
-        useGroup={useGroupPreview}
-        onGroupAction={() => {}}
-        getDraft={async () => ({})}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        canUpload={true}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -131,35 +132,10 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   return (
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel
+        {...baseProps}
         posts={notebookPosts}
-        negotiationMatch={true}
-        currentUserId="~zod"
         channel={switcher.activeChannel}
-        contacts={initialContacts}
-        isLoadingPosts={false}
-        group={group}
-        goBack={() => {}}
-        goToSearch={() => {}}
         goToChannels={() => switcher.open()}
-        goToDm={() => {}}
-        goToPost={() => {}}
-        goToImageViewer={() => {}}
-        onPressRetry={() => {}}
-        onPressDelete={() => {}}
-        messageSender={async () => {}}
-        markRead={() => {}}
-        editPost={async () => {}}
-        getDraft={async () => ({})}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        uploadAsset={async () => {}}
-        onPressRef={() => {}}
-        usePost={usePostWithRelations}
-        usePostReference={usePostReference}
-        useChannel={useChannel}
-        useGroup={useGroupPreview}
-        onGroupAction={() => {}}
-        canUpload={true}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -193,26 +169,9 @@ const ChannelFixtureWithImage = () => {
   return (
     <ChannelFixtureWrapper>
       <Channel
-        posts={posts}
-        currentUserId="~zod"
+        {...baseProps}
         channel={switcher.activeChannel}
-        contacts={initialContacts}
-        group={group}
-        goBack={() => {}}
-        goToSearch={() => {}}
         goToChannels={switcher.open}
-        goToPost={() => {}}
-        goToDm={() => {}}
-        goToImageViewer={() => {}}
-        onPressRetry={() => {}}
-        onPressDelete={() => {}}
-        messageSender={async () => {}}
-        markRead={() => {}}
-        editPost={async () => {}}
-        negotiationMatch={true}
-        isLoadingPosts={false}
-        uploadAsset={async () => {}}
-        canUpload={true}
         initialAttachments={[
           {
             type: 'reference',
@@ -225,15 +184,6 @@ const ChannelFixtureWithImage = () => {
             },
           },
         ]}
-        onPressRef={() => {}}
-        usePost={usePost}
-        usePostReference={usePostReference}
-        useChannel={useChannel}
-        getDraft={async () => ({})}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        useGroup={useGroupPreview}
-        onGroupAction={() => {}}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
