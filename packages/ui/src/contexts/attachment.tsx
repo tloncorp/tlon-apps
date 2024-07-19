@@ -128,7 +128,18 @@ export const AttachmentProvider = ({
   );
 
   const handleRemoveAttachment = useCallback((attachment: Attachment) => {
-    setState((prev) => prev.filter((a) => a !== attachment));
+    setState((prev) =>
+      prev.filter(
+        (a) =>
+          a !== attachment &&
+          // TODO: unique attachment ids
+          !(
+            a.type === 'image' &&
+            attachment.type === 'image' &&
+            attachment.file.uri === a.file.uri
+          )
+      )
+    );
   }, []);
 
   const handleClearAttachments = useCallback(() => {
