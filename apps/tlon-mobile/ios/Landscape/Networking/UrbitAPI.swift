@@ -61,7 +61,7 @@ final class UrbitAPI {
 
         var parameters = parameters
         parameters.updateValue(eventId, forKey: "id")
-        if let shipName = UrbitModule.shipName {
+        if let shipName = try? LoginStore().read()?.shipName {
             parameters.updateValue(shipName.replacingOccurrences(of: "~", with: ""), forKey: "ship")
         }
 
