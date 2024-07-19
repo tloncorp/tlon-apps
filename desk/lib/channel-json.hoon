@@ -240,8 +240,8 @@
     |=  replies=simple-replies:c
     %-  pairs
     %+  turn  (tap:on-simple-replies:c replies)
-    |=  [t=@da reply=simple-reply:c]
-    [(scot %ud t) (simple-reply reply)]
+    |=  [t=@da reply=(unit simple-reply:c)]
+    [(scot %ud t) ?~(reply ~ (simple-reply u.reply))]
   ::
   ++  reply
     |=  [=reply-seal:c [rev=@ud =memo:c]]

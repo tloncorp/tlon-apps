@@ -518,27 +518,50 @@
 +$  reply       [reply-seal [rev=@ud memo]]
 +$  simple-reply  [reply-seal memo]
 +$  replies     ((mop id-reply (unit reply)) lte)
-+$  simple-replies     ((mop id-reply simple-reply) lte)
++$  simple-replies     ((mop id-reply (unit simple-reply)) lte)
 +$  reply-seal  [id=id-reply parent-id=id-post =reacts]
 ++  on-posts    ((on id-post (unit post)) lte)
 ++  on-simple-posts    ((on id-post (unit simple-post)) lte)
 ++  on-replies  ((on id-reply (unit reply)) lte)
-++  on-simple-replies  ((on id-reply simple-reply) lte)
+++  on-simple-replies  ((on id-reply (unit simple-reply)) lte)
 ++  old
   |%
   ++  v1
     |%
     +$  post  [seal [rev=@ud essay]]
+    +$  simple-post  [simple-seal essay]
     +$  posts  ((mop id-post (unit post)) lte)
+    +$  simple-posts  ((mop id-post (unit simple-post)) lte)
     ++  on-posts    ((on id-post (unit post)) lte)
+    ++  on-simple-posts  ((on id-post (unit simple-post)) lte)
     +$  seal
       $:  id=id-post
           =reacts
           =replies
           =reply-meta
       ==
+    +$  simple-seal
+      $:  id=id-post
+          =reacts
+          replies=simple-replies
+          =reply-meta
+      ==
     +$  replies  ((mop id-reply reply) lte)
+    +$  simple-replies  ((mop id-reply simple-reply) lte)
     ++  on-replies  ((on id-reply reply) lte)
+    ++  on-simple-replies  ((on id-reply simple-reply) lte)
+    +$  paged-posts
+      $:  =posts
+          newer=(unit time)
+          older=(unit time)
+          total=@ud
+      ==
+    +$  paged-simple-posts
+      $:  posts=simple-posts
+          newer=(unit time)
+          older=(unit time)
+          total=@ud
+      ==
     +$  channels  (map nest channel)
     ++  channel
       |^  ,[global local]

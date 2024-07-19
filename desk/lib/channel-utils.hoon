@@ -53,23 +53,41 @@
   ^-  [id-post:c (unit post:v1:old:c)]
   [id-post ?~(v-post ~ `(uv-post u.v-post))]
 ::
+++  uv-posts-2
+  |=  =v-posts:c
+  ^-  posts:c
+  %+  gas:on-posts:c  *posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:c)]
+  [id-post ?~(v-post ~ `(uv-post-2 u.v-post))]
+::
 ++  s-posts
   |=  =posts:v1:old:c
-  ^-  simple-posts:c
-  %+  gas:on-simple-posts:c  *simple-posts:c
+  ^-  simple-posts:v1:old:c
+  %+  gas:on-simple-posts:v1:old:c  *simple-posts:v1:old:c
   %+  turn  (tap:on-posts:v1:old:c posts)
   |=  [=id-post:c post=(unit post:v1:old:c)]
-  ^-  [id-post:c (unit simple-post:c)]
+  ^-  [id-post:c (unit simple-post:v1:old:c)]
   [id-post ?~(post ~ `(s-post u.post))]
+::
+++  s-posts-2
+  |=  =posts:c
+  ^-  simple-posts:c
+  %+  gas:on-simple-posts:c  *simple-posts:c
+  %+  turn  (tap:on-posts:c posts)
+  |=  [=id-post:c post=(unit post:c)]
+  ^-  [id-post:c (unit simple-post:c)]
+  [id-post ?~(post ~ `(s-post-2 u.post))]
 ::
 ++  suv-posts
   |=  =v-posts:c
-  ^-  simple-posts:c
-  %+  gas:on-simple-posts:c  *simple-posts:c
+  ^-  simple-posts:v1:old:c
+  %+  gas:on-simple-posts:v1:old:c  *simple-posts:v1:old:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
-  ^-  [id-post:c (unit simple-post:c)]
-  [id-post ?~(v-post ~ `(suv-post u.v-post))]
+  ^-  [id-post:c (unit simple-post:v1:old:c)]
+  [id-post (bind v-post suv-post)]
 ::
 ++  uv-post
   |=  =v-post:c
@@ -81,15 +99,31 @@
       (get-reply-meta v-post)
   ==
 ::
+++  uv-post-2
+  |=  =v-post:c
+  ^-  post:c
+  :_  +.v-post
+  :*  id.v-post
+      (uv-reacts reacts.v-post)
+      (uv-replies-2 id.v-post replies.v-post)
+      (get-reply-meta v-post)
+  ==
+::
 ++  s-post
   |=  =post:v1:old:c
-  ^-  simple-post:c
+  ^-  simple-post:v1:old:c
   :_  +>.post
   -.post(replies (s-replies replies.post))
 ::
+++  s-post-2
+  |=  =post:c
+  ^-  simple-post:c
+  :_  +>.post
+  -.post(replies (s-replies-2 replies.post))
+::
 ++  suv-post
   |=  =v-post:c
-  ^-  simple-post:c
+  ^-  simple-post:v1:old:c
   (s-post (uv-post v-post))
 ::
 ++  uv-posts-without-replies
@@ -103,12 +137,21 @@
 ::
 ++  suv-posts-without-replies
   |=  =v-posts:c
+  ^-  simple-posts:v1:old:c
+  %+  gas:on-simple-posts:v1:old:c  *simple-posts:v1:old:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit simple-post:v1:old:c)]
+  [id-post ?~(v-post ~ `(suv-post-without-replies u.v-post))]
+::
+++  suv-posts-without-replies-2
+  |=  =v-posts:c
   ^-  simple-posts:c
   %+  gas:on-simple-posts:c  *simple-posts:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(unit v-post:c)]
   ^-  [id-post:c (unit simple-post:c)]
-  [id-post ?~(v-post ~ `(suv-post-without-replies u.v-post))]
+  [id-post (bind v-post suv-post-without-replies-2)]
 ::
 ++  uv-post-without-replies
   |=  post=v-post:c
@@ -120,10 +163,25 @@
       (get-reply-meta post)
   ==
 ::
+++  uv-post-without-replies-2
+  |=  post=v-post:c
+  ^-  post:c
+  :_  +.post
+  :*  id.post
+      (uv-reacts reacts.post)
+      *replies:c
+      (get-reply-meta post)
+  ==
+::
 ++  suv-post-without-replies
   |=  post=v-post:c
-  ^-  simple-post:c
+  ^-  simple-post:v1:old:c
   (s-post (uv-post-without-replies post))
+::
+++  suv-post-without-replies-2
+  |=  post=v-post:c
+  ^-  simple-post:c
+  (s-post-2 (uv-post-without-replies-2 post))
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
@@ -147,16 +205,25 @@
 ::
 ++  s-replies
   |=  =replies:v1:old:c
-  ^-  simple-replies:c
-  %+  gas:on-simple-replies:c  *simple-replies:c
+  ^-  simple-replies:v1:old:c
+  %+  gas:on-simple-replies:v1:old:c  *simple-replies:v1:old:c
   %+  turn  (tap:on-replies:v1:old:c replies)
   |=  [=time =reply:c]
   ^-  [id-reply:c simple-reply:c]
   [time (s-reply reply)]
 ::
+++  s-replies-2
+  |=  =replies:c
+  ^-  simple-replies:c
+  %+  gas:on-simple-replies:c  *simple-replies:c
+  %+  turn  (tap:on-replies:c replies)
+  |=  [=time reply=(unit reply:c)]
+  ^-  [id-reply:c (unit simple-reply:c)]
+  [time (bind reply s-reply)]
+::
 ++  suv-replies
   |=  [parent-id=id-post:c =v-replies:c]
-  ^-  simple-replies:c
+  ^-  simple-replies:v1:old:c
   (s-replies (uv-replies parent-id v-replies))
 ::
 ++  uv-reply
@@ -206,7 +273,7 @@
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
-      (suv-post-without-replies u.u.post)
+      (suv-post-without-replies-2 u.u.post)
     [%channel-said !>(`said:c`[nest %post post])]
   ::
   =/  reply=[reply-seal:c memo:c]
