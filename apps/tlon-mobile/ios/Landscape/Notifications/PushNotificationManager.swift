@@ -118,7 +118,7 @@ enum NotificationCategory: String {
     static func sendNotification(with yarn: Yarn) async -> Bool {
         var content = UNMutableNotificationContent()
         content.interruptionLevel = .timeSensitive
-        content.threadIdentifier = yarn.channelID ?? yarn.rope.thread
+        content.threadIdentifier = yarn.channelID
         content.title = await yarn.getTitle()
         content.body = yarn.body
         content.categoryIdentifier = yarn.category.rawValue
