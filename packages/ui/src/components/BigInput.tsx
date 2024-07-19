@@ -7,10 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
 import { Image, Input, getToken } from 'tamagui';
 
-import {
-  ImageAttachment,
-  useMessageInputContext,
-} from '../contexts/messageInput';
+import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import { ScrollView, View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
@@ -50,7 +47,7 @@ export function BigInput({
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
 
-  const { attachments, attachAssets } = useMessageInputContext();
+  const { attachments, attachAssets } = useAttachmentContext();
   const imageAttachment = useMemo(() => {
     return attachments.find(
       (attachment): attachment is ImageAttachment => attachment.type === 'image'

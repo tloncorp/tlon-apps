@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppDataContextProvider, CalmProvider, CalmState } from '../contexts';
-import { MessageInputProvider } from '../contexts/messageInput';
+import { AttachmentProvider } from '../contexts/attachment';
 import { Text, View, YStack } from '../core';
 import { useStickyUnread } from '../hooks/useStickyUnread';
 import * as utils from '../utils';
@@ -94,7 +94,7 @@ export function PostScreenView({
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider contacts={contacts} currentUserId={currentUserId}>
-        <MessageInputProvider canUpload={canUpload} uploadAsset={uploadAsset}>
+        <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
           <View
             paddingBottom={isChatChannel ? bottom : 'unset'}
             backgroundColor="$background"
@@ -212,7 +212,7 @@ export function PostScreenView({
               </KeyboardAvoidingView>
             </YStack>
           </View>
-        </MessageInputProvider>
+        </AttachmentProvider>
       </AppDataContextProvider>
     </CalmProvider>
   );

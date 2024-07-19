@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
 import { useContact, useCurrentUserId } from '../contexts';
-import { MessageInputProvider } from '../contexts/messageInput';
+import { AttachmentProvider } from '../contexts/attachment';
 import { ScrollView, View, YStack } from '../core';
 import { EditablePofileImages } from './EditableProfileImages';
 import { FormTextInput } from './FormInput';
@@ -39,7 +39,7 @@ export function EditProfileScreenView(props: Props) {
   });
 
   return (
-    <MessageInputProvider
+    <AttachmentProvider
       canUpload={props.canUpload}
       uploadAsset={props.uploadAsset}
     >
@@ -117,6 +117,6 @@ export function EditProfileScreenView(props: Props) {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
-    </MessageInputProvider>
+    </AttachmentProvider>
   );
 }

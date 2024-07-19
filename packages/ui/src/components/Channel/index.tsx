@@ -20,7 +20,7 @@ import {
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
-import { Attachment, MessageInputProvider } from '../../contexts/messageInput';
+import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import { SizableText, View, YStack } from '../../core';
@@ -224,7 +224,7 @@ export function Channel({
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
                 >
-                  <MessageInputProvider
+                  <AttachmentProvider
                     canUpload={canUpload}
                     initialAttachments={initialAttachments}
                     uploadAsset={uploadAsset}
@@ -431,7 +431,7 @@ export function Channel({
                         />
                       </YStack>
                     </View>
-                  </MessageInputProvider>
+                  </AttachmentProvider>
                 </NavigationProvider>
               </RequestsProvider>
             </ChannelProvider>

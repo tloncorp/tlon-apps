@@ -3,7 +3,7 @@ import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { MessageInputProvider } from '../contexts/messageInput';
+import { AttachmentProvider } from '../contexts/attachment';
 import { View, YStack } from '../core';
 import { Button } from './Button';
 import { DeleteSheet } from './DeleteSheet';
@@ -80,7 +80,7 @@ export function GroupMetaScreenView({
   }
 
   return (
-    <MessageInputProvider canUpload={canUpload} uploadAsset={uploadAsset}>
+    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <View backgroundColor="$background" flex={1}>
         <YStack justifyContent="space-between" width="100%" height="100%">
           <GenericHeader
@@ -129,6 +129,6 @@ export function GroupMetaScreenView({
           deleteAction={deleteGroup}
         />
       </View>
-    </MessageInputProvider>
+    </AttachmentProvider>
   );
 }

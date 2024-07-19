@@ -4,8 +4,8 @@ import { ImageBackground } from 'react-native';
 import { Close } from '../../assets/icons';
 import {
   ImageAttachment,
-  useMessageInputContext,
-} from '../../contexts/messageInput';
+  useAttachmentContext,
+} from '../../contexts/attachment';
 import { Spinner, View, XStack } from '../../core';
 import { Button } from '../Button';
 
@@ -14,7 +14,7 @@ export default function GalleryImagePreview({
 }: {
   onReset: () => void;
 }) {
-  const { attachments, resetAttachments } = useMessageInputContext();
+  const { attachments, resetAttachments } = useAttachmentContext();
   const imageAttachment = attachments.filter(
     (a): a is ImageAttachment => a.type === 'image'
   )[0];

@@ -1,7 +1,7 @@
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 
-import { useMessageInputContext } from '../contexts/messageInput';
+import { useAttachmentContext } from '../contexts/attachment';
 import { ActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
@@ -16,7 +16,7 @@ export default function AddGalleryPost({
   setShowGalleryInput: (show: boolean) => void;
   onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
-  const { attachAssets } = useMessageInputContext();
+  const { attachAssets } = useAttachmentContext();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
 
   const actions = [
