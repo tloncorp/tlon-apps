@@ -10,9 +10,15 @@ export const AttachmentPreviewList = () => {
   const { attachments } = useAttachmentContext();
   return attachments.length ? (
     <ScrollView
-      contentContainerStyle={{ padding: '$m', paddingBottom: 0, gap: '$2xs' }}
+      contentContainerStyle={{
+        padding: '$m',
+        paddingBottom: 0,
+        gap: '$2xs',
+        justifyContent: 'flex-start',
+        minWidth: '100%',
+      }}
+      overScrollMode="always"
       horizontal={true}
-      showsHorizontalScrollIndicator={false}
     >
       {attachments.map((attachment, i) => {
         return (
