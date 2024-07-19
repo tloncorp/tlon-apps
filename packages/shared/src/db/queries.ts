@@ -2196,6 +2196,21 @@ export const getPostByCacheId = createReadQuery(
   ['posts']
 );
 
+export const getPostsByCacheId = createReadQuery(
+  'getPostsByCacheId',
+  async ({ sentAtTimes }: { sentAtTimes: number[] }, ctx: QueryCtx) => {
+    if (sentAtTimes.length === 0) return [];
+
+    const postData = await ctx.db
+      .select()
+      .from($posts)
+      .where(inArray($posts.sentAt, sentAtTimes));
+    if (!postData.length) return [];
+    return postData;
+  },
+  ['posts']
+);
+
 export const addReplyToPost = createWriteQuery(
   'addReplyToPost',
   async (
