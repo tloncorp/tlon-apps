@@ -6,7 +6,7 @@ import { PropsWithChildren } from 'react';
 import { SpaceTokens } from 'tamagui';
 
 import { ArrowUp, Checkmark, ChevronLeft, Close } from '../../assets/icons';
-import { useMessageInputContext } from '../../contexts/messageInput';
+import { useAttachmentContext } from '../../contexts/attachment';
 import { ThemeTokens, View, XStack, YStack } from '../../core';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { Icon } from '../Icon';
@@ -92,7 +92,7 @@ export const MessageInputContainer = ({
   onPressEdit?: () => void;
   goBack?: () => void;
 }>) => {
-  const { canUpload } = useMessageInputContext();
+  const { canUpload } = useAttachmentContext();
   return (
     <YStack width="100%">
       <InputMentionPopup

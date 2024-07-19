@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { Add } from '../../assets/icons';
-import { useMessageInputContext } from '../../contexts/messageInput';
+import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
 import { IconButton } from '../IconButton';
 
@@ -18,7 +18,7 @@ export default function AttachmentButton({
     }
   }, [showInputSelector, setShouldBlur]);
 
-  const { attachAssets } = useMessageInputContext();
+  const { attachAssets } = useAttachmentContext();
 
   return (
     <>

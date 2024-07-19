@@ -6,10 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
-import {
-  Attachment,
-  useMessageInputContext,
-} from '../../../contexts/messageInput';
+import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import ActionList from '../../ActionList';
 
 export default function MessageActions({
@@ -26,7 +23,7 @@ export default function MessageActions({
   channelType: db.ChannelType;
 }) {
   const currentUserId = useCurrentUserId();
-  const { addAttachment } = useMessageInputContext();
+  const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
   const postActions = useMemo(() => {
     return getPostActions({

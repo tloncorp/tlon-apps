@@ -1,16 +1,13 @@
 import { ImageLoadEventData } from 'expo-image';
 import { useCallback, useState } from 'react';
 
-import {
-  Attachment,
-  useMessageInputContext,
-} from '../../contexts/messageInput';
+import { Attachment, useAttachmentContext } from '../../contexts/attachment';
 import { Image, ScrollView, Spinner, View } from '../../core';
 import { ContentReferenceLoader } from '../ContentReference';
 import { Icon } from '../Icon';
 
 export const AttachmentPreviewList = () => {
-  const { attachments } = useMessageInputContext();
+  const { attachments } = useAttachmentContext();
   return attachments.length ? (
     <ScrollView
       contentContainerStyle={{ padding: '$m', paddingBottom: 0, gap: '$2xs' }}
@@ -89,7 +86,7 @@ export function AttachmentPreview({
 }
 
 const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
-  const { removeAttachment } = useMessageInputContext();
+  const { removeAttachment } = useAttachmentContext();
   const handlePress = useCallback(() => {
     removeAttachment(attachment);
   }, [removeAttachment, attachment]);

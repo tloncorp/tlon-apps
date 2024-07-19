@@ -53,8 +53,8 @@ import { YStack, getToken, useWindowDimensions } from 'tamagui';
 import {
   Attachment,
   UploadedImageAttachment,
-  useMessageInputContext,
-} from '../../contexts/messageInput';
+  useAttachmentContext,
+} from '../../contexts/attachment';
 import { XStack } from '../../core';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
@@ -166,7 +166,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       height - basicOffset - bottom - inputBasePadding * 2;
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
-    const [editorIsEmpty, setEditorIsEmpty] = useState(true);
     const [showMentionPopup, setShowMentionPopup] = useState(false);
 
     const {
@@ -175,7 +174,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       clearAttachments,
       resetAttachments,
       waitForAttachmentUploads,
-    } = useMessageInputContext();
+    } = useAttachmentContext();
+
+    const [editorIsEmpty, setEditorIsEmpty] = useState(
+      attachments.length === 0
+    );
 
     const bridgeExtensions = [
       ...TenTapStartKit,

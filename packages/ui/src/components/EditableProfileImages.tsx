@@ -13,9 +13,9 @@ import { TouchableOpacity } from 'react-native';
 import { Circle, Stack, ZStack, useTheme } from 'tamagui';
 
 import {
+  useAttachmentContext,
   useMappedImageAttachments,
-  useMessageInputContext,
-} from '../contexts/messageInput';
+} from '../contexts/attachment';
 import { View } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { AvatarProps, ContactAvatar, GroupAvatar } from './Avatar';
@@ -45,7 +45,7 @@ export function EditablePofileImages({
   const [localCoverUrl, setLocalCoverUrl] = useState(
     props.contact?.coverImage ?? props.group?.coverImage ?? ''
   );
-  const { attachAssets, canUpload } = useMessageInputContext();
+  const { attachAssets, canUpload } = useAttachmentContext();
   const { coverAttachment, iconAttachment } = useMappedImageAttachments({
     coverAttachment: localCoverUrl,
     iconAttachment: localIconUrl,
