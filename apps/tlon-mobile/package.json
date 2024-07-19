@@ -36,7 +36,7 @@
     ]
   },
   "dependencies": {
-    "@10play/tentap-editor": "^0.4.55",
+    "@10play/tentap-editor": "~0.5.11",
     "@aws-sdk/client-s3": "^3.190.0",
     "@aws-sdk/s3-request-presigner": "^3.190.0",
     "@dev-plugins/async-storage": "^0.0.3",
