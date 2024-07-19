@@ -21,21 +21,14 @@ import {
   stripSourcePrefix,
 } from '@tloncorp/shared/dist/urbit/activity';
 import _ from 'lodash';
-import { Groups } from 'packages/shared/dist/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import {
-  createDevLogger,
-  getGroupFromNest,
-  whomIsDm,
-  whomIsFlag,
-} from '@/logic/utils';
+import { createDevLogger, whomIsDm, whomIsFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
-import { GROUPS_KEY } from './groups';
 import { useLocalState } from './local';
 import { SidebarFilter } from './settings';
 
