@@ -165,6 +165,7 @@ export function ChatList({
     {
       gap: '$s',
       paddingHorizontal: '$l',
+      paddingBottom: 100, // bottom nav height + some cushion
     },
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;
