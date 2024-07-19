@@ -60,7 +60,7 @@
   @apply my-0;
 }
 
-.Prosemirror a {
+.ProseMirror a {
   @apply underline;
 }
 
