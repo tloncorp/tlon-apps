@@ -18,8 +18,11 @@ type IconProps = {
   height: number;
 };
 
-const RawIconGraphic = React.forwardRef(
-  ({ type, color, width, height }: IconProps, ref) => {
+const RawIconGraphic = React.memo(
+  React.forwardRef(function RawIconGraphicFn(
+    { type, color, width, height }: IconProps,
+    ref
+  ) {
     const IconComponent = icons[type];
     if (!IconComponent) {
       throw new Error('no icon found for ' + type);
@@ -27,7 +30,7 @@ const RawIconGraphic = React.forwardRef(
     return (
       <IconComponent color={color} width={width} height={height} ref={ref} />
     );
-  }
+  })
 );
 
 // Wrap icon graphic so we can use tokens to style it.
@@ -48,51 +51,46 @@ const IconComponent = View.styleable<{
   customSize?: [number, number];
   color?: ColorTokens;
   type: IconType;
-}>(
-  (
-    { size = '$l', color = '$primaryText', type, customSize, ...props },
-    ref
-  ) => {
-    const [frameSize, iconSize]: [SizeTokens, SizeTokens] = useMemo(() => {
-      if (customSize) {
-        return customSize;
-      }
+}>(({ size, color, type, customSize, ...props }, ref) => {
+  const [frameSize, iconSize]: [SizeTokens, SizeTokens] = useMemo(() => {
+    if (customSize) {
+      return customSize;
+    }
 
-      switch (size) {
-        case '$s':
-          return ['$l', '$l'];
-        case '$m':
-          return ['$2xl', '$2xl'];
-        case '$l':
-          return ['$3xl', '$2xl'];
-        case '$xl':
-          return ['$4xl', '$3xl'];
-      }
-      // This shouldn't be necessary, but a bug with tamagui's optimizing
-      // compiler caused this to error.
-      return ['$m', '$m'];
-    }, [customSize, size]);
+    switch (size ?? '$l') {
+      case '$s':
+        return ['$l', '$l'];
+      case '$m':
+        return ['$2xl', '$2xl'];
+      case '$l':
+        return ['$3xl', '$2xl'];
+      case '$xl':
+        return ['$4xl', '$3xl'];
+    }
+    // This shouldn't be necessary, but a bug with tamagui's optimizing
+    // compiler caused this to error.
+    return ['$m', '$m'];
+  }, [customSize, size]);
 
-    return (
-      <View
-        ref={ref}
-        width={frameSize}
-        height={frameSize}
-        alignItems="center"
-        justifyContent="center"
-        {...props}
-      >
-        <IconGraphic
-          type={type}
-          color={color}
-          width={iconSize}
-          height={iconSize}
-        />
-      </View>
-    );
-  }
-);
+  return (
+    <View
+      ref={ref}
+      width={frameSize}
+      height={frameSize}
+      alignItems="center"
+      justifyContent="center"
+      {...props}
+    >
+      <IconGraphic
+        type={type}
+        color={color ?? '$primaryText'}
+        width={iconSize}
+        height={iconSize}
+      />
+    </View>
+  );
+});
 
-export const Icon = withStaticProperties(React.memo(IconComponent), {
+export const Icon = withStaticProperties(IconComponent, {
   Graphic: IconGraphic,
 });

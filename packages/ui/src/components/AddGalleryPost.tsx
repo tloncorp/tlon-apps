@@ -1,6 +1,7 @@
-import { MessageAttachments } from '@tloncorp/shared/dist/api';
-import { useState } from 'react';
+import { ImagePickerAsset } from 'expo-image-picker';
+import { useCallback, useState } from 'react';
 
+import { useAttachmentContext } from '../contexts/attachment';
 import { ActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 
@@ -8,13 +9,14 @@ export default function AddGalleryPost({
   showAddGalleryPost,
   setShowAddGalleryPost,
   setShowGalleryInput,
-  setImage,
+  onSetImage,
 }: {
   showAddGalleryPost: boolean;
   setShowAddGalleryPost: (show: boolean) => void;
   setShowGalleryInput: (show: boolean) => void;
-  setImage: (attchments: MessageAttachments) => void;
+  onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
+  const { attachAssets } = useAttachmentContext();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
 
   const actions = [
@@ -34,6 +36,14 @@ export default function AddGalleryPost({
     },
   ];
 
+  const handleImageSet = useCallback(
+    (assets: ImagePickerAsset[]) => {
+      attachAssets(assets);
+      onSetImage(assets);
+    },
+    [attachAssets, onSetImage]
+  );
+
   return (
     <>
       <ActionSheet
@@ -49,7 +59,7 @@ export default function AddGalleryPost({
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={setImage}
+        setImage={handleImageSet}
       />
     </>
   );

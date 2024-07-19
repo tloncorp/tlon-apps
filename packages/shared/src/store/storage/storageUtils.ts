@@ -1,12 +1,10 @@
 import { preSig } from '@urbit/api';
-import { deSig, formatDa, unixToDa } from '@urbit/aura';
 
 import * as api from '../../api';
 import {
   RNFile,
   StorageConfiguration,
   StorageCredentials,
-  Uploader,
   client,
   scry,
 } from '../../api';
@@ -15,7 +13,7 @@ import { desig } from '../../urbit';
 
 const logger = createDevLogger('storage utils', true);
 
-const fetchImageFromUri = async (
+export const fetchImageFromUri = async (
   uri: string,
   height: number,
   width: number
@@ -41,23 +39,6 @@ const fetchImageFromUri = async (
 };
 
 export type SizedImage = { uri: string; width: number; height: number };
-export const handleImagePicked = async (
-  image: SizedImage,
-  uploader: Uploader
-) => {
-  try {
-    // get any necessary metadata before pasing along to FileStore
-    const file = await fetchImageFromUri(image.uri, image.height, image.width);
-    if (!file) {
-      logger.log('no image');
-      return;
-    }
-
-    await uploader?.uploadFiles([file]);
-  } catch (e) {
-    console.error(e);
-  }
-};
 
 export const getShipInfo = () => {
   const { ship, url } = client;
@@ -69,14 +50,22 @@ export const getShipInfo = () => {
   return { ship: preSig(ship), shipUrl: url };
 };
 
-export const hasCustomS3Creds = ({
-  configuration,
-  credentials,
-}: {
-  configuration: StorageConfiguration;
-  credentials: StorageCredentials | null;
-}) => {
-  return (
+export const hasHostingUploadCreds = (
+  configuration: StorageConfiguration,
+  _credentials: StorageCredentials
+) => {
+  return configuration.service === 'presigned-url' && getIsHosted();
+};
+
+export const hasCustomS3Creds = (
+  configuration: StorageConfiguration,
+  credentials: StorageCredentials
+): credentials is {
+  accessKeyId: string;
+  endpoint: string;
+  secretAccessKey: string;
+} => {
+  return !!(
     configuration.service === 'credentials' &&
     credentials?.accessKeyId &&
     credentials?.endpoint &&
@@ -86,7 +75,7 @@ export const hasCustomS3Creds = ({
 
 const MEMEX_BASE_URL = 'https://memex.tlon.network';
 
-export const getIsHosted = async () => {
+export const getIsHosted = () => {
   const shipInfo = getShipInfo();
   const isHosted = shipInfo?.shipUrl?.endsWith('tlon.network');
   return isHosted;
@@ -150,6 +139,6 @@ export const getMemexUpload = async ({
 };
 
 export const getHostingUploadURL = async () => {
-  const isHosted = await getIsHosted();
+  const isHosted = getIsHosted();
   return isHosted ? MEMEX_BASE_URL : '';
 };

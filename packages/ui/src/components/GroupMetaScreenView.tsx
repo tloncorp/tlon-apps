@@ -1,10 +1,10 @@
-import { MessageAttachments, UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { AttachmentProvider } from '../contexts/attachment';
 import { View, YStack } from '../core';
-import AttachmentSheet from './AttachmentSheet';
 import { Button } from './Button';
 import { DeleteSheet } from './DeleteSheet';
 import { EditablePofileImages } from './EditableProfileImages';
@@ -21,7 +21,8 @@ interface GroupMetaScreenViewProps {
   currentUserIsAdmin: boolean;
   setGroupMetadata: (metadata: db.ClientMeta) => void;
   goBack: () => void;
-  uploadInfo: UploadInfo;
+  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
+  canUpload: boolean;
 }
 
 export function SaveButton({ onPress }: { onPress: () => void }) {
@@ -37,10 +38,10 @@ export function GroupMetaScreenView({
   setGroupMetadata,
   deleteGroup,
   goBack,
-  uploadInfo,
+  uploadAsset,
+  canUpload,
 }: GroupMetaScreenViewProps) {
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const {
     control,
     handleSubmit,
@@ -79,58 +80,55 @@ export function GroupMetaScreenView({
   }
 
   return (
-    <View backgroundColor="$background" flex={1}>
-      <YStack justifyContent="space-between" width="100%" height="100%">
-        <GenericHeader
-          title="Edit Group Info"
-          goBack={goBack}
-          rightContent={<SaveButton onPress={handleSubmit(onSubmit)} />}
-        />
-        <KeyboardAvoidingView>
-          <YStack gap="$2xl" padding="$xl" alignItems="center" flex={1}>
-            <EditablePofileImages
-              group={group}
-              uploadInfo={uploadInfo}
-              onSetCoverUrl={(url) => setValue('coverImage', url)}
-              onSetIconUrl={(url) => setValue('iconImage', url)}
-            />
-            <YStack gap="$m" width="100%">
-              <FormInput
-                name="title"
-                label="Group Name"
-                control={control}
-                errors={errors}
-                rules={{ required: 'Group name is required' }}
-                placeholder="Group Name"
+    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
+      <View backgroundColor="$background" flex={1}>
+        <YStack justifyContent="space-between" width="100%" height="100%">
+          <GenericHeader
+            title="Edit Group Info"
+            goBack={goBack}
+            rightContent={<SaveButton onPress={handleSubmit(onSubmit)} />}
+          />
+          <KeyboardAvoidingView>
+            <YStack gap="$2xl" padding="$xl" alignItems="center" flex={1}>
+              <EditablePofileImages
+                group={group}
+                onSetCoverUrl={(url) => setValue('coverImage', url)}
+                onSetIconUrl={(url) => setValue('iconImage', url)}
               />
-              <FormInput
-                name="description"
-                label="Group Description"
-                control={control}
-                errors={errors}
-                placeholder="Group Description"
-              />
-              <Button heroDestructive onPress={() => setShowDeleteSheet(true)}>
-                <Button.Text>Delete group for everyone</Button.Text>
-              </Button>
+              <YStack gap="$m" width="100%">
+                <FormInput
+                  name="title"
+                  label="Group Name"
+                  control={control}
+                  errors={errors}
+                  rules={{ required: 'Group name is required' }}
+                  placeholder="Group Name"
+                />
+                <FormInput
+                  name="description"
+                  label="Group Description"
+                  control={control}
+                  errors={errors}
+                  placeholder="Group Description"
+                />
+                <Button
+                  heroDestructive
+                  onPress={() => setShowDeleteSheet(true)}
+                >
+                  <Button.Text>Delete group for everyone</Button.Text>
+                </Button>
+              </YStack>
             </YStack>
-          </YStack>
-        </KeyboardAvoidingView>
-      </YStack>
-      <AttachmentSheet
-        showAttachmentSheet={showAttachmentSheet}
-        setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={(attachments: MessageAttachments) => {
-          uploadInfo.setAttachments(attachments);
-        }}
-      />
-      <DeleteSheet
-        title={group.title ?? 'This Group'}
-        itemTypeDescription="group"
-        open={showDeleteSheet}
-        onOpenChange={setShowDeleteSheet}
-        deleteAction={deleteGroup}
-      />
-    </View>
+          </KeyboardAvoidingView>
+        </YStack>
+        <DeleteSheet
+          title={group.title ?? 'This Group'}
+          itemTypeDescription="group"
+          open={showDeleteSheet}
+          onOpenChange={setShowDeleteSheet}
+          deleteAction={deleteGroup}
+        />
+      </View>
+    </AttachmentProvider>
   );
 }

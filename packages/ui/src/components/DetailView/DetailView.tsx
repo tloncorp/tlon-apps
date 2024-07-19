@@ -1,7 +1,7 @@
 import { makePrettyShortDate } from '@tloncorp/shared/dist';
-import type * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { PropsWithChildren, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +25,6 @@ export interface DetailViewProps {
   groupMembers: db.ChatMember[];
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
-  uploadInfo: api.UploadInfo;
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
@@ -95,7 +94,6 @@ const DetailViewFrameComponent = ({
   groupMembers,
   posts,
   onPressImage,
-  uploadInfo,
   storeDraft,
   clearDraft,
   getDraft,
@@ -155,7 +153,6 @@ const DetailViewFrameComponent = ({
           setShouldBlur={setInputShouldBlur}
           send={sendReply}
           channelId={post.channelId}
-          uploadInfo={uploadInfo}
           groupMembers={groupMembers}
           storeDraft={storeDraft}
           clearDraft={clearDraft}

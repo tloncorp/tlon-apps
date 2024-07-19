@@ -1,16 +1,16 @@
 import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // TODO: replace input with our own input component
 import { Image, Input, getToken } from 'tamagui';
 
+import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import { ScrollView, View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
-import { LoadingSpinner } from './LoadingSpinner';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
@@ -31,7 +31,6 @@ export function BigInput({
   editPost,
   setShowBigInput,
   placeholder,
-  uploadInfo,
 }: {
   channelType: db.ChannelType;
 } & MessageInputProps) {
@@ -47,6 +46,13 @@ export function BigInput({
   const imageButtonHeight = getToken('$4xl', 'size');
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
+
+  const { attachments, attachAssets } = useAttachmentContext();
+  const imageAttachment = useMemo(() => {
+    return attachments.find(
+      (attachment): attachment is ImageAttachment => attachment.type === 'image'
+    );
+  }, [attachments]);
 
   return (
     <YStack height="100%" width="100%">
@@ -69,9 +75,9 @@ export function BigInput({
               editorRef.current?.editor?.blur();
             }}
           >
-            {uploadInfo?.imageAttachment && !uploadInfo.uploading ? (
+            {imageAttachment ? (
               <Image
-                source={{ uri: uploadInfo.imageAttachment }}
+                source={{ uri: imageAttachment.file.uri }}
                 resizeMode="cover"
                 style={{
                   width: '100%',
@@ -92,11 +98,7 @@ export function BigInput({
                 justifyContent="center"
                 gap="$l"
               >
-                {uploadInfo?.uploading ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Icon type="Camera" color="$background" />
-                )}
+                <Icon type="Camera" color="$background" />
               </View>
             )}
           </TouchableOpacity>
@@ -130,7 +132,7 @@ export function BigInput({
           setShouldBlur={setShouldBlur}
           send={send}
           title={title}
-          image={uploadInfo?.uploadedImage ?? undefined}
+          image={imageAttachment?.file ?? undefined}
           channelId={channelId}
           groupMembers={groupMembers}
           storeDraft={storeDraft}
@@ -142,6 +144,7 @@ export function BigInput({
           setShowBigInput={setShowBigInput}
           floatingActionButton
           showAttachmentButton={false}
+          showInlineAttachments={false}
           backgroundColor="$background"
           paddingHorizontal="$m"
           placeholder={placeholder}
@@ -166,11 +169,11 @@ export function BigInput({
             <InputToolbar editor={editorRef.current.editor} />
           </KeyboardAvoidingView>
         )}
-      {channelType === 'notebook' && uploadInfo && (
+      {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
           showAttachmentSheet={showAttachmentSheet}
           setShowAttachmentSheet={setShowAttachmentSheet}
-          setImage={uploadInfo?.setAttachments}
+          setImage={attachAssets}
         />
       )}
     </YStack>

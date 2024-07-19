@@ -30,19 +30,13 @@ const NotebookDetailViewFixture = () => {
         groupMembers={[]}
         negotiationMatch={true}
         editPost={async () => {}}
-        uploadInfo={{
-          uploading: false,
-          uploadedImage: null,
-          imageAttachment: null,
-          setAttachments: () => {},
-          resetImageAttachment: () => {},
-          canUpload: true,
-        }}
+        uploadAsset={async () => {}}
         storeDraft={() => {}}
         clearDraft={() => {}}
         getDraft={async () => ({})}
         goBack={() => {}}
         markRead={() => {}}
+        canUpload={true}
       />
     </FixtureWrapper>
   );
@@ -61,19 +55,13 @@ const GalleryDetailViewFixture = () => {
         groupMembers={[]}
         negotiationMatch={true}
         editPost={async () => {}}
-        uploadInfo={{
-          uploading: false,
-          uploadedImage: null,
-          imageAttachment: null,
-          setAttachments: () => {},
-          resetImageAttachment: () => {},
-          canUpload: true,
-        }}
+        uploadAsset={async () => {}}
         storeDraft={() => {}}
         clearDraft={() => {}}
         getDraft={async () => ({})}
         goBack={() => {}}
         markRead={() => {}}
+        canUpload={true}
       />
     </FixtureWrapper>
   );
