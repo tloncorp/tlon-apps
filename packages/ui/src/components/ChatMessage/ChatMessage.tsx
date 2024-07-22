@@ -182,6 +182,7 @@ const ChatMessage = ({
             editingPost={post}
             editPost={editPost}
             setEditingPost={setEditingPost}
+            channelType="chat"
           />
         ) : post.hidden ? (
           <Text color="$secondaryText">

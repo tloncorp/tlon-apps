@@ -203,6 +203,7 @@ export function PostScreenView({
                       groupMembers={groupMembers}
                       storeDraft={storeDraft}
                       clearDraft={clearDraft}
+                      channelType="chat"
                       getDraft={getDraft}
                     />
                   )}

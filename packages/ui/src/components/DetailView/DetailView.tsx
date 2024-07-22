@@ -168,6 +168,7 @@ const DetailViewFrameComponent = ({
           getDraft={getDraft}
           backgroundColor="$background"
           showAttachmentButton={false}
+          channelType="chat"
           placeholder="Reply"
           setHeight={setMessageInputHeight}
           // TODO: add back in when we switch to bottom nav
