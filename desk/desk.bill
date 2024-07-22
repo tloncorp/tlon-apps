@@ -3,6 +3,7 @@
     %heap
     %diary
     %notify
+    %hooker
     %grouper
     %groups-ui
     %channels
