@@ -133,6 +133,10 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
 
 function optimisticActivityUpdate(d: Activity, source: string): Activity {
   const old = d[source];
+  if (old === undefined) {
+    return d;
+  }
+
   return {
     ...d,
     [source]: {
@@ -384,7 +388,25 @@ export function useMarkReadMutation(recursive = false) {
       variables.action = variables.action || {
         all: { time: null, deep: recursive },
       };
-      queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
+
+      let key = unreadsKey();
+
+      if ('thread' in variables.source || 'dm-thread' in variables.source) {
+        const parent =
+          'thread' in variables.source
+            ? {
+                channel: {
+                  group: variables.source.thread.group,
+                  nest: variables.source.thread.channel,
+                },
+              }
+            : {
+                dm: variables.source['dm-thread'].whom,
+              };
+        key = unreadsKey('threads', sourceToString(parent));
+      }
+
+      queryClient.setQueryData<Activity>(key, (d) => {
         if (d === undefined) {
           return undefined;
         }
