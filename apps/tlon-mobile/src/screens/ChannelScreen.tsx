@@ -146,6 +146,31 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     [currentUserId, channel, uploadInfo]
   );
 
+  const handleDeletePost = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to delete message before channel loaded');
+      }
+      await store.deleteFailedPost({
+        post,
+      });
+    },
+    [channel]
+  );
+
+  const handleRetrySend = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to retry send before channel loaded');
+      }
+      await store.retrySendPost({
+        channel,
+        post,
+      });
+    },
+    [channel]
+  );
+
   const handleChannelNavButtonPressed = useCallback(() => {
     setChannelNavOpen(true);
   }, []);
@@ -210,6 +235,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         clearDraft={clearDraft}
         getDraft={getDraft}
         editingPost={editingPost}
+        onPressDelete={handleDeletePost}
+        onPressRetry={handleRetrySend}
         setEditingPost={setEditingPost}
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}

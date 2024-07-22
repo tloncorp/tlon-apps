@@ -757,6 +757,16 @@
       =/  action
         [%add %post [[author id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
+    ::
+    ++  on-post-delete
+      |=  v-post:c
+      ^+  ca-core
+      ::  remove any activity that might've happened under this post
+      ::
+      =/  thread=source
+        [%thread [[author id] id] nest group.perm.perm.channel]
+      (send [%del thread] ~)
+    ::
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
       ^+  ca-core
@@ -1246,6 +1256,7 @@
         (ca-response %post id-post %set post)
       ::
       ?~  post.u-post
+        =.  ca-core  (on-post-delete:ca-activity u.u.post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post ~)
         (ca-response %post id-post %set ~)
       ::
@@ -1312,7 +1323,8 @@
           pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)
       ::
-      ?~  reply.u-reply  (put-reply ~ %set ~)
+      ?~  reply.u-reply
+        (put-reply ~ %set ~)
       ::
       =*  old  u.u.reply
       =*  new  u.reply.u-reply

@@ -81,6 +81,8 @@ export function Channel({
   editingPost,
   setEditingPost,
   editPost,
+  onPressRetry,
+  onPressDelete,
   negotiationMatch,
   hasNewerPosts,
   hasOlderPosts,
@@ -117,6 +119,8 @@ export function Channel({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
@@ -307,6 +311,8 @@ export function Channel({
                                       onPressImage={goToImageViewer}
                                       onEndReached={onScrollEndReached}
                                       onStartReached={onScrollStartReached}
+                                      onPressRetry={onPressRetry}
+                                      onPressDelete={onPressDelete}
                                       activeMessage={activeMessage}
                                       setActiveMessage={setActiveMessage}
                                     />
@@ -338,6 +344,7 @@ export function Channel({
                                   editingPost={editingPost}
                                   setEditingPost={setEditingPost}
                                   editPost={editPost}
+                                  channelType={channel.type}
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }

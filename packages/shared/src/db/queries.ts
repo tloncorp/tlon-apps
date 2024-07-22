@@ -2065,6 +2065,8 @@ export const markPostAsDeleted = createWriteQuery(
         content: null,
         textContent: null,
         authorId: undefined,
+        title: null,
+        image: null,
       })
       .where(eq($posts.id, postId));
   },

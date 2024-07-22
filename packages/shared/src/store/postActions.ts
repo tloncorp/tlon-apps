@@ -1,11 +1,12 @@
 import * as api from '../api';
 import { toPostContent } from '../api';
+import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
 import * as sync from './sync';
 
-const logger = createDevLogger('postActions', false);
+const logger = createDevLogger('postActions', true);
 
 export async function sendPost({
   channel,
@@ -34,7 +35,13 @@ export async function sendPost({
   // optimistic update
   // TODO: make author available more efficiently
   const author = await db.getContact({ id: authorId });
-  const cachePost = db.buildPendingPost({ authorId, author, channel, content });
+  const cachePost = db.buildPendingPost({
+    authorId,
+    author,
+    channel,
+    content,
+    metadata,
+  });
   sync.handleAddPost(cachePost);
   try {
     await api.sendPost({
@@ -48,6 +55,58 @@ export async function sendPost({
   } catch (e) {
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+  }
+}
+
+export async function retrySendPost({
+  channel,
+  post,
+}: {
+  channel: db.Channel;
+  post: db.Post;
+}) {
+  logger.log('retrySendPost', { post });
+  if (post.deliveryStatus !== 'failed') {
+    console.error('Tried to retry send on non-failed post', post);
+    return;
+  }
+
+  // if first message of a pending group dm, we need to first create
+  // it on the backend
+  if (channel.type === 'groupDm' && channel.isPendingChannel) {
+    await api.createGroupDm({
+      id: channel.id,
+      members:
+        channel.members
+          ?.map((m) => m.contactId)
+          .filter((m) => m !== post.authorId) ?? [],
+    });
+    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+  }
+
+  // optimistic update
+  await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
+
+  const content = JSON.parse(post.content as string) as PostContent;
+  const story = toUrbitStory(content);
+
+  logger.log('retrySendPost: sending post', { post, story });
+
+  try {
+    await api.sendPost({
+      channelId: post.channelId,
+      authorId: post.authorId,
+      content: story,
+      metadata: {
+        title: post.title,
+        image: post.image,
+      },
+      sentAt: post.sentAt,
+    });
+    await sync.syncChannelMessageDelivery({ channelId: post.channelId });
+  } catch (e) {
+    console.error('Failed to retry send post', e);
+    await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
   }
 }
 
@@ -184,6 +243,11 @@ export async function deletePost({ post }: { post: db.Post }) {
     });
     await db.updateChannel({ id: post.channelId, lastPostId: post.id });
   }
+}
+
+export async function deleteFailedPost({ post }: { post: db.Post }) {
+  await db.markPostAsDeleted(post.id);
+  await db.updateChannel({ id: post.channelId, lastPostId: null });
 }
 
 export async function reportPost({

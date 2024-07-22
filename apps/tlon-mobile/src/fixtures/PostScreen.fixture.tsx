@@ -13,6 +13,8 @@ export default (
   <>
     <PostScreenView
       editPost={async () => {}}
+      onPressRetry={() => {}}
+      onPressDelete={() => {}}
       editingPost={undefined}
       negotiationMatch={true}
       setEditingPost={() => {}}
