@@ -1047,6 +1047,7 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
+  ::REVIEW  maybe need a scry api version bump here?
   =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
@@ -1095,18 +1096,21 @@
     ?~  post  ~
     ?~  u.post  ~
     %-  some
-    %+  turn
+    %+  murn
       (tab:on-replies:c replies.u.u.post `(sub id 1) count)
-    |=  [=time =reply:c]
+    |=  [=time reply=(unit reply:c)]
+    ^-  (unit [^time incoming-event:a])
+    ?~  reply  ~
+    %-  some
     =/  key=message-key:a
       :_  time
-      [author.reply time]
+      [author.u.reply time]
     =/  parent=message-key:a
       :_  id-post
       [author.u.u.post id-post]
     =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
-    [time %reply key parent nest group content.reply mention]
+      (was-mentioned:ch-utils content.u.reply our.bowl)
+    [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread
     *@da
