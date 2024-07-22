@@ -141,7 +141,7 @@ function optimisticActivityUpdate(d: Activity, source: string): Activity {
       count: Math.min(0, old.count - (old.unread?.count || 0)),
       'notify-count':
         old.unread && old.unread.notify
-          ? Math.min(old['notify-count'] - old.unread.count)
+          ? Math.min(0, old['notify-count'] - old.unread.count)
           : old['notify-count'],
     },
   };
@@ -367,8 +367,8 @@ export function useMarkReadMutation(recursive = false) {
   const mutationFn = async (variables: {
     source: Source;
     action?: ReadAction;
-  }) => {
-    await api.poke(
+  }) =>
+    api.poke(
       activityAction({
         read: {
           source: variables.source,
@@ -376,12 +376,14 @@ export function useMarkReadMutation(recursive = false) {
         },
       })
     );
-  };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
       const current = queryClient.getQueryData<Activity>(unreadsKey());
+      variables.action = variables.action || {
+        all: { time: null, deep: recursive },
+      };
       queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
         if (d === undefined) {
           return undefined;
@@ -609,4 +611,25 @@ export function useCombinedGroupUnreads() {
       notify: acc.notify || source.notify,
     };
   }, defaultUnread);
+}
+
+export function useOptimisticMarkRead(source: string) {
+  return useCallback(() => {
+    queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
+      if (d === undefined) {
+        return undefined;
+      }
+
+      return {
+        ...d,
+        [source]: {
+          ...d[source],
+          unread: null,
+          count: 0,
+          notify: false,
+          'notify-count': 0,
+        },
+      };
+    });
+  }, [source]);
 }
