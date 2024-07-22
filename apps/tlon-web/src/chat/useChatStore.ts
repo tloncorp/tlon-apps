@@ -1,4 +1,7 @@
-import { ActivitySummary } from '@tloncorp/shared/dist/urbit/activity';
+import {
+  ActivitySummary,
+  MessageKey,
+} from '@tloncorp/shared/dist/urbit/activity';
 import { Block } from '@tloncorp/shared/dist/urbit/channel';
 import produce from 'immer';
 import { useCallback } from 'react';
@@ -14,12 +17,21 @@ export interface ChatInfo {
   failedToLoadContent: Record<string, Record<number, boolean>>;
 }
 
+interface CurrentChat {
+  whom: string;
+  group?: string;
+}
+
+type CurrentChatThread = MessageKey;
+
 export interface ChatStore {
   chats: {
     [flag: string]: ChatInfo;
   };
   atBottom: boolean;
-  current: string;
+  atThreadBottom: boolean;
+  current: CurrentChat | null;
+  currentThread: CurrentChatThread | null;
   reply: (flag: string, msgId: string | null) => void;
   setBlocks: (whom: string, blocks: Block[]) => void;
   setDialogs: (
@@ -35,7 +47,9 @@ export interface ChatStore {
   ) => void;
   setHovering: (whom: string, writId: string, hovering: boolean) => void;
   bottom: (atBottom: boolean) => void;
-  setCurrent: (whom: string) => void;
+  threadBottom: (atBottom: boolean) => void;
+  setCurrent: (current: CurrentChat | null) => void;
+  setCurrentThread: (current: CurrentChatThread | null) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -55,8 +69,10 @@ export function isUnread(unread: ActivitySummary): boolean {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
-  current: '',
+  current: null,
+  currentThread: null,
   atBottom: false,
+  atThreadBottom: false,
   setBlocks: (whom, blocks) => {
     set(
       produce((draft) => {
@@ -133,6 +149,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       produce((draft) => {
         chatStoreLogger.log('current', current);
         draft.current = current;
+      })
+    );
+  },
+  setCurrentThread: (current) => {
+    set(
+      produce((draft) => {
+        chatStoreLogger.log('currentThread', current);
+        draft.currentThread = current;
+      })
+    );
+  },
+  threadBottom: (atBottom) => {
+    set(
+      produce((draft) => {
+        chatStoreLogger.log('atThreadBottom', atBottom);
+        draft.atThreadBottom = atBottom;
       })
     );
   },

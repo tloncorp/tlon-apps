@@ -1,18 +1,21 @@
 import { ActivityBundle, ActivitySummary } from '@tloncorp/shared/dist/urbit';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
-import { PropsWithChildren, useCallback } from 'react';
+import { PropsWithChildren, useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Virtuoso } from 'react-virtuoso';
 
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import WelcomeCard from '@/components/WelcomeCard';
 import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
 import { makePrettyDay, randomElement, randomIntInRange } from '@/logic/utils';
-import { useMarkReadMutation } from '@/state/activity';
+import {
+  emptySummary,
+  useActivity,
+  useOptimisticMarkRead,
+} from '@/state/activity';
 
 import Notification from './Notification';
 import { useNotifications } from './useNotifications';
@@ -91,47 +94,29 @@ function getKey(i: number, { bundle }: NotificationItem): string {
 export default function Notifications({ title }: NotificationsProps) {
   const isMobile = useIsMobile();
   const { paddingBottom } = useBottomPadding();
-  const { loaded, notifications, activity, fetchNextPage, hasNextPage } =
+  const { loaded, notifications, fetchNextPage, hasNextPage } =
     useNotifications();
-  const { mutate, isLoading } = useMarkReadMutation(true);
-  const isMarkReadPending = isLoading;
-  const hasUnreads = activity['notify-count'] > 0;
+  const { activity, isLoading } = useActivity();
+  const markRead = useOptimisticMarkRead('base');
+
+  useEffect(() => {
+    const hasActivity = Object.keys(activity).length > 0;
+    const base = activity['base'] || emptySummary;
+    const baseIsRead =
+      base.count === 0 &&
+      base.unread === null &&
+      !base.notify &&
+      base['notify-count'] === 0;
+    if (hasActivity && !baseIsRead && !isLoading) {
+      markRead();
+    }
+  }, [activity, isLoading]);
 
   const getMore = useCallback(() => {
     if (hasNextPage) {
       fetchNextPage();
     }
   }, [hasNextPage]);
-
-  const markAllRead = useCallback(async () => {
-    mutate({ source: { base: null } });
-  }, []);
-
-  const MarkAsRead = (
-    <button
-      disabled={isMarkReadPending || !hasUnreads}
-      className={cn('small-button whitespace-nowrap text-sm', {
-        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-      })}
-      onClick={markAllRead}
-    >
-      {isMarkReadPending ? (
-        <LoadingSpinner className="h-4 w-4" />
-      ) : (
-        `Mark Everything as Read`
-      )}
-    </button>
-  );
-
-  const MobileMarkAsRead = (
-    <button
-      disabled={isMarkReadPending || !hasUnreads}
-      className="whitespace-nowrap text-[17px] font-normal text-gray-800"
-      onClick={markAllRead}
-    >
-      Read Everything
-    </button>
-  );
 
   return (
     <>
@@ -141,7 +126,6 @@ export default function Notifications({ title }: NotificationsProps) {
           action={
             <div className="flex h-12 items-center justify-end space-x-2">
               <ReconnectingSpinner />
-              {hasUnreads && MobileMarkAsRead}
             </div>
           }
         />
@@ -163,7 +147,6 @@ export default function Notifications({ title }: NotificationsProps) {
               <WelcomeCard />
               <div className="mb-6 flex w-full items-center justify-between">
                 <h2 className="text-lg font-bold">Activity</h2>
-                {hasUnreads && MarkAsRead}
               </div>
             </div>
           )}
