@@ -11,5 +11,9 @@ export const getLandscapeAuthCookie = async (
     credentials: 'include',
   });
 
+  if (response.status < 200 || response.status > 299) {
+    throw new Error('Failed to authenticate. Is your access code correct?');
+  }
+
   return response.headers.get('set-cookie')?.split(';')[0];
 };
