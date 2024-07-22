@@ -131,7 +131,14 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   }, {} as VolumeSettings);
 }
 
-function optimisticActivityUpdate(d: Activity, source: string): Activity {
+function optimisticActivityUpdate(
+  d: Activity | undefined,
+  source: string
+): Activity | undefined {
+  if (!d) {
+    return d;
+  }
+
   const old = d[source];
   return {
     ...d,
@@ -141,7 +148,7 @@ function optimisticActivityUpdate(d: Activity, source: string): Activity {
       count: Math.min(0, old.count - (old.unread?.count || 0)),
       'notify-count':
         old.unread && old.unread.notify
-          ? Math.min(old['notify-count'] - old.unread.count)
+          ? Math.min(0, old['notify-count'] - old.unread.count)
           : old['notify-count'],
     },
   };
@@ -609,4 +616,25 @@ export function useCombinedGroupUnreads() {
       notify: acc.notify || source.notify,
     };
   }, defaultUnread);
+}
+
+export function useOptimisticMarkRead(source: string) {
+  return useCallback(() => {
+    queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
+      if (d === undefined) {
+        return undefined;
+      }
+
+      return {
+        ...d,
+        [source]: {
+          ...d[source],
+          unread: null,
+          count: 0,
+          notify: false,
+          'notify-count': 0,
+        },
+      };
+    });
+  }, [source]);
 }

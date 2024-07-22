@@ -1,7 +1,7 @@
 import { ActivityBundle, ActivitySummary } from '@tloncorp/shared/dist/urbit';
 import { ViewProps } from '@tloncorp/shared/dist/urbit/groups';
 import cn from 'classnames';
-import { PropsWithChildren, useCallback } from 'react';
+import { PropsWithChildren, useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Virtuoso } from 'react-virtuoso';
 
@@ -11,6 +11,11 @@ import WelcomeCard from '@/components/WelcomeCard';
 import { useBottomPadding } from '@/logic/position';
 import { useIsMobile } from '@/logic/useMedia';
 import { makePrettyDay, randomElement, randomIntInRange } from '@/logic/utils';
+import {
+  emptySummary,
+  useActivity,
+  useOptimisticMarkRead,
+} from '@/state/activity';
 
 import Notification from './Notification';
 import { useNotifications } from './useNotifications';
@@ -91,6 +96,21 @@ export default function Notifications({ title }: NotificationsProps) {
   const { paddingBottom } = useBottomPadding();
   const { loaded, notifications, fetchNextPage, hasNextPage } =
     useNotifications();
+  const { activity, isLoading } = useActivity();
+  const markRead = useOptimisticMarkRead('base');
+
+  useEffect(() => {
+    const hasActivity = Object.keys(activity).length > 0;
+    const base = activity['base'] || emptySummary;
+    const baseIsRead =
+      base.count === 0 &&
+      base.unread === null &&
+      !base.notify &&
+      base['notify-count'] === 0;
+    if (hasActivity && !baseIsRead && !isLoading) {
+      markRead();
+    }
+  }, [activity, isLoading]);
 
   const getMore = useCallback(() => {
     if (hasNextPage) {
