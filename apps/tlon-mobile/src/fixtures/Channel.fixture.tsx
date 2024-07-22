@@ -95,6 +95,8 @@ export const ChannelFixture = (props: {
         goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
         messageSender={async () => {}}
         markRead={() => {}}
         editPost={async () => {}}
@@ -133,6 +135,8 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
         messageSender={async () => {}}
         markRead={() => {}}
         editPost={async () => {}}
@@ -190,6 +194,8 @@ const ChannelFixtureWithImage = () => {
         goToPost={() => {}}
         goToDm={() => {}}
         goToImageViewer={() => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
         messageSender={async () => {}}
         markRead={() => {}}
         editPost={async () => {}}

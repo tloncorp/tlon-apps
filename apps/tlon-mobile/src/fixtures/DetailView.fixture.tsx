@@ -27,6 +27,8 @@ const NotebookDetailViewFixture = () => {
         channel={tlonLocalGettingStarted}
         currentUserId={notebookPost.authorId}
         sendReply={async () => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
         groupMembers={[]}
         negotiationMatch={true}
         editPost={async () => {}}
@@ -58,6 +60,8 @@ const GalleryDetailViewFixture = () => {
         channel={tlonLocalBulletinBoard}
         currentUserId={galleryPost.authorId}
         sendReply={async () => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
         groupMembers={[]}
         negotiationMatch={true}
         editPost={async () => {}}
