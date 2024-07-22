@@ -14,6 +14,7 @@ interface Props {
   currentUserId: string;
   onAppSettingsPressed?: () => void;
   onEditProfilePressed?: () => void;
+  onEditPublicProfilePressed?: () => void;
   onLogoutPressed: () => void;
 }
 
@@ -83,6 +84,11 @@ export function Wrapped(props: Props) {
           </View>
         </View>
         <View marginTop="$xl">
+          <ProfileAction
+            title="Public Profile"
+            icon="Bang"
+            onPress={props.onEditPublicProfilePressed}
+          />
           <ProfileAction
             title="App Settings"
             icon="Settings"

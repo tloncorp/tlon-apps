@@ -23,6 +23,10 @@ export default function ProfileScreen(props: Props) {
     props.navigation.navigate('EditProfile');
   }, [props.navigation]);
 
+  const onEditPublicProfilePressed = useCallback(() => {
+    props.navigation.navigate('PublicProfileEditor');
+  }, [props.navigation]);
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
@@ -30,6 +34,7 @@ export default function ProfileScreen(props: Props) {
         currentUserId={currentUserId}
         onAppSettingsPressed={onAppSettingsPressed}
         onEditProfilePressed={onEditProfilePressed}
+        onEditPublicProfilePressed={onEditPublicProfilePressed}
         onLogoutPressed={handleLogout}
       />
       <NavBar navigation={props.navigation} />

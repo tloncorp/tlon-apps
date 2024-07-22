@@ -17,6 +17,7 @@ import { GroupChannelsScreen } from '../screens/GroupChannelsScreen';
 import ImageViewerScreen from '../screens/ImageViewerScreen';
 import { ManageAccountScreen } from '../screens/ManageAccountScreen';
 import PostScreen from '../screens/PostScreen';
+import { PublicProfileEditorScreen } from '../screens/PublicProfileEditorScreen';
 import { PushNotificationSettingsScreen } from '../screens/PushNotificationSettingsScreen';
 import type { RootStackParamList } from '../types';
 import { GroupSettingsStack } from './GroupSettingsStack';
@@ -88,6 +89,10 @@ export function RootStack() {
         component={PushNotificationSettingsScreen}
       />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
+      <Root.Screen
+        name="PublicProfileEditor"
+        component={PublicProfileEditorScreen}
+      />
     </Root.Navigator>
   );
 }

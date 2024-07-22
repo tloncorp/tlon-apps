@@ -17,6 +17,7 @@ export {
   Text,
   Dialog,
   Theme,
+  Square,
 } from 'tamagui';
 
 export { LinearGradient } from 'tamagui/linear-gradient';
