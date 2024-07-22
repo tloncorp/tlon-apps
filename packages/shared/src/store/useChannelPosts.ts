@@ -21,7 +21,7 @@ const postsLogger = createDevLogger('useChannelPosts', false);
 
 type UseChannelPostsPageParams = db.GetChannelPostsOptions;
 type PostQueryData = InfiniteData<db.Post[], unknown>;
-type SubscriptionPost = [db.Post, string | undefined];
+type SubscriptionPost = [db.Post];
 
 type UseChanelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
