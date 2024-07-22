@@ -131,14 +131,7 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   }, {} as VolumeSettings);
 }
 
-function optimisticActivityUpdate(
-  d: Activity | undefined,
-  source: string
-): Activity | undefined {
-  if (!d) {
-    return d;
-  }
-
+function optimisticActivityUpdate(d: Activity, source: string): Activity {
   const old = d[source];
   return {
     ...d,
@@ -374,8 +367,8 @@ export function useMarkReadMutation(recursive = false) {
   const mutationFn = async (variables: {
     source: Source;
     action?: ReadAction;
-  }) => {
-    await api.poke(
+  }) =>
+    api.poke(
       activityAction({
         read: {
           source: variables.source,
@@ -383,12 +376,14 @@ export function useMarkReadMutation(recursive = false) {
         },
       })
     );
-  };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
       const current = queryClient.getQueryData<Activity>(unreadsKey());
+      variables.action = variables.action || {
+        all: { time: null, deep: recursive },
+      };
       queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
         if (d === undefined) {
           return undefined;
