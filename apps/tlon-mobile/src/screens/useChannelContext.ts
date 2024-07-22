@@ -37,7 +37,9 @@ export const useChannelContext = ({
 
   useEffect(() => {
     if (channelQuery.data?.groupId) {
-      store.syncGroup(channelQuery.data?.groupId, store.SyncPriority.Low);
+      store.syncGroup(channelQuery.data?.groupId, {
+        priority: store.SyncPriority.Low,
+      });
     }
   }, [channelQuery.data?.groupId]);
 

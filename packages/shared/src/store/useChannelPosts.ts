@@ -56,7 +56,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', queryOptions);
       if (queryOptions.mode === 'newest' && !options.hasCachedNewest) {
-        await sync.syncPosts(queryOptions, SyncPriority.High);
+        await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
       }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
@@ -69,7 +69,7 @@ export const useChannelPosts = (options: UseChanelPostsParams) => {
           ...queryOptions,
           count: options.count ?? 50,
         },
-        SyncPriority.High
+        { priority: SyncPriority.High }
       );
       postsLogger.log('loaded', res.posts?.length, 'posts from api');
       const secondResult = await db.getChannelPosts(queryOptions);
@@ -227,7 +227,7 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
             channelId,
             authorId: post.authorId,
           },
-          4
+          { priority: 4 }
         );
         pendingStalePosts.current.add(post.id);
       }

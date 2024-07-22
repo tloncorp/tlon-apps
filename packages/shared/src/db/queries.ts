@@ -1013,8 +1013,8 @@ export const getAllUnreadsCounts = createReadQuery(
   'getAllUnreadCounts',
   async (ctx: QueryCtx) => {
     const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-      getUnreadsCount({ type: 'channel' }),
-      getUnreadsCount({ type: 'dm' }),
+      getUnreadsCount({ type: 'channel' }, ctx),
+      getUnreadsCount({ type: 'dm' }, ctx),
     ]);
     return {
       channels: channelUnreadCount ?? 0,
@@ -1837,17 +1837,17 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
   logger.log('clear matched pending');
 }
 
-export const insertHiddenPosts = createWriteQuery(
-  'insertHiddenPosts',
+export const resetHiddenPosts = createWriteQuery(
+  'resetHiddenPosts',
   async (postIds: string[], ctx: QueryCtx) => {
     if (postIds.length === 0) return;
 
-    logger.log('insertHiddenPosts', postIds);
+    logger.log('resetHiddenPosts', postIds);
 
     await ctx.db
       .update($posts)
-      .set({ hidden: true })
-      .where(inArray($posts.id, postIds));
+      .set({ hidden: inArray($posts.id, postIds) })
+      .where(or($posts.hidden, inArray($posts.id, postIds)));
   },
   ['posts']
 );

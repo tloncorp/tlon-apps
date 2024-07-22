@@ -5,14 +5,14 @@ import * as api from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { createDevLogger } from '../debug';
-import { ErrorReporter, withRetry } from '../logic';
+import { ErrorReporter } from '../logic';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
 import { updateSession } from './session';
-import { SyncPriority, syncQueue } from './syncQueue';
+import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
@@ -39,8 +39,11 @@ export function updateChannelCursor(channelId: string, cursor: string) {
 // something over %channels or %groups
 const joinedGroupsAndChannels = new Set<string>();
 
-export const syncInitData = async (reporter?: ErrorReporter) => {
-  const initData = await syncQueue.highPriority('init', () =>
+export const syncInitData = async (
+  reporter?: ErrorReporter,
+  syncCtx?: SyncCtx
+) => {
+  const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
   reporter?.log('got init data from api');
@@ -64,12 +67,11 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
         ctx,
         includesAllUnreads: true,
       }).then(() => reporter?.log('persisted unreads')),
-      handleReceivedHiddenPosts({
-        reporter,
-        hiddenPostIds: initData.hiddenPostIds,
-      }).then(() => reporter?.log('handled hidden posts')),
       db
-        .insertBlockedContacts({ blockedIds: initData.blockedUsers })
+        .resetHiddenPosts(initData.hiddenPostIds, ctx)
+        .then(() => reporter?.log('handled hidden posts')),
+      db
+        .insertBlockedContacts({ blockedIds: initData.blockedUsers }, ctx)
         .then(() => reporter?.log('inserted blocked users')),
       db
         .insertChannelPerms(initData.channelPerms, ctx)
@@ -125,20 +127,22 @@ function checkForNewlyJoined({
   }
 }
 
-export const syncBlockedUsers = async () => {
-  const blockedIds = await api.getBlockedUsers();
+export const syncBlockedUsers = async (ctx?: SyncCtx) => {
+  const blockedIds = await syncQueue.add('getBlockedUsers', ctx, () =>
+    api.getBlockedUsers()
+  );
   await db.insertBlockedContacts({ blockedIds });
 };
 
 export const syncChannelHeads = async (
   reporter?: ErrorReporter,
-  priority = SyncPriority.High
+  ctx?: SyncCtx
 ) => {
   const result = await Promise.all([
-    syncQueue.add('groupChannelHeads', priority, () =>
+    syncQueue.add('groupChannelHeads', ctx, () =>
       api.getLatestPosts({ type: 'channels' })
     ),
-    syncQueue.add('chatChannelHeads', priority, () =>
+    syncQueue.add('chatChannelHeads', ctx, () =>
       api.getLatestPosts({ type: 'chats' })
     ),
   ]);
@@ -148,60 +152,58 @@ export const syncChannelHeads = async (
   await db.insertLatestPosts(allPosts);
 };
 
-export const syncSettings = async (priority = SyncPriority.Medium) => {
-  const settings = await syncQueue.add('settings', priority, () =>
+export const syncSettings = async (ctx?: SyncCtx) => {
+  const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
   return db.insertSettings(settings);
 };
 
-export const syncAppInfo = async (priority = SyncPriority.Medium) => {
-  const appInfo = await syncQueue.add('appInfo', priority, () =>
-    api.getAppInfo()
-  );
+export const syncAppInfo = async (ctx?: SyncCtx) => {
+  const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
   return db.setAppInfoSettings(appInfo);
 };
 
-export const syncVolumeSettings = async (priority = SyncPriority.Medium) => {
-  const volumeSettings = await syncQueue.add('volumeSettings', priority, () =>
+export const syncVolumeSettings = async (ctx?: SyncCtx) => {
+  const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
     api.getVolumeSettings()
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
   await db.setVolumes(clientVolumes);
 };
 
-export const syncContacts = async (priority = SyncPriority.Medium) => {
-  const contacts = await syncQueue.add('contacts', priority, () =>
+export const syncContacts = async (ctx?: SyncCtx) => {
+  const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
   await db.insertContacts(contacts);
 };
 
-export const syncPinnedItems = async (priority = SyncPriority.Medium) => {
+export const syncPinnedItems = async (ctx?: SyncCtx) => {
   logger.log('syncing pinned items');
-  const pinnedItems = await syncQueue.add('pinnedItems', priority, () =>
+  const pinnedItems = await syncQueue.add('pinnedItems', ctx, () =>
     api.getPinnedItems()
   );
   logger.log('got pinned items from api', pinnedItems.length);
   await db.insertPinnedItems(pinnedItems);
 };
 
-export const syncGroups = async (priority = SyncPriority.Medium) => {
-  const groups = await syncQueue.add('groups', priority, () =>
+export const syncGroups = async (ctx?: SyncCtx) => {
+  const groups = await syncQueue.add('groups', ctx, () =>
     api.getGroups({ includeMembers: false })
   );
   await db.insertGroups({ groups: groups });
 };
 
-export const syncDms = async (priority = SyncPriority.Medium) => {
-  const [dms, groupDms] = await syncQueue.add('dms', priority, () =>
+export const syncDms = async (ctx?: SyncCtx) => {
+  const [dms, groupDms] = await syncQueue.add('dms', ctx, () =>
     Promise.all([api.getDms(), api.getGroupDms()])
   );
   await db.insertChannels([...dms, ...groupDms]);
 };
 
-export const syncUnreads = async (priority = SyncPriority.Medium) => {
-  const unreads = await syncQueue.add('unreads', priority, () =>
+export const syncUnreads = async (ctx?: SyncCtx) => {
+  const unreads = await syncQueue.add('unreads', ctx, () =>
     api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
@@ -212,7 +214,7 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
 
 export const syncChannelThreadUnreads = async (
   channelId: string,
-  priority = SyncPriority.Medium
+  ctx?: SyncCtx
 ) => {
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
@@ -222,7 +224,7 @@ export const syncChannelThreadUnreads = async (
     );
     return;
   }
-  const unreads = await syncQueue.add('thread unreads', priority, () =>
+  const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
   await db.insertThreadUnreads(unreads);
@@ -253,9 +255,9 @@ export async function syncThreadPosts(
     authorId: string;
     channelId: string;
   },
-  priority = SyncPriority.Medium
+  ctx?: SyncCtx
 ) {
-  const response = await syncQueue.add('syncThreadPosts', priority, () =>
+  const response = await syncQueue.add('syncThreadPosts', ctx, () =>
     api.getPostWithReplies({
       postId,
       authorId,
@@ -268,20 +270,20 @@ export async function syncThreadPosts(
   });
 }
 
-export async function syncGroup(id: string, priority = SyncPriority.High) {
-  const response = await syncQueue.add('syncGroup', priority, () =>
+export async function syncGroup(id: string, ctx?: SyncCtx) {
+  const response = await syncQueue.add('syncGroup', ctx, () =>
     api.getGroup(id)
   );
   await db.insertGroups({ groups: [response] });
 }
 
-export const syncStorageSettings = (priority = SyncPriority.Medium) => {
+export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
     syncQueue
-      .add('storageSettings', priority, () => api.getStorageConfiguration())
+      .add('storageSettings', ctx, () => api.getStorageConfiguration())
       .then((config) => db.setStorageConfiguration(config)),
     syncQueue
-      .add('storageCredentials', priority, () => api.getStorageCredentials())
+      .add('storageCredentials', ctx, () => api.getStorageCredentials())
       .then((creds) => db.setStorageCredentials(creds)),
   ]);
 };
@@ -314,17 +316,24 @@ export const persistUnreads = async ({
   }
 };
 
-export const resetActivity = async () => {
-  const { relevantUnreads, events } = await api.getInitialActivity();
-  await db.clearActivityEvents();
-  await db.insertActivityEvents(events);
-  await persistUnreads({ unreads: relevantUnreads });
-
+export const resetActivity = async (syncCtx?: SyncCtx) => {
+  const { relevantUnreads, events } = await syncQueue.add(
+    'getInitialActivity',
+    syncCtx,
+    () => api.getInitialActivity()
+  );
+  await batchEffects('resetActivity', async (ctx) => {
+    await db.clearActivityEvents(ctx);
+    await db.insertActivityEvents(events, ctx);
+    await persistUnreads({ unreads: relevantUnreads, ctx });
+  });
   resetActivityFetchers();
 };
 
-export const syncPushNotificationsSetting = async () => {
-  const setting = await api.getPushNotificationsSetting();
+export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
+  const setting = await syncQueue.add('getPushNotificationSettings', ctx, () =>
+    api.getPushNotificationsSetting()
+  );
   await db.setPushNotificationsSetting(setting);
 };
 
@@ -816,56 +825,15 @@ export async function handleAddPost(
   }
 }
 
-export async function syncHiddenPosts(reporter: ErrorReporter) {
-  const hiddenPosts = await syncQueue.add(
-    'hiddenPosts',
-    SyncPriority.High,
-    () => api.getHiddenPosts()
-  );
-  reporter?.log('got hidden channel posts data from api');
-  const hiddenDMPosts = await syncQueue.add(
-    'hiddenDMPosts',
-    SyncPriority.High,
-    () => api.getHiddenDMPosts()
-  );
-  reporter?.log('got hidden dm posts data from api');
-  handleReceivedHiddenPosts({
-    reporter,
-    hiddenPostIds: [...hiddenPosts, ...hiddenDMPosts],
-  });
-}
-
-export async function handleReceivedHiddenPosts({
-  reporter,
-  hiddenPostIds,
-}: {
-  reporter?: ErrorReporter;
-  hiddenPostIds: string[];
-}) {
-  const currentHiddenPosts = await db.getHiddenPosts();
-
-  // if the user deleted the posts from another client while we were offline,
-  // we should remove them from our hidden posts list
-  currentHiddenPosts.forEach(async (hiddenPost) => {
-    if (!hiddenPostIds.some((postId) => postId === hiddenPost.id)) {
-      reporter?.log(`deleting hidden post ${hiddenPost.id}`);
-      await db.updatePost({ id: hiddenPost.id, hidden: false });
-    }
-  });
-
-  await db.insertHiddenPosts(hiddenPostIds);
-  reporter?.log('inserted hidden posts');
-}
-
 export async function syncPosts(
   options: api.GetChannelPostsOptions,
-  priority = SyncPriority.Medium
+  ctx?: SyncCtx
 ) {
   logger.log(
     'syncing posts',
     `${options.channelId}/${options.cursor}/${options.mode}`
   );
-  const response = await syncQueue.add('channelPosts', priority, () =>
+  const response = await syncQueue.add('channelPosts', ctx, () =>
     api.getChannelPosts(options)
   );
   if (response.posts.length) {
@@ -926,7 +894,10 @@ export async function syncChannelWithBackoff({
     }
 
     logger.log(`still have undelivered messages, syncing...`);
-    await syncPosts({ channelId, mode: 'newest' }, SyncPriority.High);
+    await syncPosts(
+      { channelId, mode: 'newest' },
+      { priority: SyncPriority.High }
+    );
 
     if (await isStillPending()) {
       throw new Error('Keep going');
@@ -969,70 +940,72 @@ export const handleDiscontinuity = async () => {
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
   const reporter = new ErrorReporter('sync start', logger);
-  try {
-    reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
-    // highest priority, do immediately
-    await withRetry(() => syncInitData(reporter));
-    reporter.log(`finished syncing init data`);
-    await withRetry(() => syncHiddenPosts(reporter));
-    reporter.log(`finished syncing hidden posts`);
+  reporter.log(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-    await withRetry(() => syncChannelHeads(reporter));
-    reporter.log(`finished syncing latest posts`);
-
-    await withRetry(() =>
-      Promise.all([
-        syncContacts(SyncPriority.High).then(() =>
-          reporter.log(`finished syncing contacts`)
+  const sessionInitPromises = [
+    syncInitData(reporter, { priority: SyncPriority.High, retry: true }),
+    syncChannelHeads(reporter, { priority: SyncPriority.High, retry: true }),
+    alreadySubscribed
+      ? Promise.resolve()
+      : setupSubscriptions({ priority: SyncPriority.High - 1 }).then(() =>
+          reporter.log('subscribed')
         ),
-        resetActivity().then(() => reporter.log(`finished resetting activity`)),
-      ])
-    );
+  ];
 
-    if (!alreadySubscribed) {
-      await withRetry(() => setupSubscriptions());
-      reporter.log(`subscriptions setup`);
-    } else {
-      reporter.log(`already subscribed, skipping`);
-    }
-    updateSession({ startTime: Date.now() });
+  const lowPriorityPromises = [
+    resetActivity({ priority: SyncPriority.Medium + 2, retry: true }).then(() =>
+      reporter.log(`finished resetting activity`)
+    ),
+    syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
+      reporter.log(`finished syncing contacts`)
+    ),
+    syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      reporter.log(`finished syncing settings`)
+    ),
+    syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
+      reporter.log(`finished syncing volume settings`)
+    ),
+    syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
+      reporter.log(`finished initializing storage`)
+    ),
+    syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
+      reporter.log(`finished syncing push notifications setting`)
+    ),
+    syncBlockedUsers({ priority: SyncPriority.Low }).then(() => {
+      reporter.log(`finished syncing blocked users`);
+    }),
+    syncAppInfo({ priority: SyncPriority.Low }).then(() => {
+      reporter.log(`finished syncing app info`);
+    }),
+  ];
 
-    await withRetry(() =>
-      Promise.all([
-        syncSettings().then(() => reporter.log(`finished syncing settings`)),
-        syncVolumeSettings().then(() =>
-          reporter.log(`finished syncing volume settings`)
-        ),
-        syncStorageSettings().then(() =>
-          reporter.log(`finished initializing storage`)
-        ),
-        syncPushNotificationsSetting().then(() =>
-          reporter.log(`finished syncing push notifications setting`)
-        ),
-        syncBlockedUsers().then(() => {
-          reporter.log(`finished syncing blocked users`);
-        }),
-        syncAppInfo().then(() => {
-          reporter.log(`finished syncing app info`);
-        }),
-      ])
-    );
+  Promise.all(sessionInitPromises)
+    .then(() => {
+      reporter.log(`finished init sync`);
+      updateSession({ startTime: Date.now() });
+    })
+    .catch((e) => {
+      logger.warn('INITIAL SYNC FAILED', e);
+    });
 
-    reporter.log('sync start complete');
-  } catch (e) {
-    reporter.report(e);
-    logger.warn('INITIAL SYNC FAILED', e);
-    throw e;
-  }
+  Promise.all(lowPriorityPromises)
+    .then(() => {
+      reporter.log(`finished low priority sync`);
+    })
+    .catch((e) => {
+      logger.warn('LOW PRIORITY SYNC FAILED', e);
+    });
 };
 
-export const setupSubscriptions = async () => {
-  await Promise.all([
-    api.subscribeToActivity(createActivityUpdateHandler()),
-    api.subscribeGroups(handleGroupUpdate),
-    api.subscribeToChannelsUpdates(handleChannelsUpdate),
-    api.subscribeToChatUpdates(handleChatUpdate),
-    api.subscribeToContactUpdates(handleContactUpdate),
-    api.subscribeToStorageUpdates(handleStorageUpdate),
-  ]);
+export const setupSubscriptions = async (ctx?: SyncCtx) => {
+  return syncQueue.add('setupSubscriptions', ctx, () =>
+    Promise.all([
+      api.subscribeToActivity(createActivityUpdateHandler()),
+      api.subscribeGroups(handleGroupUpdate),
+      api.subscribeToChannelsUpdates(handleChannelsUpdate),
+      api.subscribeToChatUpdates(handleChatUpdate),
+      api.subscribeToContactUpdates(handleContactUpdate),
+      api.subscribeToStorageUpdates(handleStorageUpdate),
+    ])
+  );
 };

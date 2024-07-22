@@ -14,7 +14,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   useEffect(() => {
     if (groupId) {
-      sync.syncGroup(groupId, store.SyncPriority.High);
+      sync.syncGroup(groupId, { priority: store.SyncPriority.High });
     }
   }, [groupId]);
 

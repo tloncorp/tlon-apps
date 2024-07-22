@@ -83,7 +83,7 @@ export default function ChatListScreen(
 
   useFocusEffect(
     useCallback(() => {
-      store.syncPinnedItems(store.SyncPriority.High);
+      store.syncPinnedItems({ priority: store.SyncPriority.High });
     }, [])
   );
 

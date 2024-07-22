@@ -502,10 +502,11 @@ export const getCompositeGroups = (
   });
 };
 
-interface RetryConfig {
+export interface RetryConfig {
   startingDelay?: number;
   numOfAttempts?: number;
 }
+
 export const withRetry = (fn: () => Promise<any>, config?: RetryConfig) => {
   return backOff(fn, {
     delayFirstAttempt: false,
