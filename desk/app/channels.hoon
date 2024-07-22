@@ -27,10 +27,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %4
+    $:  %5
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
-        pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -120,16 +119,57 @@
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  ?>  ?=(%4 -.old)
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+  ?>  ?=(%5 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-4 state-3 state-2 state-1 state-0)
-  +$  state-4  current-state
+  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1 state-0)
+  +$  state-5  current-state
+  ::
+  +$  state-4
+    $:  %4
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said-4))
+        pins=(list nest:c)
+        hidden-posts=(set id-post:c)
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        =^subs:s
+    ==
+  +$  said-4  (pair nest:c reference-4)
+  +$  reference-4
+    $%  [%post post=simple-post-4]
+        $>(%reply reference:c)
+    ==
+  +$  simple-post-4  [simple-seal-4 essay:c]
+  +$  simple-seal-4
+    $:  id=id-post:c
+        =reacts:c
+        replies=simple-replies-4
+        =reply-meta:c
+    ==
+  +$  simple-replies-4   ((mop id-reply:c simple-reply:c) lte)
+  ++  on-simple-replies  ((on id-reply:c simple-reply:c) lte)
+  ::
+  ++  state-4-to-5
+    |=  state-4
+    ^-  state-5
+    :*  %5
+        v-channels
+        (~(run by voc) (curr bind said-4-to-5))
+        hidden-posts  pending-ref-edits  subs
+    ==
+  ++  said-4-to-5  |=(said-4 [p (reference-4-to-5 q)])
+  ++  reference-4-to-5
+    |=  r=reference-4
+    ^-  reference:c
+    ?.  ?=(%post -.r)  r
+    [%post post.r(replies (run:on-simple-replies replies.post.r some))]
+  ::
   +$  state-3
     $:  %3
         v-channels=(map nest:c v-channel-2)
-        voc=(map [nest:c plan:c] (unit said:c))
+        voc=(map [nest:c plan:c] (unit said-4))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
@@ -143,7 +183,7 @@
   +$  state-2
     $:  %2
         v-channels=(map nest:c v-channel-2)
-        voc=(map [nest:c plan:c] (unit said:c))
+        voc=(map [nest:c plan:c] (unit said-4))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
@@ -154,7 +194,7 @@
   +$  state-1
     $:  %1
         v-channels=(map nest:c v-channel-1)
-        voc=(map [nest:c plan:c] (unit said:c))
+        voc=(map [nest:c plan:c] (unit said-4))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
@@ -272,7 +312,7 @@
   +$  state-0
     $:  %0
         v-channels=(map nest:c v-channel-0)
-        voc=(map [nest:c plan:c] (unit said:c))
+        voc=(map [nest:c plan:c] (unit said-4))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
@@ -378,7 +418,7 @@
     ?:  ?=(%pin -.a-channels)
       ~&  %channels-vestigial-pin-action
       ?>  from-self
-      cor(pins pins.a-channels)
+      cor
     ?:  ?=(%toggle-post -.a-channels)
       ?>  from-self
       (toggle-post toggle.a-channels)
@@ -415,7 +455,6 @@
       %channel-migration-pins
     ?>  =(our src):bowl
     =+  !<(new-pins=(list nest:c) vase)
-    =.  pins  (weld pins new-pins)
     cor
   ::
       %negotiate-notification
