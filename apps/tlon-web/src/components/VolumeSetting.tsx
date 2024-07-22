@@ -71,7 +71,7 @@ export default function VolumeSetting({ source }: { source: Source }) {
   );
 
   return (
-    <div className="space-y-4 min-w-[400px]">
+    <div className="space-y-4 flex-1 sm:flex-none sm:min-w-[400px]">
       <Setting
         on={currentUnreads}
         name="Show Unread Indicator"
