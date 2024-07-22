@@ -389,10 +389,23 @@ export function useMarkReadMutation(recursive = false) {
         all: { time: null, deep: recursive },
       };
 
-      const key =
-        'thread' in variables.source || 'dm-thread' in variables.source
-          ? unreadsKey('threads', sourceToString(variables.source))
-          : unreadsKey();
+      let key = unreadsKey();
+
+      if ('thread' in variables.source || 'dm-thread' in variables.source) {
+        const parent =
+          'thread' in variables.source
+            ? {
+                channel: {
+                  group: variables.source.thread.group,
+                  nest: variables.source.thread.channel,
+                },
+              }
+            : {
+                dm: variables.source['dm-thread'].whom,
+              };
+        key = unreadsKey('threads', sourceToString(parent));
+      }
+
       queryClient.setQueryData<Activity>(key, (d) => {
         if (d === undefined) {
           return undefined;
