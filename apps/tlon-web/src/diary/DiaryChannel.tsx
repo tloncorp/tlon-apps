@@ -45,7 +45,7 @@ function DiaryChannel({ title }: ViewProps) {
     hasNextPage,
     fetchNextPage,
   } = useInfinitePosts(nest);
-  const { markRead } = useMarkChannelRead(nest);
+  const { markRead } = useMarkChannelRead(nest, undefined, true);
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
