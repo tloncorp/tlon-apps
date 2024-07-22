@@ -1,9 +1,10 @@
-import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useState } from 'react';
 
-import { Image, Text, YStack } from '../../core';
+import { Image, Text, XStack, YStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
@@ -14,6 +15,8 @@ export default function NotebookPost({
   post,
   onPress,
   onLongPress,
+  onPressRetry,
+  onPressDelete,
   showReplies = true,
   showAuthor = true,
   smallImage = false,
@@ -24,6 +27,8 @@ export default function NotebookPost({
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressRetry?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   detailView?: boolean;
   showReplies?: boolean;
   showAuthor?: boolean;
@@ -31,9 +36,33 @@ export default function NotebookPost({
   smallTitle?: boolean;
   viewMode?: 'activity';
 }) {
+  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
+
+  const handleRetryPressed = useCallback(() => {
+    onPressRetry?.(post);
+    setShowRetrySheet(false);
+  }, [onPressRetry, post]);
+
+  const handleDeletePressed = useCallback(() => {
+    onPressDelete?.(post);
+    setShowRetrySheet(false);
+  }, [onPressDelete, post]);
+
+  const handlePress = useCallback(() => {
+    if (post.hidden || post.isDeleted) {
+      return;
+    }
+
+    if (post.deliveryStatus === 'failed') {
+      setShowRetrySheet(true);
+      return;
+    }
+
+    onPress?.(post);
+  }, [onPress, post.isDeleted, post.hidden, post.deliveryStatus]);
 
   if (!post) {
     return null;
@@ -43,9 +72,7 @@ export default function NotebookPost({
 
   return (
     <Pressable
-      onPress={() =>
-        post.hidden || post.isDeleted ? () => {} : onPress?.(post)
-      }
+      onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={250}
       disabled={viewMode === 'activity'}
@@ -114,6 +141,24 @@ export default function NotebookPost({
             post.replyContactIds ? (
               <ChatMessageReplySummary post={post} paddingLeft={false} />
             ) : null}
+            {post.deliveryStatus === 'failed' ? (
+              <XStack alignItems="center" justifyContent="flex-end">
+                <Text color="$negativeActionText" fontSize="$xs">
+                  Message failed to send
+                </Text>
+              </XStack>
+            ) : null}
+            <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
+              <ActionSheet.ActionTitle>
+                Message failed to send
+              </ActionSheet.ActionTitle>
+              <Button hero onPress={handleRetryPressed}>
+                <Button.Text>Retry</Button.Text>
+              </Button>
+              <Button heroDestructive onPress={handleDeletePressed}>
+                <Button.Text>Delete</Button.Text>
+              </Button>
+            </ActionSheet>
           </>
         )}
       </YStack>

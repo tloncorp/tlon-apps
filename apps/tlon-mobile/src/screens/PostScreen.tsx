@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
@@ -71,6 +72,31 @@ export default function PostScreen(props: PostScreenProps) {
     [channel, currentUserId, post, uploadInfo]
   );
 
+  const handleDeletePost = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to delete message before channel loaded');
+      }
+      await store.deleteFailedPost({
+        post,
+      });
+    },
+    [channel]
+  );
+
+  const handleRetrySend = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to retry send before channel loaded');
+      }
+      await store.retrySendPost({
+        channel,
+        post,
+      });
+    },
+    [channel]
+  );
+
   return currentUserId && channel && post ? (
     <PostScreenView
       contacts={contacts ?? null}
@@ -89,6 +115,8 @@ export default function PostScreen(props: PostScreenProps) {
       clearDraft={clearDraft}
       markRead={markRead}
       editingPost={editingPost}
+      onPressDelete={handleDeletePost}
+      onPressRetry={handleRetrySend}
       setEditingPost={setEditingPost}
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
