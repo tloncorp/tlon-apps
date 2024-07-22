@@ -38,6 +38,6 @@
   },
   "peerDependencies": {
     "react": "^18.2.0",
-    "@10play/tentap-editor": "^0.4.55"
+    "@10play/tentap-editor": "~0.5.11"
   }
 }

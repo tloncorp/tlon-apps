@@ -431,11 +431,20 @@ export const getPostTypeFromChannelId = ({
 }): db.PostType => {
   if (!channelId) return 'chat';
   const isDm = isDmChannelId(channelId) || isGroupDmChannelId(channelId);
-  return parentId
-    ? 'reply'
-    : isDm
-      ? 'chat'
-      : (channelId.split('/')[0] as db.PostType);
+  if (parentId) {
+    return 'reply';
+  } else if (isDm) {
+    return 'chat';
+  } else {
+    const idType = channelId.split('/')[0];
+    if (idType === 'diary') {
+      return 'note';
+    } else if (idType === 'heap') {
+      return 'block';
+    } else {
+      return 'chat';
+    }
+  }
 };
 
 export const usePostMeta = (post: db.Post) => {

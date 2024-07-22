@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
+  useCanUpload,
   useChannel,
   useGroupPreview,
   usePostReference,
@@ -65,7 +66,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     navigateToRef,
     navigateToSearch,
     calmSettings,
-    uploadInfo,
     currentUserId,
     performGroupAction,
     headerMode,
@@ -132,10 +132,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         throw new Error('Tried to send message before channel loaded');
       }
 
-      // clear the attachments immediately so consumers know the upload state is
-      // no longer needed
-      uploadInfo.resetImageAttachment();
-
       await store.sendPost({
         channel: channel,
         authorId: currentUserId,
@@ -143,7 +139,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         metadata,
       });
     },
-    [currentUserId, channel, uploadInfo]
+    [currentUserId, channel]
   );
 
   const handleDeletePost = useCallback(
@@ -196,6 +192,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     }
   }, [channel]);
 
+  const canUpload = useCanUpload();
+
   if (!channel) {
     return null;
   }
@@ -221,7 +219,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         goToChannels={handleChannelNavButtonPressed}
         goToSearch={navigateToSearch}
         goToDm={handleGoToDm}
-        uploadInfo={uploadInfo}
+        uploadAsset={store.uploadAsset}
         onScrollEndReached={loadOlder}
         onScrollStartReached={loadNewer}
         onPressRef={navigateToRef}
@@ -240,6 +238,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         setEditingPost={setEditingPost}
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
+        canUpload={canUpload}
       />
       {group && (
         <ChannelSwitcherSheet

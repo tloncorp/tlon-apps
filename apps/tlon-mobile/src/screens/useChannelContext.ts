@@ -8,7 +8,6 @@ import { GroupPreviewAction } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { useImageUpload } from '../hooks/useImageUpload';
 import * as featureFlags from '../lib/featureFlags';
 import storage from '../lib/storage';
 import { RootStackParamList } from '../types';
@@ -16,17 +15,11 @@ import { RootStackParamList } from '../types';
 export const useChannelContext = ({
   channelId,
   draftKey,
-  uploaderKey,
 }: {
   channelId: string;
   draftKey: string;
   uploaderKey: string;
 }) => {
-  // Uploader
-  const uploadInfo = useImageUpload({
-    uploaderKey: uploaderKey,
-  });
-
   const currentUserId = useCurrentUserId();
 
   // Calm Settings
@@ -186,7 +179,6 @@ export const useChannelContext = ({
     navigateToImage,
     navigateToRef,
     navigateToSearch,
-    uploadInfo,
     currentUserId,
     performGroupAction,
     headerMode: featureFlags.isEnabled('channelSwitcher') ? 'next' : 'default',

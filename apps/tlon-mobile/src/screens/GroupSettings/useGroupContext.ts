@@ -5,7 +5,6 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useImageUpload } from '../../hooks/useImageUpload';
 
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();
@@ -14,14 +13,12 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   });
 
   useEffect(() => {
-    sync.syncGroup(groupId, store.SyncPriority.High);
+    if (groupId) {
+      sync.syncGroup(groupId, store.SyncPriority.High);
+    }
   }, [groupId]);
 
   const group = groupQuery.data ?? null;
-
-  const uploadInfo = useImageUpload({
-    uploaderKey: `group-${groupId}`,
-  });
 
   const currentUserIsAdmin = useMemo(() => {
     return group?.members.some(
@@ -321,7 +318,6 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
 
   return {
     group,
-    uploadInfo,
     groupMembers,
     groupRoles,
     groupInvites,
