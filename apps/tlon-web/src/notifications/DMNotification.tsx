@@ -50,10 +50,8 @@ function DMNotification({
           <Avatar size="default-sm" ship={author} />
         </div>
         <div className="min-w-0 grow-0 break-words p-1 space-y-2">
-          <div className="flex items-center space-x-1">
-            <ChatSmallIcon className="h-4 w-4" />
-            <ActivitySummary top={top} bundle={bundle} relevancy={relevancy} />
-          </div>
+          <ChatSmallIcon className="h-4 w-4" />
+          <ActivitySummary top={top} bundle={bundle} relevancy={relevancy} />
           {content ? (
             <div className="text-black py-1 leading-5">
               <ChatContent story={truncateProse(content, 360)} />
