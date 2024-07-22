@@ -81,7 +81,7 @@ export function useInfiniteBucketedActivity(
       // if we got some stuff, insert it into the DB & update the cusor
       if (apiResponse.events.length > 0) {
         await db.insertActivityEvents(apiResponse.events);
-        await sync.persistUnreads(apiResponse.relevantUnreads);
+        await sync.persistUnreads({ unreads: apiResponse.relevantUnreads });
         const events = await db.getBucketedActivityPage({
           bucket,
           startCursor: cursor,

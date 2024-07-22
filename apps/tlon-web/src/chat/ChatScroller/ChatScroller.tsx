@@ -510,7 +510,7 @@ export default function ChatScroller({
     if (isAtTop && !hasLoadedOldest) {
       logger.log('triggering onAtTop');
       onAtTop?.();
-    } else if (isAtBottom && !hasLoadedNewest) {
+    } else if (isAtBottom) {
       logger.log('triggering onAtBottom');
       onAtBottom?.();
     }

@@ -462,7 +462,7 @@
     %+  roll
       happenings
     |=  [bn=activity-bundle:a acc=activity:a]
-    (~(put by acc) source.bn (~(got by activity) source.bn))
+    (~(put by acc) source.bn (~(gut by activity) source.bn *activity-summary:a))
   ::  if start is now, need to increment to make sure we include latest
   ::  event if that event somehow has now as its time
   =/  real-start  ?:(=(start now.bowl) +(start) start)

@@ -22,6 +22,7 @@ interface LocalState {
   errorCount: number;
   airLockErrorCount: number;
   lastReconnect: number;
+  inFocus: boolean;
   onReconnect: (() => void) | null;
   logs: string[];
   log: (msg: string) => void;
@@ -44,6 +45,7 @@ export const useLocalState = create<LocalState>(
       lastReconnect: Date.now(),
       onReconnect: null,
       logs: [],
+      inFocus: true,
       log: (msg: string) => {
         set(
           produce((s) => {
@@ -106,4 +108,9 @@ export function useSubscriptionStatus() {
 const selLast = (s: LocalState) => s.lastReconnect;
 export function useLastReconnect() {
   return useLocalState(selLast);
+}
+
+const selInFocus = (s: LocalState) => s.inFocus;
+export function useInFocus() {
+  return useLocalState(selInFocus);
 }

@@ -60,9 +60,11 @@ export const syncInitData = async (reporter?: ErrorReporter) => {
       db
         .insertChannels(initData.channels, ctx)
         .then(() => reporter?.log('inserted channels')),
-      persistUnreads(initData.unreads, ctx).then(() =>
-        reporter?.log('persisted unreads')
-      ),
+      persistUnreads({
+        unreads: initData.unreads,
+        ctx,
+        includesAllUnreads: true,
+      }).then(() => reporter?.log('persisted unreads')),
       handleReceivedHiddenPosts({
         reporter,
         hiddenPostIds: initData.hiddenPostIds,
@@ -204,7 +206,9 @@ export const syncUnreads = async (priority = SyncPriority.Medium) => {
     api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
-  return batchEffects('initialUnreads', (ctx) => persistUnreads(unreads, ctx));
+  return batchEffects('initialUnreads', (ctx) =>
+    persistUnreads({ unreads, ctx, includesAllUnreads: true })
+  );
 };
 
 export const syncChannelThreadUnreads = async (
@@ -278,29 +282,39 @@ export const syncStorageSettings = (priority = SyncPriority.Medium) => {
   });
 };
 
-export const persistUnreads = async (
-  activity: api.ActivityInit,
-  ctx?: QueryCtx
-) => {
-  const { groupUnreads, channelUnreads, threadActivity } = activity;
+export const persistUnreads = async ({
+  unreads,
+  ctx,
+  includesAllUnreads,
+}: {
+  unreads: api.ActivityInit;
+  ctx?: QueryCtx;
+  includesAllUnreads?: boolean;
+}) => {
+  const { groupUnreads, channelUnreads, threadActivity } = unreads;
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
-  await db.setJoinedGroupChannels(
-    {
-      channelIds: channelUnreads
-        .filter((u) => u.type === 'channel')
-        .map((u) => u.channelId),
-    },
-    ctx
-  );
+
+  // if we have all channel unreads, we should use that data to update which
+  // channels we're joined to
+  if (includesAllUnreads) {
+    await db.setJoinedGroupChannels(
+      {
+        channelIds: channelUnreads
+          .filter((u) => u.type === 'channel')
+          .map((u) => u.channelId),
+      },
+      ctx
+    );
+  }
 };
 
 export const resetActivity = async () => {
   const { relevantUnreads, events } = await api.getInitialActivity();
   await db.clearActivityEvents();
   await db.insertActivityEvents(events);
-  await persistUnreads(relevantUnreads);
+  await persistUnreads({ unreads: relevantUnreads });
 
   resetActivityFetchers();
 };
