@@ -1,4 +1,5 @@
 import { extractContentTypesFromPost, utils } from '@tloncorp/shared';
+import { Post, PostDeliveryStatus } from '@tloncorp/shared/dist/db';
 import {
   Block,
   Code,
@@ -26,7 +27,6 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
-import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
 import {
   ComponentProps,
   ReactElement,
