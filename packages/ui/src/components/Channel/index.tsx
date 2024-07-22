@@ -344,6 +344,7 @@ export function Channel({
                                   editingPost={editingPost}
                                   setEditingPost={setEditingPost}
                                   editPost={editPost}
+                                  channelType={channel.type}
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }

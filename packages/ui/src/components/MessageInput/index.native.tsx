@@ -518,7 +518,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         if (blocks && blocks.length > 0) {
-          story.push(...blocks.map((block) => ({ block })));
+          if (channelType === 'chat') {
+            story.unshift(...blocks.map((block) => ({ block })));
+          } else {
+            story.push(...blocks.map((block) => ({ block })));
+          }
         }
 
         if (isEdit && editingPost) {
@@ -563,6 +567,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         title,
         image,
         imageOnEditedPost,
+        channelType,
       ]
     );
 

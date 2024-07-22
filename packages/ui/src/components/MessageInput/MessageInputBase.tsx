@@ -45,7 +45,7 @@ export interface MessageInputProps {
   title?: string;
   image?: UploadedFile;
   showToolbar?: boolean;
-  channelType?: db.ChannelType;
+  channelType: db.ChannelType;
   initialHeight?: number;
   // for external access to height
   setHeight?: (height: number) => void;
