@@ -143,7 +143,6 @@ export default function ChatThread() {
   );
 
   const onAtBottom = useCallback((atBottom: boolean) => {
-    console.log('thread bottom called', atBottom);
     const { threadBottom } = useChatStore.getState();
     threadBottom(atBottom);
   }, []);
