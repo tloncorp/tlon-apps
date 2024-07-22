@@ -1,7 +1,13 @@
+import { useMutation } from '@tanstack/react-query';
+import { ActivityAction, ActivityUpdate } from '@tloncorp/shared/dist/urbit';
+import cn from 'classnames';
+import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
+import api from '@/api';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
+import { activityAction } from '@/state/activity';
 import {
   Theme,
   useCalm,
@@ -44,9 +50,50 @@ export default function Settings() {
     usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
   const { mutate: resetAnalyticsId, status: resetAnalyticsIdStatus } =
     useResetAnalyticsIdMutation();
+  const { mutate: markRead, isLoading } = useMutation({
+    mutationFn: async () => {
+      await api.trackedPoke<ActivityAction, ActivityUpdate>(
+        activityAction({
+          read: {
+            source: { base: null },
+            action: { all: { time: null, deep: true } },
+          },
+        }),
+        { app: 'activity', path: '/v4' },
+        (event) => 'activity' in event
+      );
+
+      await new Promise((res) => setTimeout(res, 1000));
+    },
+  });
+  const isMarkReadPending = isLoading;
+  const markAllRead = useCallback(async () => {
+    markRead();
+  }, []);
 
   return (
     <>
+      <div className="card">
+        <div className="flex flex-col items-start space-y-2">
+          <h2 className="text-lg font-semibold">Activity</h2>
+          <p className="text-gray-600">
+            Mark all channels, DMs, and threads read (aka get rid of dots)
+          </p>
+          <button
+            disabled={isMarkReadPending}
+            className={cn('small-button whitespace-nowrap text-sm min-w-10', {
+              'bg-gray-400 text-gray-800': isMarkReadPending,
+            })}
+            onClick={markAllRead}
+          >
+            {isMarkReadPending ? (
+              <LoadingSpinner className="h-4 w-4" />
+            ) : (
+              `Mark Everything as Read`
+            )}
+          </button>
+        </div>
+      </div>
       <div className="card">
         <div className="flex flex-col">
           <h2 className="mb-2 text-lg font-semibold">Blocked Users</h2>
