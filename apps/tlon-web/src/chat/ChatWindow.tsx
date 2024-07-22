@@ -8,12 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -66,7 +61,6 @@ const ChatWindow = React.memo(function ChatWindowRaw({
     isFetchingNextPage,
     isFetchingPreviousPage,
   } = useInfinitePosts(nest, scrollToId);
-  const { markRead } = useMarkChannelRead(nest);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const fetchingNewest =
     isFetching && (!isFetchingNextPage || !isFetchingPreviousPage);
@@ -124,28 +118,34 @@ const ChatWindow = React.memo(function ChatWindowRaw({
   ]);
 
   useEffect(() => {
-    useChatStore.getState().setCurrent(whom);
+    useChatStore.getState().setCurrent({ whom, group: flag });
 
     return () => {
-      useChatStore.getState().setCurrent('');
+      useChatStore.getState().setCurrent(null);
     };
-  }, [whom]);
+  }, [whom, flag]);
 
-  const onAtBottom = useCallback(() => {
-    const { bottom } = useChatStore.getState();
-    bottom(true);
-    if (hasPreviousPage && !isFetching) {
-      log('fetching previous page');
-      fetchPreviousPage();
-    }
-  }, [markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
+  const onAtBottom = useCallback(
+    (atBottom: boolean) => {
+      const { bottom } = useChatStore.getState();
+      bottom(atBottom);
+      if (atBottom && hasPreviousPage && !isFetching) {
+        log('fetching previous page');
+        fetchPreviousPage();
+      }
+    },
+    [fetchPreviousPage, hasPreviousPage, isFetching]
+  );
 
-  const onAtTop = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      log('fetching next page');
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetching]);
+  const onAtTop = useCallback(
+    (atTop: boolean) => {
+      if (atTop && hasNextPage && !isFetching) {
+        log('fetching next page');
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetching]
+  );
 
   /**
    * we want to show unread banner after messages have had a chance to
@@ -232,8 +232,8 @@ const ChatWindow = React.memo(function ChatWindowRaw({
           topLoadEndMarker={prefixedElement}
           scrollTo={scrollToId ? bigInt(scrollToId) : undefined}
           scrollerRef={scrollerRef}
-          onAtTop={onAtTop}
-          onAtBottom={onAtBottom}
+          onAtTopChange={onAtTop}
+          onAtBottomChange={onAtBottom}
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
           hasLoadedOldest={!hasNextPage}
