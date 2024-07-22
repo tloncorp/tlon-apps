@@ -113,10 +113,9 @@ export const useCanUpload = () => {
           db.getStorageCredentials(),
         ]);
         return (
-          getIsHosted() &&
-          (!config ||
-            hasHostingUploadCreds(config, credentials) ||
-            hasCustomS3Creds(config, credentials))
+          !config ||
+          hasHostingUploadCreds(config, credentials) ||
+          hasCustomS3Creds(config, credentials)
         );
       },
     }).data ?? true

@@ -55,8 +55,9 @@ export const hasHostingUploadCreds = (
   credentials: StorageCredentials | null
 ) => {
   return (
-    (getIsHosted() && configuration?.service === 'presigned-url') ||
-    !hasCustomS3Creds(configuration, credentials)
+    getIsHosted() &&
+    (configuration?.service === 'presigned-url' ||
+      !hasCustomS3Creds(configuration, credentials))
   );
 };
 
@@ -69,7 +70,6 @@ export const hasCustomS3Creds = (
   secretAccessKey: string;
 } => {
   return !!(
-    configuration?.service === 'credentials' &&
     credentials?.accessKeyId &&
     credentials?.endpoint &&
     credentials?.secretAccessKey
