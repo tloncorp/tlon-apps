@@ -16,6 +16,7 @@ import {
   VolumeMap,
   VolumeSettings,
   getKey,
+  getThreadKey,
   sourceToString,
   stripSourcePrefix,
 } from '@tloncorp/shared/dist/urbit/activity';
@@ -25,7 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { createDevLogger } from '@/logic/utils';
+import { createDevLogger, whomIsDm, whomIsFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
 import { useLocalState } from './local';
@@ -146,6 +147,10 @@ function optimisticActivityUpdate(d: Activity, source: string): Activity {
   };
 }
 
+function isRead(summary: ActivitySummary) {
+  return summary.unread === null;
+}
+
 function updateActivity({
   main,
   threads,
@@ -153,19 +158,88 @@ function updateActivity({
   main: Activity;
   threads: Record<string, Activity>;
 }) {
-  // TODO: actually mark read here
-  // const { current, atBottom } = useChatStore.getState();
-  // const source = getKey(current);
-  // const inFocus = useLocalState.getState().inFocus;
-  // const filteredMain =
-  //   inFocus && atBottom && source in main
-  //     ? optimisticActivityUpdate(main, source)
-  //     : main;
-  // console.log({ inFocus, source, atBottom, filteredMain });
+  const { current, currentThread, atBottom, atThreadBottom } =
+    useChatStore.getState();
+  const source = current ? getKey(current.whom) : null;
+  const threadSource =
+    current && currentThread
+      ? getThreadKey(
+          current.whom,
+          whomIsFlag(current.whom) ? currentThread.time : currentThread.id
+        )
+      : null;
+  const threadActivity = source ? threads[source] || null : null;
+  const inFocus = useLocalState.getState().inFocus;
+  const filteredMain =
+    inFocus &&
+    atBottom &&
+    source &&
+    source in main &&
+    threadActivity === null &&
+    !isRead(main[source])
+      ? optimisticActivityUpdate(main, source)
+      : undefined;
+  const filteredThread =
+    inFocus &&
+    atThreadBottom &&
+    threadActivity &&
+    threadSource &&
+    threadSource in threadActivity &&
+    !isRead(threadActivity[threadSource])
+      ? optimisticActivityUpdate(threadActivity, threadSource)
+      : undefined;
+
+  if (filteredMain && current) {
+    const nest = `chat/${current.whom}`;
+    const source = whomIsFlag(current.whom)
+      ? current.group
+        ? { channel: { group: current.group, nest } }
+        : null
+      : {
+          dm: whomIsDm(current.whom)
+            ? { ship: current.whom }
+            : { club: current.whom },
+        };
+
+    if (source) {
+      api.poke<ActivityAction>(
+        activityAction({
+          read: { source, action: { all: { time: null, deep: false } } },
+        })
+      );
+    }
+  }
+
+  if (filteredThread && current && currentThread) {
+    const nest = `chat/${current.whom}`;
+    const source = whomIsFlag(current.whom)
+      ? current.group
+        ? {
+            thread: { group: current.group, channel: nest, key: currentThread },
+          }
+        : null
+      : {
+          'dm-thread': {
+            whom: whomIsDm(current.whom)
+              ? { ship: current.whom }
+              : { club: current.whom },
+            key: currentThread,
+          },
+        };
+
+    if (source) {
+      api.poke<ActivityAction>(
+        activityAction({
+          read: { source, action: { all: { time: null, deep: false } } },
+        })
+      );
+    }
+  }
+
   queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
     return {
       ...d,
-      ...main,
+      ...(filteredMain ? filteredMain : main),
     };
   });
 
@@ -175,7 +249,7 @@ function updateActivity({
       (d: Activity | undefined) => {
         return {
           ...d,
-          ...value,
+          ...(filteredThread && key === source ? filteredThread : value),
         };
       }
     );
