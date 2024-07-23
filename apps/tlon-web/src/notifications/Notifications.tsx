@@ -78,7 +78,7 @@ function VirtualNotification(
   return (
     <div key={bundle.latest} className="py-2">
       {newDay && (
-        <h2 className="mt-2 mb-4 font-sans text-[17px] font-normal leading-[22px] text-gray-400">
+        <h2 className="mb-4 font-sans text-[17px] font-normal leading-[22px] text-gray-400">
           {makePrettyDay(date)}
         </h2>
       )}
@@ -141,7 +141,7 @@ export default function Notifications({ title }: NotificationsProps) {
           <title>{title}</title>
         </Helmet>
 
-        <div className="flex flex-col card h-full pt-6 sm:py-6 sm:mb-6">
+        <div className="flex flex-col card h-full p-2 pr-0 sm:p-6 sm:mb-6">
           {!isMobile && (
             <div className="flex-none">
               <WelcomeCard />
