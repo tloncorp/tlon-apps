@@ -747,9 +747,7 @@ export function useDmRsvpMutation() {
     markRead({
       source: { dm: { ship } },
       action: {
-        event: {
-          'dm-invite': { ship },
-        },
+        all: { time: null, deep: false },
       },
     });
 
@@ -920,9 +918,7 @@ export function useMutliDmRsvpMutation() {
     markRead({
       source: { dm: { club: id } },
       action: {
-        event: {
-          'dm-invite': { club: id },
-        },
+        all: { time: null, deep: false },
       },
     });
     return api.poke(action);

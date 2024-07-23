@@ -42,11 +42,8 @@ const getNewDayAndNewAuthorFromLastWrit = (
     prevWrit &&
     'essay' in prevWrit &&
     !!getKindDataFromEssay(prevWrit.essay).notice;
-  const newAuthor = prevIsNotice
-    ? false
-    : !author || !prevAuthor
-      ? true
-      : author !== prevAuthor;
+  const newAuthor =
+    prevIsNotice || !author || !prevAuthor ? true : author !== prevAuthor;
   const newDay = !prevKey
     ? true
     : getDay(prevKey, messageDays) !== getDay(key, messageDays);
