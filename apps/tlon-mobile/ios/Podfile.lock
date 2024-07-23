@@ -1457,7 +1457,7 @@ DEPENDENCIES:
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - RNSVG (from `../../../node_modules/react-native-svg`)
-  - "tentap (from `../node_modules/@10play/tentap-editor`)"
+  - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../../../node_modules/react-native/ReactCommon/yoga`)
 
@@ -1688,7 +1688,7 @@ EXTERNAL SOURCES:
   RNSVG:
     :path: "../../../node_modules/react-native-svg"
   tentap:
-    :path: "../node_modules/@10play/tentap-editor"
+    :path: "../../../node_modules/@10play/tentap-editor"
   UMAppLoader:
     :path: "../../../node_modules/unimodules-app-loader/ios"
   Yoga:
