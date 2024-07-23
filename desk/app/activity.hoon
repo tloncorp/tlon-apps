@@ -717,7 +717,7 @@
 ++  bump
   |=  =source:a
   ^+  cor
-  =/  index  (get-index source)
+  =/  =index:a  (~(got by indices) source)
   =/  new=index:a  index(bump now.bowl)
   =.  indices
     (~(put by indices) source new)
@@ -732,7 +732,9 @@
 ++  read
   |=  [=source:a action=read-action:a from-parent=?]
   ^+  cor
-  =/  =index:a  (get-index source)
+  ::  we got by here because we don't want reading random sources to
+  ::  inject themselves into the activity summary.
+  =/  =index:a  (~(got by indices) source)
   ?-  -.action
       %event  ~&("read %event unsupported" !!)
       %item   ~&("read %item unsupported" !!)
