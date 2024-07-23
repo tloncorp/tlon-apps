@@ -191,6 +191,8 @@ CREATE TABLE `groups` (
 	`have_invite` integer,
 	`have_requested_invite` integer,
 	`current_user_is_member` integer NOT NULL,
+	`current_user_is_host` integer NOT NULL,
+	`host_user_id` text NOT NULL,
 	`is_new` integer,
 	`join_status` text,
 	`last_post_id` text,

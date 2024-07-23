@@ -289,6 +289,11 @@ export default function ChatListScreen(
     groupId: longPressedGroup?.id ?? '',
   });
 
+  const handleLeaveGroup = useCallback(async () => {
+    setLongPressedGroup(null);
+    leaveGroup();
+  }, [leaveGroup]);
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider
@@ -369,7 +374,7 @@ export default function ChatListScreen(
             onPressManageChannels={handleGoToManageChannels}
             onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
             onPressRoles={handleGoToRoles}
-            onPressLeave={leaveGroup}
+            onPressLeave={handleLeaveGroup}
           />
           <StartDmSheet
             goToDm={goToDm}

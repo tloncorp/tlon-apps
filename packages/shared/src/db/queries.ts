@@ -30,6 +30,7 @@ import {
   ChannelInit,
   getCurrentUserId,
 } from '../api';
+import { parseGroupId } from '../api/apiUtils';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import {
@@ -2436,6 +2437,7 @@ export const insertContact = createWriteQuery(
 export const insertContacts = createWriteQuery(
   'insertContacts',
   async (contactsData: Contact[], ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (contactsData.length === 0) {
       return;
     }
@@ -2444,13 +2446,16 @@ export const insertContacts = createWriteQuery(
       (contact) => contact.pinnedGroups || []
     );
 
-    const targetGroups = contactGroups.map(
-      (g): Group => ({
+    const targetGroups = contactGroups.map((g): Group => {
+      const { host: hostUserId } = parseGroupId(g.groupId);
+      return {
         id: g.groupId,
+        hostUserId,
         privacy: g.group?.privacy,
         currentUserIsMember: false,
-      })
-    );
+        currentUserIsHost: currentUserId === hostUserId,
+      };
+    });
 
     await withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db

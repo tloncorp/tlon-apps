@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "f4f2ae74-3687-485f-ac82-85cc2b687cd2",
+  "id": "97f10bf1-b7ef-46e2-9186-38eb82d307b2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -1253,6 +1253,20 @@
         "current_user_is_member": {
           "name": "current_user_is_member",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "current_user_is_host": {
+          "name": "current_user_is_host",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "host_user_id": {
+          "name": "host_user_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
