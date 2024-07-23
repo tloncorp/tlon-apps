@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
+import { useFeatureFlag } from 'posthog-react-native';
 import { Alert, Dimensions, Share, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, getTokens } from 'tamagui';
@@ -35,6 +36,7 @@ export function ProfileScreenView({
 export function Wrapped(props: Props) {
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
+  const showDmLure = useFeatureFlag('share-dm-lure');
 
   // TODO: Add logout back in when we figure out TLON-2098.
   const onLogoutPress = () => {
@@ -102,9 +104,7 @@ export function Wrapped(props: Props) {
           </View>
         </View>
         <View marginTop="$xl">
-          {props.dmLink === '' ? (
-            <ProfileAction title="Loading..." icon="Clock" />
-          ) : (
+          {showDmLure && props.dmLink !== '' && (
             <ProfileAction
               title="Share app with friends"
               icon="Send"
