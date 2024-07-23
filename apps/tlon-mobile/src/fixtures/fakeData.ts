@@ -555,6 +555,8 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
 
 export const group: db.Group = {
   id: '~nibset-napwyn/tlon',
+  hostUserId: '~nibset-napwyn',
+  currentUserIsHost: false,
   title: 'Tlon Local',
   channels: tlonLocalChannels,
   navSections: tlonLocalNavSections,
@@ -770,6 +772,8 @@ const dates = {
 
 export const groupWithColorAndNoImage: db.Group = {
   id: '1',
+  hostUserId: '~nibset-napwyn',
+  currentUserIsHost: false,
   title: 'Test Group',
   privacy: 'private',
   unreadCount: 1,
