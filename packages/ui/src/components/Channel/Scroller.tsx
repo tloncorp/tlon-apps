@@ -154,9 +154,31 @@ function Scroller({
   const renderedPostsRef = useRef(new Set());
   // Whether we've scrolled to the anchor post.
   const [hasFoundAnchor, setHasFoundAnchor] = useState(!anchor);
+  const [shouldScrollToAnchor, setShouldScrollToAnchor] = useState(!!anchor);
+  const currentAnchorRef = useRef(anchor);
+
   const anchorIndex = useMemo(() => {
     return posts?.findIndex((p) => p.id === anchor?.postId) ?? -1;
   }, [posts, anchor]);
+
+  useEffect(() => {
+    if (anchor && anchor !== currentAnchorRef.current) {
+      currentAnchorRef.current = anchor;
+      setShouldScrollToAnchor(true);
+
+      // Scroll to the new anchor
+      if (anchorIndex !== -1) {
+        logger.log('scrolling to new anchor', anchorIndex, anchor.postId);
+        flatListRef.current?.scrollToIndex({
+          index: anchorIndex,
+          animated: false,
+          viewPosition: 1,
+        });
+      }
+    }
+  }, [anchor, anchorIndex]);
+
+  logger.log('anchorIndex', anchorIndex, anchor?.postId);
 
   // We use this function to manage autoscrolling to the anchor post. We need
   // the post to be rendered before we're able to scroll to it, so we wait for
@@ -166,27 +188,28 @@ function Scroller({
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
       if (
-        !userHasScrolledRef.current &&
-        (post.id === anchor?.postId || (hasFoundAnchor && anchorIndex !== -1))
+        shouldScrollToAnchor &&
+        post.id === currentAnchorRef.current?.postId
       ) {
+        logger.log('scrolling to initially set anchor', post.id, index);
         flatListRef.current?.scrollToIndex({
-          index: anchorIndex,
+          index: index,
           animated: false,
           viewPosition: 1,
         });
+        setShouldScrollToAnchor(false);
       }
+
       if (
         !hasFoundAnchor &&
-        (anchor?.postId === post.id ||
-          // if we've got at least a page of posts and we've rendered them all,
-          // reveal the scroller to prevent getting stuck when messages are
-          // deleted.
+        (currentAnchorRef.current?.postId === post.id ||
           (posts?.length && renderedPostsRef.current.size >= posts?.length))
       ) {
+        logger.log('found anchor', post.id, index);
         setHasFoundAnchor(true);
       }
     },
-    [anchor?.postId, anchorIndex, hasFoundAnchor, posts?.length]
+    [hasFoundAnchor, posts?.length, shouldScrollToAnchor]
   );
 
   const theme = useTheme();
@@ -257,6 +280,8 @@ function Scroller({
       onPressImage,
       onPressReplies,
       onPressPost,
+      onPressDelete,
+      onPressRetry,
       handlePostLongPressed,
       activeMessage,
     ]
