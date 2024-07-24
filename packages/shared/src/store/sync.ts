@@ -971,9 +971,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
       reporter.log(`finished syncing push notifications setting`)
     ),
-    syncBlockedUsers({ priority: SyncPriority.Low }).then(() => {
-      reporter.log(`finished syncing blocked users`);
-    }),
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
       reporter.log(`finished syncing app info`);
     }),
