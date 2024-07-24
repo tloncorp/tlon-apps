@@ -1,9 +1,11 @@
 import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { Text, View, XStack, YStack } from '../core';
+import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
@@ -23,6 +25,7 @@ interface Props {
   onPressLeave: (groupId: string) => void;
   onPressInvitesAndPrivacy: (groupId: string) => void;
   onPressRoles: (groupId: string) => void;
+  onTogglePinned: () => void;
 }
 
 export function ChatOptionsSheet({
@@ -37,12 +40,17 @@ export function ChatOptionsSheet({
   onPressGroupMembers,
   onPressManageChannels,
   onPressLeave,
+  onTogglePinned,
   onPressInvitesAndPrivacy,
   onPressRoles,
 }: Props) {
   const { data: groupData } = useGroup({
     id: group?.id ?? channel?.groupId ?? '',
   });
+
+  const { didCopy: didCopyRef, doCopy: copyRef } = useCopy(
+    logic.getGroupReferencePath(groupData?.id ?? '')
+  );
 
   useEffect(() => {
     if (group?.id) {
@@ -74,13 +82,33 @@ export function ChatOptionsSheet({
     [currentUser, groupData?.members]
   );
 
-  const adminActions = useMemo(
-    () => [
+  const actions = useMemo(() => {
+    const actions = [];
+    actions.push(
       {
+        title: 'Copy group reference',
+        action: () => {
+          if (groupData) {
+            copyRef();
+          }
+        },
+        icon: didCopyRef ? 'Checkmark' : 'ArrowRef',
+      },
+      {
+        title: isPinned ? 'Unpin' : 'Pin',
+        action: onTogglePinned,
+        icon: 'Pin',
+      }
+    );
+
+    if (group && currentUserIsAdmin) {
+      actions.push({
         title: 'Manage Channels',
         action: () => (groupData ? onPressManageChannels(groupData.id) : {}),
         icon: 'ChevronRight',
-      },
+      });
+
+      // TODO: other admin actions
       // {
       // title: 'Invites & Privacy',
       // action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
@@ -91,37 +119,34 @@ export function ChatOptionsSheet({
       // action: () => (groupData ? onPressRoles(groupData.id) : {}),
       // icon: 'ChevronRight',
       // },
-    ],
-    [
-      groupData,
-      onPressManageChannels,
-      // onPressInvitesAndPrivacy,
-      // onPressRoles
-    ]
-  );
+    }
 
-  const actions = useMemo(
-    () => [
-      { title: 'Copy group reference', action: () => {}, icon: 'ArrowRef' },
-      { title: isPinned ? 'Unpin' : 'Pin', action: () => {}, icon: 'Pin' },
-      {
-        title: 'Notifications',
-        action: () => {},
-        icon: 'ChevronRight',
-      },
-      {
+    actions.push({
+      title: 'Notifications',
+      action: () => {},
+      icon: 'ChevronRight',
+    });
+
+    if (group && !group.currentUserIsHost) {
+      actions.push({
         title: 'Leave group',
         variant: 'destructive',
         action: () => (groupData ? onPressLeave(groupData.id) : {}),
-      },
-    ],
-    [isPinned, groupData, onPressLeave]
-  );
+      });
+    }
 
-  if (group && currentUserIsAdmin && actions.length === 4) {
-    // we want to show the admin actions before leave group and notifications
-    actions.splice(actions.length - 2, 0, ...adminActions);
-  }
+    return actions;
+  }, [
+    didCopyRef,
+    isPinned,
+    onTogglePinned,
+    group,
+    currentUserIsAdmin,
+    groupData,
+    copyRef,
+    onPressManageChannels,
+    onPressLeave,
+  ]);
 
   const memberCount = groupData?.members?.length ?? 0;
   const title = channel?.title ?? groupData?.title ?? 'Loading…';

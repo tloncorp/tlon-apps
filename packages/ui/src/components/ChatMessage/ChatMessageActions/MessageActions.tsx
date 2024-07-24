@@ -107,7 +107,6 @@ export function getPostActions({
       return [
         { id: 'startThread', label: 'Comment on post' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'pin', label: 'Pin post' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
         { id: 'report', label: 'Report post' },
