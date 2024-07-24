@@ -1,13 +1,16 @@
 import { UseQueryResult } from '@tanstack/react-query';
+import {
+  ActivitySummary,
+  Inline,
+  Story,
+  WritEssay,
+} from '@tloncorp/shared/dist/urbit';
+import { WritTuple } from '@tloncorp/shared/dist/urbit/dms';
 import { daToDate, unixToDa } from '@urbit/api';
-import { Inline, Story, WritEssay } from 'packages/shared/dist/urbit';
-import { WritTuple } from 'packages/shared/dist/urbit/dms';
 
 import api from '@/api';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import queryClient from '@/queryClient';
-
-import { Unread } from './unreads';
 
 export const cohortsKey = () => ['broadcaster', 'cohorts'];
 
@@ -51,30 +54,15 @@ export function useCohort(k: CohortKey): Cohort {
   return (useCohorts().data || {})[k] || { logging: [], targets: [] };
 }
 
-export function cohortToUnread(cohort: Cohort): Unread {
+export function cohortToUnread(cohort: Cohort): ActivitySummary {
   const recency =
     cohort.logging.length === 0 ? 0 : daToDate(cohort.logging[0].wen).getTime();
   return {
-    status: 'read',
-    notify: false,
-    count: 0,
-    combined: { status: 'read', count: 0, notify: false },
     recency,
-    children: null,
-    parents: [],
-    readTimeout: 0,
-    summary: {
-      recency,
-      count: 0,
-      notify: false,
-      unread: null,
-      children: null,
-      'notify-count': 0,
-      reads: {
-        floor: '0',
-        posts: {},
-      },
-    },
+    count: 0,
+    notify: false,
+    unread: null,
+    'notify-count': 0,
   };
 }
 

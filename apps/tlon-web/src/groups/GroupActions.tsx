@@ -19,6 +19,7 @@ import {
   preSig,
   useCopy,
 } from '@/logic/utils';
+import { useMarkReadMutation, useSourceActivity } from '@/state/activity';
 import {
   useAmAdmin,
   useGang,
@@ -27,7 +28,6 @@ import {
   usePinnedGroups,
 } from '@/state/groups';
 import { useAddPinMutation, useDeletePinMutation } from '@/state/pins';
-import { useUnread } from '@/state/unreads';
 
 import GroupHostConnection from './GroupHostConnection';
 
@@ -118,11 +118,12 @@ const GroupActions = React.memo(
     const location = useLocation();
     const { navigate } = useNavWithinTab();
     const [host, name] = flag.split('/');
-    const activity = useUnread(`group/${flag}`);
+    const { activity } = useSourceActivity(`group/${flag}`);
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : undefined;
     const isAdmin = useAmAdmin(flag);
     const isMobile = useIsMobile();
+    const { mutate: markRead } = useMarkReadMutation(true);
     const { mutate: cancelJoinMutation } = useGroupCancelMutation();
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
       useGroupActions({ flag, open, onOpenChange });
@@ -179,6 +180,15 @@ const GroupActions = React.memo(
         ),
       });
     }
+
+    actions.push({
+      key: 'mark-read',
+      type: 'prominent',
+      onClick: () => {
+        markRead({ source: { group: flag } });
+      },
+      content: 'Mark as Read',
+    });
 
     if (isAdmin) {
       actions.push({
@@ -348,12 +358,10 @@ const GroupActions = React.memo(
         >
           {children || (
             <div className="relative h-6 w-6">
-              {(isMobile || !isOpen) &&
-              activity &&
-              activity.combined.status !== 'read' ? (
+              {(isMobile || !isOpen) && activity && activity.count > 0 ? (
                 <UnreadIndicator
-                  count={activity.combined.count}
-                  notify={activity.combined.notify}
+                  count={activity.count}
+                  notify={activity.notify}
                   className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                   aria-label="Has Activity"
                 />
@@ -362,8 +370,8 @@ const GroupActions = React.memo(
                 <button
                   className={cn(
                     'default-focus absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 sm:hover:opacity-100 sm:group-hover:opacity-100',
-                    activity && activity.combined.status !== 'read'
-                      ? activity.combined.notify
+                    activity && activity.count > 0
+                      ? activity.notify
                         ? 'text-blue'
                         : 'text-gray-400'
                       : '',

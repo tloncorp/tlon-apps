@@ -142,8 +142,19 @@
         notify-count+(numb notify-count.sum)
         notify+b+notify.sum
         unread/?~(unread.sum ~ (unread-point u.unread.sum))
-        children+?~(children.sum ~ (activity u.children.sum))
-        reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
+    ==
+  ::
+  ++  activity-summary-full
+    |=  sum=activity-summary:a
+    %-  pairs
+    :~  recency+(time newest.sum)
+        count+(numb count.sum)
+        notify-count+(numb notify-count.sum)
+        notify+b+notify.sum
+        unread/?~(unread.sum ~ (unread-point u.unread.sum))
+      ::
+        :-  %children
+        a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
     ==
   ::
   ++  activity-bundle
@@ -254,25 +265,28 @@
     |=  ind=indices:a
     %-  pairs
     %+  turn  ~(tap by ind)
-    |=  [sc=source:a st=stream:a r=reads:a]
+    |=  [sc=source:a st=stream:a r=reads:a bump=^time]
     :-  (string-source sc)
     %-  pairs
     :~  stream+(stream st)
         reads+(reads r)
+        last-self-activity+(time bump)
     ==
   ::
   ++  activity
-    |=  ac=activity:a
+    |=  [ac=activity:a full=?]
     %-  pairs
     %+  turn  ~(tap by ac)
     |=  [s=source:a sum=activity-summary:a]
-    [(string-source s) (activity-summary sum)]
+    :-  (string-source s)
+    ?.  full  (activity-summary sum)
+    (activity-summary-full sum)
   ::
   ++  full-info
     |=  fi=full-info:a
     %-  pairs
     :~  indices+(indices indices.fi)
-        activity+(activity activity.fi)
+        activity+(activity activity.fi &)
         settings+(volume-settings volume-settings.fi)
     ==
   ++  volume-settings
@@ -290,7 +304,10 @@
     [e (volume v)]
   ++  feed
     |=  f=feed:a
-    a+(turn f activity-bundle)
+    %-  pairs
+    :~  feed+a+(turn feed.f activity-bundle)
+        summaries+(activity summaries.f |)
+    ==
   ::
   +|  %updates
   ++  update
@@ -300,6 +317,7 @@
       %add  (added +.u)
       %del  (source +.u)
       %read  (read +.u)
+      %activity  (activity +.u |)
       %adjust  (adjusted +.u)
       %allow-notifications  (allowed +.u)
     ==
@@ -327,40 +345,98 @@
         volume+?~(v ~ (volume-map u.v))
     ==
   +|  %old-types
-  ++  update-0
-    |=  u=update-0:old:a
-    ?+  -.u  (update u)
-      %read  (frond -.u (read-0 +.u))
-    ==
-  ++  read-0
-    |=  [s=source:a as=activity-summary-0:old:a]
-    %-  pairs
-    :~  source+(source s)
-        activity+(activity-summary-0 as)
-    ==
-  ++  full-info-0
-    |=  fi=full-info-0:old:a
-    %-  pairs
-    :~  indices+(indices indices.fi)
-        activity+(activity-0 activity.fi)
-        settings+(volume-settings volume-settings.fi)
-    ==
-  ++  activity-0
-    |=  ac=activity-0:old:a
-    %-  pairs
-    %+  turn  ~(tap by ac)
-    |=  [s=source:a sum=activity-summary-0:old:a]
-    [(string-source s) (activity-summary-0 sum)]
-  ++  activity-summary-0
-    |=  sum=activity-summary-0:old:a
-    %-  pairs
-    :~  recency+(time newest.sum)
-        count+(numb count.sum)
-        notify+b+notify.sum
-        unread/?~(unread.sum ~ (unread-point u.unread.sum))
-        children+?~(children.sum ~ (activity-0 u.children.sum))
-    ==
-  ::
+  ++  v2
+    |%
+    ++  update
+      |=  u=update:v2:old:a
+      ?+  -.u  (^update u)
+        %read  (frond -.u (read +.u))
+      ==
+    ++  read
+      |=  [s=source:a as=activity-summary:v2:old:a]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ++  full-info
+      |=  fi=full-info:v2:old:a
+      %-  pairs
+      :~  indices+(indices:v3 indices.fi)
+          activity+(activity activity.fi)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  activity
+      |=  ac=activity:v2:old:a
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:a sum=activity-summary:v2:old:a]
+      [(string-source s) (activity-summary sum)]
+    ++  activity-summary
+      |=  sum=activity-summary:v2:old:a
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+          children+?~(children.sum ~ (activity u.children.sum))
+      ==
+    ::
+    --
+  ++  v3
+    |%
+    ++  update
+      |=  u=update:v3:old:a
+      ?+  -.u  (^update u)
+        %read  (frond -.u (read +.u))
+      ==
+    ++  read
+      |=  [s=source:a as=activity-summary:v3:old:a]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ++  full-info
+      |=  fi=full-info:v3:old:a
+      %-  pairs
+      :~  indices+(indices indices.fi)
+          activity+(activity activity.fi)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  indices
+      |=  ind=indices:v3:old:a
+      %-  pairs
+      %+  turn  ~(tap by ind)
+      |=  [sc=source:a st=stream:a r=reads:a]
+      :-  (string-source sc)
+      %-  pairs
+      :~  stream+(stream st)
+          reads+(reads r)
+      ==
+    ++  activity
+      |=  ac=activity:v3:old:a
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:a sum=activity-summary:v3:old:a]
+      [(string-source s) (activity-summary sum)]
+    ++  activity-summary
+      |=  sum=activity-summary:v3:old:a
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify+b+notify.sum
+          notify-count+(numb notify-count.sum)
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+          children+?~(children.sum ~ (activity u.children.sum))
+          reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
+      ==
+    ::
+    --
+  ++  v4
+    |%
+    ++  feed
+      |=  f=feed:v4:old:a
+      a+(turn f activity-bundle)
+    --
   --
 ::
 ++  dejs
@@ -417,23 +493,7 @@
         allow-notifications/(su (perk %all %some %none ~))
     ==
   ::
-  ++  add
-    ^-  $-(json incoming-event:a)
-    %-  of
-    :~  post/post-event
-        reply/reply-event
-        chan-init/chan-init-event
-        dm-invite/whom
-        dm-post/dm-post-event
-        dm-reply/dm-reply-event
-        flag-post/flag-post-event
-        flag-reply/flag-reply-event
-        group-ask/group-event
-        group-join/group-event
-        group-kick/group-event
-        group-invite/group-event
-        group-role/group-role-event
-    ==
+  ++  add  incoming-event
   ::
   ++  adjust
     %-  ot
@@ -450,8 +510,14 @@
   ::
   ++  read-action
     %-  of
-    :~  all/ul
-        item/id
+    :~  item/id
+        all/all-read
+        event/incoming-event
+    ==
+  ++  all-read
+    %-  ou
+    :~  time/(un (mu (se %ud)))
+        deep/(uf | bo)
     ==
   ::
   +|  %basics
@@ -484,25 +550,30 @@
         whom/whom
     ==
   ::
-  ++  volume-map
-    |=  jon=^json
-    :: ^-  $-(json volume-map:a)
-    =/  jom  ((om volume) jon)
-    ~&  jom
-    ~&
-      %-  malt
-      %+  turn  ~(tap by jom)
-      |*  [a=cord b=*]
-      =>  .(+< [a b]=+<)
-      ~&  a
-      [(rash a event-type) b]
-    ((op event-type volume) jon)
+  ++  volume-map  (op event-type volume)
   ++  volume
     %-  ot
     :~  unreads/bo
         notify/bo
     ==
   ::
+  ++  incoming-event
+    ^-  $-(json incoming-event:a)
+    %-  of
+    :~  post/post-event
+        reply/reply-event
+        chan-init/chan-init-event
+        dm-invite/whom
+        dm-post/dm-post-event
+        dm-reply/dm-reply-event
+        flag-post/flag-post-event
+        flag-reply/flag-reply-event
+        group-ask/group-event
+        group-join/group-event
+        group-kick/group-event
+        group-invite/group-event
+        group-role/group-role-event
+    ==
   ++  chan-init-event
     %-  ot
     :~  channel/nest:dejs:cj

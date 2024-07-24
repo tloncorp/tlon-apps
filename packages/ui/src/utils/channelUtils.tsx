@@ -60,12 +60,6 @@ export function useCanWrite(channel: db.Channel, userId: string): boolean {
   return canWrite;
 }
 
-export function displayableUnreadCount(count: number | null | undefined) {
-  if (!count) return 0;
-
-  return count >= 99 ? '99+' : count;
-}
-
 export function getChannelTypeIcon(type: db.Channel['type']): IconType {
   switch (type) {
     case 'dm':
@@ -81,4 +75,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
     default:
       return 'ChannelTalk';
   }
+}
+
+export function isMuted(model: db.Group | db.Channel) {
+  return model.volumeSettings?.isMuted ?? false;
 }

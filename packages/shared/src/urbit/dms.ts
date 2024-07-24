@@ -335,6 +335,15 @@ export interface DMInit {
   invited: string[];
 }
 
+export interface DMInit2 {
+  clubs: Clubs;
+  dms: string[];
+  invited: string[];
+  'hidden-messages': HiddenMessages;
+  blocked: BlockedShips;
+  'blocked-by': BlockedByShips;
+}
+
 export type ChatScanItem = { writ: Writ } | WritReplyReferenceResponse;
 
 export type ChatScan = ChatScanItem[];

@@ -3,7 +3,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ContactsProvider, useContacts } from '../../contexts';
+import { AppDataContextProvider, useContacts } from '../../contexts';
 import { XStack, YStack, ZStack } from '../../core';
 import { triggerHaptic } from '../../utils';
 import { Button } from '../Button';
@@ -20,6 +20,8 @@ export function StartDmSheet({
   onOpenChange: (open: boolean) => void;
   goToDm: (participants: string[]) => void;
 }) {
+  // we have to pull contacts here and create a new context because of an
+  // issue with Android
   const contacts = useContacts();
   const insets = useSafeAreaInsets();
   const [contentScrolling, setContentScrolling] = useState(false);
@@ -64,7 +66,7 @@ export function StartDmSheet({
       <Sheet.Overlay />
       <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
         <QueryClientProvider client={queryClient}>
-          <ContactsProvider contacts={contacts ?? null}>
+          <AppDataContextProvider contacts={contacts ?? []}>
             <Sheet.Handle marginBottom="$l" />
             <ZStack flex={1}>
               <YStack flex={1} gap="$2xl">
@@ -90,7 +92,7 @@ export function StartDmSheet({
                 )}
               </YStack>
             </ZStack>
-          </ContactsProvider>
+          </AppDataContextProvider>
         </QueryClientProvider>
       </Sheet.LazyFrame>
     </Sheet>

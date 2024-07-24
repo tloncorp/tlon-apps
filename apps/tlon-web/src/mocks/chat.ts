@@ -135,103 +135,41 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
+const emptySummary = {
+  recency: 0,
+  count: 0,
+  notify: false,
+  unread: null,
+  'notify-count': 0,
+};
+
 export const dmList: Activity = {
-  '~fabled-faster': {
-    recency: 0,
-    count: 0,
-    notify: false,
-    unread: null,
-    children: {},
-    'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
-  },
+  '~fabled-faster': emptySummary,
   '~nocsyx-lassul': {
     recency: 1652302200000,
     count: 3,
     notify: false,
     unread: null,
-    children: {},
     'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
   },
-  '~fallyn-balfus': {
-    recency: 0,
-    count: 0,
-    notify: false,
-    unread: null,
-    children: {},
-    'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
-  },
+  '~fallyn-balfus': emptySummary,
   '~finned-palmer': {
     recency: 1652302200000,
     count: 2,
     notify: false,
     unread: null,
-    children: {},
     'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
   },
   '~datder-sonnet': {
     recency: 1652302200000,
     count: 1,
     notify: false,
     unread: null,
-    children: {},
     'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
   },
-  '~hastuc-dibtux': {
-    recency: 0,
-    count: 0,
-    notify: false,
-    unread: null,
-    children: {},
-    'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
-  },
-  '~rilfun-lidlen': {
-    recency: 0,
-    count: 0,
-    notify: false,
-    unread: null,
-    children: {},
-    'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
-  },
-  '~mister-dister-dozzod-dozzod': {
-    recency: 0,
-    count: 0,
-    notify: false,
-    unread: null,
-    children: {},
-    'notify-count': 0,
-    reads: {
-      floor: '0',
-      posts: {},
-    },
-  },
+  '~hastuc-dibtux': emptySummary,
+  '~rilfun-lidlen': emptySummary,
+  '~mister-dister-dozzod-dozzod': emptySummary,
 };
 
 export const chatPerm = {

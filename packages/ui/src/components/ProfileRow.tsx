@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 
 import { View, XStack, YStack } from '../core';
-import { Avatar } from './Avatar';
+import { ContactAvatar } from './Avatar';
 import ContactName from './ContactName';
 import { DebugInfo } from './DebugInfo';
 
@@ -26,17 +26,17 @@ export default function ProfileRow({
     >
       {debugMessage ? (
         <DebugInfo debugMessage={debugMessage}>
-          <Avatar size="$5xl" contactId={contactId} contact={contact} />
+          <ContactAvatar size="$5xl" contactId={contactId} />
         </DebugInfo>
       ) : (
-        <Avatar size="$5xl" contactId={contactId} contact={contact} />
+        <ContactAvatar size="$5xl" contactId={contactId} />
       )}
       <View marginLeft="$l" flex={1}>
         {contact?.nickname ? (
           <YStack>
             <ContactName
               color={color}
-              fontWeight="500"
+              fontWeight="$xl"
               userId={contactId}
               showNickname
             />
@@ -48,7 +48,7 @@ export default function ProfileRow({
             />
           </YStack>
         ) : (
-          <ContactName color={color} fontWeight="500" userId={contactId} />
+          <ContactName color={color} fontWeight="$xl" userId={contactId} />
         )}
       </View>
     </XStack>

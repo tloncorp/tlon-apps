@@ -133,6 +133,26 @@ function SummaryMessageRaw({
     );
   }
 
+  if (relevancy === 'flaggedPost') {
+    const message = ` flagged a ${postName(newest)} in your group`;
+    return (
+      <SummaryMessageWrapper>
+        {Authors}
+        {message}
+      </SummaryMessageWrapper>
+    );
+  }
+
+  if (relevancy === 'flaggedReply') {
+    const message = ` flagged a reply in your group`;
+    return (
+      <SummaryMessageWrapper>
+        {Authors}
+        {message}
+      </SummaryMessageWrapper>
+    );
+  }
+
   if (summary.all.length === 1) {
     return (
       <SizableText color="$secondaryText">
@@ -149,7 +169,7 @@ function SummaryMessageRaw({
       <SizableText color="$secondaryText">
         <ContactName
           userId={newest.authorId ?? ''}
-          fontWeight="500"
+          fontWeight="$xl"
           showNickname
         />
         {` ${postVerb(newest.channel?.type ?? 'chat')} ${count} ${postName(newest, count > 1)}`}
@@ -200,7 +220,9 @@ type ActivityRelevancy =
   | 'dm'
   | 'groupchat'
   | 'postInYourChannel'
-  | 'postToChannel';
+  | 'postToChannel'
+  | 'flaggedPost'
+  | 'flaggedReply';
 
 export function getRelevancy(
   summary: logic.SourceActivityEvents
@@ -246,6 +268,14 @@ export function getRelevancy(
 
   if (newest.type === 'post' && newest.shouldNotify) {
     return 'postToChannel';
+  }
+
+  if (newest.type === 'flag-post') {
+    return 'flaggedPost';
+  }
+
+  if (newest.type === 'flag-reply') {
+    return 'flaggedReply';
   }
 
   console.log(

@@ -7,7 +7,8 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
-import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
+import { syncPostReference } from './sync';
+import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
 
@@ -69,6 +70,13 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
+export const useAppInfo = () => {
+  return useQuery({
+    queryKey: db.APP_INFO_QUERY_KEY,
+    queryFn: db.getAppInfoSettings,
+  });
+};
+
 export const useActivitySeenMarker = () => {
   return useQuery({
     queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
@@ -83,11 +91,26 @@ export const usePushNotificationsSetting = () => {
   });
 };
 
+export const useIsTlonEmployee = () => {
+  return useQuery({
+    queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
+    queryFn: db.getIsTlonEmployee,
+  });
+};
+
 export const useContact = (options: { id: string }) => {
   const deps = useKeyFromQueryDeps(db.getContact);
   return useQuery({
     queryKey: [['contact', deps]],
     queryFn: () => db.getContact(options),
+  });
+};
+
+export const useBlockedContacts = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBlockedUsers);
+  return useQuery({
+    queryKey: ['blockedContacts', depsKey],
+    queryFn: () => db.getBlockedUsers(),
   });
 };
 
@@ -106,21 +129,73 @@ export const useUnreadsCount = () => {
   });
 };
 
-export const useLatestActivityEvent = () => {
-  const depsKey = useKeyFromQueryDeps(db.getLatestActivityEvent);
+export const useHaveUnreadUnseenActivity = () => {
+  const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
+  const { data: seenMarker } = useActivitySeenMarker();
+  const { data: meaningfulUnseenActivity } = useQuery({
+    queryKey: ['unseenUnreadActivity', depsKey, seenMarker],
+    queryFn: () =>
+      db.getUnreadUnseenActivityEvents({ seenMarker: seenMarker ?? Infinity }),
+  });
+
+  return (meaningfulUnseenActivity?.length ?? 0) > 0;
+};
+
+export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getThreadUnreadState) : null),
+    [unread]
+  );
+
   return useQuery({
-    queryKey: ['latestActivityEvent', depsKey],
-    queryFn: () => db.getLatestActivityEvent(),
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'thread',
+      unread ? unread.threadId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+      }
+      return null;
+    },
   });
 };
 
-export const useHaveUnseenActivity = () => {
-  const { data: seenMarker } = useActivitySeenMarker();
-  const { data: latestEvent } = useLatestActivityEvent();
-  if (!latestEvent || seenMarker === null || seenMarker === undefined)
-    return false;
+export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
+  const depsKey = useMemo(
+    () => (unread ? keyFromQueryDeps(db.getChannelUnread) : null),
+    [unread]
+  );
 
-  return latestEvent?.timestamp > seenMarker;
+  return useQuery({
+    queryKey: [
+      'liveUnreadCount',
+      depsKey,
+      'channel',
+      unread ? unread.channelId : null,
+    ],
+    queryFn: async () => {
+      if (unread) {
+        return db.getChannelUnread({ channelId: unread.channelId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
+export const useLiveUnread = (
+  unread: db.ChannelUnread | db.ThreadUnreadState | null
+) => {
+  const isThread = useMemo(() => unread && 'threadId' in unread, [unread]);
+  const threadUnread = useLiveThreadUnread(
+    isThread ? (unread as db.ThreadUnreadState) : null
+  );
+  const channelUnread = useLiveChannelUnread(
+    isThread ? null : (unread as db.ChannelUnread | null)
+  );
+  return isThread ? threadUnread : channelUnread;
 };
 
 export const useGroups = (options: db.GetGroupsOptions) => {
@@ -182,6 +257,29 @@ export const useGroupPreview = (groupId: string) => {
       return groupPreview;
     },
   });
+};
+
+export const usePostReference = ({
+  channelId,
+  postId,
+  replyId,
+}: {
+  channelId: string;
+  postId: string;
+  replyId?: string;
+}) => {
+  const postQuery = useQuery({
+    queryKey: ['postReference', postId],
+    queryFn: async () => {
+      const post = await db.getPostWithRelations({ id: postId });
+      if (post) {
+        return post;
+      }
+      await syncPostReference({ postId, channelId, replyId });
+      return db.getPostWithRelations({ id: postId });
+    },
+  });
+  return postQuery;
 };
 
 export const useGroupsHostedBy = (userId: string) => {

@@ -19,7 +19,11 @@ export type PostReactionsUpdate = {
 };
 export type UnknownUpdate = { type: 'unknown' };
 export type PendingUpdate = { type: 'markPostSent'; cacheId: string };
-export type DeletePostUpdate = { type: 'deletePost'; postId: string };
+export type DeletePostUpdate = {
+  type: 'deletePost';
+  postId: string;
+  channelId: string;
+};
 export type HidePostUpdate = { type: 'hidePost'; postId: string };
 export type ShowPostUpdate = { type: 'showPost'; postId: string };
 export type WritersUpdate = {
@@ -70,6 +74,26 @@ export type ChannelsUpdate =
   | InitialPostsOnChannelJoin
   // | MarkChannelReadUpdate
   | WritersUpdate;
+
+export const createChannel = async (channelPayload: ub.Create) => {
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        create: channelPayload,
+      },
+    },
+    { app: 'channels', path: '/v1' },
+    (event) => {
+      return (
+        'create' in event.response &&
+        event.nest ===
+          `${channelPayload.kind}/${channelPayload.group}/${channelPayload.name}`
+      );
+    }
+  );
+};
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -198,7 +222,7 @@ export const toChannelsUpdate = (
           }
 
           logger.log('delete post event');
-          return { type: 'deletePost', postId };
+          return { type: 'deletePost', postId, channelId };
         } else if ('reacts' in postResponse && postResponse.reacts !== null) {
           const updatedReacts = toReactionsData(postResponse.reacts, postId);
           logger.log('update reactions event');
@@ -224,7 +248,7 @@ export const toChannelsUpdate = (
           }
 
           logger.log('delete reply event');
-          return { type: 'deletePost', postId: replyId };
+          return { type: 'deletePost', postId: replyId, channelId };
         } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
           const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
           logger.log('update reply reactions event');

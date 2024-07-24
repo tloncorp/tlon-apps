@@ -14,7 +14,6 @@ import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import Layout from '@/components/Layout/Layout';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { useFullChannel, useMarkChannelRead } from '@/logic/channel';
-import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import {
   useArrangedPosts,
   useDisplayMode,
@@ -46,7 +45,7 @@ function DiaryChannel({ title }: ViewProps) {
     hasNextPage,
     fetchNextPage,
   } = useInfinitePosts(nest);
-  const { markRead, isLoading: isMarking } = useMarkChannelRead(nest);
+  const { markRead } = useMarkChannelRead(nest, undefined, true);
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
@@ -130,11 +129,9 @@ function DiaryChannel({ title }: ViewProps) {
     };
   }, [newNote, location, navigate]);
 
-  useDismissChannelNotifications({
-    nest,
-    markRead,
-    isMarking,
-  });
+  useEffect(() => {
+    markRead();
+  }, [nest]);
 
   const sortedNotes = notes
     .filter(([k, v]) => v !== null)

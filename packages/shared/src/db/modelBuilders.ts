@@ -8,11 +8,94 @@ import {
 } from '../api/apiUtils';
 import * as db from '../db';
 import * as logic from '../logic';
+import { convertToAscii } from '../logic';
+import { CurrentChats } from '../store';
 import * as ub from '../urbit';
+import { getChannelKindFromType } from '../urbit';
 import * as types from './types';
 
+export function assembleNewChannelIdAndName({
+  title,
+  channelType,
+  currentChatData,
+  currentUserId,
+}: {
+  title: string;
+  channelType: Omit<db.ChannelType, 'dm' | 'groupDm'>;
+  currentChatData?: CurrentChats | null;
+  currentUserId: string;
+}) {
+  const existingChannels = [
+    ...(currentChatData?.pendingChats ?? []),
+    ...(currentChatData?.pinned ?? []),
+    ...(currentChatData?.unpinned ?? []),
+  ];
+
+  const titleIsNumber = Number.isInteger(Number(title));
+  // we need unique channel names that are valid for urbit's @tas type
+  const tempChannelName = titleIsNumber
+    ? `channel-${title}`
+    : convertToAscii(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
+  // @ts-expect-error this is fine
+  const channelKind = getChannelKindFromType(channelType);
+  const tempNewChannelFlag = `${channelKind}/${currentUserId}/${tempChannelName}`;
+  const existingChannel = () => {
+    return existingChannels.find(
+      (channel) => channel.id === tempNewChannelFlag
+    );
+  };
+
+  const randomSmallNumber = Math.floor(Math.random() * 100);
+  const channelName = existingChannel()
+    ? `${tempChannelName}-${randomSmallNumber}`
+    : tempChannelName;
+  const newChannelFlag = `${currentUserId}/${channelName}`;
+  const newChannelNest = `${channelType}/${newChannelFlag}`;
+
+  return {
+    name: channelName,
+    id: newChannelNest,
+  };
+}
+
+export function assembleParentPostFromActivityEvent(event: db.ActivityEvent) {
+  if (!['post', 'reply', 'flag-post', 'flag-reply'].includes(event.type)) {
+    console.warn(
+      `assembling parent post from activity event that isn't a message`,
+      event.id,
+      event
+    );
+  }
+
+  if (!event.parentAuthorId || !event.channelId) {
+    console.warn(
+      `assembling parent post from activity event with missing data`,
+      event.id,
+      event
+    );
+  }
+  const post: types.Post = {
+    id: event.parentId ?? '',
+    type: logic.getPostTypeFromChannelId({
+      channelId: event.channelId,
+      parentId: event.parentId,
+    }),
+    authorId: event.parentAuthorId ?? '',
+    channelId: event.channelId ?? '',
+    groupId: event.groupId,
+    sentAt: event.timestamp,
+    receivedAt: event.timestamp,
+    reactions: [],
+    replies: [],
+    hidden: false,
+    syncedAt: 0,
+  };
+
+  return post;
+}
+
 export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
-  if (!['post', 'reply'].includes(event.type)) {
+  if (!['post', 'reply', 'flag-post', 'flag-reply'].includes(event.type)) {
     console.warn(
       `assembling post from activity event that isn't a message`,
       event.id,
@@ -47,6 +130,7 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
     reactions: [],
     replies: [],
     hidden: false,
+    syncedAt: 0,
   };
 
   return post;
@@ -57,12 +141,14 @@ export function buildPendingPost({
   author,
   channel,
   content,
+  metadata,
   parentId,
 }: {
   authorId: string;
   author?: types.Contact | null;
   channel: types.Channel;
   content: ub.Story;
+  metadata?: db.PostMetadata;
   parentId?: string;
 }): types.Post {
   const sentAt = Date.now();
@@ -89,8 +175,8 @@ export function buildPendingPost({
     type,
     sentAt,
     receivedAt: sentAt,
-    title: '',
-    image: '',
+    title: metadata?.title ?? '',
+    image: metadata?.image ?? '',
     content: JSON.stringify(postContent),
     textContent: ub.getTextContent(content),
     images: api.getContentImages(id, content),
@@ -101,6 +187,7 @@ export function buildPendingPost({
     hidden: false,
     parentId,
     deliveryStatus,
+    syncedAt: Date.now(),
     ...postFlags,
   };
 }

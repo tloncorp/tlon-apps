@@ -27,10 +27,6 @@ export async function respondToDMInvite({
 
   try {
     await api.respondToDMInvite({ channel, accept });
-    if (accept) {
-      logger.log(`syncing channel`, channel.id);
-      await sync.syncChannel(channel.id, Date.now());
-    }
   } catch (e) {
     logger.error('Failed to respond to dm invite', e);
     // rollback optimistic update
@@ -61,6 +57,28 @@ export async function blockUser(userId: string) {
     // rollback optimistic update
     if (existingContact) {
       await db.updateContact({ id: userId, isBlocked: false });
+    }
+  }
+}
+
+export async function unblockUser(userId: string) {
+  logger.log(`unblocking user`, userId);
+  // optimistic update
+  const existingContact = await db.getContact({ id: userId });
+  if (existingContact) {
+    await db.updateContact({ id: userId, isBlocked: false });
+  }
+
+  try {
+    await api.unblockUser(userId);
+  } catch (e) {
+    console.error('Failed to unblock user', e);
+    // rollback optimistic update
+    if (existingContact) {
+      await db.updateContact({
+        id: userId,
+        isBlocked: existingContact.isBlocked,
+      });
     }
   }
 }

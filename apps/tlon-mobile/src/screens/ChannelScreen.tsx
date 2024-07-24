@@ -5,25 +5,43 @@ import * as store from '@tloncorp/shared/dist/store';
 import {
   useChannel,
   useGroupPreview,
+  usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist/store';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
+import {
+  Channel,
+  ChannelSwitcherSheet,
+  INITIAL_POSTS_PER_PAGE,
+} from '@tloncorp/ui';
 import React, { useCallback, useMemo } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
-type ChannelScreenProps = NativeStackScreenProps<HomeStackParamList, 'Channel'>;
+type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: ChannelScreenProps) {
   useFocusEffect(
     useCallback(() => {
-      store.clearSyncQueue();
       if (props.route.params.channel.group?.isNew) {
         store.markGroupVisited(props.route.params.channel.group);
       }
-    }, [props.route.params.channel.group])
+      store.syncChannelThreadUnreads(
+        props.route.params.channel.id,
+        store.SyncPriority.High
+      );
+    }, [props.route.params.channel])
+  );
+  useFocusEffect(
+    useCallback(
+      () =>
+        // Mark the channel as visited when we unfocus/leave this screen
+        () => {
+          store.markChannelVisited(props.route.params.channel);
+        },
+      [props.route.params.channel]
+    )
   );
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
@@ -100,7 +118,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       ? {
           mode: 'around',
           cursor,
-          firstPageCount: 10,
+          firstPageCount: INITIAL_POSTS_PER_PAGE,
         }
       : {
           mode: 'newest',
@@ -113,19 +131,44 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       if (!channel) {
         throw new Error('Tried to send message before channel loaded');
       }
-      store.sendPost({
+
+      // clear the attachments immediately so consumers know the upload state is
+      // no longer needed
+      uploadInfo.resetImageAttachment();
+
+      await store.sendPost({
         channel: channel,
         authorId: currentUserId,
         content,
         metadata,
       });
-      // prevents state update + render from blocking optimistic post insertion.
-      // may be better ways to handle...
-      setTimeout(() => {
-        uploadInfo.resetImageAttachment();
-      }, 20);
     },
     [currentUserId, channel, uploadInfo]
+  );
+
+  const handleDeletePost = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to delete message before channel loaded');
+      }
+      await store.deleteFailedPost({
+        post,
+      });
+    },
+    [channel]
+  );
+
+  const handleRetrySend = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to retry send before channel loaded');
+      }
+      await store.retrySendPost({
+        channel,
+        post,
+      });
+    },
+    [channel]
   );
 
   const handleChannelNavButtonPressed = useCallback(() => {
@@ -184,6 +227,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         onPressRef={navigateToRef}
         markRead={handleMarkRead}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useGroup={useGroupPreview}
         onGroupAction={performGroupAction}
         useChannel={useChannel}
@@ -191,6 +235,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         clearDraft={clearDraft}
         getDraft={getDraft}
         editingPost={editingPost}
+        onPressDelete={handleDeletePost}
+        onPressRetry={handleRetrySend}
         setEditingPost={setEditingPost}
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}

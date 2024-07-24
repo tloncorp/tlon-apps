@@ -1,4 +1,5 @@
 import { extractContentTypesFromPost, utils } from '@tloncorp/shared';
+import { Post, PostDeliveryStatus } from '@tloncorp/shared/dist/db';
 import {
   Block,
   Code,
@@ -26,8 +27,6 @@ import {
 } from '@tloncorp/shared/dist/urbit/content';
 import { ImageLoadEventData } from 'expo-image';
 import { truncate } from 'lodash';
-import { PostContent } from 'packages/shared/dist/api';
-import { Post, PostDeliveryStatus } from 'packages/shared/dist/db';
 import {
   ComponentProps,
   ReactElement,
@@ -40,12 +39,12 @@ import {
 import { StyleSheet, TextStyle, TouchableOpacity } from 'react-native';
 import hoon from 'refractor/lang/hoon';
 import { refractor } from 'refractor/lib/common.js';
+import { SizableText } from 'tamagui';
 
 import {
   ColorTokens,
   Image,
   ScrollView,
-  SizableText,
   Text,
   View,
   XStack,
@@ -54,7 +53,7 @@ import {
 import ChatEmbedContent from './ChatMessage/ChatEmbedContent';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import ContactName from './ContactName';
-import ContentReference from './ContentReference';
+import { ContentReferenceLoader } from './ContentReference/ContentReference';
 
 refractor.register(hoon);
 
@@ -422,7 +421,7 @@ export function InlineContent({
   if (typeof inline === 'string') {
     if (utils.isSingleEmoji(inline)) {
       return (
-        <Text paddingTop="$xl" lineHeight="$m" fontSize="$xl">
+        <Text paddingTop="$xl" lineHeight="$m" fontSize="$2xl">
           {inline}
         </Text>
       );
@@ -517,7 +516,7 @@ export function InlineContent({
       <ChatEmbedContent
         viewMode={viewMode}
         url={inline.link.href}
-        content={inline.link.content}
+        content={inline.link.content ?? inline.link.href}
         onPressImage={onPressImage}
         onLongPress={onLongPress}
       />
@@ -611,8 +610,8 @@ export function BlockContent({
           borderRadius="$m"
           onLoad={handleImageLoaded}
           width={200}
+          aspectRatio={aspect ?? 1}
           backgroundColor={'$secondaryBackground'}
-          height={aspect ? 200 / aspect : 100}
         />
       </TouchableOpacity>
     );
@@ -680,19 +679,18 @@ const LineRenderer = memo(
           );
         } else {
           currentLine.push(
-            <Text
-              key={`string-${inline}-${index}`}
-              color={isNotice ? '$secondaryText' : color}
-              fontSize={
+            <SizableText
+              size={
                 viewMode === 'block' || viewMode === 'activity' || isNotice
                   ? '$s'
                   : '$m'
               }
-              lineHeight="$m"
+              key={`string-${inline}-${index}`}
+              color={isNotice ? '$secondaryText' : color}
               fontFamily={serif ? '$serif' : '$body'}
             >
               {inline}
-            </Text>
+            </SizableText>
           );
         }
       } else if (isBlockquote(inline)) {
@@ -707,14 +705,12 @@ const LineRenderer = memo(
               <LineRenderer
                 inlines={inline.blockquote}
                 color="$secondaryText"
-                serif={serif}
               />
             ) : (
               // not clear if this is necessary
               <InlineContent
                 inline={inline.blockquote}
                 color="$secondaryText"
-                serif={serif}
               />
             )}
           </YStack>
@@ -744,7 +740,6 @@ const LineRenderer = memo(
             color={color}
             onPressImage={onPressImage}
             onLongPress={onLongPress}
-            serif={serif}
           />
         );
       }
@@ -770,17 +765,15 @@ const LineRenderer = memo(
           }
 
           return (
-            <Text
-              fontSize={
+            <SizableText
+              size={
                 viewMode === 'block' || viewMode === 'activity' ? '$s' : '$m'
               }
               key={`line-${index}`}
               flexWrap="wrap"
-              lineHeight="$m"
-              fontFamily={serif ? '$serif' : '$body'}
             >
               {line}
-            </Text>
+            </SizableText>
           );
         })}
       </>
@@ -790,28 +783,36 @@ const LineRenderer = memo(
 
 LineRenderer.displayName = 'LineRenderer';
 
-export type PostViewMode = 'chat' | 'block' | 'note' | 'activity';
+export type PostViewMode =
+  | 'chat'
+  | 'block'
+  | 'note'
+  | 'activity'
+  | 'attachment';
 
 export default function ContentRenderer({
   post,
   shortened = false,
+  shortenedTextOnly = false,
   isNotice = false,
   deliveryStatus,
   onPressImage,
   onLongPress,
   isEdited = false,
   viewMode = 'chat',
+  ...props
 }: {
   post: Post | { type: 'chat' | 'diary' | 'gallery'; id: string; content: any };
   shortened?: boolean;
+  shortenedTextOnly?: boolean;
   isNotice?: boolean;
   deliveryStatus?: PostDeliveryStatus | null;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   isEdited?: boolean;
   viewMode?: PostViewMode;
-}) {
-  const { inlines, blocks, references, story } = useMemo(
+} & ComponentProps<typeof YStack>) {
+  const { inlines, story } = useMemo(
     () => extractContentTypesFromPost(post),
     [post]
   );
@@ -846,105 +847,80 @@ export default function ContentRenderer({
         : [],
     [firstInlineIsMention, inlines]
   );
-  const blockContent = useMemo(
-    () =>
-      blocks.sort((a, b) => {
-        // Sort images to the end
-        if (isImage(a) && !isImage(b)) {
-          return 1;
-        }
-        if (!isImage(a) && isImage(b)) {
-          return -1;
-        }
-        return 0;
-      }),
-    [blocks]
-  );
 
-  if (blocks.length === 0 && inlines.length === 0 && references.length === 0) {
+  if (!story) {
     return null;
   }
 
-  if (post.type === 'note' && story) {
-    // Notes are always rendered with interleaved content
-
+  if (shortened) {
     return (
-      <YStack width="100%">
-        {story.map((s, k) => {
-          if ('block' in s) {
-            return <BlockContent serif key={k} block={s.block} />;
-          }
+      <YStack width="100%" {...props}>
+        <LineRenderer
+          inlines={shortenedInlines}
+          isNotice={isNotice}
+          onPressImage={onPressImage}
+          onLongPress={onLongPress}
+          viewMode={viewMode}
+        />
+      </YStack>
+    );
+  }
 
-          if ('type' in s && s.type === 'reference') {
-            return <ContentReference key={k} reference={s} />;
-          }
-
-          if ('inline' in s) {
-            return (
-              <LineRenderer
-                key={k}
-                inlines={s.inline}
-                isNotice={isNotice}
-                onPressImage={onPressImage}
-                onLongPress={onLongPress}
-                viewMode={viewMode}
-                serif
-              />
-            );
-          }
-        })}
+  if (shortenedTextOnly) {
+    return (
+      <YStack width="100%" {...props}>
+        <LineRenderer
+          inlines={shortenedInlines}
+          isNotice={isNotice}
+          onPressImage={onPressImage}
+          onLongPress={onLongPress}
+          viewMode={viewMode}
+        />
       </YStack>
     );
   }
 
   return (
-    <YStack width="100%">
-      {!shortened && references.length > 0 ? (
-        <YStack gap="$s" paddingBottom="$l">
-          {references.map((ref, key) => {
-            return <ContentReference key={key} reference={ref} />;
-          })}
-        </YStack>
-      ) : null}
-      {!shortened && blocks.length > 0 ? (
-        <YStack>
-          {blockContent
-            .filter((a) => !!a)
-            .map((block, key) => {
-              return (
-                <BlockContent
-                  key={key}
-                  block={block}
-                  onPressImage={onPressImage}
-                  onLongPress={onLongPress}
-                />
-              );
-            })}
-        </YStack>
-      ) : null}
-      <XStack justifyContent="space-between" alignItems="flex-start">
-        {inlines.length > 0 ? (
-          <View flexGrow={1} flexShrink={1}>
+    <YStack width="100%" {...props}>
+      {story.map((s, k) => {
+        if ('block' in s) {
+          return (
+            <BlockContent key={k} block={s.block} onPressImage={onPressImage} />
+          );
+        }
+
+        if ('type' in s && s.type === 'reference') {
+          return <ContentReferenceLoader key={k} reference={s} />;
+        }
+
+        if ('inline' in s) {
+          return (
             <LineRenderer
-              inlines={shortened ? shortenedInlines : inlines}
+              key={k}
+              inlines={s.inline}
               isNotice={isNotice}
               onPressImage={onPressImage}
               onLongPress={onLongPress}
               viewMode={viewMode}
             />
+          );
+        }
+      })}
+      {post.type === 'chat' ||
+        (post.type === 'reply' && (
+          <View position="absolute" bottom={0} right={0}>
+            {isEdited ? (
+              <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
+                Edited
+              </Text>
+            ) : null}
+            {deliveryStatus ? (
+              <View flexShrink={1}>
+                <ChatMessageDeliveryStatus status={deliveryStatus} />
+              </View>
+            ) : null}
           </View>
-        ) : null}
-        {isEdited ? (
-          <Text color="$tertiaryText" fontSize="$xs" flexWrap="nowrap">
-            Edited
-          </Text>
-        ) : null}
-        {deliveryStatus ? (
-          <View flexShrink={1}>
-            <ChatMessageDeliveryStatus status={deliveryStatus} />
-          </View>
-        ) : null}
-      </XStack>
+        ))}
     </YStack>
   );
 }

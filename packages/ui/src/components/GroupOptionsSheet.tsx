@@ -1,14 +1,13 @@
+import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
-import { useCalm } from '../contexts';
 import { Text, View, XStack, YStack } from '../core';
-import { getBackgroundColor } from '../utils/colorUtils';
 import { ActionSheet } from './ActionSheet';
+import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { Icon } from './Icon';
-import { ListItem } from './ListItem';
 
 interface Props {
   open: boolean;
@@ -21,6 +20,7 @@ interface Props {
   onPressGroupMeta: (groupId: string) => void;
   onPressGroupMembers: (groupId: string) => void;
   onPressManageChannels: (groupId: string) => void;
+  onPressLeave: (groupId: string) => void;
   onPressInvitesAndPrivacy: (groupId: string) => void;
   onPressRoles: (groupId: string) => void;
 }
@@ -36,12 +36,23 @@ export function ChatOptionsSheet({
   onPressGroupMeta,
   onPressGroupMembers,
   onPressManageChannels,
+  onPressLeave,
   onPressInvitesAndPrivacy,
   onPressRoles,
 }: Props) {
   const { data: groupData } = useGroup({
     id: group?.id ?? channel?.groupId ?? '',
   });
+
+  useEffect(() => {
+    if (group?.id) {
+      sync.syncGroup(group.id, store.SyncPriority.High);
+    }
+
+    if (channel?.groupId) {
+      sync.syncGroup(channel.groupId, store.SyncPriority.High);
+    }
+  }, [group?.id, channel?.groupId]);
 
   const isPinned = useMemo(
     () =>
@@ -70,24 +81,29 @@ export function ChatOptionsSheet({
         action: () => (groupData ? onPressManageChannels(groupData.id) : {}),
         icon: 'ChevronRight',
       },
-      {
-        title: 'Invites & Privacy',
-        action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
-        icon: 'ChevronRight',
-      },
-      {
-        title: 'Roles',
-        action: () => (groupData ? onPressRoles(groupData.id) : {}),
-        icon: 'ChevronRight',
-      },
+      // {
+      // title: 'Invites & Privacy',
+      // action: () => (groupData ? onPressInvitesAndPrivacy(groupData.id) : {}),
+      // icon: 'ChevronRight',
+      // },
+      // {
+      // title: 'Roles',
+      // action: () => (groupData ? onPressRoles(groupData.id) : {}),
+      // icon: 'ChevronRight',
+      // },
     ],
-    [groupData, onPressManageChannels, onPressInvitesAndPrivacy, onPressRoles]
+    [
+      groupData,
+      onPressManageChannels,
+      // onPressInvitesAndPrivacy,
+      // onPressRoles
+    ]
   );
 
   const actions = useMemo(
     () => [
       { title: 'Copy group reference', action: () => {}, icon: 'ArrowRef' },
-      { title: isPinned ? 'Unpin' : 'Pin', action: () => {} },
+      { title: isPinned ? 'Unpin' : 'Pin', action: () => {}, icon: 'Pin' },
       {
         title: 'Notifications',
         action: () => {},
@@ -96,27 +112,17 @@ export function ChatOptionsSheet({
       {
         title: 'Leave group',
         variant: 'destructive',
-        action: () => {},
+        action: () => (groupData ? onPressLeave(groupData.id) : {}),
       },
     ],
-    [isPinned]
+    [isPinned, groupData, onPressLeave]
   );
 
-  if (group && currentUserIsAdmin) {
+  if (group && currentUserIsAdmin && actions.length === 4) {
     // we want to show the admin actions before leave group and notifications
     actions.splice(actions.length - 2, 0, ...adminActions);
   }
 
-  const { disableAvatars } = useCalm();
-  const colors = { backgroundColor: '$secondaryBackground' };
-  const iconFallbackText = groupData?.title?.[0] ?? groupData?.id[0];
-  const iconBackgroundColor = getBackgroundColor({
-    disableAvatars,
-    colors,
-    model: groupData ?? {},
-  });
-  const iconImageUrl =
-    !disableAvatars && groupData?.iconImage ? groupData.iconImage : undefined;
   const memberCount = groupData?.members?.length ?? 0;
   const title = channel?.title ?? groupData?.title ?? 'Loading…';
   const description =
@@ -143,11 +149,7 @@ export function ChatOptionsSheet({
           alignItems="center"
         >
           <YStack alignItems="center" space="$m">
-            <ListItem.Icon
-              fallbackText={iconFallbackText}
-              backgroundColor={iconBackgroundColor}
-              imageUrl={iconImageUrl}
-            />
+            {groupData && <GroupAvatar model={groupData} />}
 
             <Text fontSize="$l">{title}</Text>
             {description && (

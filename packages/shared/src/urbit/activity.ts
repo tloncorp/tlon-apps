@@ -1,7 +1,9 @@
+import { unixToDa } from '@urbit/api';
+import { parseUd } from '@urbit/aura';
 import _ from 'lodash';
 
-import { Story } from './channel';
-import { whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import { Kind, Story } from './channel';
+import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -66,9 +68,33 @@ export interface GroupJoinEvent {
   };
 }
 
-export interface FlagEvent {
-  flag: {
+export interface GroupRoleEvent {
+  'group-role': {
+    ship: string;
+    group: string;
+    role: string;
+  };
+}
+
+export interface GroupInviteEvent {
+  'group-invite': {
+    ship: string;
+    group: string;
+  };
+}
+
+export interface FlagPostEvent {
+  'flag-post': {
     key: MessageKey;
+    channel: string;
+    group: string;
+  };
+}
+
+export interface FlagReplyEvent {
+  'flag-reply': {
+    key: MessageKey;
+    parent: MessageKey;
     channel: string;
     group: string;
   };
@@ -115,10 +141,13 @@ export interface ReplyEvent {
 }
 
 export type ActivityIncomingEvent =
-  | DmInviteEvent
   | GroupKickEvent
   | GroupJoinEvent
-  | FlagEvent
+  | GroupRoleEvent
+  | GroupInviteEvent
+  | FlagPostEvent
+  | FlagReplyEvent
+  | DmInviteEvent
   | DmPostEvent
   | DmReplyEvent
   | PostEvent
@@ -134,8 +163,8 @@ export interface PostRead {
 }
 
 export interface Reads {
-  floor: string;
-  posts: Record<string, PostRead>;
+  floor: number;
+  items: Record<string, PostRead>;
 }
 
 export interface IndexData {
@@ -143,11 +172,19 @@ export interface IndexData {
   reads: Reads;
 }
 
+export interface DmSource {
+  dm: Whom;
+}
+
+export interface ChannelSource {
+  channel: { nest: string; group: string };
+}
+
 export type Source =
-  | { dm: Whom }
+  | DmSource
   | { base: null }
   | { group: string }
-  | { channel: { nest: string; group: string } }
+  | ChannelSource
   | { thread: { key: MessageKey; channel: string; group: string } }
   | { 'dm-thread': { key: MessageKey; whom: Whom } };
 
@@ -171,8 +208,11 @@ export interface ActivitySummary {
   'notify-count': number;
   notify: boolean;
   unread: UnreadPoint | null;
-  children: Activity | null;
-  reads: Reads | null;
+}
+
+export interface ActivitySummaryFull extends ActivitySummary {
+  reads: Reads;
+  children: string[];
 }
 
 export interface ActivityBundle {
@@ -182,11 +222,16 @@ export interface ActivityBundle {
   'source-key': string;
 }
 
-export type ActivityFeed = ActivityBundle[];
+export interface ActivityFeed {
+  feed: ActivityBundle[];
+  summaries: Activity;
+}
+
 export type InitActivityFeeds = {
   all: ActivityBundle[];
   mentions: ActivityBundle[];
   replies: ActivityBundle[];
+  summaries: Activity;
 };
 
 export type Activity = Record<string, ActivitySummary>;
@@ -200,7 +245,7 @@ export type VolumeMap = Partial<Record<ExtendedEventType, Volume>>;
 export type ReadAction =
   | { event: ActivityIncomingEvent }
   | { item: string }
-  | { all: null };
+  | { all: { time: string | null; deep: boolean } };
 
 export interface ActivityReadAction {
   source: Source;
@@ -220,6 +265,10 @@ export type ActivityAction =
   | { read: ActivityReadAction }
   | { adjust: ActivityVolumeAction }
   | { 'allow-notifications': PushNotificationsSetting };
+
+export interface ActivitySummaryUpdate {
+  activity: Activity;
+}
 
 export interface ActivityReadUpdate {
   read: {
@@ -254,6 +303,7 @@ export interface ActivityPushNotificationsSettingUpdate {
 
 export type ActivityUpdate =
   | ActivityReadUpdate
+  | ActivitySummaryUpdate
   | ActivityVolumeUpdate
   | ActivityDeleteUpdate
   | ActivityAddUpdate
@@ -267,16 +317,23 @@ export interface FullActivity {
 export type VolumeSettings = Record<string, VolumeMap | null>;
 
 export function sourceToString(source: Source, stripPrefix = false): string {
-  if ('base' in source) {
-    return stripPrefix ? '' : 'base';
+  if ('thread' in source) {
+    const key = `${source.thread.channel}/${source.thread.key.time}`;
+    return stripPrefix ? key : `thread/${key}`;
   }
 
-  if ('group' in source) {
-    return stripPrefix ? source.group : `group/${source.group}`;
+  if ('dm-thread' in source) {
+    const prefix = sourceToString({ dm: source['dm-thread'].whom }, true);
+    const key = `${prefix}/${source['dm-thread'].key.id}`;
+    return stripPrefix ? key : `dm-thread/${key}`;
   }
 
   if ('channel' in source) {
     return stripPrefix ? source.channel.nest : `channel/${source.channel.nest}`;
+  }
+
+  if ('group' in source) {
+    return stripPrefix ? source.group : `group/${source.group}`;
   }
 
   if ('dm' in source) {
@@ -287,15 +344,8 @@ export function sourceToString(source: Source, stripPrefix = false): string {
     return stripPrefix ? source.dm.club : `club/${source.dm.club}`;
   }
 
-  if ('thread' in source) {
-    const key = `${source.thread.channel}/${source.thread.key.time}`;
-    return stripPrefix ? key : `thread/${key}`;
-  }
-
-  if ('dm-thread' in source) {
-    const prefix = sourceToString({ dm: source['dm-thread'].whom }, true);
-    const key = `${prefix}/${source['dm-thread'].key.id}`;
-    return stripPrefix ? key : `dm-thread/${key}`;
+  if ('base' in source) {
+    return 'base';
   }
 
   throw new Error('Invalid activity source');
@@ -475,11 +525,15 @@ export function getDefaultVolumeOption(
 }
 
 export function stripSourcePrefix(source: string) {
+  if (source === 'base') {
+    return source;
+  }
+
   return source.replace(/^[-\w]*\//, '');
 }
 
 export function stripPrefixes(unreads: Activity) {
-  return _.mapKeys(unreads, (v, k) => stripSourcePrefix);
+  return _.mapKeys(unreads, (v, k) => stripSourcePrefix(k));
 }
 
 export function onlyChats(unreads: Activity) {
@@ -487,6 +541,14 @@ export function onlyChats(unreads: Activity) {
     unreads,
     (v, k) => k.startsWith('chat/') || whomIsDm(k) || whomIsMultiDm(k)
   );
+}
+
+export function getChannelSource(group: string, channel: string) {
+  return { channel: { nest: channel, group } };
+}
+
+export function getDmSource(id: string) {
+  return whomIsDm(id) ? { dm: { ship: id } } : { dm: { club: id } };
 }
 
 export function getKey(whom: string) {
@@ -500,4 +562,272 @@ export function getKey(whom: string) {
 export function getThreadKey(whom: string, id: string) {
   const prefix = whomIsFlag(whom) ? 'thread/chat' : 'dm-thread';
   return `${prefix}/${whom}/${id}`;
+}
+
+export const isMessage = (event: ActivityEvent) => {
+  return (
+    'post' in event ||
+    'reply' in event ||
+    'dm-post' in event ||
+    'dm-reply' in event
+  );
+};
+
+export const isNote = (event: ActivityEvent) => {
+  if ('post' in event) {
+    return event.post.channel.startsWith('diary');
+  }
+
+  return false;
+};
+
+export const isGalleryBlock = (event: ActivityEvent) => {
+  if ('post' in event) {
+    return event.post.channel.startsWith('heap');
+  }
+
+  return false;
+};
+
+export const isMention = (event: ActivityEvent) => {
+  if ('post' in event) {
+    return event.post.mention;
+  }
+
+  if ('reply' in event) {
+    return event.reply.mention;
+  }
+
+  if ('dm-post' in event) {
+    return event['dm-post'].mention;
+  }
+
+  if ('dm-reply' in event) {
+    return event['dm-reply'].mention;
+  }
+
+  return false;
+};
+
+export const isComment = (event: ActivityEvent) => {
+  if ('reply' in event) {
+    return (
+      event.reply.channel.startsWith('heap') ||
+      event.reply.channel.startsWith('diary')
+    );
+  }
+
+  return false;
+};
+
+export const isReply = (event: ActivityEvent) => {
+  if ('dm-reply' in event) {
+    return true;
+  }
+
+  if ('reply' in event) {
+    return !isComment(event);
+  }
+
+  return false;
+};
+
+export const isInvite = (event: ActivityEvent) => 'group-invite' in event;
+
+export const isJoin = (event: ActivityEvent) => 'group-join' in event;
+
+export const isLeave = (event: ActivityEvent) => 'group-leave' in event;
+
+export const isRoleChange = (event: ActivityEvent) => 'group-role' in event;
+
+export const isGroupMeta = (event: ActivityEvent) =>
+  isJoin(event) || isRoleChange(event) || isLeave(event);
+
+export function getTop(bundle: ActivityBundle): ActivityEvent {
+  return bundle.events.find(({ time }) => time === bundle.latest)!.event;
+}
+
+export function getSource(bundle: ActivityBundle): Source {
+  const top = getTop(bundle);
+
+  if ('post' in top) {
+    return { channel: { nest: top.post.channel, group: top.post.group } };
+  }
+
+  if ('reply' in top) {
+    return {
+      thread: {
+        key: top.reply.parent,
+        channel: top.reply.channel,
+        group: top.reply.group,
+      },
+    };
+  }
+
+  if ('dm-post' in top) {
+    return { dm: top['dm-post'].whom };
+  }
+
+  if ('dm-reply' in top) {
+    return {
+      'dm-thread': { key: top['dm-reply'].parent, whom: top['dm-reply'].whom },
+    };
+  }
+
+  if ('group-join' in top) {
+    return { group: top['group-join'].group };
+  }
+
+  if ('group-role' in top) {
+    return { group: top['group-role'].group };
+  }
+
+  if ('group-kick' in top) {
+    return { group: top['group-kick'].group };
+  }
+
+  if ('group-invite' in top) {
+    return { group: top['group-invite'].group };
+  }
+
+  if ('flag-post' in top) {
+    return {
+      group: top['flag-post'].group,
+    };
+  }
+
+  if ('flag-reply' in top) {
+    return {
+      group: top['flag-reply'].group,
+    };
+  }
+
+  return { base: null };
+}
+
+export function getContent(event: ActivityEvent) {
+  if ('post' in event) {
+    return event.post.content;
+  }
+
+  if ('reply' in event) {
+    return event.reply.content;
+  }
+
+  if ('dm-post' in event) {
+    return event['dm-post'].content;
+  }
+
+  if ('dm-reply' in event) {
+    return event['dm-reply'].content;
+  }
+
+  return undefined;
+}
+
+export function getIdParts(id: string): { author: string; sent: number } {
+  const [author, sentStr] = id.split('/');
+  return {
+    author,
+    sent: parseInt(parseUd(sentStr).toString(), 10),
+  };
+}
+
+export function getAuthor(event: ActivityEvent) {
+  if ('post' in event) {
+    return getIdParts(event.post.key.id).author;
+  }
+
+  if ('reply' in event) {
+    return getIdParts(event.reply.key.id).author;
+  }
+
+  if ('dm-post' in event) {
+    return getIdParts(event['dm-post'].key.id).author;
+  }
+
+  if ('dm-reply' in event) {
+    return getIdParts(event['dm-reply'].key.id).author;
+  }
+
+  if ('flag-post' in event) {
+    return getIdParts(event['flag-post'].key.id).author;
+  }
+
+  if ('flag-reply' in event) {
+    return getIdParts(event['flag-reply'].key.id).author;
+  }
+
+  return undefined;
+}
+
+export function getChannelKind(event: PostEvent | ReplyEvent): Kind {
+  const channel = 'post' in event ? event.post.channel : event.reply.channel;
+  const [channelType] = nestToFlag(channel);
+  return channelType;
+}
+
+export type ActivityRelevancy =
+  | 'mention'
+  | 'involvedThread'
+  | 'replyToGalleryOrNote'
+  | 'replyToChatPost'
+  | 'dm'
+  | 'groupchat'
+  | 'postInYourChannel'
+  | 'postToChannel'
+  | 'groupMeta'
+  | 'flaggedPost'
+  | 'flaggedReply';
+
+export function getRelevancy(
+  event: ActivityEvent,
+  us: string
+): ActivityRelevancy {
+  if (isMention(event)) {
+    return 'mention';
+  }
+
+  if ('dm-post' in event && 'ship' in event['dm-post'].whom) {
+    return 'dm';
+  }
+
+  if ('dm-post' in event && 'club' in event['dm-post'].whom) {
+    return 'groupchat';
+  }
+
+  if ('reply' in event && event.reply.parent.id.includes(us)) {
+    const channelType = getChannelKind(event);
+    if (channelType === 'heap' || channelType === 'diary') {
+      return 'replyToGalleryOrNote';
+    }
+
+    return 'replyToChatPost';
+  }
+
+  if ('post' in event && event.post.channel.includes(`/${us}/`)) {
+    return 'postInYourChannel';
+  }
+
+  if ('reply' in event && event.notified) {
+    return 'involvedThread';
+  }
+
+  if ('post' in event && event.notified) {
+    return 'postToChannel';
+  }
+
+  if ('flag-post' in event) {
+    return 'flaggedPost';
+  }
+
+  if ('flag-reply' in event) {
+    return 'flaggedReply';
+  }
+
+  console.log(
+    'Unknown relevancy type for activity summary. Defaulting to involvedThread.',
+    event
+  );
+  return 'involvedThread';
 }

@@ -5,10 +5,10 @@ import * as urbit from '@tloncorp/shared/dist/urbit';
 import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
 
-type PostScreenProps = NativeStackScreenProps<HomeStackParamList, 'Post'>;
+type PostScreenProps = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: PostScreenProps) {
   const postParam = props.route.params.post;
@@ -48,18 +48,15 @@ export default function PostScreen(props: PostScreenProps) {
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);
 
-  const markRead = useCallback(
-    (threadPost: db.Post) => {
-      if (channel && post) {
-        store.markThreadRead({
-          channel,
-          parentPost: post,
-          post: threadPost,
-        });
-      }
-    },
-    [channel, post]
-  );
+  const markRead = useCallback(() => {
+    if (channel && post && threadPosts) {
+      store.markThreadRead({
+        channel,
+        parentPost: post,
+        post: threadPosts[0],
+      });
+    }
+  }, [channel, post, threadPosts]);
 
   const sendReply = useCallback(
     async (content: urbit.Story) => {
@@ -73,6 +70,31 @@ export default function PostScreen(props: PostScreenProps) {
       uploadInfo.resetImageAttachment();
     },
     [channel, currentUserId, post, uploadInfo]
+  );
+
+  const handleDeletePost = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to delete message before channel loaded');
+      }
+      await store.deleteFailedPost({
+        post,
+      });
+    },
+    [channel]
+  );
+
+  const handleRetrySend = useCallback(
+    async (post: db.Post) => {
+      if (!channel) {
+        throw new Error('Tried to retry send before channel loaded');
+      }
+      await store.retrySendPost({
+        channel,
+        post,
+      });
+    },
+    [channel]
   );
 
   return currentUserId && channel && post ? (
@@ -93,6 +115,8 @@ export default function PostScreen(props: PostScreenProps) {
       clearDraft={clearDraft}
       markRead={markRead}
       editingPost={editingPost}
+      onPressDelete={handleDeletePost}
+      onPressRetry={handleRetrySend}
       setEditingPost={setEditingPost}
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}

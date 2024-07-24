@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from '../core';
 import { triggerHaptic } from '../utils';
 import { ActionSheet } from './ActionSheet';
+import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
 import { PrimaryButton } from './Buttons';
-import { ListItem } from './ListItem';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface Props {
@@ -149,11 +149,7 @@ export function GroupPreviewPane({
           borderRadius="$xl"
           padding="$3xl"
         >
-          <ListItem.Icon
-            fallbackText={group?.title?.[0] ?? group?.id[0]}
-            backgroundColor={group?.iconImageColor ?? undefined}
-            imageUrl={group?.iconImage ?? undefined}
-          />
+          <GroupAvatar model={group} />
           <ActionSheet.Title>{group?.title ?? group?.id}</ActionSheet.Title>
           {group?.description ? (
             <ActionSheet.Description fontSize="$s" textAlign="center">

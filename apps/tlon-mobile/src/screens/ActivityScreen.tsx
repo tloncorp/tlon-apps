@@ -1,15 +1,15 @@
-import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useIsFocused } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
-import { ActivityScreenView, ContactsProvider, View } from '@tloncorp/ui';
+import { ActivityScreenView, AppDataContextProvider, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import ErrorBoundary from '../ErrorBoundary';
 import NavBarView from '../navigation/NavBarView';
-import { TabParamList } from '../types';
+import { RootStackParamList } from '../types';
 
-type Props = BottomTabScreenProps<TabParamList, 'Activity'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 
 export function ActivityScreen(props: Props) {
   const { data: contacts } = store.useContacts();
@@ -31,9 +31,8 @@ export function ActivityScreen(props: Props) {
   }, []);
 
   const handleGoToChannel = useCallback(
-    (channel: db.Channel) => {
-      // @ts-expect-error it works
-      props.navigation.navigate('Channel', { channel });
+    (channel: db.Channel, selectedPostId?: string) => {
+      props.navigation.navigate('Channel', { channel, selectedPostId });
     },
     [props.navigation]
   );
@@ -42,14 +41,14 @@ export function ActivityScreen(props: Props) {
   // sheet
   const handleGoToThread = useCallback(
     (post: db.Post) => {
-      // @ts-expect-error it works
+      // TODO: we have no way to route to specific thread message rn
       props.navigation.navigate('Post', { post });
     },
     [props.navigation]
   );
 
   return (
-    <ContactsProvider contacts={contacts ?? []}>
+    <AppDataContextProvider contacts={contacts ?? []}>
       <View backgroundColor="$background" flex={1}>
         <ErrorBoundary message="Try navigating away and coming back">
           <ActivityScreenView
@@ -62,6 +61,6 @@ export function ActivityScreen(props: Props) {
         </ErrorBoundary>
         <NavBarView navigation={props.navigation} />
       </View>
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 }

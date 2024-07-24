@@ -17,7 +17,11 @@ import ReferencePreview from './ReferencePreview';
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (content: Story, channelId: string, metadata?: db.PostMetadata) => void;
+  send: (
+    content: Story,
+    channelId: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
   channelId: string;
   uploadInfo?: UploadInfo;
   groupMembers: db.ChatMember[];
@@ -26,7 +30,11 @@ export interface MessageInputProps {
   getDraft: () => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (
+    post: db.Post,
+    content: Story,
+    parentId?: string
+  ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
   floatingActionButton?: boolean;
@@ -37,7 +45,7 @@ export interface MessageInputProps {
   title?: string;
   image?: UploadedFile;
   showToolbar?: boolean;
-  channelType?: db.ChannelType;
+  channelType: db.ChannelType;
   initialHeight?: number;
   // for external access to height
   setHeight?: (height: number) => void;

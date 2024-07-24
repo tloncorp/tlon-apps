@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ContactsProvider } from '../contexts';
+import { AppDataContextProvider } from '../contexts';
 import { SizableText, Text, XStack } from '../core';
 import ChannelNavSections from './ChannelNavSections';
 import { Icon } from './Icon';
@@ -52,7 +52,7 @@ export function ChannelSwitcherSheet({
   );
 
   return (
-    <ContactsProvider contacts={contacts}>
+    <AppDataContextProvider contacts={contacts}>
       <Sheet
         open={open}
         onOpenChange={onOpenChange}
@@ -69,7 +69,7 @@ export function ChannelSwitcherSheet({
             <XStack alignItems="center" justifyContent="space-between">
               <SizableText
                 fontSize="$l"
-                fontWeight="500"
+                fontWeight="$xl"
                 color="$primaryText"
                 paddingHorizontal="$l"
               >
@@ -107,6 +107,6 @@ export function ChannelSwitcherSheet({
           </Sheet.ScrollView>
         </Sheet.Frame>
       </Sheet>
-    </ContactsProvider>
+    </AppDataContextProvider>
   );
 }

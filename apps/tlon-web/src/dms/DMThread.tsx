@@ -1,19 +1,9 @@
-import {
-  MessageKey,
-  getKey,
-  getThreadKey,
-} from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -23,11 +13,7 @@ import { useEventListener } from 'usehooks-ts';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import {
-  chatStoreLogger,
-  useChatInfo,
-  useChatStore,
-} from '@/chat/useChatStore';
+import { useChatStore } from '@/chat/useChatStore';
 import useLeap from '@/components/Leap/useLeap';
 import MobileHeader from '@/components/MobileHeader';
 import BranchIcon from '@/components/icons/BranchIcon';
@@ -37,13 +23,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useBottomPadding } from '@/logic/position';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  useMarkDmReadMutation,
-  useMultiDm,
-  useSendReplyMutation,
-  useWrit,
-} from '@/state/chat';
-import { unreadStoreLogger, useUnread, useUnreadsStore } from '@/state/unreads';
+import { useMultiDm, useSendReplyMutation, useWrit } from '@/state/chat';
 
 export default function DMThread() {
   const { ship, idTime, idShip } = useParams<{
@@ -72,8 +52,6 @@ export default function DMThread() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { paddingBottom } = useBottomPadding();
-  const unreadsKey = getThreadKey(whom, id);
-  const readTimeout = useUnread(unreadsKey)?.readTimeout;
   const msgKey: MessageKey = useMemo(
     () => ({
       id,
@@ -81,8 +59,6 @@ export default function DMThread() {
     }),
     [id, time]
   );
-  const { markDmRead } = useMarkDmReadMutation(whom, msgKey);
-  const path = location.pathname;
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -125,27 +101,28 @@ export default function DMThread() {
     [navigate, returnURL, leapIsOpen]
   );
 
-  const onAtBottom = useCallback(() => {
-    const { bottom } = useChatStore.getState();
-    const { delayedRead } = useUnreadsStore.getState();
-    bottom(true);
-    delayedRead(unreadsKey, markDmRead);
-  }, [unreadsKey, markDmRead]);
+  const onAtBottom = useCallback((atBottom: boolean) => {
+    const { threadBottom } = useChatStore.getState();
+    threadBottom(atBottom);
+  }, []);
 
   useEventListener('keydown', onEscape, threadRef);
 
-  // read the messages once navigated away
   useEffect(() => {
+    useChatStore.getState().threadBottom(true);
+
     return () => {
-      const winPath = window.location.pathname.replace('/apps/groups', '');
-      if (winPath !== path && readTimeout) {
-        unreadStoreLogger.log(winPath, path);
-        unreadStoreLogger.log('marking read from dismount', unreadsKey);
-        useUnreadsStore.getState().read(unreadsKey);
-        markDmRead();
-      }
+      useChatStore.getState().threadBottom(false);
     };
-  }, [path, readTimeout, unreadsKey, markDmRead]);
+  }, []);
+
+  useEffect(() => {
+    useChatStore.getState().setCurrentThread(msgKey);
+
+    return () => {
+      useChatStore.getState().setCurrentThread(null);
+    };
+  }, [msgKey]);
 
   if (!writ || isLoading) return null;
 
@@ -230,7 +207,7 @@ export default function DMThread() {
             isScrolling={isScrolling}
             hasLoadedNewest={false}
             hasLoadedOldest={false}
-            onAtBottom={onAtBottom}
+            onAtBottomChange={onAtBottom}
           />
         )}
       </div>

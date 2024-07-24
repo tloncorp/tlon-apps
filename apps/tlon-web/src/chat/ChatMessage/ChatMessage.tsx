@@ -2,6 +2,8 @@
 import { Editor } from '@tiptap/react';
 import {
   ActivitySummary,
+  getChannelSource,
+  getDmSource,
   getKey,
   getThreadKey,
 } from '@tloncorp/shared/dist/urbit/activity';
@@ -12,7 +14,7 @@ import {
   constructStory,
 } from '@tloncorp/shared/dist/urbit/channel';
 import { daToUnix } from '@urbit/api';
-import { formatUd, unixToDa } from '@urbit/aura';
+import { formatUd } from '@urbit/aura';
 import { BigInteger } from 'big-integer';
 import bigInt from 'big-integer';
 import cn from 'classnames';
@@ -43,12 +45,14 @@ import { useMarkChannelRead } from '@/logic/channel';
 import { JSONToInlines, diaryMixedToJSON } from '@/logic/tiptap';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
+import { useStickyUnread } from '@/logic/useStickyUnread';
 import {
   useIsDmOrMultiDm,
   whomIsDm,
   whomIsFlag,
   whomIsMultiDm,
 } from '@/logic/utils';
+import { useSourceActivity, useThreadActivity } from '@/state/activity';
 import {
   useEditPostMutation,
   useIsEdited,
@@ -60,7 +64,8 @@ import {
   useMessageToggler,
   useTrackedMessageStatus,
 } from '@/state/chat';
-import { Unread, useUnread, useUnreadsStore } from '@/state/unreads';
+import { useRouteGroup } from '@/state/groups';
+import { useInFocus } from '@/state/local';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import {
@@ -87,11 +92,11 @@ export interface ChatMessageProps {
 }
 
 function getUnreadDisplay(
-  unread: Unread | undefined,
+  unread: ActivitySummary,
   id: string,
-  thread: Unread | undefined
+  thread: ActivitySummary
 ): 'none' | 'top' | 'thread' | 'top-with-thread' {
-  const isTop = unread?.lastUnread?.id === id && unread.status !== 'read';
+  const isTop = unread.unread?.id === id;
 
   // if this message is the oldest unread in the main chat,
   // and has an unread thread, show the divider and thread indicator
@@ -101,7 +106,7 @@ function getUnreadDisplay(
 
   // if we have a thread, only mark it as explicitly unread
   // if it's not nested under main chat unreads
-  if (thread && thread.status !== 'read') {
+  if (thread && thread.count > 0) {
     return 'thread';
   }
 
@@ -166,6 +171,7 @@ const ChatMessage = React.memo<
         idShip: string;
         idTime: string;
       }>();
+      const groupFlag = useRouteGroup();
       const isThread = !!idShip && !!idTime;
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
@@ -176,20 +182,28 @@ const ChatMessage = React.memo<
       const unreadId = !isChannel ? seal.id : formatUd(bigInt(seal.id));
       const chatInfo = useChatInfo(whom);
       const unreadsKey = getKey(whom);
-      const unread = useUnread(unreadsKey);
-      const threadUr = useUnread(getThreadKey(whom, unreadId));
+      const { activity: summary } = useSourceActivity(unreadsKey);
+      const unread = useStickyUnread(summary);
+      const nest = `chat/${whom}`;
+      const source = isChannel
+        ? getChannelSource(groupFlag, nest)
+        : getDmSource(whom);
+      const { activity: threadSum } = useThreadActivity(
+        source,
+        getThreadKey(whom, unreadId)
+      );
       const unreadDisplay = useMemo(
         () =>
           getUnreadDisplay(
             unread,
             !isChannel ? unreadId : `${essay.author}/${unreadId}`,
-            threadUr
+            threadSum
           ),
-        [unread, threadUr, unreadId]
+        [unread, threadSum, unreadId]
       );
       const topUnread =
         unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
-      const threadNotify = threadUr?.notify;
+      const threadNotify = threadSum.notify;
       const threadUnread =
         unreadDisplay === 'thread' ||
         unreadDisplay === 'top-with-thread' ||
@@ -206,41 +220,26 @@ const ChatMessage = React.memo<
         [isMessageHidden, isPostHidden]
       );
 
+      const inFocus = useInFocus();
       const { ref: viewRef, inView } = useInView({
         threshold: 1,
       });
 
       useEffect(() => {
-        if (!inView || !unread) {
+        const mainUnread =
+          unreadDisplay === 'top' || unreadDisplay === 'top-with-thread';
+        if (!inFocus || !inView || !mainUnread) {
           return;
         }
 
-        const unseen = unread.status === 'unread';
-        const { seen: markSeen, delayedRead } = useUnreadsStore.getState();
-        /* once the unseen marker comes into view we need to mark it
-            as seen and start a timer to mark it read so it goes away.
-            we ensure that the brief matches and hasn't changed before
-            doing so. we don't want to accidentally clear unreads when
-            the state has changed
-        */
-        if (
-          inView &&
-          (unreadDisplay === 'top' || unreadDisplay === 'top-with-thread') &&
-          unseen
-        ) {
-          markSeen(unreadsKey);
-          delayedRead(unreadsKey, () => {
-            if (isDMOrMultiDM) {
-              markDmRead();
-            } else {
-              markReadChannel();
-            }
-          });
+        if (isDMOrMultiDM) {
+          markDmRead();
+        } else {
+          markReadChannel();
         }
       }, [
+        inFocus,
         inView,
-        unread,
-        unreadsKey,
         unreadDisplay,
         isDMOrMultiDM,
         markReadChannel,
@@ -420,8 +419,12 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && topUnread ? (
-            <DateDivider date={unix} unreadCount={unread.count} ref={viewRef} />
+          {unread.unread && topUnread ? (
+            <DateDivider
+              date={unix}
+              unreadCount={unread.unread.count}
+              ref={viewRef}
+            />
           ) : null}
           {newDay && unreadDisplay === 'none' ? (
             <DateDivider date={unix} />
@@ -542,10 +545,7 @@ const ChatMessage = React.memo<
 
                         <span
                           className={cn(
-                            threadUnread &&
-                              threadUr?.status !== 'unread' &&
-                              'mr-2',
-                            threadUnread && threadUr?.status === 'unread'
+                            threadUnread
                               ? threadNotify
                                 ? 'text-blue'
                                 : ''
@@ -554,7 +554,7 @@ const ChatMessage = React.memo<
                         >
                           {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                         </span>
-                        {threadUnread && threadUr?.status === 'unread' ? (
+                        {threadUnread ? (
                           <UnreadIndicator
                             count={0}
                             notify={threadNotify}

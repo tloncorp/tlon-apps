@@ -5,7 +5,7 @@ import _ from 'lodash';
 
 import { createDevLogger } from '../debug';
 
-const logger = createDevLogger('urbit', true);
+const logger = createDevLogger('urbit', false);
 
 const config = {
   shipName: '',
@@ -42,6 +42,14 @@ export const getCurrentUserId = () => {
     throw new Error('Client not initialized');
   }
   return client.our;
+};
+
+export const getCurrentUserIsHosted = () => {
+  if (!client.our) {
+    throw new Error('Client not initialized');
+  }
+
+  return client.url.endsWith('tlon.network');
 };
 
 export function configureClient({

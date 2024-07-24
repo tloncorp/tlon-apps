@@ -78,7 +78,6 @@ import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import GroupsNav from '@/nav/GroupsNav';
 import MobileGroupsNavHome from '@/nav/MobileRoot';
-import GroupNotification from '@/notifications/GroupNotification';
 import Notifications from '@/notifications/Notifications';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import Profile from '@/profiles/Profile';
@@ -113,6 +112,7 @@ import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import Notification from './notifications/Notification';
 import ShareDMLure from './profiles/ShareDMLure';
 import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
@@ -257,15 +257,6 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                 element={isMobile ? <MobileGroupChannelList /> : null}
               />
               <Route
-                path="activity"
-                element={
-                  <Notifications
-                    child={GroupNotification}
-                    title={`• ${groupsTitle}`}
-                  />
-                }
-              />
-              <Route
                 path="channels"
                 element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
@@ -377,12 +368,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
           </Route>
           <Route
             path="/notifications"
-            element={
-              <Notifications
-                child={GroupNotification}
-                title={`Activity • ${groupsTitle}`}
-              />
-            }
+            element={<Notifications title={`Activity • ${groupsTitle}`} />}
           />
           {!isMobile ? (
             <Route
@@ -690,6 +676,23 @@ function RoutedApp() {
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
+
+  useEffect(() => {
+    const onFocus = () => {
+      useLocalState.setState({ inFocus: true });
+    };
+    window.addEventListener('focus', onFocus);
+
+    const onBlur = () => {
+      useLocalState.setState({ inFocus: false });
+    };
+    window.addEventListener('blur', onBlur);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
 
   useEffect(() => {
     window.toggleDevTools = () => toggleDevTools();

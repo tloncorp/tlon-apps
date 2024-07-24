@@ -9,14 +9,12 @@ export function ChannelDivider({
   post,
   unreadCount,
   isFirstPostOfDay,
-  onSeen,
   channelInfo,
   index,
 }: {
   post: db.Post;
   unreadCount: number;
   isFirstPostOfDay?: boolean;
-  onSeen?: (post: db.Post) => void;
   channelInfo?: {
     id: string;
     type: db.ChannelType;
@@ -29,12 +27,6 @@ export function ChannelDivider({
     return makePrettyDay(new Date(post.receivedAt));
   }, [post.receivedAt]);
   const { width } = useWindowDimensions();
-
-  const handleSeen = useCallback(() => {
-    if (unreadCount) {
-      onSeen?.(post);
-    }
-  }, [onSeen, post, unreadCount]);
 
   const isEven = index % 2 === 0;
 
@@ -56,7 +48,6 @@ export function ChannelDivider({
       }
       alignItems="center"
       padding="$l"
-      onLayout={handleSeen}
     >
       <View width={'$2xl'} flex={1} height={1} backgroundColor={color} />
       <View

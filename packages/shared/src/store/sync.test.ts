@@ -1,7 +1,7 @@
 import * as $ from 'drizzle-orm';
-import { beforeAll, beforeEach, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 
-import { toClientGroup, toPagedPostsData } from '../api';
+import { toClientGroup } from '../api';
 import * as db from '../db';
 import rawNewestPostData from '../test/channelNewestPost.json';
 import rawChannelPostWithRepliesData from '../test/channelPostWithReplies.json';
@@ -12,16 +12,14 @@ import rawGroupsData from '../test/groups.json';
 import rawGroupsInitData from '../test/groupsInit.json';
 import {
   getClient,
-  resetDb,
   setScryOutput,
   setScryOutputs,
-  setupDb,
+  setupDatabaseTestSuite,
 } from '../test/helpers';
 import { GroupsInit, PagedPosts, PostDataResponse } from '../urbit';
 import { Contact as UrbitContact } from '../urbit/contact';
 import { Group as UrbitGroup } from '../urbit/groups';
 import {
-  syncChannel,
   syncContacts,
   syncDms,
   syncGroups,
@@ -37,13 +35,7 @@ const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit;
 
-beforeAll(() => {
-  setupDb();
-});
-
-beforeEach(async () => {
-  resetDb();
-});
+setupDatabaseTestSuite();
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
@@ -139,6 +131,7 @@ test('syncs dms', async () => {
     id: '~solfer-magfed',
     type: 'dm',
     groupId: null,
+    contactId: '~solfer-magfed',
     iconImage: null,
     iconImageColor: null,
     coverImage: null,
@@ -156,6 +149,8 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     isPendingChannel: null,
     isDmInvite: false,
+    isDefaultWelcomeChannel: null,
+    lastViewedAt: null,
     members: [
       {
         chatId: '~solfer-magfed',
@@ -175,6 +170,7 @@ test('syncs dms', async () => {
     id: '0v4.00000.qd4p2.it253.qs53q.s53qs',
     type: 'groupDm',
     groupId: null,
+    contactId: null,
     iconImage: null,
     iconImageColor: '#f0ebbd',
     coverImage: null,
@@ -192,6 +188,8 @@ test('syncs dms', async () => {
     remoteUpdatedAt: null,
     isPendingChannel: null,
     isDmInvite: false,
+    isDefaultWelcomeChannel: null,
+    lastViewedAt: null,
     members: [
       {
         chatId: '0v4.00000.qd4p2.it253.qs53q.s53qs',
@@ -255,7 +253,6 @@ test('syncs dms', async () => {
 
 const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
-const unreadTime = 1712091148002;
 
 const testGroupData: db.Group = {
   ...toClientGroup(
@@ -266,39 +263,13 @@ const testGroupData: db.Group = {
   navSections: [
     {
       id: 'abc',
+      sectionId: `${groupId}-abc`,
       groupId,
-      channels: [{ index: 0, channelId, groupNavSectionId: 'abc' }],
+      channels: [{ channelIndex: 0, channelId, groupNavSectionId: 'abc' }],
     },
   ],
   channels: [{ id: channelId, groupId, type: 'chat' }],
 };
-
-test('sync channel', async () => {
-  await db.insertGroups({ groups: [testGroupData] });
-  const insertedChannel = await db.getChannel({ id: channelId });
-  expect(insertedChannel).toBeTruthy();
-  setScryOutput(rawChannelPostsData);
-  await syncChannel(channelId, unreadTime);
-  const convertedPosts = toPagedPostsData(
-    channelId,
-    rawChannelPostsData as unknown as PagedPosts
-  );
-  const lastPost = convertedPosts.posts[convertedPosts.posts.length - 1]!;
-  const channel = await db.getChannel({ id: channelId });
-  expect(channel?.remoteUpdatedAt).toEqual(unreadTime);
-  expect(channel?.lastPostAt).toEqual(lastPost.receivedAt);
-  expect(channel?.lastPostId).toEqual(lastPost.id);
-
-  const posts = await db.getPosts();
-  expect(posts.length).toEqual(convertedPosts.posts.length);
-
-  const groups = await db.getGroups({ includeLastPost: true });
-  expect(groups[0].id).toEqual(groupId);
-  expect(groups[0].lastPostAt).toEqual(lastPost.receivedAt);
-  expect(groups[0].lastPostId).toEqual(lastPost.id);
-  expect(groups[0].lastPost?.id).toEqual(groups[0].lastPostId);
-  expect(groups[0].lastPost?.textContent).toEqual(lastPost.textContent);
-});
 
 test('sync posts', async () => {
   const channelId = 'chat/~solfer-magfed/test-channel';
@@ -332,11 +303,12 @@ test('deletes removed posts', async () => {
   );
   const deleteResponse = { ...rawChannelPostsData, posts: deletedPosts };
   setScryOutput(deleteResponse as PagedPosts);
-  await syncChannel(channelId, unreadTime);
+  await syncPosts({ channelId, mode: 'newest' });
   const posts = await db.getPosts();
   expect(posts.length).toEqual(0);
 });
 
+// TODO: fix once test init data added
 test('syncs init data', async () => {
   setScryOutput(rawGroupsInitData);
   await syncInitData();
@@ -357,20 +329,20 @@ test('syncs init data', async () => {
     groupsInitData.chat.dms.length +
       Object.keys(groupsInitData.chat.clubs).length
   );
-  // TODO: fix once activity integrated
-  // const staleChannels = await db.getStaleChannels();
-  // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
-  //   ['chat/~bolbex-fogdys/watercooler-4926'],
-  //   ['chat/~dabben-larbet/hosting-6173'],
-  //   ['chat/~bolbex-fogdys/tlon-general'],
-  //   ['chat/~bolbex-fogdys/marcom'],
-  //   ['heap/~bolbex-fogdys/design-1761'],
-  //   ['chat/~bitpyx-dildus/interface'],
-  //   ['chat/~bolbex-fogdys/ops'],
-  //   ['heap/~dabben-larbet/fanmail-3976'],
-  //   ['diary/~bolbex-fogdys/bulletins'],
-  //   ['chat/~nocsyx-lassul/bongtable'],
-  // ]);
+  //   // TODO: fix once activity integrated
+  //   // const staleChannels = await db.getStaleChannels();
+  //   // expect(staleChannels.slice(0, 10).map((c) => [c.id])).toEqual([
+  //   //   ['chat/~bolbex-fogdys/watercooler-4926'],
+  //   //   ['chat/~dabben-larbet/hosting-6173'],
+  //   //   ['chat/~bolbex-fogdys/tlon-general'],
+  //   //   ['chat/~bolbex-fogdys/marcom'],
+  //   //   ['heap/~bolbex-fogdys/design-1761'],
+  //   //   ['chat/~bitpyx-dildus/interface'],
+  //   //   ['chat/~bolbex-fogdys/ops'],
+  //   //   ['heap/~dabben-larbet/fanmail-3976'],
+  //   //   ['diary/~bolbex-fogdys/bulletins'],
+  //   //   ['chat/~nocsyx-lassul/bongtable'],
+  //   // ]);
 });
 
 test('syncs thread posts', async () => {

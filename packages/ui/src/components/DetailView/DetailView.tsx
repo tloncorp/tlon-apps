@@ -18,11 +18,10 @@ import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput/index.native';
 export interface DetailViewProps {
   post: db.Post;
   children?: JSX.Element;
-  currentUserId?: string;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost?: (post: db.Post, content: urbit.Story) => void;
-  sendReply: (content: urbit.Story, channelId: string) => void;
+  editPost?: (post: db.Post, content: urbit.Story) => Promise<void>;
+  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   groupMembers: db.ChatMember[];
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
@@ -31,7 +30,8 @@ export interface DetailViewProps {
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   goBack?: () => void;
-  markRead: (post: db.Post) => void;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
 }
 
 const DetailViewMetaDataComponent = ({
@@ -47,8 +47,11 @@ const DetailViewMetaDataComponent = ({
     return makePrettyShortDate(date);
   }, [post.sentAt]);
 
+  const hasReplies = post.replyCount! > 0;
+
   return (
-    <YStack gap="$l" paddingBottom="$2xl">
+    <YStack gap="$l">
+      <Text color="$tertiaryText">{dateDisplay}</Text>
       <AuthorRow
         authorId={post.authorId}
         author={post.author}
@@ -56,12 +59,9 @@ const DetailViewMetaDataComponent = ({
         type={post.type}
         detailView
       />
-      <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-        {dateDisplay}
-      </Text>
-      {showReplyCount && (
+      {showReplyCount && hasReplies && (
         <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-          {post.replyCount} replies
+          {post.replyCount} {post.replyCount === 1 ? 'reply' : 'replies'}
         </Text>
       )}
     </YStack>
@@ -79,28 +79,17 @@ const DetailViewHeaderComponentFrame = ({
       <YStack
         gap="$xl"
         paddingHorizontal="$xl"
-        borderBottomWidth={2}
-        borderColor="$shadow"
+        borderBottomWidth={1}
+        borderColor="$border"
       >
         {children}
       </YStack>
-      <View
-        paddingHorizontal="$xl"
-        paddingVertical="$2xl"
-        borderBottomWidth={2}
-        borderColor="$shadow"
-      >
-        <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
-          {replyCount} replies
-        </Text>
-      </View>
     </YStack>
   );
 };
 
 const DetailViewFrameComponent = ({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -114,11 +103,13 @@ const DetailViewFrameComponent = ({
   getDraft,
   children,
   goBack,
-  markRead,
+  onPressRetry,
+  onPressDelete,
 }: DetailViewProps) => {
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
   );
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const threadUnread = useStickyUnread(post?.threadUnread);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const { bottom } = useSafeAreaInsets();
@@ -137,20 +128,22 @@ const DetailViewFrameComponent = ({
               renderItem={ChatMessage}
               channelType="chat"
               channelId={post.channelId}
-              currentUserId={currentUserId ?? ''}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
               editPost={editPost}
               posts={posts ?? null}
               showReplies={false}
               onPressImage={onPressImage}
+              onPressRetry={onPressRetry}
+              onPressDelete={onPressDelete}
               firstUnreadId={
                 threadUnread?.count ?? 0 > 0
                   ? threadUnread?.firstUnreadPostId
                   : null
               }
               unreadCount={threadUnread?.count ?? 0}
-              onDividerSeen={markRead}
+              activeMessage={activeMessage}
+              setActiveMessage={setActiveMessage}
             />
           </View>
         )}
@@ -175,7 +168,8 @@ const DetailViewFrameComponent = ({
           getDraft={getDraft}
           backgroundColor="$background"
           showAttachmentButton={false}
-          placeholder="Reply to post"
+          channelType="chat"
+          placeholder="Reply"
           setHeight={setMessageInputHeight}
           // TODO: add back in when we switch to bottom nav
           // goBack={goBack}

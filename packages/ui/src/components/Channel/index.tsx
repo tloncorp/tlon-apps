@@ -2,21 +2,21 @@ import {
   isChatChannel as getIsChatChannel,
   useChannel as useChannelFromStore,
   useGroupPreview,
+  usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { useCallback, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
 import {
+  AppDataContextProvider,
   CalmProvider,
   CalmState,
   ChannelProvider,
-  ContactsProvider,
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
@@ -42,6 +42,8 @@ import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from './Scroller';
 import UploadedImagePreview from './UploadedImagePreview';
+
+export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
@@ -70,6 +72,7 @@ export function Channel({
   onPressRef,
   usePost,
   useGroup,
+  usePostReference,
   onGroupAction,
   useChannel,
   storeDraft,
@@ -78,6 +81,8 @@ export function Channel({
   editingPost,
   setEditingPost,
   editPost,
+  onPressRetry,
+  onPressDelete,
   negotiationMatch,
   hasNewerPosts,
   hasOlderPosts,
@@ -96,15 +101,16 @@ export function Channel({
   goToDm: (participants: string[]) => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
-  messageSender: (content: Story, channelId: string) => void;
+  messageSender: (content: Story, channelId: string) => Promise<void>;
   uploadInfo: UploadInfo;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
-  markRead: (post: db.Post) => void;
+  markRead: () => void;
   usePost: typeof usePostWithRelations;
   useGroup: typeof useGroupPreview;
+  usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: string, group: db.Group) => void;
   useChannel: typeof useChannelFromStore;
   storeDraft: (draft: JSONContent) => void;
@@ -112,11 +118,14 @@ export function Channel({
   getDraft: () => Promise<JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => void;
+  editPost: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
 }) {
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
@@ -132,19 +141,9 @@ export function Channel({
     : channel.type === 'notebook'
       ? NotebookPost
       : GalleryPost;
+
   const renderEmptyComponent = useCallback(() => {
-    return (
-      <View
-        // hack to fix inverted Flatlist empty component being erroneously rotated on Android
-        style={
-          Platform.OS === 'android'
-            ? { transform: [{ rotateY: '180deg' }] }
-            : {}
-        }
-      >
-        <EmptyChannelNotice channel={channel} userId={currentUserId} />
-      </View>
-    );
+    return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
   }, [currentUserId, channel]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
@@ -159,12 +158,20 @@ export function Channel({
     [onGroupAction]
   );
 
+  const hasLoaded = !!(posts && channel);
+  useEffect(() => {
+    if (hasLoaded) {
+      markRead();
+    }
+  }, [hasLoaded, markRead]);
+
   const scrollerAnchor: ScrollAnchor | null = useMemo(() => {
     if (channel.type === 'notebook') {
       return null;
     } else if (selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
     } else if (
+      channel.type !== 'gallery' &&
       channelUnread?.countWithoutThreads &&
       channelUnread.firstUnreadPostId
     ) {
@@ -184,10 +191,14 @@ export function Channel({
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
         <GroupsProvider groups={groups}>
-          <ContactsProvider contacts={contacts ?? null}>
+          <AppDataContextProvider
+            contacts={contacts}
+            currentUserId={currentUserId}
+          >
             <ChannelProvider value={{ channel }}>
               <RequestsProvider
                 usePost={usePost}
+                usePostReference={usePostReference}
                 useChannel={useChannel}
                 useGroup={useGroup}
                 useApp={useApp}
@@ -222,7 +233,7 @@ export function Channel({
                           showSpinner={isLoadingPosts}
                           showMenuButton={!isChatChannel}
                         />
-                        <KeyboardAvoidingView>
+                        <KeyboardAvoidingView enabled={!activeMessage}>
                           <YStack alignItems="center" flex={1}>
                             <AnimatePresence>
                               {showBigInput ? (
@@ -277,7 +288,6 @@ export function Channel({
                                       renderEmptyComponent={
                                         renderEmptyComponent
                                       }
-                                      currentUserId={currentUserId}
                                       anchor={scrollerAnchor}
                                       posts={posts}
                                       hasNewerPosts={hasNewerPosts}
@@ -296,12 +306,15 @@ export function Channel({
                                       unreadCount={
                                         channelUnread?.countWithoutThreads ?? 0
                                       }
-                                      onDividerSeen={markRead}
                                       onPressPost={goToPost}
                                       onPressReplies={goToPost}
                                       onPressImage={goToImageViewer}
                                       onEndReached={onScrollEndReached}
                                       onStartReached={onScrollStartReached}
+                                      onPressRetry={onPressRetry}
+                                      onPressDelete={onPressDelete}
+                                      activeMessage={activeMessage}
+                                      setActiveMessage={setActiveMessage}
                                     />
                                   )}
                                 </View>
@@ -331,6 +344,7 @@ export function Channel({
                                   editingPost={editingPost}
                                   setEditingPost={setEditingPost}
                                   editPost={editPost}
+                                  channelType={channel.type}
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }
@@ -408,7 +422,7 @@ export function Channel({
                 </NavigationProvider>
               </RequestsProvider>
             </ChannelProvider>
-          </ContactsProvider>
+          </AppDataContextProvider>
         </GroupsProvider>
       </CalmProvider>
     </ScrollContextProvider>

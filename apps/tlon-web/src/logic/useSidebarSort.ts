@@ -2,12 +2,12 @@ import _ from 'lodash';
 import { useCallback, useMemo } from 'react';
 
 import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
+import { useActivity } from '@/state/activity';
 import {
   useGroupSideBarSort,
   usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
-import { useUnreads } from '@/state/unreads';
 
 export interface Sorter {
   (a: string, b: string): number;
@@ -22,10 +22,10 @@ export const sortAlphabetical = (aNest: string, bNest: string) =>
   aNest.localeCompare(bNest);
 
 export function useRecentSort() {
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const recencyMap = useMemo(() => {
-    return _.mapValues(unreads, ({ recency }) => recency);
-  }, [unreads]);
+    return _.mapValues(activity, ({ recency }) => recency);
+  }, [activity]);
 
   const sortRecent = useCallback(
     (aIndex: string, bIndex: string) => {

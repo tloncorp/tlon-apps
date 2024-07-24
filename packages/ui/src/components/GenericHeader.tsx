@@ -40,7 +40,6 @@ export function GenericHeader({
             </IconButton>
           )}
           <Animated.View
-            key={showSpinner?.toString()}
             entering={FadeInDown}
             exiting={FadeOutUp}
             style={{ flex: 1 }}
@@ -50,7 +49,7 @@ export function GenericHeader({
               numberOfLines={1}
               color="$primaryText"
               size="$m"
-              fontWeight="500"
+              fontWeight="$xl"
             >
               {showSpinner ? 'Loading…' : title}
             </SizableText>

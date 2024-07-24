@@ -1,9 +1,12 @@
-import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useState } from 'react';
 
-import { Image, Text, YStack } from '../../core';
+import { Image, Text, XStack, YStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
+import { Button } from '../Button';
+import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
+import ContentRenderer from '../ContentRenderer';
 import Pressable from '../Pressable';
 
 const IMAGE_HEIGHT = 268;
@@ -12,6 +15,8 @@ export default function NotebookPost({
   post,
   onPress,
   onLongPress,
+  onPressRetry,
+  onPressDelete,
   showReplies = true,
   showAuthor = true,
   smallImage = false,
@@ -22,6 +27,8 @@ export default function NotebookPost({
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressRetry?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   detailView?: boolean;
   showReplies?: boolean;
   showAuthor?: boolean;
@@ -29,23 +36,43 @@ export default function NotebookPost({
   smallTitle?: boolean;
   viewMode?: 'activity';
 }) {
-  const dateDisplay = useMemo(() => {
-    const date = new Date(post.sentAt);
-
-    return makePrettyShortDate(date);
-  }, [post.sentAt]);
-
+  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
+
+  const handleRetryPressed = useCallback(() => {
+    onPressRetry?.(post);
+    setShowRetrySheet(false);
+  }, [onPressRetry, post]);
+
+  const handleDeletePressed = useCallback(() => {
+    onPressDelete?.(post);
+    setShowRetrySheet(false);
+  }, [onPressDelete, post]);
+
+  const handlePress = useCallback(() => {
+    if (post.hidden || post.isDeleted) {
+      return;
+    }
+
+    if (post.deliveryStatus === 'failed') {
+      setShowRetrySheet(true);
+      return;
+    }
+
+    onPress?.(post);
+  }, [onPress, post.isDeleted, post.hidden, post.deliveryStatus]);
 
   if (!post) {
     return null;
   }
 
+  const hasReplies = post.replyCount! > 0;
+
   return (
     <Pressable
-      onPress={() => onPress?.(post)}
+      onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={250}
       disabled={viewMode === 'activity'}
@@ -53,57 +80,86 @@ export default function NotebookPost({
       <YStack
         key={post.id}
         gap="$l"
-        paddingVertical="$3xl"
-        paddingHorizontal="$2xl"
+        padding="$l"
         borderWidth={1}
-        borderRadius="$xl"
-        borderColor="$shadow"
-        marginVertical="$xl"
+        borderRadius="$l"
+        borderColor="$border"
         overflow={viewMode === 'activity' ? 'hidden' : undefined}
       >
-        {post.image && (
-          <Image
-            source={{
-              uri: post.image,
-            }}
-            width="100%"
-            height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
-            borderRadius="$m"
-          />
-        )}
-        {post.title && (
-          <Text
-            color="$primaryText"
-            fontFamily="$serif"
-            fontWeight="$s"
-            fontSize={smallTitle || viewMode === 'activity' ? '$l' : '$xl'}
-          >
-            {post.title}
-          </Text>
-        )}
-        {showAuthor && viewMode !== 'activity' && (
-          <AuthorRow
-            authorId={post.authorId}
-            author={post.author}
-            sent={post.sentAt}
-            type={post.type}
-          />
-        )}
-        <Text
-          color="$tertiaryText"
-          fontWeight="$s"
-          fontSize={smallTitle ? '$s' : '$l'}
-        >
-          {dateDisplay}
-        </Text>
-        {showReplies && (
-          <Text
-            color="$tertiaryText"
-            fontWeight="$s"
-            fontSize={viewMode === 'activity' ? '$s' : '$l'}
-          >
-            {post.replyCount} replies
-          </Text>
+        {post.hidden || post.isDeleted ? (
+          post.hidden ? (
+            <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+              You have hidden or flagged this post.
+            </Text>
+          ) : post.isDeleted ? (
+            <Text color="$tertiaryText" fontWeight="$s" fontSize="$l">
+              This post has been deleted.
+            </Text>
+          ) : null
+        ) : (
+          <>
+            {post.image && (
+              <Image
+                source={{
+                  uri: post.image,
+                }}
+                width="100%"
+                height={smallImage ? IMAGE_HEIGHT / 2 : IMAGE_HEIGHT}
+                borderRadius="$s"
+              />
+            )}
+            {post.title && (
+              <Text
+                fontWeight="$xl"
+                color="$primaryText"
+                fontSize={smallTitle || viewMode === 'activity' ? '$l' : 24}
+              >
+                {post.title}
+              </Text>
+            )}
+            {showAuthor && viewMode !== 'activity' && (
+              <AuthorRow
+                authorId={post.authorId}
+                author={post.author}
+                sent={post.sentAt}
+                type={post.type}
+              />
+            )}
+            {viewMode !== 'activity' && (
+              <ContentRenderer
+                viewMode={viewMode}
+                shortenedTextOnly={true}
+                post={post}
+              />
+            )}
+
+            {/* TODO: reuse reply stack from Chat messages */}
+            {showReplies &&
+            hasReplies &&
+            post.replyCount &&
+            post.replyTime &&
+            post.replyContactIds ? (
+              <ChatMessageReplySummary post={post} paddingLeft={false} />
+            ) : null}
+            {post.deliveryStatus === 'failed' ? (
+              <XStack alignItems="center" justifyContent="flex-end">
+                <Text color="$negativeActionText" fontSize="$xs">
+                  Message failed to send
+                </Text>
+              </XStack>
+            ) : null}
+            <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
+              <ActionSheet.ActionTitle>
+                Message failed to send
+              </ActionSheet.ActionTitle>
+              <Button hero onPress={handleRetryPressed}>
+                <Button.Text>Retry</Button.Text>
+              </Button>
+              <Button heroDestructive onPress={handleDeletePressed}>
+                <Button.Text>Delete</Button.Text>
+              </Button>
+            </ActionSheet>
+          </>
         )}
       </YStack>
     </Pressable>

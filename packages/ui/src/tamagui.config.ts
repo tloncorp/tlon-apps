@@ -67,6 +67,8 @@ export const tokens = createTokens({
     '3xl': 32,
     '4xl': 48,
     '5xl': 64,
+    '6xl': 72,
+    '9xl': 96, // TODO: worth leaving room between?
   },
   radius: {
     '2xs': 2,
@@ -240,11 +242,12 @@ export const systemFont = createFont({
     m: 16,
     true: 16,
     l: 17,
+    xl: 24,
     // TODO: resolve this with Ochre later, sorry for the inconsistency
     l2: 32,
     // xl is used for emoji-only messages
-    xl: 36,
-    '2xl': 44,
+    '2xl': 36,
+    '3xl': 44,
   },
   lineHeight: {
     xs: 16,
@@ -257,6 +260,7 @@ export const systemFont = createFont({
     m: 'regular',
     true: 'regular',
     l: 'medium',
+    xl: '500',
   },
   letterSpacing: {
     s: 0,
@@ -278,6 +282,7 @@ export const serifFont = createFont({
     s: 22,
     m: 24,
     true: 24,
+    xl: 40,
   },
   weight: {
     s: '400',
@@ -325,7 +330,12 @@ export const config = createTamagui({
   fonts,
   themes,
   settings: {
-    allowedStyleValues: 'somewhat-strict',
+    allowedStyleValues: {
+      space: 'somewhat-strict',
+      size: 'somewhat-strict',
+      radius: 'somewhat-strict',
+      zIndex: 'somewhat-strict',
+    },
   },
   animations: animations,
 });

@@ -22,23 +22,19 @@ const fakeBlockQuotePost = createFakePost('chat', fakeBlockQuoteContent);
 
 const ChatMessageFixtureWithMention = () => (
   <FixtureWrapper fillWidth>
-    <ChatMessage post={fakeMentionPost} currentUserId="~zod" />
+    <ChatMessage post={fakeMentionPost} />
   </FixtureWrapper>
 );
 
 const ChatMessageFixtureWithBlockQuote = () => (
   <FixtureWrapper fillWidth>
-    <ChatMessage post={fakeBlockQuotePost} currentUserId="~zod" />
+    <ChatMessage post={fakeBlockQuotePost} />
   </FixtureWrapper>
 );
 
 const ChatMessageFixtureIsNotice = () => (
   <FixtureWrapper fillWidth>
-    <ChatMessage
-      post={fakeNoticePost}
-      showReplies={false}
-      currentUserId="~zod"
-    />
+    <ChatMessage post={fakeNoticePost} showReplies={false} />
   </FixtureWrapper>
 );
 

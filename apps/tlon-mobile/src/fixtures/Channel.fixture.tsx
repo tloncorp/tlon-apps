@@ -1,6 +1,7 @@
 import {
   useChannel,
   useGroupPreview,
+  usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import type { Upload } from '@tloncorp/shared/dist/api';
@@ -94,12 +95,15 @@ export const ChannelFixture = (props: {
         goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
-        messageSender={() => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
+        messageSender={async () => {}}
         markRead={() => {}}
-        editPost={() => {}}
+        editPost={async () => {}}
         uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useChannel={useChannel}
         useGroup={useGroupPreview}
         onGroupAction={() => {}}
@@ -131,15 +135,18 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
         goToDm={() => {}}
         goToPost={() => {}}
         goToImageViewer={() => {}}
-        messageSender={() => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
+        messageSender={async () => {}}
         markRead={() => {}}
-        editPost={() => {}}
+        editPost={async () => {}}
         getDraft={async () => ({})}
         storeDraft={() => {}}
         clearDraft={() => {}}
         uploadInfo={defaultUploadInfo}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useChannel={useChannel}
         useGroup={useGroupPreview}
         onGroupAction={() => {}}
@@ -187,9 +194,11 @@ const ChannelFixtureWithImage = () => {
         goToPost={() => {}}
         goToDm={() => {}}
         goToImageViewer={() => {}}
-        messageSender={() => {}}
+        onPressRetry={() => {}}
+        onPressDelete={() => {}}
+        messageSender={async () => {}}
         markRead={() => {}}
-        editPost={() => {}}
+        editPost={async () => {}}
         negotiationMatch={true}
         isLoadingPosts={false}
         uploadInfo={{
@@ -201,6 +210,7 @@ const ChannelFixtureWithImage = () => {
         }}
         onPressRef={() => {}}
         usePost={usePostWithRelations}
+        usePostReference={usePostReference}
         useChannel={useChannel}
         getDraft={async () => ({})}
         storeDraft={() => {}}

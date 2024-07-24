@@ -106,6 +106,10 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  now-id   `id:c`[our now]:bowl
+++  scry-path
+  |=  [agent=term =path]
+  ^-  ^path
+  (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  init  cor
 ::  +load: load next state
 ++  load
@@ -654,6 +658,16 @@
         pins
     ==
   ::
+      [%x %v1 %init ~]
+    =-  ``noun+!>(-)
+    :*  ~(key by accepted-dms)
+        ~(key by pending-dms)
+        (~(run by clubs) |=(=club:c crew.club))
+        blocked
+        blocked-by
+        hidden-messages
+    ==
+  ::
       [%x %heads ?(~ [@ ~])]
     =/  since=(unit time)
       ?~  t.t.path  ~
@@ -766,6 +780,7 @@
   |=  $:  =whom
           $=  concern
           $%  [%post key=message-key]
+              [%delete key=message-key]
               [%reply key=message-key top=message-key]
               [%invite ~]
           ==
@@ -773,10 +788,13 @@
           mention=?
       ==
   ^+  cor
-  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
-    cor
-  %-  emit
-  =;  =cage
+  =;  actions=(list action)
+    ?.  .^(? %gu (scry-path %activity /$))
+      cor
+    %-  emil
+    %+  turn  actions
+    |=  =action
+    =/  =cage  activity-action+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
   ?:  ?&  ?=(?(%post %reply) -.concern)
           .=  our.bowl
@@ -785,9 +803,12 @@
     =/  =source
       ?:  ?=(%post -.concern)  [%dm whom]
       [%dm-thread top.concern whom]
-    activity-action+!>(`action`[%read source [%all `now.bowl]])
-  :-  %activity-action
-  !>  ^-  action
+    :~  [%read source [%all `now.bowl |]]
+        [%bump source]
+    ==
+  :_  ~
+  ?:  ?=(%delete -.concern)
+    [%del %dm-thread key.concern whom]
   :-  %add
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]
@@ -1293,9 +1314,11 @@
       =/  invited  (~(has in hive.crew.club) our.bowl)
       ?:  &(!loyal !invited)
          cu-core
+      =/  had=(unit [=time =writ:c])
+        (get:cu-pact p.diff.delta)
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
-          ?(%del %add-react %del-react)  (cu-give-writs-diff diff.delta)
+          ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  memo  memo.q.diff.delta
@@ -1303,6 +1326,9 @@
           (add now.bowl (div ~s1 100))
         =.  recency.remark.club  now.bowl
         =.  cor  (give-unread club/id cu-unread)
+        =/  concern  [%post p.diff.delta now.bowl]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  cu-core  (cu-activity concern content.memo mention)
         ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
         =/  new-yarn
@@ -1315,9 +1341,11 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
-        =/  concern  [%post p.diff.delta now.bowl]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
-        =.  cu-core  (cu-activity concern content.memo mention)
+        (cu-give-writs-diff diff.delta)
+      ::
+          %del
+        =?  cu-core  ?=(^ had)
+          (cu-activity [%delete p.diff.delta time.u.had] *story:d |)
         (cu-give-writs-diff diff.delta)
       ::
           %reply
@@ -1335,12 +1363,16 @@
             (~(put in unread-threads.remark.club) p.diff.delta)
           =.  recency.remark.club  now.bowl
           =.  cor  (give-unread club/id cu-unread)
-          ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           ?~  entry  (cu-give-writs-diff diff.delta)
           =*  op  writ.u.entry
+          =/  top-con  [id time]:op
+          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
+          =/  mention  (was-mentioned:utils content.memo our.bowl)
+          =.  cu-core  (cu-activity concern content.memo mention)
+          ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           =/  new-yarn
             %^  cu-spin
-              /(rsh 4 (scot %ui time.u.entry))
+              /message/(scot %p p.id.op)/(scot %ud q.id.op)
               :~  [%ship author.memo]  ' replied to '
                   [%emph (flatten:utils content.op)]  ': '
                   [%ship author.memo]  ': '
@@ -1349,10 +1381,6 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-yarn new-yarn))
-          =/  top-con  [id time]:op
-          =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
-          =/  mention  (was-mentioned:utils content.memo our.bowl)
-          =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1645,11 +1673,13 @@
     =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-unread  di-unread
+    =/  had=(unit [=time =writ:c])
+      (get:di-pact p.diff)
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff
-        ?(%del %add-react %del-react)  (di-give-writs-diff diff)
+        ?(%add-react %del-react)  (di-give-writs-diff diff)
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
@@ -1659,6 +1689,11 @@
       =.  recency.remark.dm  now.bowl
       =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
+      =/  concern
+        ?:  =(net.dm %invited)  [%invite ~]
+        [%post p.diff now.bowl]
+      =/  mention  (was-mentioned:utils content.memo our.bowl)
+      =.  di-core  (di-activity concern content.memo mention)
       ?:  from-self    (di-give-writs-diff diff)
       ?^  kind.q.diff  (di-give-writs-diff diff)
       =/  new-yarn
@@ -1671,11 +1706,11 @@
         ~
       =?  cor  (want-hark %to-us)
         (emit (pass-yarn new-yarn))
-      =/  concern
-        ?:  =(net.dm %invited)  [%invite ~]
-        [%post p.diff now.bowl]
-      =/  mention  (was-mentioned:utils content.memo our.bowl)
-      =.  di-core  (di-activity concern content.memo mention)
+      (di-give-writs-diff diff)
+    ::
+        %del
+      =?  di-core  ?=(^ had)
+        (di-activity [%delete p.diff time.u.had] *story:d |)
       (di-give-writs-diff diff)
     ::
         %reply
@@ -1693,11 +1728,15 @@
         =.  recency.remark.dm  now.bowl
         =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
           (give-unread ship/ship di-unread)
-        ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         ?~  entry  (di-give-writs-diff diff)
+        =/  top-con  [id.writ.u.entry time.writ.u.entry]
+        =/  concern  [%reply [id.q.diff now.bowl] top-con]
+        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =.  di-core  (di-activity concern content.memo mention)
+        ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         =*  op  writ.u.entry
         =/  new-yarn
-          %^  di-spin  /(rsh 4 (scot %ui time.u.entry))
+          %^  di-spin  /message/(scot %p p.id.op)/(scot %ud q.id.op)
             :~  [%ship author.memo]  ' replied to '
                 [%emph (flatten:utils content.op)]  ': '
                 [%ship author.memo]  ': '
@@ -1706,10 +1745,6 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-yarn new-yarn))
-        =/  top-con  [id.writ.u.entry time.writ.u.entry]
-        =/  concern  [%reply [id.q.diff now.bowl] top-con]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
-        =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)
       ==
     ==

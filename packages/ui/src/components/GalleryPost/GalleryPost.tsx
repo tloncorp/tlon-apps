@@ -1,39 +1,80 @@
 import { usePostMeta } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
-import { Dimensions, ImageBackground } from 'react-native';
-import { getTokenValue } from 'tamagui';
+import { PropsWithChildren, useCallback, useState } from 'react';
+import { SizableText, styled } from 'tamagui';
 
-import { LinearGradient, Text, View } from '../../core';
+import { ImageWithFallback, Text, View, XStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
-import ContentReference from '../ContentReference';
+import { Button } from '../Button';
+import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
-import Pressable from '../Pressable';
+import { Icon } from '../Icon';
+import { useBoundHandler } from '../ListItem/listItemUtils';
+
+const GalleryPostFrame = styled(View, {
+  name: 'GalleryPostFrame',
+  borderWidth: 1,
+  borderColor: '$border',
+  position: 'relative',
+  borderRadius: '$m',
+  overflow: 'hidden',
+  flex: 1,
+  backgroundColor: '$background',
+  variants: {
+    previewType: {
+      image: {
+        borderWidth: 0,
+      },
+      text: {},
+      link: {
+        borderWidth: 0,
+        backgroundColor: '$secondaryBackground',
+      },
+      reference: {
+        borderWidth: 0,
+        backgroundColor: '$secondaryBackground',
+      },
+      unsupported: {
+        borderWidth: 0,
+        backgroundColor: '$secondaryBackground',
+      },
+    },
+  } as const,
+});
 
 export default function GalleryPost({
   post,
   onPress,
   onLongPress,
+  onPressRetry,
+  onPressDelete,
   viewMode,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   viewMode?: 'activity';
 }) {
-  // We want to show two posts per row in the gallery view, each with a margin of 16
-  // and padding of 16 on all sides. This means that the width of each post should be
-  // (windowWidth - 2 * padding - 2 * margin) / 2 = (windowWidth - 64) / 2
-  const postPadding = getTokenValue('$l');
-  const postMargin = getTokenValue('$l');
-  const HEIGHT_AND_WIDTH =
-    viewMode === 'activity'
-      ? 100
-      : (Dimensions.get('window').width - 2 * postPadding - 2 * postMargin) / 2;
+  const [showRetrySheet, setShowRetrySheet] = useState(false);
+
+  const handleRetryPressed = useCallback(() => {
+    onPressRetry?.(post);
+    setShowRetrySheet(false);
+  }, [onPressRetry, post]);
+
+  const handleDeletePressed = useCallback(() => {
+    onPressDelete?.(post);
+    setShowRetrySheet(false);
+  }, [onPressDelete, post]);
 
   const {
     references,
     isText,
     isImage,
+    isLink,
     isReference,
     isLinkedImage,
     isRefInText,
@@ -41,137 +82,141 @@ export default function GalleryPost({
     linkedImage,
   } = usePostMeta(post);
 
-  if (!isImage && !isText && !isReference && !isRefInText) {
-    // This should never happen, but if it does, we should log it
-    const content = JSON.parse(post.content as string);
-    console.log('Unsupported post type', {
-      post,
-      content,
-      postIsJustText: isText,
-      postIsJustImage: isImage,
-      postIsJustReference: isReference,
-      textPostIsJustReference: isRefInText,
-    });
+  const handlePress = useBoundHandler(post, onPress);
+  const handleLongPress = useBoundHandler(post, onLongPress);
 
-    return (
-      <View padding="$m" key={post.id} position="relative" alignItems="center">
-        <Text>Unsupported post type</Text>
-      </View>
-    );
-  }
+  const previewType = (() => {
+    if (isImage || isLinkedImage) {
+      return 'image';
+    }
+    if (isText && !isLinkedImage && !isRefInText && !isLink) {
+      return 'text';
+    }
+    if (isReference || isRefInText) {
+      return 'reference';
+    }
+    if (isLink) {
+      return 'link';
+    }
+    return 'unsupported';
+  })();
 
   return (
-    <Pressable
-      onPress={() => onPress?.(post)}
-      onLongPress={() => onLongPress?.(post)}
+    <GalleryPostFrame
+      previewType={previewType}
       disabled={viewMode === 'activity'}
+      onPress={
+        post.deliveryStatus === 'failed'
+          ? () => setShowRetrySheet(true)
+          : handlePress
+      }
+      onLongPress={handleLongPress}
     >
-      <View padding="$m" key={post.id} position="relative" alignItems="center">
-        {(isImage || isLinkedImage) && (
-          <ImageBackground
-            source={{ uri: isImage ? image!.src : linkedImage }}
-            style={{
-              width: HEIGHT_AND_WIDTH,
-              height: HEIGHT_AND_WIDTH,
-            }}
-            imageStyle={{
-              borderRadius: getTokenValue('$l', 'radius'),
-            }}
-          >
-            {viewMode !== 'activity' && (
-              <View position="absolute" bottom="$l">
+      {post.hidden || post.isDeleted ? (
+        post.hidden ? (
+          <View flex={1} padding="$m">
+            <SizableText size="$l" color="$tertiaryText">
+              You have hidden or flagged this post.
+            </SizableText>
+          </View>
+        ) : post.isDeleted ? (
+          <View flex={1} padding="$m">
+            <SizableText size="$l" color="$tertiaryText">
+              This post has been deleted.
+            </SizableText>
+          </View>
+        ) : null
+      ) : (
+        <View flex={1} pointerEvents="none">
+          {/** Image post */}
+          {(isImage || isLinkedImage) && (
+            <ImageWithFallback
+              contentFit="cover"
+              flex={1}
+              fallback={
+                <ErrorPlaceholder>
+                  Failed to load {isImage ? image!.src : linkedImage}
+                </ErrorPlaceholder>
+              }
+              source={{ uri: isImage ? image!.src : linkedImage }}
+            />
+          )}
+
+          {/** Text post */}
+          {isText && !isLinkedImage && !isRefInText && (
+            <View padding="$m" flex={1}>
+              {isLink && <Icon type="Link" size="$s" marginBottom="$s" />}
+              <ContentRenderer viewMode="block" post={post} />
+            </View>
+          )}
+
+          {/** Reference post */}
+          {(isReference || isRefInText) && (
+            <View flex={1}>
+              <ContentReferenceLoader
+                viewMode="block"
+                reference={references[0]}
+              />
+            </View>
+          )}
+
+          {/** Unsupported post */}
+          {!isImage && !isText && !isReference && !isRefInText ? (
+            <ErrorPlaceholder>Unable to parse content</ErrorPlaceholder>
+          ) : null}
+
+          {viewMode !== 'activity' && (
+            <View
+              position="absolute"
+              bottom={0}
+              left={0}
+              right={0}
+              width="100%"
+              pointerEvents="none"
+            >
+              {post.deliveryStatus === 'failed' ? (
+                <XStack
+                  alignItems="center"
+                  paddingLeft="$xl"
+                  paddingBottom="$xl"
+                >
+                  <Text color="$negativeActionText" fontSize="$xs">
+                    Message failed to send
+                  </Text>
+                </XStack>
+              ) : (
                 <AuthorRow
                   author={post.author}
                   authorId={post.authorId}
                   sent={post.sentAt}
                   type={post.type}
-                  width={HEIGHT_AND_WIDTH}
                 />
-              </View>
-            )}
-          </ImageBackground>
-        )}
-        {isText && !isLinkedImage && !isRefInText && (
-          <View
-            backgroundColor="$secondaryBackground"
-            borderRadius="$l"
-            padding="$l"
-            width={HEIGHT_AND_WIDTH}
-            height={HEIGHT_AND_WIDTH}
-          >
-            <View
-              height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
-              width="100%"
-              overflow="hidden"
-              paddingBottom="$xs"
-              position="relative"
-            >
-              <ContentRenderer viewMode="block" post={post} />
-              <LinearGradient
-                colors={['$transparentBackground', '$secondaryBackground']}
-                start={{ x: 0, y: 0.4 }}
-                end={{ x: 0, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
-                }}
-              />
+              )}
             </View>
-            <View position="absolute" bottom="$l">
-              <AuthorRow
-                author={post.author}
-                authorId={post.authorId}
-                sent={post.sentAt}
-                type={post.type}
-                width={HEIGHT_AND_WIDTH}
-              />
-            </View>
-          </View>
-        )}
-        {(isReference || isRefInText) && (
-          <View
-            width={HEIGHT_AND_WIDTH}
-            height={HEIGHT_AND_WIDTH}
-            borderRadius="$l"
-            padding="$m"
-            overflow="hidden"
-          >
-            <View
-              height={HEIGHT_AND_WIDTH - getTokenValue('$2xl')}
-              width="100%"
-              overflow="hidden"
-              paddingBottom="$xs"
-              position="relative"
-            >
-              <ContentReference viewMode="block" reference={references[0]} />
-              <LinearGradient
-                colors={['$transparentBackground', '$background']}
-                start={{ x: 0, y: 0.4 }}
-                end={{ x: 0, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: HEIGHT_AND_WIDTH - getTokenValue('$2xl'),
-                }}
-              />
-            </View>
-            <View position="absolute" bottom="$l">
-              <AuthorRow
-                author={post.author}
-                authorId={post.authorId}
-                sent={post.sentAt}
-                type={post.type}
-                width={HEIGHT_AND_WIDTH}
-              />
-            </View>
-          </View>
-        )}
-      </View>
-    </Pressable>
+          )}
+          <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
+            <ActionSheet.ActionTitle>
+              Message failed to send
+            </ActionSheet.ActionTitle>
+            <Button hero onPress={handleRetryPressed}>
+              <Button.Text>Retry</Button.Text>
+            </Button>
+            <Button heroDestructive onPress={handleDeletePressed}>
+              <Button.Text>Delete</Button.Text>
+            </Button>
+          </ActionSheet>
+        </View>
+      )}
+    </GalleryPostFrame>
+  );
+}
+
+function ErrorPlaceholder({ children }: PropsWithChildren) {
+  return (
+    <View backgroundColor={'$secondaryBackground'} padding="$m" flex={1}>
+      <SizableText size="$s" color="$tertiaryText" textAlign="center">
+        {children}
+      </SizableText>
+    </View>
   );
 }

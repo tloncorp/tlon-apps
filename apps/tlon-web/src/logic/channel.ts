@@ -16,7 +16,6 @@ import _, { get, groupBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import { useNavWithinTab } from '@/components/Sidebar/util';
 import {
   ALPHABETICAL_SORT,
@@ -24,17 +23,11 @@ import {
   RECENT_SORT,
   SortMode,
 } from '@/constants';
-import { useMarkReadMutation } from '@/state/activity';
+import { useActivity, useMarkReadMutation } from '@/state/activity';
 import { useChannel, useJoinMutation, usePerms } from '@/state/channel/channel';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { useLastReconnect } from '@/state/local';
 import { useNegotiate } from '@/state/negotiation';
-import {
-  Unread,
-  UnreadsStore,
-  useUnreads,
-  useUnreadsStore,
-} from '@/state/unreads';
 
 import useRecentChannel from './useRecentChannel';
 import useSidebarSort, {
@@ -44,12 +37,12 @@ import useSidebarSort, {
 } from './useSidebarSort';
 import { getFirstInline, getFlagParts, getNestShip, nestToFlag } from './utils';
 
-export function isChannelJoined(nest: string, unreads: Record<string, Unread>) {
+export function isChannelJoined(nest: string, activity: Activity) {
   const [flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
 
   const isChannelHost = window.our === ship;
-  return isChannelHost || (nest && `channel/${nest}` in unreads);
+  return isChannelHost || (nest && `channel/${nest}` in activity);
 }
 
 export function canReadChannel(
@@ -105,33 +98,33 @@ export function useChannelFlag() {
   );
 }
 
-function channelUnread(nest: string, unreads: Record<string, Unread>) {
-  const unread = unreads[`channel/${nest}`];
+function channelUnread(nest: string, activity: Activity) {
+  const unread = activity[`channel/${nest}`];
   if (!unread) {
     return false;
   }
 
-  return unread.combined.status === 'unread';
+  return unread.count > 0;
 }
 
 export function useCheckChannelUnread() {
-  const unreads = useUnreads();
+  const { activity } = useActivity();
   const isChannelUnread = useCallback(
     (nest: string) => {
-      return channelUnread(nest, unreads);
+      return channelUnread(nest, activity);
     },
-    [unreads]
+    [activity]
   );
 
   const getUnread = useCallback(
     (nest: string) => {
-      if (!unreads) {
+      if (!activity) {
         return null;
       }
 
-      return unreads[`channel/${nest}`];
+      return activity[`channel/${nest}`];
     },
-    [unreads]
+    [activity]
   );
 
   return {
@@ -141,9 +134,9 @@ export function useCheckChannelUnread() {
 }
 
 export function useIsChannelUnread(nest: string) {
-  const unreads = useUnreads();
+  const { activity } = useActivity();
 
-  return channelUnread(nest, unreads);
+  return channelUnread(nest, activity);
 }
 
 export const useIsChannelHost = (flag: string) =>
@@ -253,21 +246,18 @@ export function useChannelSections(groupFlag: string) {
   };
 }
 
-const getLoaded = (s: UnreadsStore) => s.loaded;
 export function useChannelIsJoined(nest: string) {
-  const loaded = useUnreadsStore(getLoaded);
-  const unreads = useUnreads();
-  return !loaded || isChannelJoined(nest, unreads);
+  const { activity, isLoading } = useActivity();
+  return isLoading || isChannelJoined(nest, activity);
 }
 
 export function useCheckChannelJoined() {
-  const loaded = useUnreadsStore(getLoaded);
-  const unreads = useUnreads();
+  const { activity, isLoading } = useActivity();
   return useCallback(
     (nest: string) => {
-      return !loaded || isChannelJoined(nest, unreads);
+      return isLoading || isChannelJoined(nest, activity);
     },
-    [unreads, loaded]
+    [activity, isLoading]
   );
 }
 
@@ -404,9 +394,13 @@ export function linkUrlFromContent(content: Story) {
   return undefined;
 }
 
-export function useMarkChannelRead(nest: string, thread?: MessageKey) {
+export function useMarkChannelRead(
+  nest: string,
+  thread?: MessageKey,
+  recursive = false
+) {
   const group = useRouteGroup();
-  const { mutateAsync, ...rest } = useMarkReadMutation();
+  const { mutateAsync, ...rest } = useMarkReadMutation(recursive);
   const markRead = useCallback(() => {
     const source: Source = thread
       ? {

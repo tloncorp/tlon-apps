@@ -84,10 +84,6 @@ export function useImageUpload(props: UploadParams): UploadInfo {
         width: mostRecentFile.size[1],
       };
       setUploadedImage(uploadedImage);
-
-      if (mostRecentFile.status === 'success' && mostRecentFile.url !== '') {
-        uploader?.clear();
-      }
     }
   }, [mostRecentFile, uploader]);
 
@@ -106,9 +102,13 @@ export function useImageUpload(props: UploadParams): UploadInfo {
 async function nativeUploader(
   presignedUrl: string,
   file: RNFile,
-  withPolicyHeader?: boolean
+  withPolicyHeader?: boolean,
+  additionalHeaders?: Record<string, string>
 ) {
-  const headers: Record<string, string> = { 'Content-Type': file.type };
+  const headers: Record<string, string> = {
+    ...additionalHeaders,
+    'Content-Type': file.type,
+  };
   // some custom S3's require this header, but it breaks Memex so we only
   // add it conditionally
   if (withPolicyHeader) {

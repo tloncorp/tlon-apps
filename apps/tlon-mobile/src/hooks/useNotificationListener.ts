@@ -1,14 +1,17 @@
+import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { syncDms, syncGroups } from '@tloncorp/shared';
 import { markChatRead } from '@tloncorp/shared/dist/api';
+import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/dist/urbit';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 
 import { connectNotifications } from '../lib/notifications';
-import type { HomeStackParamList } from '../types';
+import type { RootStackParamList } from '../types';
 
 export type Props = {
   notificationPath?: string;
@@ -19,15 +22,13 @@ export default function useNotificationListener({
   notificationPath,
   notificationChannelId,
 }: Props) {
-  const navigation = useNavigation<NavigationProp<HomeStackParamList>>();
-  const [
-    {
-      // path,
-      channelId,
-    },
-    setGotoData,
-  ] = useState<{
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { data: isTlonEmployee } = store.useIsTlonEmployee();
+
+  const [{ postInfo, channelId, isDm }, setGotoData] = useState<{
     path?: string;
+    isDm?: boolean;
+    postInfo?: { id: string; authorId: string } | null;
     channelId?: string;
   }>({
     path: notificationPath,
@@ -35,7 +36,7 @@ export default function useNotificationListener({
   });
 
   const resetGotoData = () =>
-    setGotoData({ path: undefined, channelId: undefined });
+    setGotoData({ path: undefined, channelId: undefined, postInfo: undefined });
 
   // Start notifications prompt
   useEffect(() => {
@@ -56,13 +57,17 @@ export default function useNotificationListener({
             },
           },
         } = response;
+        const postInfo = api.getPostInfoFromWer(data.wer);
+        const isDm = api.getIsDmFromWer(data.wer);
         if (actionIdentifier === 'markAsRead' && data.channelId) {
           markChatRead(data.channelId);
         } else if (actionIdentifier === 'reply' && userText) {
-          // TODO: Send reply
+          // TODO: this is unhandled, when is actionIdentifier = reply?
         } else if (data.channelId) {
           setGotoData({
             path: data.wer,
+            isDm,
+            postInfo,
             channelId: data.channelId,
           });
         }
@@ -84,7 +89,35 @@ export default function useNotificationListener({
           return false;
         }
 
-        // TODO: parse path and convert it to Post ID to navigate to selected post or thread
+        // if we have a post id, try to navigate to the thread
+        if (postInfo) {
+          let postToNavigateTo: {
+            id: string;
+            authorId: string;
+            channelId: string;
+          } | null = null;
+
+          const post = await db.getPost({ postId: postInfo.id });
+
+          if (post) {
+            postToNavigateTo = post;
+          } else {
+            postToNavigateTo = { ...postInfo, channelId };
+          }
+
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 1,
+              routes: [
+                { name: 'ChatList' },
+                { name: 'Channel', params: { channel } },
+                { name: 'Post', params: { post: postToNavigateTo } },
+              ],
+            })
+          );
+          resetGotoData();
+          return true;
+        }
 
         navigation.navigate('Channel', { channel });
         resetGotoData();
@@ -107,10 +140,19 @@ export default function useNotificationListener({
 
           // If still not found, clear out the requested channel ID
           if (!didNavigate) {
+            if (isTlonEmployee) {
+              crashlytics().log(`failed channel ID: ${channelId}`);
+              crashlytics().log(`failed post ID: ${postInfo?.id}`);
+            }
+            crashlytics().recordError(
+              new Error(
+                `Notification listener: failed to navigate to ${isDm ? 'DM ' : ''}channel ${postInfo?.id ? ' thread' : ''}`
+              )
+            );
             resetGotoData();
           }
         }
       })();
     }
-  }, [channelId, navigation]);
+  }, [channelId, postInfo, navigation, isDm]);
 }

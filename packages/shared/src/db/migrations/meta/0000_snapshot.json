@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "5b22f005-5d8a-445c-83fa-2c8ad5f2e8dc",
+  "id": "f4f2ae74-3687-485f-ac82-85cc2b687cd2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_events": {
@@ -312,6 +312,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "added_to_group_at": {
           "name": "added_to_group_at",
           "type": "integer",
@@ -384,6 +391,20 @@
         },
         "remote_updated_at": {
           "name": "remote_updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_viewed_at": {
+          "name": "last_viewed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_default_welcome_channel": {
+          "name": "is_default_welcome_channel",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -839,8 +860,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "channel_index": {
+          "name": "channel_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -897,6 +918,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "section_id": {
+          "name": "section_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "group_id": {
           "name": "group_id",
           "type": "text",
@@ -946,8 +974,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "index": {
-          "name": "index",
+        "section_index": {
+          "name": "section_index",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1632,11 +1660,25 @@
           "notNull": false,
           "autoincrement": false
         },
+        "is_deleted": {
+          "name": "is_deleted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "delivery_status": {
           "name": "delivery_status",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false
+        },
+        "synced_at": {
+          "name": "synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false
         },
         "backend_time": {

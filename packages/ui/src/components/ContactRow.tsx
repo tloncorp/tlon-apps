@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback, useMemo } from 'react';
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { ListItemProps } from 'tamagui';
 
 import { Stack, View, XStack } from '../core';
@@ -34,7 +33,7 @@ function ContactRowItemRaw({
 
   return (
     <ListItem onPress={handlePress(contact.id)} {...rest}>
-      <ListItem.Icon contactId={contact.id} contact={contact} />
+      <ListItem.ContactIcon contactId={contact.id} />
       <ListItem.MainContent>
         <XStack alignItems="center">
           <ListItem.Title marginLeft="$l">{displayName}</ListItem.Title>

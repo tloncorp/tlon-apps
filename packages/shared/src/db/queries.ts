@@ -352,6 +352,7 @@ export const insertGroups = createWriteQuery(
     ctx: QueryCtx
   ) => {
     return withTransactionCtx(ctx, async (txCtx) => {
+      if (groups.length === 0) return;
       for (const group of groups) {
         if (overWrite) {
           await txCtx.db
@@ -396,16 +397,17 @@ export const insertGroups = createWriteQuery(
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
-        if (group.navSections) {
+        if (group.navSections?.length) {
           await txCtx.db
             .insert($groupNavSections)
             .values(
               group.navSections.map((s) => ({
                 id: s.id,
+                sectionId: s.sectionId,
                 groupId: group.id,
                 title: s.title,
                 description: s.description,
-                index: s.index,
+                sectionIndex: s.sectionIndex,
               }))
             )
             .onConflictDoUpdate({
@@ -426,7 +428,7 @@ export const insertGroups = createWriteQuery(
               .insert($groupNavSectionChannels)
               .values(
                 navSectionChannels.map((s) => ({
-                  index: s?.index,
+                  channelIndex: s?.channelIndex,
                   groupNavSectionId: s?.groupNavSectionId,
                   channelId: s?.channelId,
                 }))
@@ -434,7 +436,7 @@ export const insertGroups = createWriteQuery(
               .onConflictDoNothing();
           }
         }
-        if (group.roles) {
+        if (group.roles?.length) {
           await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
@@ -449,7 +451,7 @@ export const insertGroups = createWriteQuery(
               ),
             });
         }
-        if (group.members) {
+        if (group.members?.length) {
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
@@ -477,6 +479,18 @@ export const insertGroups = createWriteQuery(
               .values(memberRoles)
               .onConflictDoNothing();
           }
+        }
+
+        if (group.bannedMembers?.length) {
+          await txCtx.db
+            .insert($groupMemberBans)
+            .values(
+              group.bannedMembers.map((m) => ({
+                groupId: group.id,
+                contactId: m.contactId,
+              }))
+            )
+            .onConflictDoNothing();
         }
       }
       await setLastPosts(null, txCtx);
@@ -646,6 +660,8 @@ export const getThreadPosts = createReadQuery(
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+    if (!parentId) return Promise.resolve(null);
+
     return ctx.db.query.threadUnreads.findFirst({
       where: eq($threadUnreads.threadId, parentId),
     });
@@ -1053,6 +1069,7 @@ export const clearVolumeSetting = createWriteQuery(
 export const getChannelUnread = createReadQuery(
   'getChannelUnread',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    if (!channelId) return Promise.resolve(null);
     return ctx.db.query.channelUnreads.findFirst({
       where: and(eq($channelUnreads.channelId, channelId)),
     });
@@ -1129,8 +1146,8 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
   async (
     { id }: GetChannelWithLastPostAndMembersOptions,
     ctx: QueryCtx
-  ): Promise<Channel | undefined> => {
-    return await ctx.db.query.channels.findFirst({
+  ): Promise<Channel | null> => {
+    const result = await ctx.db.query.channels.findFirst({
       where: eq($channels.id, id),
       with: {
         lastPost: true,
@@ -1147,6 +1164,7 @@ export const getChannelWithLastPostAndMembers = createReadQuery(
         },
       },
     });
+    return returnNullIfUndefined(result);
   },
   ['channels']
 );
@@ -1244,19 +1262,24 @@ export const addNavSectionToGroup = createWriteQuery(
   async (
     {
       id,
+      sectionId,
       groupId,
       meta,
     }: {
       id: string;
+      sectionId: string;
       groupId: string;
       meta: ClientMeta;
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addNavSectionToGroup', id, sectionId, groupId, meta);
+
     return ctx.db
       .insert($groupNavSections)
       .values({
         id,
+        sectionId: sectionId,
         title: meta.title,
         description: meta.description,
         iconImage: meta.iconImage,
@@ -1279,6 +1302,7 @@ export const updateNavSection = createWriteQuery(
     navSection: Partial<GroupNavSection> & { id: string },
     ctx: QueryCtx
   ) => {
+    logger.log('updateNavSection', navSection);
     return ctx.db
       .update($groupNavSections)
       .set(navSection)
@@ -1311,12 +1335,13 @@ export const addChannelToNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
     return ctx.db
       .insert($groupNavSectionChannels)
       .values({
         channelId,
         groupNavSectionId,
-        index,
+        channelIndex: index,
       })
       .onConflictDoNothing();
   },
@@ -1335,6 +1360,7 @@ export const deleteChannelFromNavSection = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
+    logger.log('deleteChannelFromNavSection', channelId, groupNavSectionId);
     return ctx.db
       .delete($groupNavSectionChannels)
       .where(
@@ -1763,7 +1789,7 @@ export const insertChannelPosts = createWriteQuery(
       }
     });
   },
-  ['posts', 'channels', 'groups', 'postWindows']
+  ['posts', 'postWindows']
 );
 
 export const insertLatestPosts = createWriteQuery(
@@ -1795,11 +1821,11 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
     )
     .onConflictDoUpdate({
       target: $posts.id,
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
       target: [$posts.authorId, $posts.sentAt],
-      set: conflictUpdateSetAll($posts),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     });
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
@@ -1810,6 +1836,31 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
   );
   logger.log('clear matched pending');
 }
+
+export const insertHiddenPosts = createWriteQuery(
+  'insertHiddenPosts',
+  async (postIds: string[], ctx: QueryCtx) => {
+    if (postIds.length === 0) return;
+
+    logger.log('insertHiddenPosts', postIds);
+
+    await ctx.db
+      .update($posts)
+      .set({ hidden: true })
+      .where(inArray($posts.id, postIds));
+  },
+  ['posts']
+);
+
+export const getHiddenPosts = createReadQuery(
+  'getHiddenPosts',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.hidden, true),
+    });
+  },
+  ['posts']
+);
 
 async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
   const channelIds = newPosts?.map((p) => p.channelId) ?? [];
@@ -2004,6 +2055,24 @@ export const deletePost = createWriteQuery(
   ['posts']
 );
 
+export const markPostAsDeleted = createWriteQuery(
+  'markPostAsDeleted',
+  async (postId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .update($posts)
+      .set({
+        isDeleted: true,
+        content: null,
+        textContent: null,
+        authorId: undefined,
+        title: null,
+        image: null,
+      })
+      .where(eq($posts.id, postId));
+  },
+  ['posts']
+);
+
 export const getPostReaction = createReadQuery(
   'getPostReaction',
   async (
@@ -2094,6 +2163,19 @@ export const getPost = createReadQuery(
       .select()
       .from($posts)
       .where(eq($posts.id, postId));
+    if (!postData.length) return null;
+    return postData[0];
+  },
+  ['posts']
+);
+
+export const getPostByBackendTime = createReadQuery(
+  'getPostByBackendTime',
+  async ({ backendTime }: { backendTime: string }, ctx: QueryCtx) => {
+    const postData = await ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.backendTime, backendTime));
     if (!postData.length) return null;
     return postData[0];
   },
@@ -2211,6 +2293,7 @@ export const getGroup = createReadQuery(
               roles: true,
             },
           },
+          bannedMembers: true,
           navSections: {
             with: {
               channels: true,
@@ -2220,7 +2303,7 @@ export const getGroup = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['groups', 'channelUnreads', 'volumeSettings']
+  ['groups', 'channelUnreads', 'volumeSettings', 'channels']
 );
 
 export const getGroupByChannel = createReadQuery(
@@ -2244,6 +2327,37 @@ export const getGroupByChannel = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['channels', 'groups']
+);
+
+export const insertBlockedContacts = createWriteQuery(
+  'insertBlockedContacts',
+  async ({ blockedIds }: { blockedIds: string[] }, ctx: QueryCtx) => {
+    if (blockedIds.length === 0) return;
+
+    const blockedContacts: Contact[] = blockedIds.map((id) => ({
+      id,
+      isBlocked: true,
+    }));
+
+    return ctx.db
+      .insert($contacts)
+      .values(blockedContacts)
+      .onConflictDoUpdate({
+        target: $contacts.id,
+        set: conflictUpdateSet($contacts.isBlocked),
+      });
+  },
+  ['contacts']
+);
+
+export const getBlockedUsers = createReadQuery(
+  'getBlockedUsers',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.contacts.findMany({
+      where: eq($contacts.isBlocked, true),
+    });
+  },
+  ['contacts']
 );
 
 export const getContacts = createReadQuery(
@@ -2545,6 +2659,34 @@ export const getLatestActivityEvent = createReadQuery(
         ),
       })
       .then(returnNullIfUndefined);
+  },
+  ['activityEvents']
+);
+
+export const getUnreadUnseenActivityEvents = createReadQuery(
+  'getUnreadUnseenActivityEvents',
+  async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    return ctx.db
+      .select()
+      .from($activityEvents)
+      .leftJoin(
+        $channelUnreads,
+        eq($activityEvents.channelId, $channelUnreads.channelId)
+      )
+      .leftJoin(
+        $threadUnreads,
+        eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .where(
+        and(
+          gt($activityEvents.timestamp, seenMarker),
+          eq($activityEvents.shouldNotify, true),
+          or(
+            and(eq($activityEvents.type, 'reply'), gt($threadUnreads.count, 0)),
+            and(eq($activityEvents.type, 'post'), gt($channelUnreads.count, 0))
+          )
+        )
+      );
   },
   ['activityEvents']
 );
@@ -2877,16 +3019,24 @@ function conflictUpdateSetAll(table: Table, exclude?: string[]) {
 
 function conflictUpdateSet(...columns: Column[]) {
   return Object.fromEntries(
-    columns.map((c) => [toCamelCase(c.name), sql.raw(`excluded.${c.name}`)])
+    columns.map((c) => {
+      return [getColumnTsName(c), sql.raw(`excluded.${c.name}`)];
+    })
   );
+}
+
+function getColumnTsName(c: Column) {
+  const name = Object.keys(c.table).find(
+    (k) => c.table[k as keyof typeof c.table] === c
+  );
+  if (!name) {
+    throw new Error('unable to find column name');
+  }
+  return name;
 }
 
 function ascNullsLast(column: SQLWrapper | AnyColumn) {
   return sql`${column} ASC NULLS LAST`;
-}
-
-function toCamelCase(str: string) {
-  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
 function returnNullIfUndefined<T>(input: T | undefined): T | null {

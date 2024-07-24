@@ -1,7 +1,7 @@
 import { Close } from '../../assets/icons';
 import { useReferences } from '../../contexts/references';
 import { View, XStack, YStack } from '../../core';
-import ContentReference from '../ContentReference';
+import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import { IconButton } from '../IconButton';
 
 export default function ReferencePreview({
@@ -28,8 +28,8 @@ export default function ReferencePreview({
             width="100%"
             height="auto"
           >
-            <ContentReference
-              asAttachment
+            <ContentReferenceLoader
+              viewMode="attachment"
               reference={references[ref]!}
               key={ref}
             />

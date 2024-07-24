@@ -2,13 +2,13 @@ import { tiptap, usePostMeta } from '@tloncorp/shared/dist';
 import { Dimensions } from 'react-native';
 
 import { Image, Text, View, YStack } from '../../core';
-import ContentReference from '../ContentReference';
+import { ContentReferenceLoader } from '../ContentReference/ContentReference';
 import ContentRenderer from '../ContentRenderer';
+import { Icon } from '../Icon';
 import { DetailView, DetailViewProps } from './DetailView';
 
 export default function GalleryDetailView({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -21,7 +21,8 @@ export default function GalleryDetailView({
   clearDraft,
   getDraft,
   goBack,
-  markRead,
+  onPressRetry,
+  onPressDelete,
 }: DetailViewProps) {
   // We want the content of the detail view to take up 70% of the screen height
   const HEIGHT_DETAIL_VIEW_CONTENT = Dimensions.get('window').height * 0.5;
@@ -33,6 +34,7 @@ export default function GalleryDetailView({
     references,
     isText,
     isImage,
+    isLink,
     isReference,
     isLinkedImage,
     isRefInText,
@@ -58,7 +60,6 @@ export default function GalleryDetailView({
   return (
     <DetailView
       post={post}
-      currentUserId={currentUserId}
       editingPost={editingPost}
       setEditingPost={setEditingPost}
       editPost={editPost}
@@ -71,7 +72,8 @@ export default function GalleryDetailView({
       clearDraft={clearDraft}
       getDraft={getDraft}
       goBack={goBack}
-      markRead={markRead}
+      onPressRetry={onPressRetry}
+      onPressDelete={onPressDelete}
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         <View paddingHorizontal="$xl" key={post.id} alignItems="center">
@@ -94,44 +96,48 @@ export default function GalleryDetailView({
           )}
           {isText && !isLinkedImage && !isRefInText && (
             <View
-              backgroundColor="$background"
-              borderRadius="$l"
+              borderColor="$border"
+              borderTopWidth={1}
+              borderBottomWidth={1}
+              backgroundColor="$secondaryBackground"
               padding="$l"
               width={WIDTH_DETAIL_VIEW_CONTENT}
-              height={HEIGHT_DETAIL_VIEW_CONTENT}
+              height="auto"
             >
               <View
-                height="100%"
-                width="100%"
                 overflow="hidden"
                 paddingBottom="$xs"
                 position="relative"
+                flexDirection="row"
+                alignItems="center"
               >
+                {isLink && <Icon type="Link" />}
                 <ContentRenderer post={post} />
               </View>
             </View>
           )}
           {(isReference || isRefInText) && (
             <View
+              backgroundColor="$secondaryBackground"
+              borderColor="$border"
+              borderTopWidth={1}
+              borderBottomWidth={1}
               width={WIDTH_DETAIL_VIEW_CONTENT}
-              height={HEIGHT_DETAIL_VIEW_CONTENT}
-              borderRadius="$l"
-              padding="$m"
+              height="auto"
               overflow="hidden"
             >
-              <View
-                height="100%"
-                width="100%"
-                overflow="hidden"
-                paddingBottom="$xs"
-                position="relative"
-              >
-                <ContentReference reference={references[0]} />
+              <View overflow="hidden" position="relative">
+                <ContentReferenceLoader
+                  reference={references[0]}
+                  viewMode="block"
+                />
               </View>
             </View>
           )}
         </View>
-        <DetailView.MetaData post={post} />
+        <View paddingBottom="$xl">
+          <DetailView.MetaData post={post} />
+        </View>
       </DetailView.Header>
     </DetailView>
   );

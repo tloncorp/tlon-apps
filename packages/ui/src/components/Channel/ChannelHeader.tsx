@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
 
 import { Dots, Search } from '../../assets/icons';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ActionSheet } from '../ActionSheet';
 import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
 import { GenericHeader } from '../GenericHeader';
@@ -20,7 +21,6 @@ export function ChannelHeader({
   showMenuButton = false,
   post,
   channelType,
-  currentUserId,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -33,9 +33,9 @@ export function ChannelHeader({
   showMenuButton?: boolean;
   post?: db.Post;
   channelType?: db.ChannelType;
-  currentUserId?: string;
 }) {
   const [showActionSheet, setShowActionSheet] = useState(false);
+  const currentUserId = useCurrentUserId();
 
   const postActions = useMemo(() => {
     if (!post || !channelType || !currentUserId) return [];

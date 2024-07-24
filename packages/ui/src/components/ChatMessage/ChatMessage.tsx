@@ -1,11 +1,14 @@
+import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
-import { memo, useCallback } from 'react';
+import { isEqual } from 'lodash';
+import { memo, useCallback, useMemo, useState } from 'react';
 
-import { SizableText, View, XStack, YStack } from '../../core';
+import { Text, View, XStack, YStack } from '../../core';
+import { ActionSheet } from '../ActionSheet';
 import AuthorRow from '../AuthorRow';
-import ChatContent from '../ContentRenderer';
-import { Icon } from '../Icon';
+import { Button } from '../Button';
+import ContentRenderer from '../ContentRenderer';
 import { MessageInput } from '../MessageInput';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
@@ -41,8 +44,9 @@ const ChatMessage = ({
   onPressReplies,
   onPressImage,
   onLongPress,
+  onPressRetry,
+  onPressDelete,
   showReplies,
-  currentUserId,
   editing,
   editPost,
   setEditingPost,
@@ -50,14 +54,16 @@ const ChatMessage = ({
   post: db.Post;
   showAuthor?: boolean;
   showReplies?: boolean;
-  currentUserId: string;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onLongPress?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   editing?: boolean;
-  editPost?: (post: db.Post, content: Story) => void;
+  editPost?: (post: db.Post, content: Story) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) => {
+  const [showRetrySheet, setShowRetrySheet] = useState(false);
   const isNotice = post.type === 'notice';
 
   if (isNotice) {
@@ -79,6 +85,21 @@ const ChatMessage = ({
     [onPressImage, post]
   );
 
+  const handleRetryPressed = useCallback(() => {
+    onPressRetry?.(post);
+    setShowRetrySheet(false);
+  }, [onPressRetry, post]);
+
+  const handleDeletePressed = useCallback(() => {
+    onPressDelete?.(post);
+    setShowRetrySheet(false);
+  }, [onPressDelete, post]);
+
+  const timeDisplay = useMemo(() => {
+    const date = new Date(post.sentAt ?? 0);
+    return utils.makePrettyTime(date);
+  }, [post.sentAt]);
+
   if (!post) {
     return null;
   }
@@ -96,6 +117,33 @@ const ChatMessage = ({
   // return utils.makePrettyDay(date);
   // }, [post.sentAt]);
 
+  if (post.isDeleted) {
+    return (
+      <XStack
+        alignItems="center"
+        key={post.id}
+        gap="$s"
+        paddingVertical="$m"
+        paddingRight="$l"
+        marginVertical="$s"
+        backgroundColor="$secondaryBackground"
+        borderRadius="$m"
+      >
+        <Text
+          paddingLeft="$l"
+          fontSize="$s"
+          fontWeight="$l"
+          color="$secondaryText"
+        >
+          {timeDisplay}
+        </Text>
+        <Text fontStyle="italic" paddingLeft="$4xl" color="$secondaryText">
+          This message was deleted
+        </Text>
+      </XStack>
+    );
+  }
+
   return (
     <YStack
       onLongPress={handleLongPress}
@@ -103,6 +151,11 @@ const ChatMessage = ({
       gap="$s"
       paddingVertical="$xs"
       paddingRight="$l"
+      onPress={
+        post.deliveryStatus === 'failed'
+          ? () => setShowRetrySheet(true)
+          : undefined
+      }
     >
       {showAuthor ? (
         <View paddingLeft="$l" paddingTop="$s">
@@ -124,19 +177,20 @@ const ChatMessage = ({
             getDraft={async () => ({})}
             shouldBlur={false}
             setShouldBlur={() => {}}
-            send={() => {}}
+            send={async () => {}}
             channelId={post.channelId}
             editingPost={post}
             editPost={editPost}
             setEditingPost={setEditingPost}
+            channelType="chat"
           />
         ) : post.hidden ? (
-          <SizableText color="$secondaryText">
+          <Text color="$secondaryText">
             You have hidden or flagged this message.
-          </SizableText>
+          </Text>
         ) : (
           <NoticeWrapper isNotice={isNotice}>
-            <ChatContent
+            <ContentRenderer
               post={post}
               isNotice={isNotice}
               onPressImage={handleImagePressed}
@@ -147,7 +201,14 @@ const ChatMessage = ({
           </NoticeWrapper>
         )}
       </View>
-      <ReactionsDisplay post={post} currentUserId={currentUserId} />
+      {post.deliveryStatus === 'failed' ? (
+        <XStack alignItems="center" justifyContent="flex-end">
+          <Text color="$negativeActionText" fontSize="$xs">
+            Message failed to send
+          </Text>
+        </XStack>
+      ) : null}
+      <ReactionsDisplay post={post} />
 
       {showReplies &&
       post.replyCount &&
@@ -155,8 +216,31 @@ const ChatMessage = ({
       post.replyContactIds ? (
         <ChatMessageReplySummary post={post} onPress={handleRepliesPressed} />
       ) : null}
+      <ActionSheet open={showRetrySheet} onOpenChange={setShowRetrySheet}>
+        <ActionSheet.ActionTitle>Post failed to send</ActionSheet.ActionTitle>
+        <Button hero onPress={handleRetryPressed}>
+          <Button.Text>Retry</Button.Text>
+        </Button>
+        <Button heroDestructive onPress={handleDeletePressed}>
+          <Button.Text>Delete</Button.Text>
+        </Button>
+      </ActionSheet>
     </YStack>
   );
 };
 
-export default memo(ChatMessage);
+export default memo(ChatMessage, (prev, next) => {
+  const isPostEqual = isEqual(prev.post, next.post);
+
+  const areOtherPropsEqual =
+    prev.showAuthor === next.showAuthor &&
+    prev.showReplies === next.showReplies &&
+    prev.editing === next.editing &&
+    prev.editPost === next.editPost &&
+    prev.setEditingPost === next.setEditingPost &&
+    prev.onPressReplies === next.onPressReplies &&
+    prev.onPressImage === next.onPressImage &&
+    prev.onLongPress === next.onLongPress;
+
+  return isPostEqual && areOtherPropsEqual;
+});

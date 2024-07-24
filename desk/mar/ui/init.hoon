@@ -28,6 +28,6 @@
   --
 ++  grab
   |%
-  ++  noun  init:u
+  ++  noun  init-0:u
   --
 --

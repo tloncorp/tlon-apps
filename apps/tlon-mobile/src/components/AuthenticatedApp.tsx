@@ -6,6 +6,7 @@ import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
 import { useShip } from '../contexts/ship';
+import useAppForegrounded from '../hooks/useAppForegrounded';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener, {
@@ -43,6 +44,10 @@ function AuthenticatedApp({
 
     sync.syncStart();
   }, [currentUserId, ship, shipUrl]);
+
+  useAppForegrounded(() => {
+    sync.syncUnreads(sync.SyncPriority.High);
+  });
 
   return (
     <ZStack flex={1}>

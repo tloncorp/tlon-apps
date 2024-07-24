@@ -10,7 +10,6 @@ const IMAGE_HEIGHT = 268;
 
 export default function NotebookDetailView({
   post,
-  currentUserId,
   editingPost,
   setEditingPost,
   editPost,
@@ -23,7 +22,8 @@ export default function NotebookDetailView({
   clearDraft,
   getDraft,
   goBack,
-  markRead,
+  onPressRetry,
+  onPressDelete,
 }: DetailViewProps) {
   const handleImagePressed = useCallback(() => {
     if (post.image) {
@@ -38,7 +38,6 @@ export default function NotebookDetailView({
   return (
     <DetailView
       post={post}
-      currentUserId={currentUserId}
       editingPost={editingPost}
       setEditingPost={setEditingPost}
       editPost={editPost}
@@ -51,7 +50,8 @@ export default function NotebookDetailView({
       clearDraft={clearDraft}
       getDraft={getDraft}
       goBack={goBack}
-      markRead={markRead}
+      onPressRetry={onPressRetry}
+      onPressDelete={onPressDelete}
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         {post.image && (
@@ -68,20 +68,12 @@ export default function NotebookDetailView({
           </TouchableOpacity>
         )}
         {post.title && (
-          <Text
-            color="$primaryText"
-            fontFamily="$serif"
-            fontWeight="$s"
-            fontSize="$2xl"
-            paddingTop="$l"
-          >
+          <Text color="$primaryText" fontSize={24} fontWeight={'500'}>
             {post.title}
           </Text>
         )}
-        <DetailView.MetaData showReplyCount post={post} />
-        <View paddingVertical="$xl">
-          <ContentRenderer post={post} />
-        </View>
+        <DetailView.MetaData post={post} />
+        <ContentRenderer post={post} />
       </DetailView.Header>
     </DetailView>
   );

@@ -1,7 +1,12 @@
 import * as api from '../api';
+import { toPostContent } from '../api';
+import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
+import { createDevLogger } from '../debug';
 import * as urbit from '../urbit';
 import * as sync from './sync';
+
+const logger = createDevLogger('postActions', true);
 
 export async function sendPost({
   channel,
@@ -30,7 +35,13 @@ export async function sendPost({
   // optimistic update
   // TODO: make author available more efficiently
   const author = await db.getContact({ id: authorId });
-  const cachePost = db.buildPendingPost({ authorId, author, channel, content });
+  const cachePost = db.buildPendingPost({
+    authorId,
+    author,
+    channel,
+    content,
+    metadata,
+  });
   sync.handleAddPost(cachePost);
   try {
     await api.sendPost({
@@ -47,6 +58,58 @@ export async function sendPost({
   }
 }
 
+export async function retrySendPost({
+  channel,
+  post,
+}: {
+  channel: db.Channel;
+  post: db.Post;
+}) {
+  logger.log('retrySendPost', { post });
+  if (post.deliveryStatus !== 'failed') {
+    console.error('Tried to retry send on non-failed post', post);
+    return;
+  }
+
+  // if first message of a pending group dm, we need to first create
+  // it on the backend
+  if (channel.type === 'groupDm' && channel.isPendingChannel) {
+    await api.createGroupDm({
+      id: channel.id,
+      members:
+        channel.members
+          ?.map((m) => m.contactId)
+          .filter((m) => m !== post.authorId) ?? [],
+    });
+    await db.updateChannel({ id: channel.id, isPendingChannel: false });
+  }
+
+  // optimistic update
+  await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
+
+  const content = JSON.parse(post.content as string) as PostContent;
+  const story = toUrbitStory(content);
+
+  logger.log('retrySendPost: sending post', { post, story });
+
+  try {
+    await api.sendPost({
+      channelId: post.channelId,
+      authorId: post.authorId,
+      content: story,
+      metadata: {
+        title: post.title,
+        image: post.image,
+      },
+      sentAt: post.sentAt,
+    });
+    await sync.syncChannelMessageDelivery({ channelId: post.channelId });
+  } catch (e) {
+    console.error('Failed to retry send post', e);
+    await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+  }
+}
+
 export async function editPost({
   post,
   content,
@@ -58,8 +121,11 @@ export async function editPost({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) {
+  logger.log('editPost', { post, content, parentId, metadata });
   // optimistic update
-  await db.updatePost({ id: post.id, content: JSON.stringify(content) });
+  const [contentForDb, flags] = toPostContent(content);
+  await db.updatePost({ id: post.id, content: contentForDb, ...flags });
+  logger.log('editPost optimistic update done');
 
   try {
     await api.editPost({
@@ -71,12 +137,16 @@ export async function editPost({
       metadata,
       parentId,
     });
+    logger.log('editPost api call done');
     sync.syncChannelMessageDelivery({ channelId: post.channelId });
+    logger.log('editPost sync done');
   } catch (e) {
     console.error('Failed to edit post', e);
+    logger.log('editPost failed', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, content: post.content });
+    logger.log('editPost rollback done');
   }
 }
 
@@ -131,7 +201,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: true });
 
   try {
-    await api.hidePost(post.channelId, post.id);
+    await api.hidePost(post);
   } catch (e) {
     console.error('Failed to hide post', e);
 
@@ -145,7 +215,7 @@ export async function showPost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: false });
 
   try {
-    await api.showPost(post.channelId, post.id);
+    await api.showPost(post);
   } catch (e) {
     console.error('Failed to show post', e);
 
@@ -155,8 +225,11 @@ export async function showPost({ post }: { post: db.Post }) {
 }
 
 export async function deletePost({ post }: { post: db.Post }) {
+  const existingPost = await db.getPost({ postId: post.id });
+
   // optimistic update
-  await db.deletePost(post.id);
+  await db.markPostAsDeleted(post.id);
+  await db.updateChannel({ id: post.channelId, lastPostId: null });
 
   try {
     await api.deletePost(post.channelId, post.id);
@@ -164,7 +237,42 @@ export async function deletePost({ post }: { post: db.Post }) {
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
-    await db.insertChannelPosts({ channelId: post.channelId, posts: [post] });
+    await db.updatePost({
+      id: post.id,
+      ...existingPost,
+    });
+    await db.updateChannel({ id: post.channelId, lastPostId: post.id });
+  }
+}
+
+export async function deleteFailedPost({ post }: { post: db.Post }) {
+  await db.markPostAsDeleted(post.id);
+  await db.updateChannel({ id: post.channelId, lastPostId: null });
+}
+
+export async function reportPost({
+  userId,
+  post,
+}: {
+  userId: string;
+  post: db.Post;
+}) {
+  if (!post.groupId) {
+    console.error('Cannot report post without groupId', post);
+    return;
+  }
+
+  // optimistic update
+  await db.updatePost({ id: post.id, hidden: true });
+
+  try {
+    await api.reportPost(userId, post.groupId, post.channelId, post);
+    await hidePost({ post });
+  } catch (e) {
+    console.error('Failed to report post', e);
+
+    // rollback optimistic update
+    await db.updatePost({ id: post.id, hidden: false });
   }
 }
 
@@ -190,7 +298,6 @@ export async function addPostReaction(
       our: currentUserId,
       postAuthor: post.authorId,
     });
-    sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
     console.error('Failed to add post reaction', e);
 
@@ -215,7 +322,6 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
       our: currentUserId,
       postAuthor: post.authorId,
     });
-    sync.syncChannel(post.channelId, Date.now());
   } catch (e) {
     console.error('Failed to remove post reaction', e);
 

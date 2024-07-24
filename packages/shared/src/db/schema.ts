@@ -256,6 +256,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
   pin: one(pins),
   roles: many(groupRoles),
   members: many(chatMembers),
+  bannedMembers: many(groupMemberBans),
   navSections: many(groupNavSections),
   flaggedPosts: many(groupFlaggedPosts),
   channels: many(channels),
@@ -556,12 +557,19 @@ export const chatMemberRolesRelations = relations(
 );
 
 export const groupNavSections = sqliteTable('group_nav_sections', {
+  // `{groupId}-{sectionId}` is the primary key
   id: text('id').primaryKey(),
+  // this separate ID is necessary for the groupNavSectionChannels table
+  // because every group has a `default` section/zone, so we can't use that as
+  // the primary key, but we still need to use the sectionId when communicating
+  // with the backend
+  sectionId: text('section_id').notNull(),
   groupId: text('group_id').references(() => groups.id, {
     onDelete: 'cascade',
   }),
   ...metaFields,
-  index: integer('index'),
+  // a column cannot be named "index" because it's a reserved word in SQLite
+  sectionIndex: integer('section_index'),
 });
 
 export const groupNavSectionRelations = relations(
@@ -582,7 +590,7 @@ export const groupNavSectionChannels = sqliteTable(
       () => groupNavSections.id
     ),
     channelId: text('channel_id').references(() => channels.id),
-    index: integer('index'),
+    channelIndex: integer('channel_index'),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.groupNavSectionId, table.channelId] }),
@@ -621,6 +629,7 @@ export const channels = sqliteTable(
       onDelete: 'cascade',
     }),
     ...metaFields,
+    contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),
     postCount: integer('post_count'),
@@ -640,6 +649,17 @@ export const channels = sqliteTable(
      * From `recency` on unreads on the Urbit side
      */
     remoteUpdatedAt: timestamp('remote_updated_at'),
+
+    /**
+     * Local time that this channel was last viewed by this client;
+     * null if never viewed (or after a database reset)
+     */
+    lastViewedAt: timestamp('last_viewed_at'),
+
+    /**
+     * True if this channel was autocreated during new group creation (on this client)
+     */
+    isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),
@@ -652,6 +672,10 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   group: one(groups, {
     fields: [channels.groupId],
     references: [groups.id],
+  }),
+  contact: one(contacts, {
+    fields: [channels.contactId],
+    references: [contacts.id],
   }),
   posts: many(posts),
   lastPost: one(posts, {
@@ -704,7 +728,9 @@ export const posts = sqliteTable(
     hasImage: boolean('has_image'),
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
+    isDeleted: boolean('is_deleted'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
+    syncedAt: timestamp('synced_at').notNull(),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.

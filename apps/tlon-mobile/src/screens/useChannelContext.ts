@@ -1,6 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
@@ -12,7 +11,7 @@ import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useImageUpload } from '../hooks/useImageUpload';
 import * as featureFlags from '../lib/featureFlags';
 import storage from '../lib/storage';
-import { HomeStackParamList } from '../types';
+import { RootStackParamList } from '../types';
 
 export const useChannelContext = ({
   channelId,
@@ -45,7 +44,7 @@ export const useChannelContext = ({
 
   useEffect(() => {
     if (channelQuery.data?.groupId) {
-      sync.syncGroup(channelQuery.data?.groupId);
+      store.syncGroup(channelQuery.data?.groupId, store.SyncPriority.Low);
     }
   }, [channelQuery.data?.groupId]);
 
@@ -53,7 +52,7 @@ export const useChannelContext = ({
   const [editingPost, setEditingPost] = useState<db.Post>();
 
   const editPost = useCallback(
-    async (post: db.Post, content: urbit.Story) => {
+    async (post: db.Post, content: urbit.Story, parentId?: string) => {
       if (!channelQuery.data) {
         return;
       }
@@ -61,6 +60,7 @@ export const useChannelContext = ({
       store.editPost({
         post,
         content,
+        parentId,
       });
       setEditingPost(undefined);
     },
@@ -111,7 +111,7 @@ export const useChannelContext = ({
 
   const navigation =
     useNavigation<
-      NativeStackNavigationProp<HomeStackParamList, 'Channel' | 'Post'>
+      NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
     >();
 
   const navigateToPost = useCallback(
@@ -134,7 +134,6 @@ export const useChannelContext = ({
 
   const navigateToImage = useCallback(
     (post: db.Post, uri?: string) => {
-      // @ts-expect-error TODO: fix typing for nested stack navigation
       navigation.navigate('ImageViewer', { post, uri });
     },
     [navigation]

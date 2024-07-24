@@ -1,3 +1,8 @@
+import { useEffect, useRef } from 'react';
+
+import { useLiveRef } from './logic/utilHooks';
+import { useCurrentSession } from './store/session';
+
 const customLoggers = new Set<string>();
 
 export function addCustomEnabledLoggers(loggers: string[]) {
@@ -99,4 +104,39 @@ function deltaLabel() {
   const delta = nextTime - lastTime;
   lastTime = nextTime;
   return delta;
+}
+
+type PostSender = (content: any, _channelId: string, metadata?: any) => void;
+
+export function useSendPosts(
+  {
+    channelId,
+    interval = 500,
+    initialDelay = 3000,
+  }: { channelId: string; interval: number; initialDelay: number },
+  sendPost: PostSender
+) {
+  const session = useCurrentSession();
+  const counter = useRef(0);
+  const senderRef = useLiveRef(sendPost);
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    let intervalHandle: ReturnType<typeof setInterval>;
+    const timeout = setTimeout(() => {
+      intervalHandle = setInterval(() => {
+        const text =
+          counter.current === 0
+            ? 'session start ' + new Date().toISOString()
+            : ['cliff', 'meadow', 'river', 'forest'][counter.current % 4];
+        ++counter.current;
+        senderRef.current([{ inline: [text, { break: null }] }], channelId);
+      }, interval);
+    }, initialDelay);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(intervalHandle);
+    };
+  }, [channelId, initialDelay, interval, senderRef, session]);
 }

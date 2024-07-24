@@ -1,4 +1,5 @@
 import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
+import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
@@ -189,6 +190,18 @@ export function getChannelType(channelId: string) {
     return 'gallery';
   } else if (app === 'diary') {
     return 'notebook';
+  } else {
+    return 'chat';
+  }
+}
+
+export function getChannelKindFromType(type: 'chat' | 'gallery' | 'notebook') {
+  if (type === 'chat') {
+    return 'chat';
+  } else if (type === 'gallery') {
+    return 'heap';
+  } else if (type === 'notebook') {
+    return 'diary';
   } else {
     return 'chat';
   }
@@ -391,4 +404,11 @@ export function extractGroupPrivacy(
     : preview.cordon && 'shut' in preview.cordon
       ? 'private'
       : 'public';
+}
+
+export function createSectionId() {
+  const idParts = formatUv(bigInt(Date.now())).split('.');
+  const newSectionId = `z${idParts[idParts.length - 1]}`;
+
+  return newSectionId;
 }
