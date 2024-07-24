@@ -226,8 +226,8 @@
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
 		630DE0E22C51A8790053603B /* Notifications-preview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Notifications-preview.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		630DE0E32C51A8790053603B /* Info-preview.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info-preview.plist"; path = "/Users/david/Documents/tlon/tlon-apps/apps/tlon-mobile/ios/Info-preview.plist"; sourceTree = "<absolute>"; };
 		630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+standard.swift"; sourceTree = "<group>"; };
+		630DE0F02C51AE870053603B /* Info-preview.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-preview.plist"; sourceTree = "<group>"; };
 		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6374ACE12C49DA9600E637C0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -382,7 +382,7 @@
 				6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */,
 				6374ACE12C49DA9600E637C0 /* NotificationService.swift */,
 				6374ACE32C49DA9600E637C0 /* Info.plist */,
-				630DE0E32C51A8790053603B /* Info-preview.plist */,
+				630DE0F02C51AE870053603B /* Info-preview.plist */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -1424,7 +1424,7 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Notifications/Info-preview.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Notifications;
+				INFOPLIST_KEY_CFBundleDisplayName = "Notifications-preview";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1469,7 +1469,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Notifications/Info-preview.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Notifications;
+				INFOPLIST_KEY_CFBundleDisplayName = "Notifications-preview";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
