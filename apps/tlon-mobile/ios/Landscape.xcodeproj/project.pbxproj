@@ -12,6 +12,7 @@
 		3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
+		630DE0BA2C51A3AB0053603B /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0B92C51A3AB0053603B /* SimpleKeychain */; };
 		632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
 		632793B72C4ADEAC00F942B1 /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
 		632793B82C4ADEED00F942B1 /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
@@ -233,6 +234,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				630DE0BA2C51A3AB0053603B /* SimpleKeychain in Frameworks */,
 				70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */,
 				70D386482A6098F800AFB46E /* Alamofire in Frameworks */,
 				E757508CA162BD3456643B33 /* Pods_Landscape.framework in Frameworks */,
@@ -499,6 +501,7 @@
 			packageProductDependencies = (
 				70D386472A6098F800AFB46E /* Alamofire */,
 				70D3866E2A60A3B300AFB46E /* UrsusSigil */,
+				630DE0B92C51A3AB0053603B /* SimpleKeychain */,
 			);
 			productName = Landscape;
 			productReference = 13B07F961A680F5B00A75B9A /* Landscape.app */;
@@ -1815,6 +1818,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		630DE0B92C51A3AB0053603B /* SimpleKeychain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
+			productName = SimpleKeychain;
+		};
 		632793CF2C4AEA5E00F942B1 /* SimpleKeychain */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
