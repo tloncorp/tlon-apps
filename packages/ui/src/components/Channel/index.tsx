@@ -301,6 +301,7 @@ export function Channel({
                                 <View flex={1} width="100%">
                                   {channel && posts && (
                                     <Scroller
+                                      key={scrollerAnchor?.postId}
                                       inverted={isChatChannel ? true : false}
                                       renderItem={renderItem}
                                       renderEmptyComponent={
