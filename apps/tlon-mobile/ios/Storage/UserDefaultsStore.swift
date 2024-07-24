@@ -8,6 +8,8 @@
 import Foundation
 
 class UserDefaultsStore<T: Codable> {
+    private var userDefaults: UserDefaults { .appGroup }
+
     private var storageKey: String
     private var fetchItem: ((String) async throws -> T)?
     private var fetchItems: (() async throws -> [String: T])?
@@ -20,12 +22,12 @@ class UserDefaultsStore<T: Codable> {
                 return cachedLastFetchedAt
             }
 
-            return UserDefaults.standard.double(forKey: "\(storageKey).lastFetchedAt")
+            return userDefaults.double(forKey: "\(storageKey).lastFetchedAt")
         }
 
         set {
             _lastFetchedAt = newValue
-            UserDefaults.standard.set(newValue, forKey: "\(storageKey).lastFetchedAt")
+            userDefaults.set(newValue, forKey: "\(storageKey).lastFetchedAt")
         }
     }
 
@@ -36,7 +38,7 @@ class UserDefaultsStore<T: Codable> {
                 return cachedItems
             }
 
-            if let data = UserDefaults.standard.object(forKey: storageKey) as? Data,
+            if let data = userDefaults.object(forKey: storageKey) as? Data,
                let items = try? JSONDecoder().decode([String: T].self, from: data)
             {
                 _items = items
@@ -49,7 +51,7 @@ class UserDefaultsStore<T: Codable> {
         set {
             _items = newValue
             if let encoded = try? JSONEncoder().encode(newValue) {
-                UserDefaults.standard.set(encoded, forKey: storageKey)
+                userDefaults.set(encoded, forKey: storageKey)
             }
         }
     }

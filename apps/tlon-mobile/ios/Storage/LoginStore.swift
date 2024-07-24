@@ -9,7 +9,7 @@ struct LoginStore {
     }
 
     let keychain = SimpleKeychain()
-    let userDefaults = UserDefaults.standard
+    let userDefaults = UserDefaults.appGroup
 
     func read() throws -> Login? {
         guard try keychain.hasItem(forKey: StorageKey.authCookie) else {

@@ -8,27 +8,27 @@
 import Foundation
 
 enum SettingsStore {
-    static var disableAvatars: Bool = UserDefaults.standard.bool(forKey: "settings.calmEngine.disableAvatars") {
+    static var disableAvatars: Bool = UserDefaults.appGroup.bool(forKey: "settings.calmEngine.disableAvatars") {
         didSet {
-            UserDefaults.standard.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")
+            UserDefaults.appGroup.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")
         }
     }
 
-    static var disableNicknames: Bool = UserDefaults.standard.bool(forKey: "settings.calmEngine.disableNicknames") {
+    static var disableNicknames: Bool = UserDefaults.appGroup.bool(forKey: "settings.calmEngine.disableNicknames") {
         didSet {
-            UserDefaults.standard.set(disableNicknames, forKey: "settings.calmEngine.disableNicknames")
+            UserDefaults.appGroup.set(disableNicknames, forKey: "settings.calmEngine.disableNicknames")
         }
     }
 
-    static var disableDMNotifications = UserDefaults.standard.bool(forKey: "settings.notifications.disableDM") {
+    static var disableDMNotifications = UserDefaults.appGroup.bool(forKey: "settings.notifications.disableDM") {
         didSet {
-            UserDefaults.standard.set(disableDMNotifications, forKey: "settings.notifications.disableDM")
+            UserDefaults.appGroup.set(disableDMNotifications, forKey: "settings.notifications.disableDM")
         }
     }
 
-    static var disableGroupNotifications = UserDefaults.standard.bool(forKey: "settings.notifications.disableGroups") {
+    static var disableGroupNotifications = UserDefaults.appGroup.bool(forKey: "settings.notifications.disableGroups") {
         didSet {
-            UserDefaults.standard.set(disableGroupNotifications, forKey: "settings.notifications.disableGroups")
+            UserDefaults.appGroup.set(disableGroupNotifications, forKey: "settings.notifications.disableGroups")
         }
     }
 }
