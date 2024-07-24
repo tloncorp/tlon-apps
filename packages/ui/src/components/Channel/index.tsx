@@ -8,7 +8,8 @@ import {
 import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
@@ -129,9 +130,6 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
-  const [overrideAnchor, setOverrideAnchor] = useState<ScrollAnchor | null>(
-    null
-  );
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
@@ -190,13 +188,23 @@ export function Channel({
 
   const { bottom } = useSafeAreaInsets();
 
+  const flatListRef = useRef<FlatList<db.Post>>(null);
+
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
-      const postIsLoaded = !!posts?.find((p) => p.id === post.id);
+      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
 
-      if (refChannel.id === channel.id && postIsLoaded) {
+      if (
+        refChannel.id === channel.id &&
+        anchorIndex !== -1 &&
+        flatListRef.current
+      ) {
         // If the post is already loaded, scroll to it
-        setOverrideAnchor({ type: 'selected', postId: post.id });
+        flatListRef.current?.scrollToIndex({
+          index: anchorIndex,
+          animated: false,
+          viewPosition: 1,
+        });
         return;
       }
 
@@ -307,7 +315,7 @@ export function Channel({
                                       renderEmptyComponent={
                                         renderEmptyComponent
                                       }
-                                      anchor={overrideAnchor ?? scrollerAnchor}
+                                      anchor={scrollerAnchor}
                                       posts={posts}
                                       hasNewerPosts={hasNewerPosts}
                                       hasOlderPosts={hasOlderPosts}
@@ -334,6 +342,7 @@ export function Channel({
                                       onPressDelete={onPressDelete}
                                       activeMessage={activeMessage}
                                       setActiveMessage={setActiveMessage}
+                                      ref={flatListRef}
                                     />
                                   )}
                                 </View>
