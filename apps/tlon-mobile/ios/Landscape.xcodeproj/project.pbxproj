@@ -24,7 +24,7 @@
 		700B635D2A71DFE90017F40F /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		700B63602A71E0810017F40F /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
 		700B63622A71E0D70017F40F /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
-		701A09B02B03081300D8F710 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		701A09B02B03081300D8F710 /* Error+logWithDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */; };
 		7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
 		7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
 		7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
@@ -55,7 +55,7 @@
 		70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
 		70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
-		70DBBFF42B7C60B50021EA96 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */; };
 		70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
 		70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
@@ -82,7 +82,7 @@
 		70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
 		70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
 		70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
-		70F99A9D2B2D336500D77256 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */; };
 		70F99A9E2B2D336800D77256 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		70F99A9F2B2D336800D77256 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70F99AA02B2D336800D77256 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
@@ -163,6 +163,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
+		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6374ACE12C49DA9600E637C0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		6374ACE32C49DA9600E637C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -174,7 +175,7 @@
 		700B635C2A71DFE90017F40F /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
 		700B635F2A71E0810017F40F /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		700B63612A71E0D70017F40F /* ContactStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactStore.swift; sourceTree = "<group>"; };
-		701A09AF2B03081300D8F710 /* Error+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+Extension.swift"; sourceTree = "<group>"; };
+		701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+logWithDomain.swift"; sourceTree = "<group>"; };
 		7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChannelStore.swift; sourceTree = "<group>"; };
 		7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsStore.swift; sourceTree = "<group>"; };
 		7036E3552ACD17600020A9FB /* ClubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubStore.swift; sourceTree = "<group>"; };
@@ -344,7 +345,8 @@
 		70D386652A60A37000AFB46E /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				701A09AF2B03081300D8F710 /* Error+Extension.swift */,
+				701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */,
+				632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */,
 				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
 				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
 			);
@@ -1026,6 +1028,7 @@
 				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
 				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
+				632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */,
 				70D3865A2A609BFC00AFB46E /* PocketNotificationsAPI.swift in Sources */,
 				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
@@ -1033,7 +1036,7 @@
 				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
 				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
 				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
-				701A09B02B03081300D8F710 /* Error+Extension.swift in Sources */,
+				701A09B02B03081300D8F710 /* Error+logWithDomain.swift in Sources */,
 				70D3866C2A60A38400AFB46E /* Group.swift in Sources */,
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
@@ -1067,6 +1070,7 @@
 				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
 				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
+				632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */,
 				70DBBFEE2B7C60B50021EA96 /* PocketNotificationsAPI.swift in Sources */,
 				70DBBFEF2B7C60B50021EA96 /* PocketAPI.swift in Sources */,
@@ -1074,7 +1078,7 @@
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
-				70DBBFF42B7C60B50021EA96 /* Error+Extension.swift in Sources */,
+				70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */,
 				70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */,
 				70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */,
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
@@ -1106,6 +1110,7 @@
 				70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */,
 				70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */,
 				70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */,
+				632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
 				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
 				70F99AA32B2D336E00D77256 /* PocketUserAPI.swift in Sources */,
@@ -1113,7 +1118,7 @@
 				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
 				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
 				70F99A992B2D319400D77256 /* Yarn.swift in Sources */,
-				70F99A9D2B2D336500D77256 /* Error+Extension.swift in Sources */,
+				70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */,
 				6374ACFF2C4ACD7500E637C0 /* Login.swift in Sources */,
 				70F99AA12B2D336800D77256 /* TlonError.swift in Sources */,
 				70F99AA72B2D337600D77256 /* ClubStore.swift in Sources */,
