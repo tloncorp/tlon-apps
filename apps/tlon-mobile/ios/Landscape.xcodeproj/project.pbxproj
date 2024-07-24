@@ -176,6 +176,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
+		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
 		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6374ACE12C49DA9600E637C0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -283,6 +284,7 @@
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */,
+				630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */,
 				70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */,
 				70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */,
 				70D386652A60A37000AFB46E /* Extensions */,
@@ -1385,7 +1387,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.preview;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_MODULE_NAME = Landscape;
+				SWIFT_MODULE_NAME = LandscapePreview;
 				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "$(SRCROOT)/$(PROJECT_NAME)/$(SWIFT_MODULE_NAME)-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -1428,7 +1430,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.preview;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_MODULE_NAME = Landscape;
+				SWIFT_MODULE_NAME = LandscapePreview;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/$(PROJECT_NAME)/$(SWIFT_MODULE_NAME)-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
