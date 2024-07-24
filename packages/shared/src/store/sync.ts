@@ -942,13 +942,18 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     syncLatestPosts(reporter, { priority: SyncPriority.High, retry: true }),
     alreadySubscribed
       ? Promise.resolve()
-      : setupSubscriptions({ priority: SyncPriority.High - 1 }).then(() =>
-          reporter.log('subscribed')
-        ),
+      : setupHighPrioritySubscriptions({
+          priority: SyncPriority.High - 1,
+        }).then(() => reporter.log('subscribed high priority')),
   ];
 
   const lowPriorityPromises = [
-    resetActivity({ priority: SyncPriority.Medium + 2, retry: true }).then(() =>
+    alreadySubscribed
+      ? Promise.resolve()
+      : setupLowPrioritySubscriptions({
+          priority: SyncPriority.Medium,
+        }).then(() => reporter.log('subscribed low priority')),
+    resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
       reporter.log(`finished resetting activity`)
     ),
     syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
@@ -980,7 +985,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       updateSession({ startTime: Date.now() });
     })
     .catch((e) => {
-      logger.warn('INITIAL SYNC FAILED', e);
+      reporter.report(e);
     });
 
   Promise.all(lowPriorityPromises)
@@ -988,19 +993,26 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       reporter.log(`finished low priority sync`);
     })
     .catch((e) => {
-      logger.warn('LOW PRIORITY SYNC FAILED', e);
+      reporter.report(e);
     });
 };
 
-export const setupSubscriptions = async (ctx?: SyncCtx) => {
-  return syncQueue.add('setupSubscriptions', ctx, () =>
-    Promise.all([
-      api.subscribeToActivity(createActivityUpdateHandler()),
-      api.subscribeGroups(handleGroupUpdate),
+export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
+  return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
+    return Promise.all([
       api.subscribeToChannelsUpdates(handleChannelsUpdate),
       api.subscribeToChatUpdates(handleChatUpdate),
+    ]);
+  });
+};
+
+export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
+  return syncQueue.add('setupLowPrioritySubscription', ctx, () => {
+    return Promise.all([
+      api.subscribeToActivity(createActivityUpdateHandler()),
+      api.subscribeGroups(handleGroupUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
       api.subscribeToStorageUpdates(handleStorageUpdate),
-    ])
-  );
+    ]);
+  });
 };
