@@ -27,7 +27,7 @@ export type SyncCtx = {
 export class QueueClearedError extends Error {}
 
 class SyncQueue {
-  concurrency = 5;
+  concurrency = 3;
   queue: SyncOperation[];
   pendingOperations: SyncOperation[] = [];
   isSyncing: boolean;
@@ -86,24 +86,7 @@ class SyncQueue {
       }
       return b.ctx.priority - a.ctx.priority;
     });
-    pendingOperations
-      .sort((a, b) => {
-        if (a.ctx.priority === b.ctx.priority) {
-          return b.addedAt - a.addedAt;
-        }
-        return b.ctx.priority - a.ctx.priority;
-      })
-      .forEach((op) => {
-        logger.log(
-          'enqueued:' + op.label,
-          'priority',
-          op.ctx.priority,
-          'position',
-          runIfDev(() => {
-            return this.queue.indexOf(op) + 1 + '/' + this.queue.length;
-          })()
-        );
-      });
+    logEnqueuedPendingOperations(pendingOperations, this.queue);
     for (let i = 0; i < pendingOperations.length; i++) {
       this.syncNext();
     }
@@ -129,24 +112,16 @@ class SyncQueue {
     while (this.queue.length) {
       logger.log('next:thread:' + threadId, 'remaining:' + this.queue.length);
       const loadStartTime = Date.now();
-      const { ctx, label, action, resolve, reject, addedAt } =
-        this.queue.shift()!;
+      const nextOperation = this.queue.shift()!;
+      const { ctx, label, action, resolve, reject, addedAt } = nextOperation;
+      const retryOptions = getRetryConfig(ctx.retry);
+      const execAction = retryOptions
+        ? () => withRetry(action, retryOptions)
+        : action;
       try {
         logger.log('loading:' + label, 'on thread', threadId);
-        const baseRetryOptions = {
-          delayFirstAttempt: false,
-          startingDelay: 1000,
-          numOfAttempts: 4,
-        };
-        const retryOptions = ctx.retry
-          ? typeof ctx.retry === 'boolean'
-            ? baseRetryOptions
-            : { ...baseRetryOptions, ...ctx.retry }
-          : null;
-        const result = await (retryOptions
-          ? withRetry(action, retryOptions)
-          : action());
-        setTimeout(() => resolve(result), 0);
+        const result = await execAction();
+        resolve(result);
       } catch (e) {
         logger.log('failed:' + label, threadId, e);
         reject(e);
@@ -165,6 +140,44 @@ class SyncQueue {
     }
     --this.activeThreads;
   }
+}
+
+function logEnqueuedPendingOperations(
+  pendingOperations: SyncOperation[],
+  queue: SyncOperation[]
+) {
+  pendingOperations
+    .sort((a, b) => {
+      if (a.ctx.priority === b.ctx.priority) {
+        return b.addedAt - a.addedAt;
+      }
+      return b.ctx.priority - a.ctx.priority;
+    })
+    .forEach((op) => {
+      logger.log(
+        'enqueued:' + op.label,
+        'priority',
+        op.ctx.priority,
+        'position',
+        runIfDev(() => {
+          return queue.indexOf(op) + 1 + '/' + queue.length;
+        })()
+      );
+    });
+}
+
+const retryDefaults = {
+  delayFirstAttempt: false,
+  startingDelay: 1000,
+  numOfAttempts: 4,
+};
+
+function getRetryConfig(retry?: boolean | RetryConfig) {
+  return retry
+    ? typeof retry === 'boolean'
+      ? retryDefaults
+      : { ...retryDefaults, ...retry }
+    : null;
 }
 
 export const syncQueue = new SyncQueue();
