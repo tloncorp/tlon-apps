@@ -162,6 +162,7 @@ function Scroller({
   }, [posts, anchor]);
 
   useEffect(() => {
+    logger.log('anchor changed', anchor, currentAnchorRef.current);
     if (anchor && anchor !== currentAnchorRef.current) {
       currentAnchorRef.current = anchor;
       setShouldScrollToAnchor(true);
@@ -287,9 +288,21 @@ function Scroller({
     ]
   );
 
-  const handleScrollToIndexFailed = useCallback(() => {
-    console.log('scroll to index failed');
-  }, []);
+  const handleScrollToIndexFailed = useCallback(
+    (info: {
+      index: number;
+      highestMeasuredFrameIndex: number;
+      averageItemLength: number;
+    }) => {
+      logger.log('scroll to index failed', { info });
+
+      // The index hasn't been measured yet, so we try to guess the offset
+      // based on the average item length.
+      const offset = info.index * info.averageItemLength;
+      flatListRef.current?.scrollToOffset({ offset, animated: false });
+    },
+    []
+  );
 
   const insets = useSafeAreaInsets();
 

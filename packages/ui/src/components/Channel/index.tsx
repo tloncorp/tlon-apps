@@ -129,6 +129,9 @@ export function Channel({
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const [showBigInput, setShowBigInput] = useState(false);
   const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
+  const [overrideAnchor, setOverrideAnchor] = useState<ScrollAnchor | null>(
+    null
+  );
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const title = channel ? utils.getChannelTitle(channel) : '';
   const groups = useMemo(() => (group ? [group] : null), [group]);
@@ -187,6 +190,21 @@ export function Channel({
 
   const { bottom } = useSafeAreaInsets();
 
+  const handleRefPress = useCallback(
+    (refChannel: db.Channel, post: db.Post) => {
+      const postIsLoaded = !!posts?.find((p) => p.id === post.id);
+
+      if (refChannel.id === channel.id && postIsLoaded) {
+        // If the post is already loaded, scroll to it
+        setOverrideAnchor({ type: 'selected', postId: post.id });
+        return;
+      }
+
+      onPressRef(refChannel, post);
+    },
+    [onPressRef, posts, channel]
+  );
+
   return (
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
@@ -205,7 +223,7 @@ export function Channel({
                 // useBlockUser={() => {}}
               >
                 <NavigationProvider
-                  onPressRef={onPressRef}
+                  onPressRef={handleRefPress}
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
                 >
@@ -288,7 +306,7 @@ export function Channel({
                                       renderEmptyComponent={
                                         renderEmptyComponent
                                       }
-                                      anchor={scrollerAnchor}
+                                      anchor={overrideAnchor ?? scrollerAnchor}
                                       posts={posts}
                                       hasNewerPosts={hasNewerPosts}
                                       hasOlderPosts={hasOlderPosts}

@@ -102,7 +102,7 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     return selectedPostId || firstUnreadId;
     // We only want this to rerun when the channel is loaded for the first time.
     // eslint-disable-next-line
-  }, [!!channel]);
+  }, [!!channel, selectedPostId]);
   const {
     posts,
     query: postsQuery,
