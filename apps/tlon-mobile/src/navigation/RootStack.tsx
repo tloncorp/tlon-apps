@@ -64,7 +64,15 @@ export function RootStack() {
 
       {/* individual screens */}
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen name="Channel" component={ChannelScreen} />
+      <Root.Screen
+        name="Channel"
+        component={ChannelScreen}
+        options={({ route, navigation }) => {
+          return 'animated' in route.params
+            ? { animation: route.params.animated ? 'default' : 'none' }
+            : {};
+        }}
+      />
       <Root.Screen name="ChannelSearch" component={ChannelSearch} />
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />

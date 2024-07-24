@@ -22,6 +22,7 @@ export default function NotebookPost({
   smallImage = false,
   smallTitle = false,
   viewMode,
+  isHighlighted,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
@@ -35,6 +36,7 @@ export default function NotebookPost({
   smallImage?: boolean;
   smallTitle?: boolean;
   viewMode?: 'activity';
+  isHighlighted?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const handleLongPress = useCallback(() => {

@@ -25,6 +25,7 @@ export type RootStackParamList = {
   Channel: {
     channel: db.Channel;
     selectedPostId?: string | null;
+    animated?: boolean;
   };
   GroupChannels: {
     group: db.Group;

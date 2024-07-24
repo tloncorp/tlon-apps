@@ -119,7 +119,11 @@ export const useChannelContext = ({
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
       if (channel.id === channelId) {
-        navigation.navigate('Channel', { channel, selectedPostId: post.id });
+        navigation.replace('Channel', {
+          channel,
+          selectedPostId: post.id,
+          animated: false,
+        });
       } else {
         navigation.replace('Channel', { channel, selectedPostId: post.id });
       }

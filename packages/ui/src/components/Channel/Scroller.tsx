@@ -50,6 +50,7 @@ type RenderItemFunction = (props: {
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
+  isHighlighted?: boolean;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -172,7 +173,7 @@ function Scroller({
         flatListRef.current?.scrollToIndex({
           index: anchorIndex,
           animated: false,
-          viewPosition: 1,
+          viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
         });
       }
       if (
@@ -212,6 +213,8 @@ function Scroller({
         previousItem?.authorId !== item.authorId ||
         previousItem?.type === 'notice' ||
         isFirstPostOfDay;
+      const isSelected =
+        anchor?.type === 'selected' && item.id === anchor.postId;
 
       const isFirstUnread = item.id === firstUnreadId;
 
@@ -219,6 +222,7 @@ function Scroller({
         <ScrollerItem
           item={item}
           index={index}
+          isSelected={isSelected}
           showUnreadDivider={isFirstUnread}
           showDayDivider={isFirstPostOfDay}
           showAuthor={showAuthor}
@@ -244,6 +248,7 @@ function Scroller({
     },
     [
       posts,
+      anchor,
       firstUnreadId,
       renderItem,
       unreadCount,
@@ -253,6 +258,8 @@ function Scroller({
       channelType,
       setEditingPost,
       editPost,
+      onPressRetry,
+      onPressDelete,
       showReplies,
       onPressImage,
       onPressReplies,
@@ -471,6 +478,7 @@ const BaseScrollerItem = ({
   onPressDelete,
   activeMessage,
   messageRef,
+  isSelected,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -494,6 +502,7 @@ const BaseScrollerItem = ({
   onPressDelete: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
+  isSelected: boolean;
 }) => {
   const post = useLivePost(item);
 
@@ -534,6 +543,7 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
+          isHighlighted={isSelected}
           post={post}
           editing={editingPost && editingPost?.id === item.id}
           setEditingPost={setEditingPost}
