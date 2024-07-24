@@ -1,0 +1,26 @@
+POST http://localhost/hooker/0v1u.ni2f3.i836d.3h23a.ijg3v.0n6ab.vj53n.3v20n.4ic5e.eiqp7.t1uda HTTP/1.1
+content-type: application/json
+signature: 212fafea431e8e62ceb43e1535cb20b88c4fd881c4eb074e0cdb93f50144f2f4
+
+[
+  {
+    "message": {
+      "nest": "chat/~nocsyx-lassul/yooo",
+      "story": [
+        {
+          "inline": ["hellooooo"]
+        }
+      ]
+    }
+  },
+  {
+    "message": {
+      "nest": "chat/~nocsyx-lassul/yooo",
+      "story": [
+        {
+          "inline": ["nurse!"]
+        }
+      ]
+    }
+  }
+]

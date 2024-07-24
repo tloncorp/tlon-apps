@@ -5,4 +5,4 @@
 ::
 :-  %noun
 %+  en:base16:mimes:html  32
-(hmac-sha256:hmac:crypto (swp 3 secret) (swp 3 body))
+(hmac-sha256t:hmac:crypto secret body)

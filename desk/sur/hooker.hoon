@@ -1,53 +1,34 @@
 /-  c=channels
 |%
 +$  action
-  $%  [%create-worker =path =signature-header =transformer]
-      [%remove-worker =path]
+  $%  [%create-hook path=(unit path) =signature-header =whitelist]
+      [%update-hook =path =signature-header =whitelist]
+      [%remove-hook =path]
       command
   ==
++$  orders  (list command)
 +$  command
   $%  [%message =nest:c =story:c]
       [%store key=@t =data]
-  ==
-+$  update
-  $%  [%message =path =nest:c =story:c]
-      [%store =path key=@t =data]
+      [%poke =wire =dock =cage]
   ==
 +$  response
-  $%  [%create-worker =worker]
-      [%remove-worker =path]
-      update
+  $%  [%create-hook =hook]
+      [%remove-hook =path]
   ==
 +$  collection  (map @t data)
 +$  data  (map @t @t)
-+$  workers  (map path worker)
-+$  worker
++$  hooks  (map path hook)
++$  hook
   $:  =key
       =path
       =signature-header
-      =transformer
+      =whitelist
   ==
-+$  transformer  ?(%direct %github %linear)
++$  whitelist  (set address:eyre)
 +$  signature-header
   $:  name=@t
       prefix=(unit @t)
   ==
 +$  key  @uv
-++  github
-  |%
-  +$  pull-request
-    $:  action=?(%opened %closed %reopened)
-        number=@ud
-        repository=@t
-        =pr
-    ==
-  +$  pr
-    $:  url=@t
-        title=@t
-        body=@t
-        draft=?
-        user=@t
-        reviewers=(list @t)
-    ==
-  --
 --

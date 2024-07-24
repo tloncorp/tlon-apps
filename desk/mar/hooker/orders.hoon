@@ -1,12 +1,12 @@
 /-  h=hooker
-|_  =action:h
+|_  =orders:h
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  action
+  ++  noun  orders
   --
 ++  grab
   |%
-  ++  noun  action:h
+  ++  noun  orders:h
   --
 --

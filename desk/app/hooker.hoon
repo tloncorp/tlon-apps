@@ -6,7 +6,7 @@
   +$  card  card:agent:gall
   +$  state-0
     $:  %0
-        =workers:h
+        =hooks:h
         =collection:h
     ==
   --
@@ -99,16 +99,39 @@
       %hooker-action
     ?>  from-self
     =+  !<(=action:h vase)
-    ?+  -.action  ~|(no-pokes/action !!)
-        %create-worker
-      abet:(create:worker-core +.action)
-    ::
-        %remove-worker
-      abet:remove:(abed:worker-core path.action)
-    ::
-        %message
-      (send-message [nest story]:action)
-    ==
+    (handle-action action)
+  ::
+      %hooker-orders
+    ?>  from-self
+    =+  !<(=orders:h vase)
+    ~&  "hooker-orders: {<orders>}"
+    |-
+    ?~  orders  cor
+    =.  cor  (handle-action i.orders)
+    $(orders t.orders)
+  ==
+::
+++  handle-action
+  |=  =action:h
+  ^+  cor
+  ?-  -.action
+      %create-hook
+    abet:(create:hook-core +.action)
+  ::
+      %update-hook
+    abet:(update:(abed:hook-core path.action) +.action)
+  ::
+      %remove-hook
+    abet:remove:(abed:hook-core path.action)
+  ::
+      %message
+    (send-message [nest story]:action)
+  ::
+      %store
+    (store [key data]:action)
+  ::
+      %poke
+    (arbitrary-poke [wire dock cage]:action)
   ==
 ::
 ++  watch
@@ -152,72 +175,99 @@
   :: ==
 ::
 ++  serve
-  |=  order:rudder
+  |=  =order:rudder
   ^+  cor
+  =*  request  request.order
   ~&  "serving request: {<method.request>} {<url.request>}"
   ~&  "  headers: {<header-list.request>}"
   ~&  "  body: {<?~(body.request ~ `@t`q.u.body.request)>}"
   =/  =query:rudder  (purse:rudder url.request)
-  =/  path=(unit path)  (decap:rudder /hooker site.query)
+  =/  suffix
+    ?~  ext.query  site.query
+    %-  stab
+    (cat 3 (spat site.query) (cat 3 '.' u.ext.query))
+  =/  path=(unit path)  (decap:rudder /hooker suffix)
+  ~&  "path: {<path>}"
   ?~  path  cor
-  =/  worker  (init:req:(abed:worker-core u.path) request)
-  ?.  is-valid:req:worker  ~|("request not valid {<request>}" !!)
-  =/  [payload=simple-payload:http =command:h]  transform:req:worker
-  ~&  "sending command: {<command>}"
-  =/  =wire  /command/[id]
+  =/  hook  (init:req:(abed:hook-core u.path) +.order)
+  ?.  is-valid:req:hook  ~|("request not valid {<request>}" !!)
+  =/  [payload=simple-payload:http =orders:h]  transform:req:hook
+  ~&  "sending orders: {<orders>}"
+  =/  =wire  /orders/[id.order]
   =/  =dock  [our.bowl dap.bowl]
-  =/  =cage  hooker-action+!>(command)
+  =/  =cage  hooker-orders+!>(orders)
   =/  poke  [%pass wire %agent dock %poke cage]
-  (emil (welp (spout:rudder id payload) ~[poke]))
-  :: (paint:rudder [%page *manx])
+  (emil (welp (spout:rudder id.order payload) ~[poke]))
 ::
-++  worker-core
-  |_  [=path =worker:h gone=_| counter=@ud =request:http]
-  ++  worker-core  .
+++  hook-core
+  |_  [=path =hook:h gone=_| counter=@ud request=inbound-request:eyre]
+  ++  hook-core  .
   ++  abet
-    =.  workers
+    =.  hooks
       ?:  gone
-        (~(del by workers) path)
-      (~(put by workers) path worker)
+        (~(del by hooks) path)
+      (~(put by hooks) path hook)
     cor
   ++  abed
     |=  p=^path
-    ~|  ['worker not found' p]
-    worker-core(path p, worker (~(got by workers) p))
+    ~|  ['hook not found' p]
+    ~&  "getting hook: {<p>}"
+    ~&  "has hook: {<(~(has by hooks) p)>}"
+    =/  hook  (~(got by hooks) p)
+    ~&  "got hook: {<hook>}"
+    hook-core(path p, hook hook)
   ++  create
-    |=  [p=^path =signature-header:h =transformer:h]
-    =/  =worker:h
-      :*  (shax (jam ['hooker' eny.bowl]))
-          p
+    |=  [p=(unit ^path) =signature-header:h =whitelist:h]
+    =^  path  counter
+      ?:  ?=(^ p)  [u.p counter]
+      [/(scot %uv (shax (jam ['path' eny.bowl]))) +(counter)]
+    =^  key  counter
+      [(shax (jam ['hooker' eny.bowl])) +(counter)]
+    =/  =hook:h
+      :*  key
+          path
           signature-header
-          transformer
+          whitelist
       ==
     :: TODO: give update
-    worker-core(path p, worker worker)
+    hook-core(path path, hook hook)
+  ++  update
+    |=  [p=^path =signature-header:h =whitelist:h]
+    =/  =hook:h
+      :*  key.hook
+          p
+          signature-header
+          whitelist
+      ==
+    :: TODO: give update
+    hook-core(path p, hook hook)
   ++  remove
     =.  gone  &
     :: TODO: give update
-    worker-core
+    hook-core
   ++  req
     |%
     ++  init
-      |=  =request:http
-      worker-core(request request)
+      |=  request=inbound-request:eyre
+      hook-core(request request)
     ++  transform
-      ^-  [simple-payload:http command:h]
+      ^-  [simple-payload:http orders:h]
+      =*  req  request.request
+      ?>  ?=(^ body.req)
       ~&  "transforming request"
       :-  [[200 ['content-type' 'text/plain']~] `(as-octs:mimes:html 'OK')]
-      ?-  transformer.worker
-        %direct  transform-direct
-        %github  transform-github
-        %linear  transform-linear
-      ==
+      =/  json=(unit json)  (de:json:html q.u.body.req)
+      ?~  json  ~|(['bad json' `@t`q.u.body.req] !!)
+      ~&  "json: {<json>}"
+      (orders:dejs:lib u.json)
     ++  is-valid
       ^-  ?
-      ?.  &(=(%'POST' method.request) ?=(^ body.request))  |
-      =+  signature-header.worker
-      =/  header  (get-header:http name header-list.request)
-      ?~  header  ~&("couldn't find header: {<name>} {<header-list.request>}" |)
+      =*  req  request.request
+      ~&  "checking if request is valid {<method.req>} {<?=(^ body.req)>}"
+      ?.  &(=(%'POST' method.req) ?=(^ body.req))  |
+      =+  signature-header.hook
+      =/  header  (get-header:http name header-list.req)
+      ?~  header  ~&("couldn't find header: {<name>} {<header-list.req>}" |)
       =/  their-sign=(unit @t)
         ?~  prefix  `u.header
         =;  parsed=(unit tape)
@@ -229,34 +279,13 @@
       ?~  their-sign  |
       =/  our-sign
         %+  en:base16:mimes:html  32
-        (hmac-sha256t:hmac:crypto (en:base16:mimes:html 32 key.worker) q.u.body.request)
+        (hmac-sha256t:hmac:crypto (en:base16:mimes:html 32 key.hook) q.u.body.req)
       ~&  "our-sign: {<our-sign>}"
-      =(our-sign u.their-sign)
-    ++  transform-direct
-      ^-  command:h
-      ?>  ?=(^ body.request)
-      =/  json=(unit json)  (de:json:html q.u.body.request)
-      ?~  json  ~|(['bad json' `@t`q.u.body.request] !!)
-      (command:dejs:lib u.json)
-    ++  transform-github
-      ^-  command:h
-      ~&  "transforming github request"
-      ?>  ?=(^ body.request)
-      ~&  "has body"
-      =/  event-header  (get-header:http 'x-github-event' header-list.request)
-      ?~  event-header  ~|('no github event' !!)
-      ~|  "bad event: {<u.event-header>}"
-      =/  event-type  ((su:dejs:format (perk %'pull_request' %issues ~)) [%s u.event-header])
-      ~&  "event-type: {<event-type>}"
-      ?+  event-type
-        ~&  "storing github request: {<now.bowl>} {<`@t`q.u.body.request>}"
-        [%store (scot %da now.bowl) (my [%body q.u.body.request] ~)]
-      ::
-          %'pull_request'  (pull-request:github:lib request)
-      ==
-    ++  transform-linear
-      ?>  ?=(^ body.request)
-      !!
+      =/  signatures-match  =(our-sign u.their-sign)
+      ?.  signatures-match  ~|('signatures do not match' !!)
+      ::  if whitelist is empty, allow all
+      ?:  =(*whitelist:h whitelist.hook)  &
+      (~(has in whitelist.hook) address.request)
     --
   --
 ++  send-message
@@ -267,6 +296,15 @@
   =/  =c-post:c  [%add [story our.bowl now.bowl] [%chat ~]]
   =/  action  [%channel nest [%post c-post]]
   =/  =cage  channel-action+!>(`a-channels:c`action)
+  (emit [%pass wire %agent dock %poke cage])
+++  store
+  |=  [key=@t =data:h]
+  ^+  cor
+  =.  collection  (~(put by collection) key data)
+  cor
+++  arbitrary-poke
+  |=  [=wire =dock =cage]
+  ^+  cor
   (emit [%pass wire %agent dock %poke cage])
 ++  from-self  =(our src):bowl
 ++  scry-path
