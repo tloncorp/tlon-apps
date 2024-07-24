@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SimpleKeychain
 
 @objc(UrbitModule)
 class UrbitModule: NSObject {
