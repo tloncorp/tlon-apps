@@ -476,6 +476,7 @@
   ?:  (gth time real-start)  [~ | acc]
   :-  ~   :-  |
   =/  =source:a  (source:evt -.event)
+  ?.  (~(has by indices) source)  [~ | acc]
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
