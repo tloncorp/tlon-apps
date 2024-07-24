@@ -21,7 +21,7 @@ import {
   View,
   WelcomeSheet,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from 'react-native-context-menu-view';
 
 import AddGroupSheet from '../components/AddGroupSheet';
@@ -81,9 +81,14 @@ export default function ChatListScreen(
     };
   }, [chats]);
 
+  const isInitialFocus = useRef(true);
+
   useFocusEffect(
     useCallback(() => {
-      store.syncPinnedItems(store.SyncPriority.High);
+      if (!isInitialFocus) {
+        store.syncPinnedItems({ priority: store.SyncPriority.High });
+      }
+      isInitialFocus.current = false;
     }, [])
   );
 

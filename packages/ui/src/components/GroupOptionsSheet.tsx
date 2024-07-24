@@ -54,11 +54,11 @@ export function ChatOptionsSheet({
 
   useEffect(() => {
     if (group?.id) {
-      sync.syncGroup(group.id, store.SyncPriority.High);
+      sync.syncGroup(group.id, { priority: store.SyncPriority.High });
     }
 
     if (channel?.groupId) {
-      sync.syncGroup(channel.groupId, store.SyncPriority.High);
+      sync.syncGroup(channel.groupId, { priority: store.SyncPriority.High });
     }
   }, [group?.id, channel?.groupId]);
 
