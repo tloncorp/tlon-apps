@@ -65,12 +65,12 @@
             app/(se %tas)
         ==
       ::
-        cage/cage
+        cask/cask
     ==
-  ++  cage
+  ++  cask
     |=  j=json
-    ^-  cage
+    ^-  (^cask *)
     =/  atom  ((se %uw) j)
-    ;;((cask *) (cue atom))
+    ;;((^cask *) (cue atom))
   --
 --

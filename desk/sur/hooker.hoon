@@ -10,7 +10,7 @@
 +$  command
   $%  [%message =nest:c =story:c]
       [%store key=@t =data]
-      [%poke =wire =dock =cage]
+      [%poke =wire =dock =mark =noun]
   ==
 +$  response
   $%  [%create-hook =hook]

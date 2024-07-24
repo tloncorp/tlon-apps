@@ -131,7 +131,7 @@
     (store [key data]:action)
   ::
       %poke
-    (arbitrary-poke [wire dock cage]:action)
+    (arbitrary-poke +.action)
   ==
 ::
 ++  watch
@@ -303,9 +303,19 @@
   =.  collection  (~(put by collection) key data)
   cor
 ++  arbitrary-poke
-  |=  [=wire =dock =cage]
+  |=  [=wire =dock =mark =noun]
   ^+  cor
+  ?:  =(our.bowl p.dock)
+    =/  =tube:clay  (find-tube q.dock %noun mark)
+    =/  =vase  (tube !>(noun))
+    (emit [%pass wire %agent dock %poke [mark vase]])
+  =/  =cage  [mark !>(noun)]
   (emit [%pass wire %agent dock %poke cage])
+++  find-tube
+  |=  [dap=term from=mark to=mark]
+  ^-  tube:clay
+  =+  .^(=desk %gd (scry-path dap /$))
+  .^(tube:clay %cc (scry-path desk /[from]/[to]))
 ++  from-self  =(our src):bowl
 ++  scry-path
   |=  [agent=term =path]

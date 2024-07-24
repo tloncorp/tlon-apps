@@ -1,26 +1,16 @@
 POST http://localhost/hooker/0v1u.ni2f3.i836d.3h23a.ijg3v.0n6ab.vj53n.3v20n.4ic5e.eiqp7.t1uda HTTP/1.1
 content-type: application/json
-signature: 212fafea431e8e62ceb43e1535cb20b88c4fd881c4eb074e0cdb93f50144f2f4
+signature: f2e10303dbd7bbba9487800fa2c827e7ce2d3d27862522ac4cd383dc05c58e07
 
 [
   {
-    "message": {
-      "nest": "chat/~nocsyx-lassul/yooo",
-      "story": [
-        {
-          "inline": ["hellooooo"]
-        }
-      ]
-    }
-  },
-  {
-    "message": {
-      "nest": "chat/~nocsyx-lassul/yooo",
-      "story": [
-        {
-          "inline": ["nurse!"]
-        }
-      ]
+    "poke": {
+      "wire": "/blah",
+      "dock": {
+        "ship": "~fonrym-radfur-nocsyx-lassul",
+        "app": "contacts"
+      },
+      "cask": "0w1pS.VMbCl.KsDBy.bmhFt.C5Abm.cTpzc.KdjdB.diVxo.zAQbC.cMcC4.Kbz4N.bzoQb.z0Oby.UOciU.SbzgO.c38Lr.7lPsS.5Ibnx.VsSdL.ryZSp.mhOpm.NIqmR.EbSRL.oOVPp.mdxs7.dKoml.zrSNx.t6BDq.mgKcS.dVryY.LeDdM.t7hEQ.Y04YC.5Qonp.xv0bQ.qmhB-.0U5Hs.TJbEN.I9qWc.r2WdP.uN~g1"
     }
   }
 ]
