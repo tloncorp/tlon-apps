@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { Alert, Dimensions, TouchableOpacity } from 'react-native';
+import { useFeatureFlag } from 'posthog-react-native';
+import { Alert, Dimensions, Share, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, getTokens } from 'tamagui';
 
@@ -15,6 +16,7 @@ interface Props {
   onAppSettingsPressed?: () => void;
   onEditProfilePressed?: () => void;
   onLogoutPressed: () => void;
+  dmLink?: string;
 }
 
 export function ProfileScreenView({
@@ -34,6 +36,7 @@ export function ProfileScreenView({
 export function Wrapped(props: Props) {
   const { top } = useSafeAreaInsets();
   const contact = useContact(props.currentUserId);
+  const showDmLure = useFeatureFlag('share-dm-lure');
 
   // TODO: Add logout back in when we figure out TLON-2098.
   const onLogoutPress = () => {
@@ -47,6 +50,24 @@ export function Wrapped(props: Props) {
         onPress: props.onLogoutPressed,
       },
     ]);
+  };
+
+  const onShare = async () => {
+    try {
+      await Share.share(
+        {
+          message:
+            'I’m inviting you to Tlon, the only communication tool you can trust.',
+          url: props.dmLink,
+          title: 'Join me on Tlon',
+        },
+        {
+          subject: 'Join me on Tlon',
+        }
+      );
+    } catch (error) {
+      console.error(error.message);
+    }
   };
 
   return (
@@ -83,6 +104,16 @@ export function Wrapped(props: Props) {
           </View>
         </View>
         <View marginTop="$xl">
+          {showDmLure && props.dmLink !== '' && (
+            <ProfileAction
+              title="Share app with friends"
+              icon="Send"
+              tint
+              onPress={() => {
+                onShare();
+              }}
+            />
+          )}
           <ProfileAction
             title="App Settings"
             icon="Settings"
@@ -132,6 +163,7 @@ function ProfileAction({
   title: string;
   hideCaret?: boolean;
   onPress?: () => void;
+  tint?: boolean;
 }) {
   return (
     <ListItem onPress={onPress}>
