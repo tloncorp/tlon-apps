@@ -256,6 +256,12 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     [group]
   );
 
+  const togglePinned = useCallback(async () => {
+    if (group && group.channels[0]) {
+      group.pin ? store.unpinItem(group.pin) : store.pinItem(group.channels[0]);
+    }
+  }, [group]);
+
   const banUser = useCallback(
     async (contactId: string) => {
       if (group) {
@@ -343,6 +349,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     createGroupRole,
     updateGroupRole,
     deleteGroupRole,
+    togglePinned,
     banUser,
     unbanUser,
     bannedUsers,

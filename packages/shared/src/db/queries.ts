@@ -2279,6 +2279,7 @@ export const getGroup = createReadQuery(
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
         with: {
+          pin: true,
           channels: {
             where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
             with: {

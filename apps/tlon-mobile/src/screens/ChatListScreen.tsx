@@ -285,7 +285,7 @@ export default function ChatListScreen(
     }
   }, []);
 
-  const { leaveGroup } = useGroupContext({
+  const { leaveGroup, togglePinned } = useGroupContext({
     groupId: longPressedGroup?.id ?? '',
   });
 
@@ -293,6 +293,11 @@ export default function ChatListScreen(
     setLongPressedGroup(null);
     leaveGroup();
   }, [leaveGroup]);
+
+  const handleTogglePinned = useCallback(() => {
+    togglePinned();
+    setLongPressedGroup(null);
+  }, [togglePinned]);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -375,6 +380,7 @@ export default function ChatListScreen(
             onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
             onPressRoles={handleGoToRoles}
             onPressLeave={handleLeaveGroup}
+            onTogglePinned={handleTogglePinned}
           />
           <StartDmSheet
             goToDm={goToDm}

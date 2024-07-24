@@ -23,6 +23,7 @@ interface Props {
   onPressLeave: (groupId: string) => void;
   onPressInvitesAndPrivacy: (groupId: string) => void;
   onPressRoles: (groupId: string) => void;
+  onTogglePinned: () => void;
 }
 
 export function ChatOptionsSheet({
@@ -37,6 +38,7 @@ export function ChatOptionsSheet({
   onPressGroupMembers,
   onPressManageChannels,
   onPressLeave,
+  onTogglePinned,
   onPressInvitesAndPrivacy,
   onPressRoles,
 }: Props) {
@@ -84,7 +86,7 @@ export function ChatOptionsSheet({
       },
       {
         title: isPinned ? 'Unpin' : 'Pin',
-        action: () => {},
+        action: onTogglePinned,
         icon: 'Pin',
       }
     );
