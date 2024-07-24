@@ -1,9 +1,11 @@
 import { sync } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/dist/db';
+import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { Text, View, XStack, YStack } from '../core';
+import { useCopy } from '../hooks/useCopy';
 import { ActionSheet } from './ActionSheet';
 import { GroupAvatar } from './Avatar';
 import { Button } from './Button';
@@ -46,6 +48,10 @@ export function ChatOptionsSheet({
     id: group?.id ?? channel?.groupId ?? '',
   });
 
+  const { didCopy: didCopyRef, doCopy: copyRef } = useCopy(
+    logic.getGroupReferencePath(groupData?.id ?? '')
+  );
+
   useEffect(() => {
     if (group?.id) {
       sync.syncGroup(group.id, store.SyncPriority.High);
@@ -81,8 +87,12 @@ export function ChatOptionsSheet({
     actions.push(
       {
         title: 'Copy group reference',
-        action: () => {},
-        icon: 'ArrowRef',
+        action: () => {
+          if (groupData) {
+            copyRef();
+          }
+        },
+        icon: didCopyRef ? 'Checkmark' : 'ArrowRef',
       },
       {
         title: isPinned ? 'Unpin' : 'Pin',
@@ -127,10 +137,13 @@ export function ChatOptionsSheet({
 
     return actions;
   }, [
+    didCopyRef,
     isPinned,
+    onTogglePinned,
     group,
     currentUserIsAdmin,
     groupData,
+    copyRef,
     onPressManageChannels,
     onPressLeave,
   ]);

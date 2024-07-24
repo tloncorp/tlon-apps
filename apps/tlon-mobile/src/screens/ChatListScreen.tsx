@@ -299,6 +299,11 @@ export default function ChatListScreen(
     setLongPressedGroup(null);
   }, [togglePinned]);
 
+  const handleDismissOptionsSheet = useCallback(() => {
+    setLongPressedGroup(null);
+    setLongPressedChannel(null);
+  }, []);
+
   return (
     <CalmProvider calmSettings={calmSettings}>
       <AppDataContextProvider
