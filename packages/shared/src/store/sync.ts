@@ -134,20 +134,15 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
-export const syncChannelHeads = async (
+export const syncLatestPosts = async (
   reporter?: ErrorReporter,
   ctx?: SyncCtx
 ) => {
-  const result = await Promise.all([
-    syncQueue.add('groupChannelHeads', ctx, () =>
-      api.getLatestPosts({ type: 'channels' })
-    ),
-    syncQueue.add('chatChannelHeads', ctx, () =>
-      api.getLatestPosts({ type: 'chats' })
-    ),
-  ]);
+  const result = await syncQueue.add('latestPosts', ctx, () =>
+    api.getLatestPosts({})
+  );
   reporter?.log('got latest posts from api');
-  const allPosts = result.flatMap((set) => set.map((p) => p.latestPost));
+  const allPosts = result.map((p) => p.latestPost);
   allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
   await db.insertLatestPosts(allPosts);
 };
@@ -944,7 +939,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
   const sessionInitPromises = [
     syncInitData(reporter, { priority: SyncPriority.High, retry: true }),
-    syncChannelHeads(reporter, { priority: SyncPriority.High, retry: true }),
+    syncLatestPosts(reporter, { priority: SyncPriority.High, retry: true }),
     alreadySubscribed
       ? Promise.resolve()
       : setupSubscriptions({ priority: SyncPriority.High - 1 }).then(() =>

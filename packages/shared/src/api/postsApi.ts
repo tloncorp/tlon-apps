@@ -382,23 +382,20 @@ export type GetLatestPostsResponse = PostWithUpdateTime[];
 export const getLatestPosts = async ({
   afterCursor,
   count,
-  type,
 }: {
   afterCursor?: Cursor;
   count?: number;
-  type: 'channels' | 'chats';
 }): Promise<GetLatestPostsResponse> => {
-  const response = await scry<ub.ChannelHeadsResponse | ub.ChatHeadsResponse>({
-    app: type === 'channels' ? 'channels' : 'chat',
+  const { channels, dms } = await scry<ub.CombinedHeads>({
+    app: 'groups-ui',
     path: formatScryPath(
-      type === 'channels' ? 'v2' : null,
-      'heads',
+      'v1/heads',
       afterCursor ? formatCursor(afterCursor) : null,
       count
     ),
   });
 
-  return response.map((head) => {
+  return [...channels, ...dms].map((head) => {
     const channelId = 'nest' in head ? head.nest : head.whom;
     const latestPost = toPostData(channelId, head.latest);
     return {
