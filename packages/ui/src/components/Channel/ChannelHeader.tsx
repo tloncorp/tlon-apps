@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useState } from 'react';
 
-import { Dots, Search } from '../../assets/icons';
+import { Add, Dots, Search } from '../../assets/icons';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ActionSheet } from '../ActionSheet';
 import { getPostActions } from '../ChatMessage/ChatMessageActions/MessageActions';
@@ -21,6 +21,7 @@ export function ChannelHeader({
   showMenuButton = false,
   post,
   channelType,
+  onAddPress,
 }: {
   title: string;
   mode?: 'default' | 'next';
@@ -33,21 +34,18 @@ export function ChannelHeader({
   showMenuButton?: boolean;
   post?: db.Post;
   channelType?: db.ChannelType;
+  onAddPress?: () => void;
 }) {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const currentUserId = useCurrentUserId();
-
   const postActions = useMemo(() => {
     if (!post || !channelType || !currentUserId) return [];
     return getPostActions({ post, channelType }).filter((action) => {
       switch (action.id) {
         case 'startThread':
-          // if undelivered or already in a thread, don't show reply
           return false;
         case 'edit':
-          // only show edit for current user's posts
           return post.authorId === currentUserId;
-        // TODO: delete case should only be shown for admins or the author
         default:
           return true;
       }
@@ -74,6 +72,11 @@ export function ChannelHeader({
             {showMenuButton && (
               <IconButton onPress={() => setShowActionSheet(true)}>
                 <Dots />
+              </IconButton>
+            )}
+            {onAddPress && (
+              <IconButton onPress={onAddPress}>
+                <Add />
               </IconButton>
             )}
           </>
