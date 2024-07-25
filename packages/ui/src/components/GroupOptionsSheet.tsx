@@ -130,6 +130,7 @@ export function ChatOptionsSheet({
     if (group && !group.currentUserIsHost) {
       actions.push({
         title: 'Leave group',
+        icon: 'LogOut',
         variant: 'destructive',
         action: () => (groupData ? onPressLeave(groupData.id) : {}),
       });
@@ -182,12 +183,8 @@ export function ChatOptionsSheet({
                 {description}
               </Text>
             )}
-            <Button backgroundColor="unset" borderWidth="unset">
-              <Button.Text
-                onPress={handleOnPressGroupMembers}
-                fontSize="$s"
-                color="$tertiaryText"
-              >
+            <Button onPress={handleOnPressGroupMembers}>
+              <Button.Text fontSize="$s" color="$tertiaryText">
                 {memberCount} members
               </Button.Text>
             </Button>
@@ -219,8 +216,14 @@ export function ChatOptionsSheet({
           <XStack space="$s" alignItems="center" justifyContent="space-between">
             <ActionSheet.ActionTitle>{action.title}</ActionSheet.ActionTitle>
             {action.icon && (
-              // @ts-expect-error string type is fine here
-              <Icon type={action.icon} size="$l" color="$primaryText" />
+              <Icon
+                // @ts-expect-error string type is fine here
+                type={action.icon}
+                size="$l"
+                color={
+                  action.variant === 'destructive' ? '$red' : '$primaryText'
+                }
+              />
             )}
           </XStack>
         </ActionSheet.Action>
