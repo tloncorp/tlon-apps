@@ -48,43 +48,6 @@ export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 //TODO implement usePost and useChannel
 const useApp = () => {};
 
-function NewPostFloatingButton({
-  channelType,
-  showAddGalleryPost,
-  isUploadingGalleryImage,
-  bottom,
-  onPress,
-}: {
-  channelType: string;
-  showAddGalleryPost: boolean;
-  isUploadingGalleryImage: boolean;
-  bottom: number;
-  onPress: () => void;
-}) {
-  if (
-    channelType === 'gallery' &&
-    (showAddGalleryPost || isUploadingGalleryImage)
-  ) {
-    return null;
-  }
-
-  return (
-    <View
-      position="absolute"
-      bottom={bottom}
-      flex={1}
-      width="100%"
-      alignItems="center"
-    >
-      <FloatingActionButton
-        onPress={onPress}
-        label="New Post"
-        icon={<Icon type="Add" size={'$s'} marginRight={'$s'} />}
-      />
-    </View>
-  );
-}
-
 export function Channel({
   channel,
   currentUserId,
@@ -235,16 +198,6 @@ export function Channel({
     []
   );
 
-  const handleAddPress = useCallback(() => {
-    if (channel.type === 'gallery') {
-      setShowAddGalleryPost(true);
-    } else {
-      setShowBigInput(true);
-    }
-  }, [channel.type, setShowAddGalleryPost, setShowBigInput]);
-
-  const showAddButton = !isChatChannel && canWrite && !showBigInput;
-
   const handleGalleryPreviewClosed = useCallback(() => {
     setIsUploadingGalleryImage(false);
   }, []);
@@ -306,11 +259,6 @@ export function Channel({
                           goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
                           showMenuButton={!isChatChannel}
-                          onAddPress={
-                            headerMode === 'default' && showAddButton
-                              ? handleAddPress
-                              : undefined
-                          }
                         />
                         <KeyboardAvoidingView enabled={!activeMessage}>
                           <YStack alignItems="center" flex={1}>
@@ -422,16 +370,34 @@ export function Channel({
                                   }
                                 />
                               )}
-                            {headerMode === 'next' && showAddButton && (
-                              <NewPostFloatingButton
-                                channelType={channel.type}
-                                showAddGalleryPost={showAddGalleryPost}
-                                isUploadingGalleryImage={
-                                  isUploadingGalleryImage
-                                }
+                            {!isChatChannel && canWrite && !showBigInput && (
+                              <View
+                                position="absolute"
                                 bottom={bottom}
-                                onPress={handleAddPress}
-                              />
+                                flex={1}
+                                width="100%"
+                                alignItems="center"
+                              >
+                                {channel.type === 'gallery' &&
+                                (showAddGalleryPost ||
+                                  isUploadingGalleryImage) ? null : (
+                                  <FloatingActionButton
+                                    onPress={() =>
+                                      channel.type === 'gallery'
+                                        ? setShowAddGalleryPost(true)
+                                        : setShowBigInput(true)
+                                    }
+                                    label="New Post"
+                                    icon={
+                                      <Icon
+                                        type="Add"
+                                        size={'$s'}
+                                        marginRight={'$s'}
+                                      />
+                                    }
+                                  />
+                                )}
+                              </View>
                             )}
                             {!negotiationMatch && isChatChannel && canWrite && (
                               <NegotionMismatchNotice />
