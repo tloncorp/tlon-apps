@@ -1,14 +1,14 @@
 /-  h=hooker
 /+  lib=hooker
-|_  =action:h
+|_  key=@t
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  action
+  ++  noun  key
+  ++  json  s+key
   --
 ++  grab
   |%
-  ++  noun  action:h
-  ++  json  action:dejs:lib
+  ++  noun  @t
   --
 --

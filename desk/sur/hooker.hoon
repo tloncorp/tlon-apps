@@ -1,8 +1,8 @@
 /-  c=channels
 |%
 +$  action
-  $%  [%create-hook path=(unit path) =signature-header =whitelist]
-      [%update-hook =path =signature-header =whitelist]
+  $%  [%create-hook path=(unit path) name=@t =signature-header =whitelist]
+      [%update-hook hook]
       [%remove-hook =path]
       command
   ==
@@ -14,21 +14,28 @@
   ==
 +$  response
   $%  [%create-hook =hook]
+      [%update-hook =hook]
       [%remove-hook =path]
   ==
-+$  collection  (map @t data)
-+$  data  (map @t @t)
-+$  hooks  (map path hook)
++$  hooks  (map path secured-hook)
++$  unsecure-hooks  (map path hook)
++$  secured-hook  [=key hook]
 +$  hook
-  $:  =key
-      =path
+  $:  =path
+      name=@t
       =signature-header
       =whitelist
+      =logs
+      last-request=time
   ==
 +$  whitelist  (set address:eyre)
 +$  signature-header
   $:  name=@t
       prefix=(unit @t)
   ==
++$  logs  ((mop time inbound-request:eyre) lte)
+++  on-logs  ((on time inbound-request:eyre) lte)
 +$  key  @uv
++$  collection  (map @t data)
++$  data  (map @t @t)
 --

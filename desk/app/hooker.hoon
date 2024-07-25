@@ -165,14 +165,17 @@
     cor
   ==
 ++  peek
-  |=  =path
+  |=  =(pole knot)
   ^-  (unit (unit cage))
-  ~&  peek/path
-  [~ ~]
-  :: ?+  path  [~ ~]
-  :: :: ::
-  :: ::   [%x %chat ~]  ``flags+!>(~(key by chats))
-  :: ==
+  ~&  peek/pole
+  ?+  pole  [~ [~ noun+!>(~)]]
+      [%x %v0 %hooks ~]
+    ``hooker-hooks+!>(`unsecure-hooks:h`(~(run by hooks) tail))
+  ::
+      [%x %v0 %key path=*]
+    =/  =secured-hook:h  (~(got by hooks) path.pole)
+    ``hooker-key+!>(`@t`(en:base16:mimes:html 32 key.secured-hook))
+  ==
 ::
 ++  serve
   |=  =order:rudder
@@ -199,8 +202,13 @@
   =/  poke  [%pass wire %agent dock %poke cage]
   (emil (welp (spout:rudder id.order payload) ~[poke]))
 ::
+++  give-response
+  |=  =response:h
+  ^+  cor
+  =/  =cage  hooker-response+!>(`response:h`response)
+  (give %fact ~[/v0] cage)
 ++  hook-core
-  |_  [=path =hook:h gone=_| counter=@ud request=inbound-request:eyre]
+  |_  [=path hook=secured-hook:h gone=_| counter=@ud request=inbound-request:eyre]
   ++  hook-core  .
   ++  abet
     =.  hooks
@@ -217,38 +225,37 @@
     ~&  "got hook: {<hook>}"
     hook-core(path p, hook hook)
   ++  create
-    |=  [p=(unit ^path) =signature-header:h =whitelist:h]
+    |=  [p=(unit ^path) name=@t =signature-header:h =whitelist:h]
     =^  path  counter
       ?:  ?=(^ p)  [u.p counter]
       [/(scot %uv (shax (jam ['path' eny.bowl]))) +(counter)]
     =^  key  counter
       [(shax (jam ['hooker' eny.bowl])) +(counter)]
-    =/  =hook:h
+    =/  =secured-hook:h
       :*  key
           path
+          name
           signature-header
           whitelist
+          *logs:h
+          *@da
       ==
-    :: TODO: give update
+    =.  cor  (give-response [%create-hook +.secured-hook])
     hook-core(path path, hook hook)
   ++  update
-    |=  [p=^path =signature-header:h =whitelist:h]
-    =/  =hook:h
-      :*  key.hook
-          p
-          signature-header
-          whitelist
-      ==
-    :: TODO: give update
-    hook-core(path p, hook hook)
+    |=  new=hook:h
+    =.  cor  (give-response [%update-hook new])
+    hook-core(path path.new, hook [key.hook new])
   ++  remove
     =.  gone  &
-    :: TODO: give update
+    =.  cor  (give-response [%remove-hook path])
     hook-core
   ++  req
     |%
     ++  init
       |=  request=inbound-request:eyre
+      =.  last-request.hook  now.bowl
+      =.  logs.hook  (put:on-logs:h logs.hook now.bowl request)
       hook-core(request request)
     ++  transform
       ^-  [simple-payload:http orders:h]
@@ -311,6 +318,7 @@
     (emit [%pass wire %agent dock %poke [mark vase]])
   =/  =cage  [mark !>(noun)]
   (emit [%pass wire %agent dock %poke cage])
+::
 ++  find-tube
   |=  [dap=term from=mark to=mark]
   ^-  tube:clay
