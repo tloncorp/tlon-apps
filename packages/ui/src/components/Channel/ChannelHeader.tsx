@@ -69,14 +69,14 @@ export function ChannelHeader({
                 <Search />
               </IconButton>
             )}
-            {showMenuButton && (
-              <IconButton onPress={() => setShowActionSheet(true)}>
-                <Dots />
-              </IconButton>
-            )}
             {onAddPress && (
               <IconButton onPress={onAddPress}>
                 <Add />
+              </IconButton>
+            )}
+            {showMenuButton && (
+              <IconButton onPress={() => setShowActionSheet(true)}>
+                <Dots />
               </IconButton>
             )}
           </>
