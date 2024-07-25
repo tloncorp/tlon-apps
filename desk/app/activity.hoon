@@ -159,7 +159,7 @@
     |=  old=state-5
     ^-  state-6
     =/  [=indices:a =activity:a]
-      (sync-reads indices.old activity.old)
+      (sync-reads indices.old activity.old volume-settings.old)
     :*  %6
         allowed.old
         indices
@@ -263,7 +263,7 @@
     ::
         %sync-reads
       =^  indices  activity
-        (sync-reads indices activity)
+        (sync-reads indices activity volume-settings)
       cor(indices indices)
     ::
         %migrate
@@ -880,7 +880,7 @@
 ::  tracking individual reads
 ::
 ++  sync-reads
-  |=  [=indices:a =activity:a]
+  |=  [=indices:a =activity:a vs=volume-settings:a]
   =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
   ?~  sources  [indices activity]
@@ -901,7 +901,10 @@
   ::  with new reads, update our index and summary
   :: =.  cor  (refresh-index source index)
   =.  indices  (~(put by indices) source index)
-  =/  new-summary  (summarize-unreads source (get-index source))
+  =/  new-summary
+    %+  ~(summarize-unreads urd indices activity vs log)
+      source
+    index
   =.  activity
     (~(put by activity) source new-summary)
   ?:  !=(?~(old ~ u.old(reads ~)) new-summary(reads ~))
