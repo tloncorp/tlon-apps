@@ -163,11 +163,13 @@ interface RoutesProps {
   isSmall: boolean;
 }
 
-const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
+const GroupsRoutes = React.memo(function GroupsRoutesComponent({
+  isMobile,
+  isSmall,
+}: RoutesProps) {
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
   const location = useLocation();
-  const currentTheme = useLocalState((s) => s.currentTheme);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -606,7 +608,7 @@ function Firehose() {
   return null;
 }
 
-const App = React.memo(() => {
+const App = React.memo(function AppComponent() {
   useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
