@@ -32,9 +32,14 @@ type AuthorRowProps = ComponentProps<typeof XStack> & {
   deliveryStatus?: db.PostDeliveryStatus | null;
   type?: db.PostType;
   detailView?: boolean;
+  nonPressable?: boolean;
 };
 
-export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
+export default function AuthorRow({
+  onPress,
+  nonPressable,
+  ...props
+}: AuthorRowProps) {
   const [showProfile, setShowProfile] = useState(false);
 
   const handlePress = useCallback(
@@ -50,13 +55,25 @@ export default function AuthorRow({ onPress, ...props }: AuthorRowProps) {
   return (
     <>
       {props.detailView ? (
-        <DetailViewAuthorRow {...props} onPress={handlePress} />
+        <DetailViewAuthorRow
+          {...props}
+          onPress={nonPressable ? undefined : handlePress}
+        />
       ) : props.type === 'block' ? (
-        <BlockAuthorRow {...props} onPress={handlePress} />
+        <BlockAuthorRow
+          {...props}
+          onPress={nonPressable ? undefined : handlePress}
+        />
       ) : props.type === 'note' ? (
-        <NotebookAuthorRow {...props} onPress={handlePress} />
+        <NotebookAuthorRow
+          {...props}
+          onPress={nonPressable ? undefined : handlePress}
+        />
       ) : (
-        <ChatAuthorRow {...props} onPress={handlePress} />
+        <ChatAuthorRow
+          {...props}
+          onPress={nonPressable ? undefined : handlePress}
+        />
       )}
       {showProfile && props.author && (
         <ProfileSheet

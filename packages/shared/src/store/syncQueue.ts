@@ -1,7 +1,7 @@
 import { createDevLogger, runIfDev } from '../debug';
 import { RetryConfig, withRetry } from '../logic';
 
-const logger = createDevLogger('syncQueue', true);
+const logger = createDevLogger('syncQueue', false);
 
 interface SyncOperation {
   label: string;

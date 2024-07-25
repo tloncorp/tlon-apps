@@ -67,12 +67,19 @@ export function SearchResults({
               <FlatList
                 data={posts}
                 onEndReached={onEndReached}
+                initialNumToRender={10}
+                windowSize={20}
                 renderItem={({ item: post }) => (
                   <View
                     marginBottom="$m"
                     onPress={() => navigateToPost(post as unknown as db.Post)}
                   >
-                    <ChatMessage post={post} />
+                    <ChatMessage
+                      post={post}
+                      showAuthor
+                      onPress={() => navigateToPost(post as unknown as db.Post)}
+                      authorRowProps={{ nonPressable: true }}
+                    />
                   </View>
                 )}
                 ListFooterComponent={

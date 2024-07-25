@@ -2,7 +2,7 @@ import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { isEqual } from 'lodash';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 
 import { Text, View, XStack, YStack } from '../../core';
 import { ActionSheet } from '../ActionSheet';
@@ -41,8 +41,10 @@ const NoticeWrapper = ({
 const ChatMessage = ({
   post,
   showAuthor,
+  authorRowProps,
   onPressReplies,
   onPressImage,
+  onPress,
   onLongPress,
   onPressRetry,
   onPressDelete,
@@ -53,9 +55,11 @@ const ChatMessage = ({
 }: {
   post: db.Post;
   showAuthor?: boolean;
+  authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
   onPressReplies?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
@@ -73,6 +77,18 @@ const ChatMessage = ({
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
+
+  const shouldHandlePress = useMemo(() => {
+    return Boolean(onPress || post.deliveryStatus === 'failed');
+  }, [onPress, post.deliveryStatus]);
+  const handlePress = useCallback(() => {
+    onPress?.(post);
+    if (onPress) {
+      onPress(post);
+    } else if (post.deliveryStatus === 'failed') {
+      setShowRetrySheet(true);
+    }
+  }, [post, onPress]);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -151,11 +167,8 @@ const ChatMessage = ({
       gap="$s"
       paddingVertical="$xs"
       paddingRight="$l"
-      onPress={
-        post.deliveryStatus === 'failed'
-          ? () => setShowRetrySheet(true)
-          : undefined
-      }
+      // avoid setting the top level press handler at all unless we need to
+      onPress={shouldHandlePress ? handlePress : undefined}
     >
       {showAuthor ? (
         <View paddingLeft="$l" paddingTop="$s">
@@ -164,6 +177,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
+            {...authorRowProps}
             // roles={roles}
           />
         </View>
@@ -240,7 +254,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.setEditingPost === next.setEditingPost &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
-    prev.onLongPress === next.onLongPress;
+    prev.onLongPress === next.onLongPress &&
+    prev.onPress === next.onPress;
 
   return isPostEqual && areOtherPropsEqual;
 });
