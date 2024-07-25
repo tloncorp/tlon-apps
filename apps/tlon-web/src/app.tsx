@@ -7,6 +7,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { Helmet } from 'react-helmet';
 import {
   Location,
+  Navigate,
   NavigateFunction,
   Route,
   BrowserRouter as Router,
@@ -262,6 +263,7 @@ const GroupsRoutes = React.memo(function GroupsRoutesComponent({
                 path="channels"
                 element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
+              <Route path="activity" element={<Navigate to="../channels" />} />
               <Route path="members" element={<Members />} />
               <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
                 {!isMobile && (
