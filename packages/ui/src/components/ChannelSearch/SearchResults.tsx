@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,9 +23,36 @@ export function SearchResults({
     if (!search.loading && search.hasMore) {
       search.loadMore();
     }
-  }, [search.loadMore, search.loading, search.hasMore]);
+  }, [search]);
 
   const isInitial = search.query === '';
+
+  const renderItem = useCallback(
+    ({ item: post }: { item: db.Post }) => {
+      return (
+        <View
+          marginBottom="$m"
+          onPress={() => navigateToPost(post as unknown as db.Post)}
+        >
+          <ChatMessage
+            post={post}
+            showAuthor
+            onPress={() => navigateToPost(post as unknown as db.Post)}
+            authorRowProps={{ nonPressable: true }}
+          />
+        </View>
+      );
+    },
+    [navigateToPost]
+  );
+
+  const ListFooterComponent = useMemo(() => {
+    return (
+      <View marginBottom={insets.bottom}>
+        <SearchStatus search={search} />
+      </View>
+    );
+  }, [search, insets.bottom]);
 
   return (
     <YStack marginTop="$true" flex={1} onTouchStart={Keyboard.dismiss}>
@@ -67,26 +94,12 @@ export function SearchResults({
               <FlatList
                 data={posts}
                 onEndReached={onEndReached}
-                initialNumToRender={10}
+                onEndReachedThreshold={0.3}
+                initialNumToRender={15}
                 windowSize={20}
-                renderItem={({ item: post }) => (
-                  <View
-                    marginBottom="$m"
-                    onPress={() => navigateToPost(post as unknown as db.Post)}
-                  >
-                    <ChatMessage
-                      post={post}
-                      showAuthor
-                      onPress={() => navigateToPost(post as unknown as db.Post)}
-                      authorRowProps={{ nonPressable: true }}
-                    />
-                  </View>
-                )}
-                ListFooterComponent={
-                  <View marginBottom={insets.bottom}>
-                    <SearchStatus search={search} />
-                  </View>
-                }
+                maxToRenderPerBatch={20}
+                renderItem={renderItem}
+                ListFooterComponent={ListFooterComponent}
               />
             </>
           )}

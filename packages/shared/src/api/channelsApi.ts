@@ -328,8 +328,6 @@ export const searchChatChannel = async (params: {
     }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
   });
 
-  console.log(`bl: response scan`, response.scan);
-
   // note: we avoid incurring the cost of sorting here since the main consumer (useChannelSearch)
   // aggregates results across multiple pages
   const posts: db.Post[] = response.scan
