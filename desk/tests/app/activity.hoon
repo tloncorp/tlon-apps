@@ -29,12 +29,12 @@
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(new-state=current-state new)
+  =+  !<(=new-state new)
   =/  new-indices  indices.new-state
   (ex-equal !>(new-indices) !>(want-indices))
 ::
-+$  current-state
-  $:  %5
++$  new-state
+  $:  %6
       allowed=notifications-allowed:a
       =indices:a
       =activity:a
