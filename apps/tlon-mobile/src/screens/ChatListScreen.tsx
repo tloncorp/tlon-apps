@@ -40,10 +40,51 @@ type ChatListScreenProps = NativeStackScreenProps<
   'ChatList'
 >;
 
+interface AddContextMenuProps {
+  children: React.ReactNode;
+  onAddGroup: () => void;
+  onStartDm: () => void;
+}
+
+const AddContextMenu: React.FC<AddContextMenuProps> = ({
+  children,
+  onAddGroup,
+  onStartDm,
+}) => {
+  return (
+    <ContextMenu
+      dropdownMenuMode={true}
+      actions={[
+        { title: 'Create or join a group' },
+        { title: 'Start a direct message' },
+      ]}
+      onPress={(event) => {
+        const { index } = event.nativeEvent;
+        if (index === 0) {
+          onAddGroup();
+        }
+        if (index === 1) {
+          onStartDm();
+        }
+      }}
+    >
+      {children}
+    </ContextMenu>
+  );
+};
+
 const ShowFiltersButton = ({ onPress }: { onPress: () => void }) => {
   return (
     <Button borderWidth={0} onPress={onPress}>
       <Icon type="Filter" size="$m" />
+    </Button>
+  );
+};
+
+const AddButton = () => {
+  return (
+    <Button borderWidth={0}>
+      <Icon type="Add" size="$m" />
     </Button>
   );
 };
@@ -323,9 +364,19 @@ export default function ChatListScreen(
                 : screenTitle
             }
             rightControls={
-              <ShowFiltersButton
-                onPress={() => setShowFilters((prev) => !prev)}
-              />
+              <View flexDirection="row" gap="$s">
+                <ShowFiltersButton
+                  onPress={() => setShowFilters((prev) => !prev)}
+                />
+                {!featureFlags.isEnabled('channelSwitcher') && (
+                  <AddContextMenu
+                    onAddGroup={() => setAddGroupOpen(true)}
+                    onStartDm={() => setStartDmOpen(true)}
+                  >
+                    <AddButton />
+                  </AddContextMenu>
+                )}
+              </View>
             }
           />
           {chats && chats.unpinned.length ? (
@@ -341,37 +392,27 @@ export default function ChatListScreen(
               showFilters={showFilters}
             />
           ) : null}
-          <View
-            zIndex={50}
-            position="absolute"
-            bottom="$s"
-            alignItems="center"
-            width={'100%'}
-            pointerEvents="box-none"
-          >
-            <ContextMenu
-              dropdownMenuMode={true}
-              actions={[
-                { title: 'Create or join a group' },
-                { title: 'Start a direct message' },
-              ]}
-              onPress={(event) => {
-                const { index } = event.nativeEvent;
-                if (index === 0) {
-                  setAddGroupOpen(true);
-                }
-                if (index === 1) {
-                  setStartDmOpen(true);
-                }
-              }}
+          {featureFlags.isEnabled('channelSwitcher') && (
+            <View
+              zIndex={50}
+              position="absolute"
+              bottom="$s"
+              alignItems="center"
+              width={'100%'}
+              pointerEvents="box-none"
             >
-              <FloatingActionButton
-                icon={<Icon type="Add" size="$s" marginRight="$s" />}
-                label={'Add'}
-                onPress={() => {}}
-              />
-            </ContextMenu>
-          </View>
+              <AddContextMenu
+                onAddGroup={() => setAddGroupOpen(true)}
+                onStartDm={() => setStartDmOpen(true)}
+              >
+                <FloatingActionButton
+                  icon={<Icon type="Add" size="$s" marginRight="$s" />}
+                  label={'Add'}
+                  onPress={() => {}}
+                />
+              </AddContextMenu>
+            </View>
+          )}
           <WelcomeSheet
             open={splashVisible}
             onOpenChange={handleWelcomeOpenChange}
