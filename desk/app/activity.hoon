@@ -48,7 +48,7 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %5
+    $:  %6
         allowed=notifications-allowed:a
         =indices:a
         =activity:a
@@ -135,11 +135,37 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
-  sync-reads
-  +$  versioned-state  $%(state-5 state-4 state-3 state-2 state-1)
-  +$  state-5  current-state
+  (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
+  +$  versioned-state
+    $%  state-6
+        state-5
+        state-4
+        state-3
+        state-2
+        state-1
+    ==
+  +$  state-6  current-state
+  +$  state-5
+    $:  %5
+        allowed=notifications-allowed:a
+        =indices:a
+        =activity:a
+        =volume-settings:a
+    ==
+  ++  state-5-to-6
+    |=  old=state-5
+    ^-  state-6
+    =/  [=indices:a =activity:a]
+      (sync-reads indices.old activity.old)
+    :*  %6
+        allowed.old
+        indices
+        activity
+        volume-settings.old
+    ==
   +$  state-4
     $:  %4
         allowed=notifications-allowed:a
@@ -231,16 +257,19 @@
   ?+  mark  ~|(bad-poke+mark !!)
       %noun
     ?+  q.vase  ~|(bad-poke+mark !!)
+      %refresh-activity  refresh-all-summaries
+      %clean-keys  correct-dm-keys
+      %fix-init-unreads  fix-init-unreads
+    ::
+        %sync-reads
+      =^  indices  activity
+        (sync-reads indices activity)
+      cor(indices indices)
+    ::
         %migrate
       =.  state  *current-state
       =.  allowed  %all
       migrate
-        %refresh-activity
-      refresh-all-summaries
-        %clean-keys
-      correct-dm-keys
-        %sync-reads
-      sync-reads
     ==
   ::
       %activity-action
@@ -813,7 +842,7 @@
       ~
     |=  [st=@ =time-id:a =event:a]
     :_  [%.n st]
-    ?.  !child.event  ~
+    ?:  child.event  ~
     `event
   =/  children  (get-children:src indices source)
   %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
@@ -885,14 +914,58 @@
     last
   $(stream rest)
 ::
+::  when we migrated from chat and channels, we always added an init event
+::  so that we can mark what's been joined and have something affect the
+::  recency so that it ends up in the correct place on the sidebar.
+::  however, we forgot to mark these as read, so we need to do that now.
+::  otherwise we end up with a bunch of dms/channels that are
+::  incorrectly unread.
+++  fix-init-unreads
+  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
+  =.  indices  (fix-channel-init-unreads indices channels)
+  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+      %gx  (scry-path %chat /full/noun)
+    ==
+  =.  indices  (fix-dm-init-unreads indices dms clubs)
+  cor
+++  fix-channel-init-unreads
+  |=  [=indices:a =channels:c]
+  %-  ~(urn by indices)
+  |=  [=source:a =index:a]
+  ::  if we're a channel with only the %chan-init event, we need to set
+  ::  the floor to the last-read time
+  ?.  ?&  ?=(%channel -.source)
+          =(~(wyt by stream.index) 1)
+      ==
+    index
+  =/  floor  last-read.remark:(~(gut by channels) nest.source *channel:c)
+  index(floor.reads floor)
+++  fix-dm-init-unreads
+  |=  [=indices:a dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+  ^-  indices:a
+  %-  ~(urn by indices)
+  |=  [=source:a =index:a]
+  ::  if we're a DM with only the %dm-invite event, we need to set
+  ::  the floor to the last-read time
+  ?.  ?&  ?=(%dm -.source)
+          =(~(wyt by stream.index) 1)
+      ==
+    index
+  =/  floor
+    ?-  -.whom.source
+      %ship  last-read.remark:(~(gut by dms) p.whom.source *dm:ch)
+      %club  last-read.remark:(~(gut by clubs) p.whom.source *club:ch)
+    ==
+  index(floor.reads floor)
 ::  previously we used items as a way to track individual reads because
 ::  floors were not local, but we have reverted to local floors and not
 ::  tracking individual reads
 ::
 ++  sync-reads
+  |=  [=indices:a =activity:a]
   =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
   |-
-  ?~  sources  cor
+  ?~  sources  [indices activity]
   =/  =source:a  i.sources
   =/  =index:a  (~(got by indices) source)
   =/  old-floor  floor.reads.index
@@ -908,13 +981,16 @@
     [~ %.n ?:((gth time-id st) time-id st)]
   =.  reads.index  [new-floor ~]
   ::  with new reads, update our index and summary
-  =.  cor  (refresh-index source index)
-  =/  new=(unit activity-summary:a)  (~(get by activity) source)
-  ?:  !=(?~(old ~ u.old(reads ~)) ?~(new ~ u.new(reads ~)))
+  :: =.  cor  (refresh-index source index)
+  =.  indices  (~(put by indices) source index)
+  =/  new-summary  (summarize-unreads source (get-index source))
+  =.  activity
+    (~(put by activity) source new-summary)
+  ?:  !=(?~(old ~ u.old(reads ~)) new-summary(reads ~))
     ~&  "%sync-reads: WARNING old and new summaries differ {<source>}"
     ~&  "old floor: {<old-floor>} new floor: {<new-floor>}"
     ~&  "old:  {<old>}"
-    ~&  "new:  {<new>}"
+    ~&  "new:  {<`new-summary>}"
     $(sources t.sources)
   $(sources t.sources)
 ::
@@ -1062,7 +1138,8 @@
   =/  entries  ~(tap by unreads)
   =;  events=(list [time incoming-event:a])
     |-
-    ?~  events  cor
+    ?~  events
+      cor(indices (fix-channel-init-unreads indices channels))
     =.  cor  (%*(. add-event start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
@@ -1123,7 +1200,8 @@
   =/  entries  ~(tap by unreads)
   =;  events=(list [time incoming-event:a])
     |-
-    ?~  events  cor
+    ?~  events
+      cor(indices (fix-dm-init-unreads indices dms clubs))
     =.  cor  (%*(. add-event start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
