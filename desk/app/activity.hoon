@@ -206,7 +206,7 @@
     :*  %4
         allowed.old
         new-indices
-        (activity-3-to-4 new-indices)
+        (activity-3-to-4 new-indices volume-settings.old)
         volume-settings.old
     ==
   ++  indices-3-to-4
@@ -214,14 +214,14 @@
     ^-  indices:a
     (~(run by indices) |=([=stream:a =reads:a] [stream reads *@da]))
   ++  activity-3-to-4
-    |=  =indices:a
+    |=  [=indices:a vs=volume-settings:a]
     ^-  activity:a
     =/  sources  (sort-sources:src ~(tap in ~(key by indices)))
     %+  roll  sources
     |=  [=source:a =activity:a]
     =/  index  (~(got by indices) source)
     %+  ~(put by activity)  source
-    (summarize-unreads source index)
+    (~(summarize-unreads urd indices activity vs log) source index)
   +$  state-2
     $:  %2
         allowed=notifications-allowed:a
@@ -826,93 +826,7 @@
   =.  allowed  na
   (give-update [%allow-notifications na] [%hose ~])
 ++  summarize-unreads
-  |=  [=source:a =index:a]
-  ^-  activity-summary:a
-  %-  (log |.("summarizing unreads for: {<source>}"))
-  =/  top=time  -:(fall (ram:on-event:a stream.index) [*@da ~])
-  =/  unread-stream=stream:a
-    ::  all base's events are from children so we can ignore
-    ?:  ?=(%base -.source)  ~
-    ::  we don't need to take child events into account when summarizing
-    ::  the activity, so we filter them out
-    ::  TODO: measure performance vs gas+murn+tap+lot
-    =-  ->
-    %^    (dip:on-event:a @)
-        (lot:on-event:a stream.index `floor.reads.index ~)
-      ~
-    |=  [st=@ =time-id:a =event:a]
-    :_  [%.n st]
-    ?:  child.event  ~
-    `event
-  =/  children  (get-children:src indices source)
-  %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
-  (stream-to-unreads source index(stream unread-stream) children top)
-++  stream-to-unreads
-  |=  [=source:a =index:a children=(list source:a) top=time]
-  ^-  activity-summary:a
-  =/  cs=activity-summary:a
-    %+  roll
-      children
-    |=  [=source:a sum=activity-summary:a]
-    =/  =index:a  (~(gut by indices) source *index:a)
-    =/  as=activity-summary:a
-      ?~  summary=(~(get by activity) source)
-        =>  (summarize-unreads source index)
-        .(children ~)
-      u.summary(children ~)
-    %=  sum
-      count  (add count.sum count.as)
-      notify  |(notify.sum notify.as)
-      newest  (max newest.as newest.sum)
-      notify-count  (add notify-count.sum notify-count.as)
-    ==
-  %-  (log |.("children summary: {<cs>}"))
-  =/  newest=time  :(max newest.cs floor.reads.index bump.index top)
-  =/  total
-    ::  if we're a channel, we only want thread notify counts, not totals
-    ::
-    ?:  ?=(%channel -.source)
-      notify-count.cs
-    count.cs
-  =/  notify-count  notify-count.cs
-  =/  main  0
-  =/  notified=?  notify.cs
-  =/  main-notified=?  |
-  =*  stream  stream.index
-  =|  last=(unit message-key:a)
-  ::  for each event
-  ::  update count and newest
-  ::  if reply, update thread state
-  |-
-  ?~  stream
-    :*  newest
-        total
-        notify-count
-        notified
-        ?~(last ~ `[u.last main main-notified])
-        ?:(?=(%base -.source) ~ (sy children))
-        ~
-    ==
-  =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
-  =/  volume  (get-volume:evt volume-settings -.event)
-  ::TODO  support other event types
-  =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
-  =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
-  =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
-  =*  supported  |(is-msg is-init is-flag)
-  ?.  supported  $(stream rest)
-  =?  notified  &(notify.volume notified.event)  &
-  =?  notify-count  &(notify.volume notified.event)  +(notify-count)
-  =.  newest  (max newest time)
-  ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
-    $(stream rest)
-  =.  total  +(total)
-  =.  main   +(main)
-  =?  main-notified  &(notify:volume notified.event)  &
-  =.  last
-    ?~  last  `key.event
-    last
-  $(stream rest)
+  ~(summarize-unreads urd indices activity volume-settings log)
 ::
 ::  when we migrated from chat and channels, we always added an init event
 ::  so that we can mark what's been joined and have something affect the
@@ -935,11 +849,11 @@
   ::  if we're a channel with only the %chan-init event, we need to set
   ::  the floor to the last-read time
   ?.  ?&  ?=(%channel -.source)
-          =(~(wyt by stream.index) 1)
+          ?=([[* [[%chan-init *] *]] ~ ~] stream.index)
       ==
     index
-  =/  floor  last-read.remark:(~(gut by channels) nest.source *channel:c)
-  index(floor.reads floor)
+  ?~  channel=(~(get by channels) nest.source)  index
+  index(floor.reads last-read.remark.u.channel)
 ++  fix-dm-init-unreads
   |=  [=indices:a dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
   ^-  indices:a
@@ -947,16 +861,20 @@
   |=  [=source:a =index:a]
   ::  if we're a DM with only the %dm-invite event, we need to set
   ::  the floor to the last-read time
+  ~!  stream.index
   ?.  ?&  ?=(%dm -.source)
-          =(~(wyt by stream.index) 1)
+          ?=([[* [[%dm-invite *] *]] ~ ~] stream.index)
       ==
     index
-  =/  floor
-    ?-  -.whom.source
-      %ship  last-read.remark:(~(gut by dms) p.whom.source *dm:ch)
-      %club  last-read.remark:(~(gut by clubs) p.whom.source *club:ch)
-    ==
-  index(floor.reads floor)
+  ?-  -.whom.source
+      %ship
+    ?~  dm=(~(get by dms) p.whom.source)  index
+    index(floor.reads last-read.remark.u.dm)
+  ::
+      %club
+    ?~  club=(~(get by clubs) p.whom.source)  index
+    index(floor.reads last-read.remark.u.club)
+  ==
 ::  previously we used items as a way to track individual reads because
 ::  floors were not local, but we have reverted to local floors and not
 ::  tracking individual reads
