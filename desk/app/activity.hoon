@@ -473,9 +473,10 @@
   ^-  [(unit event:a) ? out]
   ?:  =(limit.acc 0)  [~ & acc]
   ::  we only care about events older than start
-  ?:  (gth time real-start)  [~ | acc]
-  :-  ~   :-  |
+  :+  ~  |
+  ?:  (gth time real-start)  acc
   =/  =source:a  (source:evt -.event)
+  ?.  (~(has by indices) source)  acc
   =/  src-info=[latest=time-id:a added=?]
     ?^  stored=(~(get by sources.acc) source)  u.stored
     :_  |
