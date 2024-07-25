@@ -927,7 +927,7 @@
       %gx  (scry-path %chat /full/noun)
     ==
   =.  indices  (fix-dm-init-unreads indices dms clubs)
-  cor
+  refresh-all-summaries
 ++  fix-channel-init-unreads
   |=  [=indices:a =channels:c]
   %-  ~(urn by indices)
