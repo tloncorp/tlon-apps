@@ -75,3 +75,4 @@ export { default as TBlock } from './TBlock.svg';
 export { default as Mute } from './Mute.svg';
 export { default as ChannelDM } from './ChannelDM.svg';
 export { default as ChannelMultiDM } from './ChannelMultiDM.svg';
+export { default as Erase } from './Erase.svg';

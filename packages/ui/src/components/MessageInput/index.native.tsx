@@ -137,6 +137,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       setHeight,
       goBack,
       onSend,
+      onStartDrawing,
     },
     ref
   ) => {
@@ -785,6 +786,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         disableSend={
           editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
         }
+        onStartDrawing={onStartDrawing}
         goBack={goBack}
       >
         <YStack

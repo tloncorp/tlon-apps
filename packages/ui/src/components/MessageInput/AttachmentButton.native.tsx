@@ -7,7 +7,9 @@ import { IconButton } from '../IconButton';
 
 export default function AttachmentButton({
   setShouldBlur,
+  onStartDrawing,
 }: {
+  onStartDrawing: () => void;
   setShouldBlur: (shouldBlur: boolean) => void;
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
@@ -29,6 +31,7 @@ export default function AttachmentButton({
         <Add />
       </IconButton>
       <AttachmentSheet
+        onStartDrawing={onStartDrawing}
         showAttachmentSheet={showInputSelector}
         setShowAttachmentSheet={setShowInputSelector}
         setImage={attachAssets}

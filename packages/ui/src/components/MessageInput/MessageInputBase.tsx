@@ -56,6 +56,7 @@ export interface MessageInputProps {
     editor: EditorBridge | null;
     setEditor: (editor: EditorBridge) => void;
   }>;
+  onStartDrawing: () => void;
 }
 
 export const MessageInputContainer = ({
@@ -75,6 +76,7 @@ export const MessageInputContainer = ({
   cancelEditing,
   onPressEdit,
   goBack,
+  onStartDrawing,
 }: PropsWithChildren<{
   setShouldBlur: (shouldBlur: boolean) => void;
   onPressSend: () => void;
@@ -91,6 +93,7 @@ export const MessageInputContainer = ({
   cancelEditing?: () => void;
   onPressEdit?: () => void;
   goBack?: () => void;
+  onStartDrawing: () => void;
 }>) => {
   const { canUpload } = useAttachmentContext();
   return (
@@ -125,7 +128,10 @@ export const MessageInputContainer = ({
         ) : null}
         {canUpload && showAttachmentButton ? (
           <View paddingBottom="$xs">
-            <AttachmentButton setShouldBlur={setShouldBlur} />
+            <AttachmentButton
+              onStartDrawing={onStartDrawing}
+              setShouldBlur={setShouldBlur}
+            />
           </View>
         ) : null}
         {children}

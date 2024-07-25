@@ -23,6 +23,7 @@ export default defineConfig({
     'expo-image-picker',
     'expo-file-system',
     '@react-native-firebase/crashlytics',
+    '@shopify/react-native-skia',
   ],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {

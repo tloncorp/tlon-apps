@@ -26,9 +26,11 @@ import { ScrollContextProvider } from '../../contexts/scroll';
 import { SizableText, View, YStack } from '../../core';
 import { useStickyUnread } from '../../hooks/useStickyUnread';
 import * as utils from '../../utils';
+import { ActionSheet } from '../ActionSheet';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
 import { ChatMessage } from '../ChatMessage';
+import { DrawingInput } from '../DrawingInput';
 import { FloatingActionButton } from '../FloatingActionButton';
 import { GalleryPost } from '../GalleryPost';
 import { GroupPreviewSheet } from '../GroupPreviewSheet';
@@ -36,6 +38,7 @@ import { Icon } from '../Icon';
 import KeyboardAvoidingView from '../KeyboardAvoidingView';
 import { MessageInput } from '../MessageInput';
 import { NotebookPost } from '../NotebookPost';
+import { Sheet } from '../Sheet';
 import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -206,6 +209,15 @@ export function Channel({
     setIsUploadingGalleryImage(false);
   }, []);
 
+  const [isDrawing, setIsDrawing] = useState(false);
+  const handleStartDrawing = useCallback(() => {
+    setIsDrawing(true);
+  }, []);
+
+  const handleDrawingAttached = useCallback(() => {
+    setIsDrawing(false);
+  }, []);
+
   return (
     <ScrollContextProvider>
       <CalmProvider calmSettings={calmSettings}>
@@ -280,6 +292,7 @@ export function Channel({
                                   width="100%"
                                 >
                                   <BigInput
+                                    onStartDrawing={handleStartDrawing}
                                     channelType={channel.type}
                                     channelId={channel.id}
                                     groupMembers={group?.members ?? []}
@@ -367,6 +380,7 @@ export function Channel({
                                   showInlineAttachments={
                                     channel.type !== 'gallery'
                                   }
+                                  onStartDrawing={handleStartDrawing}
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }
@@ -440,6 +454,13 @@ export function Channel({
                         />
                       </YStack>
                     </View>
+                    {isDrawing && (
+                      <ActionSheet open={isDrawing} onOpenChange={setIsDrawing}>
+                        <Sheet.LazyFrame>
+                          <DrawingInput onPressAttach={handleDrawingAttached} />
+                        </Sheet.LazyFrame>
+                      </ActionSheet>
+                    )}
                   </AttachmentProvider>
                 </NavigationProvider>
               </RequestsProvider>

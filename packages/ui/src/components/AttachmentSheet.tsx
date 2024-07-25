@@ -1,6 +1,6 @@
 import { MessageAttachments } from '@tloncorp/shared/dist/api';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { ActionSheet } from './ActionSheet';
 
@@ -8,10 +8,12 @@ export default function AttachmentSheet({
   showAttachmentSheet,
   setShowAttachmentSheet,
   setImage,
+  onStartDrawing,
 }: {
   showAttachmentSheet: boolean;
   setShowAttachmentSheet: (open: boolean) => void;
   setImage: (attachments: MessageAttachments) => void;
+  onStartDrawing: () => void;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -65,6 +67,11 @@ export default function AttachmentSheet({
     requestCameraPermission,
   ]);
 
+  const startDrawing = useCallback(() => {
+    setShowAttachmentSheet(false);
+    onStartDrawing();
+  }, [onStartDrawing, setShowAttachmentSheet]);
+
   const actions = [
     {
       title: 'Photo Library',
@@ -75,6 +82,11 @@ export default function AttachmentSheet({
       title: 'Take a Photo',
       description: 'Use your camera to take a photo',
       action: takePicture,
+    },
+    {
+      title: 'Drawing',
+      description: 'Create a drawing',
+      action: startDrawing,
     },
   ];
 
