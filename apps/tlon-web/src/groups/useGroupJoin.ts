@@ -43,6 +43,7 @@ export default function useGroupJoin(
     | undefined = undefined
 ) {
   const location = useLocation();
+  const navigateAcrossTabs = useNavigate();
   const { navigate } = useNavWithinTab();
   const modalIsOpen =
     !!location.state?.backgroundLocation &&
@@ -70,7 +71,7 @@ export default function useGroupJoin(
 
   const open = useCallback(() => {
     if (group && !groupIsInitializing(group)) {
-      return navigate(`/groups/${flag}`);
+      return navigateAcrossTabs(`/groups/${flag}`);
     }
 
     return navigate(`/gangs/${flag}`, true);
