@@ -129,7 +129,7 @@ function GroupHeader() {
   );
 }
 
-const GroupSidebar = React.memo(() => {
+const GroupSidebar = React.memo(function GroupSidebarComponent() {
   const flag = useGroupFlag();
   const realGroup = useGroup(flag);
   const lastGroupRef = useRef(realGroup);
@@ -153,18 +153,6 @@ const GroupSidebar = React.memo(() => {
       <div className="flex min-h-0 flex-col">
         <div className="flex flex-col space-y-0.5 px-2 pb-4 pt-2">
           <GroupHeader />
-          <SidebarItem
-            icon={
-              <HomeIcon
-                className={cn('h-6 w-6 rounded', {
-                  'mix-blend-multiply': !isDark,
-                })}
-              />
-            }
-            to={`/groups/${flag}/activity`}
-          >
-            Home
-          </SidebarItem>
           <SidebarItem
             icon={
               <HashIcon
