@@ -35,10 +35,20 @@ export default function ChannelSearch({
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      navigation.navigate('Channel', {
-        channel,
-        selectedPostId: post.id,
-      });
+      if (post.parentId) {
+        navigation.replace('Post', {
+          post: {
+            id: post.parentId,
+            channelId: channel.id,
+            authorId: post.authorId,
+          },
+        });
+      } else {
+        navigation.navigate('Channel', {
+          channel,
+          selectedPostId: post.id,
+        });
+      }
     },
     [channel, navigation]
   );
