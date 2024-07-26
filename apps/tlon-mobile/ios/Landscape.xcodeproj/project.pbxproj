@@ -39,10 +39,10 @@
 		630DE0DD2C51A8780053603B /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0BE2C51A8780053603B /* SimpleKeychain */; };
 		630DE0E62C51A9D30053603B /* Notifications-preview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 630DE0E22C51A8790053603B /* Notifications-preview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		630DE0E72C51AA0C0053603B /* Notifications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6374ACDF2C49DA9600E637C0 /* Notifications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		630DE0EC2C51AC840053603B /* UserDefaults+standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */; };
-		630DE0ED2C51AC840053603B /* UserDefaults+standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */; };
-		630DE0EE2C51AC840053603B /* UserDefaults+standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */; };
-		630DE0EF2C51AC840053603B /* UserDefaults+standard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */; };
+		630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		630DE0ED2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		630DE0EE2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
+		630DE0EF2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
 		632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
 		632793B72C4ADEAC00F942B1 /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
 		632793B82C4ADEED00F942B1 /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
@@ -228,7 +228,7 @@
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
 		630DE0E22C51A8790053603B /* Notifications-preview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Notifications-preview.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+standard.swift"; sourceTree = "<group>"; };
+		630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+appGroup.swift"; sourceTree = "<group>"; };
 		630DE0F02C51AE870053603B /* Info-preview.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-preview.plist"; sourceTree = "<group>"; };
 		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -403,7 +403,7 @@
 				632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */,
 				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
 				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
-				630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */,
+				630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -1183,7 +1183,7 @@
 				70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */,
 				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
 				6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */,
-				630DE0EC2C51AC840053603B /* UserDefaults+standard.swift in Sources */,
+				630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				70D3866B2A60A38400AFB46E /* Yarn.swift in Sources */,
 				D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */,
 			);
@@ -1211,7 +1211,7 @@
 				63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
 				630DE0D42C51A8780053603B /* PocketChatAPI.swift in Sources */,
 				630DE0D52C51A8780053603B /* LoginStore.swift in Sources */,
-				630DE0EF2C51AC840053603B /* UserDefaults+standard.swift in Sources */,
+				630DE0EF2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				630DE0D62C51A8780053603B /* SettingsStore.swift in Sources */,
 				630DE0D72C51A8780053603B /* Login.swift in Sources */,
 				630DE0D82C51A8780053603B /* PocketAPI.swift in Sources */,
@@ -1241,7 +1241,7 @@
 				63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
 				632793CA2C4AE7CD00F942B1 /* PocketChatAPI.swift in Sources */,
 				632793B92C4ADEF100F942B1 /* LoginStore.swift in Sources */,
-				630DE0EE2C51AC840053603B /* UserDefaults+standard.swift in Sources */,
+				630DE0EE2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				632793C72C4AE69A00F942B1 /* SettingsStore.swift in Sources */,
 				632793BA2C4AE01B00F942B1 /* Login.swift in Sources */,
 				632793B82C4ADEED00F942B1 /* PocketAPI.swift in Sources */,
@@ -1278,7 +1278,7 @@
 				70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */,
 				70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */,
 				6374ACFA2C4ACD5100E637C0 /* LoginStore.swift in Sources */,
-				630DE0ED2C51AC840053603B /* UserDefaults+standard.swift in Sources */,
+				630DE0ED2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */,
 				3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */,
 			);
