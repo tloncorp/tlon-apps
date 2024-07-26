@@ -861,7 +861,6 @@
   |=  [=source:a =index:a]
   ::  if we're a DM with only the %dm-invite event, we need to set
   ::  the floor to the last-read time
-  ~!  stream.index
   ?.  ?&  ?=(%dm -.source)
           ?=([[* [[%dm-invite *] *]] ~ ~] stream.index)
       ==
