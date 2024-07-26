@@ -68,6 +68,8 @@
 		632793D02C4AEA5E00F942B1 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 632793CF2C4AEA5E00F942B1 /* SimpleKeychain */; };
 		632793D22C4AEA6400F942B1 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D12C4AEA6400F942B1 /* Alamofire */; };
 		632793D42C4AEA6800F942B1 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D32C4AEA6800F942B1 /* UrsusSigil */; };
+		63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
+		63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
 		6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACE12C49DA9600E637C0 /* NotificationService.swift */; };
 		6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
 		6374ACFA2C4ACD5100E637C0 /* LoginStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACF82C4ACD5000E637C0 /* LoginStore.swift */; };
@@ -1193,6 +1195,7 @@
 				630DE0D12C51A8780053603B /* ContactStore.swift in Sources */,
 				630DE0D22C51A8780053603B /* NotificationService.swift in Sources */,
 				630DE0D32C51A8780053603B /* ClubStore.swift in Sources */,
+				63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
 				630DE0D42C51A8780053603B /* PocketChatAPI.swift in Sources */,
 				630DE0D52C51A8780053603B /* LoginStore.swift in Sources */,
 				630DE0EF2C51AC840053603B /* UserDefaults+standard.swift in Sources */,
@@ -1222,6 +1225,7 @@
 				632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */,
 				6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */,
 				632793CB2C4AE7D900F942B1 /* ClubStore.swift in Sources */,
+				63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
 				632793CA2C4AE7CD00F942B1 /* PocketChatAPI.swift in Sources */,
 				632793B92C4ADEF100F942B1 /* LoginStore.swift in Sources */,
 				630DE0EE2C51AC840053603B /* UserDefaults+standard.swift in Sources */,
