@@ -442,11 +442,7 @@ export function Channel({
                                             ? setShowAddGalleryPost(true)
                                             : setShowBigInput(true)
                                       }
-                                      label={
-                                        channel.type === 'echo'
-                                          ? channel.meta.message
-                                          : 'Add Post'
-                                      }
+                                      label={'Add Post'}
                                       icon={
                                         <Icon
                                           type="Add"

@@ -142,7 +142,7 @@ export function CreateChannelSheet({
       title: string;
       description: string;
       channelType: string;
-      echo: string;
+      echo?: string;
     }) => {
       createChannel({
         title: data.title,

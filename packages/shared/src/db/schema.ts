@@ -639,7 +639,7 @@ export const channels = sqliteTable(
       onDelete: 'cascade',
     }),
     ...metaFields,
-    meta: text('meta', { mode: 'json' }),
+    meta: text('meta', { mode: 'json' }).$type<any>(),
     contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),

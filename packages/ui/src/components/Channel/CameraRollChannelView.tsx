@@ -6,20 +6,27 @@ import { extractContentTypesFromPost } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as ub from '@tloncorp/shared/dist/urbit';
 import { CameraView } from 'expo-camera';
+import { useCameraPermissions } from 'expo-image-picker';
 import {
   ComponentProps,
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChevronLeft } from '../../assets/icons';
 import { AttachmentProvider, useAttachmentContext } from '../../contexts';
-import { Image, Spinner, View, XStack } from '../../core';
+import { Image, Spinner, Text } from '../../core';
+import { View, XStack } from '../../core';
+import { Button } from '../Button';
+import { Icon } from '../Icon';
+import { IconButton } from '../IconButton';
 import { Channel } from './index';
 
 type CameraRollStackParamList = {
@@ -63,7 +70,8 @@ function CameraRollCameraView({
   navigation: NativeStackNavigationProp<CameraRollStackParamList>;
 }) {
   const { bottom } = useSafeAreaInsets();
-  const { channel, messageSender, posts } = useContext(cameraRollContext);
+  const { channel, messageSender, posts, goBack } =
+    useContext(cameraRollContext);
   const handlePressGallery = useCallback(() => {
     navigation.navigate('Gallery');
   }, []);
@@ -137,6 +145,33 @@ function CameraRollCameraView({
       sendMessage();
     }
   }, [attachments, isAttaching, sendMessage]);
+  const insets = useSafeAreaInsets();
+  const [permission, requestPermission] = useCameraPermissions();
+  const request = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!permission?.granted && !request.current) {
+      requestPermission();
+      request.current = true;
+    }
+  }, [permission?.granted, requestPermission]);
+
+  if (!permission) {
+    return <View flex={1} backgroundColor="$black" />;
+  } else if (!permission.granted) {
+    return (
+      <View
+        flex={1}
+        alignItems={'center'}
+        justifyContent="center"
+        backgroundColor="$black"
+      >
+        <Button.Text color="$gray300">
+          Grant permission to use the camera.
+        </Button.Text>
+      </View>
+    );
+  }
 
   return (
     <View flex={1}>
@@ -188,6 +223,19 @@ function CameraRollCameraView({
           <Spinner />
         </View>
       ) : null}
+      {goBack && (
+        <View
+          onPress={goBack}
+          position="absolute"
+          top={insets.top}
+          left={'$xl'}
+          width={100}
+          height={100}
+          // backgroundColor={'transparent'}
+        >
+          <Icon type="ChevronLeft" size="$l" color="$background" />
+        </View>
+      )}
     </View>
   );
 }

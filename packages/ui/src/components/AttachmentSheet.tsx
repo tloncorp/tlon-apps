@@ -13,7 +13,7 @@ export default function AttachmentSheet({
   showAttachmentSheet: boolean;
   setShowAttachmentSheet: (open: boolean) => void;
   setImage: (attachments: MessageAttachments) => void;
-  onStartDrawing: () => void;
+  onStartDrawing?: () => void;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -69,7 +69,7 @@ export default function AttachmentSheet({
 
   const startDrawing = useCallback(() => {
     setShowAttachmentSheet(false);
-    onStartDrawing();
+    onStartDrawing?.();
   }, [onStartDrawing, setShowAttachmentSheet]);
 
   const actions = [

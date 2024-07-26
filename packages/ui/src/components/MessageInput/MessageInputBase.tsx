@@ -56,7 +56,7 @@ export interface MessageInputProps {
     editor: EditorBridge | null;
     setEditor: (editor: EditorBridge) => void;
   }>;
-  onStartDrawing: () => void;
+  onStartDrawing?: () => void;
 }
 
 export const MessageInputContainer = ({
@@ -93,7 +93,7 @@ export const MessageInputContainer = ({
   cancelEditing?: () => void;
   onPressEdit?: () => void;
   goBack?: () => void;
-  onStartDrawing: () => void;
+  onStartDrawing?: () => void;
 }>) => {
   const { canUpload } = useAttachmentContext();
   return (

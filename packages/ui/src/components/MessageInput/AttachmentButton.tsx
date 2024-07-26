@@ -10,7 +10,7 @@ import { IconButton } from '../IconButton';
 export default function AttachmentButton({
   setShouldBlur,
 }: {
-  onStartDrawing: () => void;
+  onStartDrawing?: () => void;
   setShouldBlur: (shouldBlur: boolean) => void;
 }) {
   return (

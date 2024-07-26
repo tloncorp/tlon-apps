@@ -9,7 +9,7 @@ export default function AttachmentButton({
   setShouldBlur,
   onStartDrawing,
 }: {
-  onStartDrawing: () => void;
+  onStartDrawing?: () => void;
   setShouldBlur: (shouldBlur: boolean) => void;
 }) {
   const [showInputSelector, setShowInputSelector] = useState(false);
