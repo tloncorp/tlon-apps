@@ -83,7 +83,6 @@ const ChatMessage = ({
     return Boolean(onPress || post.deliveryStatus === 'failed');
   }, [onPress, post.deliveryStatus]);
   const handlePress = useCallback(() => {
-    onPress?.(post);
     if (onPress) {
       onPress(post);
     } else if (post.deliveryStatus === 'failed') {
