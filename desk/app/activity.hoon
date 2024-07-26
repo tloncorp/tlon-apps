@@ -148,13 +148,7 @@
         state-1
     ==
   +$  state-6  current-state
-  +$  state-5
-    $:  %5
-        allowed=notifications-allowed:a
-        =indices:a
-        =activity:a
-        =volume-settings:a
-    ==
+  +$  state-5  _%*(. *state-6 - %5)
   ++  state-5-to-6
     |=  old=state-5
     ^-  state-6
