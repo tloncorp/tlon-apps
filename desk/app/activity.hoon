@@ -830,15 +830,13 @@
 ::  otherwise we end up with a bunch of dms/channels that are
 ::  incorrectly unread.
 ++  fix-init-unreads
-  =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
-  =.  indices  (fix-channel-init-unreads indices channels)
-  =+  .^  [dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
-      %gx  (scry-path %chat /full/noun)
-    ==
-  =.  indices  (fix-dm-init-unreads indices dms clubs)
+  =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
+  =.  indices  (fix-channel-init-unreads indices unreads)
+  =+  .^(=unreads:ch %gx (scry-path %chat /unreads/noun))
+  =.  indices  (fix-dm-init-unreads indices unreads)
   refresh-all-summaries
 ++  fix-channel-init-unreads
-  |=  [=indices:a =channels:c]
+  |=  [=indices:a =unreads:c]
   %-  ~(urn by indices)
   |=  [=source:a =index:a]
   ::  if we're a channel with only the %chan-init event, we need to set
@@ -847,10 +845,11 @@
           ?=([[* [[%chan-init *] *]] ~ ~] stream.index)
       ==
     index
-  ?~  channel=(~(get by channels) nest.source)  index
-  index(floor.reads last-read.remark.u.channel)
+  ?~  channel=(~(get by unreads) nest.source)  index
+  ?.  &(=(count.u.channel 0) =(~ unread.u.channel))  index
+  index(floor.reads recency.u.channel)
 ++  fix-dm-init-unreads
-  |=  [=indices:a dms=(map ship dm:ch) clubs=(map id:club:ch club:ch)]
+  |=  [=indices:a =unreads:ch]
   ^-  indices:a
   %-  ~(urn by indices)
   |=  [=source:a =index:a]
@@ -860,15 +859,14 @@
           ?=([[* [[%dm-invite *] *]] ~ ~] stream.index)
       ==
     index
-  ?-  -.whom.source
-      %ship
-    ?~  dm=(~(get by dms) p.whom.source)  index
-    index(floor.reads last-read.remark.u.dm)
-  ::
-      %club
-    ?~  club=(~(get by clubs) p.whom.source)  index
-    index(floor.reads last-read.remark.u.club)
-  ==
+  =/  whom
+    ?-  -.whom.source
+      %ship  whom.source
+      %club  whom.source
+    ==
+  ?~  dm=(~(get by unreads) whom.source)  index
+  ?.  &(=(count.u.dm 0) =(~ unread.u.dm))  index
+  index(floor.reads recency.u.dm)
 ::  previously we used items as a way to track individual reads because
 ::  floors were not local, but we have reverted to local floors and not
 ::  tracking individual reads
@@ -1053,7 +1051,7 @@
   =;  events=(list [time incoming-event:a])
     |-
     ?~  events
-      cor(indices (fix-channel-init-unreads indices channels))
+      cor(indices (fix-channel-init-unreads indices unreads))
     =.  cor  (%*(. add-event start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
@@ -1115,7 +1113,7 @@
   =;  events=(list [time incoming-event:a])
     |-
     ?~  events
-      cor(indices (fix-dm-init-unreads indices dms clubs))
+      cor(indices (fix-dm-init-unreads indices unreads))
     =.  cor  (%*(. add-event start-time -.i.events) +.i.events)
     $(events t.events)
   |-  ^-  (list [time incoming-event:a])
