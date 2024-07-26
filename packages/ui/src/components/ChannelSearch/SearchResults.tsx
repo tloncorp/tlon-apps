@@ -17,7 +17,7 @@ function SearchResultComponent({
   post: db.Post;
 }) {
   return (
-    <View marginBottom="$m" onPress={onPress}>
+    <View marginBottom="$m">
       <ChatMessage
         post={post}
         showAuthor
