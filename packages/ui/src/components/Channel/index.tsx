@@ -203,7 +203,7 @@ export function Channel({
         flatListRef.current?.scrollToIndex({
           index: anchorIndex,
           animated: false,
-          viewPosition: 1,
+          viewPosition: 0.5,
         });
         return;
       }

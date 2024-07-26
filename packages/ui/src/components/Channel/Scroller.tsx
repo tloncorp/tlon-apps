@@ -51,6 +51,7 @@ type RenderItemFunction = (props: {
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
+  isHighlighted?: boolean;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -190,7 +191,7 @@ const Scroller = forwardRef(
           flatListRef.current?.scrollToIndex({
             index: anchorIndex,
             animated: false,
-            viewPosition: 1,
+            viewPosition: anchor?.type === 'unread' ? 1 : 0.5,
           });
         }
 
@@ -206,7 +207,7 @@ const Scroller = forwardRef(
           setHasFoundAnchor(true);
         }
       },
-      [anchor?.postId, anchorIndex, hasFoundAnchor, posts?.length]
+      [anchor?.postId, anchorIndex, hasFoundAnchor, posts?.length, anchor?.type]
     );
 
     const theme = useTheme();
@@ -232,6 +233,8 @@ const Scroller = forwardRef(
           previousItem?.authorId !== item.authorId ||
           previousItem?.type === 'notice' ||
           isFirstPostOfDay;
+        const isSelected =
+          anchor?.type === 'selected' && anchor.postId === item.id;
 
         const isFirstUnread = item.id === firstUnreadId;
 
@@ -239,6 +242,7 @@ const Scroller = forwardRef(
           <ScrollerItem
             item={item}
             index={index}
+            isSelected={isSelected}
             showUnreadDivider={isFirstUnread}
             showDayDivider={isFirstPostOfDay}
             showAuthor={showAuthor}
@@ -264,6 +268,8 @@ const Scroller = forwardRef(
       },
       [
         posts,
+        anchor?.type,
+        anchor?.postId,
         firstUnreadId,
         renderItem,
         unreadCount,
@@ -511,6 +517,7 @@ const BaseScrollerItem = ({
   onPressDelete,
   activeMessage,
   messageRef,
+  isSelected,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -534,6 +541,7 @@ const BaseScrollerItem = ({
   onPressDelete: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
+  isSelected: boolean;
 }) => {
   const post = useLivePost(item);
 
@@ -574,6 +582,7 @@ const BaseScrollerItem = ({
         isActive={activeMessage?.id === post.id}
       >
         <Component
+          isHighlighted={isSelected}
           post={post}
           editing={editingPost && editingPost?.id === item.id}
           setEditingPost={setEditingPost}
