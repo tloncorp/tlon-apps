@@ -41,7 +41,7 @@ const NoticeWrapper = ({
 const ChatMessage = ({
   post,
   showAuthor,
-  authorRowProps,
+  hideProfilePreview,
   onPressReplies,
   onPressImage,
   onPress,
@@ -55,6 +55,7 @@ const ChatMessage = ({
 }: {
   post: db.Post;
   showAuthor?: boolean;
+  hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
   onPressReplies?: (post: db.Post) => void;
@@ -177,7 +178,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
-            {...authorRowProps}
+            disabled={hideProfilePreview}
             // roles={roles}
           />
         </View>

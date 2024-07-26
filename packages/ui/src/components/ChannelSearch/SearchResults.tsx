@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
 import { useCallback, useMemo } from 'react';
+import React from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,6 +8,26 @@ import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import { ChatMessage } from '../ChatMessage';
 import { SearchStatus } from './SearchStatus';
 import { SearchState } from './types';
+
+function SearchResultComponent({
+  onPress,
+  post,
+}: {
+  onPress: () => void;
+  post: db.Post;
+}) {
+  return (
+    <View marginBottom="$m" onPress={onPress}>
+      <ChatMessage
+        post={post}
+        showAuthor
+        hideProfilePreview
+        onPress={onPress}
+      />
+    </View>
+  );
+}
+const SearchResult = React.memo(SearchResultComponent);
 
 export function SearchResults({
   posts,
@@ -28,21 +49,9 @@ export function SearchResults({
   const isInitial = search.query === '';
 
   const renderItem = useCallback(
-    ({ item: post }: { item: db.Post }) => {
-      return (
-        <View
-          marginBottom="$m"
-          onPress={() => navigateToPost(post as unknown as db.Post)}
-        >
-          <ChatMessage
-            post={post}
-            showAuthor
-            onPress={() => navigateToPost(post as unknown as db.Post)}
-            authorRowProps={{ nonPressable: true }}
-          />
-        </View>
-      );
-    },
+    ({ item: post }: { item: db.Post }) => (
+      <SearchResult onPress={() => navigateToPost(post)} post={post} />
+    ),
     [navigateToPost]
   );
 

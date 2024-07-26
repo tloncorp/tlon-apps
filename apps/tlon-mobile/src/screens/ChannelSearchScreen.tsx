@@ -9,7 +9,6 @@ import {
   SearchResults,
   XStack,
   YStack,
-  useContacts,
 } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
