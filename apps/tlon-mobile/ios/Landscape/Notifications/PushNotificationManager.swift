@@ -77,26 +77,9 @@ enum NotificationCategory: String {
     }
 
     @objc static func handleBackgroundNotification(_ userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
-        guard let action = userInfo["action"] as? String,
-              let uid = userInfo["uid"] as? String
-        else {
-            return .noData
-        }
-
-        if action == "notify" {
-            let yarn: Yarn
-            do {
-                yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
-            } catch {
-                error.logWithDomain(TlonError.NotificationsFetchYarn)
-
-                if error.isAFTimeout, await sendFallbackNotification() {
-                    return .newData
-                }
-
-                return .failed
-            }
-
+        let parseResult = await parseNotificationUserInfo(userInfo)
+        switch parseResult {
+        case let .notify(yarn):
             // Skip if not a valid push notification
             guard yarn.isValidNotification else {
                 print("Skipping notification: \(yarn)")
@@ -105,18 +88,52 @@ enum NotificationCategory: String {
 
             let success = await sendNotification(with: yarn)
             return success ? .newData : .failed
-        }
 
-        if action == "dismiss" {
+        case let .dismiss(uid):
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [uid])
             return .newData
-        }
 
-        return .noData
+        case let .failedFetchContents(error):
+            error.logWithDomain(TlonError.NotificationsFetchYarn)
+
+            if error.isAFTimeout, await sendFallbackNotification() {
+                return .newData
+            }
+
+            return .failed
+
+        case .invalid:
+            return .noData
+        }
     }
 
     static func sendNotification(with yarn: Yarn) async -> Bool {
-        var content = UNMutableNotificationContent()
+        let (content, intent) = await buildNotificationWithIntent(yarn: yarn)
+
+        if let intent {
+            do {
+                let interaction = INInteraction(intent: intent, response: nil)
+                interaction.direction = .incoming
+                try await interaction.donate()
+            } catch {
+                print("Error donating interaction for notification sender details: \(error)")
+            }
+        }
+
+        let request = UNNotificationRequest(identifier: yarn.id, content: content, trigger: nil)
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            return true
+        } catch {
+            error.logWithDomain(TlonError.NotificationsShowBanner)
+            return false
+        }
+    }
+
+    static func buildNotificationWithIntent(
+        yarn: Yarn,
+        content: UNMutableNotificationContent = UNMutableNotificationContent()
+    ) async -> (UNNotificationContent, INSendMessageIntent?) {
         content.interruptionLevel = .timeSensitive
         content.threadIdentifier = yarn.channelID
         content.title = await yarn.getTitle()
@@ -146,32 +163,19 @@ enum NotificationCategory: String {
             }
 
             do {
-                let interaction = INInteraction(intent: intent, response: nil)
-                interaction.direction = .incoming
-                try await interaction.donate()
-            } catch {
-                print("Error donating interaction for notification sender details: \(error)")
-            }
-
-            do {
-                content = try content.updating(from: intent) as! UNMutableNotificationContent
+                let updatedNotifContent = try content.updating(from: intent)
+                return (updatedNotifContent, intent)
             } catch {
                 print("Error updating content for notification sender details: \(error)")
+                return (content, nil)
             }
         }
 
-        let request = UNNotificationRequest(identifier: yarn.id, content: content, trigger: nil)
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-            return true
-        } catch {
-            error.logWithDomain(TlonError.NotificationsShowBanner)
-            return false
-        }
+        return (content, nil)
     }
 
     static func sendFallbackNotification() async -> Bool {
-        var content = UNMutableNotificationContent()
+        let content = UNMutableNotificationContent()
         content.body = "You have received a notification."
         content.userInfo = ["wer": "/notifications"]
         let request = UNNotificationRequest(identifier: "notification_fallback", content: content, trigger: nil)
@@ -181,6 +185,37 @@ enum NotificationCategory: String {
         } catch {
             error.logWithDomain(TlonError.NotificationsShowFallback)
             return false
+        }
+    }
+
+    enum ParseNotificationResult {
+        case notify(Yarn)
+        case dismiss(uid: String)
+        case invalid
+        case failedFetchContents(Error)
+    }
+
+    static func parseNotificationUserInfo(_ userInfo: [AnyHashable: Any]) async -> ParseNotificationResult {
+        guard let action = userInfo["action"] as? String,
+              let uid = userInfo["uid"] as? String
+        else {
+            return .invalid
+        }
+
+        switch action {
+        case "notify":
+            do {
+                let yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
+                return .notify(yarn)
+            } catch {
+                return .failedFetchContents(error)
+            }
+
+        case "dismiss":
+            return .dismiss(uid: uid)
+
+        default:
+            return .invalid
         }
     }
 }
