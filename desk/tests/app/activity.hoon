@@ -565,54 +565,39 @@
       |=  =path
       ^-  (unit vase)
       ?+  path  ~
-        [%gx @ %chat @ %full *]   `!>(chat-scry)
-        [%gx @ %channels @ %v2 %channels %full *]   `!>(channels-scry)
+        [%gx @ %chat @ %unreads *]   `!>(chat-scry)
+        [%gx @ %channels @ %v1 %unreads *]   `!>(channels-scry)
       ==
     ++  channels-scry
-      ^-  channels:c
+      ^-  unreads:c
       =+  sources
-      =|  empty=channel:c
-      %-  ~(gas by *channels:c)
+      %-  ~(gas by *unreads:c)
       :~  :-  (get-nest source.chnl)
-          empty(remark [d5 d4 & ~])
+          [d5 0 ~ ~]
           :-  (get-nest source.bad-chnl-migration)
-          empty(remark [d1 d1 & ~])
+          [d1 0 ~ ~]
       ==
     ++  chat-scry
-      ^-  [dms clubs]
+      ^-  unreads:ch
       =+  sources
-      =|  empty-club=club:ch
-      =|  empty-dm=dm:ch
-      =/  =dms
-        %-  ~(gas by *dms)
-        :~  :-  (get-ship source.read-dm)
-            empty-dm(remark [d4 d3 & ~])
-            :-  (get-ship source.unread-dm)
-            empty-dm(remark [d3 d0 & ~])
-            :-  (get-ship source.bad-dm-migration)
-            empty-dm(remark [d1 d1 & ~])
-        ==
-      =/  =clubs
-        %+  ~(put by *clubs)  (get-club source.dm-invite)
-        empty-club(remark [d0 d0 & ~])
-      [dms clubs]
+      %-  ~(gas by *unreads:ch)
+      :~  :-  (get-whom source.read-dm)
+          [d4 0 ~ ~]
+          :-  (get-whom source.unread-dm)
+          [d3 2 `[[[~rus d2] d2] 2] ~]
+          :-  (get-whom source.bad-dm-migration)
+          [d1 0 ~ ~]
+      ==
     ++  get-nest
       |=  =source:a
       ^-  nest:c
       ?>  ?=(%channel -.source)
       nest.source
-    ++  get-ship
+    ++  get-whom
       |=  =source:a
-      ^-  ship
+      ^-  whom:ch
       ?>  ?=(%dm -.source)
-      ?>  ?=(%ship -.whom.source)
-      p.whom.source
-    ++  get-club
-      |=  =source:a
-      ^-  id:club:ch
-      ?>  ?=(%dm -.source)
-      ?>  ?=(%club -.whom.source)
-      p.whom.source
+      whom.source
     ++  volumes
       %+  roll
         ~(tap by indices)
