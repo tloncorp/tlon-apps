@@ -352,10 +352,6 @@
 				70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */,
 				70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */,
 				70D386652A60A37000AFB46E /* Extensions */,
-				70D386682A60A38400AFB46E /* Models */,
-				70D386542A609BFC00AFB46E /* Networking */,
-				70D386522A609BFC00AFB46E /* Notifications */,
-				700B635E2A71E06E0017F40F /* Storage */,
 			);
 			name = Landscape;
 			sourceTree = "<group>";
@@ -389,14 +385,50 @@
 			path = Notifications;
 			sourceTree = "<group>";
 		};
+		63E7040B2C540F30006CF214 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				63E7040C2C540F96006CF214 /* Extensions */,
+				63E7040D2C540FD6006CF214 /* Models */,
+				70D386542A609BFC00AFB46E /* Networking */,
+				70D386522A609BFC00AFB46E /* Notifications */,
+				700B635E2A71E06E0017F40F /* Storage */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		63E7040C2C540F96006CF214 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */,
+				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
+				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
+				630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		63E7040D2C540FD6006CF214 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				709FC0EC2AC1E25D00B0644D /* Club.swift */,
+				700B635C2A71DFE90017F40F /* Contact.swift */,
+				70D3866A2A60A38400AFB46E /* Group.swift */,
+				6374ACFC2C4ACD7500E637C0 /* Login.swift */,
+				7083A16B2AFB01A30022404A /* TlonError.swift */,
+				70D386692A60A38400AFB46E /* Yarn.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		700B635E2A71E06E0017F40F /* Storage */ = {
 			isa = PBXGroup;
 			children = (
 				7036E3552ACD17600020A9FB /* ClubStore.swift */,
 				700B63612A71E0D70017F40F /* ContactStore.swift */,
 				7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */,
-				700B635F2A71E0810017F40F /* SettingsStore.swift */,
 				6374ACF82C4ACD5000E637C0 /* LoginStore.swift */,
+				700B635F2A71E0810017F40F /* SettingsStore.swift */,
 				7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */,
 			);
 			path = Storage;
@@ -407,8 +439,7 @@
 			children = (
 				70D386532A609BFC00AFB46E /* PushNotificationManager.swift */,
 			);
-			name = Notifications;
-			path = Landscape/Notifications;
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		70D386542A609BFC00AFB46E /* Networking */ = {
@@ -420,35 +451,16 @@
 				700B635A2A71DF860017F40F /* PocketUserAPI.swift */,
 				70D386552A609BFC00AFB46E /* UrbitAPI.swift */,
 			);
-			name = Networking;
-			path = Landscape/Networking;
+			path = Networking;
 			sourceTree = "<group>";
 		};
 		70D386652A60A37000AFB46E /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
 				701A09AF2B03081300D8F710 /* Error+logWithDomain.swift */,
-				632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */,
-				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
-				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
-				630DE0EB2C51AC840053603B /* UserDefaults+standard.swift */,
 			);
 			name = Extensions;
 			path = Landscape/Extensions;
-			sourceTree = "<group>";
-		};
-		70D386682A60A38400AFB46E /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				709FC0EC2AC1E25D00B0644D /* Club.swift */,
-				700B635C2A71DFE90017F40F /* Contact.swift */,
-				70D3866A2A60A38400AFB46E /* Group.swift */,
-				7083A16B2AFB01A30022404A /* TlonError.swift */,
-				70D386692A60A38400AFB46E /* Yarn.swift */,
-				6374ACFC2C4ACD7500E637C0 /* Login.swift */,
-			);
-			name = Models;
-			path = Landscape/Models;
 			sourceTree = "<group>";
 		};
 		70F99A8F2B2D2B5700D77256 /* LandscapeTests */ = {
@@ -473,6 +485,7 @@
 				70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */,
 				13B07FAE1A68108700A75B9A /* Landscape */,
 				70F99A8F2B2D2B5700D77256 /* LandscapeTests */,
+				63E7040B2C540F30006CF214 /* Shared */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				6374ACE02C49DA9600E637C0 /* Notifications */,
 				83CBBA001A601CBA00E9B192 /* Products */,
