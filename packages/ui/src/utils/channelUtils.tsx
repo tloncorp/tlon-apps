@@ -74,6 +74,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelGalleries';
     case 'picto':
       return 'Draw';
+    case 'echo':
+      return 'Record';
     default:
       return 'ChannelTalk';
   }

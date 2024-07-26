@@ -8,12 +8,18 @@ import { FormInput } from '../FormInput';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 
-export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'picto';
+export type ChannelTypeName =
+  | 'chat'
+  | 'notebook'
+  | 'gallery'
+  | 'picto'
+  | 'echo';
 type ChannelTypeIcon =
   | 'ChannelTalk'
   | 'ChannelNotebooks'
   | 'ChannelGalleries'
-  | 'Draw';
+  | 'Draw'
+  | 'Record';
 
 type ChannelType = {
   title: string;
@@ -42,7 +48,13 @@ const channelTypes: ChannelType[] = [
     iconType: 'ChannelGalleries',
   },
   {
-    title: 'Picochat Channel',
+    title: 'Echo chamber',
+    description: 'Repeat the same message with friends',
+    channelType: 'echo',
+    iconType: 'Record',
+  },
+  {
+    title: 'Pictochat Channel',
     description: 'Draw and chat with friends',
     channelType: 'picto',
     iconType: 'Draw',
@@ -62,7 +74,7 @@ function ChannelTypeRow({
   channelTypeTitle: string;
   description: string;
   onPress: () => void;
-  currentChannelType?: 'chat' | 'notebook' | 'gallery';
+  currentChannelType?: ChannelTypeName;
 }) {
   return (
     <Pressable onPress={onPress}>
@@ -121,13 +133,16 @@ export function CreateChannelSheet({
       title: string;
       description: string;
       channelType: string;
+      echo: string;
     }) => {
       createChannel({
         title: data.title,
         description:
           channelType === 'picto'
             ? JSON.stringify({ type: 'picto' })
-            : data.description,
+            : channelType === 'echo'
+              ? JSON.stringify({ type: 'echo', meta: { message: data.echo } })
+              : data.description,
         channelType:
           channelType === 'picto'
             ? 'chat'
@@ -164,6 +179,15 @@ export function CreateChannelSheet({
             label="Description"
             placeholder="Channel description"
           />
+          {channelType === 'echo' && (
+            <FormInput
+              control={control}
+              errors={errors}
+              name="echo"
+              label="Echo message"
+              rules={{ required: 'Message is required' }}
+            />
+          )}
           <YStack
             gap="$xl"
             width="100%"

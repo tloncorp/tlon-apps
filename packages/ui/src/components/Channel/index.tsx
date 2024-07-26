@@ -28,6 +28,7 @@ import { useStickyUnread } from '../../hooks/useStickyUnread';
 import * as utils from '../../utils';
 import AddGalleryPost from '../AddGalleryPost';
 import { BigInput } from '../BigInput';
+import { Button } from '../Button';
 import { ChatMessage } from '../ChatMessage';
 import { StandaloneDrawingInput } from '../DrawingInput';
 import { SheetDrawingInput } from '../DrawingInput';
@@ -143,13 +144,14 @@ export function Channel({
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const channelUnread = useStickyUnread(channel.unread);
-  const renderItem = isChatChannel
-    ? ChatMessage
-    : channel.type == 'picto'
-      ? PictoMessage
-      : channel.type === 'notebook'
-        ? NotebookPost
-        : GalleryPost;
+  const renderItem =
+    isChatChannel || channel.type === 'echo'
+      ? ChatMessage
+      : channel.type == 'picto'
+        ? PictoMessage
+        : channel.type === 'notebook'
+          ? NotebookPost
+          : GalleryPost;
 
   const renderEmptyComponent = useCallback(() => {
     return <EmptyChannelNotice channel={channel} userId={currentUserId} />;
@@ -218,6 +220,10 @@ export function Channel({
   const handleStartDrawing = useCallback(() => {
     setIsDrawing(true);
   }, []);
+
+  const sendEcho = useCallback(() => {
+    messageSender([{ inline: [channel?.meta?.message] }], channel.id);
+  }, [channel.id, channel?.meta?.message, messageSender]);
 
   return (
     <ScrollContextProvider>
@@ -321,6 +327,7 @@ export function Channel({
                                       key={scrollerAnchor?.postId}
                                       inverted={
                                         isChatChannel ||
+                                        channel.type === 'echo' ||
                                         channel.type === 'picto'
                                           ? true
                                           : false
@@ -393,8 +400,25 @@ export function Channel({
                                   }
                                 />
                               )}
+                            {channel.type === 'echo' && (
+                              <View paddingBottom={bottom} width={'100%'}>
+                                <View padding="$l">
+                                  <Button onPress={sendEcho}>
+                                    <Icon
+                                      type="Add"
+                                      size={'$s'}
+                                      marginRight={'$s'}
+                                    />
+                                    <Button.Text size={'$s'}>
+                                      {channel?.meta?.message}
+                                    </Button.Text>
+                                  </Button>
+                                </View>
+                              </View>
+                            )}
                             {!isChatChannel &&
                               channel.type !== 'picto' &&
+                              channel.type !== 'echo' &&
                               canWrite &&
                               !showBigInput && (
                                 <View
@@ -409,11 +433,17 @@ export function Channel({
                                     isUploadingGalleryImage) ? null : (
                                     <FloatingActionButton
                                       onPress={() =>
-                                        channel.type === 'gallery'
-                                          ? setShowAddGalleryPost(true)
-                                          : setShowBigInput(true)
+                                        channel.type === 'echo'
+                                          ? sendEcho()
+                                          : channel.type === 'gallery'
+                                            ? setShowAddGalleryPost(true)
+                                            : setShowBigInput(true)
                                       }
-                                      label="New Post"
+                                      label={
+                                        channel.type === 'echo'
+                                          ? channel.meta.message
+                                          : 'Add Post'
+                                      }
                                       icon={
                                         <Icon
                                           type="Add"
