@@ -9,6 +9,7 @@ declare global {
     scroller?: string;
     bootstrapApi: boolean;
     toggleDevTools: () => void;
+    toggleNewApp: () => void;
     unread: any;
     markRead: Rope;
     recents: any;

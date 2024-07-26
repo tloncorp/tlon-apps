@@ -1,4 +1,4 @@
-// import { useBridgeState, useKeyboard } from '@10play/tentap-editor';
+import { useBridgeState, useKeyboard } from '@10play/tentap-editor';
 import React, { memo, useCallback, useMemo } from 'react';
 import {
   FlatList,
@@ -31,8 +31,8 @@ const InputToolbar = memo(
     hidden = undefined,
     items = DEFAULT_TOOLBAR_ITEMS,
   }: ToolbarProps) => {
-    const editorState = {} as TlonBridgeState;
-    const { isKeyboardUp } = { isKeyboardUp: false };
+    const editorState = useBridgeState(editor) as TlonBridgeState;
+    const { isKeyboardUp } = useKeyboard();
     const [toolbarContext, setToolbarContext] = React.useState<ToolbarContext>(
       ToolbarContext.Main
     );

@@ -1,4 +1,4 @@
-import { EditorBridge } from '@10play/tentap-editor';
+import type { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';

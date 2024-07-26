@@ -17,7 +17,7 @@ import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:

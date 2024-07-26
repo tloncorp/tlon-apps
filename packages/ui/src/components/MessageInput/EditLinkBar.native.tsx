@@ -1,5 +1,4 @@
-// import { EditorTheme, Images } from '@10play/tentap-editor';
-import type { EditorTheme } from '@10play/tentap-editor';
+import { EditorTheme, Images } from '@10play/tentap-editor';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 // TODO: replace with our own input component
@@ -38,13 +37,11 @@ export const EditLinkBar = ({
         <View
           style={[theme.toolbar.iconWrapper, theme.toolbar.iconWrapperActive]}
         >
-          {/*
           <Image
             source={Images.link}
             style={[theme.toolbar.icon]}
             resizeMode="contain"
           />
-          */}
         </View>
       </TouchableOpacity>
       <Input

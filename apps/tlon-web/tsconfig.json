@@ -1,12 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext",
-      "WebWorker"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "experimentalDecorators": true,
     "strict": true,
     "module": "ESNext",
@@ -22,9 +17,8 @@
     ],
     "composite": true,
     "paths": {
-      "@/*": [
-        "./apps/tlon-web/src/*"
-      ]
+      "@/*": ["./apps/tlon-web/src/*"],
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
     }
   },
   "include": [

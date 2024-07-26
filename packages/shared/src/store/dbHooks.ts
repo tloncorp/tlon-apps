@@ -222,6 +222,13 @@ export const useLiveUnread = (
   return isThread ? threadUnread : channelUnread;
 };
 
+export const useChannels = () => {
+  return useQuery({
+    queryKey: ['channels'],
+    queryFn: () => db.getChannels(),
+  });
+}
+
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups'],

@@ -1,4 +1,4 @@
-// import { EditorBridge } from '@10play/tentap-editor';
+import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/dist/db';
 import { useMemo, useRef, useState } from 'react';
 import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
@@ -38,7 +38,7 @@ export function BigInput({
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
     editor: TlonEditorBridge | null;
-    setEditor: (editor: object) => void;
+    setEditor: (editor: EditorBridge) => void;
   }>(null);
   const { top } = useSafeAreaInsets();
   const { width } = Dimensions.get('screen');

@@ -149,6 +149,7 @@
     "refractor": "^4.8.0",
     "slugify": "^1.6.6",
     "sorted-btree": "^1.8.1",
+    "sqlocal": "^0.10.2",
     "tailwindcss-opentype": "^1.1.0",
     "tailwindcss-scoped-groups": "^2.0.0",
     "tippy.js": "^6.3.7",
@@ -197,6 +198,7 @@
     "autoprefixer": "^10.4.4",
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
+    "drizzle-kit": "^0.21.1",
     "fs-extra": "^11.1.1",
     "jsdom": "^23.2.0",
     "lint-staged": "^15.0.0",
@@ -216,6 +218,7 @@
     "tsc-files": "^1.1.4",
     "vite": "^5.1.6",
     "vite-plugin-pwa": "^0.17.5",
+    "vite-plugin-react-native-web": "^1.0.3",
     "vitest": "^0.34.1",
     "workbox-window": "^7.0.0"
   },

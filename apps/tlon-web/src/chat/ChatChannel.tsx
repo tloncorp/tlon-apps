@@ -191,4 +191,6 @@ const ChatChannel = React.memo(({ title }: ViewProps) => {
   );
 });
 
+ChatChannel.displayName = 'ChatChannel';
+
 export default ChatChannel;

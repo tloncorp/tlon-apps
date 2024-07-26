@@ -1,10 +1,20 @@
 // Copyright 2022, Tlon Corporation
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { TamaguiProvider } from '@tamagui/web';
+import { sync } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/dist/api';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Helmet } from 'react-helmet';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   Location,
   NavigateFunction,
@@ -83,7 +93,13 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import Profile from '@/profiles/Profile';
 import ProfileModal from '@/profiles/ProfileModal';
 import bootstrap from '@/state/bootstrap';
-import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
+import {
+  toggleDevTools,
+  toggleNewApp,
+  useLocalState,
+  useNewApp,
+  useShowDevTools,
+} from '@/state/local';
 import { useScheduler } from '@/state/scheduler';
 import {
   useAnalyticsId,
@@ -92,6 +108,7 @@ import {
   useTheme,
 } from '@/state/settings';
 
+import { config as tamaguiConfig } from '../tamagui.config';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import ThreadVolumeDialog from './channels/ThreadVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
@@ -110,10 +127,12 @@ import { JoinGroupDialog } from './groups/AddGroup/JoinGroup';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
+import { setupDb, useMigrations } from './lib/webDb';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import Notification from './notifications/Notification';
 import ShareDMLure from './profiles/ShareDMLure';
+import ChatListScreen from './screens/ChatListScreen';
 import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
 
@@ -170,6 +189,17 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   const currentTheme = useLocalState((s) => s.currentTheme);
 
   const state = location.state as { backgroundLocation?: Location } | null;
+
+  useEffect(() => {
+    api.configureClient({
+      shipName: window.our,
+      shipUrl: '',
+      onReset: () => sync.syncStart(),
+      onChannelReset: () => sync.handleDiscontinuity(),
+    });
+
+    sync.syncStart();
+  }, []);
 
   useEffect(() => {
     if (loaded) {
@@ -551,6 +581,8 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   );
 });
 
+GroupsRoutes.displayName = 'GroupsRoutes';
+
 function authRedirect() {
   document.location = `${document.location.protocol}//${document.location.host}`;
 }
@@ -606,12 +638,33 @@ function Firehose() {
   return null;
 }
 
+function NewAppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<ChatListScreen />} />
+    </Routes>
+  );
+}
+
+function MigrationCheck({ children }: PropsWithChildren) {
+  const { success, error } = useMigrations();
+  if (!success && !error) {
+    return null;
+  }
+  if (error) {
+    throw error;
+  }
+  return <>{children}</>;
+}
+
 const App = React.memo(() => {
   useNativeBridge();
   const navigate = useNavigate();
+  const newApp = true; // useNewApp();
   const handleError = useErrorHandler();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
+  const isDarkMode = useIsDark();
 
   useEffect(() => {
     if (isNativeApp()) {
@@ -628,25 +681,46 @@ const App = React.memo(() => {
 
   useEffect(() => {
     handleError(() => {
-      bootstrap();
+      // if (!newApp) {
+      // bootstrap();
+      // }
     })();
-  }, [handleError]);
+  }, [handleError, newApp]);
 
+  // if (newApp) {
   return (
     <div className="flex h-full w-full flex-col">
-      <DisconnectNotice />
-      <Firehose />
-      <LeapProvider>
-        <ChatInputFocusProvider>
-          <DragAndDropProvider>
-            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
-          </DragAndDropProvider>
-        </ChatInputFocusProvider>
-        <Leap />
-      </LeapProvider>
+      <MigrationCheck>
+        <SafeAreaProvider>
+          <TamaguiProvider
+            defaultTheme={isDarkMode ? 'dark' : 'light'}
+            config={tamaguiConfig}
+          >
+            <NewAppRoutes />
+          </TamaguiProvider>
+        </SafeAreaProvider>
+      </MigrationCheck>
     </div>
   );
+  // }
+
+  // return (
+  // <div className="flex h-full w-full flex-col">
+  // <DisconnectNotice />
+  // <Firehose />
+  // <LeapProvider>
+  // <ChatInputFocusProvider>
+  // <DragAndDropProvider>
+  // <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
+  // </DragAndDropProvider>
+  // </ChatInputFocusProvider>
+  // <Leap />
+  // </LeapProvider>
+  // </div>
+  // );
 });
+
+App.displayName = 'App';
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;
@@ -695,7 +769,9 @@ function RoutedApp() {
   }, []);
 
   useEffect(() => {
+    // setupDb();
     window.toggleDevTools = () => toggleDevTools();
+    window.toggleNewApp = () => toggleNewApp();
   }, []);
 
   useEffect(() => {

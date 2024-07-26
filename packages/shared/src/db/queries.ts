@@ -1112,6 +1112,14 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+export const getChannels = createReadQuery(
+  'getChannels',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.channels.findMany();
+  },
+  ['channels']
+);
+
 export const getAllMultiDms = createReadQuery(
   'getAllMultiDms',
   async (ctx: QueryCtx) => {

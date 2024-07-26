@@ -12,10 +12,13 @@ import { createRoot } from 'react-dom/client';
 import _api from './api';
 import App from './app';
 import indexedDBPersistor from './indexedDBPersistor';
+import { setupDb } from './lib/webDb';
 import SafeAreaProvider from './logic/SafeAreaContext';
 import { analyticsClient, captureError } from './logic/analytics';
 import queryClient from './queryClient';
 import './styles/index.css';
+
+setupDb();
 
 const oldUpdateState = EditorView.prototype.updateState;
 

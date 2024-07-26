@@ -14,6 +14,7 @@ import {
   loadEnv,
 } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import reactNativeWeb from 'vite-plugin-react-native-web';
 import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
@@ -70,10 +71,21 @@ export default ({ mode }: { mode: string }) => {
       svgr({
         include: '**/*.svg',
       }) as Plugin,
+      reactNativeWeb(),
       tamaguiPlugin({
         config: './tamagui.config.ts',
         platform: 'web',
       }) as Plugin,
+      {
+        name: 'configure-response-headers',
+        configureServer: (server) => {
+          server.middlewares.use((_req, res, next) => {
+            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+            next();
+          });
+        },
+      },
       VitePWA({
         base: '/apps/groups/',
         manifest,
@@ -100,7 +112,13 @@ export default ({ mode }: { mode: string }) => {
       mode === 'mock' || mode === 'staging'
         ? ['virtual:pwa-register/react']
         : // TODO: find workaround for issues with @tamagui/react-native-svg
-          ['@urbit/sigil-js/dist/core', 'react-native-svg'],
+          [
+            '@urbit/sigil-js/dist/core',
+            'react-native-svg',
+            '@tloncorp/editor/dist/editorHtml',
+            '@tloncorp/editor/src/bridges',
+            '@10play/tentap-editor',
+          ],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -145,6 +163,10 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
       host: 'localhost',
       port,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
@@ -189,6 +211,7 @@ export default ({ mode }: { mode: string }) => {
       },
     },
     optimizeDeps: {
+      exclude: ['sqlocal'],
       esbuildOptions: {
         // Fix for polyfill issue with @tamagui/animations-moti
         define: {
