@@ -352,9 +352,7 @@
     ::
     %+  skip  caz
     |=  =card
-    ?|  ?=([%give %fact [[%verb %events ~] ~] *] card)
-        ?=([%give %fact [[%verb %events-plus ~] ~] *] card)
-    ==
+    ?=([%give %fact [[%verb ?(%events %events-plus) ~] ~] *] card)
   =/  m  (mare ,~)
   ^-  form:m
   |=  s=state
