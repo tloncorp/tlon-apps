@@ -892,7 +892,6 @@
     [~ %.n ?:((gth time-id st) time-id st)]
   =.  reads.index  [new-floor ~]
   ::  with new reads, update our index and summary
-  :: =.  cor  (refresh-index source index)
   =.  indices  (~(put by indices) source index)
   =/  new-summary
     %+  ~(summarize-unreads urd indices activity vs log)
