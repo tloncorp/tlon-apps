@@ -132,7 +132,9 @@ import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import Notification from './notifications/Notification';
 import ShareDMLure from './profiles/ShareDMLure';
+import { ActivityScreen } from './screens/ActivityScreen';
 import ChatListScreen from './screens/ChatListScreen';
+import ProfileScreen from './screens/ProfileScreen';
 import { useActivityFirehose } from './state/activity';
 import { useChannelsFirehose } from './state/channel/channel';
 
@@ -189,17 +191,6 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
   const currentTheme = useLocalState((s) => s.currentTheme);
 
   const state = location.state as { backgroundLocation?: Location } | null;
-
-  useEffect(() => {
-    api.configureClient({
-      shipName: window.our,
-      shipUrl: '',
-      onReset: () => sync.syncStart(),
-      onChannelReset: () => sync.handleDiscontinuity(),
-    });
-
-    sync.syncStart();
-  }, []);
 
   useEffect(() => {
     if (loaded) {
@@ -642,6 +633,8 @@ function NewAppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<ChatListScreen />} />
+      <Route path="/activity" element={<ActivityScreen />} />
+      <Route path="/profile" element={<ProfileScreen />} />
     </Routes>
   );
 }
@@ -681,43 +674,53 @@ const App = React.memo(() => {
 
   useEffect(() => {
     handleError(() => {
-      // if (!newApp) {
-      // bootstrap();
-      // }
+      if (!newApp) {
+        bootstrap();
+      }
     })();
   }, [handleError, newApp]);
 
-  // if (newApp) {
+  useEffect(() => {
+    api.configureClient({
+      shipName: window.our,
+      shipUrl: '',
+      onReset: () => sync.syncStart(),
+      onChannelReset: () => sync.handleDiscontinuity(),
+    });
+    sync.syncStart();
+  }, []);
+
+  if (newApp) {
+    return (
+      <div className="flex h-full w-full flex-col">
+        <MigrationCheck>
+          <SafeAreaProvider>
+            <TamaguiProvider
+              defaultTheme={isDarkMode ? 'dark' : 'light'}
+              config={tamaguiConfig}
+            >
+              <NewAppRoutes />
+            </TamaguiProvider>
+          </SafeAreaProvider>
+        </MigrationCheck>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full w-full flex-col">
-      <MigrationCheck>
-        <SafeAreaProvider>
-          <TamaguiProvider
-            defaultTheme={isDarkMode ? 'dark' : 'light'}
-            config={tamaguiConfig}
-          >
-            <NewAppRoutes />
-          </TamaguiProvider>
-        </SafeAreaProvider>
-      </MigrationCheck>
+      <DisconnectNotice />
+      <Firehose />
+      <LeapProvider>
+        <ChatInputFocusProvider>
+          <DragAndDropProvider>
+            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
+          </DragAndDropProvider>
+        </ChatInputFocusProvider>
+        <Leap />
+      </LeapProvider>
     </div>
   );
-  // }
-
-  // return (
-  // <div className="flex h-full w-full flex-col">
-  // <DisconnectNotice />
-  // <Firehose />
-  // <LeapProvider>
-  // <ChatInputFocusProvider>
-  // <DragAndDropProvider>
-  // <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
-  // </DragAndDropProvider>
-  // </ChatInputFocusProvider>
-  // <Leap />
-  // </LeapProvider>
-  // </div>
-  // );
 });
 
 App.displayName = 'App';
@@ -769,7 +772,6 @@ function RoutedApp() {
   }, []);
 
   useEffect(() => {
-    // setupDb();
     window.toggleDevTools = () => toggleDevTools();
     window.toggleNewApp = () => toggleNewApp();
   }, []);

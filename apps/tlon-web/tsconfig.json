@@ -29,6 +29,7 @@
     "./*.setup.ts",
     "./rube",
     "cosmos/setup.ts",
+    "reactNativeWebPlugin.ts",
     "vite.config.mts"
   ]
 }

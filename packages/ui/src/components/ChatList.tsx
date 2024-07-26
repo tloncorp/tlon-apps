@@ -261,13 +261,13 @@ export function ChatList({
       right: 0,
       zIndex: 40,
     };
-  });
+  }, [top, scrollY, filterVisible, FILTER_HEIGHT, HEADER_HEIGHT]);
 
   const listStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: filterVisible.value ? FILTER_HEIGHT : 0 }],
     };
-  });
+  }, [filterVisible, FILTER_HEIGHT]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {

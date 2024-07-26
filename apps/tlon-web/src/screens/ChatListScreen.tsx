@@ -1,9 +1,3 @@
-// import {
-// useFocusEffect,
-// useIsFocused,
-// useNavigation,
-// } from '@react-navigation/native';
-// import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -22,8 +16,11 @@ import {
   WelcomeSheet,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ContextMenu from 'react-native-context-menu-view';
+// import ContextMenu from 'react-native-context-menu-view';
 import { useLocation, useNavigate } from 'react-router';
+
+import useFocusEffect from '@/hooks/useFocusEffect';
+import useIsFocused from '@/hooks/useIsFocused';
 
 // import AddGroupSheet from '../components/AddGroupSheet';
 // import { TLON_EMPLOYEE_GROUP } from '../constants';
@@ -65,16 +62,10 @@ export default function ChatListScreen() {
   const [startDmOpen, setStartDmOpen] = useState(false);
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  // const isFocused = useIsFocused();
+  const isFocused = useIsFocused();
   const { data: chats } = store.useCurrentChats({
-    enabled: true,
+    enabled: isFocused,
   });
-  const { data: groups } = store.useGroups({});
-  const { data: channels } = store.useChannels();
-
-  console.log({ chats, groups, channels });
-
   const currentUser = useCurrentUserId();
 
   const { data: contacts } = store.useContacts();
@@ -86,21 +77,23 @@ export default function ChatListScreen() {
     };
   }, [chats]);
 
-  // const isInitialFocus = useRef(true);
+  const isInitialFocus = useRef(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isInitialFocus) {
+        store.syncPinnedItems({ priority: store.SyncPriority.High });
+      }
+      isInitialFocus.current = false;
+    }, [])
+  );
 
   // useEffect(() => {
-  // setIsFocused(true);
-  // return () => {
-  // setIsFocused(false);
-  // };
+  // // if (!isInitialFocus.current) {
+  // store.syncPinnedItems({ priority: store.SyncPriority.High });
+  // // }
+  // // isInitialFocus.current = false;
   // }, []);
-
-  useEffect(() => {
-    // if (!isInitialFocus.current) {
-    store.syncPinnedItems({ priority: store.SyncPriority.High });
-    // }
-    // isInitialFocus.current = false;
-  }, []);
 
   // useFocusEffect(
   // useCallback(() => {
@@ -372,7 +365,6 @@ export default function ChatListScreen() {
               showFilters={showFilters}
             />
           ) : null}
-          {/*
           <View
             zIndex={50}
             position="absolute"
@@ -381,30 +373,12 @@ export default function ChatListScreen() {
             width={'100%'}
             pointerEvents="box-none"
           >
-            <ContextMenu
-              dropdownMenuMode={true}
-              actions={[
-                { title: 'Create or join a group' },
-                { title: 'Start a direct message' },
-              ]}
-              onPress={(event) => {
-                const { index } = event.nativeEvent;
-                if (index === 0) {
-                  setAddGroupOpen(true);
-                }
-                if (index === 1) {
-                  setStartDmOpen(true);
-                }
-              }}
-            >
-              <FloatingActionButton
-                icon={<Icon type="Add" size="$s" marginRight="$s" />}
-                label={'Add'}
-                onPress={() => {}}
-              />
-            </ContextMenu>
+            <FloatingActionButton
+              icon={<Icon type="Add" size="$s" marginRight="$s" />}
+              label={'Add'}
+              onPress={() => {}}
+            />
           </View>
-          */}
           {/*
           <WelcomeSheet
             open={splashVisible}

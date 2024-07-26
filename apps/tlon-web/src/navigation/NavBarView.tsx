@@ -9,6 +9,7 @@ const NavBarView = () => {
   const navigate = useNavigate();
   const isRouteActive = (routeName: string) =>
     location.pathname.startsWith(routeName);
+  const locationIsHome = location.pathname === '/';
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const currentUserId = useCurrentUserId();
 
@@ -17,11 +18,11 @@ const NavBarView = () => {
       <NavIcon
         type="Home"
         activeType="HomeFilled"
-        isActive={isRouteActive('/')}
+        isActive={locationIsHome}
         // hasUnreads={(unreadCount?.channels ?? 0) > 0}
         // intentionally leave undotted for now
         hasUnreads={false}
-        onPress={() => navigate('/chatlist')}
+        onPress={() => navigate('/')}
       />
       <NavIcon
         type="Notifications"

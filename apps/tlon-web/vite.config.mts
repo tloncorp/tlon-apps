@@ -14,10 +14,10 @@ import {
   loadEnv,
 } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import reactNativeWeb from 'vite-plugin-react-native-web';
 import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
+import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
@@ -79,9 +79,19 @@ export default ({ mode }: { mode: string }) => {
       {
         name: 'configure-response-headers',
         configureServer: (server) => {
-          server.middlewares.use((_req, res, next) => {
-            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+          server.middlewares.use((req, res, next) => {
+            if (
+              req.url &&
+              (req.url.endsWith('.png') ||
+                req.url.endsWith('.jpg') ||
+                req.url.endsWith('.jpeg') ||
+                req.url.endsWith('.gif'))
+            ) {
+              res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            } else {
+              res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+              res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+            }
             next();
           });
         },
@@ -163,10 +173,6 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode),
     server: {
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      },
       host: 'localhost',
       port,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
@@ -212,12 +218,6 @@ export default ({ mode }: { mode: string }) => {
     },
     optimizeDeps: {
       exclude: ['sqlocal'],
-      esbuildOptions: {
-        // Fix for polyfill issue with @tamagui/animations-moti
-        define: {
-          global: 'globalThis',
-        },
-      },
     },
     test: {
       globals: true,

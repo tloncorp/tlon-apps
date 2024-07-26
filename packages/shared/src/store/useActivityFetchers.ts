@@ -55,7 +55,10 @@ export function useInfiniteBucketedActivity(
     }: {
       pageParam: PageParam;
     }): Promise<logic.SourceActivityEvents[]> => {
-      const { cursor, existingSourceIds } = pageParam;
+      const { cursor = null, existingSourceIds } = pageParam ?? {
+        cursor: null,
+        existingSourceIds: [],
+      };
       logger.log(`query fn running`, bucket, pageParam);
 
       // check DB for all activity events in the bucket AFTER the specified cursor timestamp

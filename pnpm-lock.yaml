@@ -706,7 +706,7 @@ importers:
         specifier: ^1.8.1
         version: 1.8.1
       sqlocal:
-        specifier: ^0.10.2
+        specifier: ~0.10.2
         version: 0.10.2(drizzle-orm@0.30.9(patch_hash=cegrec33e6f7d6ltk7vff5r7w4)(@op-engineering/op-sqlite@5.0.5(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(@opentelemetry/api@1.8.0)(@types/better-sqlite3@7.6.9)(@types/react@18.2.55)(better-sqlite3@9.4.5)(react@18.2.0))
       tailwindcss-opentype:
         specifier: ^1.1.0
@@ -850,6 +850,9 @@ importers:
       drizzle-kit:
         specifier: ^0.21.1
         version: 0.21.1
+      flow-remove-types:
+        specifier: ^2.241.0
+        version: 2.241.0
       fs-extra:
         specifier: ^11.1.1
         version: 11.2.0
@@ -907,9 +910,6 @@ importers:
       vite-plugin-pwa:
         specifier: ^0.17.5
         version: 0.17.5(vite@5.1.6(@types/node@20.10.8)(lightningcss@1.19.0)(terser@5.19.1))(workbox-build@7.0.0(@types/babel__core@7.20.5))(workbox-window@7.0.0)
-      vite-plugin-react-native-web:
-        specifier: ^1.0.3
-        version: 1.0.3
       vitest:
         specifier: ^0.34.1
         version: 0.34.6(jsdom@23.2.0)(lightningcss@1.19.0)(terser@5.19.1)
@@ -11757,10 +11757,6 @@ packages:
       vite: ^3.1.0 || ^4.0.0 || ^5.0.0
       workbox-build: ^7.0.0
       workbox-window: ^7.0.0
-
-  vite-plugin-react-native-web@1.0.3:
-    resolution: {integrity: sha512-MWOW8TI3FjFm9zkowV7J3AIeqJ1nj/tP/IWor8WVpKPoEXZ4VlWWLpBvK+yQxsXuVsH94myWIPhNTqsSHFknFA==}
-    engines: {node: '>=14.0.0'}
 
   vite-plugin-singlefile@2.0.1:
     resolution: {integrity: sha512-J74tfN6TE4fz0Hp7E1+dmVTmCpyazv4yuIpR6jd22Kq76d2CQDSQx3wDiHX8LT02f922V+YrLhRq2VIk/UYrig==}
@@ -25876,10 +25872,6 @@ snapshots:
       workbox-window: 7.0.0
     transitivePeerDependencies:
       - supports-color
-
-  vite-plugin-react-native-web@1.0.3:
-    dependencies:
-      flow-remove-types: 2.241.0
 
   vite-plugin-singlefile@2.0.1(rollup@4.13.0)(vite@5.1.6(@types/node@20.14.10)(lightningcss@1.19.0)(terser@5.19.1)):
     dependencies:

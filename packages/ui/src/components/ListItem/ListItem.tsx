@@ -1,7 +1,7 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { ComponentProps, ReactElement, useMemo } from 'react';
-import { styled, withStaticProperties } from 'tamagui';
+import { isWeb, styled, withStaticProperties } from 'tamagui';
 
 import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import { numberWithMax } from '../../utils';
@@ -82,7 +82,7 @@ const ListItemSystemIcon = SystemIconAvatar;
 const ListItemMainContent = styled(YStack, {
   flex: 1,
   justifyContent: 'space-evenly',
-  height: '$4xl',
+  height: isWeb ? '$5xl' : '$4xl',
 });
 
 const ListItemTitle = styled(SizableText, {

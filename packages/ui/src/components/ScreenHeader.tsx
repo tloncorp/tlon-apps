@@ -1,7 +1,7 @@
 import { PropsWithChildren, ReactNode } from 'react';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styled, withStaticProperties } from 'tamagui';
+import { isWeb, styled, withStaticProperties } from 'tamagui';
 
 import { ChevronLeft } from '../assets/icons';
 import { SizableText, View, XStack } from '../core';
@@ -28,14 +28,18 @@ export const ScreenHeaderComponent = ({
         paddingVertical="$l"
       >
         {typeof title === 'string' ? (
-          <Animated.View
-            key={title}
-            entering={FadeInDown}
-            exiting={FadeOutUp}
-            style={{ flex: 1 }}
-          >
+          isWeb ? (
             <HeaderTitle>{title}</HeaderTitle>
-          </Animated.View>
+          ) : (
+            <Animated.View
+              key={title}
+              entering={FadeInDown}
+              exiting={FadeOutUp}
+              style={{ flex: 1 }}
+            >
+              <HeaderTitle>{title}</HeaderTitle>
+            </Animated.View>
+          )
         ) : (
           title
         )}
