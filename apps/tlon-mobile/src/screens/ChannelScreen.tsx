@@ -11,6 +11,7 @@ import {
 } from '@tloncorp/shared/dist/store';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import {
+  CameraRollChannelView,
   Channel,
   ChannelSwitcherSheet,
   INITIAL_POSTS_PER_PAGE,
@@ -198,9 +199,12 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     return null;
   }
 
+  const Component =
+    channel.type === 'cameraRoll' ? CameraRollChannelView : Channel;
+
   return (
     <>
-      <Channel
+      <Component
         headerMode={headerMode}
         channel={channel}
         currentUserId={currentUserId}

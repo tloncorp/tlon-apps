@@ -1,3 +1,4 @@
+import { NavigationContainer } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import {
   useChannel,
@@ -7,6 +8,7 @@ import {
 import type { Upload } from '@tloncorp/shared/dist/api';
 import type * as db from '@tloncorp/shared/dist/db';
 import { Channel, ChannelSwitcherSheet } from '@tloncorp/ui';
+import { CameraRollChannelView } from '@tloncorp/ui/src/components/Channel/CameraRollChannelView';
 import type { ComponentProps, PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -66,11 +68,15 @@ const ChannelFixtureWrapper = ({
   theme,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
-    <FixtureWrapper fillWidth fillHeight theme={theme}>
-      {children}
-    </FixtureWrapper>
+    <NavigationContainer>
+      <FixtureWrapper fillWidth fillHeight theme={theme}>
+        {children}
+      </FixtureWrapper>
+    </NavigationContainer>
   );
 };
+
+tlonLocalIntros.type = 'cameraRoll';
 
 const baseProps: ComponentProps<typeof Channel> = {
   headerMode: 'default',
@@ -114,12 +120,17 @@ export const ChannelFixture = (props: {
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
-      <Channel
+      {/* <Channel
         {...baseProps}
         headerMode={props.headerMode}
         channel={switcher.activeChannel}
         negotiationMatch={props.negotiationMatch ?? true}
         goToChannels={() => switcher.open()}
+      /> */}
+      <CameraRollChannelView
+        {...baseProps}
+        channel={switcher.activeChannel}
+        posts={baseProps.posts}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>

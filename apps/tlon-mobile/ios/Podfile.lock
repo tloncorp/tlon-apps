@@ -92,6 +92,10 @@ PODS:
     - React-Core
   - ExpoBlur (12.9.2):
     - ExpoModulesCore
+  - ExpoCamera (15.0.14):
+    - ExpoModulesCore
+    - ZXingObjC/OneD
+    - ZXingObjC/PDF417
   - ExpoClipboard (5.0.1):
     - ExpoModulesCore
   - ExpoDevice (5.9.3):
@@ -1362,6 +1366,11 @@ PODS:
     - React-Core
   - UMAppLoader (4.5.0)
   - Yoga (1.14.0)
+  - ZXingObjC/Core (3.6.9)
+  - ZXingObjC/OneD (3.6.9):
+    - ZXingObjC/Core
+  - ZXingObjC/PDF417 (3.6.9):
+    - ZXingObjC/Core
 
 DEPENDENCIES:
   - boost (from `../../../node_modules/react-native/third-party-podspecs/boost.podspec`)
@@ -1381,6 +1390,7 @@ DEPENDENCIES:
   - expo-dev-menu (from `../../../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
+  - ExpoCamera (from `../../../node_modules/expo-camera/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
@@ -1499,6 +1509,7 @@ SPEC REPOS:
     - SDWebImageWebPCoder
     - SocketRocket
     - sqlite3
+    - ZXingObjC
 
 EXTERNAL SOURCES:
   boost:
@@ -1535,6 +1546,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-dev-menu-interface/ios"
   ExpoBlur:
     :path: "../../../node_modules/expo-blur/ios"
+  ExpoCamera:
+    :path: "../../../node_modules/expo-camera/ios"
   ExpoClipboard:
     :path: "../../../node_modules/expo-clipboard/ios"
   ExpoDevice:
@@ -1722,6 +1735,7 @@ SPEC CHECKSUMS:
   expo-dev-menu: 166fc9c7b82641cdead1dc26d958d20a127ee97b
   expo-dev-menu-interface: 7ba029c9d1a82ac22b9b584c00514860b060553e
   ExpoBlur: e832d874bd94afc0645daddbd3162ec1ce172080
+  ExpoCamera: a5d000b22cd7dfd2c5904ed960e549de42c96da0
   ExpoClipboard: b597982124f067ff9f5b89093eb3d97898d5d877
   ExpoDevice: d204395e17fffdcefa7470bdef33b07719ac41b1
   ExpoFileSystem: 74cc0fae916f9f044248433971dcfc8c3befd057
@@ -1833,6 +1847,7 @@ SPEC CHECKSUMS:
   tentap: fc7669734b4dea745d6e56f57f5c7dc4fc2977bc
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
   Yoga: 1b901a6d6eeba4e8a2e8f308f708691cdb5db312
+  ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
 PODFILE CHECKSUM: 0cb7a78e5777e69c86c1bf4bb5135fd660376dbe
 

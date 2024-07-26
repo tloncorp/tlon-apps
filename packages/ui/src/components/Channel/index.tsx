@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import { CameraType, useCameraPermissions } from 'expo-camera';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,6 +48,7 @@ import GalleryImagePreview from './GalleryImagePreview';
 import { PictoMessage } from './PictoMessage';
 import Scroller, { ScrollAnchor } from './Scroller';
 
+export { CameraRollChannelView } from './CameraRollChannelView';
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
 //TODO implement usePost and useChannel
@@ -419,6 +421,7 @@ export function Channel({
                             {!isChatChannel &&
                               channel.type !== 'picto' &&
                               channel.type !== 'echo' &&
+                              channel.type !== 'cameraRoll' &&
                               canWrite &&
                               !showBigInput && (
                                 <View

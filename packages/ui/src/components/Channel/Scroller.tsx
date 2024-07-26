@@ -273,7 +273,7 @@ function Scroller({
   const contentContainerStyle = useStyle(
     !posts?.length
       ? { flex: 1 }
-      : channelType === 'gallery'
+      : channelType === 'gallery' || channelType === 'cameraRoll'
         ? {
             paddingHorizontal: '$l',
             paddingBottom: insets.bottom,
@@ -295,7 +295,7 @@ function Scroller({
   ) as StyleProp<ViewStyle>;
 
   const columnWrapperStyle = useStyle(
-    channelType === 'gallery'
+    channelType === 'gallery' || channelType === 'cameraRoll'
       ? {
           paddingHorizontal: '$l',
           paddingBottom: insets.bottom,
@@ -306,9 +306,14 @@ function Scroller({
             paddingHorizontal: '$xl',
             gap: '$xl',
           }
-        : {
-            paddingHorizontal: '$m',
-          }
+        : channelType === 'picto'
+          ? {
+              flex: 0,
+              paddingTop: '$s',
+            }
+          : {
+              paddingHorizontal: '$m',
+            }
   ) as StyleProp<ViewStyle>;
 
   const handleScrollBeginDrag = useCallback(() => {
@@ -377,7 +382,8 @@ function Scroller({
   const maintainVisibleContentPositionConfig = useMemo(() => {
     return channelType === 'chat' ||
       channelType === 'dm' ||
-      channelType === 'groupDm'
+      channelType === 'groupDm' ||
+      channelType === 'picto'
       ? {
           minIndexForVisible: 0,
           // If this is set to a number, the list will scroll to the bottom (or top,
@@ -424,7 +430,9 @@ function Scroller({
           maxToRenderPerBatch={8}
           windowSize={8}
           maintainVisibleContentPosition={maintainVisibleContentPositionConfig}
-          numColumns={channelType === 'gallery' ? 2 : 1}
+          numColumns={
+            channelType === 'gallery' || channelType === 'cameraRoll' ? 2 : 1
+          }
           style={style}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
@@ -537,7 +545,9 @@ const BaseScrollerItem = ({
   return (
     <View
       onLayout={handleLayout}
-      {...(channelType === 'gallery' ? { aspectRatio: 1, flex: 0.5 } : {})}
+      {...(channelType === 'gallery' || channelType === 'cameraRoll'
+        ? { aspectRatio: 1, flex: 0.5 }
+        : {})}
     >
       {channelType === 'chat' ||
       channelType === 'dm' ||

@@ -1,6 +1,6 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist';
 import type { ColorProp } from '@tloncorp/ui';
-import { Theme, View } from '@tloncorp/ui';
+import { AppDataContextProvider, Theme, View } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -24,6 +24,8 @@ export default defineConfig({
     'expo-file-system',
     '@react-native-firebase/crashlytics',
     '@shopify/react-native-skia',
+    '@react-navigation/native',
+    '@react-navigation/native-stack',
   ],
   ignoreWatch: ['**/node_modules/**', '**/.git/**'],
   loader: {

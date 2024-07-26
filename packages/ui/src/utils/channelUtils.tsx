@@ -76,6 +76,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'Draw';
     case 'echo':
       return 'Record';
+    case 'cameraRoll':
+      return 'Camera';
     default:
       return 'ChannelTalk';
   }

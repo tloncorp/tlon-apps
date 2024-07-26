@@ -66,6 +66,7 @@
     "expo-application": "~5.8.3",
     "expo-asset": "~9.0.2",
     "expo-av": "~13.10.5",
+    "expo-camera": "^15.0.14",
     "expo-clipboard": "~5.0.1",
     "expo-constants": "~15.4.5",
     "expo-dev-client": "^3.3.9",

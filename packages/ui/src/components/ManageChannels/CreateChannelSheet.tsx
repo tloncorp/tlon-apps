@@ -13,13 +13,16 @@ export type ChannelTypeName =
   | 'notebook'
   | 'gallery'
   | 'picto'
-  | 'echo';
+  | 'echo'
+  | 'cameraRoll';
+
 type ChannelTypeIcon =
   | 'ChannelTalk'
   | 'ChannelNotebooks'
   | 'ChannelGalleries'
   | 'Draw'
-  | 'Record';
+  | 'Record'
+  | 'Camera';
 
 type ChannelType = {
   title: string;
@@ -54,10 +57,16 @@ const channelTypes: ChannelType[] = [
     iconType: 'Record',
   },
   {
-    title: 'Pictochat Channel',
+    title: 'Pictochat',
     description: 'Draw and chat with friends',
     channelType: 'picto',
     iconType: 'Draw',
+  },
+  {
+    title: 'Camera roll',
+    description: 'Shared camera',
+    channelType: 'cameraRoll',
+    iconType: 'Camera',
   },
 ];
 
@@ -138,13 +147,17 @@ export function CreateChannelSheet({
       createChannel({
         title: data.title,
         description:
-          channelType === 'picto'
-            ? JSON.stringify({ type: 'picto' })
-            : channelType === 'echo'
-              ? JSON.stringify({ type: 'echo', meta: { message: data.echo } })
-              : data.description,
+          channelType === 'cameraRoll'
+            ? JSON.stringify({ type: 'cameraRoll' })
+            : channelType === 'picto'
+              ? JSON.stringify({ type: 'picto' })
+              : channelType === 'echo'
+                ? JSON.stringify({ type: 'echo', meta: { message: data.echo } })
+                : data.description,
         channelType:
-          channelType === 'picto'
+          channelType === 'picto' ||
+          channelType === 'cameraRoll' ||
+          channelType === 'echo'
             ? 'chat'
             : (data.channelType as ChannelTypeName),
       });

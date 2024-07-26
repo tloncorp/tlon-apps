@@ -627,7 +627,8 @@ export type ChannelType =
   | 'dm'
   | 'groupDm'
   | 'picto'
-  | 'echo';
+  | 'echo'
+  | 'cameraRoll';
 
 export const channels = sqliteTable(
   'channels',

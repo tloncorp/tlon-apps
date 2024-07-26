@@ -170,6 +170,9 @@ importers:
       expo-av:
         specifier: ~13.10.5
         version: 13.10.6(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
+      expo-camera:
+        specifier: ^15.0.14
+        version: 15.0.14(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
       expo-clipboard:
         specifier: ~5.0.1
         version: 5.0.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13))
@@ -7222,6 +7225,11 @@ packages:
 
   expo-blur@12.9.2:
     resolution: {integrity: sha512-q+EIOkXw7OCE3VBTLRANsUIdMxtFWDTFpaMulJEXMwtxNQaCcAvzHZvwWP9dlI96FM4A6UdX2/slBNfNJzJcCQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-camera@15.0.14:
+    resolution: {integrity: sha512-O4uvVywGsQ3a89d0BX4lq6mDuGYGukx1PYY4QrC9zw1yzD2W9BVTl8lanFRPC5h4PRniekfeWUVH1a0jJmkLIw==}
     peerDependencies:
       expo: '*'
 
@@ -20597,6 +20605,11 @@ snapshots:
   expo-blur@12.9.2(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+
+  expo-camera@15.0.14(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)
+      invariant: 2.2.4
 
   expo-clipboard@5.0.1(expo@50.0.6(@babel/core@7.23.7)(@react-native/babel-preset@0.73.21(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7)))(encoding@0.1.13)):
     dependencies:
