@@ -1,10 +1,4 @@
-//
-//  NotificationService.swift
-//  Notifications
-//
-//  Created by David Lee on 7/18/24.
-//
-
+import Intents
 import UserNotifications
 
 class NotificationService: UNNotificationServiceExtension {
@@ -19,7 +13,33 @@ class NotificationService: UNNotificationServiceExtension {
             // Modify the notification content here...
             bestAttemptContent.title = "\(bestAttemptContent.title) [modified]"
 
-            contentHandler(bestAttemptContent)
+            Task { [weak bestAttemptContent] in
+                let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
+                switch parsedNotification {
+                case let .notify(yarn):
+                    let (mutatedContent, messageIntent) = await PushNotificationManager.buildNotificationWithIntent(
+                        yarn: yarn,
+                        content: bestAttemptContent ?? UNMutableNotificationContent()
+                    )
+
+                    if let messageIntent {
+                        do {
+                            let interaction = INInteraction(intent: messageIntent, response: nil)
+                            interaction.direction = .incoming
+                            try await interaction.donate()
+                        } catch {
+                            print("Error donating interaction for notification sender details: \(error)")
+                        }
+                    }
+
+                    contentHandler(mutatedContent)
+                    return
+
+                default:
+                    print("Not handled")
+                }
+                contentHandler(bestAttemptContent!)
+            }
         }
     }
 
@@ -29,5 +49,11 @@ class NotificationService: UNNotificationServiceExtension {
         if let contentHandler = contentHandler, let bestAttemptContent = bestAttemptContent {
             contentHandler(bestAttemptContent)
         }
+    }
+}
+
+extension Error {
+    func logWithDomain(_ domain: String) {
+        print("logWithDomain", domain, self)
     }
 }
