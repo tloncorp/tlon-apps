@@ -4,9 +4,12 @@ import bigInt from 'big-integer';
 import { useEffect, useMemo } from 'react';
 
 import { searchChatChannel } from '../api/channelsApi';
+import { createDevLogger } from '../debug';
 import { useAttachAuthorToPosts } from './useAttachAuthorToPosts';
 
 const MIN_RESULT_LOAD_THRESHOLD = 20;
+
+const logger = createDevLogger('channel search', true);
 
 export function useChannelSearch(channelId: string, query: string) {
   const {
@@ -46,11 +49,13 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
     queryKey: ['channel', channelId, 'search', query],
     enabled: query !== '',
     queryFn: async ({ pageParam }) => {
+      logger.log(`searching`, query, pageParam);
       const response = await searchChatChannel({
         channelId,
         query,
         cursor: pageParam,
       });
+      logger.log(`got result page`, response.posts.length);
 
       return response;
     },
@@ -62,7 +67,10 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
   });
 
   const results = useMemo(
-    () => data?.pages.flatMap((page) => page.posts) ?? [],
+    () =>
+      data?.pages
+        .flatMap((page) => page.posts)
+        .sort((a, b) => b.sentAt - a.sentAt) ?? [],
     [data]
   );
 

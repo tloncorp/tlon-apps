@@ -99,9 +99,10 @@ export default function ChannelScreen(props: ChannelScreenProps) {
       (unread.countWithoutThreads ?? 0) > 0 &&
       unread?.firstUnreadPostId;
     return selectedPostId || firstUnreadId;
-    // We only want this to rerun when the channel is loaded for the first time.
+    // We only want this to rerun when the channel is loaded for the first time OR if
+    // the selected post route param changes
     // eslint-disable-next-line
-  }, [!!channel]);
+  }, [!!channel, selectedPostId]);
   const {
     posts,
     query: postsQuery,

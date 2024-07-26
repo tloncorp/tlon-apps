@@ -328,10 +328,25 @@ export const searchChatChannel = async (params: {
     }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
   });
 
-  const posts = response.scan
-    .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
-    .map((scanItem) => (scanItem as { post: ub.Post }).post)
-    .map((post) => toPostData(params.channelId, post));
+  // note: we avoid incurring the cost of sorting here since the main consumer (useChannelSearch)
+  // aggregates results across multiple pages
+  const posts: db.Post[] = response.scan
+    .map((scanItem) => {
+      if ('post' in scanItem) {
+        return toPostData(params.channelId, scanItem.post);
+      }
+      if ('reply' in scanItem) {
+        const parentId = getCanonicalPostId(scanItem.reply['id-post']);
+        return toPostReplyData(
+          params.channelId,
+          parentId,
+          scanItem.reply.reply
+        );
+      }
+      return false;
+    })
+    .filter((post) => post !== false) as db.Post[];
+
   const cursor = response.last;
 
   return { posts, cursor };
