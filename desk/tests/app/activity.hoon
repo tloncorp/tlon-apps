@@ -35,19 +35,24 @@
 ::
 ++  test-fix-init
   =+  state-0:fix-init
-  (run-fix-init pre-fix post-fix indices volumes 9)
-++  run-fix-init
-  |=  [pre=activity:a post=activity:a =indices:a vs=volume-settings:a count=@ud]
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
+  ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
-  ;<  *  bind:m  (do-load activity-agent `!>([%6 %some indices pre vs]))
-  ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
+  =/  start-state  [%6 %some indices pre-fix volumes]
+  ;<  caz=(list card:agent:gall)  bind:m  (do-load activity-agent `!>(start-state))
+  ;<  *  bind:m  (ex-equal !>(~(wyt by pre-fix)) !>(11))
+  =/  cage  noun+!>(%fix-init-unreads)
+  ;<  bowl  bind:m  get-bowl
+  ;<  *  bind:m
+    %+  ex-cards  caz
+    ~[(ex-poke /fix-init-unreads [~zod dap] cage)]
+  ;<  *  bind:m  (do-poke cage)
   ;<  new=vase  bind:m  get-save
   =+  !<(=new-state new)
-  (ex-equal !>(activity.new-state) !>(post))
+  (ex-equal !>(activity.new-state) !>(post-fix))
 +$  new-state
   $:  %6
       allowed=notifications-allowed:a
@@ -56,6 +61,8 @@
       =volume-settings:a
   ==
 +$  index-pair  [=source:a =index:a]
++$  dms  (map ship dm:ch)
++$  clubs  (map id:club:ch club:ch)
 ++  sync-reads
   |%
   +$  source-set
@@ -489,11 +496,13 @@
     $:  thrd1=index-pair
         thrd2=index-pair
         chnl=index-pair
+        bad-chnl-migration=index-pair
         grp=index-pair
         dm-thread=index-pair
         read-dm=index-pair
         unread-dm=index-pair
         dm-invite=index-pair
+        bad-dm-migration=index-pair
         base=index-pair
     ==
   ::  we want to test multiple scenarios in one go. we have a dm that's
@@ -510,9 +519,14 @@
       =/  chnl
         %+  merge-children  (channel-source flag nest reads i0)
         ~[stream.index.thrd1 stream.index.thrd2]
+      =/  bad-chnl=index-pair
+        :-  [%channel [%chat ~syx %hi] flag]
+        :_  [[d0 ~] d0]
+        %+  gas:on-event:a  *stream:a
+        ~[[d1 [[%chan-init [%chat ~syx %hi] flag] | |]]]
       =/  grp
         %+  merge-children  (group-source flag reads)
-        ~[stream.index.chnl]
+        ~[stream.index.chnl stream.index.bad-chnl]
       =/  dm-thread  (dm-thread-source [[~dev d0] d0] [%ship ~rus])
       =/  read-dm
         %+  merge-children  (dm-source [%ship ~rus] [d3 ~])
@@ -524,21 +538,81 @@
         :_  [[d0 ~] d0]
         %+  gas:on-event:a  *stream:a
         ~[[d1 [[%dm-invite [%club 0v1d.u717i.b92pp.aa9oh.u044i.joqln]] & |]]]
+      =/  bad-dm-migration=index-pair
+        :-  [%dm [%ship ~syx]]
+        :_  [[d0 ~] d0]
+        %+  gas:on-event:a  *stream:a
+        ~[[d1 [[%dm-invite [%ship ~syx]] & |]]]
       :*  thrd1
           thrd2
           chnl
+          bad-chnl
           grp
           dm-thread
           read-dm
           unread-dm
           dm-invite
+          bad-dm-migration
           %+  merge-children  (base-source [d0 ~])
           :~  stream.index.grp
               stream.index.read-dm
               stream.index.unread-dm
               stream.index.dm-invite
+              stream.index.bad-dm-migration
           ==
       ==
+    ++  scries
+      |=  =path
+      ^-  (unit vase)
+      ?+  path  ~
+        [%gx @ %chat @ %full *]   `!>(chat-scry)
+        [%gx @ %channels @ %v2 %channels %full *]   `!>(channels-scry)
+      ==
+    ++  channels-scry
+      ^-  channels:c
+      =+  sources
+      =|  empty=channel:c
+      %-  ~(gas by *channels:c)
+      :~  :-  (get-nest source.chnl)
+          empty(remark [d5 d4 & ~])
+          :-  (get-nest source.bad-chnl-migration)
+          empty(remark [d1 d1 & ~])
+      ==
+    ++  chat-scry
+      ^-  [dms clubs]
+      =+  sources
+      =|  empty-club=club:ch
+      =|  empty-dm=dm:ch
+      =/  =dms
+        %-  ~(gas by *dms)
+        :~  :-  (get-ship source.read-dm)
+            empty-dm(remark [d4 d3 & ~])
+            :-  (get-ship source.unread-dm)
+            empty-dm(remark [d3 d0 & ~])
+            :-  (get-ship source.bad-dm-migration)
+            empty-dm(remark [d1 d1 & ~])
+        ==
+      =/  =clubs
+        %+  ~(put by *clubs)  (get-club source.dm-invite)
+        empty-club(remark [d0 d0 & ~])
+      [dms clubs]
+    ++  get-nest
+      |=  =source:a
+      ^-  nest:c
+      ?>  ?=(%channel -.source)
+      nest.source
+    ++  get-ship
+      |=  =source:a
+      ^-  ship
+      ?>  ?=(%dm -.source)
+      ?>  ?=(%ship -.whom.source)
+      p.whom.source
+    ++  get-club
+      |=  =source:a
+      ^-  id:club:ch
+      ?>  ?=(%dm -.source)
+      ?>  ?=(%club -.whom.source)
+      p.whom.source
     ++  volumes
       %+  roll
         ~(tap by indices)
@@ -561,12 +635,18 @@
       =+  sources
       %-  ~(uni by pre-fix)
       %-  ~(gas by *activity:a)
-      :~  :-  source.chnl
+      :~  :-  source.bad-chnl-migration
+          [d1 0 0 | ~ ~ ~]
+          :-  source.chnl
           [d5 0 0 | ~ (sy source.thrd1 source.thrd2 ~) ~]
           :-  source.grp
-          [d5 0 0 | ~ (sy source.chnl ~) ~]
+          [d5 0 0 | ~ (sy source.chnl source.bad-chnl-migration ~) ~]
           :-  source.read-dm
           [d4 0 0 | ~ (sy source.dm-thread ~) ~]
+          :-  source.bad-dm-migration
+          [d1 0 0 | ~ ~ ~]
+          :-  source.base
+          [d5 2 1 & ~ ~ ~]
       ==
     --
   --
