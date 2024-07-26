@@ -1,15 +1,31 @@
 import * as sk from '@shopify/react-native-skia';
 import { Skia } from '@shopify/react-native-skia';
+import * as db from '@tloncorp/shared/dist/db';
+import { Story } from '@tloncorp/shared/dist/urbit';
 import * as FileSystem from 'expo-file-system';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { interpolate, useSharedValue } from 'react-native-reanimated';
+import {
+  interpolate,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styled } from 'tamagui';
 
-import { useAttachmentContext } from '../contexts';
-import { Text, View, XStack, YStack } from '../core';
+import { UploadedImageAttachment, useAttachmentContext } from '../contexts';
+import { View, XStack, YStack } from '../core';
+import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
 import { Icon } from './Icon';
+import { Sheet } from './Sheet';
 
 const pixelated = Skia.RuntimeEffect.Make(`
   uniform vec2 amount; // number of pixels per axis
@@ -62,9 +78,13 @@ const brushSizes = [4, 10];
 export const DrawingInput = ({
   filter,
   onPressAttach,
+  inputAspect,
+  finishedAction = 'attach',
 }: {
   filter?: 'pixel';
   onPressAttach: () => void;
+  inputAspect?: number;
+  finishedAction: 'attach' | 'send';
 }) => {
   const currentPath = useSharedValue(Skia.Path.Make());
   const isDrawing = useSharedValue(false);
@@ -75,7 +95,7 @@ export const DrawingInput = ({
   const [tool, setTool] = useState<'draw' | 'erase'>('draw');
   const [size, setSize] = useState<'small' | 'large'>('small');
   const paintRef = useSharedValue<sk.SkPaint>(drawPaint);
-
+  const canvasSize = useSharedValue<sk.SkSize>({ width: 0, height: 0 });
   const pan = Gesture.Pan()
     .averageTouches(true)
     .minDistance(0)
@@ -153,7 +173,13 @@ export const DrawingInput = ({
     picture.value = emptyPicture;
   }, []);
 
-  const { attachAssets } = useAttachmentContext();
+  const [isAttaching, setIsAttaching] = useState(false);
+  const { attachAssets, waitForAttachmentUploads, attachments } =
+    useAttachmentContext();
+  const translateY = useSharedValue(0);
+  const transform = useDerivedValue(() => {
+    return [{ translateY: translateY.value }];
+  }, []);
 
   const handlePressAttach = useCallback(async () => {
     const result = await canvasRef.current?.makeImageSnapshotAsync();
@@ -166,25 +192,41 @@ export const DrawingInput = ({
       {
         type: 'image',
         uri,
-        width: 200,
-        height: 100,
+        width: Math.round(canvasSize.value.width),
+        height: Math.round(canvasSize.value.height),
       },
     ]);
-    onPressAttach?.();
-  }, [attachAssets, onPressAttach]);
+    setIsAttaching(true);
+  }, [attachAssets]);
+
+  useEffect(() => {
+    if (attachments.length && isAttaching) {
+      setIsAttaching(false);
+      translateY.value = withTiming(
+        -canvasSize.value.height,
+        { duration: 300 },
+        () => {
+          picture.value = emptyPicture;
+          translateY.value = 0;
+        }
+      );
+      onPressAttach();
+    }
+  }, [attachments, handlePressClear, isAttaching, onPressAttach]);
 
   return (
-    <YStack flex={1} gap="$m">
+    <YStack gap="$m">
       <View
         borderRadius="$m"
-        height={200}
-        flex={1}
+        width={'100%'}
+        flex={0}
+        aspectRatio={inputAspect ?? 1}
         borderWidth={1}
         borderColor={'$border'}
         overflow="hidden"
       >
         <GestureDetector gesture={pan}>
-          <sk.Canvas ref={canvasRef} style={{ flex: 1 }}>
+          <sk.Canvas ref={canvasRef} style={{ flex: 1 }} onSize={canvasSize}>
             <sk.Group
               layer={
                 filter === 'pixel' ? (
@@ -194,7 +236,7 @@ export const DrawingInput = ({
                 ) : undefined
               }
             >
-              <sk.Picture picture={picture} />
+              <sk.Picture transform={transform} picture={picture} />
               <sk.Path path={currentPath} paint={paintRef} />
             </sk.Group>
           </sk.Canvas>
@@ -234,13 +276,21 @@ export const DrawingInput = ({
         <Button
           backgroundColor={'$primaryText'}
           borderWidth={0}
-          paddingLeft="$m"
-          paddingRight={'$l'}
+          paddingHorizontal="$m"
           onPress={handlePressAttach}
           pressStyle={{ backgroundColor: '$secondaryText' }}
         >
-          <Icon type="Attachment" color="$background" size="$m" />
-          <Button.Text color="$background">Attach</Button.Text>
+          {finishedAction === 'attach' ? (
+            <>
+              <Icon type="Attachment" color="$background" size="$m" />
+              <Button.Text color="$background">Attach</Button.Text>
+            </>
+          ) : (
+            <>
+              <Button.Text color="$background">Send</Button.Text>
+              <Icon type="ArrowUp" color="$background" size="$m" />
+            </>
+          )}
         </Button>
       </XStack>
     </YStack>
@@ -269,3 +319,67 @@ const ToolbarIcon = styled(Icon, {
     },
   } as const,
 });
+
+export function StandaloneDrawingInput({
+  onSend,
+  channel,
+}: {
+  onSend: (content: Story, channelId: string) => Promise<void>;
+  channel: db.Channel;
+}) {
+  const { waitForAttachmentUploads, clearAttachments } = useAttachmentContext();
+  const handleDrawingAttached = useCallback(async () => {
+    const finalAttachments = await waitForAttachmentUploads();
+    const imageAttachment = finalAttachments.find(
+      (f): f is UploadedImageAttachment => f.type === 'image'
+    );
+    clearAttachments();
+    if (imageAttachment) {
+      await onSend?.(
+        [
+          {
+            block: {
+              image: {
+                src: imageAttachment.uploadState.remoteUri,
+                width: imageAttachment.file.width,
+                height: imageAttachment.file.height,
+                alt: '',
+              },
+            },
+          },
+        ],
+        channel.id
+      );
+    } else {
+      throw new Error('no image');
+    }
+  }, [clearAttachments, channel.id, onSend, waitForAttachmentUploads]);
+
+  const { bottom } = useSafeAreaInsets();
+
+  return (
+    <View padding={'$s'} paddingTop={0} paddingBottom={bottom + 24}>
+      <DrawingInput
+        filter="pixel"
+        inputAspect={234 / 87}
+        finishedAction={'send'}
+        onPressAttach={handleDrawingAttached}
+      />
+    </View>
+  );
+}
+
+export function SheetDrawingInput({
+  onFinished,
+  ...props
+}: ComponentProps<typeof ActionSheet> & {
+  onFinished: () => void;
+}) {
+  return (
+    <ActionSheet {...props}>
+      <Sheet.LazyFrame>
+        <DrawingInput onPressAttach={onFinished} finishedAction="attach" />
+      </Sheet.LazyFrame>
+    </ActionSheet>
+  );
+}

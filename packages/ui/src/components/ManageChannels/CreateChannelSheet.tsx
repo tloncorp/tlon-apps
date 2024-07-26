@@ -8,8 +8,12 @@ import { FormInput } from '../FormInput';
 import { Icon } from '../Icon';
 import Pressable from '../Pressable';
 
-export type ChannelTypeName = 'chat' | 'notebook' | 'gallery';
-type ChannelTypeIcon = 'ChannelTalk' | 'ChannelNotebooks' | 'ChannelGalleries';
+export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'picto';
+type ChannelTypeIcon =
+  | 'ChannelTalk'
+  | 'ChannelNotebooks'
+  | 'ChannelGalleries'
+  | 'Draw';
 
 type ChannelType = {
   title: string;
@@ -36,6 +40,12 @@ const channelTypes: ChannelType[] = [
     description: 'Gather, connect, and arrange rich media',
     channelType: 'gallery',
     iconType: 'ChannelGalleries',
+  },
+  {
+    title: 'Picochat Channel',
+    description: 'Draw and chat with friends',
+    channelType: 'picto',
+    iconType: 'Draw',
   },
 ];
 
@@ -114,12 +124,18 @@ export function CreateChannelSheet({
     }) => {
       createChannel({
         title: data.title,
-        description: data.description,
-        channelType: data.channelType as ChannelTypeName,
+        description:
+          channelType === 'picto'
+            ? JSON.stringify({ type: 'picto' })
+            : data.description,
+        channelType:
+          channelType === 'picto'
+            ? 'chat'
+            : (data.channelType as ChannelTypeName),
       });
       onOpenChange(false);
     },
-    [createChannel, onOpenChange]
+    [channelType, createChannel, onOpenChange]
   );
 
   return (

@@ -253,6 +253,8 @@ function Scroller({
       channelType,
       setEditingPost,
       editPost,
+      onPressRetry,
+      onPressDelete,
       showReplies,
       onPressImage,
       onPressReplies,
@@ -282,18 +284,31 @@ function Scroller({
               paddingHorizontal: '$xl',
               gap: '$xl',
             }
-          : {
-              paddingHorizontal: '$m',
-            }
+          : channelType === 'picto'
+            ? {
+                flex: 0,
+                paddingTop: '$s',
+              }
+            : {
+                paddingHorizontal: '$m',
+              }
   ) as StyleProp<ViewStyle>;
 
   const columnWrapperStyle = useStyle(
     channelType === 'gallery'
       ? {
+          paddingHorizontal: '$l',
+          paddingBottom: insets.bottom,
           gap: '$l',
-          width: '100%',
         }
-      : {}
+      : channelType === 'notebook'
+        ? {
+            paddingHorizontal: '$xl',
+            gap: '$xl',
+          }
+        : {
+            paddingHorizontal: '$m',
+          }
   ) as StyleProp<ViewStyle>;
 
   const handleScrollBeginDrag = useCallback(() => {

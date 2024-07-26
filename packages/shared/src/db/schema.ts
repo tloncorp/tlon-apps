@@ -620,7 +620,13 @@ export const volumeSettings = sqliteTable('volume_settings', {
   isNoisy: boolean('is_noisy').default(false),
 });
 
-export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+export type ChannelType =
+  | 'chat'
+  | 'notebook'
+  | 'gallery'
+  | 'dm'
+  | 'groupDm'
+  | 'picto';
 
 export const channels = sqliteTable(
   'channels',
@@ -631,6 +637,7 @@ export const channels = sqliteTable(
       onDelete: 'cascade',
     }),
     ...metaFields,
+    meta: text('meta', { mode: 'json' }),
     contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),

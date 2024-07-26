@@ -1409,6 +1409,15 @@ function toClientChannel({
   channel: ub.GroupChannel;
   groupId: string;
 }): db.Channel {
+  // Try parsing out custom data
+  let extra: Partial<db.Channel> = {};
+  if (channel.meta.description?.[0] === '{') {
+    try {
+      extra = JSON.parse(channel.meta.description);
+    } catch (e) {
+      // ignore
+    }
+  }
   return {
     id,
     groupId,
@@ -1417,6 +1426,7 @@ function toClientChannel({
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
     description: omitEmpty(channel.meta.description),
+    ...extra,
   };
 }
 

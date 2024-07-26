@@ -49,6 +49,7 @@ CREATE TABLE `channels` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
+	`meta` text,
 	`contact_id` text,
 	`added_to_group_at` integer,
 	`current_user_is_member` integer,

@@ -202,6 +202,8 @@ export function getChannelKindFromType(type: 'chat' | 'gallery' | 'notebook') {
     return 'heap';
   } else if (type === 'notebook') {
     return 'diary';
+  } else if (type === 'picto') {
+    return 'picto';
   } else {
     return 'chat';
   }
