@@ -847,7 +847,8 @@
     index
   ?~  channel=(~(get by unreads) nest.source)  index
   ?.  &(=(count.u.channel 0) =(~ unread.u.channel))  index
-  index(floor.reads recency.u.channel)
+  ?~  last=(ram:on-event:a stream.index)  index
+  index(floor.reads -.u.last)
 ++  fix-dm-init-unreads
   |=  [=indices:a =unreads:ch]
   ^-  indices:a
@@ -859,14 +860,10 @@
           ?=([[* [[%dm-invite *] *]] ~ ~] stream.index)
       ==
     index
-  =/  whom
-    ?-  -.whom.source
-      %ship  whom.source
-      %club  whom.source
-    ==
   ?~  dm=(~(get by unreads) whom.source)  index
   ?.  &(=(count.u.dm 0) =(~ unread.u.dm))  index
-  index(floor.reads recency.u.dm)
+  ?~  last=(ram:on-event:a stream.index)  index
+  index(floor.reads -.u.last)
 ::  previously we used items as a way to track individual reads because
 ::  floors were not local, but we have reverted to local floors and not
 ::  tracking individual reads

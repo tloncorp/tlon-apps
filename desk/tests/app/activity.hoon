@@ -575,7 +575,7 @@
       :~  :-  (get-nest source.chnl)
           [d5 0 ~ ~]
           :-  (get-nest source.bad-chnl-migration)
-          [d1 0 ~ ~]
+          [d0 0 ~ ~]
       ==
     ++  chat-scry
       ^-  unreads:ch
@@ -586,7 +586,7 @@
           :-  (get-whom source.unread-dm)
           [d3 2 `[[[~rus d2] d2] 2] ~]
           :-  (get-whom source.bad-dm-migration)
-          [d1 0 ~ ~]
+          [d0 0 ~ ~]
       ==
     ++  get-nest
       |=  =source:a
