@@ -1,4 +1,3 @@
-//! debug-verbose
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -8,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   SectionList,
   SectionListData,
   SectionListRenderItemInfo,
@@ -267,6 +267,7 @@ export function ChatList({
   const listStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: filterVisible.value ? FILTER_HEIGHT : 0 }],
+      height: Platform.OS === 'web' ? '100%' : undefined,
     };
   }, [filterVisible, FILTER_HEIGHT]);
 
