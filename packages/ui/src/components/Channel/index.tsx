@@ -5,9 +5,9 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
-import { UploadInfo } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
@@ -20,7 +20,7 @@ import {
   GroupsProvider,
   NavigationProvider,
 } from '../../contexts';
-import { ReferencesProvider } from '../../contexts/references';
+import { Attachment, AttachmentProvider } from '../../contexts/attachment';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import { SizableText, View, YStack } from '../../core';
@@ -40,8 +40,8 @@ import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { EmptyChannelNotice } from './EmptyChannelNotice';
+import GalleryImagePreview from './GalleryImagePreview';
 import Scroller, { ScrollAnchor } from './Scroller';
-import UploadedImagePreview from './UploadedImagePreview';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -66,7 +66,6 @@ export function Channel({
   messageSender,
   onScrollEndReached,
   onScrollStartReached,
-  uploadInfo,
   isLoadingPosts,
   markRead,
   onPressRef,
@@ -81,9 +80,14 @@ export function Channel({
   editingPost,
   setEditingPost,
   editPost,
+  onPressRetry,
+  onPressDelete,
+  canUpload,
+  uploadAsset,
   negotiationMatch,
   hasNewerPosts,
   hasOlderPosts,
+  initialAttachments,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -100,7 +104,7 @@ export function Channel({
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   messageSender: (content: Story, channelId: string) => Promise<void>;
-  uploadInfo: UploadInfo;
+  uploadAsset: (asset: ImagePickerAsset) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -117,9 +121,13 @@ export function Channel({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
+  initialAttachments?: Attachment[];
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
+  canUpload: boolean;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -178,10 +186,25 @@ export function Channel({
 
   const bigInputGoBack = () => {
     setShowBigInput(false);
-    uploadInfo.resetImageAttachment();
   };
 
   const { bottom } = useSafeAreaInsets();
+
+  const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
+  const handleGalleryImageSet = useCallback(
+    (assets?: ImagePickerAsset[] | null) => {
+      setIsUploadingGalleryImage(!!assets);
+    },
+    []
+  );
+
+  const handleGalleryPreviewClosed = useCallback(() => {
+    setIsUploadingGalleryImage(false);
+  }, []);
+
+  const handleMessageSent = useCallback(() => {
+    setIsUploadingGalleryImage(false);
+  }, []);
 
   return (
     <ScrollContextProvider>
@@ -205,9 +228,17 @@ export function Channel({
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
                 >
-                  <ReferencesProvider>
+                  <AttachmentProvider
+                    canUpload={canUpload}
+                    initialAttachments={initialAttachments}
+                    uploadAsset={uploadAsset}
+                  >
                     <View
-                      paddingBottom={isChatChannel ? bottom : 'unset'}
+                      paddingBottom={
+                        isChatChannel || isUploadingGalleryImage
+                          ? bottom
+                          : 'unset'
+                      }
                       backgroundColor="$background"
                       flex={1}
                     >
@@ -263,17 +294,11 @@ export function Channel({
                                     editPost={editPost}
                                     setShowBigInput={setShowBigInput}
                                     placeholder=""
-                                    uploadInfo={uploadInfo}
                                   />
                                 </View>
-                              ) : uploadInfo.imageAttachment &&
-                                channel.type !== 'notebook' ? (
-                                <UploadedImagePreview
-                                  imageAttachment={uploadInfo.imageAttachment}
-                                  uploading={uploadInfo.uploading}
-                                  resetImageAttachment={
-                                    uploadInfo.resetImageAttachment
-                                  }
+                              ) : isUploadingGalleryImage ? (
+                                <GalleryImagePreview
+                                  onReset={handleGalleryPreviewClosed}
                                 />
                               ) : (
                                 <View flex={1} width="100%">
@@ -302,11 +327,15 @@ export function Channel({
                                       unreadCount={
                                         channelUnread?.countWithoutThreads ?? 0
                                       }
-                                      onPressPost={goToPost}
+                                      onPressPost={
+                                        isChatChannel ? undefined : goToPost
+                                      }
                                       onPressReplies={goToPost}
                                       onPressImage={goToImageViewer}
                                       onEndReached={onScrollEndReached}
                                       onStartReached={onScrollStartReached}
+                                      onPressRetry={onPressRetry}
+                                      onPressDelete={onPressDelete}
                                       activeMessage={activeMessage}
                                       setActiveMessage={setActiveMessage}
                                     />
@@ -319,18 +348,13 @@ export function Channel({
                               !editingPost &&
                               (isChatChannel ||
                                 (channel.type === 'gallery' &&
-                                  uploadInfo?.imageAttachment)) &&
+                                  isUploadingGalleryImage)) &&
                               canWrite && (
                                 <MessageInput
                                   shouldBlur={inputShouldBlur}
                                   setShouldBlur={setInputShouldBlur}
                                   send={messageSender}
                                   channelId={channel.id}
-                                  uploadInfo={
-                                    channel.type === 'notebook'
-                                      ? undefined
-                                      : uploadInfo
-                                  }
                                   groupMembers={group?.members ?? []}
                                   storeDraft={storeDraft}
                                   clearDraft={clearDraft}
@@ -338,6 +362,11 @@ export function Channel({
                                   editingPost={editingPost}
                                   setEditingPost={setEditingPost}
                                   editPost={editPost}
+                                  channelType={channel.type}
+                                  onSend={handleMessageSent}
+                                  showInlineAttachments={
+                                    channel.type !== 'gallery'
+                                  }
                                   showAttachmentButton={
                                     channel.type !== 'gallery'
                                   }
@@ -351,9 +380,9 @@ export function Channel({
                                 width="100%"
                                 alignItems="center"
                               >
-                                {(channel.type === 'gallery' &&
-                                  showAddGalleryPost) ||
-                                uploadInfo.imageAttachment ? null : (
+                                {channel.type === 'gallery' &&
+                                (showAddGalleryPost ||
+                                  isUploadingGalleryImage) ? null : (
                                   <FloatingActionButton
                                     onPress={() =>
                                       channel.type === 'gallery'
@@ -389,7 +418,7 @@ export function Channel({
                                 showAddGalleryPost={showAddGalleryPost}
                                 setShowAddGalleryPost={setShowAddGalleryPost}
                                 setShowGalleryInput={setShowBigInput}
-                                setImage={uploadInfo.setAttachments}
+                                onSetImage={handleGalleryImageSet}
                               />
                             )}
                           </YStack>
@@ -411,7 +440,7 @@ export function Channel({
                         />
                       </YStack>
                     </View>
-                  </ReferencesProvider>
+                  </AttachmentProvider>
                 </NavigationProvider>
               </RequestsProvider>
             </ChannelProvider>

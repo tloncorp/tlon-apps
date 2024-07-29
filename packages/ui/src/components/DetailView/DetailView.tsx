@@ -1,7 +1,7 @@
 import { makePrettyShortDate } from '@tloncorp/shared/dist';
-import type * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { PropsWithChildren, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,11 +25,12 @@ export interface DetailViewProps {
   groupMembers: db.ChatMember[];
   posts?: db.Post[];
   onPressImage?: (post: db.Post, imageUri?: string) => void;
-  uploadInfo: api.UploadInfo;
   storeDraft: (draft: urbit.JSONContent) => void;
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   goBack?: () => void;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
 }
 
 const DetailViewMetaDataComponent = ({
@@ -95,12 +96,13 @@ const DetailViewFrameComponent = ({
   groupMembers,
   posts,
   onPressImage,
-  uploadInfo,
   storeDraft,
   clearDraft,
   getDraft,
   children,
   goBack,
+  onPressRetry,
+  onPressDelete,
 }: DetailViewProps) => {
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
@@ -130,6 +132,8 @@ const DetailViewFrameComponent = ({
               posts={posts ?? null}
               showReplies={false}
               onPressImage={onPressImage}
+              onPressRetry={onPressRetry}
+              onPressDelete={onPressDelete}
               firstUnreadId={
                 threadUnread?.count ?? 0 > 0
                   ? threadUnread?.firstUnreadPostId
@@ -155,13 +159,13 @@ const DetailViewFrameComponent = ({
           setShouldBlur={setInputShouldBlur}
           send={sendReply}
           channelId={post.channelId}
-          uploadInfo={uploadInfo}
           groupMembers={groupMembers}
           storeDraft={storeDraft}
           clearDraft={clearDraft}
           getDraft={getDraft}
           backgroundColor="$background"
           showAttachmentButton={false}
+          channelType="chat"
           placeholder="Reply"
           setHeight={setMessageInputHeight}
           // TODO: add back in when we switch to bottom nav

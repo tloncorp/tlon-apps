@@ -3,7 +3,8 @@
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as fixture0 from './src/App.fixture';
-import * as fixture32 from './src/fixtures/ActionSheet.fixture';
+import * as fixture33 from './src/fixtures/ActionSheet.fixture';
+import * as fixture32 from './src/fixtures/AttachmentPreviewList.fixture';
 import * as fixture31 from './src/fixtures/AudioEmbed.fixture';
 import * as fixture30 from './src/fixtures/Avatar.fixture';
 import * as fixture29 from './src/fixtures/BlockSectionList.fixture';
@@ -75,7 +76,8 @@ const fixtures = {
   'src/fixtures/BlockSectionList.fixture.tsx': { module: fixture29 },
   'src/fixtures/Avatar.fixture.tsx': { module: fixture30 },
   'src/fixtures/AudioEmbed.fixture.tsx': { module: fixture31 },
-  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture32 },
+  'src/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture32 },
+  'src/fixtures/ActionSheet.fixture.tsx': { module: fixture33 },
 };
 
 const decorators = {

@@ -7,6 +7,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { Helmet } from 'react-helmet';
 import {
   Location,
+  Navigate,
   NavigateFunction,
   Route,
   BrowserRouter as Router,
@@ -163,11 +164,13 @@ interface RoutesProps {
   isSmall: boolean;
 }
 
-const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
+const GroupsRoutes = React.memo(function GroupsRoutesComponent({
+  isMobile,
+  isSmall,
+}: RoutesProps) {
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
   const location = useLocation();
-  const currentTheme = useLocalState((s) => s.currentTheme);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 
@@ -260,6 +263,7 @@ const GroupsRoutes = React.memo(({ isMobile, isSmall }: RoutesProps) => {
                 path="channels"
                 element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
+              <Route path="activity" element={<Navigate to="../channels" />} />
               <Route path="members" element={<Members />} />
               <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
                 {!isMobile && (
@@ -606,7 +610,7 @@ function Firehose() {
   return null;
 }
 
-const App = React.memo(() => {
+const App = React.memo(function AppComponent() {
   useNativeBridge();
   const navigate = useNavigate();
   const handleError = useErrorHandler();
@@ -676,6 +680,23 @@ function RoutedApp() {
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
+
+  useEffect(() => {
+    const onFocus = () => {
+      useLocalState.setState({ inFocus: true });
+    };
+    window.addEventListener('focus', onFocus);
+
+    const onBlur = () => {
+      useLocalState.setState({ inFocus: false });
+    };
+    window.addEventListener('blur', onBlur);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
 
   useEffect(() => {
     window.toggleDevTools = () => toggleDevTools();

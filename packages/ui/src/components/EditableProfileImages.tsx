@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import { ImageBackground } from 'expo-image';
+import { ImagePickerAsset } from 'expo-image-picker';
 import {
   ComponentProps,
   useCallback,
@@ -11,6 +12,10 @@ import {
 import { TouchableOpacity } from 'react-native';
 import { Circle, Stack, ZStack, useTheme } from 'tamagui';
 
+import {
+  useAttachmentContext,
+  useMappedImageAttachments,
+} from '../contexts/attachment';
 import { View } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { AvatarProps, ContactAvatar, GroupAvatar } from './Avatar';
@@ -21,65 +26,81 @@ interface Props {
   contact?: db.Contact;
   group?: db.Group;
   iconProps?: AvatarProps;
-  uploadInfo: api.UploadInfo;
+  uploadInfo?: api.UploadInfo;
   onSetCoverUrl: (url: string) => void;
   onSetIconUrl: (url: string) => void;
 }
 
-export function EditablePofileImages(props: Props) {
+export function EditablePofileImages({
+  onSetCoverUrl,
+  onSetIconUrl,
+  ...props
+}: Props) {
   const theme = useTheme();
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [attachingTo, setAttachingTo] = useState<null | 'cover' | 'icon'>(null);
-  const [iconUrl, setIconUrl] = useState(
+  const [localIconUrl, setLocalIconUrl] = useState(
     props.contact?.avatarImage ?? props.group?.iconImage ?? ''
   );
-  const [coverUrl, setCoverUrl] = useState(
+  const [localCoverUrl, setLocalCoverUrl] = useState(
     props.contact?.coverImage ?? props.group?.coverImage ?? ''
   );
+  const { attachAssets, canUpload } = useAttachmentContext();
+  const { coverAttachment, iconAttachment } = useMappedImageAttachments({
+    coverAttachment: localCoverUrl,
+    iconAttachment: localIconUrl,
+  });
+  const remoteCoverUrl =
+    coverAttachment?.uploadState?.status === 'success'
+      ? coverAttachment.uploadState.remoteUri
+      : null;
+  const remoteIconUrl =
+    iconAttachment?.uploadState?.status === 'success'
+      ? iconAttachment.uploadState.remoteUri
+      : null;
 
   useEffect(() => {
-    if (
-      props.uploadInfo.imageAttachment &&
-      props.uploadInfo.uploadedImage &&
-      !props.uploadInfo.uploading &&
-      props.uploadInfo.uploadedImage?.url !== '' &&
-      props.uploadInfo !== null
-    ) {
-      const uploadedFile = props.uploadInfo.uploadedImage as api.UploadedFile;
-      if (attachingTo === 'cover') {
-        setCoverUrl(uploadedFile.url);
-        props.onSetCoverUrl(uploadedFile.url);
-      } else if (attachingTo === 'icon') {
-        setIconUrl(uploadedFile.url);
-        props.onSetIconUrl(uploadedFile.url);
-      }
-
-      setAttachingTo(null);
-      props.uploadInfo.resetImageAttachment();
+    if (remoteCoverUrl) {
+      onSetCoverUrl(remoteCoverUrl);
     }
-  }, [props.uploadInfo, attachingTo, props]);
+  }, [remoteCoverUrl, onSetCoverUrl]);
+
+  useEffect(() => {
+    if (remoteIconUrl) {
+      onSetIconUrl(remoteIconUrl);
+    }
+  }, [remoteIconUrl, onSetIconUrl]);
 
   const coverIsUploading = useMemo(() => {
-    return props.uploadInfo.uploading && attachingTo === 'cover';
-  }, [attachingTo, props.uploadInfo.uploading]);
+    return coverAttachment?.uploadState?.status === 'uploading';
+  }, [coverAttachment]);
 
   const iconIsUploading = useMemo(() => {
-    return props.uploadInfo.uploading && attachingTo === 'icon';
-  }, [attachingTo, props.uploadInfo.uploading]);
+    return iconAttachment?.uploadState?.status === 'uploading';
+  }, [iconAttachment]);
 
   const handleCoverPress = useCallback(() => {
-    if (props.uploadInfo.canUpload) {
-      setShowAttachmentSheet(true);
-      setAttachingTo('cover');
-    }
-  }, [props.uploadInfo]);
+    setShowAttachmentSheet(true);
+    setAttachingTo('cover');
+  }, []);
 
   const handleIconPress = useCallback(() => {
-    if (props.uploadInfo.canUpload) {
-      setShowAttachmentSheet(true);
-      setAttachingTo('icon');
-    }
-  }, [props.uploadInfo]);
+    setShowAttachmentSheet(true);
+    setAttachingTo('icon');
+  }, []);
+
+  const handleAssetsSelected = useCallback(
+    (assets: ImagePickerAsset[]) => {
+      if (attachingTo === 'cover') {
+        attachAssets([assets[0]]);
+        setLocalCoverUrl(assets[0].uri);
+      } else if (attachingTo === 'icon') {
+        attachAssets([assets[0]]);
+        setLocalIconUrl(assets[0].uri);
+      }
+    },
+    [attachingTo, attachAssets]
+  );
 
   return (
     <View width="100%" height={164} borderRadius="$xl" overflow="hidden">
@@ -89,10 +110,10 @@ export function EditablePofileImages(props: Props) {
           style={{ width: '100%', height: '100%' }}
           activeOpacity={0.85}
           onPress={handleCoverPress}
-          disabled={!props.uploadInfo.canUpload}
+          disabled={!canUpload}
         >
           <ImageBackground
-            source={{ uri: coverUrl }}
+            source={{ uri: localCoverUrl }}
             contentFit="cover"
             style={{
               width: '100%',
@@ -117,7 +138,7 @@ export function EditablePofileImages(props: Props) {
               position="absolute"
               bottom="$l"
               right="$l"
-              opacity={!props.uploadInfo.canUpload ? 0 : 1}
+              opacity={!canUpload ? 0 : 1}
               loading={coverIsUploading}
             />
           </ImageBackground>
@@ -133,19 +154,19 @@ export function EditablePofileImages(props: Props) {
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleIconPress}
-            disabled={!props.uploadInfo.canUpload}
+            disabled={!canUpload}
           >
             {props.contact && (
               <ContactAvatar
                 contactId={props.contact.id}
-                overrideUrl={iconUrl}
+                overrideUrl={localIconUrl}
                 size="$9xl"
                 {...props.iconProps}
               />
             )}
             {props.group && (
               <GroupAvatar
-                model={{ ...props.group, iconImage: iconUrl }}
+                model={{ ...props.group, iconImage: localIconUrl }}
                 size="$9xl"
                 {...props.iconProps}
               />
@@ -154,7 +175,7 @@ export function EditablePofileImages(props: Props) {
               position="absolute"
               bottom="$s"
               right="$s"
-              opacity={!props.uploadInfo.canUpload ? 0 : 1}
+              opacity={!canUpload ? 0 : 1}
               loading={iconIsUploading}
             />
           </TouchableOpacity>
@@ -164,9 +185,7 @@ export function EditablePofileImages(props: Props) {
       <AttachmentSheet
         showAttachmentSheet={showAttachmentSheet}
         setShowAttachmentSheet={setShowAttachmentSheet}
-        setImage={(attachments: api.MessageAttachments) => {
-          props.uploadInfo.setAttachments(attachments);
-        }}
+        setImage={handleAssetsSelected}
       />
     </View>
   );

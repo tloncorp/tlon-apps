@@ -9,7 +9,6 @@ import {
 import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { useImageUpload } from '../hooks/useImageUpload';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
@@ -17,9 +16,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 export function EditProfileScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const { data: contacts } = store.useContacts();
-  const uploadInfo = useImageUpload({
-    uploaderKey: 'profile-edit',
-  });
 
   const onGoBack = useCallback(() => {
     props.navigation.goBack();
@@ -33,6 +29,8 @@ export function EditProfileScreen(props: Props) {
     [props.navigation]
   );
 
+  const canUpload = store.useCanUpload();
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -40,7 +38,8 @@ export function EditProfileScreen(props: Props) {
     >
       <View flex={1}>
         <EditProfileScreenView
-          uploadInfo={uploadInfo}
+          canUpload={canUpload}
+          uploadAsset={store.uploadAsset}
           onGoBack={onGoBack}
           onSaveProfile={onSaveProfile}
         />

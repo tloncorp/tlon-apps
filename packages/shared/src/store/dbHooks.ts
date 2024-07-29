@@ -7,6 +7,11 @@ import { useMemo } from 'react';
 
 import * as api from '../api';
 import * as db from '../db';
+import {
+  getIsHosted,
+  hasCustomS3Creds,
+  hasHostingUploadCreds,
+} from './storage';
 import { syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
@@ -96,6 +101,25 @@ export const useIsTlonEmployee = () => {
     queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
     queryFn: db.getIsTlonEmployee,
   });
+};
+
+export const useCanUpload = () => {
+  return (
+    useQuery({
+      queryKey: db.STORAGE_SETTINGS_QUERY_KEY,
+      queryFn: async () => {
+        const [config, credentials] = await Promise.all([
+          db.getStorageConfiguration(),
+          db.getStorageCredentials(),
+        ]);
+        return (
+          !config ||
+          hasHostingUploadCreds(config, credentials) ||
+          hasCustomS3Creds(config, credentials)
+        );
+      },
+    }).data ?? true
+  );
 };
 
 export const useContact = (options: { id: string }) => {

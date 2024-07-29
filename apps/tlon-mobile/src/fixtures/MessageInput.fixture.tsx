@@ -12,17 +12,11 @@ const ChatMessageInputFixture = () => {
     <FixtureWrapper fillWidth>
       <View backgroundColor="$background">
         <MessageInput
+          channelType="notebook"
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
           send={async () => {}}
           channelId="channel-id"
-          uploadInfo={{
-            imageAttachment: null,
-            resetImageAttachment: () => {},
-            setAttachments: () => {},
-            canUpload: true,
-            uploading: false,
-          }}
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
           storeDraft={() => {}}

@@ -59,6 +59,7 @@ import {
   useTrackedMessageStatus,
 } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
+import { useInFocus } from '@/state/local';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';
@@ -160,13 +161,14 @@ const ReplyMessage = React.memo<
         () => isMessageHidden || isPostHidden,
         [isMessageHidden, isPostHidden]
       );
+      const inFocus = useInFocus();
       const { ref: viewRef, inView } = useInView({
         threshold: 1,
       });
 
       useEffect(() => {
         // if no tracked unread we don't need to take any action
-        if (!inView || !isUnread) {
+        if (!inFocus || !inView || !isUnread) {
           return;
         }
 
@@ -175,7 +177,15 @@ const ReplyMessage = React.memo<
         } else {
           markChannelRead();
         }
-      }, [whom, inView, isUnread, isDMOrMultiDM, markChannelRead, markDmRead]);
+      }, [
+        whom,
+        inFocus,
+        inView,
+        isUnread,
+        isDMOrMultiDM,
+        markChannelRead,
+        markDmRead,
+      ]);
 
       const msgStatus = useTrackedMessageStatus({
         author: window.our,

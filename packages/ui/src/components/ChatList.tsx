@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
-import fuzzy from 'fuzzy';
+import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -93,62 +93,79 @@ export function ChatList({
     ];
   }, [filteredData, pendingChats]);
 
-  const extractForFuzzy = useCallback((item: db.Channel) => {
-    if (logic.isGroupChannelId(item.id)) {
-      return item.group?.title || '';
-    }
-    if (item.type === 'dm' && item.contact) {
-      return item.contact.nickname
-        ? `${item.contact.nickname}-${item.id}`
-        : item.id;
-    }
-    if (item.type === 'groupDm') {
-      return (item.members || [])
-        .map((m) =>
-          m.contact
-            ? m.contact.nickname
-              ? `${m.contact.nickname}-${m.contact.id}`
-              : m.contact.id
-            : ''
-        )
-        .join(' ');
-    }
-    return item.id;
+  const getFuseOptions = useCallback(() => {
+    return {
+      keys: [
+        'id',
+        'group.title',
+        'contact.nickname',
+        'members.contact.nickname',
+        'members.contact.id',
+      ],
+      threshold: 0.3,
+    };
   }, []);
 
-  const debouncedFuzzySearch = useMemo(
-    () =>
-      debounce((query) => {
-        const results = fuzzy.filter(
-          query.trim(),
-          [...filteredData.filteredPinned, ...filteredData.filteredUnpinned],
-          { extract: extractForFuzzy }
-        );
-        return results.map((result) => result.original);
-      }, DEBOUNCE_DELAY),
-    [filteredData, extractForFuzzy]
+  const fuse = useMemo(() => {
+    const allData = [...pinned, ...unpinned];
+    return new Fuse(allData, getFuseOptions());
+  }, [pinned, unpinned, getFuseOptions]);
+
+  const performSearch = useCallback(
+    (query: string) => {
+      if (query.trim() === '') {
+        return [];
+      }
+      return fuse.search(query).map((result) => result.item);
+    },
+    [fuse]
   );
 
-  const searchResults = useMemo(() => {
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((query: string, callback: (results: Chat[]) => void) => {
+        const results = performSearch(query);
+        callback(results);
+      }, DEBOUNCE_DELAY),
+    [performSearch]
+  );
+
+  const [searchResults, setSearchResults] = useState<Chat[]>([]);
+
+  useEffect(() => {
+    if (searchQuery.trim() !== '') {
+      debouncedSearch(searchQuery, setSearchResults);
+    } else {
+      setSearchResults([]);
+    }
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [searchQuery, debouncedSearch]);
+
+  const filteredSearchResults = useMemo(() => {
+    return searchResults.filter((chat) => {
+      if (logic.isGroupChannelId(chat.id)) {
+        return activeTab === 'all' || activeTab === 'groups';
+      }
+      return activeTab === 'all' || activeTab === 'messages';
+    });
+  }, [searchResults, activeTab]);
+
+  const displayData = useMemo(() => {
     if (searchQuery.trim() === '') {
       return sectionedData;
     }
-    const results = debouncedFuzzySearch(searchQuery);
-
-    return results && results.length > 0
-      ? [
-          {
-            title: 'Search',
-            data: results,
-          },
-        ]
+    return filteredSearchResults.length > 0
+      ? [{ title: 'Search', data: filteredSearchResults }]
       : [{ title: 'Search', data: [] }];
-  }, [searchQuery, sectionedData, debouncedFuzzySearch]);
+  }, [searchQuery, sectionedData, filteredSearchResults]);
 
   const contentContainerStyle = useStyle(
     {
       gap: '$s',
       paddingHorizontal: '$l',
+      paddingBottom: 100, // bottom nav height + some cushion
     },
     { resolveValues: 'value' }
   ) as StyleProp<ViewStyle>;
@@ -342,7 +359,7 @@ export function ChatList({
         </YStack>
       </Animated.View>
       <Animated.View style={listStyle}>
-        {searchQuery !== '' && searchResults.length === 0 ? (
+        {searchQuery !== '' && filteredSearchResults.length === 0 ? (
           <YStack
             gap="$l"
             alignItems="center"
@@ -362,9 +379,7 @@ export function ChatList({
           </YStack>
         ) : (
           <AnimatedSectionList
-            sections={
-              searchQuery && searchResults ? searchResults : sectionedData
-            }
+            sections={displayData}
             contentContainerStyle={contentContainerStyle}
             keyExtractor={getChannelKey}
             stickySectionHeadersEnabled={false}

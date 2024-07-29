@@ -1,6 +1,7 @@
 import type * as db from '@tloncorp/shared/dist/db';
 import { getTextContent } from '@tloncorp/shared/dist/urbit';
 import type { Story } from '@tloncorp/shared/dist/urbit/channel';
+import { formatUd, unixToDa } from '@urbit/aura';
 
 export const createSimpleContent = (str: string): string => {
   return JSON.stringify([
@@ -226,7 +227,7 @@ const basicUnread = {
   count: 10,
   notify: false,
   countWithoutThreads: 5,
-  channelId: '~nibset-napwyn/intros',
+  channelId: 'chat/~nibset-napwyn/intros',
   updatedAt: getRandomTimeOnSameDay(),
   firstUnreadPostId: '1',
   firstUnreadPostReceivedAt: getRandomTimeOnSameDay(),
@@ -255,7 +256,7 @@ const emptyChannel: db.Channel = {
 
 export const tlonLocalIntros: db.Channel = {
   ...emptyChannel,
-  id: '~nibset-napwyn/intros',
+  id: 'chat/~nibset-napwyn/intros',
   type: 'chat',
   groupId: '~nibset-napwyn/tlon',
   title: 'Intros',
@@ -274,7 +275,7 @@ export const tlonLocalIntros: db.Channel = {
     replyTime: null,
     type: 'chat',
     groupId: '~nibset-napwyn/tlon',
-    channelId: '~nibset-napwyn/intros',
+    channelId: 'chat/~nibset-napwyn/intros',
     title: null,
     hasImage: null,
     image: null,
@@ -554,6 +555,8 @@ const tlonLocalNavSections: db.GroupNavSection[] = [
 
 export const group: db.Group = {
   id: '~nibset-napwyn/tlon',
+  hostUserId: '~nibset-napwyn',
+  currentUserIsHost: false,
   title: 'Tlon Local',
   channels: tlonLocalChannels,
   navSections: tlonLocalNavSections,
@@ -662,7 +665,6 @@ export const createFakePost = (
 ): db.Post => {
   const fakeContact = getRandomFakeContact();
   const ship = fakeContact.id;
-  const id = Math.random().toString(36).substring(7);
   // timestamp on same day
   const randomSentAtSameDay = new Date(
     new Date().getTime() - Math.floor(Math.random() * 10000000)
@@ -673,9 +675,9 @@ export const createFakePost = (
   const fakeImage = image ? createImageContent(image) : null;
 
   const textContent = getTextContent(JSON.parse(contentOrFake)) ?? null;
-
+  const id = formatUd(unixToDa(randomSentAtSameDay));
   return {
-    id: `${ship}-${id}`,
+    id: `${id}`,
     authorId: ship,
     author: fakeContact,
     content: image ? fakeImage : contentOrFake,
@@ -770,6 +772,8 @@ const dates = {
 
 export const groupWithColorAndNoImage: db.Group = {
   id: '1',
+  hostUserId: '~nibset-napwyn',
+  currentUserIsHost: false,
   title: 'Test Group',
   privacy: 'private',
   unreadCount: 1,

@@ -4,9 +4,14 @@ import { createRoot } from 'react-dom/client';
 import App from './app';
 import './index.css';
 
-/**
- * This is the entrypoint for the "web" part of our editor that will be built with vite
- */
-const container = document.getElementById('root');
-const root = createRoot(container!);
-root.render(<App />);
+const contentInjected = () => window.contentInjected;
+
+const interval = setInterval(() => {
+  if (!contentInjected()) return;
+  // Once content is injected into the webview, we can render the editor
+  const container = document.getElementById('root');
+  const root = createRoot(container!);
+  root.render(<App />);
+  clearInterval(interval);
+  return;
+}, 1);

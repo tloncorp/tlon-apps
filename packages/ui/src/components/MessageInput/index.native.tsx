@@ -18,7 +18,6 @@ import {
 import {
   createDevLogger,
   extractContentTypesFromPost,
-  findFirstImageBlock,
   tiptap,
 } from '@tloncorp/shared/dist';
 import {
@@ -49,10 +48,15 @@ import {
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { getToken, useWindowDimensions } from 'tamagui';
+import { YStack, getToken, useWindowDimensions } from 'tamagui';
 
-import { RefEditorRecord, useReferences } from '../../contexts/references';
+import {
+  Attachment,
+  UploadedImageAttachment,
+  useAttachmentContext,
+} from '../../contexts/attachment';
 import { XStack } from '../../core';
+import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
 const messageInputLogger = createDevLogger('MessageInput', false);
@@ -111,7 +115,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       setShouldBlur,
       send,
       channelId,
-      uploadInfo,
       groupMembers,
       storeDraft,
       clearDraft,
@@ -120,6 +123,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       setEditingPost,
       editPost,
       setShowBigInput,
+      showInlineAttachments = true,
       showAttachmentButton = true,
       floatingActionButton = false,
       backgroundColor = '$background',
@@ -132,6 +136,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       channelType,
       setHeight,
       goBack,
+      onSend,
     },
     ref
   ) => {
@@ -144,6 +149,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
     }));
 
+    const [isSending, setIsSending] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
@@ -160,9 +166,20 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       height - basicOffset - bottom - inputBasePadding * 2;
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
-    const [editorIsEmpty, setEditorIsEmpty] = useState(true);
     const [showMentionPopup, setShowMentionPopup] = useState(false);
-    const { references, setReferences } = useReferences();
+
+    const {
+      attachments,
+      addAttachment,
+      clearAttachments,
+      resetAttachments,
+      waitForAttachmentUploads,
+    } = useAttachmentContext();
+
+    const [editorIsEmpty, setEditorIsEmpty] = useState(
+      attachments.length === 0
+    );
+
     const bridgeExtensions = [
       ...TenTapStartKit,
       MentionsBridge,
@@ -231,28 +248,32 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 return;
               }
 
-              if (postReferences) {
-                const newRefs: RefEditorRecord = postReferences.reduce(
-                  (acc, ref) => {
-                    const cite = contentReferenceToCite(ref);
-                    const path = citeToPath(cite);
-                    acc[path] = ref;
-                    return acc;
-                  },
-                  {
-                    ...references,
-                  }
-                );
+              const attachments: Attachment[] = [];
 
-                setReferences(newRefs);
-              }
+              postReferences.forEach((p) => {
+                const cite = contentReferenceToCite(p);
+                const path = citeToPath(cite);
+                attachments.push({
+                  type: 'reference',
+                  reference: p,
+                  path,
+                });
+              });
 
-              if (blocks.some((c) => 'image' in c)) {
-                const image = findFirstImageBlock(blocks);
-                if (image) {
-                  setImageOnEditedPost(image);
+              blocks.forEach((b) => {
+                if ('image' in b) {
+                  attachments.push({
+                    type: 'image',
+                    file: {
+                      uri: b.image.src,
+                      height: b.image.height,
+                      width: b.image.width,
+                    },
+                  });
                 }
-              }
+              });
+
+              resetAttachments(attachments);
 
               const tiptapContent = tiptap.diaryMixedToJSON(
                 story.filter(
@@ -274,8 +295,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       hasSetInitialContent,
       editorState.isReady,
       editingPost,
-      setReferences,
-      references,
+      resetAttachments,
     ]);
 
     useEffect(() => {
@@ -308,15 +328,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const isEmpty =
           (inlines.length === 0 || inlineIsJustBreak) &&
           blocks.length === 0 &&
-          !uploadInfo?.uploadedImage &&
-          Object.entries(references).filter(([, ref]) => ref !== null)
-            .length === 0;
+          attachments.length === 0;
 
         if (isEmpty !== editorIsEmpty) {
           setEditorIsEmpty(isEmpty);
         }
       });
-    }, [editor, references, uploadInfo, editorIsEmpty]);
+    }, [editor, attachments, editorIsEmpty]);
 
     editor._onContentUpdate = async () => {
       const json = await editor.getJSON();
@@ -357,7 +375,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
             if (cite) {
               const reference = toContentReference(cite);
-              setReferences({ [isRef[0]]: reference });
+              if (reference) {
+                addAttachment({
+                  type: 'reference',
+                  reference,
+                  path: isRef[0],
+                });
+              }
+
               const json = await editor.getJSON();
               const inlines = tiptap
                 .JSONToInlines(json)
@@ -410,7 +435,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           }
         }
       },
-      [editor, setReferences]
+      [editor, addAttachment]
     );
 
     const onSelectMention = useCallback(
@@ -481,30 +506,33 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const sendMessage = useCallback(
       async (isEdit?: boolean) => {
         const json = await editor.getJSON();
-        const blocks: Block[] = [];
         const inlines = tiptap.JSONToInlines(json);
         const story = constructStory(inlines);
 
-        if (Object.keys(references).length) {
-          Object.keys(references).forEach((ref) => {
-            const cite = pathToCite(ref);
-            if (!cite) {
-              return;
-            }
-            blocks.push({ cite });
-          });
-        }
+        const finalAttachments = await waitForAttachmentUploads();
 
-        if (!image && uploadInfo?.uploadedImage) {
-          blocks.push({
-            image: {
-              src: uploadInfo.uploadedImage.url,
-              height: uploadInfo.uploadedImage.height,
-              width: uploadInfo.uploadedImage.width,
-              alt: 'image',
-            },
-          });
-        }
+        const blocks = finalAttachments.flatMap((attachment): Block[] => {
+          if (attachment.type === 'reference') {
+            const cite = pathToCite(attachment.path);
+            return cite ? [{ cite }] : [];
+          }
+          if (
+            attachment.type === 'image' &&
+            (!image || attachment.file.uri !== image?.uri)
+          ) {
+            return [
+              {
+                image: {
+                  src: attachment.uploadState.remoteUri,
+                  height: attachment.file.height,
+                  width: attachment.file.width,
+                  alt: 'image',
+                },
+              },
+            ];
+          }
+          return [];
+        });
 
         if (imageOnEditedPost) {
           blocks.push({
@@ -518,7 +546,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         if (blocks && blocks.length > 0) {
-          story.push(...blocks.map((block) => ({ block })));
+          if (channelType === 'chat') {
+            story.unshift(...blocks.map((block) => ({ block })));
+          } else {
+            story.push(...blocks.map((block) => ({ block })));
+          }
         }
 
         if (isEdit && editingPost) {
@@ -533,8 +565,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             metadata['title'] = title;
           }
 
-          if (image && image.url && image.url.length > 0) {
-            metadata['image'] = image.url;
+          if (image) {
+            const attachment = finalAttachments.find(
+              (a): a is UploadedImageAttachment =>
+                a.type === 'image' && a.file.uri === image.uri
+            );
+            if (!attachment) {
+              throw new Error('unable to attach image');
+            }
+            metadata['image'] = attachment.uploadState.remoteUri;
           }
 
           // not awaiting since we don't want to wait for the send to complete
@@ -542,43 +581,57 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           send(story, channelId, metadata);
         }
 
+        onSend?.();
         editor.setContent('');
-        setReferences({});
+        clearAttachments();
         clearDraft();
         setShowBigInput?.(false);
         setImageOnEditedPost(null);
       },
       [
+        onSend,
         editor,
-        send,
-        channelId,
-        uploadInfo,
-        references,
-        setReferences,
-        clearDraft,
-        editPost,
+        waitForAttachmentUploads,
+        imageOnEditedPost,
         editingPost,
-        setEditingPost,
+        clearAttachments,
+        clearDraft,
         setShowBigInput,
+        editPost,
+        setEditingPost,
         title,
         image,
-        imageOnEditedPost,
+        channelType,
+        send,
+        channelId,
       ]
+    );
+
+    const runSendMessage = useCallback(
+      async (isEdit: boolean) => {
+        setIsSending(true);
+        try {
+          await sendMessage(isEdit);
+        } catch (e) {
+          console.error('failed to send', e);
+        }
+        setIsSending(false);
+      },
+      [sendMessage]
     );
 
     const handleSend = useCallback(async () => {
       Keyboard.dismiss();
-      await sendMessage();
-    }, [sendMessage]);
+      runSendMessage(false);
+    }, [runSendMessage]);
 
     const handleEdit = useCallback(async () => {
       Keyboard.dismiss();
       if (!editingPost) {
         return;
       }
-
-      await sendMessage(true);
-    }, [sendMessage, editingPost]);
+      runSendMessage(true);
+    }, [runSendMessage, editingPost]);
 
     const handleAddNewLine = useCallback(() => {
       if (editorState.isCodeBlockActive) {
@@ -719,13 +772,13 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         setShouldBlur={setShouldBlur}
         onPressSend={handleSend}
         onPressEdit={handleEdit}
-        uploadInfo={uploadInfo}
         containerHeight={containerHeight}
         mentionText={mentionText}
         groupMembers={groupMembers}
         onSelectMention={onSelectMention}
         showMentionPopup={showMentionPopup}
         isEditing={!!editingPost}
+        isSending={isSending}
         cancelEditing={() => setEditingPost?.(undefined)}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
@@ -734,48 +787,49 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
         goBack={goBack}
       >
-        <XStack
-          borderRadius="$xl"
-          height={bigInput ? bigInputHeight : containerHeight}
+        <YStack
+          flex={1}
           backgroundColor={backgroundColor}
           paddingHorizontal={paddingHorizontal}
-          flex={1}
-          borderColor="$shadow"
+          borderColor="$border"
           borderWidth={1}
+          borderRadius="$xl"
         >
-          <RichText
-            style={{
-              backgroundColor: 'transparent',
-            }}
-            editor={editor}
-            onMessage={handleMessage}
-            onError={(e) => {
-              messageInputLogger.warn(
-                '[webview] Error from webview',
-                e.nativeEvent
-              );
-              reloadWebview('Error from webview');
-            }}
-            onRenderProcessGone={(e) => {
-              // https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md#onrenderprocessgone
-              messageInputLogger.warn(
-                '[webview] Render process gone',
-                e.nativeEvent.didCrash
-              );
-              reloadWebview(`Render process gone: ${e.nativeEvent.didCrash}`);
-            }}
-            onContentProcessDidTerminate={(e) => {
-              // iOS will kill webview in background
-              // https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md#oncontentprocessdidterminate
-              messageInputLogger.warn(
-                '[webview] Content process terminated',
-                e
-              );
-              reloadWebview('Content process terminated');
-            }}
-            // we never want to see a loading indicator
-            renderLoading={() => <></>}
-            injectedJavaScript={`
+          {showInlineAttachments && <AttachmentPreviewList />}
+          <XStack height={bigInput ? bigInputHeight : containerHeight}>
+            <RichText
+              style={{
+                backgroundColor: 'transparent',
+              }}
+              editor={editor}
+              onMessage={handleMessage}
+              onError={(e) => {
+                messageInputLogger.warn(
+                  '[webview] Error from webview',
+                  e.nativeEvent
+                );
+                reloadWebview('Error from webview');
+              }}
+              onRenderProcessGone={(e) => {
+                // https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md#onrenderprocessgone
+                messageInputLogger.warn(
+                  '[webview] Render process gone',
+                  e.nativeEvent.didCrash
+                );
+                reloadWebview(`Render process gone: ${e.nativeEvent.didCrash}`);
+              }}
+              onContentProcessDidTerminate={(e) => {
+                // iOS will kill webview in background
+                // https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md#oncontentprocessdidterminate
+                messageInputLogger.warn(
+                  '[webview] Content process terminated',
+                  e
+                );
+                reloadWebview('Content process terminated');
+              }}
+              // we never want to see a loading indicator
+              renderLoading={() => <></>}
+              injectedJavaScript={`
               ${tentapInjectedJs}
 
               window.onerror = function(message, source, lineno, colno, error) {
@@ -814,8 +868,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 }
               });
             `}
-          />
-        </XStack>
+            />
+          </XStack>
+        </YStack>
       </MessageInputContainer>
     );
   }

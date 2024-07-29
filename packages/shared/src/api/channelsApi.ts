@@ -5,7 +5,11 @@ import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
-import { getCanonicalPostId } from './apiUtils';
+import {
+  getCanonicalPostId,
+  isDmChannelId,
+  isGroupChannelId,
+} from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import { scry, subscribe, trackedPoke } from './urbit';
 
@@ -313,25 +317,59 @@ export const createNewGroupDefaultChannel = async ({
   );
 };
 
-export const searchChatChannel = async (params: {
-  channelId: string;
+export const searchChannel = async (params: {
+  channel: db.Channel;
   query: string;
   cursor?: string;
 }) => {
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
+  const isGroupChannel = isGroupChannelId(params.channel.id);
   const encodedQuery = stringToTa(params.query);
 
-  const response = await scry<ub.ChannelScam>({
-    app: 'channels',
-    path: `/${params.channelId}/search/bounded/text/${
-      params.cursor ? decToUd(params.cursor.toString()) : ''
-    }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
-  });
+  let response;
+  if (isGroupChannel) {
+    // channels agent
+    response = await scry<ub.ChannelScam>({
+      app: 'channels',
+      path: `/${params.channel.id}/search/bounded/text/${
+        params.cursor ? decToUd(params.cursor.toString()) : ''
+      }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
+    });
+  } else {
+    // chat agent
+    const type = params.channel.type === 'dm' ? 'dm' : 'club';
+    response = await scry<ub.ChatScam>({
+      app: 'chat',
+      path: `/${type}/${params.channel.id}/search/bounded/text/${
+        params.cursor ? decToUd(params.cursor.toString()) : ''
+      }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
+    });
+  }
 
-  const posts = response.scan
-    .filter((scanItem) => 'post' in scanItem && scanItem.post !== undefined)
-    .map((scanItem) => (scanItem as { post: ub.Post }).post)
-    .map((post) => toPostData(params.channelId, post));
+  // note: we avoid incurring the cost of sorting here since the main consumer (useChannelSearch)
+  // aggregates results across multiple pages
+  const posts: db.Post[] = response.scan
+    .map((scanItem) => {
+      if ('post' in scanItem) {
+        return toPostData(params.channel.id, scanItem.post);
+      }
+      if ('writ' in scanItem) {
+        return toPostData(params.channel.id, scanItem.writ);
+      }
+      if ('reply' in scanItem) {
+        const parentId = isGroupChannel
+          ? getCanonicalPostId(scanItem.reply['id-post'])
+          : getCanonicalPostId(scanItem.reply.reply.seal['parent-id']);
+        return toPostReplyData(
+          params.channel.id,
+          parentId,
+          scanItem.reply.reply
+        );
+      }
+      return false;
+    })
+    .filter((post) => post !== false) as db.Post[];
+
   const cursor = response.last;
 
   return { posts, cursor };

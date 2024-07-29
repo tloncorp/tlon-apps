@@ -77,6 +77,8 @@ class UrbitModule: NSObject {
         UrbitModule.shipUrl = shipUrl
         UrbitModule.authCookie = authCookie
         Task {
+            // Delay this a bit so that js init requests have time to fire
+            try? await Task.sleep(for: .seconds(10))
             try? await UrbitAPI.shared.open(for: shipUrl)
             try? await PocketUserAPI.fetchSettings()
         }

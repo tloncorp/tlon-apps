@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/dist/store';
 import { ProfileScreenView, View } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
+import { useDMLureLink } from '../hooks/useBranchLink';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useHandleLogout } from '../hooks/useHandleLogout';
 import NavBar from '../navigation/NavBarView';
@@ -23,6 +24,8 @@ export default function ProfileScreen(props: Props) {
     props.navigation.navigate('EditProfile');
   }, [props.navigation]);
 
+  const { dmLink } = useDMLureLink();
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ProfileScreenView
@@ -31,6 +34,7 @@ export default function ProfileScreen(props: Props) {
         onAppSettingsPressed={onAppSettingsPressed}
         onEditProfilePressed={onEditProfilePressed}
         onLogoutPressed={handleLogout}
+        dmLink={dmLink}
       />
       <NavBar navigation={props.navigation} />
     </View>

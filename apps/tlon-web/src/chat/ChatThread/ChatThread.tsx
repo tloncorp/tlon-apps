@@ -142,9 +142,9 @@ export default function ChatThread() {
     [chName, chShip, name, ship, activeTab]
   );
 
-  const onAtBottom = useCallback(() => {
-    const { bottom } = useChatStore.getState();
-    bottom(true);
+  const onAtBottom = useCallback((atBottom: boolean) => {
+    const { threadBottom } = useChatStore.getState();
+    threadBottom(atBottom);
   }, []);
 
   const onEscape = useCallback(
@@ -156,6 +156,22 @@ export default function ChatThread() {
     [navigate, returnURL, leapIsOpen]
   );
   useEventListener('keydown', onEscape, threadRef);
+
+  useEffect(() => {
+    useChatStore.getState().threadBottom(true);
+
+    return () => {
+      useChatStore.getState().threadBottom(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    useChatStore.getState().setCurrentThread(msgKey);
+
+    return () => {
+      useChatStore.getState().setCurrentThread(null);
+    };
+  }, [msgKey]);
 
   useEffect(() => {
     if (!idTimeIsNumber) {
@@ -309,7 +325,7 @@ export default function ChatThread() {
             isScrolling={isScrolling}
             hasLoadedNewest={false}
             hasLoadedOldest={false}
-            onAtBottom={onAtBottom}
+            onAtBottomChange={onAtBottom}
           />
         )}
       </div>

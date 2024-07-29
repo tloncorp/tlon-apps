@@ -13,6 +13,8 @@ export default (
   <>
     <PostScreenView
       editPost={async () => {}}
+      onPressRetry={() => {}}
+      onPressDelete={() => {}}
       editingPost={undefined}
       negotiationMatch={true}
       setEditingPost={() => {}}
@@ -24,13 +26,7 @@ export default (
         disableNicknames: false,
         disableRemoteContent: false,
       }}
-      uploadInfo={{
-        imageAttachment: null,
-        resetImageAttachment: () => {},
-        setAttachments: () => {},
-        canUpload: true,
-        uploading: false,
-      }}
+      uploadAsset={async () => {}}
       channel={tlonLocalBulletinBoard}
       posts={posts}
       sendReply={async () => {}}
@@ -39,6 +35,7 @@ export default (
       getDraft={async () => ({})}
       storeDraft={() => {}}
       clearDraft={() => {}}
+      canUpload={true}
     />
   </>
 );

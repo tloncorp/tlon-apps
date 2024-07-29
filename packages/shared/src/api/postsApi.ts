@@ -188,6 +188,7 @@ export const sendPost = async ({
       add: essay,
     })
   );
+  logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
 export const editPost = async ({
@@ -381,23 +382,20 @@ export type GetLatestPostsResponse = PostWithUpdateTime[];
 export const getLatestPosts = async ({
   afterCursor,
   count,
-  type,
 }: {
   afterCursor?: Cursor;
   count?: number;
-  type: 'channels' | 'chats';
 }): Promise<GetLatestPostsResponse> => {
-  const response = await scry<ub.ChannelHeadsResponse | ub.ChatHeadsResponse>({
-    app: type === 'channels' ? 'channels' : 'chat',
+  const { channels, dms } = await scry<ub.CombinedHeads>({
+    app: 'groups-ui',
     path: formatScryPath(
-      type === 'channels' ? 'v2' : null,
-      'heads',
+      'v1/heads',
       afterCursor ? formatCursor(afterCursor) : null,
       count
     ),
   });
 
-  return response.map((head) => {
+  return [...channels, ...dms].map((head) => {
     const channelId = 'nest' in head ? head.nest : head.whom;
     const latestPost = toPostData(channelId, head.latest);
     return {
@@ -972,6 +970,22 @@ export function toPostContent(story?: ub.Story): PostContentAndFlags {
     return verse;
   });
   return [convertedContent, flags];
+}
+
+export function toUrbitStory(content: PostContent): Story {
+  if (!content) {
+    return [];
+  }
+  return content.map((item) => {
+    if ('type' in item) {
+      return {
+        block: {
+          cite: contentReferenceToCite(item),
+        },
+      };
+    }
+    return item;
+  });
 }
 
 export function toContentReference(cite: ub.Cite): ContentReference | null {

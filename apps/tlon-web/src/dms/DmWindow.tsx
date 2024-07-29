@@ -76,21 +76,27 @@ export default function DmWindow({
     [scrollToInMessages, scrollToIndex, latestMessageIndex]
   );
 
-  const onAtBottom = useCallback(() => {
-    const { bottom } = useChatStore.getState();
-    bottom(true);
-    if (hasPreviousPage && !isFetching) {
-      log('fetching previous page');
-      fetchPreviousPage();
-    }
-  }, [fetchPreviousPage, hasPreviousPage, isFetching]);
+  const onAtBottom = useCallback(
+    (atBottom: boolean) => {
+      const { bottom } = useChatStore.getState();
+      bottom(atBottom);
+      if (atBottom && hasPreviousPage && !isFetching) {
+        log('fetching previous page');
+        fetchPreviousPage();
+      }
+    },
+    [fetchPreviousPage, hasPreviousPage, isFetching]
+  );
 
-  const onAtTop = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      log('fetching next page');
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetching]);
+  const onAtTop = useCallback(
+    (atTop: boolean) => {
+      if (atTop && hasNextPage && !isFetching) {
+        log('fetching next page');
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetching]
+  );
 
   const goToLatest = useCallback(async () => {
     if (idTime) {
@@ -121,10 +127,10 @@ export default function DmWindow({
   ]);
 
   useEffect(() => {
-    useChatStore.getState().setCurrent(whom);
+    useChatStore.getState().setCurrent({ whom });
 
     return () => {
-      useChatStore.getState().setCurrent('');
+      useChatStore.getState().setCurrent(null);
     };
   }, [whom]);
 
@@ -174,8 +180,8 @@ export default function DmWindow({
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
           topLoadEndMarker={prefixedElement}
-          onAtTop={onAtTop}
-          onAtBottom={onAtBottom}
+          onAtTopChange={onAtTop}
+          onAtBottomChange={onAtBottom}
           hasLoadedOldest={!hasNextPage}
           hasLoadedNewest={!hasPreviousPage}
         />

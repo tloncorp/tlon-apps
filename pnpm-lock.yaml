@@ -81,8 +81,8 @@ importers:
   apps/tlon-mobile:
     dependencies:
       '@10play/tentap-editor':
-        specifier: ^0.4.55
-        version: 0.4.55(patch_hash=xjpmkpcw463yvoqvocxrxq7ici)(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        specifier: ~0.5.11
+        version: 0.5.13(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@aws-sdk/client-s3':
         specifier: ^3.190.0
         version: 3.190.0
@@ -911,8 +911,8 @@ importers:
   packages/editor:
     dependencies:
       '@10play/tentap-editor':
-        specifier: ^0.4.55
-        version: 0.4.55(patch_hash=xjpmkpcw463yvoqvocxrxq7ici)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        specifier: ~0.5.11
+        version: 0.5.13(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tiptap/core':
         specifier: ^2.0.3
         version: 2.0.3(@tiptap/pm@2.0.3)
@@ -1028,8 +1028,8 @@ importers:
   packages/ui:
     dependencies:
       '@10play/tentap-editor':
-        specifier: ^0.4.55
-        version: 0.4.55(patch_hash=xjpmkpcw463yvoqvocxrxq7ici)(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+        specifier: ~0.5.11
+        version: 0.5.13(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@emoji-mart/data':
         specifier: ^1.1.2
         version: 1.1.2
@@ -1124,8 +1124,8 @@ importers:
 
 packages:
 
-  '@10play/tentap-editor@0.4.55':
-    resolution: {integrity: sha512-5dEIYHvkWkfg00nTYiUcJoibRU5EpjQyfE1I0wcdOgJrW2W6YQiuYc5sN/uJjOklDexI777qYzHmZ4lvYQ3mbw==}
+  '@10play/tentap-editor@0.5.13':
+    resolution: {integrity: sha512-d+dw4Gwy3Z86Y3gRkkDQ5UIylFhWwlDgehLWv5q+M08fQ/sCizdwg6uXjIaq8ADyEK4Eig0bO0M+N2OUOdox2Q==}
     engines: {node: '>= 18.0.0'}
     peerDependencies:
       react: '*'
@@ -4908,10 +4908,10 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.0.0
 
-  '@tiptap/extension-hard-break@2.3.0':
-    resolution: {integrity: sha512-9pXi69SzLabbjY5KZ54UKzu7HAHTla9aYZKH56VatOAiJOPKJppFbU2/NfJwGzDrEtfOiDqr3dYbUDF3RuCFoQ==}
+  '@tiptap/extension-hard-break@2.5.4':
+    resolution: {integrity: sha512-nLn6HP9tqgdGGwbMORXVtcY30DTGctYFaWADRthvBjVgacYSeKlhUcsSu3YgaxtbxZp6BhfRvD2kKrxyQsSjnQ==}
     peerDependencies:
-      '@tiptap/core': ^2.0.0
+      '@tiptap/core': ^2.5.4
 
   '@tiptap/extension-heading@2.0.3':
     resolution: {integrity: sha512-f0IEv5ms6aCzL80WeZ1qLCXTkRVwbpRr1qAETjg3gG4eoJN18+lZNOJYpyZy3P92C5KwF2T3Av00eFyVLIbb8Q==}
@@ -12186,7 +12186,7 @@ packages:
 
 snapshots:
 
-  '@10play/tentap-editor@0.4.55(patch_hash=xjpmkpcw463yvoqvocxrxq7ici)(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@10play/tentap-editor@0.5.13(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tiptap/extension-blockquote': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
       '@tiptap/extension-bold': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
@@ -12196,6 +12196,7 @@ snapshots:
       '@tiptap/extension-color': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/extension-text-style@2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3)))
       '@tiptap/extension-document': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
       '@tiptap/extension-dropcursor': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.3.0)
+      '@tiptap/extension-hard-break': 2.5.4(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
       '@tiptap/extension-heading': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
       '@tiptap/extension-highlight': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))
       '@tiptap/extension-history': 2.3.0(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))(@tiptap/pm@2.3.0)
@@ -12222,7 +12223,7 @@ snapshots:
     transitivePeerDependencies:
       - '@tiptap/core'
 
-  '@10play/tentap-editor@0.4.55(patch_hash=xjpmkpcw463yvoqvocxrxq7ici)(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@10play/tentap-editor@0.5.13(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(react-native-webview@13.6.4(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.73.4(@babel/core@7.23.7)(@babel/preset-env@7.23.7(@babel/core@7.23.7))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tiptap/extension-blockquote': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-bold': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
@@ -12232,6 +12233,7 @@ snapshots:
       '@tiptap/extension-color': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/extension-text-style@2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0)))
       '@tiptap/extension-document': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-dropcursor': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/pm@2.3.0)
+      '@tiptap/extension-hard-break': 2.5.4(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-heading': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-highlight': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-history': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/pm@2.3.0)
@@ -17637,7 +17639,11 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.0.3(@tiptap/pm@2.0.3)
 
-  '@tiptap/extension-hard-break@2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))':
+  '@tiptap/extension-hard-break@2.5.4(@tiptap/core@2.0.3(@tiptap/pm@2.0.3))':
+    dependencies:
+      '@tiptap/core': 2.0.3(@tiptap/pm@2.0.3)
+
+  '@tiptap/extension-hard-break@2.5.4(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))':
     dependencies:
       '@tiptap/core': 2.3.0(@tiptap/pm@2.3.0)
 
@@ -17928,7 +17934,7 @@ snapshots:
       '@tiptap/extension-document': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-dropcursor': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/pm@2.3.0)
       '@tiptap/extension-gapcursor': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/pm@2.3.0)
-      '@tiptap/extension-hard-break': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
+      '@tiptap/extension-hard-break': 2.5.4(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-heading': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))
       '@tiptap/extension-history': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/pm@2.3.0)
       '@tiptap/extension-horizontal-rule': 2.3.0(@tiptap/core@2.3.0(@tiptap/pm@2.3.0))(@tiptap/pm@2.3.0)
