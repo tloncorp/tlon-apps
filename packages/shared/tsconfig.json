@@ -6,12 +6,10 @@
     "allowSyntheticDefaultImports": true,
     "declaration": true,
     "declarationMap": true,
-    "": true,
     "rootDir": "./src",
     "outDir": "dist",
     "composite": true,
     "resolveJsonModule": true
   },
-  "include": ["./src", "./src/**/*.json"]
+  "include": ["./src", "./src/test/*.json"]
 }
-

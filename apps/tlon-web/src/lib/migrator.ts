@@ -1,5 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
-import { migrations as sharedMigrations } from '@tloncorp/shared/src/db';
+import { migrations as sharedMigrations } from '@tloncorp/shared/dist/db/migrations';
 import { sql } from 'drizzle-orm';
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy';
 import { SQLocalDrizzle } from 'sqlocal/drizzle';
@@ -112,7 +112,7 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
       logger.log('Checking migration', entry);
       // tag looks like this "0000_swift_yellow_claw"
       // we only want the hash part
-      const migrationHash = `m${entry.tag.split('_').slice(0,1).join('_')}`;
+      const migrationHash = `m${entry.tag.split('_').slice(0, 1).join('_')}`;
       logger.log('Checking migration hash', migrationHash);
       if (!appliedMigrationHashes.has(migrationHash)) {
         const migrationSql = migrations[migrationHash];

@@ -6,4 +6,3 @@ export * from './modelBuilders';
 export * from './keyValue';
 export { setClient } from './client';
 export * from './changeListener';
-export * from './migrations';
