@@ -17,7 +17,6 @@ const AvatarFrame = styled(View, {
   height: '$4xl',
   borderRadius: '$s',
   overflow: 'hidden',
-  flex: 0,
   variants: {
     rounded: {
       true: {
