@@ -9,8 +9,15 @@ import {
   getChannelType,
   getJoinStatusFromGang,
 } from '../urbit';
-import { toClientMeta } from './apiUtils';
-import { poke, scry, subscribe, subscribeOnce, trackedPoke } from './urbit';
+import { parseGroupId, toClientMeta } from './apiUtils';
+import {
+  getCurrentUserId,
+  poke,
+  scry,
+  subscribe,
+  subscribeOnce,
+  trackedPoke,
+} from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -1250,6 +1257,8 @@ export function toClientGroup(
   group: ub.Group,
   isJoined: boolean
 ): db.Group {
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupId(id);
   const rolesById: Record<string, db.GroupRole> = {};
   const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
     id,
@@ -1284,6 +1293,8 @@ export function toClientGroup(
     ...toClientMeta(group.meta),
     haveInvite: false,
     currentUserIsMember: isJoined,
+    currentUserIsHost: hostUserId === currentUserId,
+    hostUserId,
     flaggedPosts,
     navSections: group['zone-ord']
       ?.map((zoneId, i) => {
@@ -1335,9 +1346,14 @@ export function toClientGroupFromPreview(
   id: string,
   preview: ub.GroupPreview
 ): db.Group {
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupId(id);
+
   return {
     id,
+    hostUserId,
     currentUserIsMember: false,
+    currentUserIsHost: hostUserId === currentUserId, // should always be false
     privacy: extractGroupPrivacy(preview),
     ...toClientMeta(preview.meta),
   };
@@ -1355,12 +1371,16 @@ const toGangsGroupsUpdate = (gangsEvent: ub.Gangs): GroupUpdate => {
 };
 
 export function toClientGroupFromGang(id: string, gang: ub.Gang): db.Group {
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupId(id);
   const privacy = extractGroupPrivacy(gang.preview, gang.claim ?? undefined);
   const joinStatus = getJoinStatusFromGang(gang);
   return {
     id,
+    hostUserId,
     privacy,
     currentUserIsMember: false,
+    currentUserIsHost: hostUserId === currentUserId, // should always be false
     haveInvite: !!gang.invite,
     haveRequestedInvite: gang.claim?.progress === 'knocking',
     joinStatus,

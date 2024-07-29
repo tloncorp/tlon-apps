@@ -4,8 +4,8 @@ import {
   usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
+import * as db from '@tloncorp/shared/dist/db';
 import { isEqual } from 'lodash';
-import * as db from 'packages/shared/dist/db';
 import {
   PropsWithChildren,
   createContext,

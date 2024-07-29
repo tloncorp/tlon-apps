@@ -21,7 +21,7 @@ import {
   View,
   WelcomeSheet,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from 'react-native-context-menu-view';
 
 import AddGroupSheet from '../components/AddGroupSheet';
@@ -81,9 +81,14 @@ export default function ChatListScreen(
     };
   }, [chats]);
 
+  const isInitialFocus = useRef(true);
+
   useFocusEffect(
     useCallback(() => {
-      store.syncPinnedItems(store.SyncPriority.High);
+      if (!isInitialFocus) {
+        store.syncPinnedItems({ priority: store.SyncPriority.High });
+      }
+      isInitialFocus.current = false;
     }, [])
   );
 
@@ -131,11 +136,7 @@ export default function ChatListScreen(
   const onLongPressItem = useCallback((item: db.Channel | db.Group) => {
     // noop for now
     if (logic.isChannel(item)) {
-      if (
-        item.type === 'dm' ||
-        item.type === 'groupDm' ||
-        item.pin?.type === 'channel'
-      ) {
+      if (item.pin?.type === 'channel') {
         setLongPressedChannel(item);
       } else if (item.group) {
         setLongPressedGroup(item.group);
@@ -289,9 +290,24 @@ export default function ChatListScreen(
     }
   }, []);
 
-  const { leaveGroup } = useGroupContext({
+  const { leaveGroup, togglePinned } = useGroupContext({
     groupId: longPressedGroup?.id ?? '',
   });
+
+  const handleLeaveGroup = useCallback(async () => {
+    setLongPressedGroup(null);
+    leaveGroup();
+  }, [leaveGroup]);
+
+  const handleTogglePinned = useCallback(() => {
+    togglePinned();
+    setLongPressedGroup(null);
+  }, [togglePinned]);
+
+  const handleDismissOptionsSheet = useCallback(() => {
+    setLongPressedGroup(null);
+    setLongPressedChannel(null);
+  }, []);
 
   return (
     <CalmProvider calmSettings={calmSettings}>
@@ -373,7 +389,8 @@ export default function ChatListScreen(
             onPressManageChannels={handleGoToManageChannels}
             onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
             onPressRoles={handleGoToRoles}
-            onPressLeave={leaveGroup}
+            onPressLeave={handleLeaveGroup}
+            onTogglePinned={handleTogglePinned}
           />
           <StartDmSheet
             goToDm={goToDm}

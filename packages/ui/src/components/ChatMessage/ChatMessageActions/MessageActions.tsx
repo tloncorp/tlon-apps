@@ -1,5 +1,4 @@
 import Clipboard from '@react-native-clipboard/clipboard';
-import { ContentReference } from '@tloncorp/shared/dist/api';
 import * as db from '@tloncorp/shared/dist/db';
 import * as logic from '@tloncorp/shared/dist/logic';
 import * as store from '@tloncorp/shared/dist/store';
@@ -7,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
-import { useReferences } from '../../../contexts/references';
+import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import ActionList from '../../ActionList';
 
 export default function MessageActions({
@@ -24,7 +23,7 @@ export default function MessageActions({
   channelType: db.ChannelType;
 }) {
   const currentUserId = useCurrentUserId();
-  const { setReferences } = useReferences();
+  const { addAttachment } = useAttachmentContext();
   const channel = useChannelContext();
   const postActions = useMemo(() => {
     return getPostActions({
@@ -65,7 +64,7 @@ export default function MessageActions({
               dismiss,
               onReply,
               onEdit,
-              setReferences,
+              addAttachment,
             })
           }
           key={action.id}
@@ -108,7 +107,6 @@ export function getPostActions({
       return [
         { id: 'startThread', label: 'Comment on post' },
         { id: 'muteThread', label: isMuted ? 'Unmute thread' : 'Mute thread' },
-        { id: 'pin', label: 'Pin post' },
         { id: 'copyRef', label: 'Copy link to post' },
         { id: 'edit', label: 'Edit message' },
         { id: 'report', label: 'Report post' },
@@ -150,7 +148,7 @@ async function handleAction({
   dismiss,
   onReply,
   onEdit,
-  setReferences,
+  addAttachment,
 }: {
   id: string;
   post: db.Post;
@@ -160,7 +158,7 @@ async function handleAction({
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
-  setReferences: (references: Record<string, ContentReference | null>) => void;
+  addAttachment: (attachment: Attachment) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -175,7 +173,7 @@ async function handleAction({
         : store.muteThread({ channel, thread: post });
       break;
     case 'quote':
-      setReferences({ [path]: reference });
+      addAttachment({ type: 'reference', reference, path });
       break;
     case 'edit':
       onEdit?.();

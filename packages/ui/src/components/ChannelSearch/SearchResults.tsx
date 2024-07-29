@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/dist/db';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import React from 'react';
 import { FlatList, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,6 +8,26 @@ import { SizableText, Stack, View, XStack, YStack } from '../../core';
 import { ChatMessage } from '../ChatMessage';
 import { SearchStatus } from './SearchStatus';
 import { SearchState } from './types';
+
+function SearchResultComponent({
+  onPress,
+  post,
+}: {
+  onPress: () => void;
+  post: db.Post;
+}) {
+  return (
+    <View marginBottom="$m">
+      <ChatMessage
+        post={post}
+        showAuthor
+        hideProfilePreview
+        onPress={onPress}
+      />
+    </View>
+  );
+}
+const SearchResult = React.memo(SearchResultComponent);
 
 export function SearchResults({
   posts,
@@ -23,9 +44,24 @@ export function SearchResults({
     if (!search.loading && search.hasMore) {
       search.loadMore();
     }
-  }, [search.loadMore, search.loading, search.hasMore]);
+  }, [search]);
 
   const isInitial = search.query === '';
+
+  const renderItem = useCallback(
+    ({ item: post }: { item: db.Post }) => (
+      <SearchResult onPress={() => navigateToPost(post)} post={post} />
+    ),
+    [navigateToPost]
+  );
+
+  const ListFooterComponent = useMemo(() => {
+    return (
+      <View marginBottom={insets.bottom}>
+        <SearchStatus search={search} />
+      </View>
+    );
+  }, [search, insets.bottom]);
 
   return (
     <YStack marginTop="$true" flex={1} onTouchStart={Keyboard.dismiss}>
@@ -67,19 +103,12 @@ export function SearchResults({
               <FlatList
                 data={posts}
                 onEndReached={onEndReached}
-                renderItem={({ item: post }) => (
-                  <View
-                    marginBottom="$m"
-                    onPress={() => navigateToPost(post as unknown as db.Post)}
-                  >
-                    <ChatMessage post={post} />
-                  </View>
-                )}
-                ListFooterComponent={
-                  <View marginBottom={insets.bottom}>
-                    <SearchStatus search={search} />
-                  </View>
-                }
+                onEndReachedThreshold={0.3}
+                initialNumToRender={15}
+                windowSize={20}
+                maxToRenderPerBatch={20}
+                renderItem={renderItem}
+                ListFooterComponent={ListFooterComponent}
               />
             </>
           )}
