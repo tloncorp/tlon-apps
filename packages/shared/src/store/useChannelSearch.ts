@@ -3,7 +3,8 @@ import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useEffect, useMemo } from 'react';
 
-import { searchChatChannel } from '../api/channelsApi';
+import { searchChannel } from '../api/channelsApi';
+import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { useAttachAuthorToPosts } from './useAttachAuthorToPosts';
 
@@ -11,7 +12,7 @@ const MIN_RESULT_LOAD_THRESHOLD = 20;
 
 const logger = createDevLogger('channel search', true);
 
-export function useChannelSearch(channelId: string, query: string) {
+export function useChannelSearch(channel: db.Channel, query: string) {
   const {
     results,
     searchedThroughDate,
@@ -19,7 +20,7 @@ export function useChannelSearch(channelId: string, query: string) {
     isError: apiError,
     hasNextPage,
     fetchNextPage,
-  } = useInfiniteChannelSearch(channelId, query);
+  } = useInfiniteChannelSearch(channel, query);
 
   const posts = useAttachAuthorToPosts(results);
 
@@ -44,14 +45,14 @@ export function useChannelSearch(channelId: string, query: string) {
   };
 }
 
-export function useInfiniteChannelSearch(channelId: string, query: string) {
+export function useInfiniteChannelSearch(channel: db.Channel, query: string) {
   const { data, ...rest } = useInfiniteQuery({
-    queryKey: ['channel', channelId, 'search', query],
+    queryKey: ['channel', channel.id, 'search', query],
     enabled: query !== '',
     queryFn: async ({ pageParam }) => {
       logger.log(`searching`, query, pageParam);
-      const response = await searchChatChannel({
-        channelId,
+      const response = await searchChannel({
+        channel,
         query,
         cursor: pageParam,
       });

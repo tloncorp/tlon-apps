@@ -30,7 +30,7 @@ export default function ChannelSearch({
   const { channel } = route.params;
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
-    useChannelSearch(channel.id, query);
+    useChannelSearch(channel, query);
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
