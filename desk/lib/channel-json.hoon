@@ -591,6 +591,24 @@
     ==
   ++  v1
     |%
+    ++  channels
+      |=  =channels:v1:old:c
+      %-  pairs
+      %+  turn  ~(tap by channels)
+      |=  [n=nest:c ca=channel:v1:old:c]
+      [(nest-cord n) (channel ca)]
+    ::
+    ++  channel
+      |=  =channel:v1:old:c
+      %-  pairs
+      :~  posts+(posts posts.channel)
+          order+(order order.channel)
+          view+s+view.channel
+          sort+s+sort.channel
+          perms+(perm perm.channel)
+          pending+(pending-msgs pending.channel)
+      ==
+    ::
     ++  paged-posts
       |=  pn=paged-posts:v1:old:c
       %-  pairs

@@ -101,7 +101,7 @@ function useMessageItems({
         time: key,
         newAuthor,
         newDay,
-        parent: writ && 'memo' in writ ? parent : undefined,
+        parent,
         replyCount:
           writ && 'essay' in writ ? writ.seal.meta.replyCount : undefined,
       };

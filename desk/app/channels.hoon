@@ -644,7 +644,7 @@
     ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
-      [%x v=?(%v0 %v1) =kind:c ship=@ name=@ rest=*]
+      [%x v=?(%v0 %v1 %v2) =kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole v.pole)
   ::
@@ -1911,7 +1911,10 @@
       =/  post  (get:on posts.channel time)
       ?~  post  ~
       ?~  u.post  `~
-      ``channel-post+!>((uv-post:utils u.u.post))
+      ?-  version
+        %v1  ``channel-post+!>((uv-post:utils u.u.post))
+        %v2  ``channel-post-2+!>((uv-post-2:utils u.u.post))
+      ==
     ::
         [%post %id time=@ %replies rest=*]
       =/  time  (slav %ud time.pole)
