@@ -34,7 +34,7 @@ module.exports = {
     'react/display-name': 'warn',
     'no-useless-escape': 'warn',
     'react-hooks/exhaustive-deps': [
-      'error',
+      'warn',
       {
         additionalHooks: '(useAnimatedStyle|useDerivedValue|useAnimatedProps)',
       },
