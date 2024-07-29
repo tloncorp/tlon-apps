@@ -8,7 +8,8 @@ import {
 import * as db from '@tloncorp/shared/dist/db';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatePresence } from 'tamagui';
 
@@ -190,6 +191,31 @@ export function Channel({
 
   const { bottom } = useSafeAreaInsets();
 
+  const flatListRef = useRef<FlatList<db.Post>>(null);
+
+  const handleRefPress = useCallback(
+    (refChannel: db.Channel, post: db.Post) => {
+      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+
+      if (
+        refChannel.id === channel.id &&
+        anchorIndex !== -1 &&
+        flatListRef.current
+      ) {
+        // If the post is already loaded, scroll to it
+        flatListRef.current?.scrollToIndex({
+          index: anchorIndex,
+          animated: false,
+          viewPosition: 0.5,
+        });
+        return;
+      }
+
+      onPressRef(refChannel, post);
+    },
+    [onPressRef, posts, channel]
+  );
+
   const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
   const handleGalleryImageSet = useCallback(
     (assets?: ImagePickerAsset[] | null) => {
@@ -224,7 +250,7 @@ export function Channel({
                 // useBlockUser={() => {}}
               >
                 <NavigationProvider
-                  onPressRef={onPressRef}
+                  onPressRef={handleRefPress}
                   onPressGroupRef={onPressGroupRef}
                   onPressGoToDm={goToDm}
                 >
@@ -304,6 +330,7 @@ export function Channel({
                                 <View flex={1} width="100%">
                                   {channel && posts && (
                                     <Scroller
+                                      key={scrollerAnchor?.postId}
                                       inverted={isChatChannel ? true : false}
                                       renderItem={renderItem}
                                       renderEmptyComponent={
@@ -338,6 +365,7 @@ export function Channel({
                                       onPressDelete={onPressDelete}
                                       activeMessage={activeMessage}
                                       setActiveMessage={setActiveMessage}
+                                      ref={flatListRef}
                                     />
                                   )}
                                 </View>

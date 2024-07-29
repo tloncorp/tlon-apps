@@ -52,6 +52,7 @@ const ChatMessage = ({
   editing,
   editPost,
   setEditingPost,
+  isHighlighted,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -67,6 +68,7 @@ const ChatMessage = ({
   editing?: boolean;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
+  isHighlighted?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const isNotice = post.type === 'notice';
@@ -143,7 +145,8 @@ const ChatMessage = ({
         paddingRight="$l"
         marginVertical="$s"
         backgroundColor="$secondaryBackground"
-        borderRadius="$m"
+        borderRadius="$xl"
+        overflow="hidden"
       >
         <Text
           paddingLeft="$l"
@@ -163,6 +166,7 @@ const ChatMessage = ({
   return (
     <YStack
       onLongPress={handleLongPress}
+      backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
       key={post.id}
       gap="$s"
       paddingVertical="$xs"
