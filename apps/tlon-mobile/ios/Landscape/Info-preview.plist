@@ -55,7 +55,7 @@
 		<string>INSendMessageIntent</string>
 	</array>
 	<key>TlonDefaultUserDefaultsSuiteName</key>
-	<string>groups.io.tlon.groups.preview</string>
+	<string>group.io.tlon.groups.preview</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
