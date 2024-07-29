@@ -130,46 +130,22 @@
   +$  state-4
     $:  %4
         =v-channels:c
-        voc=(map [nest:c plan:c] (unit said-4))
+        voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
         pending-ref-edits=(jug ship [=kind:c name=term])
         =^subs:s
     ==
-  +$  said-4  (pair nest:c reference-4)
-  +$  reference-4
-    $%  [%post post=simple-post-4]
-        $>(%reply reference:c)
-    ==
-  +$  simple-post-4  [simple-seal-4 essay:c]
-  +$  simple-seal-4
-    $:  id=id-post:c
-        =reacts:c
-        replies=simple-replies-4
-        =reply-meta:c
-    ==
-  +$  simple-replies-4   ((mop id-reply:c simple-reply:c) lte)
-  ++  on-simple-replies  ((on id-reply:c simple-reply:c) lte)
   ::
   ++  state-4-to-5
     |=  state-4
     ^-  state-5
-    :*  %5
-        v-channels
-        (~(run by voc) (curr bind said-4-to-5))
-        hidden-posts  pending-ref-edits  subs
-    ==
-  ++  said-4-to-5  |=(said-4 [p (reference-4-to-5 q)])
-  ++  reference-4-to-5
-    |=  r=reference-4
-    ^-  reference:c
-    ?.  ?=(%post -.r)  r
-    [%post post.r(replies (run:on-simple-replies replies.post.r some))]
+    [%5 v-channels voc hidden-posts pending-ref-edits subs]
   ::
   +$  state-3
     $:  %3
         v-channels=(map nest:c v-channel-2)
-        voc=(map [nest:c plan:c] (unit said-4))
+        voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
@@ -183,7 +159,7 @@
   +$  state-2
     $:  %2
         v-channels=(map nest:c v-channel-2)
-        voc=(map [nest:c plan:c] (unit said-4))
+        voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
@@ -194,7 +170,7 @@
   +$  state-1
     $:  %1
         v-channels=(map nest:c v-channel-1)
-        voc=(map [nest:c plan:c] (unit said-4))
+        voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
@@ -312,7 +288,7 @@
   +$  state-0
     $:  %0
         v-channels=(map nest:c v-channel-0)
-        voc=(map [nest:c plan:c] (unit said-4))
+        voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
     ==
@@ -659,9 +635,12 @@
       [%x %v2 %init ~]  ``noun+!>([unreads (uv-channels-2:utils v-channels |)])
     ::
         [%x %v3 %init ~]
-      !!  ::TODO  downgrade
-      :: =/  init  [(uv-channels-2:utils v-channels |) hidden-posts]
-      :: ``noun+!>(`[channels:c (set id-post:c)]`init)
+      =/  init  [(uv-channels-2:utils v-channels |) hidden-posts]
+      ``noun+!>(`[channels:v1:old:c (set id-post:c)]`init)
+    ::
+        [%x %v4 %init ~]
+      =/  init  [(uv-channels-3:utils v-channels |) hidden-posts]
+      ``noun+!>(`[channels:c (set id-post:c)]`init)
     ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
@@ -1594,10 +1573,10 @@
     :-  nest
     ?+  r-channel  r-channel
         [%posts *]
-      r-channel(posts (s-posts-2:utils posts.r-channel))
+      r-channel(posts (s-posts:utils posts.r-channel))
     ::
         [%post * %set *]
-      r-channel(post.r-post (bind post.r-post.r-channel s-post-2:utils))
+      r-channel(post.r-post (bind post.r-post.r-channel s-post:utils))
     ::
         [%post * %reply * * %set *]
       r-channel(reply.r-reply.r-post (bind reply.r-reply.r-post.r-channel s-reply:utils))
@@ -1745,6 +1724,28 @@
         (wyt:on-v-posts:c posts.channel)
     ==
   ::
+  ++  give-posts-2
+    |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
+    ^-  (unit (unit cage))
+    =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
+    =;  =paged-posts:c
+      ``channel-posts-2+!>(paged-posts)
+    ?:  =(0 (lent ls))  [*posts:c ~ ~ 0]
+    =/  =posts:c
+      ?:  =(%post mode)  (uv-posts-2:utils posts)
+      (uv-posts-without-replies-2:utils posts)
+    =/  newer=(unit time)
+      =/  more  (tab:on-v-posts:c posts.channel `-:(rear ls) 1)
+      ?~(more ~ `-:(head more))
+    =/  older=(unit time)
+      =/  more  (bat:mo-v-posts:c posts.channel `-:(head ls) 1)
+      ?~(more ~ `-:(head more))
+    :*  posts
+        newer
+        older
+        (wyt:on-v-posts:c posts.channel)
+    ==
+  ::
   ++  ca-peek-posts-0
     |=  =(pole knot)
     ^-  (unit (unit cage))
@@ -1801,19 +1802,31 @@
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  ls     (top:mo-v-posts:c posts.channel count)
-      (give-posts-1 mode.pole ls)  ::TODO  ver
+      %.  [mode.pole ls]
+      ?-  version
+        %v1  give-posts-1
+        %v2  give-posts-2
+      ==
     ::
         [%older start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  ls     (bat:mo-v-posts:c posts.channel `start count)
-      (give-posts-1 mode.pole ls)  ::TODO  ver
+      %.  [mode.pole ls]
+      ?-  version
+        %v1  give-posts-1
+        %v2  give-posts-2
+      ==
     ::
         [%newer start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
       =/  ls     (tab:on posts.channel `start count)
-      (give-posts-1 mode.pole ls)  ::TODO  ver
+      %.  [mode.pole ls]
+      ?-  version
+        %v1  give-posts-1
+        %v2  give-posts-2
+      ==
     ::
         [%around time=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -1822,9 +1835,13 @@
       =/  newer  (tab:on posts.channel `time count)
       =/  post   (get:on posts.channel time)
       =/  posts
-          ?~  post  (welp older newer)
-          (welp (snoc older [time u.post]) newer)
-      (give-posts-1 mode.pole posts)  ::TODO  ver
+        ?~  post  (welp older newer)
+        (welp (snoc older [time u.post]) newer)
+      %.  [mode.pole posts]
+      ?-  version
+        %v1  give-posts-1
+        %v2  give-posts-2
+      ==
     ::
         [%changes before=@ limit=@ ~]
       =/  before=id-post:c
@@ -2014,7 +2031,7 @@
         ?~  val.n.posts  scan.s
         ?.  (match u.val.n.posts match-type)  scan.s
         :_  scan.s
-        [%post `simple-post:c`(suv-post-without-replies-2:utils u.val.n.posts)]
+        [%post `simple-post:c`(suv-post-without-replies:utils u.val.n.posts)]
       ::
       =.  scan.s
         ?~  val.n.posts  scan.s
@@ -2056,7 +2073,7 @@
         ?.  (match u.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (suv-post-without-replies-2:utils u.val.n.posts)]
+        =/  res  [%post (suv-post-without-replies:utils u.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s

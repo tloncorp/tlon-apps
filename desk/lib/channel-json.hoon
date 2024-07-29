@@ -240,8 +240,8 @@
     |=  replies=simple-replies:c
     %-  pairs
     %+  turn  (tap:on-simple-replies:c replies)
-    |=  [t=@da reply=(unit simple-reply:c)]
-    [(scot %ud t) ?~(reply ~ (simple-reply u.reply))]
+    |=  [t=@da reply=simple-reply:c]
+    [(scot %ud t) (simple-reply reply)]
   ::
   ++  reply
     |=  [=reply-seal:c [rev=@ud =memo:c]]
@@ -591,6 +591,22 @@
     ==
   ++  v1
     |%
+    ++  paged-posts
+      |=  pn=paged-posts:v1:old:c
+      %-  pairs
+      :~  posts+(posts posts.pn)
+          newer+?~(newer.pn ~ (id u.newer.pn))
+          older+?~(older.pn ~ (id u.older.pn))
+          total+(numb total.pn)
+      ==
+    ::
+    ++  posts
+      |=  =posts:v1:old:c
+      %-  pairs
+      %+  turn  (tap:on-posts:v1:old:c posts)
+      |=  [id=id-post:c post=(unit post:v1:old:c)]
+      [(scot %ud id) ?~(post ~ (^post u.post))]
+    ::
     ++  seal
       |=  =seal:v1:old:c
       %-  pairs
