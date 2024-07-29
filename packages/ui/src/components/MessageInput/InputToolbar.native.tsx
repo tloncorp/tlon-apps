@@ -17,7 +17,7 @@ import {
   TlonEditorBridge,
   ToolbarContext,
   type ToolbarItem,
-} from './toolbarActions';
+} from './toolbarActions.native';
 
 interface ToolbarProps {
   editor: TlonEditorBridge;

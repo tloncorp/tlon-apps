@@ -1,3 +1,4 @@
+//! debug
 import {
   BridgeExtension,
   EditorBridge,

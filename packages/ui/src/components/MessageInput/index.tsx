@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { TextArea } from '../../core';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
+export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
+
 export function MessageInput({
   shouldBlur,
   setShouldBlur,

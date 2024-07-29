@@ -14,6 +14,9 @@ export default defineConfig({
     'src/store/index.ts',
   ],
   format: ['esm'],
+  // disabling splitting gets rid of the HMR issues we were seeing around the
+  // changing chunk-***.js files
+  splitting: true,
   minify: false,
   external: [
     'react',
