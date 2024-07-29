@@ -297,7 +297,6 @@ const Scroller = forwardRef(
         averageItemLength: number;
       }) => {
         logger.log('scroll to index failed', { info });
-        // setShouldScrollToAnchor(false);
 
         // The index hasn't been measured yet, so we try to guess the offset
         // based on the average item length.
