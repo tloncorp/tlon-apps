@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import CrossOriginImage from '@/components/CrossOriginImage';
 import IconButton from '@/components/IconButton';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -40,7 +41,6 @@ import {
 import { useCalm } from '@/state/settings';
 
 import useCurioActions from './useCurioActions';
-import CrossOriginImage from '@/components/CrossOriginImage';
 
 interface CurioDisplayProps {
   time: string;

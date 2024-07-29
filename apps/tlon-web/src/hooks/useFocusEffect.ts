@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react';
+
 import useIsFocused from './useIsFocused';
 
-function useFocusEffect(callback: () => void | (() => void), dependencies: any[] = []) {
+function useFocusEffect(
+  callback: () => void | (() => void),
+  dependencies: any[] = []
+) {
   const isFocused = useIsFocused();
   const hasRun = useRef(false);
 

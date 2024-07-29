@@ -33,6 +33,7 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import Avatar from '@/components/Avatar';
+import CrossOriginImage from '@/components/CrossOriginImage';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, {
   HandlerParams,
@@ -70,7 +71,6 @@ import {
 } from '@/state/chat';
 import { useGroupFlag } from '@/state/groups';
 import { useFileStore, useUploader } from '@/state/storage';
-import CrossOriginImage from '@/components/CrossOriginImage';
 
 interface ChatInputProps {
   whom: string;

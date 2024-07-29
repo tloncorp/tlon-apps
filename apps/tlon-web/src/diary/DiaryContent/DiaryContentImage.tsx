@@ -1,7 +1,7 @@
 import React from 'react';
 
-import { useCalm } from '@/state/settings';
 import CrossOriginImage from '@/components/CrossOriginImage';
+import { useCalm } from '@/state/settings';
 
 interface DiaryContentImage {
   src: string;

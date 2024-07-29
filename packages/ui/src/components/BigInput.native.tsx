@@ -12,9 +12,9 @@ import { ScrollView, View, YStack } from '../core';
 import AttachmentSheet from './AttachmentSheet';
 import { Icon } from './Icon';
 import { MessageInput } from './MessageInput';
-import { InputToolbar } from './MessageInput/InputToolbar';
+import { InputToolbar } from './MessageInput/InputToolbar.native';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
-import { TlonEditorBridge } from './MessageInput/toolbarActions';
+import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function BigInput({
   channelType,

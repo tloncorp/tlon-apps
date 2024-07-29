@@ -11,11 +11,11 @@ import { useChannelFlag } from '@/logic/channel';
 import { isImageUrl, nestToFlag } from '@/logic/utils';
 import { useChannelPreview, useGang } from '@/state/groups';
 
+import CrossOriginImage from '../CrossOriginImage';
 import ShipName from '../ShipName';
 import { useNavWithinTab } from '../Sidebar/util';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
-import CrossOriginImage from '../CrossOriginImage';
 
 interface WritBaseReferenceProps {
   nest: string;

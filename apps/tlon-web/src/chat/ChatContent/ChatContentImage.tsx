@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router';
 
+import CrossOriginImage from '@/components/CrossOriginImage';
 import LightBox from '@/components/LightBox';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import { useCalm } from '@/state/settings';
 
 import { useChatDialog, useChatFailedToLoadContent } from '../useChatStore';
-import CrossOriginImage from '@/components/CrossOriginImage';
 
 interface ChatContentImage {
   src: string;

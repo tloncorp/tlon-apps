@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 function useIsFocused() {
-  const [isFocused, setIsFocused] = useState<boolean>(document.visibilityState === 'visible');
+  const [isFocused, setIsFocused] = useState<boolean>(
+    document.visibilityState === 'visible'
+  );
 
   useEffect(() => {
     const handleFocus = () => setIsFocused(true);
