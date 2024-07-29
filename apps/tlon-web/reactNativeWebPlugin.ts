@@ -1,5 +1,6 @@
 // ref: https://github.com/Bram-dc/vite-plugin-react-native-web
 import type { Plugin as ESBuildPlugin } from 'esbuild';
+// @ts-expect-error - flow-remove-types is not typed
 import flowRemoveTypes from 'flow-remove-types';
 import fs from 'fs/promises';
 import { transformWithEsbuild } from 'vite';
