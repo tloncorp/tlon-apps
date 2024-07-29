@@ -290,6 +290,8 @@ const Scroller = forwardRef(
       ]
     );
 
+    const lastAnchorId = useRef(anchor?.postId);
+
     const handleScrollToIndexFailed = useCallback(
       (info: {
         index: number;
@@ -298,12 +300,18 @@ const Scroller = forwardRef(
       }) => {
         logger.log('scroll to index failed', { info });
 
-        // The index hasn't been measured yet, so we try to guess the offset
-        // based on the average item length.
-        const offset = info.index * info.averageItemLength;
-        flatListRef.current?.scrollToOffset({ offset, animated: false });
+        // If the anchor hasn't changed then we aren't refreshing the list,
+        // so we can try to scroll to the index (that we failed to scroll to)
+        // again.
+
+        if (anchor?.postId === lastAnchorId.current) {
+          // The index hasn't been measured yet, so we try to guess the offset
+          // based on the average item length.
+          const offset = info.index * info.averageItemLength;
+          flatListRef.current?.scrollToOffset({ offset, animated: false });
+        }
       },
-      []
+      [anchor?.postId]
     );
 
     const insets = useSafeAreaInsets();
