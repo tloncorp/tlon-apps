@@ -141,12 +141,14 @@ export function buildPendingPost({
   author,
   channel,
   content,
+  metadata,
   parentId,
 }: {
   authorId: string;
   author?: types.Contact | null;
   channel: types.Channel;
   content: ub.Story;
+  metadata?: db.PostMetadata;
   parentId?: string;
 }): types.Post {
   const sentAt = Date.now();
@@ -173,8 +175,8 @@ export function buildPendingPost({
     type,
     sentAt,
     receivedAt: sentAt,
-    title: '',
-    image: '',
+    title: metadata?.title ?? '',
+    image: metadata?.image ?? '',
     content: JSON.stringify(postContent),
     textContent: ub.getTextContent(content),
     images: api.getContentImages(id, content),

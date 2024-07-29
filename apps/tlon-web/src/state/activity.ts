@@ -2,7 +2,6 @@ import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import {
   Activity,
   ActivityAction,
-  ActivityBundle,
   ActivityDeleteUpdate,
   ActivityFeed,
   ActivityReadUpdate,
@@ -16,6 +15,8 @@ import {
   Source,
   VolumeMap,
   VolumeSettings,
+  getKey,
+  getThreadKey,
   sourceToString,
   stripSourcePrefix,
 } from '@tloncorp/shared/dist/urbit/activity';
@@ -23,10 +24,12 @@ import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '@/api';
+import { useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { createDevLogger } from '@/logic/utils';
+import { createDevLogger, whomIsDm, whomIsFlag } from '@/logic/utils';
 import queryClient from '@/queryClient';
 
+import { useLocalState } from './local';
 import { SidebarFilter } from './settings';
 
 const actLogger = createDevLogger('activity', false);
@@ -128,6 +131,30 @@ function activityVolumeUpdates(events: ActivityVolumeUpdate[]) {
   }, {} as VolumeSettings);
 }
 
+function optimisticActivityUpdate(d: Activity, source: string): Activity {
+  const old = d[source];
+  if (old === undefined) {
+    return d;
+  }
+
+  return {
+    ...d,
+    [source]: {
+      ...old,
+      unread: null,
+      count: Math.min(0, old.count - (old.unread?.count || 0)),
+      'notify-count':
+        old.unread && old.unread.notify
+          ? Math.min(0, old['notify-count'] - old.unread.count)
+          : old['notify-count'],
+    },
+  };
+}
+
+function isRead(summary: ActivitySummary) {
+  return summary.unread === null;
+}
+
 function updateActivity({
   main,
   threads,
@@ -135,10 +162,88 @@ function updateActivity({
   main: Activity;
   threads: Record<string, Activity>;
 }) {
+  const { current, currentThread, atBottom, atThreadBottom } =
+    useChatStore.getState();
+  const source = current ? getKey(current.whom) : null;
+  const threadSource =
+    current && currentThread
+      ? getThreadKey(
+          current.whom,
+          whomIsFlag(current.whom) ? currentThread.time : currentThread.id
+        )
+      : null;
+  const threadActivity = source ? threads[source] || null : null;
+  const inFocus = useLocalState.getState().inFocus;
+  const filteredMain =
+    inFocus &&
+    atBottom &&
+    source &&
+    source in main &&
+    threadActivity === null &&
+    !isRead(main[source])
+      ? optimisticActivityUpdate(main, source)
+      : undefined;
+  const filteredThread =
+    inFocus &&
+    atThreadBottom &&
+    threadActivity &&
+    threadSource &&
+    threadSource in threadActivity &&
+    !isRead(threadActivity[threadSource])
+      ? optimisticActivityUpdate(threadActivity, threadSource)
+      : undefined;
+
+  if (filteredMain && current) {
+    const nest = `chat/${current.whom}`;
+    const source = whomIsFlag(current.whom)
+      ? current.group
+        ? { channel: { group: current.group, nest } }
+        : null
+      : {
+          dm: whomIsDm(current.whom)
+            ? { ship: current.whom }
+            : { club: current.whom },
+        };
+
+    if (source) {
+      api.poke<ActivityAction>(
+        activityAction({
+          read: { source, action: { all: { time: null, deep: false } } },
+        })
+      );
+    }
+  }
+
+  if (filteredThread && current && currentThread) {
+    const nest = `chat/${current.whom}`;
+    const source = whomIsFlag(current.whom)
+      ? current.group
+        ? {
+            thread: { group: current.group, channel: nest, key: currentThread },
+          }
+        : null
+      : {
+          'dm-thread': {
+            whom: whomIsDm(current.whom)
+              ? { ship: current.whom }
+              : { club: current.whom },
+            key: currentThread,
+          },
+        };
+
+    if (source) {
+      api.poke<ActivityAction>(
+        activityAction({
+          read: { source, action: { all: { time: null, deep: false } } },
+        })
+      );
+    }
+  }
+
   queryClient.setQueryData(unreadsKey(), (d: Activity | undefined) => {
     return {
       ...d,
-      ...main,
+      ...(filteredMain ? filteredMain : main),
     };
   });
 
@@ -148,7 +253,7 @@ function updateActivity({
       (d: Activity | undefined) => {
         return {
           ...d,
-          ...value,
+          ...(filteredThread && key === source ? filteredThread : value),
         };
       }
     );
@@ -266,8 +371,8 @@ export function useMarkReadMutation(recursive = false) {
   const mutationFn = async (variables: {
     source: Source;
     action?: ReadAction;
-  }) => {
-    await api.poke(
+  }) =>
+    api.poke(
       activityAction({
         read: {
           source: variables.source,
@@ -275,13 +380,67 @@ export function useMarkReadMutation(recursive = false) {
         },
       })
     );
-  };
 
   return useMutation({
     mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries(unreadsKey(), undefined, {
-        cancelRefetch: true,
+    onMutate: async (variables) => {
+      const current = queryClient.getQueryData<Activity>(unreadsKey());
+      variables.action = variables.action || {
+        all: { time: null, deep: recursive },
+      };
+
+      let key = unreadsKey();
+
+      if ('thread' in variables.source || 'dm-thread' in variables.source) {
+        const parent =
+          'thread' in variables.source
+            ? {
+                channel: {
+                  group: variables.source.thread.group,
+                  nest: variables.source.thread.channel,
+                },
+              }
+            : {
+                dm: variables.source['dm-thread'].whom,
+              };
+        key = unreadsKey('threads', sourceToString(parent));
+      }
+
+      queryClient.setQueryData<Activity>(key, (d) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        if (!variables.action || !('all' in variables.action)) {
+          return d;
+        }
+
+        const source = sourceToString(variables.source);
+        if (variables.action.all.deep) {
+          return {
+            ...d,
+            [source]: {
+              ...d[source],
+              unread: null,
+              count: 0,
+              notify: false,
+              'notify-count': 0,
+            },
+          };
+        }
+
+        return optimisticActivityUpdate(d, source);
+      });
+
+      return { current };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(unreadsKey(), context?.current);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: unreadsKey(),
+        refetchType: 'none',
       });
     },
   });
@@ -474,4 +633,25 @@ export function useCombinedGroupUnreads() {
       notify: acc.notify || source.notify,
     };
   }, defaultUnread);
+}
+
+export function useOptimisticMarkRead(source: string) {
+  return useCallback(() => {
+    queryClient.setQueryData<Activity>(unreadsKey(), (d) => {
+      if (d === undefined) {
+        return undefined;
+      }
+
+      return {
+        ...d,
+        [source]: {
+          ...d[source],
+          unread: null,
+          count: 0,
+          notify: false,
+          'notify-count': 0,
+        },
+      };
+    });
+  }, [source]);
 }

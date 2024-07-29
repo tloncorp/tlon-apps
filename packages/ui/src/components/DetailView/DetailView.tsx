@@ -30,6 +30,8 @@ export interface DetailViewProps {
   clearDraft: () => void;
   getDraft: () => Promise<urbit.JSONContent>;
   goBack?: () => void;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
 }
 
 const DetailViewMetaDataComponent = ({
@@ -101,6 +103,8 @@ const DetailViewFrameComponent = ({
   getDraft,
   children,
   goBack,
+  onPressRetry,
+  onPressDelete,
 }: DetailViewProps) => {
   const [messageInputHeight, setMessageInputHeight] = useState(
     DEFAULT_MESSAGE_INPUT_HEIGHT
@@ -130,6 +134,8 @@ const DetailViewFrameComponent = ({
               posts={posts ?? null}
               showReplies={false}
               onPressImage={onPressImage}
+              onPressRetry={onPressRetry}
+              onPressDelete={onPressDelete}
               firstUnreadId={
                 threadUnread?.count ?? 0 > 0
                   ? threadUnread?.firstUnreadPostId
@@ -162,6 +168,7 @@ const DetailViewFrameComponent = ({
           getDraft={getDraft}
           backgroundColor="$background"
           showAttachmentButton={false}
+          channelType="chat"
           placeholder="Reply"
           setHeight={setMessageInputHeight}
           // TODO: add back in when we switch to bottom nav

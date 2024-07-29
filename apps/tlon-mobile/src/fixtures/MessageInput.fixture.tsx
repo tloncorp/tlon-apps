@@ -12,6 +12,7 @@ const ChatMessageInputFixture = () => {
     <FixtureWrapper fillWidth>
       <View backgroundColor="$background">
         <MessageInput
+          channelType="notebook"
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
           send={async () => {}}

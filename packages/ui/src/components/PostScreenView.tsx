@@ -40,6 +40,8 @@ export function PostScreenView({
   editingPost,
   setEditingPost,
   editPost,
+  onPressRetry,
+  onPressDelete,
   negotiationMatch,
   headerMode,
 }: {
@@ -62,6 +64,8 @@ export function PostScreenView({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
 }) {
@@ -119,6 +123,8 @@ export function PostScreenView({
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
+                    onPressRetry={onPressRetry}
+                    onPressDelete={onPressDelete}
                     posts={postsWithoutParent}
                     sendReply={sendReply}
                     groupMembers={groupMembers}
@@ -136,6 +142,8 @@ export function PostScreenView({
                     editingPost={editingPost}
                     setEditingPost={setEditingPost}
                     editPost={editPost}
+                    onPressRetry={onPressRetry}
+                    onPressDelete={onPressDelete}
                     posts={postsWithoutParent}
                     sendReply={sendReply}
                     groupMembers={groupMembers}
@@ -164,6 +172,8 @@ export function PostScreenView({
                         editingPost={editingPost}
                         setEditingPost={setEditingPost}
                         editPost={editPost}
+                        onPressRetry={onPressRetry}
+                        onPressDelete={onPressDelete}
                         posts={posts}
                         showReplies={false}
                         onPressImage={handleGoToImage}
@@ -193,6 +203,7 @@ export function PostScreenView({
                       groupMembers={groupMembers}
                       storeDraft={storeDraft}
                       clearDraft={clearDraft}
+                      channelType="chat"
                       getDraft={getDraft}
                     />
                   )}

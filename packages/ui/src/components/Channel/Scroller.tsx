@@ -48,6 +48,8 @@ type RenderItemFunction = (props: {
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
 }) => ReactElement | null;
 
 type RenderItemType =
@@ -89,6 +91,8 @@ function Scroller({
   editingPost,
   setEditingPost,
   editPost,
+  onPressRetry,
+  onPressDelete,
   hasNewerPosts,
   hasOlderPosts,
   activeMessage,
@@ -112,6 +116,8 @@ function Scroller({
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   activeMessage: db.Post | null;
@@ -224,6 +230,8 @@ function Scroller({
           channelType={channelType}
           setEditingPost={setEditingPost}
           editPost={editPost}
+          onPressRetry={onPressRetry}
+          onPressDelete={onPressDelete}
           showReplies={showReplies}
           onPressImage={onPressImage}
           onPressReplies={onPressReplies}
@@ -459,6 +467,8 @@ const BaseScrollerItem = ({
   onPressReplies,
   onPressPost,
   onLongPressPost,
+  onPressRetry,
+  onPressDelete,
   activeMessage,
   messageRef,
 }: {
@@ -480,6 +490,8 @@ const BaseScrollerItem = ({
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
+  onPressRetry: (post: db.Post) => void;
+  onPressDelete: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
 }) => {
@@ -532,6 +544,8 @@ const BaseScrollerItem = ({
           onPressImage={post.isDeleted ? () => {} : onPressImage}
           onLongPress={post.isDeleted ? () => {} : onLongPressPost}
           onPress={post.isDeleted ? () => {} : onPressPost}
+          onPressRetry={onPressRetry}
+          onPressDelete={onPressDelete}
         />
       </PressableMessage>
     </View>

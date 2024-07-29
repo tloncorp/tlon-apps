@@ -1,19 +1,9 @@
-import {
-  MessageKey,
-  getKey,
-  getThreadKey,
-} from '@tloncorp/shared/dist/urbit/activity';
+import { MessageKey } from '@tloncorp/shared/dist/urbit/activity';
 import { ReplyTuple } from '@tloncorp/shared/dist/urbit/channel';
 import { formatUd } from '@urbit/aura';
 import bigInt from 'big-integer';
 import cn from 'classnames';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -23,11 +13,7 @@ import { useEventListener } from 'usehooks-ts';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import {
-  chatStoreLogger,
-  useChatInfo,
-  useChatStore,
-} from '@/chat/useChatStore';
+import { useChatStore } from '@/chat/useChatStore';
 import useLeap from '@/components/Leap/useLeap';
 import MobileHeader from '@/components/MobileHeader';
 import BranchIcon from '@/components/icons/BranchIcon';
@@ -115,12 +101,28 @@ export default function DMThread() {
     [navigate, returnURL, leapIsOpen]
   );
 
-  const onAtBottom = useCallback(() => {
-    const { bottom } = useChatStore.getState();
-    bottom(true);
+  const onAtBottom = useCallback((atBottom: boolean) => {
+    const { threadBottom } = useChatStore.getState();
+    threadBottom(atBottom);
   }, []);
 
   useEventListener('keydown', onEscape, threadRef);
+
+  useEffect(() => {
+    useChatStore.getState().threadBottom(true);
+
+    return () => {
+      useChatStore.getState().threadBottom(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    useChatStore.getState().setCurrentThread(msgKey);
+
+    return () => {
+      useChatStore.getState().setCurrentThread(null);
+    };
+  }, [msgKey]);
 
   if (!writ || isLoading) return null;
 
@@ -205,7 +207,7 @@ export default function DMThread() {
             isScrolling={isScrolling}
             hasLoadedNewest={false}
             hasLoadedOldest={false}
-            onAtBottom={onAtBottom}
+            onAtBottomChange={onAtBottom}
           />
         )}
       </div>

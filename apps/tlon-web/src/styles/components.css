@@ -60,6 +60,10 @@
   @apply my-0;
 }
 
+.ProseMirror a {
+  @apply underline;
+}
+
 /* hack to prevent auto-zoom on em-emoji-picker */
 @media screen and (max-width: 767px) {
   em-emoji-picker {
