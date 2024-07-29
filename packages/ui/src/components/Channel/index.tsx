@@ -327,7 +327,9 @@ export function Channel({
                                       unreadCount={
                                         channelUnread?.countWithoutThreads ?? 0
                                       }
-                                      onPressPost={goToPost}
+                                      onPressPost={
+                                        isChatChannel ? undefined : goToPost
+                                      }
                                       onPressReplies={goToPost}
                                       onPressImage={goToImageViewer}
                                       onEndReached={onScrollEndReached}
