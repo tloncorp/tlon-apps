@@ -246,6 +246,8 @@ export const groups = sqliteTable('groups', {
   haveInvite: boolean('have_invite'),
   haveRequestedInvite: boolean('have_requested_invite'),
   currentUserIsMember: boolean('current_user_is_member').notNull(),
+  currentUserIsHost: boolean('current_user_is_host').notNull(),
+  hostUserId: text('host_user_id').notNull(),
   isNew: boolean('is_new'),
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),

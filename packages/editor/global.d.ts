@@ -8,6 +8,7 @@ declare global {
     group: Group;
     multiDms: Clubs;
     contacts: ContactRolodex;
+    contentInjected: boolean;
   }
 }
 

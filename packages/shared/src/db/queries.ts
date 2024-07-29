@@ -30,6 +30,7 @@ import {
   ChannelInit,
   getCurrentUserId,
 } from '../api';
+import { parseGroupId } from '../api/apiUtils';
 import { createDevLogger } from '../debug';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import {
@@ -1013,8 +1014,8 @@ export const getAllUnreadsCounts = createReadQuery(
   'getAllUnreadCounts',
   async (ctx: QueryCtx) => {
     const [channelUnreadCount, dmUnreadCount] = await Promise.all([
-      getUnreadsCount({ type: 'channel' }),
-      getUnreadsCount({ type: 'dm' }),
+      getUnreadsCount({ type: 'channel' }, ctx),
+      getUnreadsCount({ type: 'dm' }, ctx),
     ]);
     return {
       channels: channelUnreadCount ?? 0,
@@ -1837,17 +1838,17 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
   logger.log('clear matched pending');
 }
 
-export const insertHiddenPosts = createWriteQuery(
-  'insertHiddenPosts',
+export const resetHiddenPosts = createWriteQuery(
+  'resetHiddenPosts',
   async (postIds: string[], ctx: QueryCtx) => {
     if (postIds.length === 0) return;
 
-    logger.log('insertHiddenPosts', postIds);
+    logger.log('resetHiddenPosts', postIds);
 
     await ctx.db
       .update($posts)
-      .set({ hidden: true })
-      .where(inArray($posts.id, postIds));
+      .set({ hidden: inArray($posts.id, postIds) })
+      .where(or($posts.hidden, inArray($posts.id, postIds)));
   },
   ['posts']
 );
@@ -2278,6 +2279,7 @@ export const getGroup = createReadQuery(
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
         with: {
+          pin: true,
           channels: {
             where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
             with: {
@@ -2436,6 +2438,7 @@ export const insertContact = createWriteQuery(
 export const insertContacts = createWriteQuery(
   'insertContacts',
   async (contactsData: Contact[], ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
     if (contactsData.length === 0) {
       return;
     }
@@ -2444,13 +2447,16 @@ export const insertContacts = createWriteQuery(
       (contact) => contact.pinnedGroups || []
     );
 
-    const targetGroups = contactGroups.map(
-      (g): Group => ({
+    const targetGroups = contactGroups.map((g): Group => {
+      const { host: hostUserId } = parseGroupId(g.groupId);
+      return {
         id: g.groupId,
+        hostUserId,
         privacy: g.group?.privacy,
         currentUserIsMember: false,
-      })
-    );
+        currentUserIsHost: currentUserId === hostUserId,
+      };
+    });
 
     await withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db

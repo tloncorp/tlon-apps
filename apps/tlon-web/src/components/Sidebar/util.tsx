@@ -76,8 +76,8 @@ export function useNavWithinTab() {
       const opts = modal
         ? {
             ...options,
-            state: location.state || {
-              ...options?.state,
+            state: {
+              ...(options?.state ?? location.state),
               backgroundLocation: location,
             },
           }

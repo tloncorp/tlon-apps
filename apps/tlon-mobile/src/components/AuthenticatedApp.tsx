@@ -46,7 +46,7 @@ function AuthenticatedApp({
   }, [currentUserId, ship, shipUrl]);
 
   useAppForegrounded(() => {
-    sync.syncUnreads(sync.SyncPriority.High);
+    sync.syncUnreads({ priority: sync.SyncPriority.High });
   });
 
   return (

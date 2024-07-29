@@ -1927,7 +1927,7 @@
       =/  =wire  (welp ga-area /preview)
       =/  =dock  [p.flag dap.bowl]
       =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
-      =/  watch  [%pass wire %agent dock %watch wire]
+      =/  watch  [%pass wire %agent dock %watch path]
       ^+  cor
       %-  emil
       ?:  =(p.flag our.bowl)  ~[watch]

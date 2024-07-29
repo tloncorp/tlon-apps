@@ -172,6 +172,101 @@
   ::
   --
 ::
+++  urd
+  |_  [=indices:a =activity:a =volume-settings:a log=$-((trap tape) _same)]
+  ++  summarize-unreads
+    |=  [=source:a =index:a]
+    ^-  activity-summary:a
+    %-  (log |.("summarizing unreads for: {<source>}"))
+    =/  top=time  -:(fall (ram:on-event:a stream.index) [*@da ~])
+    =/  unread-stream=stream:a
+      ::  all base's events are from children so we can ignore
+      ?:  ?=(%base -.source)  ~
+      ::  we don't need to take child events into account when summarizing
+      ::  the activity, so we filter them out
+      ::  TODO: measure performance vs gas+murn+tap+lot
+      =-  ->
+      %^    (dip:on-event:a @)
+          (lot:on-event:a stream.index `floor.reads.index ~)
+        ~
+      |=  [st=@ =time-id:a =event:a]
+      :_  [%.n st]
+      ?:  child.event  ~
+      `event
+    =/  children  (get-children:src indices source)
+    %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
+    (stream-to-unreads source index(stream unread-stream) children top)
+  ++  sum-children
+    |=  children=(list source:a)
+    ^-  activity-summary:a
+    %+  roll
+      children
+    |=  [=source:a sum=activity-summary:a]
+    =/  =index:a  (~(gut by indices) source *index:a)
+    =/  as=activity-summary:a
+      ?~  summary=(~(get by activity) source)
+        =>  (summarize-unreads source index)
+        .(children ~)
+      u.summary(children ~)
+    %=  sum
+      count  (add count.sum count.as)
+      notify  |(notify.sum notify.as)
+      newest  (max newest.as newest.sum)
+      notify-count  (add notify-count.sum notify-count.as)
+    ==
+  ++  stream-to-unreads
+    |=  [=source:a =index:a children=(list source:a) top=time]
+    ^-  activity-summary:a
+    =/  cs=activity-summary:a
+      (sum-children children)
+    %-  (log |.("children summary: {<cs>}"))
+    =/  newest=time  :(max newest.cs floor.reads.index bump.index top)
+    =/  total
+      ::  if we're a channel, we only want thread notify counts, not totals
+      ::
+      ?:  ?=(%channel -.source)
+        notify-count.cs
+      count.cs
+    =/  notify-count  notify-count.cs
+    =/  main  0
+    =/  notified=?  notify.cs
+    =/  main-notified=?  |
+    =*  stream  stream.index
+    =|  last=(unit message-key:a)
+    ::  for each event
+    ::  update count and newest
+    ::  if reply, update thread state
+    |-
+    ?~  stream
+      :*  newest
+          total
+          notify-count
+          notified
+          ?~(last ~ `[u.last main main-notified])
+          ?:(?=(%base -.source) ~ (sy children))
+          ~
+      ==
+    =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
+    =/  volume  (get-volume:evt volume-settings -.event)
+    ::TODO  support other event types
+    =*  is-msg  ?=(?(%dm-post %dm-reply %post %reply) -<.event)
+    =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
+    =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
+    =*  supported  |(is-msg is-init is-flag)
+    ?.  supported  $(stream rest)
+    =?  notified  &(notify.volume notified.event)  &
+    =?  notify-count  &(notify.volume notified.event)  +(notify-count)
+    =.  newest  (max newest time)
+    ?.  &(unreads.volume ?=(?(%dm-post %dm-reply %post %reply) -<.event))
+      $(stream rest)
+    =.  total  +(total)
+    =.  main   +(main)
+    =?  main-notified  &(notify:volume notified.event)  &
+    =.  last
+      ?~  last  `key.event
+      last
+    $(stream rest)
+  --
 ++  convert-to
   |%
   ++  v4

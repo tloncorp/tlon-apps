@@ -861,12 +861,14 @@
       ?(%read %read-at %watch %unwatch)  (ca-a-remark a-channel)
     ::
         %post
-      =/  =source:activity
+      =/  source=(unit source:activity)
         ?.  ?=(%reply -.c-post.a-channel)
-          [%channel nest group.perm.perm.channel]
+          `[%channel nest group.perm.perm.channel]
         =/  id  id.c-post.a-channel
-        [%thread [[our.bowl id] id] nest group.perm.perm.channel]
-      =.  ca-core  (send:ca-activity [%bump source] ~)
+        =/  post  (got:on-v-posts:c posts.channel id)
+        ?~  post  ~
+        `[%thread [[author.u.post id] id] nest group.perm.perm.channel]
+      =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
       (ca-send-command [%channel nest a-channel])
     ==
   ::

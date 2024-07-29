@@ -1,19 +1,29 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { ImageBackground } from 'react-native';
 
 import { Close } from '../../assets/icons';
+import {
+  ImageAttachment,
+  useAttachmentContext,
+} from '../../contexts/attachment';
 import { Spinner, View, XStack } from '../../core';
 import { Button } from '../Button';
 
-export default function UploadedImagePreview({
-  imageAttachment,
-  resetImageAttachment,
-  uploading,
+export default function GalleryImagePreview({
+  onReset,
 }: {
-  imageAttachment: string;
-  resetImageAttachment: () => void;
-  uploading?: boolean;
+  onReset: () => void;
 }) {
+  const { attachments, resetAttachments } = useAttachmentContext();
+  const imageAttachment = attachments.filter(
+    (a): a is ImageAttachment => a.type === 'image'
+  )[0];
+
+  const handleClosePressed = useCallback(() => {
+    resetAttachments([]);
+    onReset();
+  }, [resetAttachments, onReset]);
+
   return (
     <XStack
       padding="$l"
@@ -24,7 +34,7 @@ export default function UploadedImagePreview({
       <View flex={1} position="relative">
         <ImageBackground
           source={{
-            uri: imageAttachment,
+            uri: imageAttachment?.file.uri,
           }}
           style={{
             width: '100%',
@@ -38,9 +48,7 @@ export default function UploadedImagePreview({
           <XStack paddingTop="$xl" paddingHorizontal="$l" alignItems="flex-end">
             <View>
               <Button
-                onPress={() => {
-                  resetImageAttachment();
-                }}
+                onPress={handleClosePressed}
                 borderRadius="$radius.4xl"
                 backgroundColor="$background"
               >
@@ -51,7 +59,7 @@ export default function UploadedImagePreview({
             </View>
           </XStack>
         </ImageBackground>
-        {uploading && (
+        {imageAttachment?.uploadState?.status === 'uploading' && (
           <View
             position="absolute"
             top={0}
