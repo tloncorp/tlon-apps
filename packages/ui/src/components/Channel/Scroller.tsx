@@ -58,7 +58,7 @@ type RenderItemType =
   | RenderItemFunction
   | React.MemoExoticComponent<RenderItemFunction>;
 
-const logger = createDevLogger('scroller', true);
+const logger = createDevLogger('scroller', false);
 
 export const INITIAL_POSTS_PER_PAGE = 30;
 
