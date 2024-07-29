@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router';
 
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import CrossOriginImage from '@/components/CrossOriginImage';
 import IconButton from '@/components/IconButton';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
@@ -427,7 +428,7 @@ export default function HeapRow({
       <div onClick={navigateToDetail} className={cnm()}>
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
           {!calm?.disableRemoteContent ? (
-            <img
+            <CrossOriginImage
               className="h-[72px] w-[72px] rounded object-cover"
               loading="lazy"
               src={url}
@@ -533,7 +534,7 @@ export default function HeapRow({
       return (
         <div onClick={navigateToDetail} className={cnm()}>
           <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
-            <img
+            <CrossOriginImage
               className="h-[72px] w-[72px] rounded object-cover"
               src={twitterProfilePic}
               alt={twitterHandle}
@@ -582,7 +583,7 @@ export default function HeapRow({
       <div onClick={navigateToDetail} className={cnm()}>
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
           {thumbnail && !calm?.disableRemoteContent ? (
-            <img
+            <CrossOriginImage
               className="h-[72px] w-[72px] rounded object-cover"
               loading="lazy"
               src={thumbnail}

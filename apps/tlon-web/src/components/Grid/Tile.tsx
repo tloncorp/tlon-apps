@@ -8,6 +8,7 @@ import { getAppHref } from '@/logic/utils';
 import { ChargeWithDesk } from '@/state/docket';
 import { usePike } from '@/state/kiln';
 
+import CrossOriginImage from '../CrossOriginImage';
 import BulletIcon from '../icons/BulletIcon';
 import Spinner from './Spinner';
 import TileMenu from './TileMenu';
@@ -113,7 +114,7 @@ export default function Tile({
             </div>
           )}
           {image && !loading && (
-            <img
+            <CrossOriginImage
               className="absolute left-0 top-0 h-full w-full object-cover"
               src={image}
               alt=""

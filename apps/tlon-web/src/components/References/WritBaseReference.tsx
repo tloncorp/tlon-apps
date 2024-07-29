@@ -15,6 +15,7 @@ import ShipName from '../ShipName';
 import { useNavWithinTab } from '../Sidebar/util';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
+import CrossOriginImage from '../CrossOriginImage';
 
 interface WritBaseReferenceProps {
   nest: string;
@@ -121,7 +122,7 @@ function WritBaseReference({
         contextApp={contextApp}
         image={
           group && isImageUrl(group.meta.image) ? (
-            <img
+            <CrossOriginImage
               src={group.meta.image}
               className="h-[72px] w-[72px] rounded object-cover"
             />

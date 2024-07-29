@@ -40,6 +40,7 @@ import {
 import { useCalm } from '@/state/settings';
 
 import useCurioActions from './useCurioActions';
+import CrossOriginImage from '@/components/CrossOriginImage';
 
 interface CurioDisplayProps {
   time: string;
@@ -561,7 +562,7 @@ export default function HeapBlock({
           <div className={cnm()}>
             <TopBar isTwitter {...topBar} />
             <div className="flex grow flex-col items-center justify-center space-y-2">
-              <img
+              <CrossOriginImage
                 className="h-[46px] w-[46px] rounded-full"
                 src={twitterProfilePic}
                 alt={author}

@@ -11,6 +11,7 @@ import React, {
   useState,
 } from 'react';
 import { Animated, TouchableOpacity } from 'react-native';
+import { Platform } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { ColorTokens, Stack } from 'tamagui';
 
@@ -45,8 +46,10 @@ function BaseSwipableChatRow({
 
   const handleAction = useCallback(
     async (actionId: 'pin' | 'mute') => {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      utils.triggerHaptic('swipeAction');
+      if (Platform.OS !== 'web') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        utils.triggerHaptic('swipeAction');
+      }
       switch (actionId) {
         case 'pin':
           model.pin ? store.unpinItem(model.pin) : store.pinItem(model);

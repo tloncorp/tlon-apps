@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
 
+import CrossOriginImage from '@/components/CrossOriginImage';
 import { ImageOrColorFieldState } from '@/components/ImageOrColorField';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -38,7 +39,7 @@ export default function GroupInfoPreview({
       }
     >
       {coverType === 'image' && isValidUrl(watchCover) ? (
-        <img
+        <CrossOriginImage
           src={watchCover}
           alt="Group Cover Image"
           className="absolute h-full w-full flex-none rounded-lg object-cover"

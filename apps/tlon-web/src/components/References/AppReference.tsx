@@ -7,6 +7,8 @@ import { getFlagParts } from '@/logic/utils';
 import useDocketState, { useTreaty } from '@/state/docket';
 import { useCalm } from '@/state/settings';
 
+import CrossOriginImage from '../CrossOriginImage';
+
 interface AppReferenceProps {
   flag: string;
   isScrolling: boolean;
@@ -40,7 +42,10 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
                   className="relative h-12 w-12 rounded-md"
                   style={{ background: treaty.color }}
                 >
-                  <img src={treaty.image} className="absolute m-0 h-12 w-12" />
+                  <CrossOriginImage
+                    src={treaty.image}
+                    className="absolute m-0 h-12 w-12"
+                  />
                 </div>
               ) : (
                 <ColorBoxIcon

@@ -3,6 +3,7 @@ import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -80,18 +81,8 @@ export default ({ mode }: { mode: string }) => {
         name: 'configure-response-headers',
         configureServer: (server) => {
           server.middlewares.use((req, res, next) => {
-            if (
-              req.url &&
-              (req.url.endsWith('.png') ||
-                req.url.endsWith('.jpg') ||
-                req.url.endsWith('.jpeg') ||
-                req.url.endsWith('.gif'))
-            ) {
-              res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-            } else {
-              res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-              res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-            }
+            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
             next();
           });
         },
@@ -127,7 +118,6 @@ export default ({ mode }: { mode: string }) => {
             'react-native-svg',
             '@tloncorp/editor/dist/editorHtml',
             '@tloncorp/editor/src/bridges',
-            '@10play/tentap-editor',
           ],
     output: {
       hashCharacters: 'base36' as any,

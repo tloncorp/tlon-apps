@@ -15,6 +15,7 @@ import getHeapContentType from '@/logic/useHeapContentType';
 import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 
+import CrossOriginImage from '../CrossOriginImage';
 import { useNavWithinTab } from '../Sidebar/util';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -98,7 +99,10 @@ function CurioReference({
         contextApp={contextApp}
         image={
           isImage ? (
-            <img src={url} className="h-[72px] w-[72px] rounded object-cover" />
+            <CrossOriginImage
+              src={url}
+              className="h-[72px] w-[72px] rounded object-cover"
+            />
           ) : (
             <ShapesIcon className="h-6 w-6 text-gray-400" />
           )
@@ -122,7 +126,7 @@ function CurioReference({
         <ReferenceInHeap
           contextApp={contextApp}
           image={
-            <img
+            <CrossOriginImage
               src={url}
               loading="lazy"
               className="absolute left-0 top-0 h-full w-full object-cover"

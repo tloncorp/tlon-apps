@@ -2,6 +2,7 @@ import { Docket } from '@urbit/api';
 import cn from 'classnames';
 import React, { useState } from 'react';
 
+import CrossOriginImage from '../CrossOriginImage';
 import useTileColor from './useTileColor';
 
 type DocketImageSizes = 'xs' | 'small' | 'default' | 'full';
@@ -37,7 +38,7 @@ export default function DocketImage({
       style={{ backgroundColor: tileColor }}
     >
       {image && !imageError && (
-        <img
+        <CrossOriginImage
           className="absolute left-0 top-0 h-full w-full object-cover"
           src={image}
           alt=""

@@ -6,6 +6,7 @@ import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import { useCalm } from '@/state/settings';
 
 import { useChatDialog, useChatFailedToLoadContent } from '../useChatStore';
+import CrossOriginImage from '@/components/CrossOriginImage';
 
 interface ChatContentImage {
   src: string;
@@ -78,7 +79,7 @@ export default function ChatContentImage({
           className="default-focus rounded"
           onClick={() => setShowLightBox(true)}
         >
-          <img
+          <CrossOriginImage
             src={src}
             onError={() => setFailedToLoad(true)}
             className="max-h-[50vh] max-w-full cursor-pointer rounded"
@@ -91,7 +92,7 @@ export default function ChatContentImage({
         showLightBox={showLightBox}
         setShowLightBox={setShowLightBox}
       >
-        <img
+        <CrossOriginImage
           src={src}
           className="max-h-full w-auto max-w-full rounded-lg"
           height={height}

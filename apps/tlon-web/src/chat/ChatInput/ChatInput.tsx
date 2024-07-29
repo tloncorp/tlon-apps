@@ -70,6 +70,7 @@ import {
 } from '@/state/chat';
 import { useGroupFlag } from '@/state/groups';
 import { useFileStore, useUploader } from '@/state/storage';
+import CrossOriginImage from '@/components/CrossOriginImage';
 
 interface ChatInputProps {
   whom: string;
@@ -690,7 +691,7 @@ export default function ChatInput({
                     <X16Icon className="h-4 w-4" />
                   </button>
                   {isImage ? (
-                    <img
+                    <CrossOriginImage
                       title={img.image.alt}
                       src={img.image.src}
                       className="h-32 w-32 object-cover"

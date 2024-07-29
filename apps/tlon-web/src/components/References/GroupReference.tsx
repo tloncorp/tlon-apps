@@ -15,6 +15,7 @@ import {
 import { useGang, useGangPreview } from '@/state/groups';
 import { useCalm } from '@/state/settings';
 
+import CrossOriginImage from '../CrossOriginImage';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import ReferenceInHeap from './ReferenceInHeap';
 
@@ -112,7 +113,7 @@ function GroupReference({
     const refImage = () => {
       if (meta && isImageUrl(meta.image)) {
         return (
-          <img
+          <CrossOriginImage
             src={meta?.image}
             className="h-[72px] w-[72px] rounded object-cover"
           />
@@ -145,7 +146,7 @@ function GroupReference({
         image={
           <div className={cn('h-full w-full')}>
             {meta && isImageUrl(meta.cover) ? (
-              <img
+              <CrossOriginImage
                 src={meta.cover}
                 loading="lazy"
                 className="absolute left-0 top-0 h-full w-full object-cover"
