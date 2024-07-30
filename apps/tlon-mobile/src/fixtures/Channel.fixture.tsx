@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   useChannel,
+  useGroup,
   useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
@@ -95,7 +96,8 @@ const baseProps: ComponentProps<typeof Channel> = {
   usePost: usePostWithRelations,
   usePostReference: usePostReference,
   useChannel: useChannel,
-  useGroup: useGroupPreview,
+  useGroupInfo: useGroupPreview,
+  useGroup: useGroup,
   onGroupAction: () => {},
   getDraft: async () => ({}),
   storeDraft: () => {},
@@ -103,6 +105,14 @@ const baseProps: ComponentProps<typeof Channel> = {
   canUpload: true,
   onPressRetry: () => {},
   onPressDelete: () => {},
+  onPressGroupMeta: () => {},
+  onPressGroupMembers: () => {},
+  onPressManageChannels: () => {},
+  onPressInvitesAndPrivacy: () => {},
+  onPressRoles: () => {},
+  onPressLeave: () => Promise.resolve(),
+  onTogglePinned: () => {},
+  pinned: [],
 } as const;
 
 export const ChannelFixture = (props: {
