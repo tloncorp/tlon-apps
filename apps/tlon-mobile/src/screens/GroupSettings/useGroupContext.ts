@@ -1,3 +1,4 @@
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/dist/db';
 import { assembleNewChannelIdAndName } from '@tloncorp/shared/dist/db';
@@ -5,6 +6,10 @@ import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import type {
+  GroupSettingsStackParamList,
+  RootStackParamList,
+} from '../../types';
 
 export const useGroupContext = ({ groupId }: { groupId: string }) => {
   const currentUserId = useCurrentUserId();
@@ -95,6 +100,70 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   }, [group]);
 
   const { data: currentChatData } = store.useCurrentChats();
+
+  // Everything needed for the group settings sheet
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+
+  const handleChannelSelected = useCallback(
+    (channel: db.Channel) => {
+      navigation.navigate('Channel', {
+        channel: channel,
+      } as never);
+    },
+    [navigation]
+  );
+
+  const handleGoBackPressed = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
+  const navigateToGroupSettings = useCallback(
+    <T extends keyof GroupSettingsStackParamList>(
+      screen: T,
+      params: GroupSettingsStackParamList[T]
+    ) => {
+      navigation.navigate('GroupSettings', {
+        screen,
+        params,
+      } as never);
+    },
+    [navigation]
+  );
+
+  const handleGoToGroupMeta = useCallback(
+    (groupId: string) => {
+      navigateToGroupSettings('GroupMeta', { groupId });
+    },
+    [navigateToGroupSettings]
+  );
+
+  const handleGoToGroupMembers = useCallback(
+    (groupId: string) => {
+      navigateToGroupSettings('GroupMembers', { groupId });
+    },
+    [navigateToGroupSettings]
+  );
+
+  const handleGoToManageChannels = useCallback(
+    (groupId: string) => {
+      navigateToGroupSettings('ManageChannels', { groupId });
+    },
+    [navigateToGroupSettings]
+  );
+
+  const handleGoToInvitesAndPrivacy = useCallback(
+    (groupId: string) => {
+      navigateToGroupSettings('InvitesAndPrivacy', { groupId });
+    },
+    [navigateToGroupSettings]
+  );
+
+  const handleGoToRoles = useCallback(
+    (groupId: string) => {
+      navigateToGroupSettings('GroupRoles', { groupId });
+    },
+    [navigateToGroupSettings]
+  );
 
   const createChannel = useCallback(
     async ({
@@ -357,5 +426,12 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     setUserRoles,
     leaveGroup,
     groupPrivacyType,
+    handleChannelSelected,
+    handleGoBackPressed,
+    handleGoToGroupMeta,
+    handleGoToGroupMembers,
+    handleGoToManageChannels,
+    handleGoToInvitesAndPrivacy,
+    handleGoToRoles,
   };
 };
