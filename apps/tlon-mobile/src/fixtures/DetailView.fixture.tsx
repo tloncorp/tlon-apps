@@ -1,3 +1,5 @@
+import { useGroup } from '@tloncorp/shared/dist';
+import type * as db from '@tloncorp/shared/dist/db';
 import { PostScreenView } from '@tloncorp/ui/src';
 
 import { FixtureWrapper } from './FixtureWrapper';
@@ -17,28 +19,48 @@ const galleryPost = createFakePost(
 );
 const galleryReplies = createFakePosts(galleryPost.replyCount ?? 5, 'reply');
 
+const baseProps: Parameters<typeof PostScreenView>[0] = {
+  currentUserId: '~zod',
+  contacts: [],
+  channel: {} as db.Channel,
+  parentPost: null,
+  posts: [],
+  sendReply: async () => {},
+  markRead: () => {},
+  goBack: () => {},
+  group: null,
+  groupMembers: [],
+  pinned: [],
+  calmSettings: null,
+  uploadAsset: async () => {},
+  handleGoToImage: () => {},
+  storeDraft: () => {},
+  clearDraft: () => {},
+  getDraft: async () => ({}),
+  editPost: async () => {},
+  onPressRetry: () => {},
+  onPressDelete: () => {},
+  negotiationMatch: true,
+  canUpload: true,
+  useGroup: useGroup,
+  onPressGroupMeta: () => {},
+  onPressGroupMembers: () => {},
+  onPressManageChannels: () => {},
+  onPressInvitesAndPrivacy: () => {},
+  onPressRoles: () => {},
+  onPressLeave: async () => {},
+  onTogglePinned: () => {},
+};
+
 const NotebookDetailViewFixture = () => {
   return (
     <FixtureWrapper>
       <PostScreenView
+        {...baseProps}
         parentPost={notebookPost}
         posts={notebookReplies}
-        contacts={[]}
         channel={tlonLocalGettingStarted}
         currentUserId={notebookPost.authorId}
-        sendReply={async () => {}}
-        onPressRetry={() => {}}
-        onPressDelete={() => {}}
-        groupMembers={[]}
-        negotiationMatch={true}
-        editPost={async () => {}}
-        uploadAsset={async () => {}}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        getDraft={async () => ({})}
-        goBack={() => {}}
-        markRead={() => {}}
-        canUpload={true}
       />
     </FixtureWrapper>
   );
@@ -48,24 +70,11 @@ const GalleryDetailViewFixture = () => {
   return (
     <FixtureWrapper>
       <PostScreenView
+        {...baseProps}
         parentPost={galleryPost}
         posts={galleryReplies}
-        contacts={[]}
         channel={tlonLocalBulletinBoard}
         currentUserId={galleryPost.authorId}
-        sendReply={async () => {}}
-        onPressRetry={() => {}}
-        onPressDelete={() => {}}
-        groupMembers={[]}
-        negotiationMatch={true}
-        editPost={async () => {}}
-        uploadAsset={async () => {}}
-        storeDraft={() => {}}
-        clearDraft={() => {}}
-        getDraft={async () => ({})}
-        goBack={() => {}}
-        markRead={() => {}}
-        canUpload={true}
       />
     </FixtureWrapper>
   );
