@@ -272,6 +272,7 @@
       %add      (add-event +.action)
       %bump     (bump +.action)
       %del      (del-source +.action)
+      %del-event  (del-event +.action)
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
@@ -702,10 +703,39 @@
 ++  del-source
   |=  =source:a
   ^+  cor
+  =.  cor
+    =/  children  (get-children:src indices source)
+    |-
+    ?~  children  cor
+    =.  cor  (del-source i.children)
+    $(children t.children)
   =.  indices  (~(del by indices) source)
+  =.  activity  (~(del by activity) source)
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
   (give-update [%del source] [%hose ~])
+++  del-event
+  |=  [=source:a event=incoming-event:a]
+  ^+  cor
+  =/  =index:a  (~(got by indices) source)
+  =/  events=(list [=time-id:a =event:a])
+    %+  murn
+      (tap:on-event:a stream.index)
+    |=  [=time e=event:a]
+    ?.  =(-.e event)  ~
+    `[time e]
+  ?~  events  cor
+  =/  new-index  index(stream +:(del:on-event:a stream.index time-id:(head events)))
+  =.  indices
+    (~(put by indices) source new-index)
+  =.  cor  (refresh source)
+  =/  new-activity=activity:a
+    %+  roll
+      (snoc (get-parents:src source) source)
+    |=  [=source:a out=activity:a]
+    (~(put by out) source (~(got by activity) source))
+  %-  (log |.("sending activity: {<new-activity>}"))
+  (give-update [%activity new-activity] [%hose ~])
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor
@@ -1040,6 +1070,7 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
+  ::REVIEW  maybe need a scry api version bump here?
   =+  .^(=channels:c %gx (scry-path %channels /v2/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
@@ -1089,18 +1120,21 @@
     ?~  post  ~
     ?~  u.post  ~
     %-  some
-    %+  turn
+    %+  murn
       (tab:on-replies:c replies.u.u.post `(sub id 1) count)
-    |=  [=time =reply:c]
+    |=  [=time reply=(unit reply:c)]
+    ^-  (unit [^time incoming-event:a])
+    ?~  reply  ~
+    %-  some
     =/  key=message-key:a
       :_  time
-      [author.reply time]
+      [author.u.reply time]
     =/  parent=message-key:a
       :_  id-post
       [author.u.u.post id-post]
     =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
-    [time %reply key parent nest group content.reply mention]
+      (was-mentioned:ch-utils content.u.reply our.bowl)
+    [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread
     *@da

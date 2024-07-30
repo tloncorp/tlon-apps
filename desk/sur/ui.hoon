@@ -51,7 +51,7 @@
 +$  mixed-heads  [chan=channel-heads:d chat=chat-heads:c]
 ::
 +$  channel-0
-  $:  =channels:d
+  $:  =channels:v1:old:d
       hidden-posts=(set id-post:d)
   ==
 +$  chat-2

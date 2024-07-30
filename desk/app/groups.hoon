@@ -91,12 +91,12 @@
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
 ++  submit-activity
-  |=  =incoming-event:activity
+  |=  =action:activity
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  [%activity-action !>(`action:activity`[%add incoming-event])]
+  =/  =cage  [%activity-action !>(`action:activity`action)]
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::
 ++  check-known
@@ -835,8 +835,9 @@
     ^+  go-core
     =.  cor
       %-  submit-activity
-      ^-  incoming-event
+      ^-  action
       =,  concern
+      :-  %add
       ?-  -.concern
         %ask   [%group-ask ^flag ship]
         %join  [%group-join ^flag ship]
@@ -926,6 +927,8 @@
       [~ ch]
     =.  cor
       (emil (leave-channels:go-pass ~(tap in joined-channels)))
+    =.  cor
+      (submit-activity [%del %group flag])
     =.  cor  (emit remove-self:go-pass)
     =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
@@ -1898,8 +1901,8 @@
     ^+  ga-core
     =.  cor
       %-  submit-activity
-      ^-  incoming-event
-      [%group-invite ^flag ship.concern]
+      ^-  action
+      [%add %group-invite ^flag ship.concern]
     ga-core
   ::
   ++  ga-area  `wire`/gangs/(scot %p p.flag)/[q.flag]
