@@ -42,7 +42,7 @@ sdk.dir = /Users/<user>/Library/Android/sdk
 Create a keystore file for Android
 
 ```sh
-cd android/app
+cd apps/tlon-mobile/android/app
 keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
 ```
 
