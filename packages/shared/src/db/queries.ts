@@ -2953,7 +2953,6 @@ export const getBucketedActivity = createReadQuery(
 export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
   async (pinnedItems: Pin[], ctx: QueryCtx) => {
-    console.log(`bl: inserting pins`, pinnedItems);
     return withTransactionCtx(
       { ...ctx, meta: { ...ctx.meta, label: 'pins' } },
       async (txCtx) => {

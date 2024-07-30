@@ -87,7 +87,7 @@ export const syncInitData = async (
       .then(() => reporter?.log('set left groups'));
     await db
       .setLeftGroupChannels(
-        { joinedChannelIds: initData.joinedGroups },
+        { joinedChannelIds: initData.joinedChannels },
         queryCtx
       )
       .then(() => reporter?.log('set left channels'));
