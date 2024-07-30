@@ -82,6 +82,12 @@ export function BaubleHeader({
     };
   }, [easedValue, insets.top]);
 
+  const handleBaublePress = useCallback(() => {
+    if (channel.type !== 'dm' && channel.type !== 'groupDm') {
+      setShowChatOptions(true);
+    }
+  }, [channel.type]);
+
   const handleAction = useCallback((action: () => void) => {
     setShowChatOptions(false);
     action();
@@ -119,7 +125,7 @@ export function BaubleHeader({
             borderColor={'$border'}
             borderRadius="$l"
             overflow="hidden"
-            onPress={() => setShowChatOptions(true)}
+            onPress={handleBaublePress}
           >
             <BlurView intensity={32}>
               {showSpinner ? (
