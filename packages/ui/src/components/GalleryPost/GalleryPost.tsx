@@ -50,6 +50,7 @@ export default function GalleryPost({
   onPressRetry,
   onPressDelete,
   viewMode,
+  isHighlighted,
 }: {
   post: db.Post;
   onPress?: (post: db.Post) => void;
@@ -57,6 +58,7 @@ export default function GalleryPost({
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   viewMode?: 'activity';
+  isHighlighted?: boolean;
 }) {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
 

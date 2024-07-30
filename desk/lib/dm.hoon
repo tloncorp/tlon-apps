@@ -134,7 +134,6 @@
 ++  reduce-reply
   |=  [=replies:c now=time parent-id=id:c =id:c delta=delta:replies:c]
   ^-  [pact:c replies:c]
-  |^
   ?-  -.delta
       %add
     |-
@@ -156,29 +155,28 @@
   ::
       %add-react
     :-  pac
-    %+  jab-reply  id
+    %^  jab-reply  id  replies
     |=  =reply:c
     reply(reacts (~(put by reacts.reply) [ship react]:delta))
   ::
       %del-react
     :-  pac
-    %+  jab-reply  id
+    %^  jab-reply  id  replies
     |=  =reply:c
     reply(reacts (~(del by reacts.reply) ship.delta))
   ==
-  ++  get-reply
-    |=  =id:c
-    ^-  (unit [=time =reply:c])
-    ?~  tim=(~(get by dex.pac) id)        ~
-    ?~  qup=(get:on:replies:c replies u.tim)  ~
-    `[u.tim u.qup]
-  ++  jab-reply
-    |=  [=id:c fun=$-(reply:c reply:c)]
-    ^+  replies
-    ?~  v=(get-reply id)  replies
-    (put:on:replies:c replies time.u.v (fun reply.u.v))
-  --
 ::
+++  get-reply
+  |=  [=id:c =replies:c]
+  ^-  (unit [=time =reply:c])
+  ?~  tim=(~(get by dex.pac) id)        ~
+  ?~  qup=(get:on:replies:c replies u.tim)  ~
+  `[u.tim u.qup]
+++  jab-reply
+  |=  [=id:c =replies:c fun=$-(reply:c reply:c)]
+  ^+  replies
+  ?~  v=(get-reply id replies)  replies
+  (put:on:replies:c replies time.u.v (fun reply.u.v))
 ++  give-paged-writs
   |=  [mode=?(%light %heavy) ls=(list [time writ:c])]
   ^-  (unit (unit cage))

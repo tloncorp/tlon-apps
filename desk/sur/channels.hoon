@@ -517,11 +517,51 @@
 +$  reacts      (map ship react)
 +$  reply       [reply-seal [rev=@ud memo]]
 +$  simple-reply  [reply-seal memo]
-+$  replies     ((mop id-reply reply) lte)
++$  replies     ((mop id-reply (unit reply)) lte)
 +$  simple-replies     ((mop id-reply simple-reply) lte)
 +$  reply-seal  [id=id-reply parent-id=id-post =reacts]
 ++  on-posts    ((on id-post (unit post)) lte)
 ++  on-simple-posts    ((on id-post (unit simple-post)) lte)
-++  on-replies  ((on id-reply reply) lte)
+++  on-replies  ((on id-reply (unit reply)) lte)
 ++  on-simple-replies  ((on id-reply simple-reply) lte)
+++  old
+  |%
+  ++  v1
+    |%
+    +$  post  [seal [rev=@ud essay]]
+    +$  posts  ((mop id-post (unit post)) lte)
+    ++  on-posts    ((on id-post (unit post)) lte)
+    +$  seal
+      $:  id=id-post
+          =reacts
+          =replies
+          =reply-meta
+      ==
+    +$  replies  ((mop id-reply reply) lte)
+    ++  on-replies  ((on id-reply reply) lte)
+    +$  paged-posts
+      $:  =posts
+          newer=(unit time)
+          older=(unit time)
+          total=@ud
+      ==
+    +$  channels  (map nest channel)
+    ++  channel
+      |^  ,[global local]
+      +$  global
+        $:  =posts
+            order=arranged-posts
+            =view
+            =sort
+            =perm
+        ==
+      ::
+      +$  local
+        $:  =net
+            =remark
+            pending=pending-messages
+        ==
+      --
+    --
+  --
 --
