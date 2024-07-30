@@ -2953,12 +2953,26 @@ export const getBucketedActivity = createReadQuery(
 export const insertPinnedItems = createWriteQuery(
   'insertPinnedItems',
   async (pinnedItems: Pin[], ctx: QueryCtx) => {
-    return withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db.delete($pins);
-      // users may not have pinned items
-      if (!pinnedItems.length) return;
-      await txCtx.db.insert($pins).values(pinnedItems);
-    });
+    console.log(`bl: inserting pins`, pinnedItems);
+    return withTransactionCtx(
+      { ...ctx, meta: { ...ctx.meta, label: 'pins' } },
+      async (txCtx) => {
+        // users may not have pinned items
+        if (!pinnedItems.length) return;
+        const pinnedItemIds = pinnedItems.map((item) => item.itemId);
+
+        await txCtx.db
+          .insert($pins)
+          .values(pinnedItems)
+          .onConflictDoUpdate({
+            target: $pins.itemId,
+            set: conflictUpdateSetAll($pins),
+          });
+        await txCtx.db
+          .delete($pins)
+          .where(notInArray($pins.itemId, pinnedItemIds));
+      }
+    );
   },
   ['pins', 'groups']
 );
