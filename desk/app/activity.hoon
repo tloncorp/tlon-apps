@@ -727,7 +727,7 @@
     %+  roll
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
-    (~(put by out) source (~(gut by activity) source *activity-summary:a))
+    (~(put by out) source (~(got by activity) source))
   %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  add-to-index
