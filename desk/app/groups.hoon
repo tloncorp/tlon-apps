@@ -1485,7 +1485,8 @@
                   [%emph title.meta.group]
               ==
           ==
-        =?  cor  go-is-our-bloc
+        ?.  go-is-our-bloc  go-core
+        =.  cor
           (emit (pass-hark new-yarn))
         =+  ships=~(tap in ships)
         |-
