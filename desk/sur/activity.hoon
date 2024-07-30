@@ -43,6 +43,7 @@
   $%  [%add =incoming-event]
       [%bump =source]
       [%del =source]
+      [%del-event =source event=incoming-event]
       [%read =source =read-action]
       [%adjust =source =(unit volume-map)]
       [%allow-notifications allow=notifications-allowed]

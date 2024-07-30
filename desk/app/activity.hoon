@@ -272,6 +272,7 @@
       %add      (add-event +.action)
       %bump     (bump +.action)
       %del      (del-source +.action)
+      %del-event  (del-event +.action)
       %read     (read source.action read-action.action |)
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
@@ -696,10 +697,39 @@
 ++  del-source
   |=  =source:a
   ^+  cor
+  =.  cor
+    =/  children  (get-children:src indices source)
+    |-
+    ?~  children  cor
+    =.  cor  (del-source i.children)
+    $(children t.children)
   =.  indices  (~(del by indices) source)
+  =.  activity  (~(del by activity) source)
   =.  volume-settings  (~(del by volume-settings) source)
   ::  TODO: send notification removals?
   (give-update [%del source] [%hose ~])
+++  del-event
+  |=  [=source:a event=incoming-event:a]
+  ^+  cor
+  =/  =index:a  (~(got by indices) source)
+  =/  events=(list [=time-id:a =event:a])
+    %+  murn
+      (tap:on-event:a stream.index)
+    |=  [=time e=event:a]
+    ?.  =(-.e event)  ~
+    `[time e]
+  ?~  events  cor
+  =/  new-index  index(stream +:(del:on-event:a stream.index time-id:(head events)))
+  =.  indices
+    (~(put by indices) source new-index)
+  =.  cor  (refresh source)
+  =/  new-activity=activity:a
+    %+  roll
+      (snoc (get-parents:src source) source)
+    |=  [=source:a out=activity:a]
+    (~(put by out) source (~(gut by activity) source *activity-summary:a))
+  %-  (log |.("sending activity: {<new-activity>}"))
+  (give-update [%activity new-activity] [%hose ~])
 ++  add-to-index
   |=  [=source:a =time-id:a =event:a]
   ^+  cor

@@ -782,9 +782,13 @@
       ^+  ca-core
       ::  remove any activity that might've happened under this post
       ::
-      =/  thread=source
-        [%thread [[author id] id] nest group.perm.perm.channel]
-      (send [%del thread] ~)
+      =*  group  group.perm.perm.channel
+      =/  chan=source  [%channel nest group]
+      =/  key=message-key  [[author id] id]
+      =/  thread=source  [%thread key nest group]
+      =/  mention  (was-mentioned:utils content our.bowl)
+      =/  =incoming-event  [%post key nest group content mention]
+      (send [%del thread] [%del-event chan incoming-event] ~)
     ::
     ++  on-reply
       |=  [parent=v-post:c v-reply:c]
@@ -824,6 +828,19 @@
         (send ~[action])
       =/  vm=volume-map  [[%reply & &] ~ ~]
       (send ~[[%adjust thread `vm] action])
+    ++  on-reply-delete
+      |=  [parent=v-post:c reply=v-reply:c]
+      ^+  ca-core
+      ::  remove any activity that might've happened under this post
+      ::
+      =*  group  group.perm.perm.channel
+      =/  key=message-key  [[author id] id]:reply
+      =/  top=message-key  [[author id] id]:parent
+      =/  thread=source  [%thread top nest group]
+      =/  mention  (was-mentioned:utils content.reply our.bowl)
+      =/  =incoming-event  [%reply key top nest group content.reply mention]
+      (send [%del-event thread incoming-event] ~)
+    ::
     ++  send
       |=  actions=(list action)
       ^+  ca-core
@@ -1345,6 +1362,8 @@
         (put-reply reply.u-reply %set reply)
       ::
       ?~  reply.u-reply
+        =.  ca-core
+          (on-reply-delete:ca-activity post u.u.reply)
         (put-reply ~ %set ~)
       ::
       =*  old  u.u.reply
