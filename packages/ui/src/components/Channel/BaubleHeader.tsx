@@ -1,5 +1,7 @@
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { BlurView } from 'expo-blur';
+import { useCallback, useState } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   Easing,
@@ -18,6 +20,7 @@ import {
 import { useScrollContext } from '../../contexts/scroll';
 import { Image, LinearGradient, Spinner, Text, View } from '../../core';
 import { ContactAvatar } from '../Avatar';
+import { ChatOptionsSheet } from '../GroupOptionsSheet';
 import { Icon } from '../Icon';
 
 export function BaubleHeader({
@@ -25,15 +28,37 @@ export function BaubleHeader({
   showIcon = true,
   group,
   channel,
+  currentUserId,
+  pinned,
+  useGroup,
+  onPressGroupMeta,
+  onPressGroupMembers,
+  onPressManageChannels,
+  onPressInvitesAndPrivacy,
+  onPressRoles,
+  onPressLeave,
+  onTogglePinned,
 }: {
   showIcon?: boolean;
   channel: db.Channel;
   showSpinner?: boolean;
   group?: db.Group | null;
+  currentUserId: string;
+  pinned: db.Channel[];
+  useGroup: typeof store.useGroup;
+  onPressGroupMeta: () => void;
+  onPressGroupMembers: () => void;
+  onPressManageChannels: () => void;
+  onPressInvitesAndPrivacy: () => void;
+  onPressRoles: () => void;
+  onPressLeave: () => void;
+  onTogglePinned: () => void;
 }) {
   const [scrollValue] = useScrollContext();
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
+
+  const [showChatOptions, setShowChatOptions] = useState(false);
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -56,6 +81,15 @@ export function BaubleHeader({
       opacity: opacity,
     };
   }, [easedValue, insets.top]);
+
+  const handleAction = useCallback((action: () => void) => {
+    setShowChatOptions(false);
+    action();
+  }, []);
+
+  const handleChatOptionsOpenChange = useCallback((open: boolean) => {
+    setShowChatOptions(open);
+  }, []);
 
   return (
     <View
@@ -85,6 +119,7 @@ export function BaubleHeader({
             borderColor={'$border'}
             borderRadius="$l"
             overflow="hidden"
+            onPress={() => setShowChatOptions(true)}
           >
             <BlurView intensity={32}>
               {showSpinner ? (
@@ -164,6 +199,25 @@ export function BaubleHeader({
           </View>
         </Animated.View>
       )}
+      <ChatOptionsSheet
+        open={showChatOptions}
+        onOpenChange={handleChatOptionsOpenChange}
+        currentUser={currentUserId}
+        pinned={pinned}
+        group={group ?? undefined}
+        useGroup={useGroup}
+        onPressGroupMeta={() => handleAction(() => onPressGroupMeta())}
+        onPressGroupMembers={() => handleAction(() => onPressGroupMembers())}
+        onPressManageChannels={() =>
+          handleAction(() => onPressManageChannels())
+        }
+        onPressInvitesAndPrivacy={() =>
+          handleAction(() => onPressInvitesAndPrivacy())
+        }
+        onPressRoles={() => handleAction(() => onPressRoles())}
+        onPressLeave={() => handleAction(onPressLeave)}
+        onTogglePinned={() => handleAction(onTogglePinned)}
+      />
     </View>
   );
 }

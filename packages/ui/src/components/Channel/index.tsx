@@ -6,6 +6,7 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import { JSONContent, Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -55,6 +56,7 @@ export function Channel({
   posts,
   selectedPostId,
   contacts,
+  pinned,
   group,
   calmSettings,
   headerMode,
@@ -72,6 +74,7 @@ export function Channel({
   onPressRef,
   usePost,
   useGroup,
+  useGroupInfo,
   usePostReference,
   onGroupAction,
   useChannel,
@@ -89,6 +92,13 @@ export function Channel({
   hasNewerPosts,
   hasOlderPosts,
   initialAttachments,
+  onPressGroupMeta,
+  onPressGroupMembers,
+  onPressManageChannels,
+  onPressInvitesAndPrivacy,
+  onPressRoles,
+  onPressLeave,
+  onTogglePinned,
 }: {
   channel: db.Channel;
   currentUserId: string;
@@ -96,6 +106,7 @@ export function Channel({
   headerMode?: 'default' | 'next';
   posts: db.Post[] | null;
   contacts: db.Contact[] | null;
+  pinned: db.Channel[];
   group: db.Group | null;
   calmSettings?: CalmState | null;
   goBack: () => void;
@@ -112,7 +123,8 @@ export function Channel({
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   markRead: () => void;
   usePost: typeof usePostWithRelations;
-  useGroup: typeof useGroupPreview;
+  useGroup: typeof store.useGroup;
+  useGroupInfo: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: string, group: db.Group) => void;
   useChannel: typeof useChannelFromStore;
@@ -129,6 +141,13 @@ export function Channel({
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   canUpload: boolean;
+  onPressGroupMeta: (groupId: string) => void;
+  onPressGroupMembers: (groupId: string) => void;
+  onPressManageChannels: (groupId: string) => void;
+  onPressInvitesAndPrivacy: (groupId: string) => void;
+  onPressRoles: (groupId: string) => void;
+  onPressLeave: () => Promise<void>;
+  onTogglePinned: () => void;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -245,7 +264,7 @@ export function Channel({
                 usePost={usePost}
                 usePostReference={usePostReference}
                 useChannel={useChannel}
-                useGroup={useGroup}
+                useGroup={useGroupInfo}
                 useApp={useApp}
                 // useBlockUser={() => {}}
               >
@@ -276,7 +295,10 @@ export function Channel({
                         <ChannelHeader
                           channel={channel}
                           group={group}
+                          currentUserId={currentUserId}
                           mode={headerMode}
+                          pinned={pinned}
+                          useGroup={useGroup}
                           title={title}
                           goBack={() =>
                             showBigInput ? bigInputGoBack() : goBack()
@@ -285,6 +307,21 @@ export function Channel({
                           goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
                           showMenuButton={!isChatChannel}
+                          onPressGroupMeta={() =>
+                            onPressGroupMeta(group?.id || '')
+                          }
+                          onPressGroupMembers={() =>
+                            onPressGroupMembers(group?.id || '')
+                          }
+                          onPressManageChannels={() =>
+                            onPressManageChannels(group?.id || '')
+                          }
+                          onPressInvitesAndPrivacy={() =>
+                            onPressInvitesAndPrivacy(group?.id || '')
+                          }
+                          onPressRoles={() => onPressRoles(group?.id || '')}
+                          onPressLeave={onPressLeave}
+                          onTogglePinned={onTogglePinned}
                         />
                         <KeyboardAvoidingView enabled={!activeMessage}>
                           <YStack alignItems="center" flex={1}>

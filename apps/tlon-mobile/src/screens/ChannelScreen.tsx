@@ -1,10 +1,11 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
   useCanUpload,
   useChannel,
+  useGroup,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
@@ -18,6 +19,7 @@ import {
 import React, { useCallback, useMemo } from 'react';
 
 import type { RootStackParamList } from '../types';
+import { useGroupContext } from './GroupSettings/useGroupContext';
 import { useChannelContext } from './useChannelContext';
 
 type ChannelScreenProps = NativeStackScreenProps<RootStackParamList, 'Channel'>;
@@ -73,6 +75,24 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     draftKey: currentChannelId,
     uploaderKey: `${currentChannelId}`,
   });
+
+  const {
+    handleGoToGroupMeta,
+    handleGoToGroupMembers,
+    handleGoToManageChannels,
+    handleGoToInvitesAndPrivacy,
+    handleGoToRoles,
+    leaveGroup,
+    togglePinned,
+  } = useGroupContext({ groupId: channel?.group?.id || '' });
+
+  const isFocused = useIsFocused();
+  const { data: chats } = store.useCurrentChats({
+    enabled: isFocused,
+  });
+  const pinnedItems = useMemo(() => {
+    return chats?.pinned ?? [];
+  }, [chats]);
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
@@ -226,7 +246,8 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         markRead={handleMarkRead}
         usePost={usePostWithRelations}
         usePostReference={usePostReference}
-        useGroup={useGroupPreview}
+        useGroup={useGroup}
+        useGroupInfo={useGroupPreview}
         onGroupAction={performGroupAction}
         useChannel={useChannel}
         storeDraft={storeDraft}
@@ -239,6 +260,14 @@ export default function ChannelScreen(props: ChannelScreenProps) {
         editPost={editPost}
         negotiationMatch={negotiationStatus.matchedOrPending}
         canUpload={canUpload}
+        onPressGroupMeta={handleGoToGroupMeta}
+        onPressGroupMembers={handleGoToGroupMembers}
+        onPressManageChannels={handleGoToManageChannels}
+        onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
+        onPressRoles={handleGoToRoles}
+        onPressLeave={leaveGroup}
+        onTogglePinned={togglePinned}
+        pinned={pinnedItems ?? []}
       />
       {group && (
         <ChannelSwitcherSheet
