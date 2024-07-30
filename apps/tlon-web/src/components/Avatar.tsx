@@ -13,7 +13,7 @@ import { useContact } from '@/state/contact';
 import { useCurrentTheme } from '@/state/local';
 import { useCalm } from '@/state/settings';
 
-import CrossOriginImage from './CrossOriginImage';
+import Image from './Image';
 
 export type AvatarSizes =
   | 'sidebar'
@@ -162,7 +162,7 @@ function Avatar({
 
   if (shouldShowImage) {
     return (
-      <CrossOriginImage
+      <Image
         className={classNames(className, classes, 'object-cover')}
         src={previewAvatar}
         alt=""
@@ -179,7 +179,7 @@ function Avatar({
     !calm.disableAvatars
   ) {
     return (
-      <CrossOriginImage
+      <Image
         className={classNames(className, classes, 'object-cover')}
         src={avatar}
         alt=""

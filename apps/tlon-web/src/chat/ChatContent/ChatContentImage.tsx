@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router';
 
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import LightBox from '@/components/LightBox';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import { useCalm } from '@/state/settings';
@@ -79,7 +79,7 @@ export default function ChatContentImage({
           className="default-focus rounded"
           onClick={() => setShowLightBox(true)}
         >
-          <CrossOriginImage
+          <Image
             src={src}
             onError={() => setFailedToLoad(true)}
             className="max-h-[50vh] max-w-full cursor-pointer rounded"
@@ -92,7 +92,7 @@ export default function ChatContentImage({
         showLightBox={showLightBox}
         setShowLightBox={setShowLightBox}
       >
-        <CrossOriginImage
+        <Image
           src={src}
           className="max-h-full w-auto max-w-full rounded-lg"
           height={height}

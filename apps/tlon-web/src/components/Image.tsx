@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 
-const CrossOriginImage = forwardRef(
+const Image = forwardRef(
   ({
     src,
     alt,
@@ -19,6 +19,6 @@ const CrossOriginImage = forwardRef(
   }
 );
 
-CrossOriginImage.displayName = 'CrossOriginImage';
+Image.displayName = 'Image';
 
-export default CrossOriginImage;
+export default Image;

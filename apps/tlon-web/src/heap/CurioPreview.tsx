@@ -2,7 +2,7 @@ import cn from 'classnames';
 import { useEffect, useState } from 'react';
 import isURL from 'validator/lib/isURL';
 
-import CrossOriginImage from '@/components/CrossOriginImage';
+import TlonImage from '@/components/Image';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import { isImageUrl, isRef, pathToCite } from '@/logic/utils';
@@ -49,7 +49,7 @@ export default function CurioPreview({ url }: { url: string }) {
 
   if (isImageUrl(url) || isBlob) {
     return (
-      <CrossOriginImage
+      <TlonImage
         className={cn(
           'block rounded-lg object-contain',
           portrait ? 'h-[350px]' : 'w-full'

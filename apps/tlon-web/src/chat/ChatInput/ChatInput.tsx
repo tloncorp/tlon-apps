@@ -33,7 +33,7 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import Avatar from '@/components/Avatar';
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, {
   HandlerParams,
@@ -691,7 +691,7 @@ export default function ChatInput({
                     <X16Icon className="h-4 w-4" />
                   </button>
                   {isImage ? (
-                    <CrossOriginImage
+                    <Image
                       title={img.image.alt}
                       src={img.image.src}
                       className="h-32 w-32 object-cover"

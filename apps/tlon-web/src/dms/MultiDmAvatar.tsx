@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React, { useState } from 'react';
 
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isColor } from '@/logic/utils';
 import { useAvatar } from '@/state/avatar';
@@ -62,7 +62,7 @@ export default function MultiDmAvatar({
 
   if (image && showImage) {
     return (
-      <CrossOriginImage
+      <Image
         src={image}
         alt={title}
         className={cn(sizeMap[size].size, className)}

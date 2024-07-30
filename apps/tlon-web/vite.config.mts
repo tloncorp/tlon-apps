@@ -19,6 +19,8 @@ import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
+import injectCrossOriginScript from './injectCrossOriginScript';
+import injectExternalResourceScript from './externalResourceScript';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
@@ -66,6 +68,8 @@ export default ({ mode }: { mode: string }) => {
         changeOrigin: true,
         secure: false,
       }) as PluginOption[],
+      injectCrossOriginScript(),
+      injectExternalResourceScript(),
       react({
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],

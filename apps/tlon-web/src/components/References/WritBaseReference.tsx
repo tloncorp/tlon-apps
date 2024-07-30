@@ -11,7 +11,7 @@ import { useChannelFlag } from '@/logic/channel';
 import { isImageUrl, nestToFlag } from '@/logic/utils';
 import { useChannelPreview, useGang } from '@/state/groups';
 
-import CrossOriginImage from '../CrossOriginImage';
+import Image from '../Image';
 import ShipName from '../ShipName';
 import { useNavWithinTab } from '../Sidebar/util';
 import ReferenceBar from './ReferenceBar';
@@ -122,7 +122,7 @@ function WritBaseReference({
         contextApp={contextApp}
         image={
           group && isImageUrl(group.meta.image) ? (
-            <CrossOriginImage
+            <Image
               src={group.meta.image}
               className="h-[72px] w-[72px] rounded object-cover"
             />

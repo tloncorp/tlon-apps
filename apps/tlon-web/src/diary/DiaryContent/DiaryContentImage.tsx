@@ -1,6 +1,6 @@
 import React from 'react';
 
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import { useCalm } from '@/state/settings';
 
 interface DiaryContentImage {
@@ -29,7 +29,7 @@ export default function DiaryContentImage({
         {calm?.disableRemoteContent ? (
           <span>{src}</span>
         ) : (
-          <CrossOriginImage
+          <Image
             src={src}
             className="max-w-full rounded-lg"
             height={h}

@@ -4,8 +4,8 @@ import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 import Author from '@/chat/ChatMessage/Author';
-import CrossOriginImage from '@/components/CrossOriginImage';
 import IconButton from '@/components/IconButton';
+import Image from '@/components/Image';
 import CheckIcon from '@/components/icons/CheckIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
@@ -100,11 +100,7 @@ export default function DiaryNoteHeadline({
   return (
     <>
       {showImage && !isInGrid ? (
-        <CrossOriginImage
-          src={image}
-          alt=""
-          className="mb-4 h-auto w-full rounded-xl"
-        />
+        <Image src={image} alt="" className="mb-4 h-auto w-full rounded-xl" />
       ) : null}
       <header className="space-y-4">
         <h1 className="break-words text-3xl font-medium leading-10">{title}</h1>

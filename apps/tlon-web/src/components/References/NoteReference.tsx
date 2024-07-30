@@ -16,7 +16,7 @@ import {
 import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 
-import CrossOriginImage from '../CrossOriginImage';
+import Image from '../Image';
 import ShipName from '../ShipName';
 import { useNavWithinTab } from '../Sidebar/util';
 import NotebookIcon from '../icons/NotebookIcon';
@@ -89,7 +89,7 @@ function NoteReference({
         contextApp={contextApp}
         image={
           isImageUrl(image) ? (
-            <CrossOriginImage
+            <Image
               src={image}
               className="h-[72px] w-[72px] rounded object-cover"
             />
@@ -120,7 +120,7 @@ function NoteReference({
           contextApp={contextApp}
           image={
             isImageUrl(image) ? (
-              <CrossOriginImage
+              <Image
                 src={image}
                 className="h-[72px] w-[72px] rounded object-cover"
               />

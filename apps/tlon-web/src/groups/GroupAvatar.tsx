@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React, { useMemo } from 'react';
 
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { useIsDark } from '@/logic/useMedia';
 import { isColor } from '@/logic/utils';
@@ -66,7 +66,7 @@ export default function GroupAvatar({
   }, [imageIsColor, dark, image]);
 
   return showImage ? (
-    <CrossOriginImage
+    <Image
       className={cn('rounded', size, className)}
       src={image}
       onLoad={load}

@@ -4,7 +4,7 @@ import cn from 'classnames';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import LinkIcon from '@/components/icons/LinkIcon';
@@ -91,7 +91,7 @@ function DiaryImageComponent(props: NodeViewProps) {
         )}
       >
         {src && !error && !calm?.disableRemoteContent ? (
-          <CrossOriginImage
+          <Image
             ref={image}
             className="w-full rounded-xl object-cover"
             src={src}

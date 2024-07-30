@@ -6,7 +6,7 @@ import {
 } from '@tloncorp/shared/dist/urbit/channel';
 import { useEffect } from 'react';
 
-import CrossOriginImage from '@/components/CrossOriginImage';
+import Image from '@/components/Image';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
@@ -83,7 +83,7 @@ export default function HeapDetailBody({ essay }: { essay?: PostEssay }) {
   if (isImage && !calm.disableRemoteContent) {
     return (
       <div className="flex justify-center bg-gray-50 lg:h-full lg:w-full">
-        <CrossOriginImage className="object-contain" src={url} alt="" />
+        <Image className="object-contain" src={url} alt="" />
       </div>
     );
   }

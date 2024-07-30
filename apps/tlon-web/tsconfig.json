@@ -30,6 +30,8 @@
     "./rube",
     "cosmos/setup.ts",
     "reactNativeWebPlugin.ts",
+    "injectCrossOriginScript.ts",
+    "externalResourceScript.ts",
     "vite.config.mts"
   ]
 }

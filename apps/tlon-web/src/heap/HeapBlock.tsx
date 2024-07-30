@@ -12,8 +12,8 @@ import { useNavigate } from 'react-router';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import CrossOriginImage from '@/components/CrossOriginImage';
 import IconButton from '@/components/IconButton';
+import Image from '@/components/Image';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
@@ -562,7 +562,7 @@ export default function HeapBlock({
           <div className={cnm()}>
             <TopBar isTwitter {...topBar} />
             <div className="flex grow flex-col items-center justify-center space-y-2">
-              <CrossOriginImage
+              <Image
                 className="h-[46px] w-[46px] rounded-full"
                 src={twitterProfilePic}
                 alt={author}
