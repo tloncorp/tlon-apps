@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
@@ -6,6 +7,7 @@ import { PostScreenView } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import type { RootStackParamList } from '../types';
+import { useGroupContext } from './GroupSettings/useGroupContext';
 import { useChannelContext } from './useChannelContext';
 
 type PostScreenProps = NativeStackScreenProps<RootStackParamList, 'Post'>;
@@ -33,6 +35,24 @@ export default function PostScreen(props: PostScreenProps) {
     draftKey: postParam.id,
     uploaderKey: `${postParam.channelId}/${postParam.id}`,
   });
+
+  const {
+    handleGoToGroupMeta,
+    handleGoToGroupMembers,
+    handleGoToManageChannels,
+    handleGoToInvitesAndPrivacy,
+    handleGoToRoles,
+    leaveGroup,
+    togglePinned,
+  } = useGroupContext({ groupId: channel?.group?.id || '' });
+
+  const isFocused = useIsFocused();
+  const { data: chats } = store.useCurrentChats({
+    enabled: isFocused,
+  });
+  const pinnedItems = useMemo(() => {
+    return chats?.pinned ?? [];
+  }, [chats]);
 
   const { data: post } = store.usePostWithThreadUnreads({
     id: postParam.id,
@@ -121,6 +141,15 @@ export default function PostScreen(props: PostScreenProps) {
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
       headerMode={headerMode}
+      useGroup={store.useGroup}
+      onPressGroupMeta={handleGoToGroupMeta}
+      onPressGroupMembers={handleGoToGroupMembers}
+      onPressManageChannels={handleGoToManageChannels}
+      onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
+      onPressRoles={handleGoToRoles}
+      onPressLeave={leaveGroup}
+      onTogglePinned={togglePinned}
+      pinned={pinnedItems ?? []}
     />
   ) : null;
 }

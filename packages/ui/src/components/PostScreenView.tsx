@@ -1,5 +1,6 @@
 import { isChatChannel as getIsChatChannel } from '@tloncorp/shared/dist';
 import type * as db from '@tloncorp/shared/dist/db';
+import * as store from '@tloncorp/shared/dist/store';
 import * as urbit from '@tloncorp/shared/dist/urbit';
 import { Story } from '@tloncorp/shared/dist/urbit';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -29,7 +30,9 @@ export function PostScreenView({
   sendReply,
   markRead,
   goBack,
+  group,
   groupMembers,
+  pinned,
   calmSettings,
   uploadAsset,
   handleGoToImage,
@@ -44,12 +47,21 @@ export function PostScreenView({
   negotiationMatch,
   headerMode,
   canUpload,
+  useGroup,
+  onPressGroupMeta,
+  onPressGroupMembers,
+  onPressManageChannels,
+  onPressInvitesAndPrivacy,
+  onPressRoles,
+  onPressLeave,
+  onTogglePinned,
 }: {
   currentUserId: string;
   calmSettings?: CalmState | null;
   contacts: db.Contact[] | null;
   channel: db.Channel;
   group?: db.Group | null;
+  pinned: db.Channel[];
   parentPost: db.Post | null;
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
@@ -69,6 +81,14 @@ export function PostScreenView({
   negotiationMatch: boolean;
   headerMode?: 'default' | 'next';
   canUpload: boolean;
+  useGroup: typeof store.useGroup;
+  onPressGroupMeta: (groupId: string) => void;
+  onPressGroupMembers: (groupId: string) => void;
+  onPressManageChannels: (groupId: string) => void;
+  onPressInvitesAndPrivacy: (groupId: string) => void;
+  onPressRoles: (groupId: string) => void;
+  onPressLeave: () => Promise<void>;
+  onTogglePinned: () => void;
 }) {
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -115,6 +135,20 @@ export function PostScreenView({
                 post={parentPost ?? undefined}
                 channelType={channel.type}
                 mode={headerMode}
+                currentUserId={currentUserId}
+                useGroup={useGroup}
+                pinned={pinned}
+                onPressGroupMeta={() => onPressGroupMeta(group?.id || '')}
+                onPressGroupMembers={() => onPressGroupMembers(group?.id || '')}
+                onPressManageChannels={() =>
+                  onPressManageChannels(group?.id || '')
+                }
+                onPressInvitesAndPrivacy={() =>
+                  onPressInvitesAndPrivacy(group?.id || '')
+                }
+                onPressRoles={() => onPressRoles(group?.id || '')}
+                onPressLeave={onPressLeave}
+                onTogglePinned={onTogglePinned}
               />
               <KeyboardAvoidingView enabled={!activeMessage}>
                 {parentPost && channel.type === 'gallery' && (
