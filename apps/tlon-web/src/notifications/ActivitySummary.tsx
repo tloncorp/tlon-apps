@@ -201,6 +201,15 @@ function ActivitySummary({ top, bundle, relevancy }: ActivitySummaryProps) {
     );
   }
 
+  if (relevancy === 'groupJoinRequest') {
+    return (
+      <SummaryMessageWrapper>
+        {Authors}
+        {` requested to join the group`}
+      </SummaryMessageWrapper>
+    );
+  }
+
   if (bundle.events.length === 1) {
     return (
       <div className="text-gray-400">

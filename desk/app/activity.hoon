@@ -513,7 +513,10 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  notified.event
           (lth latest.src-info start)
-          ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+          ?=  $?  %post  %reply  %dm-post  %dm-reply
+                  %flag-post  %flag-reply  %group-ask
+              ==
+            -<.event
       ==
     acc
   =/  mention=(unit activity-bundle:a)
@@ -565,7 +568,10 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=(?(%post %reply %dm-post %dm-reply %flag-post) -<.event)
+  ?.  ?=  $?  %post  %reply  %dm-post  %dm-reply
+              %flag-post  %flag-reply  %group-ask
+          ==
+        -<.event
     [~ | acc]
   =/  is-mention
     ?+  -<.event  |
