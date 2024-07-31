@@ -34,19 +34,8 @@ export function GroupChannelsScreenView({
   onBackPressed,
   currentUser,
 }: GroupChannelsScreenViewProps) {
-  const {
-    group,
-    groupChannels,
-    pinned,
-    useGroup,
-    onPressGroupMeta,
-    onPressGroupMembers,
-    onPressManageChannels,
-    onPressInvitesAndPrivacy,
-    onPressRoles,
-    onPressLeave,
-    onTogglePinned,
-  } = useGroupOptions();
+  const groupOptions = useGroupOptions();
+  const group = groupOptions?.group;
 
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showSortOptions, setShowSortOptions] = useState(false);
@@ -101,10 +90,10 @@ export function GroupChannelsScreenView({
           paddingBottom: insets.bottom,
         }}
       >
-        {group && groupChannels ? (
+        {group && groupOptions.groupChannels ? (
           <ChannelNavSections
             group={group}
-            channels={groupChannels}
+            channels={groupOptions.groupChannels}
             onSelect={onChannelPressed}
             sortBy={sortBy}
           />
@@ -130,29 +119,23 @@ export function GroupChannelsScreenView({
           <ActionSheet.ActionTitle>Sort by arrangement</ActionSheet.ActionTitle>
         </ActionSheet.Action>
       </ActionSheet>
-      <ChatOptionsSheet
-        open={showChatOptions}
-        onOpenChange={handleChatOptionsOpenChange}
-        currentUser={currentUser}
-        pinned={pinned}
-        group={group ?? undefined}
-        useGroup={useGroup}
-        onPressGroupMeta={(groupId) =>
-          handleAction(() => onPressGroupMeta(groupId))
-        }
-        onPressGroupMembers={(groupId) =>
-          handleAction(() => onPressGroupMembers(groupId))
-        }
-        onPressManageChannels={(groupId) =>
-          handleAction(() => onPressManageChannels(groupId))
-        }
-        onPressInvitesAndPrivacy={(groupId) =>
-          handleAction(() => onPressInvitesAndPrivacy(groupId))
-        }
-        onPressRoles={(groupId) => handleAction(() => onPressRoles(groupId))}
-        onPressLeave={() => handleAction(onPressLeave)}
-        onTogglePinned={() => handleAction(onTogglePinned)}
-      />
+      {groupOptions && (
+        <ChatOptionsSheet
+          open={showChatOptions}
+          onOpenChange={handleChatOptionsOpenChange}
+          currentUser={currentUser}
+          pinned={groupOptions.pinned}
+          group={group!}
+          useGroup={groupOptions.useGroup}
+          onPressGroupMeta={groupOptions.onPressGroupMeta}
+          onPressGroupMembers={groupOptions.onPressGroupMembers}
+          onPressManageChannels={groupOptions.onPressManageChannels}
+          onPressInvitesAndPrivacy={groupOptions.onPressInvitesAndPrivacy}
+          onPressRoles={groupOptions.onPressRoles}
+          onPressLeave={groupOptions.onPressLeave}
+          onTogglePinned={groupOptions.onTogglePinned}
+        />
+      )}
     </View>
   );
 }

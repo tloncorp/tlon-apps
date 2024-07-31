@@ -29,9 +29,9 @@ const GroupOptionsContext = createContext<GroupOptionsContextValue | null>(
 export const useGroupOptions = () => {
   const context = useContext(GroupOptionsContext);
   if (!context) {
-    throw new Error(
-      'Must call `useGroupOptions` within a `GroupOptionsProvider` component.'
-    );
+    // Return null instead of throwing an error since we might try to call this
+    // outside of a group context (e.g. in the BaubleHeader)
+    return null;
   }
   return context;
 };
