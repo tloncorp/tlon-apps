@@ -258,8 +258,17 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     return null;
   }
 
-  const channelContent = (
-    <>
+  return (
+    <GroupOptionsProvider
+      groupId={groupParam?.id}
+      pinned={pinnedItems}
+      useGroup={store.useGroup}
+      onPressGroupMeta={handleGoToGroupMeta}
+      onPressGroupMembers={handleGoToGroupMembers}
+      onPressManageChannels={handleGoToManageChannels}
+      onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
+      onPressRoles={handleGoToRoles}
+    >
       <Channel
         headerMode={headerMode}
         channel={channel}
@@ -310,23 +319,6 @@ export default function ChannelScreen(props: ChannelScreenProps) {
           onSelect={handleChannelSelected}
         />
       )}
-    </>
-  );
-
-  return groupParam ? (
-    <GroupOptionsProvider
-      groupId={groupParam.id}
-      pinned={pinnedItems}
-      useGroup={store.useGroup}
-      onPressGroupMeta={handleGoToGroupMeta}
-      onPressGroupMembers={handleGoToGroupMembers}
-      onPressManageChannels={handleGoToManageChannels}
-      onPressInvitesAndPrivacy={handleGoToInvitesAndPrivacy}
-      onPressRoles={handleGoToRoles}
-    >
-      {channelContent}
     </GroupOptionsProvider>
-  ) : (
-    channelContent
   );
 }
