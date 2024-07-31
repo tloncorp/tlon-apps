@@ -8,7 +8,7 @@
 import Foundation
 
 class UserDefaultsStore<T: Codable> {
-    private var userDefaults: UserDefaults { .appGroup }
+    private var userDefaults: UserDefaults { .forDefaultAppGroup }
 
     private var storageKey: String
     private var fetchItem: ((String) async throws -> T)?

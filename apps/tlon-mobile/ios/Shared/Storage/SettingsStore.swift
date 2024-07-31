@@ -8,27 +8,27 @@
 import Foundation
 
 enum SettingsStore {
-    static var disableAvatars: Bool = UserDefaults.appGroup.bool(forKey: "settings.calmEngine.disableAvatars") {
+    static var disableAvatars: Bool = UserDefaults.forDefaultAppGroup.bool(forKey: "settings.calmEngine.disableAvatars") {
         didSet {
-            UserDefaults.appGroup.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")
+            UserDefaults.forDefaultAppGroup.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")
         }
     }
 
-    static var disableNicknames: Bool = UserDefaults.appGroup.bool(forKey: "settings.calmEngine.disableNicknames") {
+    static var disableNicknames: Bool = UserDefaults.forDefaultAppGroup.bool(forKey: "settings.calmEngine.disableNicknames") {
         didSet {
-            UserDefaults.appGroup.set(disableNicknames, forKey: "settings.calmEngine.disableNicknames")
+            UserDefaults.forDefaultAppGroup.set(disableNicknames, forKey: "settings.calmEngine.disableNicknames")
         }
     }
 
-    static var disableDMNotifications = UserDefaults.appGroup.bool(forKey: "settings.notifications.disableDM") {
+    static var disableDMNotifications = UserDefaults.forDefaultAppGroup.bool(forKey: "settings.notifications.disableDM") {
         didSet {
-            UserDefaults.appGroup.set(disableDMNotifications, forKey: "settings.notifications.disableDM")
+            UserDefaults.forDefaultAppGroup.set(disableDMNotifications, forKey: "settings.notifications.disableDM")
         }
     }
 
-    static var disableGroupNotifications = UserDefaults.appGroup.bool(forKey: "settings.notifications.disableGroups") {
+    static var disableGroupNotifications = UserDefaults.forDefaultAppGroup.bool(forKey: "settings.notifications.disableGroups") {
         didSet {
-            UserDefaults.appGroup.set(disableGroupNotifications, forKey: "settings.notifications.disableGroups")
+            UserDefaults.forDefaultAppGroup.set(disableGroupNotifications, forKey: "settings.notifications.disableGroups")
         }
     }
 }

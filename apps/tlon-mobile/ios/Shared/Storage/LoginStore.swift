@@ -6,7 +6,7 @@ struct LoginStore {
         static let shipUrl = "store.shipUrl"
     }
 
-    let userDefaults = UserDefaults.appGroup
+    let userDefaults = UserDefaults.forDefaultAppGroup
 
     func read() throws -> Login? {
         guard
