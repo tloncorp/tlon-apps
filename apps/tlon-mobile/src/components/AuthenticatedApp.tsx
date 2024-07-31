@@ -10,6 +10,7 @@ import useAppForegrounded from '../hooks/useAppForegrounded';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import { useNavigationLogging } from '../hooks/useNavigationLogger';
+import { useNetworkLogger } from '../hooks/useNetworkLogger';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
@@ -28,6 +29,7 @@ function AuthenticatedApp({
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
   useNavigationLogging(logNavigationChange);
+  useNetworkLogger();
 
   useEffect(() => {
     configureClient({

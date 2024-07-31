@@ -1,5 +1,7 @@
+// import { Platform } from 'react-native';
 import * as db from '../db';
 import { getCurrentBreadcrumbs } from '../debug';
+import * as logic from '../logic';
 
 // Crashlytics is RN only, so we inject it as a dependency. TBD how to handle on web.
 type CrashReporter = {
@@ -65,12 +67,24 @@ export class ErrorReporter {
     this.error = error;
     const errorToSubmit = this.getErrorToSubmit();
     const crumbs = getCurrentBreadcrumbs();
-    const appInfo = await db.getAppInfoSettings();
+
+    let appInfo = null;
+    let platformState = null;
+    try {
+      appInfo = await db.getAppInfoSettings();
+      platformState = await logic.getDebugPlatformState();
+    } catch (e) {
+      console.error('Failed to get app info or platform state', e);
+    }
 
     if (!__DEV__) {
       if (appInfo) {
         CrashReporter.log(`%groups source: ${appInfo.groupsSyncNode}`);
         CrashReporter.log(`%groups hash: ${appInfo.groupsHash}`);
+        if (platformState) {
+          CrashReporter.log(`network: ${platformState.network}`);
+          CrashReporter.log(`battery: ${platformState.battery}`);
+        }
       }
 
       if (crumbs.length) {
