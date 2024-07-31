@@ -1,5 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import { setCrashReporter, sync } from '@tloncorp/shared';
+import { logNavigationChange, setCrashReporter, sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { ZStack } from '@tloncorp/ui';
@@ -9,6 +9,7 @@ import { useShip } from '../contexts/ship';
 import useAppForegrounded from '../hooks/useAppForegrounded';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
+import { useNavigationLogging } from '../hooks/useNavigationLogger';
 import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
@@ -26,6 +27,7 @@ function AuthenticatedApp({
   const currentUserId = useCurrentUserId();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
+  useNavigationLogging(logNavigationChange);
 
   useEffect(() => {
     configureClient({

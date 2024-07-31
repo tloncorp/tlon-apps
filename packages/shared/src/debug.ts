@@ -5,27 +5,82 @@ import { useCurrentSession } from './store/session';
 
 const customLoggers = new Set<string>();
 
+interface Breadcrumb {
+  tag: string;
+  message: string | null;
+  additionalContext?: any;
+}
+
+const debugBreadcrumbs: Breadcrumb[] = [];
+const BREADCRUMB_LIMIT = 100;
+
+export function logNavigationChange(from: string, to: string) {
+  debugBreadcrumbs.push({
+    tag: 'navigation',
+    message: `to: ${to}, from: ${from}`,
+  });
+}
+
+export function addBreadcrumb(
+  tag: string,
+  message: string | null,
+  additionalContext?: any
+) {
+  const newCrumb = { tag, message, additionalContext };
+  debugBreadcrumbs.push(newCrumb);
+  if (debugBreadcrumbs.length >= BREADCRUMB_LIMIT) {
+    debugBreadcrumbs.shift();
+  }
+}
+
+export function getCurrentBreadcrumbs() {
+  return debugBreadcrumbs.map((crumb) => {
+    const context = crumb.additionalContext
+      ? typeof crumb.additionalContext === 'object'
+        ? JSON.stringify(crumb.additionalContext)
+        : crumb.additionalContext.toString()
+      : '';
+    return `[${crumb.tag}] ${crumb.message} ${crumb ? `(${context})` : ''}`;
+  });
+}
+
 export function addCustomEnabledLoggers(loggers: string[]) {
   loggers.forEach((logger) => customLoggers.add(logger));
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
-  return new Proxy(console, {
-    get(target: Console, prop, receiver) {
+  const proxy = new Proxy(console, {
+    get(target: Console, prop: string | symbol, receiver) {
+      if (prop === 'crumb') {
+        return (...args: unknown[]) => {
+          // Run the same logic as logger.log
+          if (
+            (enabled || customLoggers.has(tag)) &&
+            process.env.NODE_ENV !== 'production'
+          ) {
+            const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
+            console.log(prefix, ...args);
+          }
+
+          // Special handling for the crumb
+          addBreadcrumb(tag, args.toString());
+        };
+      }
+
       return (...args: unknown[]) => {
         if (
           (enabled || customLoggers.has(tag)) &&
           process.env.NODE_ENV !== 'production'
         ) {
           const val = Reflect.get(target, prop, receiver);
-          val(
-            `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`,
-            ...args
-          );
+          const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
+          val(prefix, ...args);
         }
       };
     },
   });
+
+  return proxy as Console & { crumb: (...args: unknown[]) => void };
 }
 
 export async function logDuration<T>(

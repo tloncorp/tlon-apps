@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { addBreadcrumb } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as store from '@tloncorp/shared/dist/store';
 import {
@@ -15,7 +16,7 @@ import {
   ChannelSwitcherSheet,
   INITIAL_POSTS_PER_PAGE,
 } from '@tloncorp/ui';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 
 import type { RootStackParamList } from '../types';
 import { useChannelContext } from './useChannelContext';
@@ -103,6 +104,16 @@ export default function ChannelScreen(props: ChannelScreenProps) {
     // the selected post route param changes
     // eslint-disable-next-line
   }, [!!channel, selectedPostId]);
+
+  useEffect(() => {
+    if (channel?.id) {
+      addBreadcrumb('ChannelScreen', null, {
+        channelId: channel?.id,
+        cursor,
+      });
+    }
+  }, [channel?.id, cursor]);
+
   const {
     posts,
     query: postsQuery,

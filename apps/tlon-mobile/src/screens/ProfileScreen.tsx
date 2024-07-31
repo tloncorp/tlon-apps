@@ -24,6 +24,10 @@ export default function ProfileScreen(props: Props) {
     props.navigation.navigate('EditProfile');
   }, [props.navigation]);
 
+  const onSendBugReportPressed = useCallback(() => {
+    props.navigation.navigate('WompWomp');
+  }, [props.navigation]);
+
   const { dmLink } = useDMLureLink();
 
   return (
@@ -34,6 +38,7 @@ export default function ProfileScreen(props: Props) {
         onAppSettingsPressed={onAppSettingsPressed}
         onEditProfilePressed={onEditProfilePressed}
         onLogoutPressed={handleLogout}
+        onSendBugReportPressed={onSendBugReportPressed}
         dmLink={dmLink}
       />
       <NavBar navigation={props.navigation} />

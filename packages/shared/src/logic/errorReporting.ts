@@ -1,3 +1,6 @@
+import * as db from '../db';
+import { getCurrentBreadcrumbs } from '../debug';
+
 // Crashlytics is RN only, so we inject it as a dependency. TBD how to handle on web.
 type CrashReporter = {
   log: (message: string) => void;
@@ -50,13 +53,41 @@ export class ErrorReporter {
     this.baseLogger?.log(`(${this.name}): ${message}`);
   }
 
+  private getErrorToSubmit(): Error {
+    if (this.error) {
+      return this.error;
+    }
+    return new Error(this.name);
+  }
+
   // data only sent to crashlytics once this method is called
-  public report(error: Error) {
+  public async report(error: Error | null) {
     this.error = error;
+    const errorToSubmit = this.getErrorToSubmit();
+    const crumbs = getCurrentBreadcrumbs();
+    const appInfo = await db.getAppInfoSettings();
 
     if (!__DEV__) {
-      this.logs.forEach((log) => CrashReporter.log(log));
-      CrashReporter.recordError(error);
+      if (appInfo) {
+        CrashReporter.log(`%groups source: ${appInfo.groupsSyncNode}`);
+        CrashReporter.log(`%groups hash: ${appInfo.groupsHash}`);
+      }
+
+      if (crumbs.length) {
+        CrashReporter.log('Debug Breadcrumbs:');
+        crumbs.forEach((crumb) => CrashReporter.log(crumb));
+      }
+
+      if (this.logs.length) {
+        CrashReporter.log(`Reporter logs:`);
+        this.logs.forEach((log) => CrashReporter.log(log));
+      }
+
+      CrashReporter.recordError(errorToSubmit);
+    } else {
+      console.warn(`New error report: ${errorToSubmit.message}`);
+      console.log('Debug Breadcrumbs:');
+      crumbs.forEach((crumb) => console.log(crumb));
     }
   }
 }
