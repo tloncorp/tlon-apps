@@ -29,6 +29,12 @@
 #endif
   
   [RNBranch initSessionWithLaunchOptions:launchOptions isReferrable:YES];
+  
+  // Listen to changes in app-specific cookie storage, and push those to the app group shared
+  // storage.
+  // Ideally, we'd exclusively use the app group storage for all cookie read/writes, but I could
+  // not get the auth cookie to be written to that storage.
+  [[NSHTTPCookieStorage sharedHTTPCookieStorage] forwardChangesTo: [NSHTTPCookieStorage forDefaultAppGroup]];
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
