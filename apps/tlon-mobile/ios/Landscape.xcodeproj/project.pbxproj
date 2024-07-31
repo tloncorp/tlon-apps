@@ -12,7 +12,6 @@
 		3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
-		630DE0BA2C51A3AB0053603B /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0B92C51A3AB0053603B /* SimpleKeychain */; };
 		630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
 		630DE0C62C51A8780053603B /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		630DE0C72C51A8780053603B /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
@@ -36,7 +35,6 @@
 		630DE0D92C51A8780053603B /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
 		630DE0DB2C51A8780053603B /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0C22C51A8780053603B /* UrsusSigil */; };
 		630DE0DC2C51A8780053603B /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0C02C51A8780053603B /* Alamofire */; };
-		630DE0DD2C51A8780053603B /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 630DE0BE2C51A8780053603B /* SimpleKeychain */; };
 		630DE0E62C51A9D30053603B /* Notifications-preview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 630DE0E22C51A8790053603B /* Notifications-preview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		630DE0E72C51AA0C0053603B /* Notifications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6374ACDF2C49DA9600E637C0 /* Notifications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */; };
@@ -65,7 +63,6 @@
 		632793CC2C4AE7E500F942B1 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
 		632793CD2C4AE7EC00F942B1 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		632793CE2C4AE81E00F942B1 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
-		632793D02C4AEA5E00F942B1 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 632793CF2C4AEA5E00F942B1 /* SimpleKeychain */; };
 		632793D22C4AEA6400F942B1 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D12C4AEA6400F942B1 /* Alamofire */; };
 		632793D42C4AEA6800F942B1 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D32C4AEA6800F942B1 /* UrsusSigil */; };
 		63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
@@ -132,7 +129,6 @@
 		70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE42B7C60B50021EA96 /* UrsusSigil */; };
 		70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE22B7C60B50021EA96 /* Alamofire */; };
-		70DBC0052B7C60B50021EA96 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE02B7C60B50021EA96 /* SimpleKeychain */; };
 		70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
@@ -294,7 +290,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				630DE0BA2C51A3AB0053603B /* SimpleKeychain in Frameworks */,
 				70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */,
 				70D386482A6098F800AFB46E /* Alamofire in Frameworks */,
 				E757508CA162BD3456643B33 /* Pods_Landscape.framework in Frameworks */,
@@ -307,7 +302,6 @@
 			files = (
 				630DE0DB2C51A8780053603B /* UrsusSigil in Frameworks */,
 				630DE0DC2C51A8780053603B /* Alamofire in Frameworks */,
-				630DE0DD2C51A8780053603B /* SimpleKeychain in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -317,7 +311,6 @@
 			files = (
 				632793D42C4AEA6800F942B1 /* UrsusSigil in Frameworks */,
 				632793D22C4AEA6400F942B1 /* Alamofire in Frameworks */,
-				632793D02C4AEA5E00F942B1 /* SimpleKeychain in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -327,7 +320,6 @@
 			files = (
 				70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */,
 				70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */,
-				70DBC0052B7C60B50021EA96 /* SimpleKeychain in Frameworks */,
 				F901307AF87F28F061D5E649 /* Pods_Landscape_preview.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -591,7 +583,6 @@
 			packageProductDependencies = (
 				70D386472A6098F800AFB46E /* Alamofire */,
 				70D3866E2A60A3B300AFB46E /* UrsusSigil */,
-				630DE0B92C51A3AB0053603B /* SimpleKeychain */,
 			);
 			productName = Landscape;
 			productReference = 13B07F961A680F5B00A75B9A /* Landscape.app */;
@@ -611,7 +602,6 @@
 			);
 			name = "Notifications-preview";
 			packageProductDependencies = (
-				630DE0BE2C51A8780053603B /* SimpleKeychain */,
 				630DE0C02C51A8780053603B /* Alamofire */,
 				630DE0C22C51A8780053603B /* UrsusSigil */,
 			);
@@ -633,7 +623,6 @@
 			);
 			name = Notifications;
 			packageProductDependencies = (
-				632793CF2C4AEA5E00F942B1 /* SimpleKeychain */,
 				632793D12C4AEA6400F942B1 /* Alamofire */,
 				632793D32C4AEA6800F942B1 /* UrsusSigil */,
 			);
@@ -666,7 +655,6 @@
 			);
 			name = "Landscape-preview";
 			packageProductDependencies = (
-				70DBBFE02B7C60B50021EA96 /* SimpleKeychain */,
 				70DBBFE22B7C60B50021EA96 /* Alamofire */,
 				70DBBFE42B7C60B50021EA96 /* UrsusSigil */,
 			);
@@ -723,7 +711,6 @@
 			);
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
-				70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
 				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */,
 				70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */,
 			);
@@ -2032,14 +2019,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		630DE0BF2C51A8780053603B /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/auth0/SimpleKeychain";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
 		630DE0C12C51A8780053603B /* XCRemoteSwiftPackageReference "Alamofire" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
@@ -2056,14 +2035,6 @@
 				minimumVersion = 1.0.0;
 			};
 		};
-		70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/auth0/SimpleKeychain";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
 		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
@@ -2075,14 +2046,6 @@
 		70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/alecananian/UrsusSigil";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
-		70DBBFE12B7C60B50021EA96 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/auth0/SimpleKeychain";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.0.0;
@@ -2107,16 +2070,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		630DE0B92C51A3AB0053603B /* SimpleKeychain */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
-			productName = SimpleKeychain;
-		};
-		630DE0BE2C51A8780053603B /* SimpleKeychain */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 630DE0BF2C51A8780053603B /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
-			productName = SimpleKeychain;
-		};
 		630DE0C02C51A8780053603B /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 630DE0C12C51A8780053603B /* XCRemoteSwiftPackageReference "Alamofire" */;
@@ -2126,11 +2079,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 630DE0C32C51A8780053603B /* XCRemoteSwiftPackageReference "UrsusSigil" */;
 			productName = UrsusSigil;
-		};
-		632793CF2C4AEA5E00F942B1 /* SimpleKeychain */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
-			productName = SimpleKeychain;
 		};
 		632793D12C4AEA6400F942B1 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -2151,11 +2099,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */;
 			productName = UrsusSigil;
-		};
-		70DBBFE02B7C60B50021EA96 /* SimpleKeychain */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 70DBBFE12B7C60B50021EA96 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
-			productName = SimpleKeychain;
 		};
 		70DBBFE22B7C60B50021EA96 /* Alamofire */ = {
 			isa = XCSwiftPackageProductDependency;
