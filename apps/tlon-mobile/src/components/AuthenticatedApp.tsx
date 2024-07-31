@@ -2,6 +2,7 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import { setCrashReporter, sync } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as logic from '@tloncorp/shared/dist/logic';
+import * as store from '@tloncorp/shared/dist/store';
 import { ZStack } from '@tloncorp/ui';
 import { useEffect } from 'react';
 
@@ -26,6 +27,7 @@ function AuthenticatedApp({
   const currentUserId = useCurrentUserId();
   useNotificationListener(notificationListenerProps);
   useDeepLinkListener();
+  const session = store.useCurrentSession();
 
   useEffect(() => {
     configureClient({
@@ -46,7 +48,12 @@ function AuthenticatedApp({
   }, [currentUserId, ship, shipUrl]);
 
   useAppForegrounded(() => {
-    sync.syncUnreads({ priority: sync.SyncPriority.High });
+    // only run these updates if we've initialized the session
+    // (i.e. first startSync has completed)
+    if (session) {
+      sync.syncUnreads({ priority: sync.SyncPriority.High });
+      sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+    }
   });
 
   return (
