@@ -11,6 +11,8 @@ interface Breadcrumb {
   additionalContext?: any;
 }
 
+export type Logger = Console & { crumb: (...args: unknown[]) => void };
+
 const debugBreadcrumbs: Breadcrumb[] = [];
 const BREADCRUMB_LIMIT = 100;
 
@@ -80,7 +82,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
     },
   });
 
-  return proxy as Console & { crumb: (...args: unknown[]) => void };
+  return proxy as Logger;
 }
 
 export async function logDuration<T>(

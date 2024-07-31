@@ -19,6 +19,12 @@ vi.mock('@react-native-firebase/crashlytics', () => {
   };
 });
 
+vi.mock('@react-native-community/netinfo', () => {
+  return {
+    fetch: async () => ({ isConnected: true, type: 'wifi' }),
+  };
+});
+
 export function mockUrbit() {
   vi.mock('../api/urbit', async (importOriginal) => {
     const mod = await importOriginal<typeof import('../api/urbit')>();

@@ -5,4 +5,3 @@ export * from './types';
 export * from './activity';
 export * from './errorReporting';
 export * from './branch';
-export * from './nativeHelpers';

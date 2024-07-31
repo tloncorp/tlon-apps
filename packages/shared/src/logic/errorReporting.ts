@@ -1,17 +1,32 @@
 // import { Platform } from 'react-native';
 import * as db from '../db';
 import { getCurrentBreadcrumbs } from '../debug';
-import * as logic from '../logic';
 
-// Crashlytics is RN only, so we inject it as a dependency. TBD how to handle on web.
+// RN specific modules are having issues, so we inject them as a dependencies instead. TBD how to handle on web.
 type CrashReporter = {
   log: (message: string) => void;
   recordError: (error: Error) => void;
   setUserId: (userId: string) => void;
 };
+
+interface DebugPlatformState {
+  network: string;
+  battery: string;
+}
+
+type PlatformState = {
+  getDebugInfo: () => Promise<DebugPlatformState | null>;
+};
+
 let crashReporterInstance: CrashReporter | null = null;
-export function setCrashReporter<T extends CrashReporter>(client: T) {
+let platformStateInstance: PlatformState | null = null;
+
+export function initializeCrashReporter<T extends CrashReporter>(
+  client: T,
+  platformState: PlatformState
+) {
   crashReporterInstance = client;
+  platformStateInstance = platformState;
 }
 export const CrashReporter = new Proxy(
   {},
@@ -24,6 +39,18 @@ export const CrashReporter = new Proxy(
     },
   }
 ) as CrashReporter;
+
+export const PlatformState = new Proxy(
+  {},
+  {
+    get: function (target, prop, receiver) {
+      if (!platformStateInstance) {
+        throw new Error('Platform state not set!');
+      }
+      return Reflect.get(platformStateInstance, prop, receiver);
+    },
+  }
+) as PlatformState;
 
 // try to associate @p with any errors we send
 export function setErrorTrackingUserId(userId: string) {
@@ -72,7 +99,7 @@ export class ErrorReporter {
     let platformState = null;
     try {
       appInfo = await db.getAppInfoSettings();
-      platformState = await logic.getDebugPlatformState();
+      platformState = await PlatformState.getDebugInfo();
     } catch (e) {
       console.error('Failed to get app info or platform state', e);
     }

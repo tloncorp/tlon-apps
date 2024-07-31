@@ -1,12 +1,16 @@
 import { NetInfoState, fetch } from '@react-native-community/netinfo';
 import * as Battery from 'expo-battery';
 
-export interface DebugPlatformState {
+interface DebugPlatformState {
   network: string;
   battery: string;
 }
 
-export async function getDebugPlatformState(): Promise<DebugPlatformState | null> {
+export const PlatformState = {
+  getDebugInfo: getDebugPlatformState,
+};
+
+async function getDebugPlatformState(): Promise<DebugPlatformState | null> {
   const network = await getNetworkState();
   const battery = await getBatteryState();
   return {

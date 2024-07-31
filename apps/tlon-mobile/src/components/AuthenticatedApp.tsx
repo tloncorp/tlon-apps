@@ -1,5 +1,9 @@
 import crashlytics from '@react-native-firebase/crashlytics';
-import { logNavigationChange, setCrashReporter, sync } from '@tloncorp/shared';
+import {
+  initializeCrashReporter,
+  logNavigationChange,
+  sync,
+} from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/dist/api';
 import * as logic from '@tloncorp/shared/dist/logic';
 import { ZStack } from '@tloncorp/ui';
@@ -15,6 +19,7 @@ import useNotificationListener, {
   type Props as NotificationListenerProps,
 } from '../hooks/useNotificationListener';
 import { configureClient } from '../lib/api';
+import { PlatformState } from '../lib/platformHelpers';
 import { RootStack } from '../navigation/RootStack';
 
 export interface AuthenticatedAppProps {
@@ -39,7 +44,7 @@ function AuthenticatedApp({
       onChannelReset: () => sync.handleDiscontinuity(),
     });
 
-    setCrashReporter(crashlytics());
+    initializeCrashReporter(crashlytics(), PlatformState);
 
     // TODO: remove, for use in Beta testing only
     if (currentUserId) {
