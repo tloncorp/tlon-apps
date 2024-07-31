@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/dist/db';
-import * as store from '@tloncorp/shared/dist/store';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useGroupOptions } from '../contexts/groupOptions';
 import { ScrollView, View } from '../core';
 import { ActionSheet } from './ActionSheet';
 import { Button } from './Button';
@@ -23,37 +23,31 @@ const ChannelSortOptions = ({
   );
 };
 
-export function GroupChannelsScreenView({
-  group,
-  channels,
-  onChannelPressed,
-  onBackPressed,
-  currentUser,
-  pinned,
-  useGroup,
-  onPressGroupMeta,
-  onPressGroupMembers,
-  onPressManageChannels,
-  onPressInvitesAndPrivacy,
-  onPressRoles,
-  onPressLeave,
-  onTogglePinned,
-}: {
-  group: db.Group | undefined | null;
-  channels: db.Channel[] | undefined | null;
+type GroupChannelsScreenViewProps = {
   onChannelPressed: (channel: db.Channel) => void;
   onBackPressed: () => void;
   currentUser: string;
-  pinned: db.Channel[];
-  useGroup: typeof store.useGroup;
-  onPressGroupMeta: (groupId: string) => void;
-  onPressGroupMembers: (groupId: string) => void;
-  onPressManageChannels: (groupId: string) => void;
-  onPressInvitesAndPrivacy: (groupId: string) => void;
-  onPressRoles: (groupId: string) => void;
-  onPressLeave: () => void;
-  onTogglePinned: () => void;
-}) {
+};
+
+export function GroupChannelsScreenView({
+  onChannelPressed,
+  onBackPressed,
+  currentUser,
+}: GroupChannelsScreenViewProps) {
+  const {
+    group,
+    groupChannels,
+    pinned,
+    useGroup,
+    onPressGroupMeta,
+    onPressGroupMembers,
+    onPressManageChannels,
+    onPressInvitesAndPrivacy,
+    onPressRoles,
+    onPressLeave,
+    onTogglePinned,
+  } = useGroupOptions();
+
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [sortBy, setSortBy] = useState<db.ChannelSortPreference>('recency');
@@ -107,10 +101,10 @@ export function GroupChannelsScreenView({
           paddingBottom: insets.bottom,
         }}
       >
-        {group && channels ? (
+        {group && groupChannels ? (
           <ChannelNavSections
             group={group}
-            channels={channels}
+            channels={groupChannels}
             onSelect={onChannelPressed}
             sortBy={sortBy}
           />
