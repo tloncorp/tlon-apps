@@ -63,7 +63,12 @@ export function PostScreenView({
   getDraft: () => Promise<urbit.JSONContent>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (post: db.Post, content: Story) => Promise<void>;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
   onPressRetry: (post: db.Post) => void;
   onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
@@ -115,6 +120,7 @@ export function PostScreenView({
                 post={parentPost ?? undefined}
                 channelType={channel.type}
                 mode={headerMode}
+                setEditingPost={setEditingPost}
               />
               <KeyboardAvoidingView enabled={!activeMessage}>
                 {parentPost && channel.type === 'gallery' && (

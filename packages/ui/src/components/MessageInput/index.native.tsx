@@ -151,7 +151,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const [isSending, setIsSending] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-    const [imageOnEditedPost, setImageOnEditedPost] = useState<Image | null>();
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const { bottom, top } = useSafeAreaInsets();
@@ -232,6 +231,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               setHasSetInitialContent(true);
               setEditorIsEmpty(false);
             }
+
             if (editingPost?.content) {
               const {
                 story,
@@ -239,12 +239,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 blocks,
               } = extractContentTypesFromPost(editingPost);
 
-              if (
-                !story ||
-                story?.length === 0 ||
-                !postReferences ||
-                blocks.length === 0
-              ) {
+              if (story === null && !postReferences && blocks.length === 0) {
                 return;
               }
 
@@ -276,13 +271,24 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               resetAttachments(attachments);
 
               const tiptapContent = tiptap.diaryMixedToJSON(
-                story.filter(
+                story?.filter(
                   (c) => !('type' in c) && !('block' in c && 'image' in c.block)
                 ) as Story
               );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(tiptapContent);
               setHasSetInitialContent(true);
+            }
+
+            if (editingPost?.image) {
+              addAttachment({
+                type: 'image',
+                file: {
+                  uri: editingPost.image,
+                  height: 0,
+                  width: 0,
+                },
+              });
             }
           });
         } catch (e) {
@@ -296,6 +302,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       editorState.isReady,
       editingPost,
       resetAttachments,
+      addAttachment,
     ]);
 
     useEffect(() => {
@@ -531,19 +538,28 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
               },
             ];
           }
+
+          if (
+            image &&
+            attachment.type === 'image' &&
+            attachment.file.uri === image?.uri &&
+            isEdit &&
+            channelType === 'gallery'
+          ) {
+            return [
+              {
+                image: {
+                  src: image.uri,
+                  height: image.height,
+                  width: image.width,
+                  alt: 'image',
+                },
+              },
+            ];
+          }
+
           return [];
         });
-
-        if (imageOnEditedPost) {
-          blocks.push({
-            image: {
-              src: imageOnEditedPost.image.src,
-              height: imageOnEditedPost.image.height,
-              width: imageOnEditedPost.image.width,
-              alt: imageOnEditedPost.image.alt,
-            },
-          });
-        }
 
         if (blocks && blocks.length > 0) {
           if (channelType === 'chat') {
@@ -553,29 +569,34 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           }
         }
 
+        const metadata: db.PostMetadata = {};
+        if (title && title.length > 0) {
+          metadata['title'] = title;
+        }
+
+        if (image) {
+          const attachment = finalAttachments.find(
+            (a): a is UploadedImageAttachment =>
+              a.type === 'image' && a.file.uri === image.uri
+          );
+          if (!attachment) {
+            throw new Error('unable to attach image');
+          }
+          metadata['image'] = attachment.uploadState.remoteUri;
+        }
+
         if (isEdit && editingPost) {
           if (editingPost.parentId) {
-            await editPost?.(editingPost, story, editingPost.parentId);
+            await editPost?.(
+              editingPost,
+              story,
+              editingPost.parentId,
+              metadata
+            );
           }
-          await editPost?.(editingPost, story);
+          await editPost?.(editingPost, story, undefined, metadata);
           setEditingPost?.(undefined);
         } else {
-          const metadata: db.PostMetadata = {};
-          if (title && title.length > 0) {
-            metadata['title'] = title;
-          }
-
-          if (image) {
-            const attachment = finalAttachments.find(
-              (a): a is UploadedImageAttachment =>
-                a.type === 'image' && a.file.uri === image.uri
-            );
-            if (!attachment) {
-              throw new Error('unable to attach image');
-            }
-            metadata['image'] = attachment.uploadState.remoteUri;
-          }
-
           // not awaiting since we don't want to wait for the send to complete
           // before clearing the draft and the editor content
           send(story, channelId, metadata);
@@ -586,13 +607,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         clearAttachments();
         clearDraft();
         setShowBigInput?.(false);
-        setImageOnEditedPost(null);
       },
       [
         onSend,
         editor,
         waitForAttachmentUploads,
-        imageOnEditedPost,
         editingPost,
         clearAttachments,
         clearDraft,

@@ -34,7 +34,7 @@ export function BigInput({
 }: {
   channelType: db.ChannelType;
 } & MessageInputProps) {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(editingPost?.title ?? '');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const editorRef = useRef<{
     editor: TlonEditorBridge | null;
@@ -49,10 +49,26 @@ export function BigInput({
 
   const { attachments, attachAssets } = useAttachmentContext();
   const imageAttachment = useMemo(() => {
-    return attachments.find(
-      (attachment): attachment is ImageAttachment => attachment.type === 'image'
-    );
-  }, [attachments]);
+    if (attachments.length > 0) {
+      return attachments.find(
+        (attachment): attachment is ImageAttachment =>
+          attachment.type === 'image'
+      );
+    }
+
+    if (editingPost?.image) {
+      return {
+        type: 'image',
+        file: {
+          uri: editingPost.image,
+          width: 0,
+          height: 0,
+        },
+      };
+    }
+
+    return null;
+  }, [attachments, editingPost]);
 
   return (
     <YStack height="100%" width="100%">
@@ -111,6 +127,7 @@ export function BigInput({
                 borderColor="transparent"
                 placeholder="New Title"
                 onChangeText={setTitle}
+                value={title}
               />
             </View>
           )}

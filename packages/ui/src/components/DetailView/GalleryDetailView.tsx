@@ -72,6 +72,7 @@ export default function GalleryDetailView({
       goBack={goBack}
       onPressRetry={onPressRetry}
       onPressDelete={onPressDelete}
+      channelType="gallery"
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         <View paddingHorizontal="$xl" key={post.id} alignItems="center">
