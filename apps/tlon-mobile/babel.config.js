@@ -1,7 +1,7 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
+    presets: [['babel-preset-expo', {jsxRuntime: 'automatic'}]],
     plugins: [
       // Allow sql imports so that we can bundle drizzle migrations.
       [
@@ -14,9 +14,9 @@ module.exports = function (api) {
       [
         '@tamagui/babel-plugin',
         {
-          exclude: /node_modules/,
           config: './tamagui.config.ts',
           components: ['@tloncorp/ui', 'tamagui'],
+          experimentalFlattenThemesOnNative: true,
         },
       ],
     ],
