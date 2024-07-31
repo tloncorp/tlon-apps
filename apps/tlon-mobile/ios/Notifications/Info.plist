@@ -9,7 +9,7 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).NotificationService</string>
 	</dict>
-	<key>TlonDefaultUserDefaultsSuiteName</key>
+	<key>TlonDefaultAppGroup</key>
 	<string>group.io.tlon.groups</string>
 </dict>
 </plist>
