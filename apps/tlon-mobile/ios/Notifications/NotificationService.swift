@@ -9,36 +9,31 @@ class NotificationService: UNNotificationServiceExtension {
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
 
-        if let bestAttemptContent = bestAttemptContent {
-            // Modify the notification content here...
-            bestAttemptContent.title = "\(bestAttemptContent.title) [modified]"
+        Task { [weak bestAttemptContent] in
+            let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
+            switch parsedNotification {
+            case let .notify(yarn):
+                let (mutatedContent, messageIntent) = await PushNotificationManager.buildNotificationWithIntent(
+                    yarn: yarn,
+                    content: bestAttemptContent ?? UNMutableNotificationContent()
+                )
 
-            Task { [weak bestAttemptContent] in
-                let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
-                switch parsedNotification {
-                case let .notify(yarn):
-                    let (mutatedContent, messageIntent) = await PushNotificationManager.buildNotificationWithIntent(
-                        yarn: yarn,
-                        content: bestAttemptContent ?? UNMutableNotificationContent()
-                    )
-
-                    if let messageIntent {
-                        do {
-                            let interaction = INInteraction(intent: messageIntent, response: nil)
-                            interaction.direction = .incoming
-                            try await interaction.donate()
-                        } catch {
-                            print("Error donating interaction for notification sender details: \(error)")
-                        }
+                if let messageIntent {
+                    do {
+                        let interaction = INInteraction(intent: messageIntent, response: nil)
+                        interaction.direction = .incoming
+                        try await interaction.donate()
+                    } catch {
+                        print("Error donating interaction for notification sender details: \(error)")
                     }
-
-                    contentHandler(mutatedContent)
-                    return
-
-                default:
-                    print("Not handled")
                 }
+
+                contentHandler(mutatedContent)
+                return
+
+            default:
                 contentHandler(bestAttemptContent!)
+                return
             }
         }
     }
