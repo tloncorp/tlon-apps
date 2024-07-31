@@ -53,7 +53,9 @@ class NotificationService: UNNotificationServiceExtension {
 }
 
 extension Error {
+    // This method logs to Crashlytics in the host app; Crashlytics is not set up for the
+    // notification service extension.
     func logWithDomain(_ domain: String) {
-        print("logWithDomain", domain, self)
+        print(domain, self)
     }
 }
