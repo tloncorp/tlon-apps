@@ -77,6 +77,10 @@
 		6374ACFD2C4ACD7500E637C0 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
 		6374ACFE2C4ACD7500E637C0 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
 		6374ACFF2C4ACD7500E637C0 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374ACFC2C4ACD7500E637C0 /* Login.swift */; };
+		63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
+		63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
 		700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
 		700B635D2A71DFE90017F40F /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
 		700B63602A71E0810017F40F /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
@@ -237,6 +241,7 @@
 		6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Notifications.entitlements; sourceTree = "<group>"; };
 		6374ACF82C4ACD5000E637C0 /* LoginStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStore.swift; sourceTree = "<group>"; };
 		6374ACFC2C4ACD7500E637C0 /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
+		63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alamofire+sessionWithSharedCookieStorage.swift"; sourceTree = "<group>"; };
 		6C2E3173556A471DD304B334 /* Pods-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
 		700B635A2A71DF860017F40F /* PocketUserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PocketUserAPI.swift; sourceTree = "<group>"; };
 		700B635C2A71DFE90017F40F /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
@@ -404,6 +409,7 @@
 				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
 				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
 				630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */,
+				63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -1166,6 +1172,7 @@
 				70D3865A2A609BFC00AFB46E /* PocketNotificationsAPI.swift in Sources */,
 				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
 				70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */,
+				63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
 				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
 				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
@@ -1203,6 +1210,7 @@
 				630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */,
 				630DE0CD2C51A8780053603B /* Yarn.swift in Sources */,
 				630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */,
+				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
 				630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */,
 				630DE0D12C51A8780053603B /* ContactStore.swift in Sources */,
@@ -1233,6 +1241,7 @@
 				632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */,
 				632793C22C4AE4FA00F942B1 /* Yarn.swift in Sources */,
 				632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */,
+				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
 				632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */,
 				632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */,
@@ -1261,6 +1270,7 @@
 				70DBBFEE2B7C60B50021EA96 /* PocketNotificationsAPI.swift in Sources */,
 				70DBBFEF2B7C60B50021EA96 /* PocketAPI.swift in Sources */,
 				70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */,
+				63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,

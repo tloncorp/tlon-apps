@@ -12,6 +12,7 @@ class PocketAPI {
     static let shared = PocketAPI()
 
     private let loginStore = LoginStore()
+    private let session = Session.withSharedCookieStorage()
 
     func fetchDecodable<T: Decodable>(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> T {
         guard let shipURL = try? loginStore.read()?.shipUrl else {
@@ -19,7 +20,7 @@ class PocketAPI {
         }
 
         do {
-            let dataTask = AF.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
+            let dataTask = session.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
                 .serializingDecodable(T.self, automaticallyCancelling: true)
             return try await UrbitAPI.shared.processDataTask(dataTask)
         } catch {
@@ -37,7 +38,7 @@ class PocketAPI {
         }
 
         do {
-            let dataTask = AF.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
+            let dataTask = session.request(shipURL + path + ".json") { $0.timeoutInterval = timeoutInterval }
                 .serializingData(automaticallyCancelling: true)
             return try await UrbitAPI.shared.processDataTask(dataTask)
         } catch {
