@@ -1,7 +1,7 @@
 import { makePrettyShortDate } from '@tloncorp/shared/dist';
 import * as db from '@tloncorp/shared/dist/db';
 import * as urbit from '@tloncorp/shared/dist/urbit';
-import { ImagePickerAsset } from 'expo-image-picker';
+import { getChannelType } from '@tloncorp/shared/dist/urbit';
 import { PropsWithChildren, useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,6 @@ import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput/index.native';
 
 export interface DetailViewProps {
   post: db.Post;
-  channelType?: db.ChannelType;
   children?: JSX.Element;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -96,7 +95,6 @@ const DetailViewHeaderComponentFrame = ({
 
 const DetailViewFrameComponent = ({
   post,
-  channelType,
   editingPost,
   setEditingPost,
   editPost,
@@ -126,7 +124,7 @@ const DetailViewFrameComponent = ({
   if (isEditingParent) {
     return (
       <BigInput
-        channelType={channelType ?? 'gallery'}
+        channelType={getChannelType(post.channelId)}
         channelId={post.channelId}
         editingPost={editingPost}
         setEditingPost={setEditingPost}

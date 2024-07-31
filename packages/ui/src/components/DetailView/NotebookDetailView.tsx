@@ -50,7 +50,6 @@ export default function NotebookDetailView({
       goBack={goBack}
       onPressRetry={onPressRetry}
       onPressDelete={onPressDelete}
-      channelType="notebook"
     >
       <DetailView.Header replyCount={post.replyCount ?? 0}>
         {post.image && (
