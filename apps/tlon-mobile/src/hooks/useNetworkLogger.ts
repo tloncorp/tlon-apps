@@ -1,7 +1,8 @@
 import NetInfo from '@react-native-community/netinfo';
 import { createDevLogger } from '@tloncorp/shared/dist';
-import * as logic from '@tloncorp/shared/dist/logic';
 import { useEffect, useState } from 'react';
+
+import { toNetworkTypeDisplay } from '../lib/platformHelpers';
 
 const logger = createDevLogger('network', false);
 
@@ -16,7 +17,7 @@ export function useNetworkLogger() {
       }
 
       if (state.isConnected && !previous.connected) {
-        logger.crumb(`reconnected ${logic.toNetworkTypeDisplay(state)}`);
+        logger.crumb(`reconnected ${toNetworkTypeDisplay(state)}`);
         setPrevious({ connected: true });
       }
     });
